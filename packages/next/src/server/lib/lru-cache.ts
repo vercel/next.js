@@ -49,12 +49,14 @@ export class LRUCache<T> {
   private readonly tail: SentinelNode<T>
   private totalSize: number = 0
   private readonly maxSize: number
-  private readonly calculateSize: ((value: T) => number) | undefined
+  private readonly calculateSize:
+    | ((value: T, key: string) => number)
+    | undefined
   private readonly onEvict: ((key: string, value: T) => void) | undefined
 
   constructor(
     maxSize: number,
-    calculateSize?: (value: T) => number,
+    calculateSize?: (value: T, key: string) => number,
     onEvict?: (key: string, value: T) => void
   ) {
     this.maxSize = maxSize
@@ -124,7 +126,7 @@ export class LRUCache<T> {
    * - O(k) where k is the number of items evicted (can be O(N) for variable sizes)
    */
   public set(key: string, value: T): boolean {
-    const size = this.calculateSize?.(value) ?? 1
+    const size = this.calculateSize?.(value, key) ?? 1
     if (size <= 0) {
       throw new Error(
         `LRUCache: calculateSize returned ${size}, but size must be > 0. ` +

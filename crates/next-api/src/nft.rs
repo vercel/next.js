@@ -7,10 +7,10 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TraitRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::{
-    DirectoryEntry, FileSystemPath,
+    DirectoryEntry, FileSystemEntryType, FileSystemPath,
     glob::{Glob, GlobOptions},
 };
 use turbo_tasks_hash::HashAlgorithm;
@@ -23,6 +23,7 @@ use turbopack_core::{
     module::{Module, Modules},
     module_graph::{GraphTraversalAction, ModuleGraph},
     raw_module::RawModule,
+    reference::DynamicTraceReference,
 };
 
 use crate::project::Project;
@@ -55,28 +56,34 @@ impl EndpointTraceResult {
     }
 }
 
+/// Traces the files an endpoint needs at runtime.
+///
+/// `traced_entries` are modules that have to be traced even though nothing in `entry_modules`
+/// references them, i.e. [`Project::additional_traced_modules`] - or
+/// [`Project::pages_traced_modules`] for pages endpoints, which additionally need the modules the
+/// require hook resolves at runtime.
 #[turbo_tasks::function]
 pub async fn trace_endpoint(
     project: ResolvedVc<Project>,
     page_name: Option<RcStr>,
     module_graph: ResolvedVc<ModuleGraph>,
-    entry_module: ResolvedVc<Box<dyn Module>>,
+    entry_modules: Vc<Modules>,
+    traced_entries: Vc<Modules>,
 ) -> Result<Vc<EndpointTraceResult>> {
     let span = tracing::info_span!("trace endpoint", path = debug(&page_name));
     async {
         let project_path = project.project_path().owned().await?;
         let next_config = project.next_config();
+        let hash_salt = next_config.output_hash_salt();
 
         let output_file_tracing_includes = next_config
             .output_file_tracing_includes(project_path.clone())
             .await?;
 
-        let traced_entries = project.additional_traced_modules();
-
         // Collect referenced assets and externals from module graph
         let all_modules = traced_modules_for_entries(
             *module_graph,
-            Vc::cell(vec![entry_module]),
+            entry_modules,
             traced_entries,
             tracing_exclude_glob(page_name.clone(), project_path.clone(), next_config)
                 .await?
@@ -85,7 +92,7 @@ pub async fn trace_endpoint(
         )
         .await?;
 
-        let module_data = traced_module_data_for_graph(*module_graph, traced_entries)
+        let module_data = traced_module_data_for_graph(*module_graph, traced_entries, hash_salt)
             .to_resolved()
             .await?;
         let module_paths = module_data.await?.idents;
@@ -113,7 +120,8 @@ pub async fn trace_endpoint(
                     // where
                     // node_modules/.pnpm/node_modules/@libsql/client is a symlink
                     let parent_path = referenced_chunk_path.parent();
-                    if parent_path.realpath().await? != parent_path {
+                    let resolved_parent_path = parent_path.realpath().await??;
+                    if resolved_parent_path != parent_path {
                         turbo_tasks::turbobail!(
                             "Encountered file inside of symlink in NFT list: {parent_path} is a \
                              symlink, but {referenced_chunk_path} was created inside of it"
@@ -149,7 +157,10 @@ pub async fn trace_endpoint(
                 .map(|(root, globs)| {
                     let glob = Glob::new(
                         format!("{{{}}}", globs.join(",")).into(),
-                        GlobOptions { contains: true },
+                        GlobOptions {
+                            contains: true,
+                            ..Default::default()
+                        },
                     );
                     get_glob_includes(root, glob)
                 })
@@ -182,19 +193,28 @@ async fn get_glob_includes(
     let glob_result = project_root_path.read_glob(glob).await?;
 
     // Walk the full glob_result using an explicit stack to avoid async recursion overheads.
-    // Use a BTreeSet to get determinstic order (return value of `read_glob` has random order).
-    let mut result = vec![];
+    // Deduplicate symlinks shared by many matches. The return value of `read_glob` has random
+    // order, so the result is sorted below.
+    let mut result = FxHashSet::default();
     let mut stack = VecDeque::new();
     stack.push_back(glob_result);
     while let Some(glob_result) = stack.pop_back() {
-        // Process direct results (files and directories at this level)
+        // Process direct results (files and directories at this level).
         for entry in glob_result.results.values() {
             let (DirectoryEntry::File(file_path) | DirectoryEntry::Symlink(file_path)) = entry
             else {
                 continue;
             };
 
-            result.push(file_path.clone());
+            // ReadGlobResult paths are logical by contract. Resolve each match here so the NFT
+            // includes both the physical file and every symlink needed to reach it.
+            let realpath = file_path.realpath_with_links().await?;
+            result.extend(realpath.symlinks.iter().cloned());
+            if let Ok(resolved_path) = &realpath.path_result
+                && matches!(*resolved_path.get_type().await?, FileSystemEntryType::File)
+            {
+                result.insert(resolved_path.clone());
+            }
         }
 
         for nested_result in glob_result.inner.values() {
@@ -205,8 +225,8 @@ async fn get_glob_includes(
 
     // All paths were matched from project_root_path, so they must all have the same `fs`. So it's
     // enough to sort by path.
+    let mut result: Vec<_> = result.into_iter().collect();
     result.sort_by(|a, b| a.path.cmp(&b.path));
-
     Ok(result)
 }
 
@@ -251,7 +271,10 @@ pub async fn tracing_exclude_glob(
                         .join(",")
                 )
                 .into(),
-                GlobOptions { contains: true },
+                GlobOptions {
+                    contains: true,
+                    ..Default::default()
+                },
             )
             .to_resolved()
             .await?;
@@ -273,8 +296,8 @@ pub async fn traced_modules_for_entries(
 ) -> Result<Vc<Modules>> {
     let exclude_glob_and_module_idents = if let Some(exclude_glob) = exclude_glob {
         let exclude_glob = exclude_glob.await?;
-        let data = traced_module_data_for_graph(module_graph, traced_entries).await?;
-        Some((exclude_glob, data.idents.await?))
+        let idents = traced_module_idents_for_graph(module_graph, traced_entries).await?;
+        Some((exclude_glob, idents))
     } else {
         None
     };
@@ -334,13 +357,14 @@ pub async fn traced_modules_for_entries(
     )?;
 
     for (parent, reference) in forbidden_issues {
-        ForbiddenTracedFileIssue::new(
-            parent.ident().await?.path.clone(),
-            reference.into_trait_ref().await?.source(),
-        )
-        .to_resolved()
-        .await?
-        .emit();
+        let reference = reference.into_trait_ref().await?;
+        let source = reference.source();
+        let origin_fn_name = TraitRef::try_downcast::<Box<dyn DynamicTraceReference>>(reference)
+            .map(|traced| traced.origin_fn_name());
+        ForbiddenTracedFileIssue::new(parent.ident().await?.path.clone(), source, origin_fn_name)
+            .to_resolved()
+            .await?
+            .emit();
     }
 
     Ok(Vc::cell(traced_modules.into_iter().collect()))
@@ -372,12 +396,12 @@ pub struct TracedModuleData {
     pub hashes: ResolvedVc<TracedModuleDataHashes>,
 }
 
-/// This caches the paths for all modules in the graph so that we don't have to do it once per page.
+/// This caches the paths for all modules in the graph without eagerly hashing their contents.
 #[turbo_tasks::function]
-pub async fn traced_module_data_for_graph(
+async fn traced_module_idents_for_graph(
     module_graph: Vc<ModuleGraph>,
     traced_entries: Vc<Modules>,
-) -> Result<Vc<TracedModuleData>> {
+) -> Result<Vc<TracedModuleDataIdents>> {
     // This function is very similar to traced_modules_for_entries, but doesn't apply the glob and
     // is executed only once for the whole graph.
     let module_graph = module_graph.await?;
@@ -406,30 +430,51 @@ pub async fn traced_module_data_for_graph(
         true,
     )?;
 
-    let (idents, hashes): (FxHashMap<_, _>, FxHashMap<_, _>) = traced_modules
-        .into_iter()
+    Ok(Vc::cell(
+        traced_modules
+            .into_iter()
+            .map(async |module| Ok((module, module.ident().await?)))
+            .try_join()
+            .await?
+            .into_iter()
+            .collect(),
+    ))
+}
+
+/// This caches the paths and content hashes for all modules in the graph so that we don't have to
+/// compute them once per page.
+#[turbo_tasks::function]
+pub async fn traced_module_data_for_graph(
+    module_graph: Vc<ModuleGraph>,
+    traced_entries: Vc<Modules>,
+    hash_salt: Vc<RcStr>,
+) -> Result<Vc<TracedModuleData>> {
+    let idents = traced_module_idents_for_graph(module_graph, traced_entries)
+        .to_resolved()
+        .await?;
+    let hashes = idents
+        .await?
+        .keys()
+        .copied()
         .map(async |module| {
             Ok((
-                (module, module.ident().await?),
-                (
-                    module,
-                    module
-                        .source()
-                        .await?
-                        .context("NFT module has no content")?
-                        .content()
-                        .hash(HashAlgorithm::Xxh3Hash128Hex)
-                        .await?,
-                ),
+                module,
+                module
+                    .source()
+                    .await?
+                    .context("NFT module has no content")?
+                    .content()
+                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                    .await?,
             ))
         })
         .try_join()
         .await?
         .into_iter()
-        .unzip();
+        .collect();
 
     Ok(TracedModuleData {
-        idents: ResolvedVc::cell(idents),
+        idents,
         hashes: ResolvedVc::cell(hashes),
     }
     .cell())
@@ -439,6 +484,9 @@ pub async fn traced_module_data_for_graph(
 struct ForbiddenTracedFileIssue {
     parent: FileSystemPath,
     issue_source: Option<IssueSource>,
+    /// The dynamic function whose access triggered the trace (e.g.
+    /// `fs.readFileSync`), used to name the offending call in the message.
+    origin_fn_name: Option<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -447,10 +495,12 @@ impl ForbiddenTracedFileIssue {
     pub async fn new(
         parent: FileSystemPath,
         issue_source: Option<IssueSource>,
+        origin_fn_name: Option<RcStr>,
     ) -> Result<Vc<Self>> {
         Ok(Self {
             parent,
             issue_source,
+            origin_fn_name,
         }
         .cell())
     }
@@ -499,21 +549,105 @@ impl Issue for ForbiddenTracedFileIssue {
             StyledString::Text(rcstr!("To resolve this, you can")),
             StyledString::Line(vec![
                 StyledString::Text(rcstr!(
-                    "- make sure they are statically scoped to some subfolder: "
+                    "- make sure the path is statically scoped to some subfolder, for example "
                 )),
                 StyledString::Code(rcstr!("path.join(process.cwd(), 'data', bar)")),
                 StyledString::Text(rcstr!(", or")),
             ]),
             StyledString::Text(rcstr!("- only use them in development, or")),
             StyledString::Line(vec![
-                StyledString::Text(rcstr!("- add ignore comments: ")),
-                StyledString::Code(rcstr!(
-                    "path.join(/*turbopackIgnore: true*/ process.cwd(), bar)"
+                StyledString::Text(rcstr!(
+                    "- opt out by adding an ignore comment to the highlighted call: "
                 )),
+                StyledString::Code(
+                    format!(
+                        "{fn_name}(/*turbopackIgnore: true*/ ...)",
+                        fn_name = self.origin_fn_name.as_deref().unwrap_or("someFsOperation")
+                    )
+                    .into(),
+                ),
                 StyledString::Text(rcstr!(", or")),
             ]),
             StyledString::Text(rcstr!("- remove them.")),
         ];
         Ok(Some(StyledString::Stack(stack)))
+    }
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use std::{
+        fs::{create_dir_all, write},
+        os::unix::fs::symlink,
+    };
+
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::Vc;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+    use turbo_tasks_fs::{
+        DiskFileSystem, FileSystem,
+        glob::{Glob, GlobOptions},
+    };
+
+    use crate::nft::get_glob_includes;
+
+    #[turbo_tasks::function(operation, root)]
+    async fn assert_glob_includes_operation(disk_root: RcStr) -> anyhow::Result<()> {
+        let root = DiskFileSystem::new(rcstr!("test"), Vc::cell(disk_root))
+            .root()
+            .owned()
+            .await?;
+        let includes = get_glob_includes(
+            root,
+            Glob::new(
+                rcstr!("**"),
+                GlobOptions {
+                    contains: true,
+                    ..Default::default()
+                },
+            ),
+        )
+        .await?;
+
+        assert_eq!(
+            includes
+                .iter()
+                .map(|path| path.path.as_str())
+                .collect::<Vec<_>>(),
+            [
+                "alias",
+                "alias-chain",
+                "dangling",
+                "file-link",
+                "real/file.txt",
+            ]
+        );
+        Ok(())
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn glob_includes_resolve_files_and_retain_symlinks() {
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path();
+        create_dir_all(root.join("real")).unwrap();
+        write(root.join("real/file.txt"), "content").unwrap();
+        symlink("real", root.join("alias")).unwrap();
+        symlink("alias", root.join("alias-chain")).unwrap();
+        symlink("real/file.txt", root.join("file-link")).unwrap();
+        symlink("missing", root.join("dangling")).unwrap();
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let disk_root: RcStr = root.to_str().unwrap().into();
+        tt.run_once(async move {
+            assert_glob_includes_operation(disk_root)
+                .read_strongly_consistent()
+                .await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 }

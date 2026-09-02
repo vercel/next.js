@@ -74,18 +74,19 @@ describe('app-dir - metadata-streaming', () => {
   })
 
   it('should only insert metadata once into head or body', async () => {
-    const browser = await next.browser('/slow')
+    // After hydration, React would hoist all metadata.
+    const $ = await next.render$('/slow')
 
     // each metadata should be inserted only once
 
-    expect(await browser.hasElementByCssSelector('head title')).toBe(false)
+    expect($('head title').length).toBe(0)
 
-    // only charset and viewport are rendered in head
-    expect((await browser.elementsByCss('head meta')).length).toBe(2)
-    expect((await browser.elementsByCss('body title')).length).toBe(1)
+    // only charset and viewport are hoisted into head during SSR
+    expect($('head meta').length).toBe(2)
+    expect($('body title').length).toBe(1)
 
     // all metadata should be rendered in body
-    expect((await browser.elementsByCss('body meta')).length).toBe(9)
+    expect($('body meta').length).toBe(9)
   })
 
   describe('dynamic api', () => {
@@ -96,12 +97,10 @@ describe('app-dir - metadata-streaming', () => {
     })
 
     it('should load the metadata in browser', async () => {
-      const browser = await next.browser('/dynamic-api')
-      await retry(async () => {
-        expect(
-          await browser.elementByCss('body title', { state: 'attached' }).text()
-        ).toMatch(/Dynamic api \d+/)
-      })
+      // After hydration, React would hoist all metadata.
+      const $ = await next.render$('/dynamic-api')
+
+      expect($('body title').text() as string).toMatch(/Dynamic api \d+/)
     })
   })
 

@@ -42,3 +42,20 @@ export function buildDataRoute(page: string, buildId: string) {
     namedDataRouteRegex,
   }
 }
+
+export function addLocalePrefixToDataRouteRegex(
+  dataRouteRegex: string,
+  buildId: string
+) {
+  // dataRouteRegex escapes static segments, including custom build IDs. Locate
+  // the escaped build ID so locale insertion also works for IDs such as "a.b".
+  const buildIdSegment = `/${escapeStringRegexp(buildId)}`
+  const buildIdIndex = dataRouteRegex.indexOf(buildIdSegment)
+
+  if (buildIdIndex === -1) {
+    return dataRouteRegex
+  }
+
+  const insertIndex = buildIdIndex + buildIdSegment.length
+  return `${dataRouteRegex.slice(0, insertIndex)}/(?:[^/]+?)${dataRouteRegex.slice(insertIndex)}`
+}

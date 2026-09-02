@@ -29,7 +29,7 @@ async fn turbobail_operation(value: ResolvedVc<FmtTest>) -> anyhow::Result<Vc<Rc
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_turbofmt() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let v = FmtTest {
             name: "foo".into(),
             count: 7,
@@ -47,7 +47,7 @@ async fn test_turbofmt() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_turbobail() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let v = FmtTest {
             name: "bar".into(),
             count: 3,

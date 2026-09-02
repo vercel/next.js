@@ -22,7 +22,6 @@ describe('app-root-param-getters - generateStaticParams error', () => {
       // TODO: This is not the correct error code.
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "Route /[lang]/[locale] used \`import('next/root-params').lang()\` inside \`generateStaticParams\`, but the \`lang\` parameter was not provided by a parent \`generateStaticParams\`. In \`generateStaticParams\`, root params are only available for segments nested below the segment that provides them.",
          "environmentLabel": null,
          "label": "Runtime Error",

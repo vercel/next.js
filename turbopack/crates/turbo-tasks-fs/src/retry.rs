@@ -54,5 +54,7 @@ pub fn can_retry(err: &io::Error) -> bool {
 }
 
 fn get_retry_wait_time(attempt: usize) -> Duration {
-    Duration::from_millis((attempt as u64) * 100)
+    debug_assert!(attempt >= 1);
+    // The first retry attempt (1) is instant
+    Duration::from_millis((attempt - 1) as u64 * 100)
 }

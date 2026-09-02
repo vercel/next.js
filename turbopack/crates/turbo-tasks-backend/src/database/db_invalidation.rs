@@ -1,11 +1,11 @@
 use std::{
     borrow::Cow,
-    fs::{self, File, read_dir},
-    io::{self, BufReader, BufWriter, ErrorKind, Write},
+    io::{BufReader, BufWriter, ErrorKind, Write},
     path::Path,
 };
 
 use anyhow::Context;
+use fs_err::{self as fs, File, read_dir};
 use serde::{Deserialize, Serialize};
 
 const INVALIDATION_MARKER: &str = "__turbo_tasks_invalidated_db";
@@ -156,7 +156,7 @@ pub(crate) fn cleanup_db(base_path: &Path) -> anyhow::Result<()> {
     })
 }
 
-fn cleanup_db_inner(base_path: &Path) -> io::Result<()> {
+fn cleanup_db_inner(base_path: &Path) -> anyhow::Result<()> {
     let Ok(contents) = read_dir(base_path) else {
         return Ok(());
     };
@@ -164,11 +164,12 @@ fn cleanup_db_inner(base_path: &Path) -> io::Result<()> {
     // delete everything except the invalidation marker
     for entry in contents {
         let entry = entry?;
+        let path = entry.path();
         if entry.file_name() != INVALIDATION_MARKER {
             if entry.file_type()?.is_dir() {
-                fs::remove_dir_all(entry.path())?;
+                fs::remove_dir_all(&path)?;
             } else {
-                fs::remove_file(entry.path())?;
+                fs::remove_file(&path)?;
             }
         }
     }

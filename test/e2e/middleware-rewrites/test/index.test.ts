@@ -6,6 +6,9 @@ import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
+const isTurbopackTest = Boolean(process.env.IS_TURBOPACK_TEST)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
+
 describe('Middleware Rewrite', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: {
@@ -13,6 +16,8 @@ describe('Middleware Rewrite', () => {
       'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
       'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
     },
+    // FIXME: Fails to deploy
+    skipDeployment: isAdapterTest && isTurbopackTest,
   })
 
   function tests() {

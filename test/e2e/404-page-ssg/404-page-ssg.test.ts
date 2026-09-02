@@ -55,6 +55,9 @@ describe('404 Page Support SSG', () => {
     it('should have 404 page in prerender-manifest', async () => {
       const data = await next.readJSON('.next/prerender-manifest.json')
       expect(data.routes['/404']).toEqual({
+        routeType: 'page',
+        response: 'complete',
+        compute: 'static',
         allowHeader: [
           'host',
           'x-matched-path',

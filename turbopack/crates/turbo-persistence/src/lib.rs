@@ -30,7 +30,10 @@ mod tests;
 
 pub use arc_bytes::ArcBytes;
 pub use compression::checksum_block;
-pub use db::{CommitStats, CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
+pub use db::{
+    CommitStats, CompactConfig, CurrentDbVersion, MetaFileEntryInfo, MetaFileInfo,
+    TurboPersistence, read_current_version,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FamilyKind {
@@ -72,12 +75,15 @@ impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
         }
     }
 }
+/// The largest value that [`WriteBatch::delete_value`] can delete, since the tombstone stores
+/// a copy of the value inline.
+pub use constants::MAX_INLINE_VALUE_SIZE;
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
 pub use meta_file::MetaEntryFlags;
 pub use parallel_scheduler::{ParallelScheduler, SerialScheduler};
 pub use static_sorted_file::{
-    BlockCache, BlockCacheLifecycle, BlockWeighter, SstLookupResult, StaticSortedFile,
-    StaticSortedFileMetaData,
+    BlockCache, BlockCacheLifecycle, BlockWeighter, KeyBlockLayout, SstLookupResult,
+    StaticSortedFile, StaticSortedFileMetaData,
 };
 pub use static_sorted_file_builder::{
     BLOCK_HEADER_SIZE, Entry, EntryValue, StreamingSstWriter, write_static_stored_file,

@@ -12,6 +12,7 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function voidHandler() {}
+    function noop() {}
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
         return null;
@@ -496,7 +497,6 @@
       temporaryReferences.set(reference, id);
       return reference;
     }
-    function noop() {}
     function trackUsedThenable(thenableState, thenable, index) {
       index = thenableState[index];
       void 0 === index
@@ -1012,6 +1012,8 @@
       this.writtenClientReferences = new Map();
       this.writtenServerReferences = new Map();
       this.writtenObjects = new WeakMap();
+      this.writtenImportStrings = new Map();
+      this.writtenImportStringsSize = 0;
       this.temporaryReferences = temporaryReferences;
       this.identifierPrefix = identifierPrefix || "";
       this.identifierCount = 1;
@@ -1211,8 +1213,8 @@
         }
       );
     }
-    function serializeThenable(request, task, thenable) {
-      var newTask = createTask(
+    function createThenableTask(request, task, thenable) {
+      return createTask(
         request,
         thenable,
         task.keyPath,
@@ -1224,42 +1226,35 @@
         task.debugStack,
         task.debugTask
       );
+    }
+    function serializeThenable(request, task, thenable) {
       switch (thenable.status) {
         case "fulfilled":
           return (
-            forwardDebugInfoFromThenable(
-              request,
-              newTask,
-              thenable,
-              null,
-              null
-            ),
-            (newTask.model = thenable.value),
-            pingTask(request, newTask),
-            newTask.id
+            (task = createThenableTask(request, task, thenable)),
+            forwardDebugInfoFromThenable(request, task, thenable, null, null),
+            (task.model = thenable.value),
+            pingTask(request, task),
+            task.id
           );
         case "rejected":
           return (
-            forwardDebugInfoFromThenable(
-              request,
-              newTask,
-              thenable,
-              null,
-              null
-            ),
-            erroredTask(request, newTask, thenable.reason),
-            newTask.id
+            (task = createThenableTask(request, task, thenable)),
+            forwardDebugInfoFromThenable(request, task, thenable, null, null),
+            erroredTask(request, task, thenable.reason),
+            task.id
           );
         default:
+          var _newTask2 = createThenableTask(request, task, thenable);
           if (request.status === ABORTING)
             return (
-              request.abortableTasks.delete(newTask),
+              request.abortableTasks.delete(_newTask2),
               request.type === PRERENDER
-                ? (haltTask(newTask), finishHaltedTask(newTask, request))
+                ? (haltTask(_newTask2), finishHaltedTask(_newTask2, request))
                 : ((task = request.fatalError),
-                  abortTask(newTask),
-                  finishAbortedTask(newTask, request, task)),
-              newTask.id
+                  abortTask(_newTask2),
+                  finishAbortedTask(_newTask2, request, task)),
+              _newTask2.id
             );
           "string" !== typeof thenable.status &&
             ((thenable.status = "pending"),
@@ -1274,21 +1269,21 @@
                   ((thenable.status = "rejected"), (thenable.reason = error));
               }
             ));
+          thenable.then(
+            function (value) {
+              forwardDebugInfoFromCurrentContext(request, _newTask2, thenable);
+              _newTask2.model = value;
+              pingTask(request, _newTask2);
+            },
+            function (reason) {
+              _newTask2.status === PENDING$1 &&
+                ((_newTask2.timed = !0),
+                erroredTask(request, _newTask2, reason),
+                enqueueFlush(request));
+            }
+          );
+          return _newTask2.id;
       }
-      thenable.then(
-        function (value) {
-          forwardDebugInfoFromCurrentContext(request, newTask, thenable);
-          newTask.model = value;
-          pingTask(request, newTask);
-        },
-        function (reason) {
-          newTask.status === PENDING$1 &&
-            ((newTask.timed = !0),
-            erroredTask(request, newTask, reason),
-            enqueueFlush(request));
-        }
-      );
-      return newTask.id;
     }
     function serializeReadableStream(request, task, stream) {
       function progress(entry) {
@@ -1422,7 +1417,7 @@
           erroredTask(request, streamTask, reason),
           enqueueFlush(request),
           "function" === typeof iterator.throw &&
-            iterator.throw(reason).then(error, error));
+            iterator.throw(reason).then(noop, noop));
       }
       function abortIterable() {
         if (streamTask.status === PENDING$1) {
@@ -1436,7 +1431,7 @@
             : (erroredTask(request, streamTask, signal.reason),
               enqueueFlush(request));
           "function" === typeof iterator.throw &&
-            iterator.throw(reason).then(error, error);
+            iterator.throw(reason).then(noop, noop);
         }
       }
       var isIterator = iterable === iterator,
@@ -2012,8 +2007,34 @@
       debugStack,
       debugTask
     ) {
+      return createTaskWithID(
+        request,
+        request.nextChunkId++,
+        model,
+        keyPath,
+        implicitSlot,
+        formatContext,
+        abortSet,
+        lastTimestamp,
+        debugOwner,
+        debugStack,
+        debugTask
+      );
+    }
+    function createTaskWithID(
+      request,
+      id,
+      model,
+      keyPath,
+      implicitSlot,
+      formatContext,
+      abortSet,
+      lastTimestamp,
+      debugOwner,
+      debugStack,
+      debugTask
+    ) {
       request.pendingChunks++;
-      var id = request.nextChunkId++;
       "object" !== typeof model ||
         null === model ||
         null !== keyPath ||
@@ -2157,12 +2178,13 @@
           : serializeByValueID(existingId);
       try {
         var clientReferenceMetadata = resolveClientReferenceMetadata(
-          request.bundlerConfig,
-          clientReference
-        );
+            request.bundlerConfig,
+            clientReference
+          ),
+          json = stringifyImportMetadata(request, clientReferenceMetadata, !1);
         request.pendingChunks++;
         var importId = request.nextChunkId++;
-        emitImportChunk(request, importId, clientReferenceMetadata, !1);
+        emitImportChunk(request, importId, json, !1);
         writtenClientReferences.set(clientReferenceKey, importId);
         return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
           ? serializeLazyID(importId)
@@ -2194,12 +2216,13 @@
           : serializeByValueID(existingId);
       try {
         var clientReferenceMetadata = resolveClientReferenceMetadata(
-          request.bundlerConfig,
-          clientReference
-        );
+            request.bundlerConfig,
+            clientReference
+          ),
+          json = stringifyImportMetadata(request, clientReferenceMetadata, !0);
         request.pendingDebugChunks++;
         var importId = request.nextChunkId++;
-        emitImportChunk(request, importId, clientReferenceMetadata, !0);
+        emitImportChunk(request, importId, json, !0);
         return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
           ? serializeLazyID(importId)
           : serializeByValueID(importId);
@@ -2376,6 +2399,29 @@
       request.cacheController.signal.addEventListener("abort", abortBlob);
       reader.read().then(progress).catch(error);
       return "$B" + newTask.id.toString(16);
+    }
+    function escapeStringValue(value) {
+      return "$" === value[0] ? "$" + value : value;
+    }
+    function serializeImportString(request, value) {
+      if (value.length < MIN_DEDUPLICATED_IMPORT_STRING_LENGTH)
+        return escapeStringValue(value);
+      var writtenStrings = request.writtenImportStrings,
+        existing = writtenStrings.get(value);
+      if (void 0 !== existing) return existing;
+      existing = request.writtenImportStringsSize + value.length;
+      if (existing > MAX_DEDUPLICATED_IMPORT_STRINGS_SIZE)
+        return escapeStringValue(value);
+      request.writtenImportStringsSize = existing;
+      request.pendingChunks++;
+      existing = request.nextChunkId++;
+      var json = stringify(escapeStringValue(value));
+      request.completedImportChunks.push(
+        stringToChunk(existing.toString(16) + ":" + json + "\n")
+      );
+      request = serializeByValueID(existing);
+      writtenStrings.set(value, request);
+      return request;
     }
     function renderModel(request, task, parent, key, value) {
       serializedSize += key.length;
@@ -2706,9 +2752,7 @@
             ? "$D" + value
             : 1024 <= value.length && null !== byteLengthOfChunk
               ? serializeLargeTextString(request, value)
-              : "$" === value[0]
-                ? "$" + value
-                : value
+              : escapeStringValue(value)
         );
       if ("boolean" === typeof value) return value;
       if ("number" === typeof value) return serializeNumber(value);
@@ -2908,9 +2952,93 @@
         ? request.completedDebugChunks.push(id)
         : request.completedErrorChunks.push(id);
     }
-    function emitImportChunk(request, id, clientReferenceMetadata, debug) {
-      clientReferenceMetadata = stringify(clientReferenceMetadata);
-      id = id.toString(16) + ":I" + clientReferenceMetadata + "\n";
+    function importMetadataReplacer(key, value) {
+      return "string" === typeof value
+        ? ((key = importStringRequest),
+          null === key
+            ? escapeStringValue(value)
+            : serializeImportString(key, value))
+        : value;
+    }
+    function transformImportMetadata(request, value, depth) {
+      switch (typeof value) {
+        case "string":
+          return serializeImportString(request, value);
+        case "number":
+        case "boolean":
+        case "undefined":
+          return value;
+        case "object":
+          if (null === value) return null;
+          if (
+            depth > MAX_IMPORT_METADATA_DEPTH ||
+            "function" === typeof value.toJSON
+          )
+            return NOT_PLAIN_IMPORT_METADATA;
+          if (isArrayImpl(value)) {
+            for (
+              var length = value.length, _copy = Array(length), i = 0;
+              i < length;
+              i++
+            ) {
+              var element = value[i];
+              if ("string" === typeof element)
+                _copy[i] = serializeImportString(request, element);
+              else {
+                element = transformImportMetadata(request, element, depth + 1);
+                if (element === NOT_PLAIN_IMPORT_METADATA)
+                  return NOT_PLAIN_IMPORT_METADATA;
+                _copy[i] = element;
+              }
+            }
+            return _copy;
+          }
+          length = getPrototypeOf(value);
+          if (length !== ObjectPrototype$1 && null !== length)
+            return NOT_PLAIN_IMPORT_METADATA;
+          length = Object.keys(value);
+          _copy = {};
+          for (i = 0; i < length.length; i++) {
+            element = length[i];
+            if (element in ObjectPrototype$1) return NOT_PLAIN_IMPORT_METADATA;
+            var _element = value[element];
+            if ("string" === typeof _element)
+              _copy[element] = serializeImportString(request, _element);
+            else {
+              _element = transformImportMetadata(request, _element, depth + 1);
+              if (_element === NOT_PLAIN_IMPORT_METADATA)
+                return NOT_PLAIN_IMPORT_METADATA;
+              _copy[element] = _element;
+            }
+          }
+          return _copy;
+        default:
+          return NOT_PLAIN_IMPORT_METADATA;
+      }
+    }
+    function stringifyImportMetadata(request, clientReferenceMetadata, debug) {
+      if (!debug) {
+        var copy = transformImportMetadata(request, clientReferenceMetadata, 0);
+        if (copy !== NOT_PLAIN_IMPORT_METADATA) return stringify(copy);
+      }
+      a: {
+        copy = importStringRequest;
+        importStringRequest = debug ? null : request;
+        try {
+          var JSCompiler_inline_result = stringify(
+            clientReferenceMetadata,
+            importMetadataReplacer
+          );
+          break a;
+        } finally {
+          importStringRequest = copy;
+        }
+        JSCompiler_inline_result = void 0;
+      }
+      return JSCompiler_inline_result;
+    }
+    function emitImportChunk(request, id, json, debug) {
+      id = id.toString(16) + ":I" + json + "\n";
       id = stringToChunk(id);
       debug
         ? request.completedDebugChunks.push(id)
@@ -3328,7 +3456,7 @@
           emitTextChunk(request, counter, value, !0);
           return serializeByValueID(counter);
         }
-        return "$" === value[0] ? "$" + value : value;
+        return escapeStringValue(value);
       }
       if ("boolean" === typeof value) return value;
       if ("number" === typeof value) return serializeNumber(value);
@@ -3900,16 +4028,16 @@
         }
       }
       0 === request.pendingChunks &&
-        ((regularChunks = request.debugDestination),
+        (request.status < ABORTING &&
+          request.cacheController.abort(
+            Error(
+              "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
+            )
+          ),
+        (regularChunks = request.debugDestination),
         0 === request.pendingDebugChunks
           ? (null !== regularChunks &&
               (regularChunks.close(), (request.debugDestination = null)),
-            request.status < ABORTING &&
-              request.cacheController.abort(
-                Error(
-                  "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
-                )
-              ),
             null !== request.destination &&
               ((request.status = CLOSED),
               request.destination.close(),
@@ -3986,6 +4114,17 @@
       } catch (error) {
         logRecoverableError(request, error, null), fatalError(request, error);
       }
+    }
+    function attachAbortSignal(request, signal) {
+      signal.aborted
+        ? abort(request, signal.reason)
+        : signal.addEventListener(
+            "abort",
+            function () {
+              abort(request, signal.reason);
+            },
+            { signal: request.cacheController.signal }
+          );
     }
     function abort(request, reason) {
       if (!(11 < request.status))
@@ -5803,7 +5942,12 @@
       canEmitDebugInfo = !1,
       serializedSize = 0,
       MAX_ROW_SIZE = 3200,
+      MIN_DEDUPLICATED_IMPORT_STRING_LENGTH = 16,
+      MAX_DEDUPLICATED_IMPORT_STRINGS_SIZE = 32768,
       modelRoot = !1,
+      importStringRequest = null,
+      MAX_IMPORT_METADATA_DEPTH = 16,
+      NOT_PLAIN_IMPORT_METADATA = {},
       CONSTRUCTOR_MARKER = Symbol(),
       debugModelRoot = null,
       debugNoOutline = null,
@@ -5812,52 +5956,57 @@
       chunkCache = new Map(),
       RESPONSE_SYMBOL = Symbol();
     ReactPromise.prototype = Object.create(Promise.prototype);
-    ReactPromise.prototype.then = function (resolve, reject) {
-      switch (this.status) {
-        case "resolved_model":
-          initializeModelChunk(this);
-      }
-      switch (this.status) {
-        case "fulfilled":
-          if ("function" === typeof resolve) {
-            for (
-              var inspectedValue = this.value,
-                cycleProtection = 0,
-                visited = new Set();
-              inspectedValue instanceof ReactPromise;
+    Object.defineProperty(ReactPromise.prototype, "then", {
+      writable: !0,
+      enumerable: !0,
+      configurable: !0,
+      value: function (resolve, reject) {
+        switch (this.status) {
+          case "resolved_model":
+            initializeModelChunk(this);
+        }
+        switch (this.status) {
+          case "fulfilled":
+            if ("function" === typeof resolve) {
+              for (
+                var inspectedValue = this.value,
+                  cycleProtection = 0,
+                  visited = new Set();
+                inspectedValue instanceof ReactPromise;
 
-            ) {
-              cycleProtection++;
-              if (
-                inspectedValue === this ||
-                visited.has(inspectedValue) ||
-                1e3 < cycleProtection
               ) {
-                "function" === typeof reject &&
-                  reject(Error("Cannot have cyclic thenables."));
-                return;
+                cycleProtection++;
+                if (
+                  inspectedValue === this ||
+                  visited.has(inspectedValue) ||
+                  1e3 < cycleProtection
+                ) {
+                  "function" === typeof reject &&
+                    reject(Error("Cannot have cyclic thenables."));
+                  return;
+                }
+                visited.add(inspectedValue);
+                if ("fulfilled" === inspectedValue.status)
+                  inspectedValue = inspectedValue.value;
+                else break;
               }
-              visited.add(inspectedValue);
-              if ("fulfilled" === inspectedValue.status)
-                inspectedValue = inspectedValue.value;
-              else break;
+              resolve(this.value);
             }
-            resolve(this.value);
-          }
-          break;
-        case "pending":
-        case "blocked":
-          "function" === typeof resolve &&
-            (null === this.value && (this.value = []),
-            this.value.push(resolve));
-          "function" === typeof reject &&
-            (null === this.reason && (this.reason = []),
-            this.reason.push(reject));
-          break;
-        default:
-          "function" === typeof reject && reject(this.reason);
+            break;
+          case "pending":
+          case "blocked":
+            "function" === typeof resolve &&
+              (null === this.value && (this.value = []),
+              this.value.push(resolve));
+            "function" === typeof reject &&
+              (null === this.reason && (this.reason = []),
+              this.reason.push(reject));
+            break;
+          default:
+            "function" === typeof reject && reject(this.reason);
+        }
       }
-    };
+    });
     var ObjectPrototype = Object.prototype,
       ArrayPrototype = Array.prototype,
       initializingHandler = null;
@@ -5876,44 +6025,44 @@
     };
     exports.decodeAction = function (body, serverManifest) {
       var formData = new FormData(),
-        action = null,
-        seenActions = new Set();
+        maybeActionKey = null;
       body.forEach(function (value, key) {
         key.startsWith("$ACTION_")
           ? key.startsWith("$ACTION_REF_")
-            ? seenActions.has(key) ||
-              (seenActions.add(key),
-              (value = "$ACTION_" + key.slice(12) + ":"),
-              (value = decodeBoundActionMetaData(body, serverManifest, value)),
-              (action = loadServerReference(serverManifest, value)))
-            : key.startsWith("$ACTION_ID_") &&
-              !seenActions.has(key) &&
-              (seenActions.add(key),
-              (value = key.slice(11)),
-              (action = loadServerReference(serverManifest, {
-                id: value,
-                bound: null
-              })))
+            ? (maybeActionKey = key)
+            : key.startsWith("$ACTION_ID_") && (maybeActionKey = key)
           : formData.append(key, value);
       });
-      return null === action
-        ? null
-        : action.then(function (fn) {
-            return fn.bind(null, formData);
-          });
+      if (null === maybeActionKey) return null;
+      var actionKey = maybeActionKey,
+        action = null;
+      if (actionKey.startsWith("$ACTION_REF_"))
+        (actionKey = "$ACTION_" + actionKey.slice(12) + ":"),
+          (body = decodeBoundActionMetaData(body, serverManifest, actionKey)),
+          (action = loadServerReference(serverManifest, body));
+      else if (actionKey.startsWith("$ACTION_ID_"))
+        (body = actionKey.slice(11)),
+          (action = loadServerReference(serverManifest, {
+            id: body,
+            bound: null
+          }));
+      else throw Error("Cannot handle action key. This is a bug in React.");
+      return action.then(function (fn) {
+        return fn.bind(null, formData);
+      });
     };
     exports.decodeFormState = function (actionResult, body, serverManifest) {
       var keyPath = body.get("$ACTION_KEY");
       if ("string" !== typeof keyPath) return Promise.resolve(null);
-      var metaData = null;
+      var actionKey = null;
       body.forEach(function (value, key) {
-        key.startsWith("$ACTION_REF_") &&
-          ((value = "$ACTION_" + key.slice(12) + ":"),
-          (metaData = decodeBoundActionMetaData(body, serverManifest, value)));
+        key.startsWith("$ACTION_REF_") && (actionKey = key);
       });
-      if (null === metaData) return Promise.resolve(null);
-      var referenceId = metaData.id;
-      return Promise.resolve(metaData.bound).then(function (bound) {
+      if (null === actionKey) return Promise.resolve(null);
+      var formFieldPrefix = "$ACTION_" + actionKey.slice(12) + ":";
+      body = decodeBoundActionMetaData(body, serverManifest, formFieldPrefix);
+      var referenceId = body.id;
+      return Promise.resolve(body.bound).then(function (bound) {
         return null === bound
           ? null
           : [actionResult, keyPath, referenceId, bound.length - 1];
@@ -5964,7 +6113,7 @@
       function error(reason) {
         reportGlobalError(response$jscomp$0, reason);
         "function" === typeof iterator.throw &&
-          iterator.throw(reason).then(error, error);
+          iterator.throw(reason).then(noop, noop);
       }
       var iterator = iterable[ASYNC_ITERATOR](),
         response$jscomp$0 = createResponse(
@@ -6007,17 +6156,7 @@
           options ? options.filterStackFrame : void 0,
           !1
         );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
+        options && options.signal && attachAbortSignal(request, options.signal);
         startWork(request);
       });
     };
@@ -6065,17 +6204,7 @@
           options ? options.filterStackFrame : void 0,
           void 0 !== debugChannelReadable
         );
-      if (options && options.signal) {
-        var signal = options.signal;
-        if (signal.aborted) abort(request, signal.reason);
-        else {
-          var listener = function () {
-            abort(request, signal.reason);
-            signal.removeEventListener("abort", listener);
-          };
-          signal.addEventListener("abort", listener);
-        }
-      }
+      options && options.signal && attachAbortSignal(request, options.signal);
       void 0 !== debugChannelWritable &&
         new ReadableStream(
           {

@@ -4,8 +4,7 @@ import { Suspense } from 'react'
 import { setTimeout } from 'timers/promises'
 
 // Note: this is intended for partialPrefetching where
-// shells can access session data, so no `export const prefetch = "allow-runtime"
-// is necessary.
+// shells can access session data.
 // If the flag is not enabled globally, opt the page in manually to excercise both codepaths.
 export const prefetch = process.env.__NEXT_PARTIAL_PREFETCHING
   ? 'auto'

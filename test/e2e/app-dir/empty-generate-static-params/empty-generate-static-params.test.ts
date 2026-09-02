@@ -25,7 +25,6 @@ describe('empty-generate-static-params', () => {
       const browser = await next.browser('/foo')
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "When using Cache Components, all \`generateStaticParams\` functions must return at least one result. This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.
 
        Learn more: https://nextjs.org/docs/messages/empty-generate-static-params",
@@ -45,7 +44,6 @@ describe('empty-generate-static-params', () => {
       const browser = await next.browser('/computed/foo')
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "When using Cache Components, all \`generateStaticParams\` functions must return at least one result. This is to ensure that we can perform build-time validation that there is no other dynamic accesses that would cause a runtime error.
 
        Learn more: https://nextjs.org/docs/messages/empty-generate-static-params",

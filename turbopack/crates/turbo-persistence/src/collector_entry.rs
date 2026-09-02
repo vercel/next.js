@@ -32,23 +32,46 @@ pub enum CollectorEntryValue {
     Large {
         blob: u32,
     },
-    Deleted,
+    KeyDeleted,
+    /// Key-value tombstone: deletes only this one value from the key's group. MultiValue only.
+    /// The deleted value is stored inline, so it is capped at [`MAX_INLINE_VALUE_SIZE`].
+    KeyValueDeleted {
+        value: [u8; MAX_INLINE_VALUE_SIZE],
+        len: u8,
+    },
 }
 
 impl CollectorEntryValue {
     pub fn len(&self) -> usize {
         match self {
-            CollectorEntryValue::Tiny { len, .. } => *len as usize,
+            CollectorEntryValue::KeyValueDeleted { len, .. }
+            | CollectorEntryValue::Tiny { len, .. } => *len as usize,
             CollectorEntryValue::Small { value } => value.len(),
             CollectorEntryValue::Medium { value } => value.len(),
             CollectorEntryValue::Large { blob: _ } => 0,
-            CollectorEntryValue::Deleted => 0,
+            CollectorEntryValue::KeyDeleted => 0,
         }
     }
 
     /// Returns true if this value gets its own dedicated value block.
     pub fn is_medium_value(&self) -> bool {
         matches!(self, CollectorEntryValue::Medium { .. })
+    }
+
+    /// The value bytes, or `None` for variants that carry no value data of their own (blob
+    /// references and key tombstones).
+    #[cfg(feature = "verify_sst_content")]
+    pub fn as_bytes(&self) -> Option<&[u8]> {
+        match self {
+            // Separate arms: the inline buffers have different sizes, so they cannot be bound by
+            // a single or-pattern.
+            CollectorEntryValue::Tiny { value, len } => Some(&value[..*len as usize]),
+            CollectorEntryValue::KeyValueDeleted { value, len } => Some(&value[..*len as usize]),
+            CollectorEntryValue::Small { value } | CollectorEntryValue::Medium { value } => {
+                Some(value)
+            }
+            CollectorEntryValue::Large { .. } | CollectorEntryValue::KeyDeleted => None,
+        }
     }
 
     /// Returns the value size if it will be packed into a small value block, or 0 otherwise.
@@ -62,9 +85,21 @@ impl CollectorEntryValue {
         }
     }
 
-    /// Returns true if this value is a deletion tombstone.
-    pub fn is_deleted(&self) -> bool {
-        matches!(self, CollectorEntryValue::Deleted)
+    /// Sort rank within a key group. The two tombstone kinds sit at opposite ends:
+    ///
+    /// - Key-value tombstones (rank 0) go **first**, so a reader collects them before the values
+    ///   they filter and can apply them in one forward pass.
+    /// - Values (rank 1) go in the middle.
+    /// - Key tombstones (rank 2) go **last**, because they shadow only entries older than
+    ///   themselves — including entries in this same SST. A batch doing `put(A); delete; put(B)`
+    ///   must keep A and B, so a reader that stops at the first key tombstone it sees still returns
+    ///   the same-batch values it already collected.
+    pub fn sort_rank(&self) -> u8 {
+        match self {
+            CollectorEntryValue::KeyValueDeleted { .. } => 0,
+            CollectorEntryValue::KeyDeleted => 2,
+            _ => 1,
+        }
     }
 }
 
@@ -110,8 +145,8 @@ impl<K: StoreKey> Entry for CollectorEntry<K> {
         self.key.data.len()
     }
 
-    fn write_key_to(&self, buf: &mut Vec<u8>) {
-        self.key.data.write_to(buf);
+    fn key_bytes(&self) -> &[u8] {
+        self.key.data.as_slice()
     }
 
     fn value(&self) -> EntryValue<'_> {
@@ -133,7 +168,10 @@ impl<K: StoreKey> Entry for CollectorEntry<K> {
             }
             CollectorEntryValue::Medium { value } => EntryValue::Medium { value },
             CollectorEntryValue::Large { blob } => EntryValue::Large { blob: *blob },
-            CollectorEntryValue::Deleted => EntryValue::Deleted,
+            CollectorEntryValue::KeyDeleted => EntryValue::KeyDeleted,
+            CollectorEntryValue::KeyValueDeleted { value, len } => EntryValue::KeyValueDeleted {
+                value: &value[..*len as usize],
+            },
         }
     }
 }

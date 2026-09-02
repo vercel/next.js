@@ -602,10 +602,7 @@ impl ShrinkToFit for RcStr {
     fn shrink_to_fit(&mut self) {}
 }
 
-#[cfg(all(feature = "napi", target_family = "wasm"))]
-compile_error!("The napi feature cannot be enabled for wasm targets");
-
-#[cfg(all(feature = "napi", not(target_family = "wasm")))]
+#[cfg(feature = "napi")]
 mod napi_impl {
     use napi::{
         bindgen_prelude::{FromNapiValue, ToNapiValue, TypeName, ValidateNapiValue},
@@ -781,6 +778,65 @@ mod tests {
             }
         };
         assert_eq!(STR, RcStr::from("hello"));
+
+        // A literal one byte past the capacity must not inline, on either width.
+        let too_long = "x".repeat(MAX_INLINE_LEN + 1);
+        assert!(inline_atom(&too_long).is_none());
+    }
+
+    /// The inline capacity must be the same on every target. `turbo-rcstr-macros` runs on the
+    /// *host*, so it decides inline-vs-static using a host-side constant; if the target disagreed,
+    /// the macro would emit `inline_atom(..).unwrap()` for a literal that does not fit and panic at
+    /// runtime. This is the regression guard for that.
+    #[test]
+    #[cfg(not(feature = "atom_size_128"))]
+    fn max_inline_len_is_uniform_across_targets() {
+        assert_eq!(
+            MAX_INLINE_LEN, 7,
+            "MAX_INLINE_LEN must be 7 on every target, including 32-bit/wasm"
+        );
+        assert_eq!(size_of::<crate::tagged_value::TaggedValue>(), 8);
+        // The non-zero niche must survive, or `Option<RcStr>` silently doubles in size.
+        assert_eq!(size_of::<Option<RcStr>>(), size_of::<RcStr>());
+    }
+
+    /// `rcstr!` expands to a `const`, so it must stay const-evaluable on every target. On 32-bit
+    /// this only works because `TaggedValue` holds the address in a real pointer field: a bare
+    /// integer representation would need a pointer→integer cast, which const evaluation forbids,
+    /// and every literal taking the static path would fail with `E0080`.
+    #[test]
+    fn rcstr_macro_is_const_on_every_target() {
+        // Short enough to be stored inline.
+        const SHORT: RcStr = rcstr!("abc");
+        // Longer than the inline capacity, so this takes the static path — the one that needs the
+        // pointer to survive const evaluation.
+        const LONG: RcStr = rcstr!("a string that is definitely not inline");
+
+        assert_eq!(SHORT, RcStr::from("abc"));
+        assert_eq!(LONG, RcStr::from("a string that is definitely not inline"));
+        assert_eq!(SHORT.tag(), INLINE_TAG);
+        assert_eq!(LONG.tag(), STATIC_TAG);
+    }
+
+    /// Round-trips across the inline/static boundary. Lengths 4..=7 are the interesting band: they
+    /// are inline at capacity 7 but would spill to the static path at capacity 3, so this fails if
+    /// the representation ever diverges by target again.
+    #[test]
+    fn round_trip_across_the_inline_boundary() {
+        for len in 0..=9usize {
+            let s = "abcdefghi"[..len].to_string();
+            let r = RcStr::from(s.as_str());
+            assert_eq!(r.as_str(), s, "round trip failed at len {len}");
+            assert_eq!(r.len(), len);
+
+            let expected_inline = len <= MAX_INLINE_LEN;
+            assert_eq!(
+                r.tag() == INLINE_TAG,
+                expected_inline,
+                "len {len} should {} be inline (MAX_INLINE_LEN = {MAX_INLINE_LEN})",
+                if expected_inline { "" } else { "not" }
+            );
+        }
     }
 
     #[test]
@@ -836,6 +892,9 @@ mod tests {
     }
 
     #[test]
+    // `STATIC_RCSTRS` is an empty array on wasm (see its definition above), so there is no static
+    // registry for the decoder to resolve against and the value comes back as `DYNAMIC_TAG`.
+    #[cfg_attr(target_family = "wasm", ignore = "no static RcStr registry on wasm")]
     fn test_bincode_roundtrip() {
         use turbo_bincode::{turbo_bincode_decode, turbo_bincode_encode};
 

@@ -7,7 +7,17 @@
 set -xeuo pipefail
 
 SCRIPT_DIR=$(dirname "${BASH_SOURCE[0]-$0}")
-TESTS=("$SCRIPT_DIR/cache-components-errors.test.ts")
+# One entry per section group. The `.partial-prefetching.` variants are
+# intentionally omitted: they execute the same inline-snapshot call sites in
+# the shared `*.util.ts` files, so updating the default entries covers both.
+TESTS=(
+  "$SCRIPT_DIR/metadata-and-viewport.test.ts"
+  "$SCRIPT_DIR/sync-dynamic.test.ts"
+  "$SCRIPT_DIR/error-attribution.test.ts"
+  "$SCRIPT_DIR/use-cache.test.ts"
+  "$SCRIPT_DIR/sync-io-time-and-random.test.ts"
+  "$SCRIPT_DIR/sync-io-node-crypto.test.ts"
+)
 DEV=false
 START=false
 

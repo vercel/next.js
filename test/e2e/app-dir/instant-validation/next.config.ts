@@ -3,6 +3,7 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   cacheComponents: true,
   experimental: {
+    reactBrowserBailout: true,
     instantInsights: {
       validationLevel: 'manual-warning',
     },

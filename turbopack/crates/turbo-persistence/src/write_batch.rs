@@ -1,25 +1,25 @@
 use std::{
     cell::SyncUnsafeCell,
-    fs::File,
     io::Write,
     mem::{replace, take},
     path::PathBuf,
     sync::atomic::{AtomicU32, AtomicU64, Ordering},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use byteorder::{BE, WriteBytesExt};
 use either::Either;
+use fs_err::File;
 use parking_lot::Mutex;
 use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 
 use crate::{
-    FamilyConfig, ValueBuffer,
+    FamilyConfig, FamilyKind, ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
     compression::{checksum_block, compress_into_buffer},
-    constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     db::WriteOperationGuard,
     key::StoreKey,
     meta_file::MetaEntryFlags,
@@ -245,11 +245,48 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         Ok(())
     }
 
-    /// Puts a delete operation into the write batch.
+    /// Puts a delete operation into the write batch. This deletes *all* values for `key`.
+    ///
+    /// Combining this with a [`WriteBatch::put`] of the same key in the same batch is **not
+    /// supported**: which one wins is undefined, and callers are expected to resolve the intent
+    /// themselves before writing.
     pub fn delete(&self, family: u32, key: K) -> Result<()> {
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;
         collector.delete(key);
+        Ok(())
+    }
+
+    /// Deletes a single key-value pair, leaving any other values for `key` intact.
+    ///
+    /// Only valid for [`FamilyKind::MultiValue`] families: in a `SingleValue` family a key has one
+    /// value and [`WriteBatch::delete`] already removes it exactly.
+    ///
+    /// Deleting a pair that is written in the same batch — by this or any other operation on the
+    /// key — is **not supported**, for the reason given on [`WriteBatch::delete`]: which one wins
+    /// is undefined, and it is the caller's job to resolve that before writing.
+    ///
+    /// Only values of at most [`MAX_INLINE_VALUE_SIZE`] bytes can be deleted this way.  This is a
+    /// simplifying limitation that could be relaxed if needed. Of course in general the storage
+    /// overhead of deleting large values by value makes it apriori inefficient.
+    pub fn delete_value(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
+        let family_config = &self.family_configs[usize_from_u32(family)];
+        if family_config.kind != FamilyKind::MultiValue {
+            bail!(
+                "delete_value is only valid for MultiValue families, but family {} is SingleValue",
+                family_config.name
+            );
+        }
+        if value.len() > MAX_INLINE_VALUE_SIZE {
+            bail!(
+                "delete_value only supports values of at most {MAX_INLINE_VALUE_SIZE} bytes, got \
+                 {} bytes",
+                value.len()
+            );
+        }
+        let state = self.thread_local_state();
+        let collector = self.thread_local_collector_mut(state, family)?;
+        collector.delete_value(key, &value);
         Ok(())
     }
 
@@ -460,10 +497,9 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
 
         let size = buffer.len() as u64;
         let file = self.db_path.join(format!("{seq:08}.blob"));
-        let mut file = File::create(&file).context("Unable to create blob file")?;
-        file.write_all(&buffer)
-            .context("Unable to write blob file")?;
-        file.flush().context("Unable to flush blob file")?;
+        let mut file = File::create(&file)?;
+        file.write_all(&buffer)?;
+        file.flush()?;
         Ok(NewFile { seq, file, size })
     }
 
@@ -548,10 +584,22 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                                     "we wrote a blob but did not read it"
                                 );
                             }
-                            CollectorEntryValue::Deleted => assert!(
-                                values.first() == Some(&LookupValue::Deleted),
-                                "we wrote a deleted tombstone but it was not first in results"
+                            // Key tombstones sort last within a key group, so a same-batch
+                            // `put(K, v); delete(K)` reads back as [v, KeyDeleted].
+                            CollectorEntryValue::KeyDeleted => assert!(
+                                values.last() == Some(&LookupValue::KeyDeleted),
+                                "we wrote a key tombstone but it was not last in results"
                             ),
+                            CollectorEntryValue::KeyValueDeleted { value, len } => {
+                                let expected = &value[..*len as usize];
+                                assert!(
+                                    values.iter().any(|lv| matches!(
+                                        lv,
+                                        LookupValue::KeyValueDeleted { value } if &**value == expected
+                                    )),
+                                    "we wrote a key-value tombstone but did not read it back"
+                                )
+                            }
                             v => {
                                 assert!(
                                     values.into_iter().any(|lv| {
@@ -585,7 +633,7 @@ const fn usize_from_u32(value: u32) -> usize {
     // This should always be true, as we assume at least a 32-bit width architecture for Turbopack.
     // Since this is a const expression, we expect it to be compiled away.
     const {
-        assert!(u32::BITS < usize::BITS);
+        assert!(u32::BITS <= usize::BITS);
     };
     value as usize
 }

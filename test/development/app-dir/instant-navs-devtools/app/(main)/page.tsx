@@ -1,11 +1,9 @@
 import Link from 'next/link'
-import { HydrationMarker } from './hydration-marker'
 import { ErrorTrigger } from './error-trigger'
 
 export default function Page() {
   return (
     <div>
-      <HydrationMarker />
       <h1 data-testid="home-title">Instant Navigation Mode Demo</h1>
       <ErrorTrigger />
       <p>

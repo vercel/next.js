@@ -1,9 +1,10 @@
 use std::{fmt::Display, str::FromStr};
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{Vc, trace::TraceRawVcs};
+use turbo_tasks_fs::json::parse_json_with_source_context;
 
 use crate::next_font::local::request::{
     AdjustFontFallback, NextFontLocalDeclaration, NextFontLocalRequest,
@@ -47,6 +48,23 @@ impl NextFontLocalOptions {
     #[turbo_tasks::function]
     pub fn new(options: NextFontLocalOptions) -> Vc<NextFontLocalOptions> {
         Self::cell(options)
+    }
+
+    #[turbo_tasks::function]
+    pub fn from_query_map(query: RcStr) -> Result<Vc<NextFontLocalOptions>> {
+        let query_map = qstring::QString::from(query.as_str());
+
+        if query_map.len() != 1 {
+            bail!("next/font/local queries have exactly one entry");
+        }
+
+        let Some((json, _)) = query_map.into_iter().next() else {
+            bail!("Expected one entry");
+        };
+
+        Ok(NextFontLocalOptions::new(options_from_request(
+            &parse_json_with_source_context(&json)?,
+        )?))
     }
 }
 

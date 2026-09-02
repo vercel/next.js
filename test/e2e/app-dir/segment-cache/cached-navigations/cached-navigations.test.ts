@@ -991,10 +991,9 @@ describe('cached navigations', () => {
     })
   })
 
-  // A `prefetch` config that enables Partial Prefetching ('partial',
-  // 'unstable_eager', or 'allow-runtime') also opts the route into runtime
-  // Cached Navigations, even though this fixture does not set the global
-  // `cachedNavigations: 'allow-runtime'` flag. Contrast with
+  // A `prefetch` config that enables Partial Prefetching ('partial') also opts
+  // the route into runtime Cached Navigations, even though this fixture does
+  // not set the global `partialPrefetching` flag. Contrast with
   // `partially-static`, which has no `prefetch` config and only gets static
   // caching.
   async function expectRuntimeCachedOnSecondNavigation(route: string) {
@@ -1057,9 +1056,5 @@ describe('cached navigations', () => {
 
   it('runtime-caches a route with prefetch = "partial"', async () => {
     await expectRuntimeCachedOnSecondNavigation('/prefetch-partial')
-  })
-
-  it('runtime-caches a route with prefetch = "unstable_eager"', async () => {
-    await expectRuntimeCachedOnSecondNavigation('/prefetch-eager')
   })
 })

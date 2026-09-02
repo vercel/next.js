@@ -12,7 +12,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = ChangingInput {
             state: State::new(1),
@@ -63,7 +63,7 @@ async fn recompute() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn immutable_analysis() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = ChangingInput {
             state: State::new(1),
@@ -149,7 +149,7 @@ async fn compute2(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 /// This tests the basic dependency propagation through a simple two-task chain.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute_dependency() {
-    run(&REGISTRATION, || async {
+    run(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = *get_dependency_input().to_resolved().await?;
         // Reset state to 1 at the start of each iteration (important for multi-run tests)

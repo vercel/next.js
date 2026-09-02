@@ -27,7 +27,7 @@ import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundl
 import { deleteCache } from '../../../server/dev/require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
-import { getEntryKey, type EntryKey } from './entry-key'
+import { getEntryKey, splitEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../router/utils'
 import { existsSync } from 'fs'
@@ -171,6 +171,10 @@ class ManifestsMap<K, V> {
 
   values() {
     return this.map.values()
+  }
+
+  entries() {
+    return this.map.entries()
   }
 }
 
@@ -417,6 +421,7 @@ export class TurbopackManifestLoader {
       lowPriorityFiles,
       rootMainFiles: [],
       rootMainFilesTree: {},
+      pagesChunkGroupBootstrapParams: {},
     }
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
@@ -426,6 +431,14 @@ export class TurbopackManifestLoader {
       if (m.rootMainFilesTree) {
         Object.assign(manifest.rootMainFilesTree!, m.rootMainFilesTree)
       }
+      if (m.pagesChunkGroupBootstrapParams) {
+        Object.assign(
+          manifest.pagesChunkGroupBootstrapParams!,
+          m.pagesChunkGroupBootstrapParams
+        )
+      }
+      if (m.chunkLoadingGlobal)
+        manifest.chunkLoadingGlobal = m.chunkLoadingGlobal
     }
     manifest.pages = sortObjectByKey(manifest.pages) as BuildManifest['pages']
     return manifest
@@ -575,11 +588,39 @@ export class TurbopackManifestLoader {
       rewrites,
       sortedPageKeys
     )
-    const clientBuildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
-      clientBuildManifest,
-      null,
-      2
-    )};self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
+
+    // Expose each route's bootstrap params and the chunk-loading global to the client
+    // so `route-loader` can instantiate a navigated page's entry module. The server
+    // stores params as raw JSON per route.
+    const pageBootstrapParams: Record<string, unknown> = {}
+    let chunkLoadingGlobal: string | undefined
+    for (const [key, m] of this.buildManifests.entries()) {
+      // Only the pages-router `route-loader` reads `__TURBOPACK_PAGE_BOOTSTRAP`. App routes
+      // navigate via flight and never use it, so skip app entries to keep `_buildManifest.js`
+      // (loaded on every page) small.
+      if (splitEntryKey(key).type !== 'pages') continue
+      if (m.chunkLoadingGlobal) chunkLoadingGlobal = m.chunkLoadingGlobal
+      for (const [route, params] of Object.entries(
+        m.pagesChunkGroupBootstrapParams ?? {}
+      )) {
+        pageBootstrapParams[route] = params
+      }
+    }
+
+    // Only emit the bootstrap globals when a route actually inlined its bootstrap (shared runtime
+    // enabled).
+    const hasBootstrapParams = Object.keys(pageBootstrapParams).length > 0
+    const clientBuildManifestJs =
+      `self.__BUILD_MANIFEST = ${JSON.stringify(clientBuildManifest, null, 2)};` +
+      (hasBootstrapParams
+        ? `self.__TURBOPACK_PAGE_BOOTSTRAP = ${JSON.stringify(pageBootstrapParams)};` +
+          (chunkLoadingGlobal
+            ? `self.__TURBOPACK_CHUNK_LOADING_GLOBAL = ${JSON.stringify(
+                chunkLoadingGlobal
+              )};`
+            : '')
+        : '') +
+      `self.__BUILD_MANIFEST_CB && self.__BUILD_MANIFEST_CB()`
 
     writeFileAtomic(
       join(this.distDir, buildManifestPath),
@@ -794,7 +835,7 @@ export class TurbopackManifestLoader {
     )
 
     // Client middleware manifest This is only used in dev though, packages/next/src/build/index.ts
-    // writes the mainfest again for builds.
+    // writes the manifest again for builds.
     const matchers = middlewareManifest?.middleware['/']?.matchers || []
 
     const clientMiddlewareManifestJs = `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(

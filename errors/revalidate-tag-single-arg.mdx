@@ -36,11 +36,32 @@ export async function createPost() {
 }
 ```
 
+### Option 3: Expire immediately in Route Handlers
+
+Because `updateTag` is only available in Server Actions, you need a different approach in Route Handlers. If you need immediate expiration from a Route Handler, such as one called by a webhook or third-party service, pass `{ expire: 0 }` as the second argument:
+
+```js
+// In a Route Handler
+import { revalidateTag } from 'next/cache'
+
+export async function POST(request) {
+  // Validate the incoming request headers and other parameters
+  const tag = request.nextUrl.searchParams.get('tag')
+
+  // Immediately expire the cache; the next read is a blocking cache miss
+  revalidateTag(tag, { expire: 0 })
+
+  return Response.json({ revalidated: true })
+}
+```
+
 ## Revalidation Behavior
 
 - **`revalidateTag(tag, "max")` (recommended)**: The tag entry is marked as stale, and the next time a resource with that tag is visited, it will use stale-while-revalidate semantics. This means the stale content is served while fresh content is fetched in the background.
 
 - **`revalidateTag(tag, profile)`**: For advanced usage, you can specify any cache life profile that your application has defined in your `next.config` instead of `"max"`, allowing for custom revalidation behaviors.
+
+- **`revalidateTag(tag, { expire: 0 })`**: The tag entry is expired immediately, and the next read is a blocking revalidate/cache miss. Use this when you need immediate expiration from a Route Handler (for example, a webhook), where `updateTag` is not available.
 
 - **`updateTag(tag)`**: Only available in Server Actions. The tag entry is expired immediately, and the next request to that resource will be a blocking revalidate/cache miss. This ensures read-your-own-writes consistency.
 

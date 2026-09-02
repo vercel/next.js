@@ -96,6 +96,12 @@
             ModuleValue {
                 module: "node:module",
                 annotations: None,
+                analyze_for_constants: false,
+                reference: Some(
+                    ModuleReferenceIndex(
+                        2,
+                    ),
+                ),
             },
         ),
         prop: Constant(
@@ -304,6 +310,12 @@
             ModuleValue {
                 module: "node:module",
                 annotations: None,
+                analyze_for_constants: false,
+                reference: Some(
+                    ModuleReferenceIndex(
+                        2,
+                    ),
+                ),
             },
         ),
         prop: Constant(

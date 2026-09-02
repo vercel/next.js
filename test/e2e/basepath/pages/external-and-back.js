@@ -1,12 +1,15 @@
-const Page = ({ from }) => (
+const Page = ({ from, external }) => (
   <div>
-    <p>{from}</p>
-    <a href="https://google.com">External link</a>
+    <p id="from">{from}</p>
+    <a href={external}>External link</a>
   </div>
 )
 
-Page.getInitialProps = () => {
-  return { from: typeof window === 'undefined' ? 'server' : 'client' }
+Page.getInitialProps = ({ query }) => {
+  return {
+    from: typeof window === 'undefined' ? 'server' : 'client',
+    external: query.external || 'https://example.vercel.sh',
+  }
 }
 
 export default Page

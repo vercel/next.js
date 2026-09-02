@@ -38,6 +38,7 @@ export async function generateProjects() {
                 task: async () => {
                   await resetProject({
                     teamId: TEST_TEAM_NAME,
+                    token: TEST_TOKEN,
                     projectName: ORIGIN_PROJECT_NAME,
                     disableDeploymentProtection: true,
                   })
@@ -79,6 +80,7 @@ export async function generateProjects() {
                 task: async () => {
                   await resetProject({
                     teamId: TEST_TEAM_NAME,
+                    token: TEST_TOKEN,
                     projectName: HEAD_PROJECT_NAME,
                     disableDeploymentProtection: true,
                   })

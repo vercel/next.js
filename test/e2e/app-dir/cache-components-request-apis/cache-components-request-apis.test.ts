@@ -61,19 +61,20 @@ describe(`Request Promises`, () => {
       const expectError = createExpectError(next.cliOutput)
 
       expectError(
-        'Error: During prerendering, `params` rejects when the prerender is complete'
+        'Error: During prerendering, `searchParams` rejects when the prerender is complete'
       )
       expectError(
-        'Error: During prerendering, `searchParams` rejects when the prerender is complete'
+        'Error: During prerendering, `params` rejects when the prerender is complete'
+      )
+
+      expectError(
+        'Error: During prerendering, `connection()` rejects when the prerender is complete'
       )
       expectError(
         'Error: During prerendering, `cookies()` rejects when the prerender is complete'
       )
       expectError(
         'Error: During prerendering, `headers()` rejects when the prerender is complete'
-      )
-      expectError(
-        'Error: During prerendering, `connection()` rejects when the prerender is complete'
       )
     })
   })
@@ -100,11 +101,12 @@ describe(`Request Promises`, () => {
       const expectError = createExpectError(next.cliOutput)
 
       expectError(
-        'Error: During prerendering, `params` rejects when the prerender is complete'
-      )
-      expectError(
         'Error: During prerendering, `searchParams` rejects when the prerender is complete'
       )
+      expectError(
+        'Error: During prerendering, `params` rejects when the prerender is complete'
+      )
+
       expectError(
         'Error: During prerendering, `cookies()` rejects when the prerender is complete'
       )

@@ -1,4 +1,6 @@
+import Link from 'next/link'
 import { ReactNode } from 'react'
+import { HydrationMarker } from './hydration-marker'
 
 export default function Root({ children }: { children: ReactNode }) {
   return (
@@ -14,6 +16,18 @@ export default function Root({ children }: { children: ReactNode }) {
           color: '#111',
         }}
       >
+        <HydrationMarker />
+        <nav style={{ display: 'flex', gap: 12, marginBottom: '1rem' }}>
+          <Link href="/" id="link-to-home">
+            Home
+          </Link>
+          <Link href="/post/1" id="link-to-post-1">
+            Post 1
+          </Link>
+          <Link href="/post/2" id="link-to-post-2">
+            Post 2
+          </Link>
+        </nav>
         {children}
       </body>
     </html>

@@ -28,22 +28,22 @@ export default function SearchParamsIndexPage() {
       <h2>Target (accesses searchParams)</h2>
       <ul>
         <li>
-          <LinkAccordion href="/search-params/target-page">
+          <LinkAccordion href="/search-params/target-page" prefetch>
             Target with no search params
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/search-params/target-page?foo=1">
+          <LinkAccordion href="/search-params/target-page?foo=1" prefetch>
             Target with foo=1
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/search-params/target-page?foo=2">
+          <LinkAccordion href="/search-params/target-page?foo=2" prefetch>
             Target with foo=2
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/search-params/target-page?foo=3">
+          <LinkAccordion href="/search-params/target-page?foo=3" prefetch>
             Target with foo=3
           </LinkAccordion>
         </li>

@@ -15,6 +15,11 @@ export default function Page() {
             /layout-instant (prefetch=true, instant on layout)
           </LinkAccordion>
         </li>
+        <li>
+          <LinkAccordion href="/instant-only" prefetch={true}>
+            /instant-only (prefetch=true, instant = true, no prefetch config)
+          </LinkAccordion>
+        </li>
       </ul>
     </main>
   )

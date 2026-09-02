@@ -1,4 +1,18 @@
 [
+    DestructuredMember {
+        obj: Argument(
+            24,
+            0,
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "variable",
+                ),
+            ),
+        ),
+        span: 27..35,
+    },
     Member {
         obj: FreeVar(
             "Math",
@@ -39,10 +53,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -105,10 +119,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -187,10 +201,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -255,10 +269,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -315,10 +329,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -401,10 +415,10 @@
                         ArrowExpr(
                             Body,
                         ),
-                        BlockStmtOrExpr(
-                            BlockStmt,
+                        ArrowFunctionBody(
+                            FunctionBody,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 1,
                             ),
@@ -484,10 +498,10 @@
                         ArrowExpr(
                             Body,
                         ),
-                        BlockStmtOrExpr(
-                            BlockStmt,
+                        ArrowFunctionBody(
+                            FunctionBody,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 1,
                             ),
@@ -565,10 +579,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -702,7 +716,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ),
         ],
@@ -735,10 +749,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -787,10 +801,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -829,7 +843,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ),
         ],

@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
-describe('sync IO that blocks the root', () => {
+// TODO(lubieowoce): reenable when the cause of flakiness is found and fixed
+// (seems to have increased sharply around 2026-08-24/25)
+describe.skip('sync IO that blocks the root', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,

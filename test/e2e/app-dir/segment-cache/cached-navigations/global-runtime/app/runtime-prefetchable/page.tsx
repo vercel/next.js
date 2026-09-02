@@ -2,9 +2,9 @@ import { cookies, headers } from 'next/headers'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
-// Note: intentionally no `export const prefetch = 'allow-runtime'` and no
-// `instant` config. This route gets runtime-cached purely because of the global
-// `cachedNavigations: 'allow-runtime'` config in next.config.ts.
+// Note: intentionally no per-segment `prefetch` config and no `instant`
+// config. This route gets runtime-cached purely because of the global
+// `partialPrefetching: true` config in next.config.ts.
 
 export default async function Page({
   searchParams,

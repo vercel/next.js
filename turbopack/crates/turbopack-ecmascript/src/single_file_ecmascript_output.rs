@@ -121,7 +121,7 @@ impl GenerateSourceMap for SingleFileEcmascriptOutput {
             true,
             Default::default(),
         )?;
-        Ok(FileContent::Content(File::from(map)).cell())
+        Ok(FileContent::Content(File::from(map.to_rope())).cell())
     }
 }
 

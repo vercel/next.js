@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use either::Either;
 use itertools::Itertools;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{PrettyPrintError, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{
     FileJsonContent, FileSystemPath,
@@ -50,9 +50,9 @@ pub trait EcmascriptChunkPlaceable: ChunkableModule + Module {
         _estimated: bool,
     ) -> Vc<EcmascriptChunkItemContent>;
 
-    /// Returns the content identity for cache invalidation.
-    /// Override this for modules whose content depends on more than just the module source
-    /// (e.g., async loaders that depend on available modules).
+    /// See [`ChunkItem::content_ident`]
+    ///
+    /// [`ChunkItem::content_ident`]: turbopack_core::chunk::ChunkItem::content_ident
     #[turbo_tasks::function]
     fn chunk_item_content_ident(
         self: Vc<Self>,
@@ -124,7 +124,7 @@ async fn side_effects_from_package_json(
                         })
                     }
                 })
-                .map(|glob| async move {
+                .map(async |glob| {
                     Ok(match glob {
                         Either::Left(glob) => {
                             match glob.to_resolved().await {
@@ -228,14 +228,9 @@ pub async fn get_side_effect_free_declaration(
     path: FileSystemPath,
     side_effect_free_packages: Option<Vc<Glob>>,
 ) -> Result<Vc<SideEffectsDeclaration>> {
-    if let Some(side_effect_free_packages) = side_effect_free_packages
-        && side_effect_free_packages.await?.matches(&path.path)
-    {
-        return Ok(SideEffectsDeclaration::SideEffectFree.cell());
-    }
-
     let find_package_json = find_context_file(path.parent(), package_json(), false).await?;
-
+    // Always respect the package.json over the global side_effect_free_packages by checking it
+    // first See #96333
     if let FindContextFileResult::Found(package_json, _) = &*find_package_json {
         match *side_effects_from_package_json(package_json.clone()).await? {
             SideEffectsValue::None => {}
@@ -261,6 +256,12 @@ pub async fn get_side_effect_free_declaration(
         }
     }
 
+    if let Some(side_effect_free_packages) = side_effect_free_packages
+        && side_effect_free_packages.await?.matches(&path.path)
+    {
+        return Ok(SideEffectsDeclaration::SideEffectFree.cell());
+    }
+
     Ok(SideEffectsDeclaration::None.cell())
 }
 
@@ -271,7 +272,10 @@ pub enum EcmascriptExports {
     /// A module using `__turbopack_export_namespace__`, used by custom module types.
     DynamicNamespace,
     /// A module using CommonJS exports.
-    CommonJs,
+    ///
+    /// Carries the static export names when statically analyzable, for scope hoisting.
+    /// `None` means that the exports were not analyzable by us.
+    CommonJs(Option<CjsStaticExports>),
     /// No exports at all, and falling back to CommonJS semantics.
     EmptyCommonJs,
     /// A value that is made available as both the CommonJS `exports` and the ESM default export.
@@ -284,6 +288,38 @@ pub enum EcmascriptExports {
 
 #[turbo_tasks::value_impl]
 impl EcmascriptExports {
+    /// A view of these exports for a module that *borrows* them from another module, i.e. whose
+    /// `get_exports` hands out the exports value of some other module verbatim.
+    ///
+    /// Export mangling is decided per module: the producing side keys on the module whose code
+    /// generation emits the export object, and the consuming side on the module it imports from.
+    /// An exports value shared by two module identities would let those two sides compute
+    /// different keys for the same export, so a borrowed view is always unmangled — which both
+    /// sides agree on.
+    #[turbo_tasks::function]
+    pub async fn borrowed(self: Vc<Self>) -> Result<Vc<EcmascriptExports>> {
+        let this = self.await?;
+        Ok(match &*this {
+            EcmascriptExports::EsmExports(exports) => {
+                let exports = exports.await?;
+                if !exports.mangle_export_names {
+                    return Ok(self);
+                }
+                EcmascriptExports::EsmExports(
+                    EsmExports {
+                        exports: exports.exports.clone(),
+                        star_exports: exports.star_exports.clone(),
+                        mangle_export_names: false,
+                    }
+                    .resolved_cell(),
+                )
+                .cell()
+            }
+            // Nothing else carries a mangling decision.
+            _ => self,
+        })
+    }
+
     /// Returns whether this module should be split into separate locals and facade modules.
     ///
     /// Splitting is enabled when the module has re-exports (star exports or imported bindings),
@@ -305,4 +341,15 @@ impl EcmascriptExports {
             _ => Vc::cell(false),
         })
     }
+}
+
+/// A statically-analyzable CommonJS module's named exports, for scope hoisting.
+/// See the analyzer's `CjsExportsCollector`.
+#[derive(Clone, Debug, Hash)]
+#[turbo_tasks::value(shared)]
+pub struct CjsStaticExports {
+    /// Recognized `exports.NAME` / `module.exports.NAME` names, in source order.
+    pub export_names: Vec<RcStr>,
+    /// Whether `exports.__esModule = true` is set.
+    pub has_es_module: bool,
 }

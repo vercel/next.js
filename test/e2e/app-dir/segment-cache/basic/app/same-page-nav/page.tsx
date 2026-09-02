@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { connection } from 'next/server'
+import { RouterPushButton } from '../../components/router-buttons'
 
 export default async function SamePageNav() {
   // Treat the page as dynamic so we can detect when it's refreshed
@@ -22,6 +23,9 @@ export default async function SamePageNav() {
         </span>
       </p>
       <ul>
+        <li>
+          <RouterPushButton href="/partially-static/target-page" />
+        </li>
         <li>
           <Link href="/same-page-nav">Link to current page</Link>
         </li>

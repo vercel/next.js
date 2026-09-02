@@ -8,7 +8,7 @@ export const instant: Instant = {
   // no samples
   unstable_samples: [{}],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   // Guard behind cookies() so that the rest of this component only runs during validation

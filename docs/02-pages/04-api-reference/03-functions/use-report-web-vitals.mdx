@@ -1,6 +1,6 @@
 ---
 title: useReportWebVitals
-description: useReportWebVitals
+description: Use the Next.js `useReportWebVitals` hook to send Core Web Vitals and custom performance metrics to analytics.
 source: app/api-reference/functions/use-report-web-vitals
 ---
 

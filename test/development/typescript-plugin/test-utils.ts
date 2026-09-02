@@ -6,7 +6,35 @@ export type PluginLanguageService = ts.LanguageService & {
   getCapturedLogs: () => string
 }
 
-export function getPluginLanguageService(dir: string): PluginLanguageService {
+export type QuickInfoAtPositionArgs = [
+  fileName: string,
+  position: number,
+  maximumLength?: number,
+  verbosityLevel?: number,
+]
+
+type RuntimeQuickInfoAtPosition = (
+  ...args: QuickInfoAtPositionArgs
+) => ts.QuickInfo | undefined
+
+export type QuickInfoTestAdapter = {
+  languageService: PluginLanguageService
+  getQuickInfoAtPosition: RuntimeQuickInfoAtPosition
+  getCapturedQuickInfoArgs: () => QuickInfoAtPositionArgs | undefined
+}
+
+type QuickInfoInterceptor = {
+  capture: (args: QuickInfoAtPositionArgs) => void
+  transform: (
+    quickInfo: ts.QuickInfo | undefined,
+    args: QuickInfoAtPositionArgs
+  ) => ts.QuickInfo | undefined
+}
+
+function createPluginLanguageService(
+  dir: string,
+  quickInfoInterceptor?: QuickInfoInterceptor
+): PluginLanguageService {
   const files = ts.sys.readDirectory(dir)
 
   const compilerOptions = ts.getDefaultCompilerOptions()
@@ -40,6 +68,18 @@ export function getPluginLanguageService(dir: string): PluginLanguageService {
 
   const languageService = ts.createLanguageService(languageServiceHost)
 
+  if (quickInfoInterceptor) {
+    const getQuickInfoAtPosition = languageService.getQuickInfoAtPosition.bind(
+      languageService
+    ) as RuntimeQuickInfoAtPosition
+
+    languageService.getQuickInfoAtPosition = ((...args) => {
+      quickInfoInterceptor.capture(args)
+      const quickInfo = getQuickInfoAtPosition(...args)
+      return quickInfoInterceptor.transform(quickInfo, args)
+    }) as ts.LanguageService['getQuickInfoAtPosition']
+  }
+
   const pluginCreateInfo: ts.server.PluginCreateInfo = {
     project: {
       projectService: {
@@ -63,6 +103,33 @@ export function getPluginLanguageService(dir: string): PluginLanguageService {
   service.getCapturedLogs = () => logs
 
   return service
+}
+
+export function getPluginLanguageService(dir: string): PluginLanguageService {
+  return createPluginLanguageService(dir)
+}
+
+export function getQuickInfoTestAdapter(
+  dir: string,
+  transform: QuickInfoInterceptor['transform']
+): QuickInfoTestAdapter {
+  let capturedQuickInfoArgs: QuickInfoAtPositionArgs | undefined
+  const languageService = createPluginLanguageService(dir, {
+    capture: (args) => {
+      capturedQuickInfoArgs = [...args]
+    },
+    transform,
+  })
+
+  const getQuickInfoAtPosition = languageService.getQuickInfoAtPosition.bind(
+    languageService
+  ) as RuntimeQuickInfoAtPosition
+
+  return {
+    languageService,
+    getQuickInfoAtPosition,
+    getCapturedQuickInfoArgs: () => capturedQuickInfoArgs,
+  }
 }
 
 export function getTsFiles(dir: string): string[] {

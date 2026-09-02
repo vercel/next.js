@@ -201,6 +201,8 @@ export function createProcessTurbopackMessage(
       },
       sendMessage,
       onUpdateError: (err: unknown) => performFullReload(err, sendMessage),
+      chunkUpdateListenersGlobal:
+        process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL!,
     })
   })
 

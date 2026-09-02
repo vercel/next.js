@@ -1,5 +1,4 @@
 import { debugPrint, getFullUrl } from 'next-test-utils'
-import os from 'os'
 import {
   Permissions,
   Playwright,
@@ -13,25 +12,7 @@ if (!process.env.TEST_FILE_PATH) {
   process.env.TEST_FILE_PATH = module.parent!.filename
 }
 
-let deviceIP: string
-const isBrowserStack = !!process.env.BROWSERSTACK
 ;(global as any).browserName = process.env.BROWSER_NAME || 'chrome'
-
-if (isBrowserStack) {
-  const nets = os.networkInterfaces()
-  for (const key of Object.keys(nets)) {
-    let done = false
-
-    for (const item of nets[key]!) {
-      if (item.family === 'IPv4' && !item.internal) {
-        deviceIP = item.address
-        done = true
-        break
-      }
-    }
-    if (done) break
-  }
-}
 
 let browserTeardown: (() => Promise<void>)[] = []
 let browserQuit: (() => Promise<void>) | undefined
@@ -84,7 +65,6 @@ export interface WebdriverOptions {
    * disable javascript
    */
   disableJavaScript?: boolean
-  headless?: boolean
   /**
    * ignore https errors
    */
@@ -138,7 +118,6 @@ export default async function webdriver(
     disableJavaScript,
     permissions,
     ignoreHTTPSErrors,
-    headless,
     cpuThrottleRate,
     pushErrorAsConsoleLog,
     disableBrowserLog,
@@ -160,18 +139,12 @@ export default async function webdriver(
     locale!,
     !disableJavaScript,
     Boolean(ignoreHTTPSErrors),
-    // allow headless to be overwritten for a particular test
-    typeof headless !== 'undefined' ? headless : !!process.env.HEADLESS,
     userAgent,
     permissions
   )
   ;(global as any).browserName = browserName
 
-  const fullUrl = getFullUrl(
-    appPortOrUrl,
-    url,
-    isBrowserStack ? deviceIP : 'localhost'
-  )
+  const fullUrl = getFullUrl(appPortOrUrl, url, 'localhost')
 
   debugPrint(`Loading browser with ${fullUrl}`)
 

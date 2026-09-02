@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-binding/input/index.js"],"sourcesContent":["// `lib` is only ever read via `.used`, so `exports.unused` in lib.js should drop.\nconst lib = require('./lib.js')\n\nconsole.log(lib.used)\n"],"names":["lib","console","log","used"],"mappings":"AAAA,kFAAkF;AAClF,MAAMA;AAENC,QAAQC,GAAG,CAACF,IAAIG,IAAI"}},
+    {"offset": {"line": 9, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/require-binding/input/lib.js"],"sourcesContent":["exports.used = 'used-value'\nexports.unused = 'unused-value'\n"],"names":["exports","used"],"mappings":"AAAAA,QAAQC,IAAI,GAAG;AACE"}}]
+}

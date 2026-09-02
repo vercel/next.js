@@ -7,16 +7,28 @@
  * Keep NodeJsPartialHmrUpdate in sync with the copy in packages/next/src/build/swc/types.ts.
  */
 
+interface NodeJsEcmascriptMergedUpdate {
+  type: 'EcmascriptMergedUpdate'
+  entries?: Record<
+    string,
+    { code: string; url: string; map?: string | undefined }
+  >
+  chunks?: Record<
+    string,
+    | { type: 'added' | 'deleted'; modules?: string[] }
+    | { type: 'partial'; added?: string[]; deleted?: string[] }
+  >
+}
+
+interface NodeJsChunkListUpdate {
+  type: 'ChunkListUpdate'
+  merged?: NodeJsEcmascriptMergedUpdate[]
+  chunks?: Record<string, { type: 'added' | 'deleted' | 'total' | 'partial' }>
+}
+
 interface NodeJsPartialHmrUpdate {
   type: 'partial'
-  instruction: {
-    type: 'EcmascriptMergedUpdate'
-    entries: Record<
-      string,
-      { code: string; url: string; map?: string | undefined }
-    >
-    chunks?: Record<string, { type: 'partial' }>
-  }
+  instruction: NodeJsEcmascriptMergedUpdate | NodeJsChunkListUpdate
 }
 
 interface NodeJsRestartHmrUpdate {

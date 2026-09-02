@@ -14,8 +14,11 @@ workspace = true
 
 [dependencies]
 serde = { workspace = true }
-serde_json = { workspace = true }
 
 turbo-rcstr = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+turbo-tasks = { workspace = true }

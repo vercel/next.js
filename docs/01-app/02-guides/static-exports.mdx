@@ -232,15 +232,19 @@ export default function Page() {
 
 ### Route Handlers
 
-Route Handlers will render a static response when running `next build`. Only the `GET` HTTP verb is supported. This can be used to generate static HTML, JSON, TXT, or other files from cached or uncached data. For example:
+Route Handlers will render a static response when running `next build`. Only the `GET` HTTP verb is supported. This can be used to generate static HTML, JSON, TXT, or other files from cached or uncached data. To ensure Route Handlers are prerendered, you must explicitly mark the handler as static by adding `export const dynamic = 'force-static'` when a static export is enabled. For example:
 
 ```ts filename="app/data.json/route.ts" switcher
+export const dynamic = 'force-static'
+
 export async function GET() {
   return Response.json({ name: 'Lee' })
 }
 ```
 
 ```js filename="app/data.json/route.js" switcher
+export const dynamic = 'force-static'
+
 export async function GET() {
   return Response.json({ name: 'Lee' })
 }
@@ -357,6 +361,8 @@ server {
   }
 }
 ```
+
+To deploy to GitHub Pages, use our [template](https://github.com/nextjs/deploy-github-pages) to create a new project or as a reference for configuring an existing project.
 
 ## Version History
 

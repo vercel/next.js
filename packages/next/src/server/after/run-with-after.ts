@@ -1,4 +1,4 @@
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { CloseController } from '../web/web-on-close'
 import type { AfterContextOpts } from './after-context'
 import { AwaiterOnce } from './awaiter'
@@ -12,7 +12,7 @@ type Ctx = {
 export class AfterRunner {
   private awaiter = new AwaiterOnce()
   private closeController = new CloseController()
-  private finishedWithoutErrors = new DetachedPromise<void>()
+  private finishedWithoutErrors = createPromiseWithResolvers<void>()
 
   readonly context: Ctx = {
     waitUntil: this.awaiter.waitUntil.bind(this.awaiter),

@@ -3,7 +3,7 @@ module.exports = {
     serverActions: true,
     typedRoutes: false,
     turbopackMinify: true,
-    turbopackTreeShaking: false,
+    turbopackModuleFragments: false,
     turbopackSourceMaps: true
   },
 

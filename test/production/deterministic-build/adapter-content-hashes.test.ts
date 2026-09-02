@@ -61,6 +61,56 @@ import { FILES } from './files'
         outputs.pagesApi.forEach(validateOutput)
         outputs.appRoutes.forEach(validateOutput)
       })
+
+      it('hashes respect NEXT_HASH_SALT', async () => {
+        const {
+          outputs: outputs1,
+        }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
+          'build-complete.json'
+        )
+
+        await next.stop()
+        next.env.NEXT_HASH_SALT = 'something-else'
+        await next.build()
+
+        const {
+          outputs: outputs2,
+        }: Parameters<NextAdapter['onBuildComplete']>[0] = await next.readJSON(
+          'build-complete.json'
+        )
+
+        let functions1 = Object.fromEntries(
+          [
+            ...outputs1.pages,
+            ...outputs1.pagesApi,
+            ...outputs1.appPages,
+            ...outputs1.appRoutes,
+          ].map((output) => [output.pathname, output.assetsHashes])
+        )
+        let functions2 = Object.fromEntries(
+          [
+            ...outputs2.pages,
+            ...outputs2.pagesApi,
+            ...outputs2.appPages,
+            ...outputs2.appRoutes,
+          ].map((output) => [output.pathname, output.assetsHashes])
+        )
+
+        for (const pathname in functions1) {
+          const function1 = functions1[pathname]
+          const function2 = functions2[pathname]
+          for (const file in function1) {
+            const hash1 = function1[file]
+            const hash2 = function2[file]
+            expect(hash1).toBeString()
+            if (hash1 === hash2) {
+              throw new Error(
+                `Hash for ${pathname} file ${file} did not change with NEXT_HASH_SALT: ${hash1}`
+              )
+            }
+          }
+        }
+      })
     })
   }
 )

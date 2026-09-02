@@ -3,6 +3,7 @@
  */
 const nextConfig = {
   cacheComponents: true,
+  partialPrefetching: true,
 }
 
 module.exports = nextConfig

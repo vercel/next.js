@@ -3,7 +3,6 @@ import type { HydrationErrorState } from '../../shared/hydration-error'
 
 import { useMemo, useState } from 'react'
 import { getErrorTypeLabel, useErrorDetails } from '../container/errors'
-import { extractNextErrorCode } from '../../../lib/error-telemetry-utils'
 
 export function useActiveRuntimeError({
   runtimeErrors,
@@ -42,13 +41,11 @@ export function useActiveRuntimeError({
       setActiveIndex,
       activeError: null,
       errorDetails: null,
-      errorCode: null,
       errorType: null,
     }
   }
 
   const error = activeError.error
-  const errorCode = extractNextErrorCode(error)
   const errorType = getErrorTypeLabel(error, activeError.type, errorDetails)
 
   return {
@@ -57,7 +54,6 @@ export function useActiveRuntimeError({
     setActiveIndex,
     activeError,
     errorDetails,
-    errorCode,
     errorType,
   }
 }

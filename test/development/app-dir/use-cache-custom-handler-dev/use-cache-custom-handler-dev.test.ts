@@ -10,6 +10,24 @@ describe('use-cache-custom-handler-dev', () => {
     return
   }
 
+  // Reads the rendered cache value over HTTP instead of through the browser. A
+  // dev page reload costs seconds on a CI runner, almost all of it downloading
+  // and evaluating the dev bundle, which keeps a retried read from fitting in
+  // its budget. The value is server-rendered, so a plain request observes the
+  // same cache state for a fraction of the cost.
+  async function readCachedValue(pathname: string): Promise<string> {
+    const $ = await next.render$(pathname)
+    const value = $('#value')
+
+    // Without this the callers, which all assert that the value changed, would
+    // accept the empty string that a missing element yields.
+    if (value.length === 0) {
+      throw new Error(`Found no cached value in the HTML of ${pathname}.`)
+    }
+
+    return value.text()
+  }
+
   it('shows the Cold cache badge on a cold load but not on a warm reload through a slow custom handler', async () => {
     const browser = await next.browser('/cold-badge')
 
@@ -64,11 +82,12 @@ describe('use-cache-custom-handler-dev', () => {
       await browser.elementByCss('#value', { waitUntil: false }).text()
     ).toBe(coldValue)
 
-    // Each warm reload re-executes the cache function and writes through to the
-    // backing, so reloads converge to a fresh value.
+    // Each warm read re-executes the cache function in the background and
+    // writes through to the backing, so reads converge to a fresh value. More
+    // than one read is needed, because the regeneration that the previous one
+    // started has not been written yet.
     await retry(async () => {
-      await browser.refresh()
-      expect(await browser.elementById('value').text()).not.toBe(coldValue)
+      expect(await readCachedValue('/expire-zero')).not.toBe(coldValue)
     })
   })
 
@@ -90,12 +109,13 @@ describe('use-cache-custom-handler-dev', () => {
     await next.fetch('/purge')
 
     // The reconcile can only evict the front entry once it has observed the
-    // backing miss, which happens one read after the purge. So reloads converge
-    // on a freshly generated value instead of serving the purged front copy
-    // forever.
+    // backing miss, so the read that observes it still serves the front copy
+    // one last time. Reads converge on a freshly generated value instead of
+    // serving the purged copy forever. How many reads that takes is not fixed:
+    // the reconcile runs in the background, so a read that lands before it
+    // finishes still gets the front copy.
     await retry(async () => {
-      await browser.refresh()
-      expect(await browser.elementById('value').text()).not.toBe(coldValue)
+      expect(await readCachedValue('/purged')).not.toBe(coldValue)
     })
   })
 })

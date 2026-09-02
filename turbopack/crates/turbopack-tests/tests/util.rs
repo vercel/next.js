@@ -1,6 +1,5 @@
-use std::{path::PathBuf, sync::LazyLock};
+use std::{fs::canonicalize, path::PathBuf, sync::LazyLock};
 
-use dunce::canonicalize;
 use turbo_rcstr::RcStr;
 
 /// The turbo repo root. Should be used as the root when building with turbopack

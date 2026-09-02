@@ -90,7 +90,7 @@ describe('use-cache-segment-configs', () => {
          Ecmascript file had an error
 
 
-             at <unknown> (./app/runtime/page.tsx:1:14)
+             at ignore-listed frames
          "
         `)
       } else if (isRspack) {

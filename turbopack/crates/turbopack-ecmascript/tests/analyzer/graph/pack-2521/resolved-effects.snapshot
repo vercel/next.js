@@ -1,20 +1,20 @@
-0 -> 1 free var = FreeVar(require)
+0 -> 2 free var = FreeVar(require)
 
-0 -> 2 call = require*0*("./libvips")
+0 -> 3 call = require*0*("./libvips")
 - *0* require: The require method from CommonJS
 
-0 -> 3 call = module<./libvips, {}>["runtimePlatformArch"]()
+0 -> 4 call = module<./libvips, {}>["runtimePlatformArch"]()
 
-0 -> 5 free var = FreeVar(console)
+0 -> 6 free var = FreeVar(console)
 
-0 -> 6 member call = ???*0*["log"]("runtimePlatform:", module<./libvips, {}>["runtimePlatformArch"]())
+0 -> 7 member call = ???*0*["log"]("runtimePlatform:", module<./libvips, {}>["runtimePlatformArch"]())
 - *0* FreeVar(console)
   ⚠️  unknown global
   ⚠️  This value might have side effects
 
-0 -> 7 free var = FreeVar(require)
+0 -> 8 free var = FreeVar(require)
 
-0 -> 8 call = require*0*(
+0 -> 9 call = require*0*(
     (
       | `../src/build/Release/sharp-${???*1*}.node`
       | "../src/build/Release/sharp-wasm32.node"
@@ -31,6 +31,6 @@
 - *3* unknown mutation
   ⚠️  This value might have side effects
 
-0 -> 10 member call = []["push"](???*0*)
+0 -> 11 member call = []["push"](???*0*)
 - *0* err
   ⚠️  pattern without value

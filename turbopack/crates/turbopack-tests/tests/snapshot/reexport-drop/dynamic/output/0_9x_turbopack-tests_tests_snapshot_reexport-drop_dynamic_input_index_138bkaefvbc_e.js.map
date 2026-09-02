@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-drop/dynamic/input/index.js"],"sourcesContent":["async function load() {\n  const { used } = await import('./lib.js')\n  console.log(used)\n}\n\nload()\n"],"names":["load","used","console","log"],"mappings":"AAAA,eAAeA;IACb,MAAM,EAAEC,IAAI,EAAE,GAAG;IACjBC,QAAQC,GAAG,CAACF;AACd;AAEAD"}}]
+}

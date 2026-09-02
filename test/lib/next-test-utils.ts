@@ -39,8 +39,12 @@ import escapeRegex from 'escape-string-regexp'
 import './add-redbox-matchers'
 import { NextInstance } from 'e2e-utils'
 import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+import { RequiredServerFilesManifest } from 'next/dist/build'
 
 export { shouldUseTurbopack }
+
+// The runtime counterpart of the `// @gate` pragma. See test/lib/gate/README.md.
+export { gate } from './gate/runtime'
 
 export const nextServer = server
 export const pkg = _pkg
@@ -856,21 +860,22 @@ export async function retry<T>(
   interval: number = 500,
   description: string = fn.name
 ): Promise<T> {
-  if (duration % interval !== 0) {
-    throw new Error(
-      `invalid duration ${duration} and interval ${interval} mix, duration must be evenly divisible by interval`
-    )
+  if (duration < 0) {
+    throw new Error('Duration cannot be less than 0.')
   }
 
-  for (let i = duration; i >= 0; i -= interval) {
+  const started = performance.now()
+
+  while (true) {
     try {
       return await fn()
     } catch (err) {
-      if (i === 0) {
+      const waited = performance.now() - started
+      if (waited + interval > duration) {
         console.error(
           `Failed to retry${
             description ? ` ${description}` : ''
-          } within ${duration}ms`
+          } within ${duration}ms (waited ${Math.round(waited)}ms)`
         )
         throw err
       }
@@ -880,8 +885,6 @@ export async function retry<T>(
       await waitFor(interval)
     }
   }
-
-  throw new Error('Duration cannot be less than 0.')
 }
 
 export async function waitForRedbox(browser: Playwright) {
@@ -1229,22 +1232,6 @@ export function getRedboxDescription(
   })
 }
 
-export function getRedboxErrorCode(
-  browser: Playwright
-): Promise<string | null> {
-  return browser.eval(() => {
-    const portal = [].slice
-      .call(document.querySelectorAll('nextjs-portal'))
-      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
-    const root = portal.shadowRoot
-    return (
-      root
-        .querySelector('[data-nextjs-error-code]')
-        ?.getAttribute('data-nextjs-error-code') ?? null
-    )
-  })
-}
-
 export function getRedboxDescriptionWarning(
   browser: Playwright
 ): Promise<string | null> {
@@ -1541,13 +1528,12 @@ const nextjsClientComponentNames = [
   'HTTPAccessFallbackBoundary',
   'HTTPAccessFallbackErrorBoundary',
   'InnerLayoutRouter',
-  'InnerScrollAndFocusHandlerOld',
-  'InnerScrollHandlerNew',
+  'InnerScrollHandler',
   'RedirectBoundary',
   'RedirectErrorBoundary',
   'RenderFromTemplateContext',
   'Root',
-  'ScrollAndMaybeFocusHandler',
+  'ScrollHandler',
   'SegmentViewNode',
   'SegmentTrieNode',
   // These are added due to user actions e.g. loading.js -> LoadingBoundary
@@ -2124,7 +2110,7 @@ export const getCacheHeader = (curRes: Response) =>
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
 
 export function getDeploymentId(appDir: string, isDev: boolean) {
-  let requiredServerFiles
+  let requiredServerFiles: RequiredServerFilesManifest | undefined
   if (!isDev) {
     // File isn't written in dev, but it might still exist because it was created by a prior
     // production build.
@@ -2142,7 +2128,7 @@ export function getDeploymentId(appDir: string, isDev: boolean) {
     requiredServerFiles?.config?.deploymentId
 
   const assetToken: string | undefined = requiredServerFiles?.config
-    ?.experimental?.supportsImmutableAssets
+    ?.supportsImmutableAssets
     ? undefined
     : deploymentId
 

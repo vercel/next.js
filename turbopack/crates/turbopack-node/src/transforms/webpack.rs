@@ -622,11 +622,11 @@ impl EvaluateContext for WebpackLoaderContext {
                         .try_join();
                     let file_subscriptions = file_paths
                         .iter()
-                        .map(|p| async move { self.cwd.join(p)?.read().await })
+                        .map(async |p| self.cwd.join(p)?.read().await)
                         .try_join();
                     let directory_subscriptions = directories
                         .iter()
-                        .map(|(dir, glob)| async move {
+                        .map(async |(dir, glob)| {
                             self.cwd
                                 .join(dir)?
                                 .track_glob(Glob::new(glob.clone(), GlobOptions::default()), false)
