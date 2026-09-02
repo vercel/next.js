@@ -1,16 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// TODO: remove after deployment handling is updated
+// @force-gate !deploy
 describe('interception-middleware-rewrite', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // TODO: remove after deployment handling is updated
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should support intercepting routes with a middleware rewrite', async () => {
     const browser = await next.browser('/')

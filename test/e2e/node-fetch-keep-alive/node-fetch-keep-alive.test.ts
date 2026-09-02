@@ -1,16 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer, Server } from 'http'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+// @force-gate !deploy
 describe('node-fetch-keep-alive', () => {
   let mockServer: Server
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   beforeAll(async () => {
     mockServer = createServer((req, res) => {

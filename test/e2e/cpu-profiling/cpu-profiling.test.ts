@@ -4,7 +4,7 @@ import { join } from 'path'
 import { retry } from 'next-test-utils'
 
 describe('CPU Profiling - next start', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     startCommand: 'pnpm next start --experimental-cpu-prof',
     dependencies: {},
@@ -12,7 +12,8 @@ describe('CPU Profiling - next start', () => {
   })
 
   // CPU profiling only works with local `next start`, not dev or deploy modes
-  if (isNextDev || isNextDeploy || skipped) {
+  // Deploy mode exclusion: This suite controls a local `next start` process and inspects generated profile files.
+  if (isNextDev || isNextDeploy) {
     it('skip for development/deploy mode', () => {})
     return
   }

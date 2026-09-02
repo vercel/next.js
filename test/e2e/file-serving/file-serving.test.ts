@@ -4,17 +4,17 @@ import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Vercel's edge rejects malformed URLs (mixed-encoding traversal,
+// backslash, double-encoded, etc.) before they reach the runtime, and
+// `safeFetch` for those paths uses `localhost:0` which doesn't apply in
+// deploy mode. The traversal protection we want to test here is local to
+// Next.js's server.
+// @force-gate !deploy
 describe('file-serving', () => {
-  const { next, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    // Vercel's edge rejects malformed URLs (mixed-encoding traversal,
-    // backslash, double-encoded, etc.) before they reach the runtime, and
-    // `safeFetch` for those paths uses `localhost:0` which doesn't apply in
-    // deploy mode. The traversal protection we want to test here is local to
-    // Next.js's server.
-    skipDeployment: true,
   })
-  if (skipped) return
 
   // Helper to detect malformed URLs that can't be parsed by the URL constructor
   const isMalformedUrl = (path) => {
