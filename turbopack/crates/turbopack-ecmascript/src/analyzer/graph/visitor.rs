@@ -1123,7 +1123,7 @@ impl<'a> Analyzer<'a, '_> {
                 arrow_expr,
                 ArrowExprField::Body,
             ));
-            self.visit_block_stmt_or_expr(body, &mut ast_path);
+            self.visit_arrow_function_body(body, &mut ast_path);
         }
 
         {
@@ -1157,8 +1157,9 @@ impl<'a> Analyzer<'a, '_> {
             is_generator: _,
             params,
             return_type,
-            span: _,
             type_params,
+            this_param: _,
+            span: _,
             ctxt: _,
         } = function;
         for (i, param) in params.iter().enumerate() {
@@ -1180,7 +1181,7 @@ impl<'a> Analyzer<'a, '_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::Function(function, FunctionField::Body));
 
-            self.visit_opt_block_stmt(body, &mut ast_path);
+            self.visit_opt_function_body(body, &mut ast_path);
         }
 
         {
@@ -1259,27 +1260,29 @@ impl<'a> Analyzer<'a, '_> {
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: BlockStmtOrExpr::BlockStmt(_),
+                            body: ArrowFunctionBody::FunctionBody(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
                             path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
                             path.push(AstParentKind::Expr(ExprField::Arrow));
                             path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                            path.push(AstParentKind::BlockStmtOrExpr(
-                                BlockStmtOrExprField::BlockStmt,
+                            path.push(AstParentKind::ArrowFunctionBody(
+                                ArrowFunctionBodyField::FunctionBody,
                             ));
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: BlockStmtOrExpr::Expr(_),
+                            body: ArrowFunctionBody::Expr(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
                             path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
                             path.push(AstParentKind::Expr(ExprField::Arrow));
                             path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                            path.push(AstParentKind::BlockStmtOrExpr(BlockStmtOrExprField::Expr));
+                            path.push(AstParentKind::ArrowFunctionBody(
+                                ArrowFunctionBodyField::Expr,
+                            ));
                             Some(path)
                         }
                         _ => None,
@@ -1932,7 +1935,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     ast_path.with_guard(AstParentNodeRef::ArrowExpr(expr, ArrowExprField::Body));
                 expr.body.visit_with_ast_path(this, &mut ast_path);
                 // If body is a single expression treat it as a Block with an return statement
-                if let BlockStmtOrExpr::Expr(inner_expr) = &*expr.body {
+                if let ArrowFunctionBody::Expr(inner_expr) = &*expr.body {
                     let implicit_return_value = this.eval_context.eval(this.arena, inner_expr);
                     this.add_return_value(implicit_return_value);
                 }
@@ -2691,32 +2694,37 @@ impl VisitAstPath for Analyzer<'_, '_> {
         self.effects.extend(self.arena, take(&mut effects));
     }
 
+    fn visit_function_body<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast FunctionBody,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        let mut effects = take(&mut self.effects);
+        let hoisted_effects = take(&mut self.hoisted_effects);
+
+        let (_, returns_unconditionally) = self.enter_block(LexicalContext::Block, |this| {
+            n.visit_children_with_ast_path(this, ast_path);
+        });
+        // By handling this logic here instead of in enter_fn, we naturally skip it
+        // for arrow functions with single expression bodies, since they just don't hit this
+        // path.
+        if !returns_unconditionally {
+            self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
+        }
+        self.effects
+            .extend(self.arena, take(&mut self.hoisted_effects));
+        effects.extend(self.arena, take(&mut self.effects));
+        self.hoisted_effects = hoisted_effects;
+        self.effects = effects;
+    }
+
     fn visit_block_stmt<'ast: 'r, 'r>(
         &mut self,
         n: &'ast BlockStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
         match self.cur_lexical_context() {
-            LexicalContext::Function { .. } => {
-                let mut effects = take(&mut self.effects);
-                let hoisted_effects = take(&mut self.hoisted_effects);
-
-                let (_, returns_unconditionally) =
-                    self.enter_block(LexicalContext::Block, |this| {
-                        n.visit_children_with_ast_path(this, ast_path);
-                    });
-                // By handling this logic here instead of in enter_fn, we naturally skip it
-                // for arrow functions with single expression bodies, since they just don't hit this
-                // path.
-                if !returns_unconditionally {
-                    self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
-                }
-                self.effects
-                    .extend(self.arena, take(&mut self.hoisted_effects));
-                effects.extend(self.arena, take(&mut self.effects));
-                self.hoisted_effects = hoisted_effects;
-                self.effects = effects;
-            }
+            LexicalContext::Function { .. } => unreachable!("function bodies use FunctionBody"),
             LexicalContext::ControlFlow { .. } => {
                 self.with_block(LexicalContext::Block, |this| {
                     n.visit_children_with_ast_path(this, ast_path)
