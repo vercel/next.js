@@ -72,12 +72,10 @@ pub(crate) async fn require_hook_modules(
 /// graph. Include the renderer as an explicit Pages trace entry so that its runtime closure is
 /// available when the endpoint initializes.
 #[turbo_tasks::function]
-pub(crate) async fn pages_renderer_modules(project_path: FileSystemPath) -> Result<Vc<Modules>> {
-    let asset_context = Vc::upcast(externals_tracing_module_context(
-        get_tracing_compile_time_info(),
-        false,
-        None,
-    ));
+pub(crate) async fn pages_renderer_modules(
+    project_path: FileSystemPath,
+    asset_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<Modules>> {
     let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
         asset_context,
         get_next_package(project_path).await?.join("_")?,

@@ -2715,9 +2715,10 @@ impl Project {
         let hook_modules = require_hook_modules(self.project_path().owned().await?, asset_context)
             .owned()
             .await?;
-        let renderer_modules = pages_renderer_modules(self.project_path().owned().await?)
-            .owned()
-            .await?;
+        let renderer_modules =
+            pages_renderer_modules(self.project_path().owned().await?, asset_context)
+                .owned()
+                .await?;
 
         Ok(Vc::cell(
             self.additional_traced_modules()
