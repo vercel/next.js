@@ -1,14 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('typescript-build-output', () => {
-  const { next, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDeploy) {
     it('should skip', () => {})
