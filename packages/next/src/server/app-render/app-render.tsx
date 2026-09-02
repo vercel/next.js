@@ -312,6 +312,10 @@ import {
   anySegmentNeedsInstantValidationInBuild,
   resolveInstantConfigSamplesForPage,
 } from './instant-validation/instant-config'
+import {
+  RequireStaticLevel,
+  resolveRequireStaticLevel,
+} from './segment-config/require-static'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import {
   createWebDebugChannel,
@@ -1454,6 +1458,12 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     }
 
     const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
+    // We currently don't need the `requireStatic` level here, but
+    // we want to validate that it's correct.
+    await resolveRequireStaticLevel(
+      loaderTree,
+      /* partialPrefetching */ prefetchMode === PrefetchingMode.Partial
+    )
 
     // A client navigation into a Partial Prefetching route extends the shell
     // through the runtime-prefetchable content: it has already settled on the
@@ -2395,12 +2405,16 @@ async function getErrorRSCPayload(
     )
   )
 
+  const partialPrefetching =
+    Boolean(ctx.renderOpts.partialPrefetching) ||
+    (await anySegmentHasPartialPrefetchingEnabled(tree))
+
   const initialTree = await createFullTransportTreeFromLoaderTree(
     tree,
     errorHints,
     errorPrefetchInliningEnabled,
     ctx.missingPrefetchHintPolicy,
-    Boolean(ctx.renderOpts.partialPrefetching),
+    partialPrefetching,
     getDynamicParamFromSegment,
     query
   )
@@ -3728,6 +3742,15 @@ async function renderToStream(
         // We only have a Prerender environment for projects opted into cacheComponents
         cacheComponents
       ) {
+        const prefetchMode = await getPrefetchingModeForPage(renderOpts, tree)
+
+        // We currently don't need the `requireStatic` level here, but
+        // we want to validate that it's correct.
+        await resolveRequireStaticLevel(
+          tree,
+          /* partialPrefetching */ prefetchMode === PrefetchingMode.Partial
+        )
+
         let debugChannelClientStream: ReplayableNodeStream | undefined
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -3768,12 +3791,6 @@ async function renderToStream(
           // or draft mode.
           !isBypassingCachesInDev(requestStore, workStore)
         ) {
-          const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
-          const prefetchMode = await getPrefetchingModeForPage(
-            renderOpts,
-            loaderTree
-          )
-
           const { stream: serverStream, debugChannel: returnedDebugChannel } =
             await stagedRenderWithCachesInDev({
               prefetchMode,
@@ -8738,6 +8755,20 @@ async function prerenderToStream(
 
   try {
     if (cacheComponents) {
+      const partialPrefetching =
+        Boolean(ctx.renderOpts.partialPrefetching) ||
+        (await anySegmentHasPartialPrefetchingEnabled(tree))
+
+      let requireStaticLevel = await resolveRequireStaticLevel(
+        tree,
+        partialPrefetching
+      )
+      if (process.env.NEXT_PRIVATE_DEBUG_RUNTIME_DATA) {
+        console.log(
+          `${workStore.route} :: requireStatic level = ${RequireStaticLevel[requireStaticLevel]}`
+        )
+      }
+
       /**
        * cacheComponents with PPR
        *
@@ -8816,6 +8847,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
+        requireStaticLevel,
         prerenderDataTracking: null,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
@@ -8852,6 +8884,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
+        requireStaticLevel,
         prerenderDataTracking: null,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       })
@@ -9106,6 +9139,7 @@ async function prerenderToStream(
         resumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
+        requireStaticLevel,
         prerenderDataTracking,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
@@ -9161,6 +9195,7 @@ async function prerenderToStream(
         resumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
+        requireStaticLevel,
         prerenderDataTracking,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       })
@@ -9886,6 +9921,7 @@ async function prerenderToStream(
         resumeDataCache: originalResumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator: null,
+        requireStaticLevel: null,
         prerenderDataTracking: null,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }

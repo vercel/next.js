@@ -23,6 +23,7 @@ import type {
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 import type { PrerenderDataTracking } from '../dynamic-rendering-utils'
+import type { RequireStaticLevel } from './segment-config/require-static'
 
 export type WorkUnitPhase = 'action' | 'render' | 'after'
 
@@ -169,6 +170,7 @@ export interface PrerenderStoreModernServer
 
   readonly stagedRendering: StagedRenderingController | null
 
+  requireStaticLevel: RequireStaticLevel | null
   /*
    * Records usages of non-static data during a prerender to determine
    * whether it should be statically optimized.

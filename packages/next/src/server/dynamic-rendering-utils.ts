@@ -1,5 +1,6 @@
 import { InvariantError } from '../shared/lib/invariant-error'
 import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
+import { RequireStaticLevel } from './app-render/segment-config/require-static'
 import {
   RenderStage,
   type StagedRenderingController,
@@ -375,6 +376,9 @@ function trackRuntimeDataAccessed(
         return
       }
 
+      const requireStaticLevel =
+        workUnitStore.requireStaticLevel ?? RequireStaticLevel.None
+
       switch (dataKind) {
         case PrerenderDataKind.SessionData: {
           // Potentially deopt both the shell and the prefetch,
@@ -386,13 +390,21 @@ function trackRuntimeDataAccessed(
             | RenderStage.PrefetchStatic
             | null = null
 
-          if (currentStage <= RenderStage.ShellStatic) {
+          if (
+            currentStage <= RenderStage.ShellStatic &&
+            // Only track if we're not forcing the shell to be static.
+            requireStaticLevel < RequireStaticLevel.Shell
+          ) {
             prerenderDataTracking.shouldAttemptStaticShell = false
             logRuntimeDeopt?.(expression, 'shell')
             firstAffectedStage ??= RenderStage.ShellStatic
           }
 
-          if (currentStage <= RenderStage.PrefetchStatic) {
+          if (
+            currentStage <= RenderStage.PrefetchStatic &&
+            // Only track if we're not forcing the prefetch to be static.
+            requireStaticLevel < RequireStaticLevel.Prefetch
+          ) {
             prerenderDataTracking.shouldAttemptStaticPrefetch = false
             logRuntimeDeopt?.(expression, 'prefetch')
             // NOTE: if the shell is affected, don't override it.
@@ -434,7 +446,10 @@ function trackRuntimeDataAccessed(
         }
         case PrerenderDataKind.UrlData: {
           // Only deopt the prefetch, not the shell, which cannot access URL data anyway.
-          if (currentStage <= RenderStage.PrefetchStatic) {
+          if (
+            currentStage <= RenderStage.PrefetchStatic &&
+            requireStaticLevel < RequireStaticLevel.Prefetch
+          ) {
             prerenderDataTracking.shouldAttemptStaticPrefetch = false
             logRuntimeDeopt?.(expression, 'prefetch')
 
