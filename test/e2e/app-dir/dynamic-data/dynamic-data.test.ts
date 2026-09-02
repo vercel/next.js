@@ -2,15 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 
 process.env.__TEST_SENTINEL = 'at buildtime'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('dynamic-data', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/main',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render the dynamic apis dynamically when used in a top-level scope', async () => {
     const $ = await next.render$(
@@ -154,15 +152,13 @@ describe('dynamic-data', () => {
 })
 
 describe('dynamic-data with dynamic = "error"', () => {
-  const { next, isNextDev, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname + '/fixtures/require-static',
     skipStart: true,
   })
 
-  if (skipped) {
-    return
-  }
-
+  // Deploy mode exclusion: This suite intentionally tests dev-server errors
+  // or a failed local build, so it cannot produce a deployment.
   if (isNextDeploy) {
     it.skip('should not run in next deploy.', () => {})
     return
@@ -281,17 +277,13 @@ describe('dynamic-data with dynamic = "error"', () => {
 })
 
 describe('dynamic-data inside cache scope', () => {
-  const { isTurbopack, next, isNextDev, isNextDeploy, skipped } = nextTestSetup(
-    {
-      files: __dirname + '/fixtures/cache-scoped',
-      skipStart: true,
-    }
-  )
+  const { isTurbopack, next, isNextDev, isNextDeploy } = nextTestSetup({
+    files: __dirname + '/fixtures/cache-scoped',
+    skipStart: true,
+  })
 
-  if (skipped) {
-    return
-  }
-
+  // Deploy mode exclusion: This suite intentionally tests dev-server errors
+  // or a failed local build, so it cannot produce a deployment.
   if (isNextDeploy) {
     it.skip('should not run in next deploy..', () => {})
     return

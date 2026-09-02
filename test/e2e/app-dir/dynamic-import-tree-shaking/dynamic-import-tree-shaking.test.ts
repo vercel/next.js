@@ -2,12 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs'
 import path from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely inspects local build artifacts that deploy tests do not expose.
+// @force-gate !deploy
 describe('dynamic-import-tree-shaking', () => {
-  const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   // Recursively read all .js files in a directory
   function getAllServerFiles(dir: string): string[] {

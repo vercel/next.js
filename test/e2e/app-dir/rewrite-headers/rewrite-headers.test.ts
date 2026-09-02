@@ -460,13 +460,13 @@ const cases: {
   },
 ]
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// TODO: re-enable once changes in infrastructure are merged
+// @force-gate !deploy
 describe('rewrite-headers', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // TODO: re-enable once changes in infrastructure are merged
-    skipDeployment: true,
   })
-  if (skipped) return
 
   describe.each(cases)(
     '$name ($pathname)',

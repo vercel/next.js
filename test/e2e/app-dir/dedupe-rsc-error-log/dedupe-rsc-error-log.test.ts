@@ -9,11 +9,12 @@ async function expectContainOnce(next: any, search: string) {
   })
 }
 
+// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
+// Runtime logs aren't available when deployed
+// @force-gate !deploy
 describe('dedupe-rsc-error-log', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    // Runtime logs aren't available when deployed
-    skipDeployment: true,
   })
 
   it('should only log RSC error once for nodejs runtime', async () => {
