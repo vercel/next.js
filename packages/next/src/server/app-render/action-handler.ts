@@ -886,15 +886,15 @@ export async function handleAction({
             } else {
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
-              const invalidAction = getInvalidActionInfo(
-                formData,
-                serverModuleMap
-              )
-              if (invalidAction !== null) {
-                return handleUnrecognizedAction(
-                  invalidAction[1],
-                  invalidAction[0]
-                )
+              try {
+                if (!areAllActionIdsValid(formData, serverModuleMap)) {
+                  return handleUnrecognizedAction(
+                    new Error('Invalid Server Actions request.'),
+                    400
+                  )
+                }
+              } catch (err) {
+                return handleUnrecognizedAction(err, 409)
               }
 
               const action = await decodeAction(formData, serverModuleMap)
@@ -1096,15 +1096,15 @@ export async function handleAction({
                 throw err
               }
 
-              const invalidAction = getInvalidActionInfo(
-                formData,
-                serverModuleMap
-              )
-              if (invalidAction !== null) {
-                return handleUnrecognizedAction(
-                  invalidAction[1],
-                  invalidAction[0]
-                )
+              try {
+                if (!areAllActionIdsValid(formData, serverModuleMap)) {
+                  return handleUnrecognizedAction(
+                    new Error('Invalid Server Actions request.'),
+                    400
+                  )
+                }
+              } catch (err) {
+                return handleUnrecognizedAction(err, 409)
               }
 
               // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
@@ -1504,12 +1504,10 @@ const $ACTION_ID_ = '$ACTION_ID_'
  * It pre-parses the FormData to ensure that any action IDs referred to are actual action IDs for
  * this Next.js application.
  */
-type InvalidActionInfo = readonly [statusCode: 400 | 409, error: unknown]
-
-function getInvalidActionInfo(
+function areAllActionIdsValid(
   mpaFormData: FormData,
   serverModuleMap: ServerModuleMap
-): InvalidActionInfo | null {
+): boolean {
   let seenActionRefs = 0
   let hasAtLeastOneAction = false
   // Before we attempt to decode the payload for a possible MPA action, assert
@@ -1522,12 +1520,8 @@ function getInvalidActionInfo(
 
     if (key.startsWith($ACTION_ID_)) {
       // No Bound args case
-      const invalidAction = getInvalidActionIdInfo(
-        key.slice($ACTION_ID_.length),
-        serverModuleMap
-      )
-      if (invalidAction !== null) {
-        return invalidAction
+      if (isInvalidActionIdFieldName(key, serverModuleMap)) {
+        return false
       }
 
       hasAtLeastOneAction = true
@@ -1536,7 +1530,7 @@ function getInvalidActionInfo(
         // We only expect to see at most 2 $ACTION_REF_ fields in the form data:
         // one from <form action="..." method="post">
         // and one from <input action="..." type="submit">
-        return getInvalidActionRequestInfo()
+        return false
       }
 
       // Bound args case
@@ -1544,67 +1538,71 @@ function getInvalidActionInfo(
         $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
       const actionFields = mpaFormData.getAll(actionDescriptorField)
       if (actionFields.length !== 1) {
-        return getInvalidActionRequestInfo()
+        return false
       }
       const actionField = actionFields[0]
       if (typeof actionField !== 'string') {
-        return getInvalidActionRequestInfo()
+        return false
       }
 
-      const invalidAction = getInvalidActionDescriptorInfo(
-        actionField,
-        serverModuleMap
-      )
-      if (invalidAction !== null) {
-        return invalidAction
+      if (isInvalidStringActionDescriptor(actionField, serverModuleMap)) {
+        return false
       }
       hasAtLeastOneAction = true
     }
   }
-  return hasAtLeastOneAction ? null : getInvalidActionRequestInfo()
+  return hasAtLeastOneAction
 }
 
 const ACTION_DESCRIPTOR_ID_PREFIX = '{"id":"'
-function getInvalidActionDescriptorInfo(
+function isInvalidStringActionDescriptor(
   actionDescriptor: string,
   serverModuleMap: ServerModuleMap
-): InvalidActionInfo | null {
+): boolean {
   if (actionDescriptor.startsWith(ACTION_DESCRIPTOR_ID_PREFIX) === false) {
-    return getInvalidActionRequestInfo()
+    return true
   }
 
   const from = ACTION_DESCRIPTOR_ID_PREFIX.length
   const to = actionDescriptor.indexOf('"', from)
   if (to === -1) {
-    return getInvalidActionRequestInfo()
+    return true
   }
 
   // We expect actionDescriptor to be '{"id":"<actionId>",...}'
   const actionId = actionDescriptor.slice(from, to)
-  return getInvalidActionIdInfo(actionId, serverModuleMap)
-}
-
-function getInvalidActionIdInfo(
-  actionId: string,
-  serverModuleMap: ServerModuleMap
-): InvalidActionInfo | null {
   if (!mightBeServerReferenceId(actionId)) {
-    return [400, getInvalidServerReferenceIdError(actionId)]
+    return true
   }
 
-  try {
-    const entry = serverModuleMap[actionId]
+  const entry = serverModuleMap[actionId]
 
-    if (entry == null) {
-      return [409, getActionNotFoundError(actionId)]
-    }
-  } catch (err) {
-    return [409, err]
+  if (entry == null) {
+    return true
   }
 
-  return null
+  return false
 }
 
-function getInvalidActionRequestInfo(): InvalidActionInfo {
-  return [400, new Error('Invalid Server Actions request.')]
+function isInvalidActionIdFieldName(
+  actionIdFieldName: string,
+  serverModuleMap: ServerModuleMap
+): boolean {
+  // The field name must always start with $ACTION_ID_ but since it is
+  // the id is extracted from the key of the field we have already validated
+  // this before entering this function
+  const actionId = actionIdFieldName.slice($ACTION_ID_.length)
+  if (!mightBeServerReferenceId(actionId)) {
+    // this field name has too few or too many characters
+    // or it is otherwise in the wrong format
+    return true
+  }
+
+  const entry = serverModuleMap[actionId]
+
+  if (entry == null) {
+    return true
+  }
+
+  return false
 }

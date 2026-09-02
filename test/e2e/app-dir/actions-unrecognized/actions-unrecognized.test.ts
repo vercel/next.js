@@ -138,10 +138,7 @@ describe('unrecognized server actions', () => {
             description: 'a malformed ID',
             actionId: '123',
             expectedStatus: 400,
-            expectedError: outdent`
-              The Server Reference ID did not match the expected format. Received "123".
-              Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
-            `,
+            expectedError: 'Invalid Server Actions request.',
           },
           {
             description: 'a plausible but missing ID',
