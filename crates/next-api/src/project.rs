@@ -465,6 +465,13 @@ async fn prepare_project_container_state(
     container_vc: ResolvedVc<ProjectContainer>,
     options: ProjectOptions,
 ) -> Result<Vec<ReadRef<PlainIssue>>> {
+    let container = container_vc.await?;
+    // Operations created during initialization may begin running immediately. Keep both states
+    // advisory-locked until each has been populated so those operations cannot observe partial
+    // initialization when dependency tracking (and therefore invalidation) is disabled.
+    let additional_roots_guard = container.additional_roots.advisory_lock().await;
+    let state_guard = container.state.advisory_lock().await;
+
     let map = disk_file_system_map_operation(container_vc);
     let config_json: serde_json::Value = serde_json::from_str(&options.next_config)?;
 
@@ -515,12 +522,12 @@ async fn prepare_project_container_state(
 
     // Install the main filesystem state before resolving it. Its root operation reads this state,
     // while the filesystem itself only stores (and does not resolve) the filesystem map.
-    let container = container_vc.await?;
     container.state.set(Some(ProjectContainerState {
         options,
         project_file_system: project_fs_op,
         output_file_system: output_fs_op,
     }));
+    drop(state_guard);
     let project_fs_vc = project_fs_op.resolve().strongly_consistent().await?;
     let project_fs = project_fs_op.read_strongly_consistent().await?;
 
@@ -566,6 +573,7 @@ async fn prepare_project_container_state(
     container
         .additional_roots
         .set(additional_roots.roots_by_name);
+    drop(additional_roots_guard);
 
     // perform complete invalidations of all paths and watcher setup after finalizing the `map`
     fn invalidation_reason(path: &Path) -> impl InvalidationReason + Clone + use<> {
@@ -619,17 +627,17 @@ pub(crate) fn disk_file_system_operation(
 
 #[turbo_tasks::function(operation, root)]
 async fn project_root_path_operation(container: ResolvedVc<ProjectContainer>) -> Result<Vc<RcStr>> {
-    Ok(Vc::cell(
-        container
-            .await?
-            .state
-            .get()
-            .as_ref()
-            .context("Unexpected: ProjectContainer is uninitialized")?
-            .options
-            .root_path
-            .clone(),
-    ))
+    let container = container.await?;
+    let _guard = container.state.advisory_lock().await;
+    let root_path = container
+        .state
+        .get()
+        .as_ref()
+        .context("Unexpected: ProjectContainer is uninitialized")?
+        .options
+        .root_path
+        .clone();
+    Ok(Vc::cell(root_path))
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -638,6 +646,7 @@ pub(crate) async fn additional_root_path_operation(
     key: RcStr,
 ) -> Result<Vc<RcStr>> {
     let container = container.await?;
+    let _guard = container.additional_roots.advisory_lock().await;
     let roots = container.additional_roots.get();
     let root = roots
         .get(&key)
@@ -651,6 +660,8 @@ async fn disk_file_system_map_operation(
 ) -> Result<Vc<DiskFileSystemMap>> {
     let (project_file_system, additional_file_systems) = {
         let container = container.await?;
+        let _additional_roots_guard = container.additional_roots.advisory_lock().await;
+        let _state_guard = container.state.advisory_lock().await;
         let state = container.state.get();
         let state = state
             .as_ref()
