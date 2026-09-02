@@ -1,15 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('next-image-legacy-src-with-query-without-local-patterns', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should throw error for relative image with query without localPatterns for legacy Image', async () => {
     if (isNextDev) {
