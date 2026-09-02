@@ -36,15 +36,13 @@ export const config = {
 
 describe('react-current-version', () => {
   describe('React 18 deprecation warning', () => {
-    const { next, isNextDeploy, skipped } = nextTestSetup({
+    const { next, isNextDeploy } = nextTestSetup({
       files: join(__dirname, 'app'),
       skipStart: true,
     })
 
-    if (skipped) {
-      return
-    }
-
+    // Deploy mode exclusion: This block asserts local build and server CLI
+    // output, which is produced before a deployment is available.
     if (isNextDeploy) {
       it('should skip in deploy mode', () => {})
       return

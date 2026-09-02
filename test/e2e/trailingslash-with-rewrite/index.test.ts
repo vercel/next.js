@@ -3,6 +3,8 @@ import { FileRef, nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('trailingSlash:true with rewrites and getStaticProps', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // No deploy-specific incompatibility is documented.
   if ((global as any).isNextDeploy) {
     it('should skip for deploy mode for now', () => {})
     return

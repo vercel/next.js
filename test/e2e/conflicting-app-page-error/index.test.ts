@@ -8,15 +8,17 @@ import {
 } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Conflict between app file and pages file', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
 
-  if (skipped) {
-    return
+  if (isNextDeploy) {
+    it('is excluded from deploy testing by @force-gate', () => {})
   }
 
   if (isNextStart) {
