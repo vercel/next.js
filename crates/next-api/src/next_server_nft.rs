@@ -5,6 +5,7 @@ use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
 use serde_json::json;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath,
@@ -289,59 +290,62 @@ fn next_owned_ignores(
     ty: &ServerNftType,
     has_next_support: bool,
     is_standalone: bool,
-) -> Vec<&'static str> {
+) -> Vec<RcStr> {
     let mut globs = vec![
-        "**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js",
-        "**/*.d.ts",
-        "**/*.map",
-        "**/next/dist/pages/**/*",
-        "**/next/dist/compiled/next-server/**/*.dev.js",
-        "**/next/dist/compiled/webpack/*",
-        "**/node_modules/webpack5/**/*",
-        "**/next/dist/server/lib/route-resolver*",
+        rcstr!("**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js"),
+        rcstr!("**/*.d.ts"),
+        rcstr!("**/*.map"),
+        rcstr!("**/next/dist/pages/**/*"),
+        rcstr!("**/next/dist/compiled/next-server/**/*.dev.js"),
+        rcstr!("**/next/dist/compiled/webpack/*"),
+        rcstr!("**/node_modules/webpack5/**/*"),
+        rcstr!("**/next/dist/server/lib/route-resolver*"),
         // The testmode interceptors bundle reads its HTTP parser WASM with a
         // dynamic path, making the tracer include the bundle's whole
         // directory. Test proxying is not supported in standalone output, so
         // keep the parser asset (and the license file picked up by the
         // directory glob) out of production traces.
-        "**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE",
-        "**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**",
-        "**/next/dist/compiled/semver/semver/**/*.js",
-        "**/next/dist/compiled/jest-worker/**/*",
+        rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE"),
+        rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**"),
+        rcstr!("**/next/dist/compiled/semver/semver/**/*.js"),
+        rcstr!("**/next/dist/compiled/jest-worker/**/*"),
         // -- The following were added for Turbopack specifically --
         // client/components/use-action-queue.ts has a process.env.NODE_ENV guard, but we can't set that due to React: https://github.com/vercel/next.js/pull/75254
-        "**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js",
+        rcstr!("**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js"),
         // client/components/app-router.js has a process.env.NODE_ENV guard, but we
         // can't set that.
-        "**/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js",
+        rcstr!("**/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js"),
         // server/lib/router-server.js doesn't guard this require:
-        "**/next/dist/server/lib/router-utils/setup-dev-bundler.js",
+        rcstr!("**/next/dist/server/lib/router-utils/setup-dev-bundler.js"),
         // server/next.js doesn't guard this require
-        "**/next/dist/server/dev/next-dev-server.js",
+        rcstr!("**/next/dist/server/dev/next-dev-server.js"),
         // next/dist/compiled/babel* pulls in this, but we never actually transpile at
         // deploy-time
-        "**/next/dist/compiled/browserslist/**",
+        rcstr!("**/next/dist/compiled/browserslist/**"),
     ];
 
     // only ignore image-optimizer code when
     // this is being handled outside of next-server
     if has_next_support {
         globs.extend([
-            "**/node_modules/sharp/**/*",
-            "**/@img/sharp-libvips*/**/*",
-            "**/next/dist/server/image-optimizer.js",
+            rcstr!("**/node_modules/sharp/**/*"),
+            rcstr!("**/@img/sharp-libvips*/**/*"),
+            rcstr!("**/next/dist/server/image-optimizer.js"),
         ]);
     }
 
     if !is_standalone {
-        globs.extend(["**/*/next/dist/server/next.js", "**/*/next/dist/bin/next"]);
+        globs.extend([
+            rcstr!("**/*/next/dist/server/next.js"),
+            rcstr!("**/*/next/dist/bin/next"),
+        ]);
     }
 
     if matches!(ty, ServerNftType::Minimal) {
         globs.extend([
-            "**/next/dist/compiled/edge-runtime/**/*",
-            "**/next/dist/server/web/sandbox/**/*",
-            "**/next/dist/server/post-process.js",
+            rcstr!("**/next/dist/compiled/edge-runtime/**/*"),
+            rcstr!("**/next/dist/server/web/sandbox/**/*"),
+            rcstr!("**/next/dist/server/post-process.js"),
         ]);
     }
 
@@ -361,7 +365,7 @@ impl ServerNftJsonAsset {
                 is_standalone,
             )
             .into_iter()
-            .map(|g| Glob::new(g.into(), GlobOptions::default()))
+            .map(|g| Glob::new(g, GlobOptions::default()))
             .collect(),
         )
         .to_resolved()
@@ -451,9 +455,9 @@ impl ServerNftJsonAsset {
             if route_glob.await?.matches("next-server") {
                 for (glob, root) in exclude_patterns {
                     additional_ignores.insert(if root.path.is_empty() {
-                        glob.to_string()
+                        glob.clone()
                     } else {
-                        format!("{root}/{glob}")
+                        format!("{root}/{glob}").into()
                     });
                 }
             }
@@ -466,8 +470,8 @@ impl ServerNftJsonAsset {
         // reachable only through it.
         let server_ignores_glob = next_owned_ignores(&self.ty, has_next_support, is_standalone)
             .into_iter()
-            .chain(additional_ignores.iter().map(|s| s.as_str()))
-            .map(|g| Glob::new(g.into(), Default::default()))
+            .chain(additional_ignores)
+            .map(|g| Glob::new(g, Default::default()))
             .collect::<Vec<_>>();
 
         Ok(Glob::alternatives(server_ignores_glob))
