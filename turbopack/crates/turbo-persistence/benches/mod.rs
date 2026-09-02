@@ -960,7 +960,10 @@ fn bench_compaction_meta_subsumption(c: &mut Criterion) {
                     .unwrap();
                 let retained_meta_files = db.meta_info().unwrap().len();
                 if !reported_retained_count.replace(true) {
-                    println!("retained meta files after partial compaction: {retained_meta_files}");
+                    println!(
+                        "retained meta files after partial compaction: {retained_meta_files}; {}",
+                        result.as_ref().unwrap()
+                    );
                 }
                 black_box((tempdir, result, retained_meta_files))
             },

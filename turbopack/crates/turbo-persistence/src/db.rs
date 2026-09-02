@@ -333,7 +333,8 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
 
 /// The inner state of the database.
 struct Inner<const FAMILIES: usize> {
-    /// Meta files sharded by family, each in ascending sequence order. There are no ordering
+    /// The list of meta files in the database sharded by family. This is used to derive the SST
+    /// files. Each family's files are in ascending sequence order; there are no ordering
     /// constraints across families.
     meta_files_by_family: [Vec<MetaFile>; FAMILIES],
     /// The current sequence number for the database.
@@ -1405,6 +1406,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
 
         struct SstWithRange {
+            /// Index in the current family's `meta_files_by_family` shard.
             meta_index: usize,
             index_in_meta: u32,
             seq: u32,
@@ -1427,26 +1429,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                 // values to ensure they are not merged together.
                 if self.flags.cold() { 1 } else { 0 }
             }
-        }
-
-        fn add_existing_meta<'a>(
-            builder: &mut MetaFileBuilder<'a>,
-            meta_file: &'a MetaFile,
-            index_in_meta: u32,
-        ) {
-            let entry = meta_file.entry(index_in_meta);
-            builder.add(
-                entry.sequence_number(),
-                StaticSortedFileBuilderMeta {
-                    min_hash: entry.min_hash(),
-                    max_hash: entry.max_hash(),
-                    amqf: Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data())),
-                    block_count: entry.block_count(),
-                    size: entry.size(),
-                    flags: entry.flags(),
-                    entries: 0,
-                },
-            );
         }
 
         let sst_by_family = meta_files_by_family
@@ -1968,11 +1950,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         // above), so they must precede the selector-ordered results in this meta.
                         for (index, sst) in ssts_with_ranges.iter().enumerate() {
                             if !selected_indices.contains(&index) {
-                                add_existing_meta(
-                                    &mut meta_file_builder,
-                                    &meta_files[sst.meta_index],
-                                    sst.index_in_meta,
-                                );
+                                meta_file_builder
+                                    .add_existing(&meta_files[sst.meta_index], sst.index_in_meta);
                             }
                         }
 

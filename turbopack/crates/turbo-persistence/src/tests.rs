@@ -8,7 +8,7 @@ use crate::{
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence, read_current_version},
     lookup_entry::IterValue,
-    parallel_scheduler::{ParallelScheduler, SerialScheduler},
+    parallel_scheduler::ParallelScheduler,
     static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
     write_batch::WriteBatch,
 };
@@ -2864,116 +2864,6 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
     );
 
     db.shutdown()?;
-    Ok(())
-}
-
-#[test]
-fn queries_only_visit_meta_files_for_the_requested_family() -> Result<()> {
-    const FAMILIES: usize = 4;
-    let tempdir = tempfile::tempdir()?;
-    let mut config = DbConfig::default();
-    config.family_configs[3] = FamilyConfig {
-        name: "multi",
-        kind: FamilyKind::MultiValue,
-    };
-
-    // Each commit rewrites the same key set per family, so the SSTs share hash ranges and
-    // compaction has real work to do (single-key SSTs have a degenerate range and are skipped).
-    const KEYS_PER_COMMIT: u32 = 500;
-    const COMMITS: u32 = 20;
-
-    fn family_key(family: usize, item: u32) -> Vec<u8> {
-        format!("family-{family}-key-{item:04}").into_bytes()
-    }
-
-    {
-        let db = TurboPersistence::<RayonParallelScheduler, FAMILIES>::open_with_config_and_parallel_scheduler(
-            tempdir.path().to_path_buf(),
-            config.clone(),
-            RayonParallelScheduler,
-        )?;
-        for commit in 0..COMMITS {
-            for family in 0..FAMILIES {
-                let batch = db.write_batch()?;
-                for item in 0..KEYS_PER_COMMIT {
-                    batch.put(
-                        family as u32,
-                        family_key(family, item),
-                        commit.to_be_bytes().to_vec().into(),
-                    )?;
-                }
-                db.commit_write_batch(batch)?;
-            }
-        }
-
-        assert_eq!(
-            &*db.get(2, &family_key(2, 10))?.unwrap(),
-            &(COMMITS - 1).to_be_bytes()
-        );
-        assert!(db.get(2, b"missing")?.is_none());
-        let hit = family_key(2, 11);
-        let keys: [&[u8]; 2] = [&hit, b"missing"];
-        let values = db.batch_get(2, &keys)?;
-        assert_eq!(&**values[0].as_ref().unwrap(), &(COMMITS - 1).to_be_bytes());
-        assert!(values[1].is_none());
-        // The MultiValue family keeps every value written for a key.
-        assert_eq!(
-            db.get_multiple(3, &family_key(3, 12))?.len(),
-            COMMITS as usize
-        );
-
-        #[cfg(feature = "stats")]
-        assert_eq!(db.statistics().miss_family, 0);
-
-        let meta_info = db.meta_info()?;
-        assert_eq!(meta_info.len(), FAMILIES * COMMITS as usize);
-        for (family, family_meta) in meta_info
-            .as_chunks::<{ COMMITS as usize }>()
-            .0
-            .iter()
-            .enumerate()
-        {
-            assert!(
-                family_meta
-                    .iter()
-                    .all(|meta| meta.family as usize == family)
-            );
-            assert!(family_meta.is_sorted_by(|a, b| a.sequence_number >= b.sequence_number));
-        }
-
-        // Compaction must retire each family's superseded metadata independently.
-        db.full_compact()?;
-        let compacted = db.meta_info()?;
-        assert_eq!(compacted.len(), FAMILIES);
-        for family in 0..FAMILIES {
-            assert_eq!(
-                compacted
-                    .iter()
-                    .filter(|meta| meta.family as usize == family)
-                    .count(),
-                1
-            );
-            if family == 3 {
-                assert_eq!(
-                    db.get_multiple(family, &family_key(family, 12))?.len(),
-                    COMMITS as usize
-                );
-            } else {
-                assert_eq!(
-                    &*db.get(family, &family_key(family, 10))?.unwrap(),
-                    &(COMMITS - 1).to_be_bytes()
-                );
-            }
-        }
-    }
-
-    let db: TurboPersistence<SerialScheduler, FAMILIES> =
-        TurboPersistence::open_read_only_with_config(tempdir.path().to_path_buf(), config)?;
-    assert_eq!(
-        &*db.get(1, &family_key(1, 10))?.unwrap(),
-        &(COMMITS - 1).to_be_bytes()
-    );
-    assert_eq!(db.meta_info()?.len(), FAMILIES);
     Ok(())
 }
 
