@@ -1,6 +1,7 @@
 import spawn from 'cross-spawn'
 import { Span } from 'next/dist/trace'
 import { NextInstance } from './base'
+import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { retry, waitFor } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 import { quote as shellQuote } from 'shell-quote'
@@ -10,6 +11,10 @@ export class NextDevInstance extends NextInstance {
 
   public get buildId() {
     return 'development'
+  }
+
+  protected get configPhase() {
+    return PHASE_DEVELOPMENT_SERVER
   }
 
   public async setup(parentSpan: Span) {
@@ -59,24 +64,6 @@ export class NextDevInstance extends NextInstance {
     }
 
     return buildArgs
-  }
-
-  private getSpawnOpts(
-    env?: Record<string, string>
-  ): import('child_process').SpawnOptions {
-    return {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        ...env,
-        NODE_ENV: this.env.NODE_ENV || ('' as any),
-        PORT: this.forcedPort || '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
   }
 
   public async build(

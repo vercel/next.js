@@ -69,6 +69,16 @@ describe('parallel-routes-layouts', () => {
       'default page'
     )
     expect(await browser.elementById('foo-slot').text()).toBe('@foo default')
+
+    // Leaving the layout that owns the slots removes its entire parallel route
+    // subtree instead of preserving any of its previously active slots.
+    await browser.elementByCss('[href="/"]').click()
+    await retry(async () => {
+      expect(await browser.elementById('home').text()).toBe('Hello World')
+      expect(await browser.hasElementByCss('#nested-children')).toBe(false)
+      expect(await browser.hasElementByCss('#foo-slot')).toBe(false)
+      expect(await browser.hasElementByCss('#bar-slot')).toBe(false)
+    })
   })
 })
 

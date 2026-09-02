@@ -98,7 +98,7 @@ Use a concise PR body:
 ```markdown
 Backports <original PR title/link> to `<target-branch>`.
 
-<!-- NEXT_JS_LLM_PR -->
+<!-- NEXT_JS_LLM -->
 ```
 
 ## Related Skills

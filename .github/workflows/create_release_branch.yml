@@ -14,7 +14,7 @@ on:
 name: Create Release Branch
 
 env:
-  NAPI_CLI_VERSION: 2.18.4
+  NAPI_CLI_VERSION: 3.7.2
   TURBO_VERSION: 2.9.4
   NODE_LTS_VERSION: 20
 
@@ -42,7 +42,6 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: next.js
           permission-contents: write
-          permission-environments: write
           permission-workflows: write
 
       - name: Get GitHub App user ID

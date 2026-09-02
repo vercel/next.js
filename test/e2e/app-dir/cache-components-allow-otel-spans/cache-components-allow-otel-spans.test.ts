@@ -15,7 +15,6 @@ describe('cache-components OTEL spans', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
            "environmentLabel": "Cache",
            "label": "Console Error",
@@ -32,7 +31,6 @@ describe('cache-components OTEL spans', () => {
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
            "environmentLabel": "Cache",
            "label": "Console Error",
@@ -65,7 +63,6 @@ describe('cache-components OTEL spans', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
            "environmentLabel": "Cache",
            "label": "Console Error",
@@ -82,7 +79,6 @@ describe('cache-components OTEL spans', () => {
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
            "environmentLabel": "Cache",
            "label": "Console Error",
@@ -114,9 +110,8 @@ describe('cache-components OTEL spans', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-           "environmentLabel": "Prefetchable",
+           "environmentLabel": "Prefetch",
            "label": "Console Error",
            "source": "app/traced-work.tsx (26:19) @ <anonymous>
          > 26 |     return tracer.startActiveSpan('span-active-span', fn)
@@ -132,9 +127,8 @@ describe('cache-components OTEL spans', () => {
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-           "environmentLabel": "Prefetchable",
+           "environmentLabel": "Prefetch",
            "label": "Console Error",
            "source": "app/traced-work.tsx (26:19) @ eval
          > 26 |     return tracer.startActiveSpan('span-active-span', fn)
@@ -166,7 +160,6 @@ describe('cache-components OTEL spans', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
            "environmentLabel": "Prerender",
            "label": "Console Error",
@@ -184,7 +177,6 @@ describe('cache-components OTEL spans', () => {
       } else {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "code": "E394",
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
            "environmentLabel": "Prerender",
            "label": "Console Error",

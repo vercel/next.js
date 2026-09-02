@@ -141,6 +141,7 @@ export type ClientStateMap = WeakMap<ws, ClientState>
 type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
   subscribeToChanges: StartChangeSubscription
+  handleServerComponentChanges?: () => void
 }
 
 export async function handleRouteType({
@@ -355,8 +356,8 @@ export async function handleRouteType({
         hooks?.subscribeToChanges(
           key,
           /** includeIssues=*/ true,
-          route.rscEndpoint,
-          (change, hash) => {
+          route.rscHmrEndpoint,
+          (change) => {
             if (change.issues.some((issue) => issue.severity === 'error')) {
               // Ignore any updates that has errors
               // There will be another update without errors eventually
@@ -364,10 +365,7 @@ export async function handleRouteType({
             }
             // Report the next compilation again
             readyIds?.delete(pathname)
-            return {
-              type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
-              hash,
-            }
+            hooks?.handleServerComponentChanges?.()
           },
           (e) => {
             return {
@@ -408,9 +406,40 @@ export async function handleRouteType({
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
+      if (dev) {
+        // Advance the hot-reloader's HMR refresh hash whenever this route
+        // handler is recompiled, so its `"use cache"` entries are invalidated
+        // after an edit. Subscribing runs `subscribeToClientChanges`, which
+        // bumps the `hmrHash` counter on each change; that counter is returned
+        // by `getServerComponentsHmrRefreshHash` and folded into cache keys by
+        // `getHmrRefreshHash`. Unlike app pages there is no RSC for a connected
+        // browser to refetch, so `createMessage` returns nothing; the
+        // subscription exists only to advance the hash.
+        hooks?.subscribeToChanges(
+          key,
+          /** includeIssues= */ true,
+          route.endpoint,
+          () => undefined,
+          (error) => {
+            // This subscription only advances the refresh hash, so there is
+            // nothing to send the browser when it fails. `subscribeToChanges`
+            // drops the subscription on error and re-creates it the next time
+            // this route is ensured, so just log it.
+            console.error(
+              new Error(`Error in the "${page}" app-route HMR subscription`, {
+                cause: error,
+              })
+            )
+          }
+        )
+      }
+
       const type = writtenEndpoint.type
 
       manifestLoader.loadAppPathsManifest(page)
+      if (route.hasActionManifest) {
+        manifestLoader.loadActionManifest(page)
+      }
 
       if (type === 'edge') {
         warnAboutEdgeRuntime()
@@ -631,6 +660,7 @@ export async function handleEntrypoints({
     await handleEntrypointsDevCleanup({
       currentEntryIssues,
       currentEntrypoints,
+      manifestLoader,
 
       ...dev,
     })
@@ -795,6 +825,7 @@ export async function handleEntrypoints({
 async function handleEntrypointsDevCleanup({
   currentEntryIssues,
   currentEntrypoints,
+  manifestLoader,
 
   assetMapper,
   changeSubscriptions,
@@ -805,11 +836,13 @@ async function handleEntrypointsDevCleanup({
 }: {
   currentEntrypoints: Entrypoints
   currentEntryIssues: EntryIssuesMap
+  manifestLoader: TurbopackManifestLoader
 } & HandleEntrypointsDevOpts) {
   // this needs to be first as `hasEntrypointForKey` uses the `assetMapper`
   for (const key of assetMapper.keys()) {
     if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
       assetMapper.delete(key)
+      manifestLoader.delete(key)
     }
   }
 

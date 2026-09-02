@@ -47,12 +47,12 @@ impl<'a> JsValue<'a> {
                 JsValue::Object {
                     total_nodes: lc,
                     parts: lp,
-                    mutable: lm,
+                    mutability: lm,
                 },
                 JsValue::Object {
                     total_nodes: rc,
                     parts: rp,
-                    mutable: rm,
+                    mutability: rm,
                 },
             ) => lc == rc && lm == rm && all_parts_similar(lp, rp, depth - 1),
             (JsValue::Url(l, kl), JsValue::Url(r, kr)) => l == r && kl == kr,
@@ -100,12 +100,16 @@ impl<'a> JsValue<'a> {
                 JsValue::Module(ModuleValue {
                     module: l,
                     annotations: la,
+                    analyze_for_constants: lc,
+                    reference: lr,
                 }),
                 JsValue::Module(ModuleValue {
                     module: r,
                     annotations: ra,
+                    analyze_for_constants: rc,
+                    reference: rr,
                 }),
-            ) => l == r && la == ra,
+            ) => l == r && la == ra && lc == rc && lr == rr,
             (JsValue::WellKnownObject(l), JsValue::WellKnownObject(r)) => l == r,
             (JsValue::WellKnownFunction(l), JsValue::WellKnownFunction(r)) => l == r,
             (
@@ -223,9 +227,13 @@ impl<'a> JsValue<'a> {
             JsValue::Module(ModuleValue {
                 module: v,
                 annotations: a,
+                analyze_for_constants: c,
+                reference: r,
             }) => {
                 Hash::hash(v, state);
                 Hash::hash(a, state);
+                Hash::hash(c, state);
+                Hash::hash(r, state);
             }
             JsValue::WellKnownObject(v) => Hash::hash(v, state),
             JsValue::WellKnownFunction(v) => Hash::hash(v, state),

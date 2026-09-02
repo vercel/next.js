@@ -45,7 +45,7 @@
                                     },
                                 ),
                             ],
-                            mutable: true,
+                            mutability: Mutable,
                         },
                         Constant(
                             Str(
@@ -89,7 +89,7 @@
                                     },
                                 ),
                             ],
-                            mutable: true,
+                            mutability: Mutable,
                         },
                         Constant(
                             Str(
@@ -134,7 +134,7 @@
                                 ),
                             ),
                         ],
-                        mutable: true,
+                        mutability: Mutable,
                     },
                     Constant(
                         Str(
@@ -162,7 +162,7 @@
                                 ),
                             ),
                         ],
-                        mutable: true,
+                        mutability: Mutable,
                     },
                     Constant(
                         Str(
@@ -196,7 +196,7 @@
                         ),
                     ),
                 ],
-                mutable: true,
+                mutability: Mutable,
             },
             Constant(
                 Str(

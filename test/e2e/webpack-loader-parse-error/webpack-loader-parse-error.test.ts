@@ -35,7 +35,7 @@ function extractErrorBlock(output: string, errorTitle: string): string {
   // path (e.g. `⨯ ./app/file.js`). In prod mode, errors start with a bare
   // file-path line above the title. Match `⨯ ./` specifically so we don't latch
   // onto unrelated `⨯` markers in the startup output, such as the experimental
-  // features list (e.g. `⨯ appNewScrollHandler (disabled by ...)`).
+  // features list (e.g. `⨯ exampleFlag (disabled by ...)`).
   const markerIdx = beforeTitle.lastIndexOf('⨯ ./')
   let startIdx: number
   if (markerIdx !== -1) {

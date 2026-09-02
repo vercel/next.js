@@ -4,12 +4,16 @@ use std::{
     fmt::{self, Debug},
     hash::BuildHasher,
     iter::FusedIterator,
+    marker::PhantomData,
     ops::RangeBounds,
 };
 
 use bincode::{BorrowDecode, Decode, Encode};
 use indexmap::IndexSet;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Serialize,
+    de::{SeqAccess, Visitor},
+};
 
 use crate::map::{self, FrozenMap};
 
@@ -37,13 +41,51 @@ use crate::map::{self, FrozenMap};
 /// [`Vec`] or boxed slice. Because of limitations of the internal representation and Rust's memory
 /// layout rules, the most efficient way to convert from these data structures is via an
 /// [`Iterator`].
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 #[bincode(
     decode_bounds = "T: Decode<__Context> + 'static",
     borrow_decode_bounds = "T: BorrowDecode<'__de, __Context> + '__de"
 )]
 pub struct FrozenSet<T> {
     map: FrozenMap<T, ()>,
+}
+
+impl<T: Serialize> Serialize for FrozenSet<T> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_seq(self.iter())
+    }
+}
+
+impl<'de, T> Deserialize<'de> for FrozenSet<T>
+where
+    T: Deserialize<'de> + Ord,
+{
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct SeqVisitor<T>(PhantomData<T>);
+
+        impl<'de, T> Visitor<'de> for SeqVisitor<T>
+        where
+            T: Deserialize<'de> + Ord,
+        {
+            type Value = FrozenSet<T>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a sequence")
+            }
+
+            fn visit_seq<A: SeqAccess<'de>>(self, mut seq: A) -> Result<Self::Value, A::Error> {
+                let mut items = Vec::with_capacity(seq.size_hint().unwrap_or(0));
+                while let Some(item) = seq.next_element()? {
+                    items.push((item, ()));
+                }
+                Ok(FrozenSet {
+                    map: FrozenMap::from(items),
+                })
+            }
+        }
+
+        deserializer.deserialize_seq(SeqVisitor(PhantomData))
+    }
 }
 
 impl<T> FrozenSet<T> {
@@ -354,6 +396,18 @@ impl<T> Clone for Range<'_, T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serde_uses_sequence_shape() {
+        let set = FrozenSet::from([2, 1]);
+        let json = serde_json::to_string(&set).unwrap();
+
+        assert_eq!(json, "[1,2]");
+        assert_eq!(
+            serde_json::from_str::<FrozenSet<i32>>("[2, 1]").unwrap(),
+            set
+        );
+    }
 
     #[test]
     fn test_empty() {

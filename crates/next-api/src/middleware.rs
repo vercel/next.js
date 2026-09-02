@@ -156,10 +156,7 @@ impl MiddlewareEndpoint {
         let next_config = this.project.next_config();
         let i18n = next_config.i18n().await?;
         let has_i18n = i18n.is_some();
-        let has_i18n_locales = i18n
-            .as_ref()
-            .map(|i18n| i18n.locales.len() > 1)
-            .unwrap_or(false);
+        let has_i18n_locales = i18n.is_some();
         let base_path = next_config.base_path().await?;
 
         let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
@@ -342,12 +339,13 @@ impl MiddlewareEndpoint {
     #[turbo_tasks::function]
     async fn trace_result(self: Vc<Self>) -> Result<Vc<EndpointTraceResult>> {
         let this = self.await?;
-        let userland_module = self.entry_module();
+        let userland_module = self.entry_module().to_resolved().await?;
         Ok(trace_endpoint(
             *this.project,
             None,
-            this.project.module_graph(userland_module),
-            userland_module,
+            this.project.module_graph(*userland_module),
+            Vc::cell(vec![userland_module]),
+            this.project.additional_traced_modules(),
         ))
     }
 }

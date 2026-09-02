@@ -2,7 +2,7 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 
 export const instant = true
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default function Page() {
   return (

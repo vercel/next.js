@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/object-literal/input/index.js"],"sourcesContent":["import { used, usedFn, usedShort } from './lib.js'\n\nconsole.log(used, usedFn(), usedShort)\n"],"names":["console","log"],"mappings":"AAAA;;AAEAA,QAAQC,GAAG,CAAC,2OAAI,EAAE,IAAA,6OAAM,KAAI,gPAAS"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/object-literal/input/lib.js"],"sourcesContent":["// Hand-written / transpiled CJS: named exports declared as a whole-object\n// `module.exports = { … }` literal. An unused data property keeps its value's\n// side effects in place via `...(void …)`; an unused shorthand (a plain ident\n// read) is removed outright.\nconst usedShort = 'used-short'\nconst unusedShort = 'unused-short'\nmodule.exports = {\n  used: 'used-value',\n  unused: 'unused-value',\n  usedShort,\n  unusedShort,\n  usedFn: function () {\n    return 'used-fn'\n  },\n  unusedFn: function () {\n    return 'unused-fn'\n  },\n}\n"],"names":["usedShort","unusedShort","module","exports","used","usedFn"],"mappings":"AAAA,0EAA0E;AAC1E,8EAA8E;AAC9E,8EAA8E;AAC9E,6BAA6B;AAC7B,MAAMA,YAAY;AAClB,MAAMC,cAAc;AACpBC,OAAOC,OAAO,GAAG;IACfC,MAAM;YACE;IACRJ;IAEAK,QAAQ;QACN,OAAO;IACT;YACU;QACR,OAAO;IACT;AACF"}}]
+}

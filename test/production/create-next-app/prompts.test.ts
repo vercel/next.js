@@ -1,4 +1,5 @@
 import { retry } from 'next-test-utils'
+import { readFileSync } from 'fs'
 import { join } from 'path'
 import {
   createNextApp,
@@ -6,6 +7,19 @@ import {
   resolveNextTgzFilename,
   useTempDir,
 } from './utils'
+
+function expectTurbopackTailwindSetup(cwd: string, projectName: string) {
+  const projectRoot = join(cwd, projectName)
+  const pkg = require(join(projectRoot, 'package.json'))
+  expect(pkg.devDependencies).toMatchObject({
+    '@tailwindcss/turbopack': '^4',
+    tailwindcss: '^4',
+  })
+  expect(pkg.devDependencies).not.toHaveProperty('@tailwindcss/postcss')
+  expect(readFileSync(join(projectRoot, 'next.config.ts'), 'utf8')).toContain(
+    'loaders: ["@tailwindcss/turbopack"]'
+  )
+}
 
 describe('create-next-app prompts', () => {
   let nextTgzFilename: string
@@ -118,11 +132,13 @@ describe('create-next-app prompts', () => {
           projectFilesShouldExist({
             cwd,
             projectName,
-            files: ['postcss.config.mjs'],
+            files: ['next.config.ts'],
           })
           resolve()
         })
       })
+
+      expectTurbopackTailwindSetup(cwd, projectName)
     })
   })
 
@@ -185,7 +201,7 @@ describe('create-next-app prompts', () => {
             files: [
               'app',
               'package.json',
-              'postcss.config.mjs',
+              'next.config.ts',
               'tsconfig.json',
               'AGENTS.md',
               'CLAUDE.md',
@@ -197,6 +213,7 @@ describe('create-next-app prompts', () => {
 
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
+      expectTurbopackTailwindSetup(cwd, projectName)
       const tsConfig = require(join(cwd, projectName, 'tsconfig.json'))
       expect(tsConfig.compilerOptions.paths).toMatchInlineSnapshot(`
         {
@@ -228,7 +245,7 @@ describe('create-next-app prompts', () => {
             files: [
               'app',
               'package.json',
-              'postcss.config.mjs', // tailwind
+              'next.config.ts', // tailwind
               'tsconfig.json', // typescript
               'AGENTS.md', // agent files
               'CLAUDE.md',
@@ -243,6 +260,7 @@ describe('create-next-app prompts', () => {
 
       const pkg = require(join(cwd, projectName, 'package.json'))
       expect(pkg.name).toBe(projectName)
+      expectTurbopackTailwindSetup(cwd, projectName)
     })
   })
 

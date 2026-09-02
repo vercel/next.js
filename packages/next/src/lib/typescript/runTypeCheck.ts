@@ -10,8 +10,8 @@ import { warn } from '../../build/output/log'
 export interface TypeCheckResult {
   hasWarnings: boolean
   warnings?: string[]
-  inputFilesCount: number
-  totalFilesCount: number
+  inputFilesCount?: number
+  totalFilesCount?: number
   incremental: boolean
 }
 

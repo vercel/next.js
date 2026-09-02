@@ -284,7 +284,6 @@ describe('ReactRefreshRegression', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -299,7 +298,6 @@ describe('ReactRefreshRegression', () => {
     } else if (isRspack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -314,7 +312,6 @@ describe('ReactRefreshRegression', () => {
     } else {
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E394",
          "description": "boom",
          "environmentLabel": null,
          "label": "Runtime Error",

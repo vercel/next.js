@@ -17,10 +17,6 @@ import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
 import { isAppPageRouteModule } from '../route-modules/checks'
-import {
-  checkIsRoutePPREnabled,
-  type ExperimentalPPRConfig,
-} from '../lib/experimental/ppr'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { collectRootParamKeys } from '../../build/segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from '../../build/static-paths/app'
@@ -29,7 +25,6 @@ import { createIncrementalCache } from '../../export/helpers/create-incremental-
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 
 type RuntimeConfig = {
-  pprConfig: ExperimentalPPRConfig | undefined
   configFileName: string
   cacheComponents: boolean
 }
@@ -59,6 +54,7 @@ export async function loadStaticPaths({
   deploymentId,
   authInterrupts,
   useCacheTimeout,
+  durableUseCacheEntries,
   staticPageGenerationTimeout,
   sriEnabled,
 }: {
@@ -83,6 +79,7 @@ export async function loadStaticPaths({
   deploymentId: string
   authInterrupts: boolean
   useCacheTimeout: number
+  durableUseCacheEntries: boolean
   staticPageGenerationTimeout: number
   sriEnabled: boolean
 }): Promise<StaticPathsResult> {
@@ -130,8 +127,7 @@ export async function loadStaticPaths({
     }
 
     const isRoutePPREnabled =
-      isAppPageRouteModule(routeModule) &&
-      checkIsRoutePPREnabled(config.pprConfig)
+      isAppPageRouteModule(routeModule) && config.cacheComponents
 
     const rootParamKeys = collectRootParamKeys(routeModule)
 
@@ -155,6 +151,7 @@ export async function loadStaticPaths({
       deploymentId,
       authInterrupts,
       useCacheTimeout,
+      durableUseCacheEntries,
       staticPageGenerationTimeout,
       rootParamKeys,
     })

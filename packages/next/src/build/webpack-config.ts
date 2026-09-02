@@ -334,6 +334,7 @@ export default async function getBaseWebpackConfig(
     dev = false,
     entrypoints,
     deferredEntrypoints,
+    deferredEntrySourceDirectories,
     isDevFallback = false,
     pagesDir,
     rewrites,
@@ -361,6 +362,7 @@ export default async function getBaseWebpackConfig(
     dev?: boolean
     entrypoints: webpack.EntryObject
     deferredEntrypoints?: webpack.EntryObject
+    deferredEntrySourceDirectories?: string[]
     isDevFallback?: boolean
     pagesDir: string | undefined
     rewrites: CustomRoutes['rewrites']
@@ -1371,9 +1373,7 @@ export default async function getBaseWebpackConfig(
       hashDigestLength: 16,
       // Webpack requires hashSalt to be a non-empty string; omit it entirely
       // when no salt is configured.
-      ...(config.experimental?.outputHashSalt
-        ? { hashSalt: config.experimental.outputHashSalt }
-        : {}),
+      ...(config.outputHashSalt ? { hashSalt: config.outputHashSalt } : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1821,7 +1821,7 @@ export default async function getBaseWebpackConfig(
                   compilerType,
                   basePath: config.basePath,
                   assetPrefix: config.assetPrefix,
-                  outputHashSalt: config.experimental?.outputHashSalt,
+                  outputHashSalt: config.outputHashSalt,
                 },
               },
             ]
@@ -2020,6 +2020,7 @@ export default async function getBaseWebpackConfig(
           dev,
           config,
           deferredEntrypoints,
+          deferredEntrySourceDirectories,
         }),
       isNodeServer &&
         new bundler.NormalModuleReplacementPlugin(

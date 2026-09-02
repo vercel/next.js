@@ -1,26 +1,27 @@
 use std::{
+    borrow::Borrow,
     collections::{BTreeMap, BTreeSet, btree_map, btree_set},
     ops::Bound,
     path::{Path, PathBuf},
 };
 
-/// A thin wrapper around [`BTreeMap<PathBuf, V>`] that provides efficient extraction of child
-/// paths.
+/// A thin wrapper around a path-keyed [`BTreeMap`] (e.g. `BTreeMap<Box<Path>, V>`) that provides
+/// efficient extraction of child paths.
 ///
 /// In the future, this may use a more efficient representation, like a radix tree or trie.
-pub trait OrderedPathMapExt<V> {
+pub trait OrderedPathMapExt<K, V> {
     fn extract_path_with_children<'a>(
         &'a mut self,
         path: &'a Path,
-    ) -> PathMapExtractPathWithChildren<'a, V>;
+    ) -> PathMapExtractPathWithChildren<'a, K, V>;
 }
 
-impl<V> OrderedPathMapExt<V> for BTreeMap<PathBuf, V> {
+impl<K: Borrow<Path> + Ord, V> OrderedPathMapExt<K, V> for BTreeMap<K, V> {
     /// Iterates over and removes `path` and all of its children.
     fn extract_path_with_children<'a>(
         &'a mut self,
         path: &'a Path,
-    ) -> PathMapExtractPathWithChildren<'a, V> {
+    ) -> PathMapExtractPathWithChildren<'a, K, V> {
         PathMapExtractPathWithChildren {
             cursor: self.lower_bound_mut(Bound::Included(path)),
             parent_path: path,
@@ -28,13 +29,13 @@ impl<V> OrderedPathMapExt<V> for BTreeMap<PathBuf, V> {
     }
 }
 
-pub struct PathMapExtractPathWithChildren<'a, V> {
-    cursor: btree_map::CursorMut<'a, PathBuf, V>,
+pub struct PathMapExtractPathWithChildren<'a, K, V> {
+    cursor: btree_map::CursorMut<'a, K, V>,
     parent_path: &'a Path,
 }
 
-impl<V> Iterator for PathMapExtractPathWithChildren<'_, V> {
-    type Item = (PathBuf, V);
+impl<K: Borrow<Path> + Ord, V> Iterator for PathMapExtractPathWithChildren<'_, K, V> {
+    type Item = (K, V);
 
     fn next(&mut self) -> Option<Self::Item> {
         // this simple implementation works because `Path` implements `Ord` (and `starts_with`)
@@ -43,7 +44,7 @@ impl<V> Iterator for PathMapExtractPathWithChildren<'_, V> {
         if self
             .cursor
             .peek_next()
-            .is_none_or(|(k, _v)| !k.starts_with(self.parent_path))
+            .is_none_or(|(k, _v)| !k.borrow().starts_with(self.parent_path))
         {
             return None;
         }

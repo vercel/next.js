@@ -768,7 +768,7 @@ pub type PlainTrace = Vec<PlainTraceItem>;
 async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTrace>> {
     let mut plain_traces = traces
         .into_iter()
-        .map(|trace| async move {
+        .map(async |trace| {
             let mut plain_trace = trace
                 .into_iter()
                 .filter(|asset| {

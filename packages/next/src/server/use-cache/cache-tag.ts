@@ -1,5 +1,7 @@
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import { validateTags } from '../lib/patch-fetch'
+import { createCacheTagOutsideUseCacheError } from './use-cache-messages'
 
 export function cacheTag(...tags: string[]): void {
   if (!process.env.__NEXT_USE_CACHE) {
@@ -15,14 +17,13 @@ export function cacheTag(...tags: string[]): void {
     case 'prerender-client':
     case 'validation-client':
     case 'prerender-runtime':
-    case 'prerender-ppr':
     case 'prerender-legacy':
     case 'request':
     case 'unstable-cache':
     case 'generate-static-params':
     case undefined:
-      throw new Error(
-        '`cacheTag()` can only be called inside a "use cache" function.'
+      throw createCacheTagOutsideUseCacheError(
+        workAsyncStorage.getStore()?.route
       )
     case 'cache':
     case 'private-cache':

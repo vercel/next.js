@@ -286,7 +286,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
         }
         quote! {
             // Register this `impl Trait for Concrete` into the link-time `TRAIT_IMPLS_SLICE`.
-            #[cfg(not(rust_analyzer))]
             turbo_tasks::macro_helpers::scattered_collect::declarative::scatter! {
                 #[scatter(turbo_tasks::macro_helpers::TRAIT_IMPLS_SLICE)]
                 const _: turbo_tasks::macro_helpers::TraitImplRecord = {

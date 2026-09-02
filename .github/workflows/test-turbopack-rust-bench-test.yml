@@ -15,8 +15,7 @@ on:
 env:
   TURBOPACK_BENCH_COUNTS: '100'
   TURBOPACK_BENCH_PROGRESS: '1'
-  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
 
 jobs:
   test:
@@ -49,10 +48,15 @@ jobs:
       - run: pnpm install
         working-directory: turbopack/benchmark-apps
 
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - name: Start sccache
         uses: ./.github/actions/sccache
-        with:
-          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Build benchmarks for tests
         timeout-minutes: 120

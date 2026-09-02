@@ -4,7 +4,10 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{FileSystem, FileSystemPath, LinkType, VirtualFileSystem, rope::RopeBuilder};
+use turbo_tasks_fs::{
+    FileSystem, FileSystemPath, VirtualFileSystem, WriteLinkContent, WriteLinkTarget,
+    WriteLinkTargetType, rope::RopeBuilder,
+};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -377,7 +380,7 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
         if self.external_type == CachedExternalType::CommonJs {
-            EcmascriptExports::CommonJs.cell()
+            EcmascriptExports::CommonJs(None).cell()
         } else {
             EcmascriptExports::DynamicNamespace.cell()
         }
@@ -508,10 +511,10 @@ impl Asset for ExternalsSymlinkAsset {
         )
         .into();
 
-        Ok(AssetContent::Redirect {
-            target,
-            link_type: LinkType::DIRECTORY,
-        }
+        Ok(AssetContent::Redirect(WriteLinkContent {
+            target: WriteLinkTarget::Relative(target),
+            target_type: WriteLinkTargetType::DirectoryOrJunctionPoint,
+        })
         .cell())
     }
 }

@@ -2,6 +2,7 @@ import execa from 'execa'
 import { join } from 'path'
 import { spawn } from 'child_process'
 import { fetchViaHTTP, findPort, killApp } from 'next-test-utils'
+import webdriver from 'next-webdriver'
 import {
   resolveTestPkgPaths,
   serializeTestPkgPathsEnv,
@@ -84,12 +85,14 @@ export async function tryNextDev({
   isApp = true,
   isApi = false,
   isEmpty = false,
+  tailwind = false,
 }: {
   cwd: string
   projectName: string
   isApp?: boolean
   isApi?: boolean
   isEmpty?: boolean
+  tailwind?: boolean
 }) {
   // The caller wraps this in `useTempDir`, so `cwd` (and the CNA project
   // inside it) is already an isolated temp directory that gets removed
@@ -129,6 +132,8 @@ export async function tryNextDev({
   // headroom so these tests aren't flaky on loaded CI machines.
   const startServerTimeout = 60_000
 
+  let browser: Awaited<ReturnType<typeof webdriver>> | undefined
+
   try {
     await new Promise<void>((resolve, reject) => {
       const onTimeout = setTimeout(() => {
@@ -164,17 +169,33 @@ export async function tryNextDev({
       })
     })
 
+    // The webpack test matrix forces generated apps to build with webpack,
+    // but create-next-app only exposes Turbopack and Rspack as bundler choices.
+    // Only assert rendered Tailwind styles when the generated bundler matches
+    // the test bundler.
+    if (tailwind && !process.env.IS_WEBPACK_TEST) {
+      browser = await webdriver(port, '/')
+      expect(await browser.elementByCss('main').getComputedCss('display')).toBe(
+        'flex'
+      )
+    }
+
     const res = await fetchViaHTTP(port, '/')
     if (isEmpty || isApi) {
       expect(await res.text()).toContain('Hello world!')
     } else {
       const responseText = await res.text()
+      // The filename in the intro line is wrapped in a `<code>` element, so
+      // strip HTML tags and collapse whitespace before matching the copy.
+      const textContent = responseText
+        .replace(/<[^>]+>/g, '')
+        .replace(/\s+/g, ' ')
       const hasAppRouterText =
-        responseText.includes('To get started, edit the page.tsx file.') ||
-        responseText.includes('To get started, edit the page.js file.')
+        textContent.includes('To get started, edit the page.tsx file.') ||
+        textContent.includes('To get started, edit the page.js file.')
       const hasPagesRouterText =
-        responseText.includes('To get started, edit the index.tsx file.') ||
-        responseText.includes('To get started, edit the index.js file.')
+        textContent.includes('To get started, edit the index.tsx file.') ||
+        textContent.includes('To get started, edit the index.js file.')
       expect(hasAppRouterText || hasPagesRouterText).toBe(true)
     }
     expect(res.status).toBe(200)
@@ -185,6 +206,7 @@ export async function tryNextDev({
       expect(apiRes.status).toBe(200)
     }
   } finally {
+    await browser?.close()
     await killApp(server).catch(() => {})
   }
 }

@@ -51,7 +51,7 @@ impl SourceTransform for BytesSourceTransform {
 
         // Generate ES module that decodes base64 to Uint8Array with inline source map.
         let code = format!(
-            r#""use turbopack no side effects";
+            r#""use turbopack: no side effects";
 import {{ base64Decode }} from '@turbopack/base64';
 export default base64Decode({});
 {}"#,

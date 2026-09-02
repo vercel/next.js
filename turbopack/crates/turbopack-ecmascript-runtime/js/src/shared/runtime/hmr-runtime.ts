@@ -122,16 +122,18 @@ function getAffectedModuleEffects(
 
   type QueueItem = { moduleId?: ModuleId; dependencyChain: ModuleId[] }
 
-  const queue: QueueItem[] = [
+  const queue: Array<QueueItem | undefined> = [
     {
       moduleId,
       dependencyChain: [],
     },
   ]
 
-  let nextItem
-  while ((nextItem = queue.shift())) {
-    const { moduleId, dependencyChain } = nextItem
+  let queueIndex = 0
+  while (queueIndex < queue.length) {
+    const { moduleId, dependencyChain } = queue[queueIndex]!
+    // Release copied dependency chains as soon as their queue item is consumed.
+    queue[queueIndex++] = undefined
 
     if (moduleId != null) {
       if (outdatedModules.has(moduleId)) {

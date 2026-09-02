@@ -54,7 +54,7 @@ pub async fn attach_async_info_to_chunkable_module(
     Ok(ChunkItemWithAsyncModuleInfo {
         chunk_item,
         chunk_type,
-        module: Some(module),
+        module: Some(ResolvedVc::upcast(module)),
         async_info,
     })
 }

@@ -2,6 +2,9 @@ import { isReact18, nextTestSetup, isNextDev } from 'e2e-utils'
 import { join } from 'path'
 import { retry } from 'next-test-utils'
 
+const react18DeprecationWarning =
+  'React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17. Please upgrade to React 19. Learn more: https://nextjs.org/docs/messages/react-version'
+
 function makeIndexPage(runtime: string) {
   return `import ReactDOM from 'react-dom'
 import Image from 'next/image'
@@ -32,6 +35,48 @@ export const config = {
 }
 
 describe('react-current-version', () => {
+  describe('React 18 deprecation warning', () => {
+    const { next, isNextDeploy, skipped } = nextTestSetup({
+      files: join(__dirname, 'app'),
+      skipStart: true,
+    })
+
+    if (skipped) {
+      return
+    }
+
+    if (isNextDeploy) {
+      it('should skip in deploy mode', () => {})
+      return
+    }
+
+    if (isNextDev) {
+      it('warns during next dev only when using React 18', async () => {
+        await next.start()
+        await retry(() => {
+          expect(next.cliOutput).toContain('Running next.config')
+        })
+
+        const warningCount =
+          next.cliOutput.split(react18DeprecationWarning).length - 1
+        expect(warningCount).toBe(isReact18 ? 1 : 0)
+      })
+    } else {
+      it('warns during next build only when using React 18 but not during next start', async () => {
+        const buildResult = await next.build()
+        const warningCount =
+          buildResult.cliOutput.split(react18DeprecationWarning).length - 1
+        expect(warningCount).toBe(isReact18 ? 1 : 0)
+
+        const outputIndex = next.cliOutput.length
+        await next.start()
+        expect(next.cliOutput.slice(outputIndex)).not.toContain(
+          react18DeprecationWarning
+        )
+      })
+    }
+  })
+
   describe('Basics', () => {
     const { next, isTurbopack } = nextTestSetup({
       files: join(__dirname, 'app'),

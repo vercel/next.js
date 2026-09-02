@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     cmp::{Ordering, min},
     fmt,
+    hash::{Hash, Hasher},
     io::{BufRead, Read, Result as IoResult, Write},
     mem,
     ops::{AddAssign, Deref},
@@ -22,7 +23,7 @@ use bytes::Bytes;
 use futures::Stream;
 use tokio::io::{AsyncRead, ReadBuf};
 use triomphe::Arc;
-use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
 
 static EMPTY_BUF: &[u8] = &[];
 
@@ -490,6 +491,12 @@ impl PartialEq for Rope {
 }
 
 impl Eq for Rope {}
+
+impl Hash for Rope {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_xxh3_hash64(self.content_hash()).hash(state);
+    }
+}
 
 impl Ord for Rope {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -1122,6 +1129,24 @@ mod test {
         hasher.write_bytes(string.as_bytes());
 
         assert_eq!(hash_xxh3_hash64(rope.content_hash()), hasher.finish());
+    }
+
+    #[test]
+    fn standard_hash_uses_content() {
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher},
+        };
+
+        let original = Rope::from("same content");
+        let copied = Rope::from(original.to_bytes().into_owned());
+        let mut original_hasher = DefaultHasher::new();
+        let mut copied_hasher = DefaultHasher::new();
+        original.hash(&mut original_hasher);
+        copied.hash(&mut copied_hasher);
+
+        assert_eq!(original, copied);
+        assert_eq!(original_hasher.finish(), copied_hasher.finish());
     }
 
     #[test]

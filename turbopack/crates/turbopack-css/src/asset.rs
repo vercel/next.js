@@ -43,6 +43,7 @@ pub struct CssModule {
     ty: CssModuleType,
     environment: Option<ResolvedVc<Environment>>,
     lightningcss_features: LightningCssFeatureFlags,
+    module_css_debuggable_idents: bool,
     /// The path of `source`, precomputed so that `ResolveOrigin::origin_path` is synchronous.
     origin_path: FileSystemPath,
 }
@@ -58,6 +59,7 @@ impl CssModule {
         import_context: Option<ResolvedVc<ImportContext>>,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: LightningCssFeatureFlags,
+        module_css_debuggable_idents: bool,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(CssModule {
             origin_path: source.ident().await?.path.clone(),
@@ -67,6 +69,7 @@ impl CssModule {
             ty,
             environment,
             lightningcss_features,
+            module_css_debuggable_idents,
         }))
     }
 
@@ -90,6 +93,7 @@ impl ParseCss for CssModule {
             this.ty,
             this.environment.as_deref().copied(),
             this.lightningcss_features,
+            this.module_css_debuggable_idents,
         ))
     }
 }
@@ -347,7 +351,7 @@ impl CssChunkItem for CssModuleChunkItem {
                 inner_code: output_code.to_owned().into(),
                 imports,
                 import_context: self.module.await?.import_context,
-                source_map: *source_map,
+                source_map: source_map.clone(),
             }
             .cell())
         } else {
@@ -358,7 +362,7 @@ impl CssChunkItem for CssModuleChunkItem {
                     .into(),
                 imports: vec![],
                 import_context: None,
-                source_map: FileContent::NotFound.resolved_cell(),
+                source_map: None,
             }
             .cell())
         }

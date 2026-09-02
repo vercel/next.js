@@ -5949,17 +5949,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/ppr-errors/ppr-errors.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "ppr build errors production only outside of a suspense boundary should fail the build for uncaught errors",
-      "ppr build errors production only when a postpone call is caught and logged it should should include a message telling why",
-      "ppr build errors production only within a suspense boundary should fail the build for uncaught prerender errors"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/app-dir/ppr-full/ppr-full.test.ts": {
     "passed": [],
     "failed": [],
@@ -8042,7 +8031,9 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/turbopack-reports/turbopack-reports.test.ts": {
-    "passed": ["turbopack-reports should render page importing sqlite3"],
+    "passed": [
+      "turbopack-reports should render page importing a package that loads a native binding"
+    ],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -8217,7 +8208,7 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-dev/use-cache-dev.test.ts": {
+  "test/development/app-dir/use-cache-dev/use-cache-dev.test.ts": {
     "passed": [
       "use-cache-dev should ignore an existing HMR refresh hash cookie with \"next start\""
     ],
@@ -16112,17 +16103,6 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/integration/firebase-grpc/test/index.test.ts": {
-    "passed": [
-      "Building Firebase production mode Throws no error when building with firebase dependency without worker_threads"
-    ],
-    "failed": [],
-    "pending": [
-      "Building Firebase production mode Throws an error when building with firebase dependency with worker_threads"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/integration/future/test/index.test.ts": {
     "passed": [
       "excludeDefaultMomentLocales production mode should load momentjs"
@@ -22006,9 +21986,9 @@
       "NEXT_HASH_SALT should produce chunk files",
       "NEXT_HASH_SALT should produce css files",
       "NEXT_HASH_SALT should produce image files",
-      "experimental.outputHashSalt combined salt differs from config-only salt",
-      "experimental.outputHashSalt combined salt differs from env-var-only salt",
-      "experimental.outputHashSalt config salt changes filenames compared to no salt"
+      "outputHashSalt combined salt differs from config-only salt",
+      "outputHashSalt combined salt differs from env-var-only salt",
+      "outputHashSalt config salt changes filenames compared to no salt"
     ],
     "failed": [],
     "pending": [],

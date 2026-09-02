@@ -20,7 +20,6 @@ describe('app dir - not found with default 404 page', () => {
       // TODO: Either allow or include original stack
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E192",
          "description": "notFound() is not allowed to use in root layout",
          "environmentLabel": null,
          "label": "Runtime Error",
@@ -52,7 +51,6 @@ describe('app dir - not found with default 404 page', () => {
       // TODO: Either allow or include original stack
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E192",
          "description": "notFound() is not allowed to use in root layout",
          "environmentLabel": null,
          "label": "Runtime Error",

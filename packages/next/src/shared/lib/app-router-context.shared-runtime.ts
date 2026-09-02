@@ -1,7 +1,7 @@
 'use client'
 
 import type {
-  FocusAndScrollRef,
+  ScrollHandlerRef,
   PrefetchKind,
 } from '../../client/components/router-reducer/router-reducer-types'
 import type { Params } from '../../server/request/params'
@@ -105,7 +105,7 @@ export const LayoutRouterContext = React.createContext<{
 
 export const GlobalLayoutRouterContext = React.createContext<{
   tree: FlightRouterState
-  focusAndScrollRef: FocusAndScrollRef
+  scrollRef: ScrollHandlerRef
   nextUrl: string | null
   previousNextUrl: string | null
 }>(null as any)

@@ -143,7 +143,12 @@ export function Draggable({
   }
 
   return (
-    <div {...props} {...drag} ref={ref}>
+    <div
+      {...props}
+      {...drag}
+      ref={ref}
+      style={{ touchAction: 'none', ...props.style }}
+    >
       {children}
     </div>
   )

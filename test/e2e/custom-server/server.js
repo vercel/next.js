@@ -112,7 +112,11 @@ async function main() {
     if (/legacy-methods\/revalidate/.test(req.url)) {
       try {
         await app.revalidate({ urlPath: '/', headers: {}, opts: {} })
-      } catch {}
+      } catch (err) {
+        res.statusCode = 500
+        res.end(err.stack)
+        return
+      }
       res.end('ok')
       return
     }

@@ -1,0 +1,20 @@
+error - [bindings] /turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/index.js:1:0  Export MISSING doesn't exist in target module
+  
+         + v--------------------------------------------------------v
+       1 + import { SOME_VALUE, NO_CONSTANT, MISSING } from './other'
+         + ^--------------------------------------------------------^
+       2 | 
+       3 | if (SOME_VALUE === 'x') {
+       4 |   console.log('x')
+       5 | } else {
+  
+  The export MISSING was not found in module [project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/other.js [test] (ecmascript).
+  
+  Did you mean to import LONG_REGEX?
+  
+  All exports of the module are statically known (It doesn't have dynamic exports). So it's known statically that the requested export doesn't exist.
+  
+  
+  | These are the exports of the module:
+  | LONG_BIG_NUMBER, LONG_NUMBER, LONG_REGEX, LONG_STRING, NO_CONSTANT, SOME_VALUE
+  |

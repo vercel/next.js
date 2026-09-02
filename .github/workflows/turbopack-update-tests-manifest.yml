@@ -22,6 +22,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: next.js
           permission-contents: write
+          permission-pull-requests: write
 
       - name: Get GitHub App user ID
         id: release-app-user
@@ -62,7 +63,6 @@ jobs:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
-          PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: turbopack-manifest
           SCRIPT: test/update-bundler-manifest.js --bundler turbopack --test-suite dev
           PR_TITLE: Update Turbopack development test manifest
@@ -81,6 +81,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: next.js
           permission-contents: write
+          permission-pull-requests: write
 
       - name: Get GitHub App user ID
         id: release-app-user
@@ -121,7 +122,6 @@ jobs:
           RELEASE_GITHUB_TOKEN: ${{ steps.release-app-token.outputs.token }}
           RELEASE_GITHUB_APP_SLUG: ${{ steps.release-app-token.outputs.app-slug }}
           RELEASE_GITHUB_APP_USER_ID: ${{ steps.release-app-user.outputs.user-id }}
-          PR_GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: turbopack-manifest
           SCRIPT: test/update-bundler-manifest.js --bundler turbopack --test-suite build
           PR_TITLE: Update Turbopack production test manifest

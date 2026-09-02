@@ -510,18 +510,20 @@ describe('runtime prefetching', () => {
       // Clear cookies after the test. This currently doesn't happen automatically.
       await using _ = defer(() => browser.deleteCookies())
 
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       await browser.addCookie({ name: 'testCookie', value: 'initialValue' })
 
-      // Reveal the link to trigger a runtime prefetch for the initial cookie value
+      // Reveal the link.
+      // We won't actually perform a runtime prefetch, because the request is
+      // satisfied by the app shell.
       await act(async () => {
         const linkToggle = await browser.elementByCss(
           `input[data-link-accordion="/${prefix}/cookies-only"]`
         )
         await linkToggle.click()
       }, [
-        // Should allow reading cookies
+        // Should allow reading cookies in the app shell
         {
           includes: 'Cookie: initialValue',
         },
@@ -561,11 +563,14 @@ describe('runtime prefetching', () => {
         // Clear cookies after the test. This currently doesn't happen automatically.
         await using _ = defer(() => browser.deleteCookies())
 
-        const act = createRouterAct(page)
+        const act = createRouterAct(page, { includeAppShellRequests: true })
 
         await browser.addCookie({ name: 'testCookie', value: 'initialValue' })
 
-        // Reveal the link to trigger a runtime prefetch for the initial cookie value
+        // Reveal the link.
+        // We won't actually perform a runtime prefetch, because the request is
+        // satisfied by the app shell.
+
         await act(async () => {
           const linkToggle = await browser.elementByCss(
             `input[data-link-accordion="/${prefix}/cookies-only"]`
@@ -1056,11 +1061,13 @@ describe('runtime prefetching', () => {
           page = p
         },
       })
-      const act = createRouterAct(page)
+      const act = createRouterAct(page, { includeAppShellRequests: true })
 
       const STATIC_CONTENT = 'This page errors after a cookies call'
 
-      // Reveal the link to trigger a runtime prefetch
+      // Reveal the link.
+      // We won't actually perform a runtime prefetch, because the request is
+      // satisfied by the app shell.
       await act(async () => {
         const linkToggle = await browser.elementByCss(
           `input[data-link-accordion="/errors/error-after-cookies"]`
@@ -1077,7 +1084,7 @@ describe('runtime prefetching', () => {
         expect(getCliOutput()).toContain('Error: Kaboom')
       }
 
-      // Navigate to the page. We already have the paged cached.
+      // Navigate to the page. We already have the page cached.
       // Even though the render errored, we shouldn't fetch it again.
       await act(async () => {
         await browser

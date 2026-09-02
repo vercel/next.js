@@ -1,0 +1,6 @@
+{
+  "name": "native-addon",
+  "version": "1.0.0",
+  "description": "Context-aware native addon fixture, compiled by node-gyp",
+  "main": "index.js"
+}

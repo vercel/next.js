@@ -11,7 +11,6 @@ const exec = promisify(execOriginal)
 
 const {
   RELEASE_GITHUB_TOKEN = '',
-  PR_GITHUB_TOKEN = '',
   RELEASE_GITHUB_APP_SLUG = '',
   RELEASE_GITHUB_APP_USER_ID = '',
   SCRIPT = '',
@@ -22,10 +21,6 @@ const {
 
 if (!RELEASE_GITHUB_TOKEN) {
   console.log('missing RELEASE_GITHUB_TOKEN env')
-  process.exit(1)
-}
-if (!PR_GITHUB_TOKEN) {
-  console.log('missing PR_GITHUB_TOKEN env')
   process.exit(1)
 }
 if (!RELEASE_GITHUB_APP_SLUG) {
@@ -45,7 +40,7 @@ const REPO_OWNER = 'vercel'
 const REPO_NAME = 'next.js'
 
 async function main() {
-  const octokit = new Octokit({ auth: PR_GITHUB_TOKEN })
+  const octokit = new Octokit({ auth: RELEASE_GITHUB_TOKEN })
   const branchName = `update/${BRANCH_NAME}-${Date.now()}`
   const botUserName = `${RELEASE_GITHUB_APP_SLUG}[bot]`
   const botUserEmail = `${RELEASE_GITHUB_APP_USER_ID}+${RELEASE_GITHUB_APP_SLUG}[bot]@users.noreply.github.com`
