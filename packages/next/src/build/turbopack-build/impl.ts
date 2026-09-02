@@ -165,13 +165,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
   }
 
   try {
-    const { warnings: initializationWarnings } = printBuildErrors(
-      project,
-      dev,
-      {
-        deferWarnings: true,
-      }
-    )
+    printBuildErrors(project, dev)
 
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
@@ -193,7 +187,6 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     const { warnings } = printBuildErrors(entrypoints, dev, {
       deferWarnings: true,
     })
-    warnings.unshift(...initializationWarnings)
 
     // Skip when telemetry is fully off — featureUsage() isn't free.
     if (telemetry.isEnabled || process.env.NEXT_TELEMETRY_DEBUG) {

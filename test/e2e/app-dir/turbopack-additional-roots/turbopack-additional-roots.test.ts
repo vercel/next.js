@@ -75,6 +75,23 @@ import { retry } from 'next-test-utils'
     }
 
     if (isNextStart) {
+      it('reports initialization warnings when compilation fails', async () => {
+        await next.stop()
+
+        await next.patchFile(
+          'app/page.tsx',
+          (content) => `${content}\nexport const broken =`,
+          async () => {
+            const { exitCode, cliOutput } = await next.build()
+            expect(exitCode).toBe(1)
+            expect(cliOutput).toContain('Invalid Turbopack additional root')
+          }
+        )
+
+        expect((await next.build()).exitCode).toBe(0)
+        await next.start({ skipBuild: true })
+      })
+
       it('can rebuild after changing the additional roots config', async () => {
         const browser = await next.browser('/')
         expect(await browser.elementByCss('#value').text()).toBe(
