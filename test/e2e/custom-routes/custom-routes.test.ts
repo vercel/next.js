@@ -11,16 +11,17 @@ import {
   normalizeManifest,
   retry,
 } from 'next-test-utils'
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup, isNextDev } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Custom routes', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let externalServerPort: number
   let externalServer: http.Server
@@ -3471,16 +3472,17 @@ describe('Custom routes', () => {
     })
   }
 })
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Custom routes no-op rewrite', () => {
-  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     env: {
       ADD_NOOP_REWRITE: 'true',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
   if (isTurbopack && isNextStart) {
     it('skipped - not supported in turbopack build mode', () => {})
     return
@@ -3528,14 +3530,15 @@ describe('Custom routes no-op rewrite', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Custom routes solo types', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     disableAutoSkewProtection: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let externalServer: http.Server
   let externalServerPort: number
@@ -3651,13 +3654,15 @@ describe('Custom routes solo types', () => {
     }
   })
 })
-;(isNextStart ? describe : describe.skip)('Custom routes export', () => {
-  const { next, isNextDeploy } = nextTestSetup({
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
+// @force-gate start
+describe('Custom routes export', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (isNextDeploy) return
 
   it('should not show warning for custom routes when not next export', async () => {
     await next.patchFile('next.config.js', (content) =>

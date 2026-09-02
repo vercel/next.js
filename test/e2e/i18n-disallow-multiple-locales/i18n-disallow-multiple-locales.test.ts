@@ -13,16 +13,13 @@ async function verify(res, locale) {
   expect($('#router-locale').text()).toBe(locale)
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// TODO: re-enable after this behavior is corrected
+// @force-gate !deploy
 describe('i18n-disallow-multiple-locales', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // TODO: re-enable after this behavior is corrected
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should verify the default locale works', async () => {
     const res = await next.fetch('/', { redirect: 'manual' })
