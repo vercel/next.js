@@ -2,13 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitForRedbox, getRedboxSource } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('webpack-loader-errors', () => {
-  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-  if (skipped) return
 
   if (!isNextDev) {
     it('should skip in non-dev mode', () => {})

@@ -1,9 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely inspects local build artifacts that deploy tests do not expose.
+// @force-gate !deploy
 describe('TypeScript type expressions in route segment config', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   describe('app directory', () => {

@@ -1,11 +1,13 @@
 import path from 'path'
 import { isNextStart, nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('Undefined default export', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname),
     skipStart: isNextStart,
-    skipDeployment: true,
   })
 
   if (isNextDev) {
