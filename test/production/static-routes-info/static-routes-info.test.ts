@@ -60,12 +60,10 @@ describe('next internal static-routes-info', () => {
     return
   }
 
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
-
-  if (skipped) return
 
   beforeAll(async () => {
     const buildResult = await next.build()

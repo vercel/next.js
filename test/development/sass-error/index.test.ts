@@ -2,16 +2,12 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
 describe('app dir - css', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       sass: 'latest',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   describe('sass support', () => {
     ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(

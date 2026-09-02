@@ -1,14 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir - client-page-error-bailout', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let stderr = ''
   beforeAll(() => {

@@ -5,13 +5,9 @@ import { nextTestSetup } from 'e2e-utils'
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'mcp-server get_compilation_issues tool',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures', 'compilation-errors-app'),
     })
-
-    if (skipped) {
-      return
-    }
 
     async function callMcpTool() {
       const response = await fetch(`${next.url}/_next/mcp`, {

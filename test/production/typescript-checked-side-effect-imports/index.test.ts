@@ -1,12 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Side-effect imports with noUncheckedSideEffectImports', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: { sass: '1.54.0' },
     skipStart: true,
   })
-  if (skipped) return
 
   let buildResult: Awaited<ReturnType<(typeof next)['build']>>
   beforeAll(async () => {
