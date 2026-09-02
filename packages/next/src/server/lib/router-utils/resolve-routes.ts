@@ -83,11 +83,16 @@ export function getResolveRoutes(
   let routes: Route[] | null = null
   const calculateRoutes = () => {
     return [
-      // _next/data with middleware handling
+      // detect _next/data requests so config headers/redirects can match
+      // against the request before any middleware-specific normalization
       { match: () => ({}), name: 'middleware_next_data' },
 
       ...(opts.minimalMode ? [] : fsChecker.headers),
       ...(opts.minimalMode ? [] : fsChecker.redirects),
+
+      // normalize _next/data requests to their underlying page path so the
+      // middleware matcher below evaluates against the real route
+      { match: () => ({}), name: 'middleware_next_data_normalize' },
 
       // check middleware (using matchers)
       { match: () => ({}), name: 'middleware' },
@@ -429,70 +434,84 @@ export function getResolveRoutes(
         }
 
         if (route.name === 'middleware_next_data' && parsedUrl.pathname) {
-          if (fsChecker.getMiddlewareMatchers()?.length) {
-            let normalized = parsedUrl.pathname
+          let normalized = parsedUrl.pathname
 
-            // Remove the base path if it exists.
-            const hadBasePath = normalizers.basePath?.match(parsedUrl.pathname)
-            if (hadBasePath && normalizers.basePath) {
-              normalized = normalizers.basePath.normalize(normalized, true)
-            }
+          // Remove the base path if it exists.
+          const hadBasePath = normalizers.basePath?.match(parsedUrl.pathname)
+          if (hadBasePath && normalizers.basePath) {
+            normalized = normalizers.basePath.normalize(normalized, true)
+          }
 
-            const isNextDataPath =
-              pathHasPrefix(normalized, '/_next/data') &&
-              normalized.endsWith('.json')
-            const hasCurrentBuildIdDataPath = normalizers.data.match(normalized)
+          const isNextDataPath =
+            pathHasPrefix(normalized, '/_next/data') &&
+            normalized.endsWith('.json')
 
-            let updated = false
-            if (hasCurrentBuildIdDataPath) {
-              updated = true
-              normalized = normalizers.data.normalize(normalized, true)
-            }
-            if (isNextDataPath) {
-              setIsNextDataRequest()
-            }
+          if (isNextDataPath) {
+            setIsNextDataRequest()
+          }
+        }
 
-            if (config.i18n) {
-              const curLocaleResult = normalizeLocalePath(
-                normalized,
-                config.i18n.locales
+        if (
+          route.name === 'middleware_next_data_normalize' &&
+          parsedUrl.pathname &&
+          fsChecker.getMiddlewareMatchers()?.length
+        ) {
+          let normalized = parsedUrl.pathname
+
+          // Remove the base path if it exists.
+          const hadBasePath = normalizers.basePath?.match(parsedUrl.pathname)
+          if (hadBasePath && normalizers.basePath) {
+            normalized = normalizers.basePath.normalize(normalized, true)
+          }
+
+          const hasCurrentBuildIdDataPath = normalizers.data.match(normalized)
+
+          let updated = false
+          if (hasCurrentBuildIdDataPath) {
+            updated = true
+            normalized = normalizers.data.normalize(normalized, true)
+          }
+
+          if (config.i18n) {
+            const curLocaleResult = normalizeLocalePath(
+              normalized,
+              config.i18n.locales
+            )
+
+            if (curLocaleResult.detectedLocale) {
+              addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
+            } else if (
+              defaultLocale &&
+              !curLocaleResult.pathname.startsWith('/_next/')
+            ) {
+              // Match normalized _next/data requests against the same
+              // locale-prefixed internal pathname shape used by direct page
+              // requests when the default locale was inferred.
+              normalized = addPathPrefix(
+                curLocaleResult.pathname === '/'
+                  ? `/${defaultLocale}`
+                  : addPathPrefix(
+                      curLocaleResult.pathname || '',
+                      `/${defaultLocale}`
+                    )
               )
+            }
+          }
 
-              if (curLocaleResult.detectedLocale) {
-                addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
-              } else if (
-                defaultLocale &&
-                !curLocaleResult.pathname.startsWith('/_next/')
-              ) {
-                // Match normalized _next/data requests against the same
-                // locale-prefixed internal pathname shape used by direct page
-                // requests when the default locale was inferred.
-                normalized = addPathPrefix(
-                  curLocaleResult.pathname === '/'
-                    ? `/${defaultLocale}`
-                    : addPathPrefix(
-                        curLocaleResult.pathname || '',
-                        `/${defaultLocale}`
-                      )
-                )
-              }
+          // If we updated the pathname, and it had a base path, re-add the
+          // base path.
+          if (updated) {
+            if (hadBasePath) {
+              normalized =
+                normalized === '/'
+                  ? config.basePath
+                  : path.posix.join(config.basePath, normalized)
             }
 
-            // If we updated the pathname, and it had a base path, re-add the
-            // base path.
-            if (updated) {
-              if (hadBasePath) {
-                normalized =
-                  normalized === '/'
-                    ? config.basePath
-                    : path.posix.join(config.basePath, normalized)
-              }
+            // Re-add the trailing slash (if required).
+            normalized = maybeAddTrailingSlash(normalized)
 
-              // Re-add the trailing slash (if required).
-              normalized = maybeAddTrailingSlash(normalized)
-
-              parsedUrl.pathname = normalized
-            }
+            parsedUrl.pathname = normalized
           }
         }
 
