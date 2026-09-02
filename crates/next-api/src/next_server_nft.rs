@@ -283,9 +283,8 @@ impl Asset for ServerNftJsonAsset {
     }
 }
 
-/// The patterns `ignores()` is built from that Next owns, as opposed to the ones a project can
-/// supply. None of them can match an entry request resolved by `entries()`, which is what makes
-/// them safe to apply while the graph is built rather than after it: see `prunable_ignores()`.
+/// These globs are used to prune the module graph for the server NFT JSON assets. They are always
+/// ignored for every page, so we can completely skip even parsing/walking these modules.
 fn next_owned_ignores(
     ty: &ServerNftType,
     has_next_support: bool,
