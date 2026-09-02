@@ -623,6 +623,7 @@ fn prefill_multi_value_database(
             name: "test",
             kind: FamilyKind::MultiValue,
         }],
+        ..TpDbConfig::new()
     };
     let db =
         TurboPersistence::<SerialScheduler, 1>::open_with_config(path.to_path_buf(), db_config)?;
@@ -697,6 +698,7 @@ fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
             name: "test",
             kind: FamilyKind::MultiValue,
         }],
+        ..TpDbConfig::new()
     };
     TurboPersistence::<SerialScheduler, 1>::open_with_config(path.to_path_buf(), db_config).unwrap()
 }
@@ -965,6 +967,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                                 name: "test",
                                 kind: FamilyKind::MultiValue,
                             }],
+                            ..TpDbConfig::new()
                         };
                         let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
                             tempdir.path().to_path_buf(),
@@ -1209,7 +1212,12 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
                 sequence_number: 1,
                 block_count: meta.block_count,
             };
-            let sst = StaticSortedFile::open(tempdir.path(), sst_meta).unwrap();
+            let sst = StaticSortedFile::open(
+                tempdir.path(),
+                sst_meta,
+                turbo_persistence::AccessMode::Mmap,
+            )
+            .unwrap();
 
             // Create block caches
             let key_block_cache: BlockCache = BlockCache::with(

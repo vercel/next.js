@@ -524,6 +524,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             use core::panic;
 
             use crate::{
+                AccessMode,
                 collector_entry::CollectorEntryValue,
                 key::hash_key,
                 lookup_entry::LookupValue,
@@ -540,6 +541,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     sequence_number: seq,
                     block_count: meta.block_count,
                 },
+                AccessMode::Mmap,
             )?;
             let cache2 = BlockCache::with(
                 10,

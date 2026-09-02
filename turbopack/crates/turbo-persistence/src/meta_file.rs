@@ -1,6 +1,7 @@
 use std::{
     cmp::Ordering,
     fmt::Display,
+    ops::Deref,
     path::{Path, PathBuf},
     sync::OnceLock,
 };
@@ -14,7 +15,7 @@ use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
 use crate::{
-    QueryKey,
+    AccessMode, QueryKey,
     lookup_entry::LookupValue,
     mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -92,8 +93,8 @@ impl EntryHeader {
 /// # Safety
 ///
 /// `MetaEntry` stores a `FilterRef<'static>` with a transmuted lifetime that actually borrows
-/// from the parent [`MetaFile`]'s mmap. This is safe because entries are only accessed by
-/// reference through `MetaFile` and are never moved out.
+/// from the parent [`MetaFile`]'s stable backing bytes. This is safe because entries are only
+/// accessed by reference through `MetaFile` and are never moved out.
 ///
 /// For this reason this type should not implement Clone or Copy.
 pub struct MetaEntry {
@@ -109,19 +110,19 @@ pub struct MetaEntry {
     size: u64,
     /// The status flags for this entry.
     flags: MetaEntryFlags,
-    /// Byte offset range of the raw AMQF data within the mmap, used for carrying forward
+    /// Byte offset range of the raw AMQF data within the backing, used for carrying forward
     /// serialized bytes during compaction without re-serializing.
     amqf_data_offset: std::ops::Range<u32>,
     /// The AMQF filter for this file, eagerly deserialized as a zero-copy [`qfilter::FilterRef`]
     /// that borrows directly from the parent [`MetaFile`]'s memory-mapped file.
     ///
-    /// The `'static` lifetime is transmuted — the actual borrow is from `MetaFile::mmap`.
+    /// The `'static` lifetime is transmuted — the actual borrow is from `MetaFile::backing`.
     amqf: qfilter::FilterRef<'static>,
     /// The static sorted file that is lazily loaded
     sst: OnceLock<StaticSortedFile>,
 }
 
-// Safety: FilterRef is a read-only view into the mmap which is Send+Sync.
+// Safety: FilterRef is a read-only view into stable backing bytes which are Send+Sync.
 unsafe impl Send for MetaEntry {}
 unsafe impl Sync for MetaEntry {}
 
@@ -146,19 +147,21 @@ impl MetaEntry {
         &self.amqf
     }
 
-    /// Returns the raw serialized AMQF bytes from the mmap.
+    /// Returns the raw serialized AMQF bytes from the stable backing.
     pub fn raw_amqf<'l>(&self, amqf_data: &'l [u8]) -> &'l [u8] {
         &amqf_data[self.amqf_data_offset.start as usize..self.amqf_data_offset.end as usize]
     }
 
     fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
         self.sst.get_or_try_init(|| {
-            StaticSortedFile::open(&meta.db_path, self.sst_data).with_context(|| {
-                format!(
-                    "Unable to open static sorted file referenced from {:08}.meta",
-                    meta.sequence_number()
-                )
-            })
+            StaticSortedFile::open(&meta.db_path, self.sst_data, meta.access_mode).with_context(
+                || {
+                    format!(
+                        "Unable to open static sorted file referenced from {:08}.meta",
+                        meta.sequence_number()
+                    )
+                },
+            )
         })
     }
 
@@ -232,11 +235,26 @@ pub struct StaticSortedFileRange {
     pub max_hash: u64,
 }
 
+enum MetaFileBacking {
+    Mmap(Mmap),
+    Bytes(Box<[u8]>),
+}
+
+impl Deref for MetaFileBacking {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            MetaFileBacking::Mmap(mmap) => mmap,
+            MetaFileBacking::Bytes(bytes) => bytes,
+        }
+    }
+}
+
 /// # Safety
 ///
-/// `entries` **must** be declared before `mmap` so that Rust's field drop order (declaration
-/// order) drops all `FilterRef`s before the mmap is unmapped.  Reordering these fields would
-/// be unsound.
+/// `entries` must be declared before `backing` so every borrowed `FilterRef` is dropped before
+/// its stable mmap or heap storage.
 pub struct MetaFile {
     /// The database path
     db_path: PathBuf,
@@ -244,44 +262,55 @@ pub struct MetaFile {
     sequence_number: u32,
     /// The key family of the SST files in this meta file.
     family: u32,
-    /// The entries of the file. Dropped before `mmap` (field declaration order).
+    /// The entries of the file. Dropped before `backing` (field declaration order).
     entries: Vec<MetaEntry>,
     /// The entries that have been marked as obsolete.
     obsolete_entries: Vec<u32>,
     /// The obsolete SST files.
     obsolete_sst_files: Vec<u32>,
-    /// Byte offset within the mmap where the AMQF data region starts (i.e. the header length).
+    /// Byte offset within the backing where the AMQF data region starts.
     /// Entry AMQF offsets and used-keys offsets are relative to this position.
     amqf_data_start: u32,
     /// The offset of the start of the "used keys" AMQF data relative to the AMQF data region.
     start_of_used_keys_amqf_data_offset: u32,
     /// The offset of the end of the "used keys" AMQF data relative to the AMQF data region.
     end_of_used_keys_amqf_data_offset: u32,
-    /// The memory mapped file.
-    /// The entire memory-mapped file. Must be the last field that matters for drop order —
-    /// `entries` contains `FilterRef`s that borrow from this mmap.
-    mmap: Mmap,
+    /// The access mode inherited by referenced SST files.
+    access_mode: AccessMode,
+    /// Stable bytes backing the parsed filters. Must be declared after `entries`.
+    backing: MetaFileBacking,
 }
 
 impl MetaFile {
-    /// Opens a meta file at the given path. Memory maps the entire file and eagerly deserializes
-    /// all AMQF filters as zero-copy [`qfilter::FilterRef`]s that borrow from the mmap.
-    pub fn open(db_path: &Path, sequence_number: u32) -> Result<Self> {
+    /// Opens a meta file using mmap or stable heap bytes according to `access_mode`.
+    pub fn open(db_path: &Path, sequence_number: u32, access_mode: AccessMode) -> Result<Self> {
         let filename = format!("{sequence_number:08}.meta");
         let path = db_path.join(&filename);
-        Self::open_internal(db_path.to_path_buf(), sequence_number, &path)
+        Self::open_internal(db_path.to_path_buf(), sequence_number, &path, access_mode)
             .with_context(|| format!("Unable to open meta file {filename}"))
     }
 
-    fn open_internal(db_path: PathBuf, sequence_number: u32, path: &Path) -> Result<Self> {
-        let file = File::open(path)?;
-        let mmap = unsafe { MmapOptions::new().map(file.file()) }.context("Failed to mmap")?;
-        #[cfg(unix)]
-        mmap.advise(memmap2::Advice::Random)
-            .context("Failed to advise mmap")?;
-        advise_mmap_for_persistence(&mmap)?;
-        // Parse the header from the mmap via ReadBytesExt on &[u8].
-        let mut reader: &[u8] = &mmap;
+    fn open_internal(
+        db_path: PathBuf,
+        sequence_number: u32,
+        path: &Path,
+        access_mode: AccessMode,
+    ) -> Result<Self> {
+        let backing = match access_mode {
+            AccessMode::Mmap => {
+                let file = File::open(path)?;
+                let mmap = unsafe { MmapOptions::new().map(file.file()) }
+                    .context("Failed to mmap meta file")?;
+                #[cfg(unix)]
+                mmap.advise(memmap2::Advice::Random)
+                    .context("Failed to advise mmap")?;
+                advise_mmap_for_persistence(&mmap)?;
+                MetaFileBacking::Mmap(mmap)
+            }
+            AccessMode::File => MetaFileBacking::Bytes(fs_err::read(path)?.into_boxed_slice()),
+        };
+        // Parse the header from stable backing bytes via ReadBytesExt on &[u8].
+        let mut reader: &[u8] = &backing;
         let magic = reader.read_u32::<BE>()?;
         if magic != META_FILE_MAGIC {
             bail!("Invalid magic number");
@@ -297,10 +326,10 @@ impl MetaFile {
 
         // Compute where the AMQF data region starts so we can deserialize filters inline.
         // Remaining header: count * ENTRY_HEADER_SIZE + used_keys_end_offset.
-        let header_so_far = (mmap.len() - reader.len()) as u32;
+        let header_so_far = (backing.len() - reader.len()) as u32;
         let amqf_data_start =
             header_so_far + count * (size_of::<EntryHeader>() as u32) + size_of::<u32>() as u32;
-        let amqf_data = &mmap[amqf_data_start as usize..];
+        let amqf_data = &backing[amqf_data_start as usize..];
 
         // Parse entries and eagerly deserialize AMQF filters as zero-copy FilterRefs.
         let mut entries = Vec::with_capacity(count as usize);
@@ -323,7 +352,7 @@ impl MetaFile {
             let amqf_bytes = amqf_data
                 .get(start_of_amqf_data_offset as usize..end_of_amqf_data_offset as usize)
                 .expect("AMQF data out of bounds");
-            // Deserialize the filter borrowing from the mmap, then erase the lifetime.
+            // Deserialize the filter borrowing from the stable backing, then erase the lifetime.
             let amqf: qfilter::FilterRef<'_> =
                 postcard::from_bytes(amqf_bytes).with_context(|| {
                     format!(
@@ -331,7 +360,7 @@ impl MetaFile {
                         sequence_number, sst_data.sequence_number
                     )
                 })?;
-            // Safety: the mmap is kept alive by MetaFile and is dropped after entries (field
+            // Safety: the backing is kept alive by MetaFile and is dropped after entries (field
             // declaration order), so the borrow remains valid for the lifetime of the MetaEntry.
             let amqf: qfilter::FilterRef<'static> = unsafe { std::mem::transmute(amqf) };
 
@@ -362,7 +391,8 @@ impl MetaFile {
             amqf_data_start,
             start_of_used_keys_amqf_data_offset,
             end_of_used_keys_amqf_data_offset,
-            mmap,
+            access_mode,
+            backing,
         })
     }
 
@@ -388,7 +418,7 @@ impl MetaFile {
 
     /// The on-disk size of this meta file in bytes (the length of its memory map).
     pub fn byte_size(&self) -> u64 {
-        self.mmap.len() as u64
+        self.backing.len() as u64
     }
 
     pub fn entries(&self) -> &[MetaEntry] {
@@ -401,7 +431,7 @@ impl MetaFile {
     }
 
     pub fn amqf_data(&self) -> &[u8] {
-        &self.mmap[self.amqf_data_start as usize..]
+        &self.backing[self.amqf_data_start as usize..]
     }
 
     pub fn deserialize_used_key_hashes_amqf(&self) -> Result<Option<qfilter::FilterRef<'_>>> {

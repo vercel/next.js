@@ -37,6 +37,7 @@ const MB: u64 = 1024 * 1024;
 pub fn db_config() -> DbConfig<FAMILIES> {
     DbConfig {
         family_configs: std::array::from_fn(|i| KeySpace::from_index(i).family_config()),
+        ..DbConfig::new()
     }
 }
 

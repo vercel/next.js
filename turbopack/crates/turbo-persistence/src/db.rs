@@ -17,6 +17,7 @@ use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
+use either::Either;
 use fs_err::{self as fs, File, OpenOptions, ReadDir};
 use jiff::Timestamp;
 use memmap2::Mmap;
@@ -29,7 +30,7 @@ use tracing::span::EnteredSpan;
 
 pub use crate::compaction::selector::CompactConfig;
 use crate::{
-    DbConfig, FamilyKind, QueryKey,
+    AccessMode, DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
     compression::{checksum_block, decompress_into_arc},
@@ -634,7 +635,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut meta_files = self
             .parallel_scheduler
             .parallel_map_collect::<_, _, Result<Vec<MetaFile>>>(&meta_files, |&seq| {
-                let meta_file = MetaFile::open(&self.path, seq)?;
+                let meta_file = MetaFile::open(&self.path, seq, self.config.access_mode)?;
                 Ok(meta_file)
             })?;
 
@@ -656,19 +657,28 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
         let file = File::open(&path)?;
-        let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
-            format!(
-                "Failed to mmap blob file {} ({} bytes)",
-                path.display(),
-                file.metadata().map(|m| m.len()).unwrap_or(0)
-            )
-        })?;
-        #[cfg(unix)]
-        mmap.advise(memmap2::Advice::Sequential)?;
-        #[cfg(unix)]
-        mmap.advise(memmap2::Advice::WillNeed)?;
-        advise_mmap_for_persistence(&mmap)?;
-        let mut reader = &mmap[..];
+        let data: Either<Mmap, Vec<u8>> = match self.config.access_mode {
+            AccessMode::Mmap => {
+                let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
+                    format!(
+                        "Failed to mmap blob file {} ({} bytes)",
+                        path.display(),
+                        file.metadata().map(|m| m.len()).unwrap_or(0)
+                    )
+                })?;
+                #[cfg(unix)]
+                mmap.advise(memmap2::Advice::Sequential)?;
+                #[cfg(unix)]
+                mmap.advise(memmap2::Advice::WillNeed)?;
+                advise_mmap_for_persistence(&mmap)?;
+                Either::Left(mmap)
+            }
+            AccessMode::File => Either::Right(fs::read(&path)?),
+        };
+        let mut reader: &[u8] = match &data {
+            Either::Left(mmap) => mmap,
+            Either::Right(bytes) => bytes,
+        };
         let uncompressed_length = reader
             .read_u32::<BE>()
             .context("Failed to read uncompressed length from blob file")?;
@@ -926,7 +936,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(sync_items, |item| match item {
                 SyncItem::Meta(seq, file) => {
                     file.sync_data()?;
-                    let meta_file = MetaFile::open(&self.path, seq)?;
+                    let meta_file = MetaFile::open(&self.path, seq, self.config.access_mode)?;
                     Ok(SyncResult::Meta(meta_file))
                 }
                 SyncItem::Sst(file) => {
@@ -1593,7 +1603,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     let meta_index = ssts_with_ranges[index].meta_index;
                                     let index_in_meta = ssts_with_ranges[index].index_in_meta;
                                     let entry = meta_files[meta_index].entry(index_in_meta);
-                                    StaticSortedFileIter::open(path, entry.sst_metadata())
+                                    StaticSortedFileIter::open(
+                                        path,
+                                        entry.sst_metadata(),
+                                        self.config.access_mode,
+                                    )
                                 })
                                 .collect::<Result<Vec<_>>>()?;
 
