@@ -1,13 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app-dir revalidate', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should be able to revalidate the cache via pages/api', async () => {
     const $ = await next.render$('/')

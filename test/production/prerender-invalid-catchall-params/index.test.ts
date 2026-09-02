@@ -1,12 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+// @force-gate !deploy
 describe('Invalid Prerender Catchall Params', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   describe('production mode', () => {
     it('should fail the build', async () => {

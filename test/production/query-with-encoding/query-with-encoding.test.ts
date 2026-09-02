@@ -1,12 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Query String with Encoding', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // No deploy-specific incompatibility is documented.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     describe('new line', () => {
       it('should have correct query on SSR', async () => {
