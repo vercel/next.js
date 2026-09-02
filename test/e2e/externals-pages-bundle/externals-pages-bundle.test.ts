@@ -2,13 +2,14 @@ import fs from 'fs/promises'
 import { join } from 'path'
 import { nextTestSetup, isNextStart, isNextDev } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('externals-pages-bundle', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   describe('bundle pages externals with config.bundlePagesRouterDependencies', () => {
     if (!isNextStart) {

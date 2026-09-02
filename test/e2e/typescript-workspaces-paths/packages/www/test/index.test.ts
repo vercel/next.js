@@ -4,6 +4,9 @@ import { join } from 'path'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { readFileSync, writeFileSync } from 'fs'
 
+// This suite mutates the workspace config and runs custom local build/start
+// commands.
+// @force-gate !deploy
 describe('TypeScript Features', () => {
   describe.each([
     { label: '', testBaseUrl: true },
@@ -46,8 +49,7 @@ describe('TypeScript Features', () => {
       }
     })
 
-    const { next, skipped } = nextTestSetup({
-      skipDeployment: true,
+    const { next } = nextTestSetup({
       dependencies: testBaseUrl
         ? {
             typescript: '5.9.3',
@@ -58,8 +60,6 @@ describe('TypeScript Features', () => {
       startCommand:
         'pnpm next ' + (isNextDev ? 'dev' : 'start') + ' packages/www',
     })
-    if (skipped) return
-
     it('should alias components', async () => {
       const $ = await next.render$('/basic-alias')
       expect($('body').text()).toMatch(/World/)

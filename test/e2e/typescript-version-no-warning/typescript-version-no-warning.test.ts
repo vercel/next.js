@@ -1,15 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('typescript-version-no-warning', () => {
-  const { next, isNextDeploy, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDeploy, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDeploy || isNextDev) {
     it('should skip', () => {})

@@ -6,16 +6,14 @@ import {
   parseValidationMessages,
 } from 'e2e-utils/instant-validation'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('instant-validation-build', () => {
-  const { next, skipped, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
   if (!isNextStart) {
     it.skip('Build-time only test', () => {})
     return

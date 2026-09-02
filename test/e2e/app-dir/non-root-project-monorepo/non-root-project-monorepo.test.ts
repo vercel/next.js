@@ -7,8 +7,11 @@ import {
 } from 'next-test-utils'
 import * as path from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely controls the local Next.js build or server lifecycle.
+// @force-gate !deploy
 describe('non-root-project-monorepo', () => {
-  const { next, skipped, isTurbopack, isNextDev, isRspack } = nextTestSetup({
+  const { next, isTurbopack, isNextDev, isRspack } = nextTestSetup({
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
       packages: new FileRef(path.resolve(__dirname, 'packages')),
@@ -24,12 +27,7 @@ describe('non-root-project-monorepo', () => {
     buildCommand: 'pnpm build',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     installCommand: 'pnpm i',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   describe('server relative import', () => {
     it('should resolve a `/`-rooted import from the project directory, not the workspace root', async () => {
