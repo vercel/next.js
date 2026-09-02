@@ -2073,6 +2073,16 @@ export default class Router implements BaseRouter {
 
     try {
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
+
+      // `prefetch()` stores a `{ __appRouter: true }` marker in
+      // `this.components` when the client router filter matches a path. That
+      // marker is not route info: it has no `Component` and no `props`, so
+      // rendering it crashes `_app`. Treat it as a cache miss and fetch the
+      // route info again; `change()` is responsible for the hard navigation.
+      if (existingInfo && (existingInfo as any).__appRouter) {
+        existingInfo = undefined
+      }
+
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
@@ -2173,6 +2183,9 @@ export default class Router implements BaseRouter {
 
           // Check again the cache with the new destination.
           existingInfo = this.components[route]
+          if (existingInfo && (existingInfo as any).__appRouter) {
+            existingInfo = undefined
+          }
           if (
             routeProps.shallow &&
             existingInfo &&
