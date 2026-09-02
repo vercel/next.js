@@ -4,6 +4,7 @@ import type { TelemetryEvent } from './storage'
 import { Telemetry } from './storage'
 import loadConfig from '../server/config'
 import { getProjectDir } from '../lib/get-project-dir'
+import { hasCustomExportOutput } from '../export/utils'
 import {
   PHASE_DEVELOPMENT_SERVER,
   PHASE_PRODUCTION_BUILD,
@@ -30,6 +31,9 @@ import {
     mode === 'build' ? PHASE_PRODUCTION_BUILD : PHASE_DEVELOPMENT_SERVER,
     dir
   )
+  if (hasCustomExportOutput(config)) {
+    config.distDir = '.next'
+  }
   const distDir = path.join(dir, config.distDir || '.next')
   // Support both old format (no eventsFile arg) and new format (with eventsFile arg)
   const eventsPath = path.join(

@@ -14,7 +14,7 @@ describe('Telemetry flushDetached', () => {
     distDir = path.join(tmpDir, '.next')
     spawnSpy = jest
       .spyOn(childProcess, 'spawn')
-      .mockImplementation(() => ({} as any))
+      .mockImplementation(() => ({}) as any)
   })
 
   afterEach(() => {
@@ -131,13 +131,19 @@ describe('Telemetry flushDetached', () => {
 
   it('aborts in-flight telemetry requests when flushDetached is called', async () => {
     const telemetry = new Telemetry({ distDir })
-    telemetry.record({
-      eventName: 'NEXT_IN_FLIGHT_EVENT',
-      payload: { feature: 'in-flight' },
-    })
+    const recordPromise = telemetry.record(
+      {
+        eventName: 'NEXT_IN_FLIGHT_EVENT',
+        payload: { feature: 'in-flight' },
+      },
+      true
+    )
+
+    expect((recordPromise as any)._controller.signal.aborted).toBe(false)
 
     telemetry.flushDetached('build', tmpDir)
 
+    expect((recordPromise as any)._controller.signal.aborted).toBe(true)
     expect(spawnSpy).toHaveBeenCalledTimes(1)
     const eventsFile = path.join(distDir, spawnSpy.mock.calls[0][1][3])
     expect(fs.existsSync(eventsFile)).toBe(true)
