@@ -28,7 +28,7 @@ export function createRuntimeErrorStateReporter(
     lastSerializedState = serializedState
 
     const update: RuntimeErrorStateUpdate = {
-      event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERROR_STATE,
+      event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS,
       pathname,
       errorState,
     }

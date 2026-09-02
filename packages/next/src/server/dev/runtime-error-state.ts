@@ -134,7 +134,7 @@ export async function formatRuntimeErrors(
       type: error.type,
       errorName,
       message,
-      fatal: error.isFatal,
+      fatal: error.fatal,
       stack,
     })
   }
@@ -164,7 +164,7 @@ function isRuntimeErrorStateError(
     (value.type !== 'runtime' &&
       value.type !== 'recoverable' &&
       value.type !== 'console') ||
-    typeof value.isFatal !== 'boolean' ||
+    typeof value.fatal !== 'boolean' ||
     !Array.isArray(value.frames)
   ) {
     return false
@@ -204,7 +204,7 @@ export function isRuntimeErrorStateUpdate(
 ): value is RuntimeErrorStateUpdate {
   if (
     !isRecord(value) ||
-    value.event !== HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERROR_STATE ||
+    value.event !== HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS ||
     typeof value.pathname !== 'string' ||
     !value.pathname.startsWith('/') ||
     value.pathname.includes('?') ||
@@ -314,7 +314,7 @@ export function createRuntimeErrorStateHandler(
       }
 
       const message: RuntimeErrorStateMessage = {
-        type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE,
+        type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS,
         clientId,
         pathname: update.pathname,
         errors,

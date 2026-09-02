@@ -522,7 +522,7 @@ export function processMessage(
 
       return
     }
-    case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE: {
+    case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS: {
       // Runtime error state is consumed by external HMR observers.
       return
     }

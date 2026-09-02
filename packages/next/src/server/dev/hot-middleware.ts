@@ -266,7 +266,7 @@ export class WebpackHotMiddleware {
       return
     }
 
-    if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE) {
+    if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS) {
       if (message.errors.length === 0) {
         this.runtimeErrorStates.delete(message.clientId)
       } else {

@@ -1113,7 +1113,7 @@ export function onDemandEntryHandler({
               handlePing(parsedData.page)
             }
           } else if (
-            parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERROR_STATE
+            parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS
           ) {
             void runtimeErrorStateHandler.handle(parsedData).catch(() => {})
           } else if (

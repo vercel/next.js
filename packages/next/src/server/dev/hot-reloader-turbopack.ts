@@ -1610,7 +1610,7 @@ export async function createHotReloaderTurbopack(
               break
             }
 
-            case HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERROR_STATE: {
+            case HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS: {
               void runtimeErrorStateHandler.handle(parsedData).catch(() => {})
               break
             }
@@ -1719,7 +1719,7 @@ export async function createHotReloaderTurbopack(
     },
 
     send(action) {
-      if (action.type === HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE) {
+      if (action.type === HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS) {
         if (action.errors.length === 0) {
           runtimeErrorStates.delete(action.clientId)
         } else {

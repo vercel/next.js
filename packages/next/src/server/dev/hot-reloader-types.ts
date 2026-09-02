@@ -42,7 +42,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
   DEV_INDICATOR = 'devIndicator',
   DEVTOOLS_CONFIG = 'devtoolsConfig',
   REQUEST_CURRENT_ERROR_STATE = 'requestCurrentErrorState',
-  RUNTIME_ERROR_STATE = 'runtime-error-state',
+  RUNTIME_ERRORS = 'runtimeErrors',
   REQUEST_PAGE_METADATA = 'requestPageMetadata',
   REQUEST_INSIGHTS_UPDATE = 'requestInsightsUpdate',
 
@@ -54,7 +54,7 @@ export const enum HMR_MESSAGE_SENT_TO_BROWSER {
 export const enum HMR_MESSAGE_SENT_TO_SERVER {
   // JSON messages:
   MCP_ERROR_STATE_RESPONSE = 'mcp-error-state-response',
-  RUNTIME_ERROR_STATE = 'runtime-error-state',
+  RUNTIME_ERRORS = 'runtimeErrors',
   MCP_PAGE_METADATA_RESPONSE = 'mcp-page-metadata-response',
   PING = 'ping',
 }
@@ -215,11 +215,11 @@ export interface RuntimeErrorStateError {
     column1: number | null
   }[]
   type: 'runtime' | 'recoverable' | 'console'
-  isFatal: boolean
+  fatal: boolean
 }
 
 export interface RuntimeErrorStateUpdate {
-  event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERROR_STATE
+  event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS
   pathname: string
   errorState: {
     errors: readonly RuntimeErrorStateError[]
@@ -228,7 +228,7 @@ export interface RuntimeErrorStateUpdate {
 }
 
 export interface RuntimeErrorStateMessage {
-  type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE
+  type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS
   clientId: string
   pathname: string
   errors: FormattedRuntimeError[]

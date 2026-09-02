@@ -114,8 +114,9 @@ function serializeRuntimeErrors(
   errors: OverlayState['errors']
 ): SerializedRuntimeErrorState['errors'] {
   // Serialize Error properties because they are non-enumerable.
-  return errors.map((errorEvent) => ({
+  return errors.map(({ isFatal, ...errorEvent }) => ({
     ...errorEvent,
+    fatal: isFatal,
     error: errorEvent.error
       ? {
           name: errorEvent.error.name,

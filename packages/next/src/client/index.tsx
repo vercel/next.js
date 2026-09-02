@@ -945,6 +945,7 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
       // no longer rewrite the stack trace to a Node error.
       else {
         setTimeout(() => {
+          markErrorAsFatal(initialErr)
           throw initialErr
         })
       }

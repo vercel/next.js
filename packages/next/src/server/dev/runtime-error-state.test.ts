@@ -48,7 +48,7 @@ function runtimeError(
     },
     frames: [],
     type: 'runtime',
-    isFatal: fatal,
+    fatal,
   }
 }
 
@@ -57,7 +57,7 @@ function update(
   errors: readonly RuntimeErrorStateError[] = []
 ): RuntimeErrorStateUpdate {
   return {
-    event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERROR_STATE,
+    event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS,
     pathname,
     errorState: {
       errors,
@@ -122,7 +122,7 @@ describe('runtime error state handler', () => {
 
     expect(send).toHaveBeenCalledTimes(1)
     expect(send).toHaveBeenCalledWith({
-      type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS,
       clientId: TEST_CLIENT_ID,
       pathname: '/new',
       errors: [formattedError('new')],
@@ -157,7 +157,7 @@ describe('runtime error state handler', () => {
 
     expect(send).toHaveBeenCalledTimes(2)
     expect(send).toHaveBeenLastCalledWith({
-      type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS,
       clientId: TEST_CLIENT_ID,
       pathname: '/disconnected',
       errors: [],
@@ -183,7 +183,7 @@ describe('runtime error state handler', () => {
 
     expect(format).toHaveBeenCalledTimes(2)
     expect(send).toHaveBeenCalledWith({
-      type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS,
       clientId: TEST_CLIENT_ID,
       pathname: '/retry',
       errors: [formattedError('retry')],
@@ -193,7 +193,7 @@ describe('runtime error state handler', () => {
   it('formats each unchanged error only once across full snapshots', async () => {
     const format = jest.fn(async (errors: readonly RuntimeErrorStateError[]) =>
       errors.map((error) =>
-        formattedError(error.error?.message || 'Unknown error', error.isFatal)
+        formattedError(error.error?.message || 'Unknown error', error.fatal)
       )
     )
     const send = jest.fn()
@@ -209,7 +209,7 @@ describe('runtime error state handler', () => {
     expect(format.mock.calls[0][0]).toEqual([first])
     expect(format.mock.calls[1][0]).toEqual([second])
     expect(send).toHaveBeenLastCalledWith({
-      type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS,
       clientId: TEST_CLIENT_ID,
       pathname: '/replay',
       errors: [formattedError('first'), formattedError('second')],
@@ -245,7 +245,7 @@ describe('runtime error state handler', () => {
 
     expect(send).toHaveBeenCalledTimes(1)
     expect(send).toHaveBeenCalledWith({
-      type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERROR_STATE,
+      type: HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS,
       clientId: TEST_CLIENT_ID,
       pathname: '/second',
       errors: [formattedError('first'), formattedError('second')],
@@ -258,7 +258,7 @@ describe('runtime error state handler', () => {
       async (errors: readonly RuntimeErrorStateError[]) => {
         formattedCount += errors.length
         return errors.map((error) =>
-          formattedError(error.error?.message || 'Unknown error', error.isFatal)
+          formattedError(error.error?.message || 'Unknown error', error.fatal)
         )
       }
     )
@@ -277,7 +277,7 @@ describe('runtime error state handler', () => {
   it('reformats a promoted error whose fatality changed', async () => {
     const format = jest.fn(async (errors: readonly RuntimeErrorStateError[]) =>
       errors.map((error) =>
-        formattedError(error.error?.message || 'Unknown error', error.isFatal)
+        formattedError(error.error?.message || 'Unknown error', error.fatal)
       )
     )
     const handler = createRuntimeErrorStateHandler(jest.fn(), format)
@@ -451,7 +451,7 @@ describe('runtime error state handler', () => {
 
     await expect(
       handler.handle({
-        event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERROR_STATE,
+        event: HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS,
       })
     ).resolves.toBeUndefined()
     await expect(

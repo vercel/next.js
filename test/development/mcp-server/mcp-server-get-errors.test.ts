@@ -12,7 +12,7 @@ describe('mcp-server get_errors tool', () => {
   })
 
   interface RuntimeErrorStateMessage {
-    type: 'runtime-error-state'
+    type: 'runtimeErrors'
     clientId: string
     pathname: string
     errors: Array<{
@@ -54,7 +54,7 @@ describe('mcp-server get_errors tool', () => {
             if (typeof message === 'string') {
               try {
                 const parsed = JSON.parse(message)
-                if (parsed.type === 'runtime-error-state') {
+                if (parsed.type === 'runtimeErrors') {
                   messages.push(parsed)
                 }
               } catch {
@@ -84,7 +84,7 @@ describe('mcp-server get_errors tool', () => {
     socket.on('message', (data) => {
       try {
         const parsed = JSON.parse(data.toString())
-        if (parsed.type === 'runtime-error-state') {
+        if (parsed.type === 'runtimeErrors') {
           messages.push(parsed)
         } else if (parsed.type === 'sync') {
           resolveInitialSync()
@@ -228,9 +228,7 @@ describe('mcp-server get_errors tool', () => {
     expect(JSON.stringify(collected.messages)).not.toContain('query-secret')
     expect(JSON.stringify(collected.messages)).not.toContain('fragment-secret')
 
-    collected.send(
-      JSON.stringify({ event: 'runtime-error-state', clientId: 42 })
-    )
+    collected.send(JSON.stringify({ event: 'runtimeErrors', clientId: 42 }))
 
     await browser.loadPage(`${next.url}/caught-runtime-error`, {
       beforePageLoad: collected.beforePageLoad,
@@ -771,6 +769,28 @@ describe('mcp-server get_errors tool', () => {
         () => document.querySelector('#pages-event-page-content')?.textContent
       )
     ).toBe('Page remains rendered')
+  })
+
+  it('should treat an invalid Pages Router default export as fatal', async () => {
+    const pathname = '/pages-invalid-default-export'
+    const message =
+      'The default export is not a React Component in page: "/pages-invalid-default-export"'
+    const collected = collectRuntimeErrorStateMessages()
+
+    await next.browser(pathname, {
+      beforePageLoad: collected.beforePageLoad,
+    })
+
+    await waitForPushedRuntimeError(collected.messages, {
+      pathname,
+      message,
+      fatal: true,
+    })
+    await waitForRuntimeError({
+      url: pathname,
+      message,
+      fatal: true,
+    })
   })
 
   it('should treat an unrecoverable Pages Router module error as fatal', async () => {
