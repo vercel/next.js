@@ -9998,6 +9998,7 @@ dependencies = [
  "turbo-tasks-malloc",
  "xxhash-rust",
  "zerocopy",
+ "zstd",
 ]
 
 [[package]]
