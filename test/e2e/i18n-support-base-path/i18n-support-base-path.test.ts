@@ -7,13 +7,14 @@ import { nextTestSetup, isNextDev, type NextInstance } from 'e2e-utils'
 
 type BrowserOptions = Parameters<NextInstance['browser']>[1]
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('i18n Support basePath', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const ctx: Record<string, any> = {
     basePath: '/docs',

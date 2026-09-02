@@ -4,6 +4,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { findPort, retry } from 'next-test-utils'
 
 describe('rewrite-request-smuggling', () => {
+  // Deploy mode exclusion: This suite opens raw TCP connections to a local backend server.
   if ((global as any).isNextDeploy) {
     it('should skip deploy', () => {})
     return
