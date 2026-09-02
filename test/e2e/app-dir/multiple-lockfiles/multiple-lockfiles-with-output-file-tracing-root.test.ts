@@ -1,8 +1,11 @@
 import { join } from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('multiple-lockfiles - has-output-file-tracing-root', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
       // This will silence the multiple lockfiles warning.
@@ -22,15 +25,10 @@ describe('multiple-lockfiles - has-output-file-tracing-root', () => {
     },
     // So that ../package-lock.json doesn't leave the isolated testDir
     subDir: 'test',
-    skipDeployment: true,
     // The workspace file would suppress the warning itself, so the test
     // wouldn't be exercising `outputFileTracingRoot`.
     deleteWorkspaceFile: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not have multiple lockfiles warnings', async () => {
     expect(next.cliOutput).not.toMatch(

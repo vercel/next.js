@@ -5,16 +5,14 @@ import { getDistDir, retry } from 'next-test-utils'
 const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('typed-routes-validator', () => {
-  const { next, isNextDev, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should generate route validation correctly', async () => {
     if (isNextDev) {
