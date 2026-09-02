@@ -213,7 +213,6 @@ import { inlineStaticEnv } from '../lib/inline-static-env'
 import { populateStaticEnv } from '../lib/static-env'
 import { durationToString, hrtimeDurationToString } from './duration-to-string'
 import { traceGlobals } from '../trace/shared'
-import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import { runAfterProductionCompile } from './after-production-compile'
 import { generatePreviewKeys } from './preview-key-utils'
 import { handleBuildComplete } from './adapter/build-complete'
@@ -1209,7 +1208,7 @@ export default async function build(
       if (experimentalBuildMode === 'generate-env') {
         if (bundler === Bundler.Turbopack) {
           Log.warn('generate-env is not needed with turbopack')
-          process.exit(0)
+          return
         }
         Log.info('Inlining static env ...')
         await nextBuildSpan
@@ -1222,9 +1221,7 @@ export default async function build(
           })
 
         Log.info('Complete')
-        await flushAllTraces()
-        teardownTraceSubscriber()
-        process.exit(0)
+        return
       }
 
       // when using compile mode static env isn't inlined so we
@@ -1283,7 +1280,7 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveDeleteSyncWithAsyncRetries(
               distDir,
-              /^(cache|dev|lock|trace)/
+              new Set(['cache', 'dev', 'lock', 'trace'])
             )
           )
       }
@@ -1474,6 +1471,7 @@ export default async function build(
 
       NextBuildContext.mappedPages = discovery.mappedPages || {}
       NextBuildContext.mappedAppPages = discovery.mappedAppPages
+      NextBuildContext.mappedAppDefaults = discovery.mappedAppDefaults
       NextBuildContext.mappedRootPaths = await nextBuildSpan
         .traceChild('create-root-mapping')
         .traceAsyncFn(() =>
@@ -1793,11 +1791,7 @@ export default async function build(
             shutdownPromise: p,
             warnings,
             ...rest
-          } = await turbopackBuild(
-            process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
-              process.env.NEXT_TURBOPACK_USE_WORKER !== '0',
-            telemetry
-          )
+          } = await turbopackBuild(telemetry)
           shutdownPromise = p
           deferredTurbopackWarnings = warnings
           traceMemoryUsage('Finished build', nextBuildSpan)
@@ -2219,6 +2213,18 @@ export default async function build(
           }
         }
 
+        if (config.experimental.strictRouteMatching && pageKeys.app) {
+          const emittedAppPaths = new Set(
+            emittedAppPageKeys?.map((appPageKey) =>
+              normalizeAppPath(appPageKey)
+            )
+          )
+          const retainedAppPaths = pageKeys.app.filter((appPath) =>
+            emittedAppPaths.has(appPath)
+          )
+          pageKeys.app = retainedAppPaths.length ? retainedAppPaths : undefined
+        }
+
         await writeManifest(
           path.join(distDir, APP_PATH_ROUTES_MANIFEST),
           appPathRoutes
@@ -2286,6 +2292,9 @@ export default async function build(
               cacheComponents: isAppCacheComponentsEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
+              durableUseCacheEntries: Boolean(
+                config.experimental.durableUseCacheEntries
+              ),
               staticPageGenerationTimeout: config.staticPageGenerationTimeout,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
@@ -2518,6 +2527,9 @@ export default async function build(
                             authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
+                            durableUseCacheEntries: Boolean(
+                              config.experimental.durableUseCacheEntries
+                            ),
                             staticPageGenerationTimeout:
                               config.staticPageGenerationTimeout,
                             cacheHandler: config.cacheHandler,
@@ -4692,8 +4704,8 @@ export default async function build(
       await telemetry.flush()
     }
 
-    // Ensure all traces are flushed before finishing the command
-    await flushAllTraces()
+    // Ensure all buffered spans are on disk before `uploadTrace` reads the file.
+    flushAllTraces()
     teardownTraceSubscriber()
 
     if (traceUploadUrl && loadedConfig) {
@@ -4730,11 +4742,6 @@ function getBundlerForTelemetry(bundler: Bundler) {
 }
 
 function getErrorCodeForTelemetry(err: unknown) {
-  const code = extractNextErrorCode(err)
-  if (code != null) {
-    return code
-  }
-
   if (err instanceof Error && 'code' in err && typeof err.code === 'string') {
     return err.code
   }

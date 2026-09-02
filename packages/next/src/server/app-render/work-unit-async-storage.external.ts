@@ -16,7 +16,10 @@ import type { Params } from '../request/params'
 import type { ImplicitTags } from '../lib/implicit-tags'
 import type { WorkStore } from './work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import type { StagedRenderingController } from './staged-rendering'
+import type {
+  AdvanceableRenderStage,
+  StagedRenderingController,
+} from './staged-rendering'
 import type { ValidationBoundaryTracking } from './instant-validation/boundary-tracking'
 import type { InstantValidationSampleTracking } from './instant-validation/instant-samples'
 
@@ -226,7 +229,7 @@ export interface PrerenderStoreModernRuntime
    * renders where all stages run without sequencing.
    */
   readonly stagedRendering: StagedRenderingController | null
-  readonly isSessionShell: boolean
+  readonly finalStage: AdvanceableRenderStage
 
   readonly headers: RequestStore['headers']
   readonly cookies: RequestStore['cookies']

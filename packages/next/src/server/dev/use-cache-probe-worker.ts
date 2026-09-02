@@ -57,6 +57,7 @@ export type ProbeMessage = {
     httpAgentOptions: NextConfigComplete['httpAgentOptions']
     cacheLifeProfiles: NextConfigComplete['cacheLife']
     useCacheTimeout: number
+    durableUseCacheEntries: boolean
     staticPageGenerationTimeout: number
   }
   timeoutMs: number
@@ -147,7 +148,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       )
     }
 
-    const args = decoded[2]
+    const args = decoded[1]
     const workStore: WorkStore = buildProbeWorkStore(msg)
 
     // The outer store is `'request'`-typed and built from the forwarded
@@ -202,6 +203,7 @@ function buildProbeWorkStore(msg: ProbeMessage): WorkStore {
     useCacheProbeMode: { timeoutMs: msg.timeoutMs },
     isDraftMode: msg.request.isDraftMode,
     useCacheTimeout: msg.nextConfigSerializable.useCacheTimeout,
+    durableUseCacheEntries: msg.nextConfigSerializable.durableUseCacheEntries,
     staticPageGenerationTimeout:
       msg.nextConfigSerializable.staticPageGenerationTimeout,
     cacheLifeProfiles: msg.nextConfigSerializable.cacheLifeProfiles,

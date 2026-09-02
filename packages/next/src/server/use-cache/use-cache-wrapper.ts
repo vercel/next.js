@@ -51,7 +51,9 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 
 import {
   getClientReferenceManifest,
+  getServerActionsManifest,
   getServerModuleMap,
+  normalizeWorkerPageName,
 } from '../app-render/manifests-singleton'
 import type { CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
@@ -61,7 +63,6 @@ import {
   createReactServerErrorHandler,
   type DigestedError,
 } from '../app-render/create-error-handler'
-import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import stringHash from 'next/dist/compiled/string-hash'
 import {
   MIN_PRERENDERABLE_EXPIRE,
@@ -93,6 +94,13 @@ import {
   UseCacheDeadlockError,
   UseCacheTimeoutError,
 } from './use-cache-errors'
+import {
+  createNestedCacheShortExpireError,
+  createNestedCacheZeroRevalidateError,
+  createUseCachePrivateInsidePublicUseCacheError,
+  createUseCachePrivateInsideUnstableCacheError,
+  createUseCachePrivateOutsideRequestContextError,
+} from './use-cache-messages'
 import {
   createHangingInputAbortSignal,
   throwToInterruptStaticGeneration,
@@ -154,9 +162,13 @@ interface PublicCacheContext {
 
 type CacheContext = PrivateCacheContext | PublicCacheContext
 
-export type CacheKeyParts =
-  | [buildId: string, id: string, args: unknown[]]
-  | [buildId: string, id: string, args: unknown[], hmrRefreshHash: string]
+const nextVersion = process.env.__NEXT_VERSION as string
+
+export type CacheKeyParts = [
+  id: string,
+  args: unknown[],
+  implementationHash: unknown,
+]
 
 interface UseCachePageInnerProps {
   params: Promise<Params>
@@ -336,8 +348,6 @@ const crossRequestPendingCacheInvocations = new Map<
   Promise<SharedCacheResult>
 >()
 
-const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
-
 // The first argument at each call site is the full directive that produced
 // the invocation, e.g. "'use cache'" or "'use cache: remote'".
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
@@ -354,22 +364,6 @@ const findSourceMapURL =
     ? (require('../lib/source-maps') as typeof import('../lib/source-maps'))
         .findSourceMapURLDEV
     : undefined
-
-const nestedCacheZeroRevalidateErrorMessage =
-  `A "use cache" with zero \`revalidate\` is nested inside another "use cache" ` +
-  `that has no explicit \`cacheLife\`, which is not allowed during ` +
-  `prerendering. Add \`cacheLife()\` to the outer "use cache" to choose ` +
-  `whether it should be prerendered (with non-zero \`revalidate\`) or remain ` +
-  `dynamic (with zero \`revalidate\`). Read more: ` +
-  `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
-
-const nestedCacheShortExpireErrorMessage =
-  `A "use cache" with short \`expire\` (under 5 minutes) is nested inside ` +
-  `another "use cache" that has no explicit \`cacheLife\`, which is not ` +
-  `allowed during prerendering. Add \`cacheLife()\` to the outer "use cache" ` +
-  `to choose whether it should be prerendered (with longer \`expire\`) or remain ` +
-  `dynamic (with short \`expire\`). Read more: ` +
-  `https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife`
 
 // Tracks which root params each cache function has historically read. Used to
 // compute the specific cache key upfront on subsequent invocations. In-memory
@@ -1286,7 +1280,7 @@ async function generateCacheEntryImpl(
   const temporaryReferences = createServerTemporaryReferenceSet()
   const outerWorkUnitStore = cacheContext.outerWorkUnitStore
 
-  const [, , args] =
+  const [, args] =
     typeof encodedArguments === 'string'
       ? await decodeReply<CacheKeyParts>(
           encodedArguments,
@@ -1533,10 +1527,9 @@ async function generateCacheEntryImpl(
                   // error actually surfaces (vs. being caught in userland) is
                   // the consumer's decision, so the "surfaced" mark is left to
                   // the outer handler.
-                  const digest = createDigestWithErrorCode(
-                    error,
-                    stringHash(error.message + (error.stack || '')).toString()
-                  )
+                  const digest = stringHash(
+                    error.message + (error.stack || '')
+                  ).toString()
 
                   workStore.reactServerErrorsByDigest.set(
                     digest,
@@ -1822,7 +1815,7 @@ export async function cache(
     }
   }
 
-  const timeoutError = new UseCacheTimeoutError()
+  const timeoutError = new UseCacheTimeoutError(workStore.route)
   Error.captureStackTrace(timeoutError, cache)
   applyOwnerStack(timeoutError)
 
@@ -1834,7 +1827,7 @@ export async function cache(
   // gate lets the error class drop out of the production runtime bundle.
   let deadlockError: UseCacheDeadlockError | undefined
   if (process.env.__NEXT_DEV_SERVER) {
-    deadlockError = new UseCacheDeadlockError()
+    deadlockError = new UseCacheDeadlockError(workStore.route)
     Error.captureStackTrace(deadlockError, cache)
     applyOwnerStack(deadlockError)
   }
@@ -1881,18 +1874,12 @@ export async function cache(
         )
       case 'unstable-cache': {
         throw wrapAsInvalidDynamicUsageError(
-          new Error(
-            // TODO: Add a link to an error documentation page when we have one.
-            `${expression} must not be used within \`unstable_cache()\`.`
-          )
+          createUseCachePrivateInsideUnstableCacheError(workStore.route)
         )
       }
       case 'cache': {
         throw wrapAsInvalidDynamicUsageError(
-          new Error(
-            // TODO: Add a link to an error documentation page when we have one.
-            `${expression} must not be used within "use cache". It can only be nested inside of another ${expression}.`
-          )
+          createUseCachePrivateInsidePublicUseCacheError(workStore.route)
         )
       }
       case 'request':
@@ -1909,10 +1896,7 @@ export async function cache(
         break
       case 'generate-static-params':
         throw wrapAsInvalidDynamicUsageError(
-          new Error(
-            // TODO: Add a link to an error documentation page when we have one.
-            `${expression} cannot be used outside of a request context.`
-          )
+          createUseCachePrivateOutsideRequestContextError(workStore.route)
         )
       default:
         workUnitStore satisfies never
@@ -1984,19 +1968,6 @@ export async function cache(
   // In case getClientReferenceManifestSingleton is implemented using AsyncLocalStorage.
   const clientReferenceManifest = getClientReferenceManifest()
 
-  // Because the Action ID is not yet unique per implementation of that Action we can't
-  // safely reuse the results across builds yet. In the meantime we add the buildId to the
-  // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
-  // the implementation.
-  const buildId = workStore.deploymentId || workStore.buildId
-
-  // In dev mode, when the HMR refresh hash is set, we include it in the
-  // cache key. This ensures that cache entries are not reused when server
-  // components have been edited. This is a very coarse approach. But it's
-  // also only a temporary solution until Action IDs are unique per
-  // implementation. Remove this once Action IDs hash the implementation.
-  const hmrRefreshHash = getHmrRefreshHash(workUnitStore)
-
   const hangingInputAbortSignal = createHangingInputAbortSignal(workUnitStore)
 
   if (cacheContext.kind === 'private') {
@@ -2067,18 +2038,16 @@ export async function cache(
     args = [props, ...otherOuterArgs]
 
     fn = {
-      [name]: async (
-        {
-          params: _innerParams,
-          searchParams: innerSearchParams,
-        }: UseCachePageInnerProps,
-        ...otherInnerArgs: unknown[]
-      ) =>
+      [name]: async (_: UseCachePageInnerProps, ...otherInnerArgs: unknown[]) =>
         originalFn.apply(null, [
           {
-            params: outerParams,
+            params: props.params,
             searchParams:
-              innerSearchParams ??
+              // Preserve the original search params, if this cache can access them.
+              // Notably, in a runtime shell private caches can resolve, but search params
+              // will be hanging, and we need to preserve the original proxied promise object
+              // to trigger `dynamicAccessAbortSignal` when they're accessed.
+              props.searchParams ??
               // For public caches, search params are omitted from the cache
               // key (and the serialized args) to avoid mismatches between
               // prerendering and resuming a cached page that does not
@@ -2157,9 +2126,11 @@ export async function cache(
   // long as the request. In development private caches are persisted across
   // requests, so `cacheHandlerKeyBase` (below) additionally scopes the handler
   // key by the request's cookies and headers.
-  const cacheKeyParts: CacheKeyParts = hmrRefreshHash
-    ? [buildId, id, args, hmrRefreshHash]
-    : [buildId, id, args]
+  const cacheKeyParts: CacheKeyParts = [
+    id,
+    args,
+    await computeCacheKeyImplementationPart(workStore, workUnitStore, id),
+  ]
 
   const encodeCacheKeyParts = () =>
     encodeReply(cacheKeyParts, {
@@ -2171,13 +2142,9 @@ export async function cache(
 
   switch (workUnitStore.type) {
     case 'prerender-runtime':
-    // We're currently only using `dynamicAccessAsyncStorage` for params,
-    // which are always available in a runtime prerender, so they will never hang,
-    // effectively making the tracking below a no-op.
-    // However, a runtime prerender shares a lot of the semantics with a static prerender,
-    // and might need to follow this codepath in the future
-    // if we start using `dynamicAccessAsyncStorage` for other APIs.
-    //
+    // A runtime prerender may be a runtime shell, which does not have access to
+    // params/searchParams, so we want to apply the same dynamic access logic
+    // as we do in static prerenders.
     // fallthrough
     case 'prerender':
       if (!isPageOrLayoutSegmentFunction) {
@@ -2428,9 +2395,10 @@ export async function cache(
                   shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheZeroRevalidateError(
+                      workStore.route,
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 debug?.(
@@ -2445,9 +2413,10 @@ export async function cache(
                   shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheShortExpireError(
+                      workStore.route,
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 debug?.(
@@ -2494,9 +2463,10 @@ export async function cache(
                   shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheZeroRevalidateErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheZeroRevalidateError(
+                      workStore.route,
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 if (
@@ -2505,9 +2475,10 @@ export async function cache(
                   shouldReportNestedCacheError
                 ) {
                   throw wrapAsInvalidDynamicUsageError(
-                    new Error(nestedCacheShortExpireErrorMessage, {
-                      cause: rdcResult.dynamicNestedCacheError,
-                    })
+                    createNestedCacheShortExpireError(
+                      workStore.route,
+                      rdcResult.dynamicNestedCacheError
+                    )
                   )
                 }
                 // A short-lived entry is a dynamic hole, excluded from the
@@ -3603,9 +3574,7 @@ export async function cache(
     // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
     // which themselves will handle the preloading.
     moduleLoading: null,
-    moduleMap: isEdgeRuntime
-      ? clientReferenceManifest.edgeRscModuleMapping
-      : clientReferenceManifest.rscModuleMapping,
+    moduleMap: clientReferenceManifest.rscModuleMapping,
     serverModuleMap: getServerModuleMap(),
   }
 
@@ -3616,6 +3585,71 @@ export async function cache(
     replayConsoleLogs,
     environmentName: 'Cache',
   })
+}
+
+/**
+ * This returns a cache key that has to cover everything that can affect the result of the cached
+ * function (apart from the arguments). So
+ * - codeHash: the code itself that generates the return value
+ *    - Notably, this excludes the following modules.  Those are included via the Next.js version
+ *      anyway:
+ *    - react, react-dom, private-next-rsc-server-reference, private-next-rsc-cache-wrapper
+ * - runtimeEnvVars: the keys and values runtime environment variables that the code reads (and are
+ *   not inlined)
+ * - the version of Next.js (to account for RSC wire format changes, or use-cache-wrapper.ts
+ *
+ * In case that granular information isn't available, fall back to
+ * buildId/deploymentId/hmrRefreshHash, which is a correct hash but over-invalidates way too often.
+ */
+async function computeCacheKeyImplementationPart(
+  workStore: WorkStore,
+  workUnitStore: WorkUnitStore,
+  id: string
+): Promise<unknown> {
+  let durability = workStore.durableUseCacheEntries
+    ? getServerActionsManifest().node[id].workers?.[
+        normalizeWorkerPageName(workStore.page)
+      ]?.durability
+    : undefined
+  if (
+    durability &&
+    // TODO replace this with more granular tracking: a list of all imported client components
+    durability.referencesClientComponent !== true
+  ) {
+    // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
+    const crypto = require('crypto') as typeof import('crypto')
+    let runtimeEnvVarStateHash = crypto
+      // Hash the env var values, to not leak secrets into the cache key.
+      .createHash('sha256')
+      .update(
+        durability.runtimeEnvVars
+          .map((k) => {
+            // Make sure not to stringify `undefined` and `"undefined"` to the same value.
+            return process.env[k] != null ? `${k}=${process.env[k]}` : k
+          })
+          .join('\0') ?? ''
+      )
+      .digest('hex')
+
+    // When more accurate analysis information is available, use codeHash + runtimeEnvVars
+    return [durability.codeHash, nextVersion, runtimeEnvVarStateHash]
+  } else {
+    // Because the Action ID is not yet unique per implementation of that Action we can't
+    // safely reuse the results across builds yet. In the meantime we add the buildId to the
+    // arguments as a seed to ensure they're not reused. Remove this once Action IDs hash
+    // the implementation.
+    const buildId = workStore.deploymentId || workStore.buildId
+
+    // In dev mode, when the HMR refresh hash is set, we include it in the
+    // cache key. This ensures that cache entries are not reused when server
+    // components have been edited. This is a very coarse approach. But it's
+    // also only a temporary solution until Action IDs are unique per
+    // implementation. Remove this once Action IDs hash the implementation.
+    const hmrRefreshHash = getHmrRefreshHash(workUnitStore)
+
+    // otherwise fall back to buildId and/or the HMR hash.
+    return hmrRefreshHash ? [buildId, hmrRefreshHash] : [buildId]
+  }
 }
 
 /**

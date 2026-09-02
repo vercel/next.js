@@ -509,8 +509,8 @@ where
 {
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         self.as_ref().map_either(
-            |l| async move { anyhow::Ok(Self(Either::Left(l.resolve_input().await?))) },
-            |r| async move { anyhow::Ok(Self(Either::Right(r.resolve_input().await?))) },
+            async |l| anyhow::Ok(Self(Either::Left(l.resolve_input().await?))),
+            async |r| anyhow::Ok(Self(Either::Right(r.resolve_input().await?))),
         )
     }
 

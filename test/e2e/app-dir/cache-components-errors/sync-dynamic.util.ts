@@ -25,7 +25,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
              "description": "Next.js encountered the unstable value Math.random() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -173,7 +172,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1432",
              "description": "Next.js encountered the unstable value Math.random() while prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -334,7 +332,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
 
           await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
                "description": "A searchParam property was accessed directly with \`searchParams.foo\`. \`searchParams\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                "environmentLabel": null,
                "label": "Console Error",
@@ -1017,7 +1014,6 @@ export function registerSyncDynamicTests(ctx: CacheComponentsErrorsContext) {
 
           await expect(browser).toDisplayCollapsedRedbox(`
              {
-               "code": "E394",
                "description": "A param property was accessed directly with \`params.slug\`. \`params\` is a Promise and must be unwrapped with \`React.use()\` before accessing its properties. Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis",
                "environmentLabel": null,
                "label": "Console Error",

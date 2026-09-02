@@ -71,7 +71,6 @@ describe('dev-validation-worker-source-maps', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1440",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -123,7 +122,6 @@ describe('dev-validation-worker-source-maps', () => {
 
     await expect(browser).toDisplayRedbox(`
      {
-       "code": "E1440",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",
@@ -179,7 +177,6 @@ describe('dev-validation-worker-source-maps', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1440",
        "description": "Next.js encountered uncached data during prerendering.",
        "environmentLabel": "Server",
        "label": "Blocking Route",

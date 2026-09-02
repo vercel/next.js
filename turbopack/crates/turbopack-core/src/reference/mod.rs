@@ -131,7 +131,7 @@ pub async fn referenced_modules_and_affecting_sources(
         .references()
         .await?
         .iter()
-        .map(|reference| async {
+        .map(async |reference| {
             let trait_ref = reference.into_trait_ref().await?;
             let resolve_result = reference.resolve_reference().await?;
             if let Some(chunking_type) = &trait_ref.chunking_type() {
@@ -141,7 +141,7 @@ pub async fn referenced_modules_and_affecting_sources(
                 modules.extend(
                     resolve_result
                         .affecting_sources_iter()
-                        .map(|source| async move {
+                        .map(async |source| {
                             Ok(ResolvedVc::upcast(
                                 RawModule::new(*source).to_resolved().await?,
                             ))
@@ -211,7 +211,7 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .references()
         .await?
         .iter()
-        .map(|reference| async { reference.resolve_reference().await?.primary_modules().await })
+        .map(async |reference| reference.resolve_reference().await?.primary_modules().await)
         .try_join()
         .await?
         .into_iter()
@@ -246,7 +246,7 @@ pub async fn primary_chunkable_referenced_modules(
         .references()
         .await?
         .iter()
-        .map(|reference| async {
+        .map(async |reference| {
             let trait_ref = reference.into_trait_ref().await?;
             if let Some(chunking_type) = &trait_ref.chunking_type() {
                 if !include_traced && chunking_type.is_traced() {

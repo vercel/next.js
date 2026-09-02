@@ -94,6 +94,12 @@ runRscBuildErrorsTests(({ next, isTurbopack }) => {
     )
   })
 
+  // In Webpack, proxy runs in the Node.js server compiler, which is also
+  // invalidated when the app route is added on demand. If the initial proxy
+  // error reaches the browser before that follow-up build, the HMR client sees
+  // an update after a runtime error and reloads, clearing the overlay. Defer
+  // that case until after hydration. Turbopack does not have this compiler
+  // invalidation race, so its proxy case covers both initial and HMR errors.
   test.each([
     ['middleware.js', 'export function middleware() {}'],
     ['proxy.js', 'export function proxy() {}'],
@@ -101,6 +107,12 @@ runRscBuildErrorsTests(({ next, isTurbopack }) => {
   ])(
     'should error when catchError from next/error is imported in %s',
     async (entryFile, exportCode) => {
+      const isProxy = entryFile === 'proxy.js'
+      const deferPoisonedImport = !isTurbopack && isProxy
+      const entryContent = outdent`
+        import { catchError } from 'next/error'
+        ${exportCode}
+      `
       await using sandbox = await createSandbox(
         next,
         new Map([
@@ -112,21 +124,29 @@ runRscBuildErrorsTests(({ next, isTurbopack }) => {
               }
             `,
           ],
-          [
-            entryFile,
-            outdent`
-              import { catchError } from 'next/error'
-              ${exportCode}
-            `,
-          ],
+          [entryFile, deferPoisonedImport ? exportCode : entryContent],
         ])
       )
 
       const { session } = sandbox
-      await session.waitForRedbox()
-      expect(await session.getRedboxSource()).toInclude(
-        'You\'re importing a module that depends on `catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
-      )
+      if (deferPoisonedImport) {
+        await session.write(entryFile, entryContent)
+      }
+
+      const expectPoisonedImportRedbox = async () => {
+        await session.waitForRedbox()
+        expect(await session.getRedboxSource()).toInclude(
+          'You\'re importing a module that depends on `catchError` into a React Server Component module. This API is only available in Client Components. To fix, mark the file (or its parent) with the `"use client"` directive.'
+        )
+      }
+      await expectPoisonedImportRedbox()
+
+      if (isTurbopack && isProxy) {
+        await session.patch(entryFile, exportCode)
+        await session.waitForNoRedbox()
+        await session.write(entryFile, entryContent)
+        await expectPoisonedImportRedbox()
+      }
     }
   )
 })

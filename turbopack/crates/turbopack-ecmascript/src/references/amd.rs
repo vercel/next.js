@@ -158,7 +158,7 @@ impl AmdDefineWithDependenciesCodeGen {
         let resolved_elements = self
             .dependencies_requests
             .iter()
-            .map(|element| async move {
+            .map(async |element| {
                 Ok(match element {
                     AmdDefineDependencyElement::Request {
                         request,

@@ -1,12 +1,23 @@
 import path from 'path'
 import assert from 'assert'
 import { flushAllTraces, setGlobal, trace } from 'next/dist/trace'
-import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_BUILD,
+} from 'next/constants'
 import { NextInstance, NextInstanceOpts } from '../next-modes/base'
 import { NextDevInstance } from '../next-modes/next-dev'
 import { NextStartInstance } from '../next-modes/next-start'
 import { NextDeployInstance } from '../next-modes/next-deploy'
 import { shouldUseTurbopack } from '../next-test-utils'
+import { setGateTestContext, type GateTestMode } from '../gate/test-context'
+import { clearFixture, registerFixture } from '../gate/state'
+import { loadResolvedConfig } from '../gate/load-resolved-config'
+import {
+  getActiveDescribeGates,
+  hasLazyForceGate,
+  findLazyForceSkip,
+} from '../gate/runtime'
 
 export type { NextInstance }
 export type { Playwright } from '../browsers/playwright'
@@ -177,6 +188,19 @@ export const itTurbopack =
 export const isReact18 =
   parseInt(process.env.NEXT_TEST_REACT_VERSION || '', 10) === 18
 
+// Publish the statically-known shape of this run for `// @gate` pragmas. See
+// test/lib/gate/conditions.ts.
+setGateTestContext({
+  mode: testMode as GateTestMode,
+  bundler: isRspack
+    ? 'rspack'
+    : !isNextTestWasm && shouldUseTurbopack()
+      ? 'turbopack'
+      : 'webpack',
+  react18: isReact18,
+  wasm: isNextTestWasm,
+})
+
 if (!testMode) {
   throw new Error(
     `No 'NEXT_TEST_MODE' set in environment, this is required for e2e-utils`
@@ -284,9 +308,16 @@ async function createNext(
 
       nextInstance.on('destroy', () => {
         nextInstance = undefined
+        clearFixture()
       })
 
       await nextInstance.setup(rootSpan)
+
+      // Lazy `// @gate` conditions read this fixture's resolved next.config.
+      // Registering the instance (not a snapshot) before `start()` keeps
+      // `skipStart` suites and rebuild flows working: nothing is resolved until
+      // a gate actually asks. See test/lib/gate/README.md.
+      registerFixture(nextInstance)
 
       if (!opts.skipStart) {
         await rootSpan
@@ -338,16 +369,86 @@ export function nextTestSetup(
     }
   }
 
+  // A lazy `@force-gate` on the enclosing `describe` (e.g. `!cacheComponents`)
+  // gates the *build*, not just the test bodies: some fixtures can't build
+  // under the condition at all. Snapshot the describe's gates now, while the
+  // describe body is still being collected — the stack is empty by `beforeAll`.
+  // Suites that manage their own build (`skipStart`) are left untouched.
+  const describeGates = getActiveDescribeGates()
+  // Deploy's "build" is a remote deployment we can't gate this way, and suites
+  // that pass `skipStart` build manually — leave both to their own handling.
+  const buildForceGated =
+    !options.skipStart && !isNextDeploy && hasLazyForceGate(describeGates)
+
   let next: NextInstance | undefined
   if (!skipped) {
     beforeAll(async () => {
-      next = await createNext(options)
+      if (!buildForceGated) {
+        next = await createNext(options)
+        return
+      }
+      // Try to decide the force-gate against the *source* fixture first,
+      // before paying for the fixture setup (which includes a dependency
+      // install when the run is isolated). The config resolver falls back to
+      // the repo's own `next` when the directory has no install, and the env
+      // mirrors what `getSpawnOpts` hands every fixture child process. An
+      // inline `files` object has no directory to resolve against, and any
+      // resolution failure (e.g. a config that imports from the fixture's
+      // own node_modules) falls through to the instance-based decision below.
+      if (typeof options.files === 'string') {
+        const config = await loadResolvedConfig({
+          dir: options.files,
+          phase: isNextDev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_BUILD,
+          env: {
+            ...process.env,
+            ...options.env,
+            NODE_ENV: (options.env?.NODE_ENV ||
+              '') as NodeJS.ProcessEnv['NODE_ENV'],
+            PORT: '0',
+            __NEXT_TEST_MODE: 'e2e',
+          },
+        }).catch(() => null)
+        const earlySkip = config && findLazyForceSkip(describeGates, config)
+        if (earlySkip) {
+          // No instance ever exists on this path, so register the resolved
+          // config directly for the per-test force-pass decisions.
+          registerFixture({ getResolvedConfig: async () => config })
+          require('console').warn(
+            `  ⚠ suite build skipped by \`@force-gate ${earlySkip.source}\` ` +
+              `(decided from the source fixture; setup skipped)`
+          )
+          return
+        }
+      }
+      // Set the fixture up (so its config is resolvable) without building, then
+      // resolve the force-gate. If it's false, skip the build entirely — the
+      // inherited gate makes every test force-pass, so nothing touches `next`.
+      const instance = await createNext({ ...options, skipStart: true })
+      next = instance
+      const config = await instance.getResolvedConfig()
+      const forceSkip = findLazyForceSkip(describeGates, config)
+      if (forceSkip) {
+        require('console').warn(
+          `  ⚠ suite build skipped by \`@force-gate ${forceSkip.source}\``
+        )
+        return
+      }
+      try {
+        await instance.start()
+      } catch (err) {
+        await instance.destroy().catch(() => {})
+        next = undefined
+        throw err
+      }
     })
     afterAll(async () => {
       // Gracefully destroy the instance if `createNext` success.
       // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
       // by attempting to destroy on undefined.
       await next?.destroy()
+      // The early force-skip path registers a config source without an
+      // instance (an instance clears itself on destroy).
+      if (!next) clearFixture()
     })
   }
 

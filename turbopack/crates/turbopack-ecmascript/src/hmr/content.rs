@@ -31,7 +31,7 @@ impl EcmascriptMergedChunkContent {
             versions: self
                 .contents
                 .iter()
-                .map(|content| async move { content.ecmascript_chunk_version().await })
+                .map(|content| content.ecmascript_chunk_version())
                 .try_join()
                 .await?,
         }

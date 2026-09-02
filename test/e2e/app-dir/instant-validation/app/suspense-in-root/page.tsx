@@ -55,6 +55,9 @@ export default async function Page() {
           <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-navigation" />
         </li>
         <li>
+          <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-prefetch" />
+        </li>
+        <li>
           <DebugLinks href="/suspense-in-root/sync-io/sync-io-after-cookies-in-generate-metadata" />
         </li>
         <li>
@@ -304,6 +307,9 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinks href="/suspense-in-root/non-app-shell/valid-unguarded-navigation" />
+        </li>
+        <li>
+          <DebugLinks href="/suspense-in-root/non-app-shell/valid-unguarded-prefetch" />
         </li>
       </ul>
 

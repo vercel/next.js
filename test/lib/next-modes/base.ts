@@ -22,6 +22,9 @@ import type { Playwright } from '../browsers/playwright'
 import escapeStringRegexp from 'escape-string-regexp'
 import * as JSON5 from 'json5'
 import { Page, Response } from 'playwright'
+import { PHASE_PRODUCTION_BUILD } from 'next/constants'
+import { loadResolvedConfig } from '../gate/load-resolved-config'
+import type { ResolvedNextConfig } from '../gate/resolved-config'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -111,6 +114,7 @@ export class NextInstance {
   public serverReadyPattern: RegExp = /✓ Ready in /
   patchFileDelay: number = 0
   public deleteWorkspaceFile: boolean = false
+  private _resolvedConfig?: Promise<ResolvedNextConfig>
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -529,6 +533,60 @@ export class NextInstance {
           }
         }
       })
+  }
+
+  /**
+   * The phase this fixture's `next.config` should be resolved for. `next dev`
+   * overrides it; deploy mode resolves the production-build phase locally,
+   * which is a best-effort approximation of the remote build.
+   */
+  protected get configPhase(): string {
+    return PHASE_PRODUCTION_BUILD
+  }
+
+  /**
+   * This fixture's **resolved** `next.config` — i.e. the output of
+   * `loadConfig`, not the config file. Resolution implies flags the fixture
+   * never mentions (`cacheComponents: true` turns on `experimental.ppr`) and
+   * honours the env the fixture actually runs with.
+   *
+   * Used by `// @gate` conditions (see test/lib/gate/README.md). Memoized per
+   * instance and resolved lazily, so a suite that never asks pays nothing; a
+   * suite that rewrites its own `next.config` mid-run keeps the first answer.
+   */
+  public getResolvedConfig(): Promise<ResolvedNextConfig> {
+    return (this._resolvedConfig ??= loadResolvedConfig({
+      dir: this.testDir,
+      phase: this.configPhase,
+      env: this.getSpawnOpts().env,
+    }))
+  }
+
+  /**
+   * The options every child process of this fixture is spawned with — its cwd,
+   * and the exact env `next build` / `next dev` / `next start` see.
+   *
+   * Anything that inspects the fixture out of process (e.g. resolving its
+   * `next.config`) has to use this env, because config resolution reads env
+   * vars from the calling process and a suite may pass its own via
+   * `nextTestSetup({ env })`.
+   */
+  protected getSpawnOpts(
+    env?: Record<string, string>
+  ): import('child_process').SpawnOptions {
+    return {
+      cwd: this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        ...env,
+        NODE_ENV: this.env.NODE_ENV || ('' as any),
+        PORT: this.forcedPort ?? '0',
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
   }
 
   protected setServerReadyTimeout(

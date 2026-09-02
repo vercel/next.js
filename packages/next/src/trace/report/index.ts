@@ -11,8 +11,12 @@ class MultiReporter implements Reporter {
     this.reporters = reporters
   }
 
-  async flushAll(opts?: { end: boolean }) {
-    await Promise.all(this.reporters.map((reporter) => reporter.flushAll(opts)))
+  flushAll() {
+    this.reporters.forEach((reporter) => reporter.flushAll())
+  }
+
+  close() {
+    this.reporters.forEach((reporter) => reporter.close?.())
   }
 
   report(event: TraceEvent) {

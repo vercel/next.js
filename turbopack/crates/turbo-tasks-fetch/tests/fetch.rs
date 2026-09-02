@@ -186,7 +186,7 @@ fn get_issue_context() -> Vc<FileSystemPath> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn errors_on_failed_connection() {
     let _guard = GLOBAL_TEST_LOCK.lock().await;
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         #[turbo_tasks::value]
         struct FetchOutput(
             ReadRef<FetchErrorKind>,
@@ -204,12 +204,10 @@ async fn errors_on_failed_connection() {
             let err_kind = err.kind.await?;
             let err_url = err.url.owned().await?;
 
-            let issue_vc = err_vc.to_issue(IssueSeverity::Error, get_issue_context().owned().await?);
+            let issue_vc =
+                err_vc.to_issue(IssueSeverity::Error, get_issue_context().owned().await?);
             let issue = issue_vc.await?;
-            let issue_description = issue
-                .description()
-                .await?
-                .expect("description is not None");
+            let issue_description = issue.description().await?.expect("description is not None");
 
             Ok(FetchOutput(err_kind, err_url, issue, issue_description).cell())
         }
@@ -219,16 +217,18 @@ async fn errors_on_failed_connection() {
         // Other values (e.g. domain name, reserved IP address block) may result in long timeouts.
         let url = rcstr!("http://127.0.0.1:0/foo.woff");
         let FetchOutput(err_kind, err_url, issue, issue_description) =
-            &*fetch_operation(url.clone()).read_strongly_consistent().await?;
+            &*fetch_operation(url.clone())
+                .read_strongly_consistent()
+                .await?;
 
         assert!(matches!(**err_kind, FetchErrorKind::Connect));
         assert_eq!(*err_url, url);
 
         assert_eq!(issue.severity(), IssueSeverity::Error);
         assert_eq!(
-            issue_description.to_unstyled_string(),
-            "There was an issue establishing a connection while requesting http://127.0.0.1:0/foo.woff"
-        );
+        issue_description.to_unstyled_string(),
+        "There was an issue establishing a connection while requesting http://127.0.0.1:0/foo.woff"
+    );
         anyhow::Ok(())
     })
     .await

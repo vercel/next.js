@@ -1,0 +1,1 @@
+../../somewhere-else/src/app/file-symlink/page.tsx

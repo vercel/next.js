@@ -135,7 +135,7 @@ impl ModuleHotReferenceCodeGen {
         let resolved_ids: Vec<ReadRef<PatternMapping>> = self
             .references
             .iter()
-            .map(|reference| async move {
+            .map(async |reference| {
                 let r = reference.await?;
                 let resolve_result = reference.resolve_reference();
                 PatternMapping::resolve_request(
@@ -156,7 +156,7 @@ impl ModuleHotReferenceCodeGen {
         let esm_reimports: Vec<Option<(String, SyntaxContext, Expr)>> = self
             .esm_references
             .iter()
-            .map(|esm_ref| async move {
+            .map(async |esm_ref| {
                 let Some(esm_ref) = esm_ref else {
                     return Ok(None);
                 };

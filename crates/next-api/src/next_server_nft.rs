@@ -208,7 +208,6 @@ impl Asset for ServerNftJsonAsset {
             self.entries(),
             Some(self.ignores()),
             None,
-            hash_salt,
         )
         .await?
         .iter()

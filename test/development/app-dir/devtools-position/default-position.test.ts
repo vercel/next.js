@@ -12,4 +12,21 @@ describe('devtools-position-default', () => {
     expect(style).toContain('bottom: 20px')
     expect(style).toContain('left: 20px')
   })
+
+  it('should disable browser touch gestures on the draggable indicator', async () => {
+    const browser = await next.browser('/')
+    await getDevIndicatorPosition(browser)
+
+    const touchAction = await browser.eval(() => {
+      const portal = Array.from(
+        document.querySelectorAll('nextjs-portal')
+      ).find((p) => p.shadowRoot?.querySelector('[data-nextjs-toast]'))
+      const indicator = portal?.shadowRoot?.querySelector('[data-nextjs-toast]')
+      const draggable = indicator?.firstElementChild
+
+      return draggable ? getComputedStyle(draggable).touchAction : null
+    })
+
+    expect(touchAction).toBe('none')
+  })
 })

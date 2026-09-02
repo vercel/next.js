@@ -6,7 +6,6 @@ import path from 'node:path'
 import { buildTestReport } from './test-report.js'
 
 const TEST_COMMENT_MARKER = '<!-- __NEXT_TEST_REPORT_COMMENT__ -->'
-const STATS_COMMENT_MARKER = '<!-- __NEXT_STATS_COMMENT__ -->'
 const MAX_COMMENT_LENGTH = 62_000
 const MAX_RESULT_MESSAGE_LENGTH = 12_000
 
@@ -296,11 +295,6 @@ async function main() {
     return
   }
 
-  if (workflowRun.name === 'Generate Stats') {
-    await handleStatsWorkflow({ github, workflowRun, pr, phase })
-    return
-  }
-
   if (workflowRun.name === 'build-and-test') {
     await handleBuildAndTestWorkflow({
       github,
@@ -457,115 +451,6 @@ async function readPullRequestMetadataArtifact() {
   }
 }
 
-async function handleStatsWorkflow({ github, workflowRun, pr, phase }) {
-  if (phase === 'requested') {
-    const sha = pr.headSha || workflowRun.head_sha
-    const body = [
-      STATS_COMMENT_MARKER,
-      '## Stats in progress',
-      '',
-      `Commit: ${sha}`,
-      `[View workflow run](${workflowRun.html_url})`,
-      '',
-    ].join('\n')
-
-    await github.insertIssueCommentIfMissing(
-      pr.number,
-      STATS_COMMENT_MARKER,
-      body,
-      ['## Stats from current PR']
-    )
-    return
-  }
-
-  // Look for a stats block before reacting to the run conclusion. A single
-  // bundler timing out cancels its job and marks the whole run "cancelled", but
-  // the aggregate still emits stats for the bundlers that finished. Treating a
-  // cancelled run as "no data" up front would discard that partial comment, so
-  // we post whatever the aggregate produced first and only fall back to a
-  // cancelled/skipped notice when there is genuinely no block.
-  const jobs = await github.listJobsForRunAttempt(
-    workflowRun.id,
-    workflowRun.run_attempt || 1
-  )
-  const candidates = jobs.filter((job) => /aggregate stats/i.test(job.name))
-
-  for (const job of candidates) {
-    let logs
-    try {
-      logs = await github.downloadJobLogs(job.id)
-    } catch (err) {
-      // A cancelled or skipped aggregate job may have no retrievable logs.
-      console.log(`Failed to download logs for job ${job.id}`, err)
-      continue
-    }
-
-    const stats = extractDelimitedBlock(
-      logs,
-      '--stats start--',
-      '--stats end--'
-    )
-
-    if (!stats) {
-      continue
-    }
-
-    let body = stats
-      .replace('âš ï¸', '\u26a0\ufe0f')
-      .replace('âœ“', '\u2713')
-      .trim()
-
-    if (!body.includes(STATS_COMMENT_MARKER)) {
-      body = `${STATS_COMMENT_MARKER}\n${body}`
-    }
-
-    body += `\n\nCommit: ${pr.headSha || workflowRun.head_sha}`
-
-    await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
-      '## Stats from current PR',
-    ])
-    return
-  }
-
-  const sha = pr.headSha || workflowRun.head_sha
-
-  // No stats block. A cancelled conclusion here means the whole run was
-  // cancelled (superseded, or every bundler cancelled) rather than an
-  // individual bundler, since a partial run would have produced a block above.
-  if (workflowRun.conclusion === 'cancelled') {
-    console.log('No stats block found and the run was cancelled.')
-    const body = [
-      STATS_COMMENT_MARKER,
-      '## Stats cancelled',
-      '',
-      `Commit: ${sha}`,
-      `[View workflow run](${workflowRun.html_url})`,
-      '',
-    ].join('\n')
-
-    await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
-      '## Stats from current PR',
-    ])
-    return
-  }
-
-  console.log(
-    'No stats block found in the completed stats workflow. Assuming stats were skipped.'
-  )
-
-  const body = [
-    STATS_COMMENT_MARKER,
-    '## Stats skipped',
-    '',
-    `Commit: ${sha}`,
-    `[View workflow run](${workflowRun.html_url})`,
-    '',
-  ].join('\n')
-  await github.upsertIssueComment(pr.number, STATS_COMMENT_MARKER, body, [
-    '## Stats from current PR',
-  ])
-}
-
 async function handleBuildAndTestWorkflow({
   github,
   workflowRun,
@@ -714,21 +599,6 @@ function extractJsonBlocks(logs) {
   }
 
   return blocks
-}
-
-function extractDelimitedBlock(logs, start, end) {
-  const startIndex = logs.indexOf(start)
-  if (startIndex === -1) {
-    return null
-  }
-
-  const contentStart = startIndex + start.length
-  const endIndex = logs.indexOf(end, contentStart)
-  if (endIndex === -1) {
-    return null
-  }
-
-  return logs.slice(contentStart, endIndex).trim()
 }
 
 function buildTestReportComment({

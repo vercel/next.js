@@ -12,10 +12,14 @@ describe('deprecation-warnings', () => {
     it('should not emit any deprecation warnings when no config file exists', async () => {
       await next.start()
 
-      const logs = next.cliOutput
-      expect(logs).not.toContain('deprecated')
-      expect(logs).not.toContain('has been renamed')
-      expect(logs).not.toContain('no longer needed')
+      // React version warnings are covered by the dedicated React version test.
+      const configLogs = next.cliOutput
+        .split('\n')
+        .filter((line) => !line.includes('React 18 support is deprecated'))
+        .join('\n')
+      expect(configLogs).not.toContain('deprecated')
+      expect(configLogs).not.toContain('has been renamed')
+      expect(configLogs).not.toContain('no longer needed')
     })
   })
 

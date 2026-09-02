@@ -170,10 +170,11 @@ export type SegmentStage =
   | RenderStage.Static
   | RenderStage.ShellRuntime
   | RenderStage.Runtime
+  | RenderStage.NavigationRuntime
   | RenderStage.Dynamic
 
 /** The stages that a prefetched segment can be in. */
-type PrefetchedSegmentStage = Exclude<SegmentStage, RenderStage.Dynamic>
+export type PrefetchedSegmentStage = Exclude<SegmentStage, RenderStage.Dynamic>
 
 export type StageChunks = Record<SegmentStage, Uint8Array[]>
 
@@ -206,7 +207,11 @@ export async function collectStagedSegmentData(
   let partialStages: SegmentStage[]
   switch (prefetchKind) {
     case ValidationPrefetchKind.Shell: {
-      partialStages = [RenderStage.ShellRuntime, RenderStage.Runtime]
+      partialStages = [
+        RenderStage.ShellRuntime,
+        RenderStage.Runtime,
+        RenderStage.NavigationRuntime, // TODO(cache-stages): only if needed
+      ]
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {
@@ -282,6 +287,7 @@ async function collectSegmentDataForStage(
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
       case RenderStage.Runtime:
+      case RenderStage.NavigationRuntime:
         return 'Prefetch'
       case RenderStage.Dynamic:
         return 'Server'
@@ -792,6 +798,7 @@ function createSegmentCacheItem(): SegmentCacheItem {
     [RenderStage.Static]: null,
     [RenderStage.ShellRuntime]: null,
     [RenderStage.Runtime]: null,
+    [RenderStage.NavigationRuntime]: null,
     [RenderStage.Dynamic]: null,
   }
 }
@@ -983,11 +990,6 @@ export function discoverValidationDepths(loaderTree: LoaderTree): number[] {
  */
 export type ValidationPayloadResult = {
   payload: InitialRSCPayload
-  /** Whether errors from this payload could be ambiguous between runtime
-   * API access (cookies, headers) and uncached IO (connection, fetch).
-   * True when some segments used Static stage. False when all segments
-   * used Runtime stage and errors are definitively from uncached IO. */
-  hasAmbiguousErrors: boolean
   /** Per-slot config factories indexed by slot marker index. When a
    * boundary spans multiple parallel slots, each slot gets a marker
    * component in the tree. The marker's index maps to this array to
@@ -1016,7 +1018,10 @@ export async function createCombinedPayloadAtDepth(
   releaseSignal: AbortSignal,
   boundaryState: ValidationBoundaryTracking,
   clientReferenceManifest: ClientReferenceManifest,
-  useRuntimeStageForPartialSegments: boolean
+  overrideStageForPartialSegments:
+    | null
+    | RenderStage.Runtime
+    | RenderStage.NavigationRuntime
 ): Promise<ValidationPayloadResult | null> {
   const workStore = workAsyncStorage.getStore()
   if (!workStore) {
@@ -1025,9 +1030,6 @@ export async function createCombinedPayloadAtDepth(
     )
   }
   const { validationLevel, route } = workStore
-
-  let hasStaticSegments = false
-  let hasRuntimeSegments = false
 
   // Index 0 is reserved for the root config. Slot markers start at 1.
   const slotStacks: Array<(() => Error) | null> = [null]
@@ -1305,39 +1307,14 @@ export async function createCombinedPayloadAtDepth(
     }
 
     let stage: PrefetchedSegmentStage
-
     switch (prefetchKind) {
       case ValidationPrefetchKind.Shell: {
-        if (useRuntimeStageForPartialSegments) {
-          stage = RenderStage.Runtime
-        } else {
-          stage = RenderStage.ShellRuntime
-        }
-        // We do not track `has{Static,Runtime}Segments` because they do not
-        // affect shell prefetches.
+        stage = overrideStageForPartialSegments ?? RenderStage.ShellRuntime
         break
       }
       case ValidationPrefetchKind.LegacySpeculative: {
-        if (useRuntimeStageForPartialSegments) {
-          stage = RenderStage.Runtime
-        } else {
-          // In legacy speculative prefetches, we always use static.
-          stage = RenderStage.Static
-        }
-        break
-      }
-    }
-
-    switch (stage) {
-      case RenderStage.Static: {
-        hasStaticSegments = true
-        break
-      }
-      case RenderStage.ShellRuntime: {
-        break
-      }
-      case RenderStage.Runtime: {
-        hasRuntimeSegments = true
+        // In legacy speculative prefetches, we always use static.
+        stage = overrideStageForPartialSegments ?? RenderStage.Static
         break
       }
     }
@@ -1455,37 +1432,15 @@ export async function createCombinedPayloadAtDepth(
   let headStage: PrefetchedSegmentStage
   switch (prefetchKind) {
     case ValidationPrefetchKind.Shell: {
-      if (useRuntimeStageForPartialSegments) {
-        headStage = RenderStage.Runtime
-      } else {
-        headStage = RenderStage.ShellRuntime
-      }
+      headStage = overrideStageForPartialSegments ?? RenderStage.ShellRuntime
       break
     }
     case ValidationPrefetchKind.LegacySpeculative: {
-      headStage = hasRuntimeSegments ? RenderStage.Runtime : RenderStage.Static
+      headStage = overrideStageForPartialSegments ?? RenderStage.Static
       break
     }
   }
   debug?.(`    /_head - ${RenderStage[headStage]}`)
-
-  let hasAmbiguousErrors: boolean
-  switch (prefetchKind) {
-    case ValidationPrefetchKind.Shell: {
-      // In a shell prefetch, holes are always ambiguous
-      // (they can be either link data or dynamic data)
-      // unless we're already overriding and using the runtime stage,
-      // which resolves link data.
-      hasAmbiguousErrors = !useRuntimeStageForPartialSegments
-      break
-    }
-    case ValidationPrefetchKind.LegacySpeculative: {
-      // In the old prefetching mechanism, holes in static segments are ambiguous
-      // (they can be either runtime data or dynamic data).
-      hasAmbiguousErrors = hasStaticSegments
-      break
-    }
-  }
 
   const head = await createValidationHead(
     cache,
@@ -1508,7 +1463,6 @@ export async function createCombinedPayloadAtDepth(
 
   return {
     payload,
-    hasAmbiguousErrors,
     slotStacks,
   }
 }

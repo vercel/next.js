@@ -28,12 +28,13 @@ import type {
   Endpoint,
   HmrChunkNames,
   Lockfile,
-  NodeJsHmrUpdate,
   PartialProjectOptions,
   Project,
   ProjectOptions,
   RawEntrypoints,
   Route,
+  ServerHmrUpdate,
+  ServerHmrVersion,
   TurboEngineOptions,
   TurbopackResult,
   TurbopackStackFrame,
@@ -551,6 +552,7 @@ function bindingToApi(
     | {
         type: 'app-route'
         originalName: string
+        hasActionManifest: boolean
         endpoint: NapiEndpoint
       }
     | {
@@ -757,10 +759,16 @@ function bindingToApi(
       })()
     }
 
-    serverHmrEvents(): AsyncIterableIterator<TurbopackResult<NodeJsHmrUpdate>> {
-      return subscribe(true, async (callback) =>
-        binding.projectServerHmrEvents(this._nativeProject, callback)
-      )
+    async getServerHmrUpdate(
+      from: ServerHmrVersion | undefined,
+      entryPaths: string[]
+    ): Promise<TurbopackResult<ServerHmrUpdate>> {
+      // napi cannot express the field correlation.
+      return binding.projectGetServerHmrUpdate(
+        this._nativeProject,
+        from,
+        entryPaths
+      ) as Promise<TurbopackResult<ServerHmrUpdate>>
     }
 
     clientHmrEvents(
@@ -1205,6 +1213,7 @@ function bindingToApi(
           route = {
             type: 'app-route',
             originalName: nativeRoute.originalName,
+            hasActionManifest: nativeRoute.hasActionManifest,
             endpoint: new EndpointImpl(nativeRoute.endpoint),
           }
           break

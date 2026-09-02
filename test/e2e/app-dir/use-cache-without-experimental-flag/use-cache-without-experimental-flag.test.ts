@@ -39,7 +39,9 @@ describe('use-cache-without-experimental-flag', () => {
         expect(buildOutput).toContain('Ecmascript file had an error')
         expect(buildOutput).toContain('./app/page.tsx:1:1')
         expect(buildOutput).toContain("> 1 | 'use cache'")
-        expect(buildOutput).toContain('at <unknown> (./app/page.tsx:1:1)')
+        // The stack of a build error holds framework frames only, and the
+        // terminal collapses them.
+        expect(buildOutput).toContain('at ignore-listed frames')
       } else if (isRspack) {
         expect(buildOutput).toMatchInlineSnapshot(`
          "

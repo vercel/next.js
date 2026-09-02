@@ -1,4 +1,5 @@
 import assert from 'assert'
+import http from 'http'
 import cheerio from 'cheerio'
 import { nextTestSetup } from 'e2e-utils'
 import {
@@ -7,7 +8,6 @@ import {
   fetchViaHTTP,
   getClientBuildManifestLoaderChunkUrlPath,
   renderViaHTTP,
-  waitFor,
 } from 'next-test-utils'
 
 describe('basePath', () => {
@@ -57,21 +57,62 @@ describe('basePath', () => {
     },
   })
 
+  let externalServer: http.Server | undefined
+  let externalUrl = 'https://example.vercel.sh'
+
+  beforeAll(async () => {
+    // Avoid third-party network and DOM dependencies when the browser can reach
+    // the test runner. Deployed tests cannot reach a server on this process.
+    if (isNextDeploy) return
+
+    externalServer = http.createServer((_req, res) => {
+      res.setHeader('Content-Type', 'text/html')
+      res.end('<!doctype html><p data-external-page>external page</p>')
+    })
+
+    await new Promise<void>((resolve, reject) => {
+      externalServer!.once('error', reject)
+      externalServer!.listen(0, '127.0.0.1', () => {
+        externalServer!.off('error', reject)
+        const address = externalServer!.address()
+        if (!address || typeof address === 'string') {
+          reject(new Error('Failed to determine the external server port'))
+          return
+        }
+        externalUrl = `http://127.0.0.1:${address.port}`
+        resolve()
+      })
+    })
+  })
+
+  afterAll(async () => {
+    if (!externalServer) return
+
+    await new Promise<void>((resolve, reject) => {
+      externalServer!.close((err) => (err ? reject(err) : resolve()))
+    })
+  })
+
   it('should navigate to external site and back', async () => {
-    const browser = await next.browser(`${basePath}/external-and-back`)
-    const initialText = await browser.elementByCss('p').text()
-    expect(initialText).toBe('server')
+    const browser = await next.browser(
+      `${basePath}/external-and-back?external=${encodeURIComponent(externalUrl)}`
+    )
+    const initialUrl = await browser.url()
+    expect(await browser.elementById('from').text()).toBe('server')
 
-    await browser
-      .elementByCss('a')
-      .click()
-      .waitForElementByCss('input', { state: 'attached' })
-      .back()
-      .waitForElementByCss('p')
+    await browser.elementByCss('a').click()
+    await browser.waitForCondition(
+      `window.location.origin !== ${JSON.stringify(new URL(initialUrl).origin)}`
+    )
+    if (!isNextDeploy) {
+      await browser.waitForElementByCss('[data-external-page]')
+    }
 
-    await waitFor(1000)
-    const newText = await browser.elementByCss('p').text()
-    expect(newText).toBe('server')
+    await browser.back()
+    await browser.waitForCondition(
+      `window.location.href === ${JSON.stringify(initialUrl)} && document.querySelector('#from')`
+    )
+    expect(await browser.elementById('from').text()).toBe('server')
   })
 
   if (process.env.BROWSER_NAME === 'safari') {

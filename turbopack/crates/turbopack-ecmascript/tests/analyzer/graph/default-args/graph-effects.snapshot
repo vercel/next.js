@@ -1,4 +1,18 @@
 [
+    DestructuredMember {
+        obj: Argument(
+            105,
+            0,
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "value2",
+                ),
+            ),
+        ),
+        span: 108..114,
+    },
     ImportedBinding {
         esm_reference_index: 1,
         export: Some(
@@ -103,6 +117,20 @@
                 Return,
             ),
         ],
+    },
+    DestructuredMember {
+        obj: Argument(
+            39,
+            0,
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "value",
+                ),
+            ),
+        ),
+        span: 54..59,
     },
     ImportedBinding {
         esm_reference_index: 1,

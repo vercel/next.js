@@ -173,10 +173,16 @@ async function requestHandler(
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+        reactBrowserBailout: Boolean(
+          nextConfig.experimental.reactBrowserBailout
+        ),
         // Edge has no Node response-close signal, so HMR cancellation is a
         // no-op.
         serverComponentsHmrCancellation: false,
         useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          nextConfig.experimental.durableUseCacheEntries
+        ),
         cachedNavigations: nextConfig.experimental.cachedNavigations ?? false,
         clientTraceMetadata:
           nextConfig.experimental.clientTraceMetadata || ([] as any),

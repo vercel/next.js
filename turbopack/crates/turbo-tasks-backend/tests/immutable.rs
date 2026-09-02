@@ -10,7 +10,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_hidden_mutate() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = *create_input().to_resolved().await?;
         input.await?.state.set(1);

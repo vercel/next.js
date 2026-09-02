@@ -108,7 +108,7 @@ To upgrade your links to Next.js 13, you can use the [`new-link` codemod](/docs/
 
 The behavior of [`next/script`](/docs/app/api-reference/components/script) has been updated to support both `pages` and `app`, but some changes need to be made to ensure a smooth migration:
 
-- Move any `beforeInteractive` scripts you previously included in `_document.js` to the root layout file (`app/layout.tsx`).
+- Move any `beforeInteractive` scripts you previously included in `_document.js` to a [root layout](/docs/app/api-reference/file-conventions/layout#root-layout), such as `app/layout.tsx` or `app/[locale]/layout.tsx`.
 - The experimental `worker` strategy does not yet work in `app` and scripts denoted with this strategy will either have to be removed or modified to use a different strategy (e.g. `lazyOnload`).
 - `onLoad`, `onReady`, and `onError` handlers will not work in Server Components so make sure to move them to a [Client Component](/docs/app/getting-started/server-and-client-components) or remove them altogether.
 

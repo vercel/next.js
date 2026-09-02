@@ -19,8 +19,10 @@ use crate::{
     id::{ExecutionId, LocalTaskId, TASK_ID_MAX},
     manager::{
         ReadCellTracking, ReadTracking, SUPPRESS_EVENTUAL_CONSISTENCY_TOP_LEVEL_TASK_CHECK,
-        TurboTasksApi, read_local_output, with_turbo_tasks,
+        ScheduleKey, TurboTasksApi, execute_read_target_inline, read_local_output,
+        with_turbo_tasks,
     },
+    read_options::ReadOutcome,
     registry::get_value_type,
     turbo_tasks,
 };
@@ -502,6 +504,15 @@ fn suppress_top_level_task_check<R>(strongly_consistent: bool, f: impl FnOnce() 
     }
 }
 
+/// Executes the task a read is waiting for when it is only scheduled, so the read can continue
+/// without waiting for a worker.
+///
+/// Must be called *outside* [`with_turbo_tasks`]: executing a task enters a task-local scope of its
+/// own, which panics while the read borrows `TURBO_TASKS`.
+fn execute_inline(key: ScheduleKey) {
+    execute_read_target_inline(&*turbo_tasks(), key);
+}
+
 #[must_use]
 pub struct ResolveRawVcFuture {
     current: RawVc,
@@ -551,14 +562,20 @@ impl Future for ResolveRawVcFuture {
         // SAFETY: we are not moving self
         let this = unsafe { self.get_unchecked_mut() };
 
-        let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
+        let strongly_consistent = this.strongly_consistent;
+        // `execute_inline` is the task to execute inline, reported out-of-band so that the value
+        // path stays exactly as cheap as it was. It is only set for tasks that are merely
+        // scheduled; one that a worker is already executing cannot be taken over.
+        let mut poll_fn = |tt: &Arc<dyn TurboTasksApi>,
+                           execute_inline: &mut Option<ScheduleKey>|
+         -> Poll<Self::Output> {
             'outer: loop {
                 ready!(poll_listener(&mut this.listener, cx));
-                let listener = match this.current.unpack() {
+                let (listener, key) = match this.current.unpack() {
                     RawVcUnpacked::TaskOutput(task) => {
                         let read_result = tt.try_read_task_output(task, this.read_output_options);
                         match read_result {
-                            Ok(Ok(vc)) => {
+                            Ok(ReadOutcome::Value(vc)) => {
                                 // turbo-tasks-backend doesn't currently have any sort of
                                 // "transaction" or global lock mechanism to group together chains
                                 // of `TaskOutput`/`TaskCell` reads.
@@ -571,7 +588,19 @@ impl Future for ResolveRawVcFuture {
                                 this.current = vc;
                                 continue 'outer;
                             }
-                            Ok(Err(listener)) => listener,
+                            // Nobody has started the task yet, so the caller may take it over.
+                            Ok(ReadOutcome::Scheduled(listener)) => {
+                                (listener, Some(ScheduleKey::Task(task)))
+                            }
+                            Ok(ReadOutcome::InProgress(listener)) => {
+                                // A worker is on it; nothing to take over. Loop back so
+                                // `poll_listener` registers the waker on this listener — returning
+                                // `Pending` here would sleep through the event.
+                                #[cfg(feature = "inline_execution_stats")]
+                                tt.note_waited_for_in_progress_task();
+                                this.listener = Some(listener);
+                                continue 'outer;
+                            }
                             Err(err) => return Poll::Ready(Err(err)),
                         }
                     }
@@ -587,22 +616,40 @@ impl Future for ResolveRawVcFuture {
                                 this.current = vc;
                                 continue 'outer;
                             }
-                            Ok(Err(listener)) => listener,
+                            Ok(Err(listener)) => (
+                                listener,
+                                Some(ScheduleKey::LocalTask(execution_id, local_task_id)),
+                            ),
                             Err(err) => return Poll::Ready(Err(err)),
                         }
                     }
                 };
+                // The task is not done yet, so we have to wait for it — unless it is merely
+                // scheduled, in which case our caller executes it and we read again.
                 this.listener = Some(listener);
+                *execute_inline = key;
+                return Poll::Pending;
             }
         };
 
-        // HACK: Temporarily suppress top-level task check if doing strongly consistent read.
-        //
-        // This masks a bug: There's an unlikely TOCTOU race condition in `poll_fn`. Because the
-        // strongly consistent read isn't a single atomic operation, any inner `TaskOutput` or
-        // `TaskCell` could get mutated after the strongly consistent read of the outer
-        // `TaskOutput`.
-        suppress_top_level_task_check(this.strongly_consistent, || with_turbo_tasks(poll_fn))
+        loop {
+            let mut execute_inline_key = None;
+            // HACK: Temporarily suppress top-level task check if doing strongly consistent read.
+            //
+            // This masks a bug: There's an unlikely TOCTOU race condition in `poll_fn`. Because the
+            // strongly consistent read isn't a single atomic operation, any inner `TaskOutput` or
+            // `TaskCell` could get mutated after the strongly consistent read of the outer
+            // `TaskOutput`.
+            let result = suppress_top_level_task_check(strongly_consistent, || {
+                with_turbo_tasks(|tt| poll_fn(tt, &mut execute_inline_key))
+            });
+            if let Some(key) = execute_inline_key {
+                // Not inside `with_turbo_tasks`, see `execute_inline`.
+                execute_inline(key);
+                continue;
+            }
+            return result;
+        }
     }
 }
 
@@ -724,23 +771,53 @@ impl Future for ReadRawVcFuture {
         let index = *index;
         let read_cell_options = this.read_cell_options;
 
-        let poll_fn = |tt: &Arc<dyn TurboTasksApi>| -> Poll<Self::Output> {
+        let strongly_consistent = *strongly_consistent;
+
+        let mut poll_fn = |tt: &Arc<dyn TurboTasksApi>,
+                           execute_inline: &mut Option<ScheduleKey>|
+         -> Poll<Self::Output> {
             loop {
                 ready!(poll_listener(listener, cx));
-                let new_listener = match tt.try_read_task_cell(task, index, read_cell_options) {
-                    Ok(Ok(content)) => return Poll::Ready(Ok(content)),
-                    Ok(Err(l)) => l,
-                    Err(err) => return Poll::Ready(Err(err)),
-                };
+                let (new_listener, key) =
+                    match tt.try_read_task_cell(task, index, read_cell_options) {
+                        Ok(ReadOutcome::Value(content)) => return Poll::Ready(Ok(content)),
+                        Ok(ReadOutcome::Scheduled(l)) => (l, Some(ScheduleKey::Task(task))),
+                        Ok(ReadOutcome::InProgress(l)) => {
+                            // A worker is already filling the cell; nothing to take over. Loop back
+                            // so `poll_listener` registers the waker on this listener — returning
+                            // `Pending` here would sleep through the event.
+                            #[cfg(feature = "inline_execution_stats")]
+                            tt.note_waited_for_in_progress_task();
+                            *listener = Some(l);
+                            continue;
+                        }
+                        Err(err) => return Poll::Ready(Err(err)),
+                    };
+                // The cell isn't available yet, so we have to wait for the task that fills it —
+                // unless that task is merely scheduled, in which case our caller executes it and we
+                // read again.
                 *listener = Some(new_listener);
+                *execute_inline = key;
+                return Poll::Pending;
             }
         };
 
-        // Phase 2 must also suppress the top-level task check when phase 1 was
-        // strongly-consistent. The suppression from `ResolveRawVcFuture::poll` only lasts for
-        // the duration of that individual `poll` call and does not carry over to subsequent calls
-        // or to this phase.
-        suppress_top_level_task_check(*strongly_consistent, || with_turbo_tasks(poll_fn))
+        loop {
+            let mut execute_inline_key = None;
+            // Phase 2 must also suppress the top-level task check when phase 1 was
+            // strongly-consistent. The suppression from `ResolveRawVcFuture::poll` only lasts for
+            // the duration of that individual `poll` call and does not carry over to subsequent
+            // calls or to this phase.
+            let result = suppress_top_level_task_check(strongly_consistent, || {
+                with_turbo_tasks(|tt| poll_fn(tt, &mut execute_inline_key))
+            });
+            if let Some(key) = execute_inline_key {
+                // Not inside `with_turbo_tasks`, see `execute_inline`.
+                execute_inline(key);
+                continue;
+            }
+            return result;
+        }
     }
 }
 

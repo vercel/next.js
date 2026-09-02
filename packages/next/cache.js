@@ -26,6 +26,7 @@ if (process.env.NEXT_RUNTIME === '') {
     cacheLife: notAvailableInClient('cacheLife'),
     cacheTag: notAvailableInClient('cacheTag'),
     unstable_navigation: notAvailableInClient('unstable_navigation'),
+    unstable_prefetch: notAvailableInClient('unstable_prefetch'),
   }
 } else {
   // Keep server requires in this branch so browser builds can DCE them.
@@ -52,6 +53,8 @@ if (process.env.NEXT_RUNTIME === '') {
     cacheTag: require('next/dist/server/use-cache/cache-tag').cacheTag,
     unstable_navigation: require('next/dist/server/request/cache-stages')
       .unstable_navigation,
+    unstable_prefetch: require('next/dist/server/request/cache-stages')
+      .unstable_prefetch,
   }
 }
 
@@ -99,3 +102,4 @@ exports.unstable_cacheTag = cacheExports.unstable_cacheTag
 exports.refresh = cacheExports.refresh
 exports.io = cacheExports.io
 exports.unstable_navigation = cacheExports.unstable_navigation
+exports.unstable_prefetch = cacheExports.unstable_prefetch

@@ -13,7 +13,7 @@ static REGISTRATION: Registration = register!();
 // value is equal.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_shared_cell_mode() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = CellIdSelector {
             value: 42,
@@ -49,7 +49,7 @@ async fn test_trait_ref_shared_cell_mode() {
 // value is equal.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_ref_new_cell_mode() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = CellIdSelector {
             value: 42,

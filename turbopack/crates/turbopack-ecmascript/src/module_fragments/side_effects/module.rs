@@ -93,7 +93,7 @@ impl Module for SideEffectsModule {
         references.extend(
             self.side_effects
                 .iter()
-                .map(|side_effect| async move {
+                .map(async |side_effect| {
                     Ok(ResolvedVc::upcast(
                         SingleChunkableModuleReference::new(
                             *ResolvedVc::upcast(*side_effect),
@@ -134,7 +134,8 @@ impl Module for SideEffectsModule {
 impl EcmascriptChunkPlaceable for SideEffectsModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        self.resolved_as.get_exports()
+        // Borrowed from another module identity, so it must not carry a mangling decision.
+        self.resolved_as.get_exports().borrowed()
     }
 
     #[turbo_tasks::function]

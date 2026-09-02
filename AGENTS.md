@@ -430,6 +430,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 
 - `$pr-status-triage` - CI failure and PR review triage with `scripts/pr-status.js`
 - `$create-pr` - branch, commit, push, and draft PR creation workflow
+- `$deploy-release-test` - validate a commit preview package and trigger the full `test_e2e_deploy_release.yml` suite
 - `$backport-pr` - cherry-pick merged PRs from `canary` to release branches
 - `$flags` - feature-flag wiring across config/schema/define-env/runtime env
 - `$dce-edge` - DCE-safe `require()` patterns and edge/runtime constraints
@@ -437,6 +438,7 @@ Use skills for conditional, deep workflows. Keep baseline iteration/build/test p
 - `$react-sync` - build a local React checkout and sync it into Next.js for testing
 - `$runtime-debug` - runtime-bundle/module-resolution regression reproduction and verification
 - `$next-rspack` - @next/rspack-core and @next/rspack-binding maintenance (rspack/ directory)
+- `$gate-tests` - `@gate`/`@force-gate` test directives: replacing `it.skip`/fake-green skips, conditions, variant-shard fixtures
 - `$authoring-skills` - how to create and maintain skills in `.agents/skills/`
 
 ## Context-Efficient Workflows

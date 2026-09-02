@@ -19,7 +19,7 @@ bench = false
 anyhow = { workspace = true }
 either = { workspace = true }
 flate2 = { workspace = true }
-hashbrown = { workspace = true, features = ["raw"] }
+hashbrown = { workspace = true, features = ["raw-entry"] }
 indexmap = { workspace = true, features = ["serde"] }
 itertools = { workspace = true }
 postcard = { workspace = true }

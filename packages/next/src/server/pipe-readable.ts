@@ -159,7 +159,36 @@ export async function pipeNodeReadableToNodeResponse(
 
     const finished = createPromiseWithResolvers<void>()
 
+    // One `drain` listener for the whole response, as in
+    // `createWriterFromResponse` above. It must not be `res.once('drain')` per
+    // backpressured write: the `compression` middleware forwards `res.on` to
+    // its zlib stream but leaves `removeListener` pointing at the response, so
+    // a `once` listener is never removed from the stream it was added to. Each
+    // backpressured write would leak one, and past ten Node reports the stream
+    // as a probable leak via `MaxListenersExceededWarning`.
+    //
+    // TODO: the upstream fix for that asymmetry is
+    // https://github.com/expressjs/compression/pull/153, which intercepts
+    // `removeListener` so it reaches the zlib stream. It has been open since
+    // 2019 and is not in upstream 1.8.1; we vendor 1.7.4. If it ever lands and
+    // we upgrade, `res.off('drain', onDrain)` below would start working with
+    // compression active and the caveat on the `close` handler could go away.
+    let paused = false
+    const onDrain = () => {
+      // The listener outlives the readable: `off` below cannot reach the zlib
+      // stream either, so a late drain can arrive after teardown.
+      if (!paused || readable.destroyed) return
+
+      paused = false
+      readable.resume()
+    }
+    res.on('drain', onDrain)
+
     res.once('close', () => {
+      // Only removes the listener when compression is inactive, which is the
+      // case where it was added to the response itself. Otherwise it lives on
+      // the zlib stream, which is released with the response.
+      res.off('drain', onDrain)
       readable.destroy()
       finished.resolve()
     })
@@ -203,10 +232,8 @@ export async function pipeNodeReadableToNodeResponse(
       }
 
       if (!ok) {
+        paused = true
         readable.pause()
-        res.once('drain', () => {
-          readable.resume()
-        })
       }
     })
 

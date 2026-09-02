@@ -103,7 +103,6 @@ import { RenderSpan } from './lib/trace/constants'
 import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { getCacheControlHeader } from './lib/cache-control'
 import { getErrorSource } from '../shared/lib/error-source'
-import { extractNextErrorCode } from '../lib/error-telemetry-utils'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
 import type { PagesDevOverlayBridgeType } from '../next-devtools/userspace/pages/pages-dev-overlay-setup'
 import { getScriptNonceFromHeader } from './app-render/get-script-nonce-from-header'
@@ -424,7 +423,6 @@ export function errorToJSON(err: Error) {
     message: stripAnsi(err.message),
     stack: err.stack,
     digest: (err as any).digest,
-    __NEXT_ERROR_CODE: extractNextErrorCode(err),
   }
 }
 

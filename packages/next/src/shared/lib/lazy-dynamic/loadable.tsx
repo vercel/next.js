@@ -1,5 +1,5 @@
 import { Suspense, Fragment, lazy } from 'react'
-import { BailoutToCSR } from './dynamic-bailout-to-csr'
+import { BailoutToCSRForNextDynamic } from './dynamic-bailout-to-csr'
 import type { ComponentModule } from './types'
 import { PreloadChunks } from './preload-chunks'
 
@@ -61,9 +61,9 @@ function Loadable(options: LoadableOptions) {
         <Lazy {...props} />
       </>
     ) : (
-      <BailoutToCSR reason="next/dynamic">
+      <BailoutToCSRForNextDynamic>
         <Lazy {...props} />
-      </BailoutToCSR>
+      </BailoutToCSRForNextDynamic>
     )
 
     return <Wrap {...wrapProps}>{children}</Wrap>
