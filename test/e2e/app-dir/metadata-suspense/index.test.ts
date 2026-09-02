@@ -1,14 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('app dir - metadata dynamic routes suspense', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render metadata in head when root layout is wrapped with Suspense for bot requests', async () => {
     const $ = await next.render$('/', undefined, {

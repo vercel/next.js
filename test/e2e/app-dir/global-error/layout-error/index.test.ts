@@ -1,14 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('app dir - global error - layout error', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render global error for error in server components', async () => {
     const browser = await next.browser('/')

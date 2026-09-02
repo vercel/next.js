@@ -1,13 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app-root-param-getters - generateStaticParams error', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'generate-static-params-error'),
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   beforeAll(async () => {
     try {

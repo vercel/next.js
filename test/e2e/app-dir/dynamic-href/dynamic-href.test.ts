@@ -1,18 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('dynamic-href', () => {
-  const {
-    isNextDev: isDev,
-    next,
-    skipped,
-  } = nextTestSetup({
+  const { isNextDev: isDev, next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isDev) {
     it('should error when using dynamic href.pathname in app dir', async () => {

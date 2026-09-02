@@ -40,17 +40,16 @@ export const NO_VALIDATION_ERRORS_WAIT: Parameters<
 export function runInstantValidationTests(
   registerTests: (ctx: InstantValidationCaseContext) => void
 ) {
+  // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+  // @force-gate !deploy
   describe('instant validation', () => {
-    const { next, skipped, isNextDev, isNextStart, isTurbopack } =
-      nextTestSetup({
-        files: __dirname,
-        skipStart: true,
-        skipDeployment: true,
-        env: {
-          NEXT_TEST_LOG_VALIDATION: '1',
-        },
-      })
-    if (skipped) return
+    const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+      env: {
+        NEXT_TEST_LOG_VALIDATION: '1',
+      },
+    })
 
     if (isNextStart && !isTurbopack) {
       // TODO(instant-validation-build): snapshot tests for webpack

@@ -5,16 +5,17 @@ import {
 } from 'e2e-utils/instant-validation'
 import { waitForNoErrorToast } from '../../../lib/next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('instant validation - level error', () => {
-  const { next, skipped, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     env: {
       NEXT_TEST_LOG_VALIDATION: '1',
     },
   })
-  if (skipped) return
 
   if (isNextStart && !isTurbopack) {
     it.skip('TODO: snapshot tests for webpack', () => {})
