@@ -11,7 +11,7 @@ related:
     - app/api-reference/config/next-config-js/cacheComponents
 ---
 
-Awaiting `unstable_prefetch()` defers the code below it to a per-link prefetch or a navigation, instead of rendering it in the route's [App Shell](/docs/app/glossary#app-shell). The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary takes its place in the shell, and the deferred content renders once one of those happens.
+Calling `await unstable_prefetch()` defers the code below it to a per-link prefetch or a navigation, instead of rendering it in the route's [App Shell](/docs/app/glossary#app-shell). The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary takes its place in the shell, and the deferred content renders once one of those happens.
 
 It is meant to defer content that the App Shell would otherwise render, typically content that depends on session data and is expensive to generate. During a build-time prerender nothing is deferred, so content below `unstable_prefetch()` is prerendered as usual.
 
@@ -19,13 +19,24 @@ It is meant to defer content that the App Shell would otherwise render, typicall
 
 The function requires [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), and throws without it. It also requires [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), which you can enable globally or one route at a time by [adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
 
+```ts filename="next.config.ts" highlight={4,5}
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  cacheComponents: true,
+  partialPrefetching: true,
+}
+
+export default nextConfig
+```
+
 A route is then rendered in stages, and content can arrive at any of three:
 
 1. The App Shell, which every `<Link>` into the route prefetches, and which holds the part of the route that does not depend on the URL.
 2. A per-link prefetch, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), which resolves the URL and adds the content that depends on it.
 3. The navigation itself, which covers everything left.
 
-Calling `unstable_prefetch()` keeps content out of the App Shell, so it renders on a per-link prefetch or on the navigation.
+Calling `unstable_prefetch()` keeps content out of the App Shell, so it only renders on a per-link prefetch or on the navigation.
 
 Without Partial Prefetching, a route has no App Shell, so there is nothing to keep content out of.
 
