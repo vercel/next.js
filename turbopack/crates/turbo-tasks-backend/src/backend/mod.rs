@@ -3044,8 +3044,6 @@ impl TurboTasksBackend {
                                     // memory so racing with execution is as likely to save time as
                                     // cost it.
                                     self.storage.evict_after_snapshot(background_span.id());
-                                    // Sample the post-eviction floor as the new baseline.
-                                    eviction_control.record_eviction();
                                     true
                                 } else {
                                     false
@@ -3097,6 +3095,12 @@ impl TurboTasksBackend {
                                     && (new_data || ran_compaction || ran_eviction)
                                 {
                                     TurboMalloc::collect(true);
+                                }
+
+                                // Sample the new baseline after the collect above, which is what
+                                // makes the evicted memory show up in `memory_usage`.
+                                if ran_eviction {
+                                    eviction_control.record_eviction();
                                 }
                             }
                         }
