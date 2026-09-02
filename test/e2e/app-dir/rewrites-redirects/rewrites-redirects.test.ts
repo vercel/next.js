@@ -9,6 +9,8 @@ describe('redirects and rewrites', () => {
   })
 
   // TODO: investigate test failures on deploy
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // The source only records that these assertions fail after deployment; the root cause is unknown.
   if ((global as any).isNextDeploy) {
     it('should skip for deploy', () => {})
     return

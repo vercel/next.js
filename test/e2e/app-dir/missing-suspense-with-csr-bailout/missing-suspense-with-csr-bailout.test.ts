@@ -1,16 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// Deploy mode exclusion: This suite mutates fixture files, which cannot be changed after deployment.
+// This test is skipped when deployed because it's not possible to rename files after deployment.
+// @force-gate !deploy
 describe('missing-suspense-with-csr-bailout', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // This test is skipped when deployed because it's not possible to rename files after deployment.
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextDev) {
     it.skip('skip test for development mode', () => {})
