@@ -285,17 +285,17 @@ export default eslintConfig
 
 ### Running lint on staged files
 
-If you would like to use ESLint with [lint-staged](https://github.com/okonet/lint-staged) to run the linter on staged git files, add the following to the `.lintstagedrc.js` file in the root of your project:
+If you would like to use ESLint with [lint-staged](https://github.com/okonet/lint-staged) to run the linter on staged git files, add the following to the `lint-staged.config.mjs` file in the root of your project:
 
-```js filename=".lintstagedrc.js"
-const path = require('path')
+```js filename="lint-staged.config.mjs"
+import path from 'path'
 
 const buildEslintCommand = (filenames) =>
   `eslint --fix ${filenames
     .map((f) => `"${path.relative(process.cwd(), f)}"`)
     .join(' ')}`
 
-module.exports = {
+export default {
   '*.{js,jsx,ts,tsx}': [buildEslintCommand],
 }
 ```
