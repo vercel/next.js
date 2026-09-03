@@ -1,6 +1,7 @@
 import nodePath from 'path'
 import type { Span } from '../../../trace'
 import isError from '../../../lib/is-error'
+import { isNonSymlinkReadlinkError } from '../../lib/is-non-symlink-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
 import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
@@ -610,10 +611,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             })
           })
         } catch (e) {
-          if (
-            isError(e) &&
-            (e.code === 'EINVAL' || e.code === 'ENOENT' || e.code === 'UNKNOWN')
-          ) {
+          if (isNonSymlinkReadlinkError(e)) {
             return null
           }
           throw e
