@@ -106,6 +106,12 @@ impl Hasher for Xxh3Hash64Hasher {
     }
 }
 
+impl Default for Xxh3Hash64Hasher {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -157,11 +163,5 @@ mod tests {
             |h| Hasher::write_isize(h, -0x1234),
             &(-0x1234i64).to_le_bytes(),
         );
-    }
-}
-
-impl Default for Xxh3Hash64Hasher {
-    fn default() -> Self {
-        Self::new()
     }
 }
