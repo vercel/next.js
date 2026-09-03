@@ -1,0 +1,91 @@
+---
+title: Invalid Head Child
+---
+
+## Why This Error Occurred
+
+An invalid HTML element was used as a child of the `next/head` component.
+
+The `<Head>` component from `next/head` is designed to manage the document `<head>` and only accepts specific HTML elements that are valid within a `<head>` tag.
+
+Valid children elements are:
+
+- `<title>`
+- `<meta>`
+- `<link>`
+- `<script>`
+- `<style>`
+- `<base>`
+- `<noscript>`
+
+## Possible Ways to Fix It
+
+### Move Invalid Elements Outside Head
+
+If you're trying to add elements like `<div>`, `<span>`, or other body elements, move them outside the `<Head>` component:
+
+**Before:**
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+function Index() {
+  return (
+    <>
+      <Head>
+        <title>My page title</title>
+        <div>This is invalid!</div>
+      </Head>
+    </>
+  )
+}
+
+export default Index
+```
+
+**After:**
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+function Index() {
+  return (
+    <>
+      <Head>
+        <title>My page title</title>
+      </Head>
+      <div>This is valid now!</div>
+    </>
+  )
+}
+
+export default Index
+```
+
+### Use Valid Head Elements
+
+Ensure you're only using valid `<head>` elements inside the `<Head>` component:
+
+```jsx filename="pages/index.js"
+import Head from 'next/head'
+
+function Index() {
+  return (
+    <>
+      <Head>
+        <title>My page title</title>
+        <meta name="description" content="Page description" />
+        <meta name="viewport" content="initial-scale=1.0, width=device-width" />
+        <link rel="icon" href="/favicon.ico" />
+      </Head>
+    </>
+  )
+}
+
+export default Index
+```
+
+## Useful Links
+
+- [next/head](/docs/pages/api-reference/components/head)
+- [MDN: HTML head element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/head)
