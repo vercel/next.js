@@ -132,52 +132,47 @@ describe('unrecognized server actions', () => {
   describe.each(['nodejs', 'edge'])(
     'should error and log a warning when submitting a server action with an unrecognized ID - %s',
     (runtime) => {
-      if (!isNextDeploy) {
-        it.each([
-          {
-            description: 'a malformed ID',
-            actionId: '123',
-            expectedStatus: 400,
-            expectedBody: 'Invalid Server Action request.',
-            expectedError: 'Invalid Server Actions request.',
-          },
-          {
-            description: 'a plausible but missing ID',
-            actionId: unrecognizedActionId,
-            expectedStatus: 409,
-            expectedBody: 'Server Action unavailable.',
-            expectedError: outdent`
+      it.each([
+        {
+          description: 'a malformed ID',
+          actionId: '123',
+          expectedStatus: 400,
+          expectedBody: 'Invalid Server Action request.',
+          expectedError: 'Invalid Server Actions request.',
+        },
+        {
+          description: 'a plausible but missing ID',
+          actionId: unrecognizedActionId,
+          expectedStatus: 409,
+          expectedBody: 'Server Action unavailable.',
+          expectedError: outdent`
               Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment.
               Read more: https://nextjs.org/docs/messages/failed-to-find-server-action
             `,
-          },
-        ])(
-          'should reject an MPA action with $description',
-          async ({ actionId, expectedStatus, expectedBody, expectedError }) => {
-            const boundary = '----nextjs-test-boundary'
-            const body = `--${boundary}\r\nContent-Disposition: form-data; name="$ACTION_ID_${actionId}"\r\n\r\n\r\n--${boundary}--\r\n`
+        },
+      ])(
+        'should reject an MPA action with $description',
+        async ({ actionId, expectedStatus, expectedBody, expectedError }) => {
+          const boundary = '----nextjs-test-boundary'
+          const body = `--${boundary}\r\nContent-Disposition: form-data; name="$ACTION_ID_${actionId}"\r\n\r\n\r\n--${boundary}--\r\n`
 
-            const response = await next.fetch(
-              `/${runtime}/unrecognized-action`,
-              {
-                method: 'POST',
-                headers: {
-                  'content-type': `multipart/form-data; boundary=${boundary}`,
-                },
-                body,
-              }
-            )
+          const response = await next.fetch(`/${runtime}/unrecognized-action`, {
+            method: 'POST',
+            headers: {
+              'content-type': `multipart/form-data; boundary=${boundary}`,
+            },
+            body,
+          })
 
-            expect(response.status).toBe(expectedStatus)
-            expect(response.headers.get('content-type')).toStartWith(
-              'text/plain'
-            )
-            expect(await response.text()).toBe(expectedBody)
+          expect(response.status).toBe(expectedStatus)
+          expect(response.headers.get('content-type')).toStartWith('text/plain')
+          expect(await response.text()).toBe(expectedBody)
 
+          if (!isNextDeploy) {
             await retry(async () => expect(getLogs()).toInclude(expectedError))
           }
-        )
-      }
+        }
+      )
 
       const testUnrecognizedActionSubmission = async ({
         formId,
@@ -233,14 +228,13 @@ describe('unrecognized server actions', () => {
           }
         } else {
           // An MPA action, sent without JS.
+          expect(response.status()).toBe(409)
+          expect(response.headers()['content-type']).toStartWith('text/plain')
+          expect(await browser.elementByCss('body').text()).toBe(
+            'Server Action unavailable.'
+          )
 
           if (!isNextDeploy) {
-            expect(response.status()).toBe(409)
-            expect(response.headers()['content-type']).toStartWith('text/plain')
-            expect(await browser.elementByCss('body').text()).toBe(
-              'Server Action unavailable.'
-            )
-
             await retry(async () =>
               expect(getLogs()).toInclude(
                 `Error: Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment`
