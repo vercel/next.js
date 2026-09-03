@@ -10,7 +10,7 @@ import {
  * `notFound()` can be used in
  * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
  * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
- * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+ * [Server Actions](https://nextjs.org/docs/app/getting-started/updating-data).
  *
  * - In a Server Component, this will insert a `<meta name="robots" content="noindex" />` meta tag and set the status code to 404.
  * - In a Route Handler or Server Action, it will serve a 404 to the caller.

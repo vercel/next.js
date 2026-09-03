@@ -375,7 +375,7 @@ declare module 'next/navigation' {
    * This function allows you to redirect the user to another URL. It can be used in
    * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
    * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
-   * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+   * [Server Actions](https://nextjs.org/docs/app/getting-started/updating-data).
    *
    * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
    * - In a Route Handler, it will serve a 307 to the caller.
@@ -394,7 +394,7 @@ declare module 'next/navigation' {
    * This function allows you to redirect the user to another URL. It can be used in
    * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
    * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
-   * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
+   * [Server Actions](https://nextjs.org/docs/app/getting-started/updating-data).
    *
    * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
    * - In a Route Handler, it will serve a 308 to the caller.
