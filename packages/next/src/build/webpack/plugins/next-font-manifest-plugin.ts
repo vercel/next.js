@@ -85,10 +85,9 @@ export class NextFontManifestPlugin {
                 if (mod?.request?.includes('/next-font-loader/index.js?')) {
                   if (!mod.buildInfo?.assets) return
 
-                  const chunkEntryName = (appDirBase + chunkGroup.name).replace(
-                    /[\\/]/g,
-                    path.sep
-                  )
+                  const chunkEntryName = (appDirBase + chunkGroup.name)
+                    .replace(/[\\/]/g, path.sep)
+                    .replace(/(\.[^./\\]+)+$/, '')
 
                   const modAssets = Object.keys(mod.buildInfo.assets)
                   const fontFiles: string[] = modAssets.filter((file: string) =>
