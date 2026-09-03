@@ -4,19 +4,21 @@ import { NEXT_TS_ERRORS } from '../constant'
 import { getTs, getTypeChecker } from '../utils'
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-// Check if the type is `Promise<T>`.
-function isPromiseType(type: tsModule.Type, typeChecker: tsModule.TypeChecker) {
+// Check if the type is promise-like.
+function isPromiseLikeType(
+  type: tsModule.Type,
+  typeChecker: tsModule.TypeChecker
+): boolean {
+  if (type.isIntersection()) {
+    return type.types.some((t) => isPromiseLikeType(t, typeChecker))
+  }
+
   const typeReferenceType = type as tsModule.TypeReference
   if (!typeReferenceType.target) return false
 
-  // target should be Promise or Promise<...>
-  if (
-    !/^Promise(<.+>)?$/.test(typeChecker.typeToString(typeReferenceType.target))
-  ) {
-    return false
-  }
-
-  return true
+  return /^Promise(?:Like)?(<.+>)?$/.test(
+    typeChecker.typeToString(typeReferenceType.target)
+  )
 }
 
 function isFunctionReturningPromise(
@@ -36,13 +38,13 @@ function isFunctionReturningPromise(
       const returnType = signature.getReturnType()
       if (returnType.isUnion()) {
         for (const t of returnType.types) {
-          if (!isPromiseType(t, typeChecker)) {
+          if (!isPromiseLikeType(t, typeChecker)) {
             isPromise = false
             break
           }
         }
       } else {
-        isPromise = isPromiseType(returnType, typeChecker)
+        isPromise = isPromiseLikeType(returnType, typeChecker)
       }
     }
   } else {
