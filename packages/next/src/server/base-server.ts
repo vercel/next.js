@@ -2639,6 +2639,13 @@ export default abstract class Server<
       res.statusCode = parseInt(pathname.slice(1), 10)
     }
 
+    // When automatic static optimization is disabled (custom _app.getInitialProps),
+    // pages are dynamically rendered in production too, so POST should be allowed.
+    const hasCustomAppGetInitialProps =
+      components.App?.getInitialProps &&
+      components.App.getInitialProps !==
+        (components.App as any).origGetInitialProps
+
     if (
       // Server actions can use non-GET/HEAD methods.
       !isPossibleServerAction &&
@@ -2649,7 +2656,15 @@ export default abstract class Server<
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
-      (typeof components.Component === 'string' || isSSG)
+      (typeof components.Component === 'string' ||
+        isSSG ||
+        // In dev mode, pages without getServerSideProps or getInitialProps are
+        // rendered dynamically but should still reject non-GET/HEAD methods,
+        // matching production behavior where they would be static strings.
+        (!isAppPath &&
+          !hasServerProps &&
+          !hasCustomAppGetInitialProps &&
+          !(components.Component as any)?.getInitialProps))
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
