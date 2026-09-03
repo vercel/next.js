@@ -30,11 +30,20 @@ export default async function Page() {
 
 The following methods and properties are available:
 
-| Method      | Description                                                                       |
-| ----------- | --------------------------------------------------------------------------------- |
-| `isEnabled` | A boolean value that indicates if Draft Mode is enabled.                          |
-| `enable()`  | Enables Draft Mode in a Route Handler by setting a cookie (`__prerender_bypass`). |
-| `disable()` | Disables Draft Mode in a Route Handler by deleting a cookie.                      |
+| Method             | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `isEnabled`        | A boolean value that indicates if Draft Mode is enabled.                          |
+| `enable(options?)` | Enables Draft Mode in a Route Handler by setting a cookie (`__prerender_bypass`). |
+| `disable()`        | Disables Draft Mode in a Route Handler by deleting a cookie.                      |
+
+`enable()` optionally accepts an object to override the attributes used for the `__prerender_bypass` cookie:
+
+| Option     | Type                                     | Description                                               |
+| ---------- | ---------------------------------------- | --------------------------------------------------------- |
+| `sameSite` | `boolean \| 'lax' \| 'strict' \| 'none'` | Sets the `SameSite` attribute of the cookie.              |
+| `secure`   | `boolean`                                | Sets the `Secure` attribute of the cookie.                |
+| `path`     | `string`                                 | Sets the `Path` attribute of the cookie. Defaults to `/`. |
+| `domain`   | `string`                                 | Sets the `Domain` attribute of the cookie.                |
 
 ## Good to know
 
@@ -71,6 +80,32 @@ export async function GET(request) {
   return new Response('Draft mode is enabled')
 }
 ```
+
+### Enabling Draft Mode in a cross-origin iframe
+
+By default, the `__prerender_bypass` cookie is set with `SameSite=Lax` on the development server (and `SameSite=None; Secure` in production). When your app is embedded in a cross-origin `<iframe>` (for example, a headless CMS preview), the browser will not send a `SameSite=Lax` cookie. Pass `sameSite` and `secure` to `enable()` to opt into cross-site cookies:
+
+```tsx filename="app/draft/route.ts" switcher
+import { draftMode } from 'next/headers'
+
+export async function GET(request: Request) {
+  const draft = await draftMode()
+  draft.enable({ sameSite: 'none', secure: true })
+  return new Response('Draft mode is enabled')
+}
+```
+
+```js filename="app/draft/route.js" switcher
+import { draftMode } from 'next/headers'
+
+export async function GET(request) {
+  const draft = await draftMode()
+  draft.enable({ sameSite: 'none', secure: true })
+  return new Response('Draft mode is enabled')
+}
+```
+
+> **Good to know**: `SameSite=None` requires the `Secure` attribute, so the cookie is only sent over HTTPS.
 
 ### Disabling Draft Mode
 
@@ -136,5 +171,6 @@ export default async function Page() {
 
 | Version      | Changes                                                                                                  |
 | ------------ | -------------------------------------------------------------------------------------------------------- |
+| `v16.3.0`    | `enable()` accepts an options object to override the `__prerender_bypass` cookie attributes.             |
 | `v15.0.0-RC` | `draftMode` is now an async function. A [codemod](/docs/app/guides/upgrading/codemods#150) is available. |
 | `v13.4.0`    | `draftMode` introduced.                                                                                  |
