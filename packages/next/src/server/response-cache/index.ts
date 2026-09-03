@@ -505,7 +505,11 @@ export default class ResponseCache implements ResponseCacheBase {
     } catch (err) {
       // When a path is erroring we automatically re-set the existing cache
       // with new revalidate and expire times to prevent non-stop retrying.
-      if (previousIncrementalCacheEntry?.cacheControl) {
+      // Never revive content that was explicitly expired by a tag.
+      if (
+        previousIncrementalCacheEntry?.cacheControl &&
+        !previousIncrementalCacheEntry.isTagExpired
+      ) {
         const revalidate = Math.min(
           Math.max(
             previousIncrementalCacheEntry.cacheControl.revalidate || 3,
