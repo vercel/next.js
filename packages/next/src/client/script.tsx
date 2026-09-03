@@ -344,8 +344,14 @@ function Script(props: ScriptProps): JSX.Element | null {
                 integrity: restProps.integrity,
                 nonce,
                 crossOrigin: restProps.crossOrigin,
+                fetchPriority: restProps.fetchPriority,
               }
-            : { as: 'script', nonce, crossOrigin: restProps.crossOrigin }
+            : {
+                as: 'script',
+                nonce,
+                crossOrigin: restProps.crossOrigin,
+                fetchPriority: restProps.fetchPriority,
+              }
         )
         return (
           <script
@@ -369,8 +375,14 @@ function Script(props: ScriptProps): JSX.Element | null {
                 integrity: restProps.integrity,
                 nonce,
                 crossOrigin: restProps.crossOrigin,
+                fetchPriority: restProps.fetchPriority,
               }
-            : { as: 'script', nonce, crossOrigin: restProps.crossOrigin }
+            : {
+                as: 'script',
+                nonce,
+                crossOrigin: restProps.crossOrigin,
+                fetchPriority: restProps.fetchPriority,
+              }
         )
       }
     }

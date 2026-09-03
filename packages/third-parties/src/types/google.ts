@@ -18,6 +18,7 @@ type GTMParamsBaseParams = {
   auth?: string
   preview?: string
   nonce?: string
+  fetchPriority?: 'high' | 'low' | 'auto'
 }
 
 type GTMParamsWithId = GTMParamsBaseParams & {

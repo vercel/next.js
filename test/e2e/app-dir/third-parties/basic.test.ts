@@ -38,6 +38,18 @@ describe('@next/third-parties basic usage', () => {
       'script[src^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]'
     )
 
+    const scriptFetchPriority = await browser
+      .elementByCss('script#_next-gtm')
+      .getAttribute('fetchpriority')
+    expect(scriptFetchPriority).toBe('low')
+
+    const preloadFetchPriority = await browser
+      .elementByCss(
+        'link[href^="https://www.googletagmanager.com/gtm.js?id=GTM-XYZ"]'
+      )
+      .getAttribute('fetchpriority')
+    expect(preloadFetchPriority).toBe('low')
+
     const dataLayer = await browser.eval('window.dataLayer')
     expect(dataLayer.length).toBe(1)
 
