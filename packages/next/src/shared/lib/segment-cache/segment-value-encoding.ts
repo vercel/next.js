@@ -74,13 +74,25 @@ export function appendSegmentRequestKeyPart(
 // by default for compactness, and for easier debugging.
 const simpleParamValueRegex = /^[a-zA-Z0-9\-_@]+$/
 
+const textEncoder = new TextEncoder()
+
 function encodeToFilesystemAndURLSafeString(value: string) {
   if (simpleParamValueRegex.test(value)) {
     return value
   }
   // If there are any unsafe characters, base64url-encode the entire value.
   // We also add a ! prefix so it doesn't collide with the simple case.
-  const base64url = btoa(value)
+  //
+  // `btoa` only accepts code points up to U+00FF and throws an
+  // InvalidCharacterError otherwise, so encode to UTF-8 first and widen each
+  // byte into its own code unit. Segment values come from directory names and
+  // route params, both of which can hold any character the filesystem allows.
+  const bytes = textEncoder.encode(value)
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  const base64url = btoa(binary)
     .replace(/\+/g, '-') // Replace '+' with '-'
     .replace(/\//g, '_') // Replace '/' with '_'
     .replace(/=+$/, '') // Remove trailing '='
