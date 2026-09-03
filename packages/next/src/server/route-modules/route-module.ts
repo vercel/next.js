@@ -803,9 +803,7 @@ export abstract class RouteModule<
     }
 
     const defaultLocale =
-      getRequestMeta(req, 'defaultLocale') ||
-      domainLocale?.defaultLocale ||
-      i18n?.defaultLocale
+      getRequestMeta(req, 'defaultLocale') || i18n?.defaultLocale
 
     // Ensure parsedUrl.pathname includes locale before processing
     // rewrites or they won't match correctly.

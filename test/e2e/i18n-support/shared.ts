@@ -2873,6 +2873,82 @@ export function runTests(ctx) {
     expect(JSON.parse($2('#router-locales').text())).toEqual(locales)
   })
 
+  it('should not use domain defaultLocale when visiting domain locale on default host', async () => {
+    // Visit /go/another on localhost (no host header matching a configured domain)
+    // defaultLocale should be en-US (main config), not go (example.com domain)
+    const res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath}/go/another`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#router-locale').text()).toBe('go')
+    expect($('#router-default-locale').text()).toBe('en-US')
+    expect(JSON.parse($('#props').text()).defaultLocale).toBe('en-US')
+
+    // Also test with the other domain locale (do)
+    const res2 = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath}/do/another`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res2.status).toBe(200)
+    const html2 = await res2.text()
+    const $2 = cheerio.load(html2)
+    expect($2('#router-locale').text()).toBe('do')
+    expect($2('#router-default-locale').text()).toBe('en-US')
+    expect(JSON.parse($2('#props').text()).defaultLocale).toBe('en-US')
+  })
+
+  it("should not use domain defaultLocale when visiting a domain's secondary locale on default host", async () => {
+    // `go-BE`/`do-BE` are not a domain's defaultLocale; they only appear in a
+    // domain's `locales` array. This exercises the `item.locales` match branch
+    // of detectDomainLocale (distinct from the defaultLocale match above), and
+    // the request's defaultLocale should still be en-US (main config).
+    const res = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath}/go-BE/another`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#router-locale').text()).toBe('go-BE')
+    expect($('#router-default-locale').text()).toBe('en-US')
+    expect(JSON.parse($('#props').text()).defaultLocale).toBe('en-US')
+
+    // Also test with the other domain's secondary locale (do-BE)
+    const res2 = await fetchViaHTTP(
+      ctx.appPort,
+      `${ctx.basePath}/do-BE/another`,
+      undefined,
+      {
+        redirect: 'manual',
+      }
+    )
+
+    expect(res2.status).toBe(200)
+    const html2 = await res2.text()
+    const $2 = cheerio.load(html2)
+    expect($2('#router-locale').text()).toBe('do-BE')
+    expect($2('#router-default-locale').text()).toBe('en-US')
+    expect(JSON.parse($2('#props').text()).defaultLocale).toBe('en-US')
+  })
+
   it('should not strip locale prefix for default locale with locale domains', async () => {
     const res = await fetchViaHTTP(
       ctx.appPort,
