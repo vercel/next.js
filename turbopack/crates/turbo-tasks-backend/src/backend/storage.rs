@@ -584,6 +584,8 @@ impl Storage {
                 let mut roots = Vec::new();
                 self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
                     if storage.gc_is_root() {
+                        // The `is_root` criteria is conservative, in debug assert that we aren't m
+                        storage.gc_debug_assert_root_held_by_transient_pin();
                         roots.push(task_id);
                     }
                 });

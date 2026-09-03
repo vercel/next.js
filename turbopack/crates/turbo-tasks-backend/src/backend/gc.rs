@@ -251,18 +251,7 @@ impl TurboTasksBackend {
             }
             match *counter {
                 TtlCounter::MostRecent => {
-                    // First pass in which it is missing from the heap: start the clock.
-                    //
-                    // A root cannot return to `MostRecent` later in this session: the only writer
-                    // of `MostRecent` is the `gc_scan_roots` upgrade below, which requires the
-                    // task to be resident, and a resident root cannot go non-resident while
-                    // remaining a root (every pin that makes `gc_is_root` true either blocks
-                    // eviction outright -- `transient_ref_count` is transient-category so
-                    // eviction never drops it, and `in_progress`/`activeness` are
-                    // `UnevictableReason::InProgress` -- or is itself the residue that keeps the
-                    // map entry alive, and once it drains the task is collectible rather than a
-                    // root). So the clock is started at most once per root per session and the
-                    // TTL is never refreshed by pass churn.
+                    // It was recent in the last pass but not this one. Start the clock
                     *counter = TtlCounter::FirstStale(now);
                     true
                 }
