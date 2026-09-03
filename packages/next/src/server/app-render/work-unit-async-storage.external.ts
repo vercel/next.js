@@ -85,11 +85,11 @@ export interface RequestStore extends CommonWorkUnitStore {
    * - if `false`, they will follow static semantics
    * - if `true`, they will follow runtime semantics
    * */
-  needsAppShell?: boolean // DEV-only
+  needsRuntimeShell?: boolean // DEV-only
   /**
    * DEV-only, mutable.
    * Whether any APIs that resolve in different stages in static and
-   * runtime prerenders (i.e. whose behavior varies on `needsAppShell`)
+   * runtime prerenders (i.e. whose behavior varies on `needsRuntimeShell`)
    * were used during this render.
    * */
   hasIncompatibleShellContent?: boolean
