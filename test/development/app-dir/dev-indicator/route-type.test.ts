@@ -52,4 +52,10 @@ describe('app dir dev indicator - route type', () => {
 
     await waitForStaticIndicator(browser, 'Dynamic')
   })
+
+  it('should have route type as dynamic when page awaits searchParams', async () => {
+    const browser = await next.browser('/search-params')
+
+    await waitForStaticIndicator(browser, 'Dynamic')
+  })
 })
