@@ -2817,7 +2817,10 @@ export default abstract class Server<
     // literal dynamic route ('/[slug]') instead of actual URL, so overwriting to initPathname
     // will transform back the resolved url to the dynamic route pathname.
     if (!(this.minimalMode && isErrorPathname)) {
-      request.url = `${initPathname}${parsedInitUrl.search || ''}`
+      request.url =
+        routeModule && isAppRouteRouteModule(routeModule)
+          ? formatUrl({ pathname, query })
+          : `${initPathname}${parsedInitUrl.search || ''}`
     }
 
     // propagate the request context for dev

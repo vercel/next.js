@@ -67,6 +67,13 @@ export async function middleware(request) {
     )
   }
 
+  if (url.pathname.startsWith('/rewrite-query/')) {
+    const rewriteUrl = request.nextUrl.clone()
+    rewriteUrl.pathname = `/api${url.pathname}`
+    rewriteUrl.searchParams.set('added', '1')
+    return NextResponse.rewrite(rewriteUrl)
+  }
+
   if (url.pathname === '/foo/bar') {
     const rewriteUrl = request.nextUrl.clone()
     rewriteUrl.pathname = '/api/proxy/bar/'
