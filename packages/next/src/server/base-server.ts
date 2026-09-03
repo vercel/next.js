@@ -2390,6 +2390,16 @@ export default abstract class Server<
     const hasServerProps = !!components.getServerSideProps
     const isPossibleServerAction = getIsPossibleServerAction(req)
     let isSSG = !!components.getStaticProps
+    const isDevAutoExportPage =
+      this.dev &&
+      !isAppPath &&
+      !isDynamicRoute(pathname) &&
+      !isSSG &&
+      !hasServerProps &&
+      typeof components.Component !== 'string' &&
+      !(components.Component as any).getInitialProps &&
+      components.App.getInitialProps ===
+        (components.App as any).origGetInitialProps
     // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
     const isRSCRequest = getRequestMeta(req, 'isRSCRequest') ?? false
 
@@ -2649,7 +2659,7 @@ export default abstract class Server<
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
-      (typeof components.Component === 'string' || isSSG)
+      (typeof components.Component === 'string' || isSSG || isDevAutoExportPage)
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
