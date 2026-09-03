@@ -76,13 +76,13 @@ In order to install it:
 
 ### Step 3. Enable the web service
 
-By default the web services are not allowed for anonymous users, so the yhave to be enabled.
+By default the web services are not allowed for anonymous users, so they have to be enabled.
 
 Go to /sitefinity/Administration/WebServices and edit the 'Default' web service to allow it to be accessible by 'Everyone'
 
 ### Step 4. Install the GraphQL package
 
-1. Add the [Sitefinity CMS nugget source](https://www.progress.com/documentation/sitefinity-cms/sitefinity-cms-nuget-packages-repository)
+1. Add the [Sitefinity CMS NuGet source](https://www.progress.com/documentation/sitefinity-cms/sitefinity-cms-nuget-packages-repository)
 2. Install the [Progress.Sitefinity.GraphQL](https://nuget.sitefinity.com/#/package/Progress.Sitefinity.GraphQL) package (enable prerelease filter).
 
 ### Step 5. Set up environment variables
@@ -95,7 +95,7 @@ cp .env.local.example .env.local
 
 Then set each variable on `.env.local`
 
-- `SF_API_URL` - This is the url of the 'Default' web service that we configured earlier. E.g. http://locahost/api/default/
+- `SF_API_URL` - This is the URL of the 'Default' web service that we configured earlier. E.g. http://localhost/api/default/
 - `SF_URL` - This is the URL of the CMS itself. E.g. http://localhost/
 
 ### Step 6. Run Next.js in development mode
