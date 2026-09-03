@@ -335,6 +335,23 @@ Attributes:
 - `next.cache.reason`: `forced`, `draft-mode`, `dev-rewarm`, `stale`, `runtime-data`, `prerender-ended`, `omitted-from-shell`, or `joined-pending`, when applicable
 - `next.cache.background_refresh`: `true` when this invocation schedules a refresh in the background
 
+### `revalidate use cache [next.cache.name]`
+
+- `next.span_type`: `UseCache.revalidate`
+
+This span represents cache regeneration that runs after a stale value was returned, or a development cache entry was scheduled for rewarming. It is a child of the `UseCache.execute` span that scheduled it and may finish after both that span and the request span. Spans created while regenerating the value are children of this span. Cache-handler persistence may continue separately.
+
+Attributes:
+
+- `next.span_name`: `revalidate use cache [next.cache.name]`
+- `next.span_type`: `UseCache.revalidate`
+- `next.span_category`: `application`
+- `next.cache.name`: the cached function or component name, or `<cache>` when no stable name is available
+- `next.cache.file`: the project-relative source file in development, when available
+- `next.cache.kind`: `public` (including custom cache kinds) or `private`
+- `next.cache.handler`: `default`, `custom`, or `none`
+- `next.cache.reason`: `stale` or `dev-rewarm`
+
 ### `run Server Action [next.server_action.name]`
 
 - `next.span_type`: `AppRender.executeServerAction`
