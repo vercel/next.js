@@ -34,7 +34,6 @@ app.prepare().then(() => {
       dev ? 'development' : process.env.NODE_ENV
     }`
   )
-})
 ```
 
 ```js filename="server.js" switcher
@@ -56,7 +55,6 @@ app.prepare().then(() => {
       dev ? 'development' : process.env.NODE_ENV
     }`
   )
-})
 ```
 
 > **Set your own response headers before calling `handle`**: Next.js begins sending the response inside `handle(req, res)`, so by the time its promise resolves `res.headersSent` is already `true` and any later `res.setHeader()` call is silently discarded. Set headers you own, such as `Set-Cookie`, before handing the request to Next.js:
