@@ -69,6 +69,16 @@ function getModuleById(
   id: string | undefined,
   compilation: webpack.Compilation
 ) {
+  if (process.env.NEXT_RSPACK && compilation.compiler.watching?.running) {
+    // Unlike webpack, Rspack's `Compilation` object is not a snapshot: the one
+    // kept from the previous build is a handle to the compiler's current
+    // compilation. While the compiler is rebuilding, that compilation's module
+    // graph and module ids are not readable, and touching them panics and
+    // aborts the dev server. Treat the module as not found so the frame is
+    // returned unmapped instead.
+    return undefined
+  }
+
   const { chunkGraph, modules } = compilation
 
   return [...modules].find((module) => chunkGraph.getModuleId(module) === id)
