@@ -563,9 +563,15 @@ pub fn extract_highlights(
                 .copied()
                 .unwrap_or(source.len());
             let (rs, re) = if let Some((trunc_offset, avail_width)) = visible_window {
+                // Snap the window to char boundaries. The scan end is emitted
+                // verbatim as a span end by the template-literal and
+                // regex-literal scanners, and span offsets are later used as
+                // byte indices when rendering — a mid-character offset would
+                // panic when slicing. (`truncate_line` snaps its start offset
+                // forward the same way.)
                 (
-                    (ls + trunc_offset).min(line_end),
-                    (ls + trunc_offset + avail_width).min(line_end),
+                    source.ceil_char_boundary((ls + trunc_offset).min(line_end)),
+                    source.floor_char_boundary((ls + trunc_offset + avail_width).min(line_end)),
                 )
             } else {
                 (ls, line_end)
@@ -1005,11 +1011,16 @@ pub fn apply_line_highlights(
             break;
         }
 
-        // Clamp span to the visible window and convert to display coordinates
-        let display_start = (span.start.max(truncation_offset) - truncation_offset + prefix_len)
-            .min(visible_content.len());
-        let display_end =
-            (span.end.min(visible_end) - truncation_offset + prefix_len).min(visible_content.len());
+        // Clamp span to the visible window and convert to display coordinates.
+        // Snap to char boundaries defensively: span offsets originate from the
+        // tokenizer and a mid-character offset would panic when slicing below.
+        let display_start = visible_content.ceil_char_boundary(
+            (span.start.max(truncation_offset) - truncation_offset + prefix_len)
+                .min(visible_content.len()),
+        );
+        let display_end = visible_content.floor_char_boundary(
+            (span.end.min(visible_end) - truncation_offset + prefix_len).min(visible_content.len()),
+        );
 
         if display_start < display_end {
             // Emit unstyled text before this span

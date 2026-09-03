@@ -892,3 +892,80 @@ fn test_multibyte_cjk_truncation_with_highlighting() {
     assert!(stripped.contains("あ"), "Should contain CJK characters");
     assert!(stripped.contains("^"), "Should contain marker");
 }
+
+#[test]
+fn test_multibyte_template_literal_beyond_window_does_not_panic() {
+    // Template literal whose contents are multi-byte chars and whose closing
+    // backtick lies beyond the visible window: the unterminated-template scan
+    // must not emit a mid-character span end (previously panicked slicing at
+    // a non-char-boundary byte index).
+    let source = format!("const t = `{}`", "\u{3042}".repeat(200));
+    let location = CodeFrameLocation {
+        start: Location {
+            line: 1,
+            column: None,
+        },
+        end: None,
+    };
+    let options = CodeFrameOptions {
+        color: CodeFrameColorMode::Error,
+        highlight_code: true,
+        ..Default::default()
+    };
+    let result = render_code_frame(&source, &location, &options).unwrap();
+    assert!(result.is_some());
+}
+
+#[test]
+fn test_multibyte_regex_literal_beyond_window_does_not_panic() {
+    // A regex literal whose match end exceeds the visible window: the clamp
+    // to the window end must not produce a mid-character span end.
+    let source = format!("const re = /{}\u{3042}x/;", "\u{3042}".repeat(40));
+    let location = CodeFrameLocation {
+        start: Location {
+            line: 1,
+            column: None,
+        },
+        end: None,
+    };
+    let options = CodeFrameOptions {
+        color: CodeFrameColorMode::Error,
+        highlight_code: true,
+        ..Default::default()
+    };
+    let result = render_code_frame(&source, &location, &options).unwrap();
+    assert!(result.is_some());
+}
+
+#[test]
+fn test_highlight_matches_plain_for_multibyte_content() {
+    // Rendering with highlighting must produce the same text as plain
+    // rendering once ANSI codes are stripped, even when the visible window
+    // truncates multi-byte template/regex content mid-token.
+    for source in [
+        format!("const t = `{}`", "\u{3042}".repeat(200)),
+        format!("const re = /{}\u{3042}/;", "a".repeat(90)),
+        format!("const s = \"{}\";", "\u{3042}\u{0301}".repeat(80)),
+    ] {
+        let location = CodeFrameLocation {
+            start: Location {
+                line: 1,
+                column: None,
+            },
+            end: None,
+        };
+        let highlighted = render_code_frame(
+            &source,
+            &location,
+            &CodeFrameOptions {
+                color: CodeFrameColorMode::Error,
+                highlight_code: true,
+                ..Default::default()
+            },
+        )
+        .unwrap()
+        .map(|s| strip_ansi_codes(&s));
+        let plain = render_code_frame(&source, &location, &CodeFrameOptions::default()).unwrap();
+        assert_eq!(highlighted, plain, "mismatch for source: {source:?}");
+    }
+}
