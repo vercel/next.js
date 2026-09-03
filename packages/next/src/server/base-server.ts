@@ -1406,7 +1406,8 @@ export default abstract class Server<
             if (!paramsResult.hasValidParams) {
               paramsResult = utils.normalizeDynamicRouteParams(
                 rewrittenQueryParams,
-                true
+                true,
+                routeParamKeys
               )
 
               if (paramsResult.hasValidParams) {

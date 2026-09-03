@@ -145,6 +145,31 @@ describe('normalizeDynamicRouteParams', () => {
     })
   })
 
+  it('should omit a decoded default placeholder supplied by an upstream route matcher', () => {
+    const { normalizeDynamicRouteParams, normalizeQueryParams } =
+      getServerUtils({
+        page: '/[locale]/[[...filterSlugs]]',
+        basePath: '',
+        rewrites: {},
+        i18n: undefined,
+        pageIsDynamic: true,
+        caseSensitive: false,
+      })
+    const query = {
+      locale: 'en',
+      nxtPfilterSlugs: '%5B%5B...filterSlugs%5D%5D',
+    }
+    const routeParamKeys = new Set<string>()
+
+    normalizeQueryParams(query, routeParamKeys)
+
+    expect(normalizeDynamicRouteParams(query, true, routeParamKeys)).toEqual({
+      params: { locale: 'en' },
+      hasValidParams: true,
+    })
+    expect(query).toEqual({ locale: 'en' })
+  })
+
   it.each([
     ['literal', ['foo', '[[...filterSlugs]]']],
     ['encoded', ['foo', '%5B%5B...filterSlugs%5D%5D']],
@@ -164,7 +189,9 @@ describe('normalizeDynamicRouteParams', () => {
         filterSlugs,
       }
 
-      expect(normalizeDynamicRouteParams(query, true)).toEqual({
+      expect(
+        normalizeDynamicRouteParams(query, true, new Set(['filterSlugs']))
+      ).toEqual({
         params: { locale: 'en', filterSlugs },
         hasValidParams: true,
       })

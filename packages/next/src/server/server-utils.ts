@@ -110,7 +110,8 @@ export function normalizeDynamicRouteParams(
   query: ParsedUrlQuery,
   defaultRouteRegex: ReturnType<typeof getNamedRouteRegex>,
   defaultRouteMatches: ParsedUrlQuery,
-  ignoreMissingOptional: boolean
+  ignoreMissingOptional: boolean,
+  routeParamKeys?: Set<string>
 ) {
   const isDefaultValueMatch = (
     candidateValue: string | undefined,
@@ -172,16 +173,6 @@ export function normalizeDynamicRouteParams(
     // to parse x-now-route-matches or not
     const defaultValue = defaultRouteMatches![key]
     const isOptional = defaultRouteRegex!.groups[key].optional
-    const rawValues = Array.isArray(rawValue) ? rawValue : [rawValue]
-    const isEncodedOptionalDefaultValue =
-      isOptional &&
-      ignoreMissingOptional &&
-      rawValues.length === 1 &&
-      (Array.isArray(defaultValue)
-        ? defaultValue.some((defaultVal) =>
-            isEncodedDefaultValueMatch(rawValues[0], defaultVal)
-          )
-        : isEncodedDefaultValueMatch(rawValues[0], defaultValue as string))
     const isDefaultValue = Array.isArray(defaultValue)
       ? defaultValue.some((defaultVal) => {
           return Array.isArray(value)
@@ -191,12 +182,28 @@ export function normalizeDynamicRouteParams(
       : Array.isArray(value)
         ? value.some((val) => isDefaultValueMatch(val, defaultValue as string))
         : isDefaultValueMatch(value, defaultValue as string)
+    const rawValues = Array.isArray(rawValue) ? rawValue : [rawValue]
+    const isProxyOptionalDefaultValue =
+      isOptional &&
+      ignoreMissingOptional &&
+      rawValues.length === 1 &&
+      (routeParamKeys?.has(key) === true ||
+        (Array.isArray(defaultValue)
+          ? defaultValue.some((defaultVal) =>
+              isEncodedDefaultValueMatch(rawValues[0], defaultVal)
+            )
+          : isEncodedDefaultValueMatch(
+              rawValues[0],
+              defaultValue as string
+            ))) &&
+      isDefaultValue
 
-    // The proxy represents an omitted optional catch-all with a single encoded
-    // route placeholder. Restrict this sentinel handling to that exact shape;
-    // a decoded literal or a matching value among multiple segments is valid
-    // catch-all input.
-    if (isEncodedOptionalDefaultValue) {
+    // The proxy represents an omitted optional catch-all with a single route
+    // placeholder. Prefixed route params are decoded before reaching here, so
+    // use their provenance as well as encoding to identify that sentinel. A
+    // literal pathname match or a matching value among multiple segments is
+    // valid catch-all input.
+    if (isProxyOptionalDefaultValue) {
       delete query[key]
       continue
     }
@@ -490,11 +497,13 @@ export function getServerUtils({
      *
      * @param query - The query params to normalize.
      * @param ignoreMissingOptional - Whether to ignore missing optional params.
+     * @param routeParamKeys - Params supplied by an upstream route matcher.
      * @returns The normalized params and whether they are valid.
      */
     normalizeDynamicRouteParams: (
       query: ParsedUrlQuery,
-      ignoreMissingOptional: boolean
+      ignoreMissingOptional: boolean,
+      routeParamKeys?: Set<string>
     ) => {
       if (!defaultRouteRegex || !defaultRouteMatches) {
         return { params: {}, hasValidParams: false }
@@ -504,7 +513,8 @@ export function getServerUtils({
         query,
         defaultRouteRegex,
         defaultRouteMatches,
-        ignoreMissingOptional
+        ignoreMissingOptional,
+        routeParamKeys
       )
     },
 

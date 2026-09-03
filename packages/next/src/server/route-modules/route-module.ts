@@ -881,7 +881,11 @@ export abstract class RouteModule<
     serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
 
     if (pageIsDynamic) {
-      const queryResult = serverUtils.normalizeDynamicRouteParams(query, true)
+      const queryResult = serverUtils.normalizeDynamicRouteParams(
+        query,
+        true,
+        routeParamKeys
+      )
 
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
         params || {},
