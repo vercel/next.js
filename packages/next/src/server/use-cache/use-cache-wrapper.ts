@@ -171,6 +171,7 @@ const nextVersion = process.env.__NEXT_VERSION as string
 type UseCacheTraceOutcome = 'hit' | 'miss' | 'stale' | 'bypass' | 'wait'
 type UseCacheTraceSource = 'resume-data' | 'handler' | 'generated'
 type UseCacheTraceJoin = 'intra-request' | 'cross-request'
+type UseCacheRevalidationReason = 'stale' | 'dev-rewarm'
 type UseCacheTraceReason =
   | 'forced'
   | 'draft-mode'
@@ -197,11 +198,22 @@ type UseCacheTrace = {
   setHandler(handler: 'default' | 'custom' | 'none'): void
   setJoin(join: UseCacheTraceJoin): void
   setSource(source: UseCacheTraceSource): void
+  traceRevalidation<T>(
+    reason: UseCacheRevalidationReason,
+    revalidate: (span?: Span) => Promise<T>
+  ): Promise<T>
+}
+
+type UseCacheTraceMetadata = {
+  name: string
+  file: string | undefined
+  kind: 'public' | 'private'
 }
 
 function createUseCacheTrace(
   span: Span | undefined,
-  done: ((error?: Error) => void) | undefined
+  done: ((error?: Error) => void) | undefined,
+  metadata: UseCacheTraceMetadata
 ): UseCacheTrace | undefined {
   if (!span || !done) {
     return undefined
@@ -209,6 +221,7 @@ function createUseCacheTrace(
 
   let source: UseCacheTraceSource | undefined
   let result: UseCacheTraceResult | undefined
+  let handler: 'default' | 'custom' | 'none' = 'none'
   let finished = false
 
   const finish = (error?: Error) => {
@@ -259,14 +272,36 @@ function createUseCacheTrace(
       result = value
       source = value.source ?? source
     },
-    setHandler(handler) {
-      span.setAttribute('next.cache.handler', handler)
+    setHandler(value) {
+      handler = value
+      span.setAttribute('next.cache.handler', value)
     },
     setJoin(join) {
       span.setAttribute('next.cache.joined', join)
     },
     setSource(value) {
       source = value
+    },
+    traceRevalidation(reason, revalidate) {
+      return getTracer().trace(
+        UseCacheSpan.revalidate,
+        {
+          spanName: `revalidate use cache ${metadata.name}`,
+          attributes: {
+            'next.span_category': 'application',
+            'next.cache.name': metadata.name,
+            ...(metadata.file
+              ? {
+                  'next.cache.file': metadata.file,
+                }
+              : undefined),
+            'next.cache.kind': metadata.kind,
+            'next.cache.handler': handler,
+            'next.cache.reason': reason,
+          },
+        },
+        revalidate
+      )
     },
   }
 }
@@ -1884,7 +1919,11 @@ export async function cache(
       },
     },
     async (span, done) => {
-      const cacheTrace = createUseCacheTrace(span, done)
+      const cacheTrace = createUseCacheTrace(span, done, {
+        name: cacheName,
+        file: cacheFile,
+        kind: kind === 'private' ? 'private' : 'public',
+      })
       try {
         const result = await cacheImpl(
           kind,
@@ -3752,54 +3791,63 @@ async function cacheImpl(
 
           if (shouldTriggerBackgroundRevalidation) {
             const revalidateCacheHandlerKey = cacheHandlerKey
-            const revalidatePromise = generateCacheEntry(
-              workStore,
-              // The background revalidation preserves the outer store for
-              // reading (e.g. implicitTags) but skips propagation of cache life
-              // and tags back to the outer scope.
-              {
-                ...cacheContext,
-                skipPropagation: true,
-              },
-              clientReferenceManifest,
-              encodedCacheKeyParts,
-              fn,
-              timeoutError,
-              deadlockError
-            )
-              .then(async (result) => {
-                if (result.type === 'cached') {
-                  const { stream: ignoredStream, pendingCacheResult } = result
+            const revalidate = async (tracingSpan?: Span) => {
+              const result = await generateCacheEntry(
+                workStore,
+                // The background revalidation preserves the outer store for
+                // reading (e.g. implicitTags) but skips propagation of cache life
+                // and tags back to the outer scope.
+                {
+                  ...cacheContext,
+                  skipPropagation: true,
+                },
+                clientReferenceManifest,
+                encodedCacheKeyParts,
+                fn,
+                timeoutError,
+                deadlockError,
+                tracingSpan
+              )
 
-                  const savedCacheResult = saveToResumeDataCache(
-                    resumeDataCache,
-                    serializedCacheKey,
-                    pendingCacheResult,
-                    logPrefix
-                  )
+              if (result.type === 'cached') {
+                const { stream: ignoredStream, pendingCacheResult } = result
 
-                  if (cacheHandler) {
-                    saveToCacheHandler(
-                      cacheHandler,
-                      workStore,
-                      id,
-                      cacheHandlerKeyBase,
-                      savedCacheResult,
-                      rootParams
-                    )
-                  }
-
-                  await ignoredStream.cancel()
-                }
-              })
-              .catch((error) => {
-                debug?.(
-                  logPrefix,
-                  'background cache revalidation failed for',
-                  revalidateCacheHandlerKey,
-                  error
+                const savedCacheResult = saveToResumeDataCache(
+                  resumeDataCache,
+                  serializedCacheKey,
+                  pendingCacheResult,
+                  logPrefix
                 )
-              })
+
+                if (cacheHandler) {
+                  saveToCacheHandler(
+                    cacheHandler,
+                    workStore,
+                    id,
+                    cacheHandlerKeyBase,
+                    savedCacheResult,
+                    rootParams
+                  )
+                }
+
+                await ignoredStream.cancel()
+              }
+            }
+            const revalidatePromise = (
+              cacheTrace
+                ? cacheTrace.traceRevalidation(
+                    isStale ? 'stale' : 'dev-rewarm',
+                    revalidate
+                  )
+                : revalidate()
+            ).catch((error) => {
+              debug?.(
+                logPrefix,
+                'background cache revalidation failed for',
+                revalidateCacheHandlerKey,
+                error
+              )
+            })
             workStore.pendingRevalidateWrites ??= []
             workStore.pendingRevalidateWrites.push(revalidatePromise)
           }
