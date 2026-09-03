@@ -69,6 +69,8 @@ export type ExportRouteResult =
   | {
       cacheControl: CacheControl
       metadata?: Partial<RouteMetadata>
+      /** The HTTP status produced while prerendering this route. */
+      prerenderStatus?: number
       ssgNotFound?: boolean
       hasEmptyStaticShell?: boolean
       hasPostponed?: boolean
@@ -144,6 +146,10 @@ export type ExportAppResult = {
        * The metadata for the page.
        */
       metadata?: Partial<RouteMetadata>
+      /**
+       * The HTTP status produced while prerendering the page.
+       */
+      prerenderStatus?: number
       /**
        * If the page has an empty static shell when using PPR.
        */
