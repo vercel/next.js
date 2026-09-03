@@ -867,6 +867,18 @@ impl InlineExecutionSpanSlot {
     }
 }
 
+/// Re-begins a paused foreground job on drop, so
+/// `start_once_process`'s deliberate finish/begin imbalance stays balanced
+/// even if the process future panics (its unwinding drops this guard) or is
+/// cancelled.
+struct PausedForegroundJobGuard<B: Backend + 'static>(Arc<TurboTasks<B>>);
+
+impl<B: Backend + 'static> Drop for PausedForegroundJobGuard<B> {
+    fn drop(&mut self) {
+        self.0.begin_foreground_job();
+    }
+}
+
 impl<B: Backend + 'static> TurboTasks<B> {
     // TODO better lifetime management for turbo tasks
     // consider using unsafe for the task_local turbo tasks
@@ -1021,8 +1033,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
             this.pin()
                 .run_once(async move {
                     this.finish_foreground_job();
+                    // Re-begins the job on drop — on normal completion, on
+                    // panic unwind, and on cancellation — so the counter
+                    // can't underflow.
+                    let _guard = PausedForegroundJobGuard(this.clone());
                     future.await;
-                    this.begin_foreground_job();
                     Ok(())
                 })
                 .await
@@ -1198,11 +1213,19 @@ impl<B: Backend + 'static> TurboTasks<B> {
     }
 
     fn finish_foreground_job(&self) {
-        if self
-            .currently_scheduled_foreground_jobs
-            .fetch_sub(1, Ordering::AcqRel)
-            == 1
-        {
+        // The counter must never underflow: if it does, something is badly
+        // wrong (an unbalanced begin/finish pair) — clamp at 0 instead of
+        // wrapping to usize::MAX, which would permanently break idle
+        // detection and hang stop_and_wait().
+        let prev = self.currently_scheduled_foreground_jobs.try_update(
+            Ordering::AcqRel,
+            Ordering::Acquire,
+            |v| {
+                debug_assert!(v > 0, "foreground job counter underflowed");
+                v.checked_sub(1)
+            },
+        );
+        if prev == Ok(1) {
             self.backend.idle_start(self);
             // That's not super race-condition-safe, but it's only for
             // statistical reasons
