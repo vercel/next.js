@@ -1,5 +1,32 @@
+import { promises as fs } from 'fs'
+import { join } from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+
+const parallelMetadataBundleMarker = 'Expected at least one metadata branch'
+const legacyMetadataBundleMarker = '__nextError'
+
+async function directoryContains(
+  directory: string,
+  expected: string
+): Promise<boolean> {
+  for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+    const entryPath = join(directory, entry.name)
+    if (entry.isDirectory()) {
+      if (await directoryContains(entryPath, expected)) {
+        return true
+      }
+    } else if (
+      entry.isFile() &&
+      (entry.name.endsWith('.js') || entry.name.endsWith('.map')) &&
+      (await fs.readFile(entryPath, 'utf8')).includes(expected)
+    ) {
+      return true
+    }
+  }
+
+  return false
+}
 
 function runMetadataStreamingTests(parallelRouteMetadata: boolean) {
   const { next, isNextDeploy } = nextTestSetup({
@@ -9,6 +36,21 @@ function runMetadataStreamingTests(parallelRouteMetadata: boolean) {
         parallelRouteMetadata,
       },
     },
+  })
+
+  // The deploy harness does not expose the emitted server bundle.
+  // @gate !deploy
+  it('should only bundle the selected metadata resolution implementation', async () => {
+    await next.fetch('/parallel-routes')
+
+    const serverDirectory = join(next.testDir, next.distDir, 'server')
+    const [hasParallelMetadata, hasLegacyMetadata] = await Promise.all([
+      directoryContains(serverDirectory, parallelMetadataBundleMarker),
+      directoryContains(serverDirectory, legacyMetadataBundleMarker),
+    ])
+
+    expect(hasParallelMetadata).toBe(parallelRouteMetadata)
+    expect(hasLegacyMetadata).toBe(!parallelRouteMetadata)
   })
 
   it('should only insert metadata once for parallel routes when slots match', async () => {

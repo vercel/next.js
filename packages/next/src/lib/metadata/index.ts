@@ -1,13 +1,15 @@
-import { createMetadataComponents as createLegacyMetadataComponents } from './metadata'
-import { createMetadataComponents as createParallelMetadataComponents } from './metadata-parallel'
+type CreateMetadataComponents =
+  typeof import('./metadata').createMetadataComponents
 
-export function createMetadataComponents({
-  parallelRouteMetadata,
-  ...props
-}: Parameters<typeof createLegacyMetadataComponents>[0] & {
-  parallelRouteMetadata: boolean
-}) {
-  return parallelRouteMetadata
-    ? createParallelMetadataComponents(props)
-    : createLegacyMetadataComponents(props)
+let createMetadataComponentsImpl: CreateMetadataComponents
+if (process.env.__NEXT_PARALLEL_ROUTE_METADATA) {
+  createMetadataComponentsImpl = (
+    require('./metadata-parallel') as typeof import('./metadata-parallel')
+  ).createMetadataComponents
+} else {
+  createMetadataComponentsImpl = (
+    require('./metadata') as typeof import('./metadata')
+  ).createMetadataComponents
 }
+
+export { createMetadataComponentsImpl as createMetadataComponents }
