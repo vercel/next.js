@@ -94,6 +94,7 @@ import {
   UseCacheDeadlockError,
   UseCacheTimeoutError,
 } from './use-cache-errors'
+import { markPassthroughElementsValidated } from './mark-passthrough-elements-validated'
 import {
   createNestedCacheShortExpireError,
   createNestedCacheZeroRevalidateError,
@@ -2116,6 +2117,10 @@ export async function cache(
   }
 
   const temporaryReferences = createClientTemporaryReferenceSet()
+
+  if (process.env.NODE_ENV !== 'production') {
+    markPassthroughElementsValidated(args)
+  }
 
   // The base serialized cache key doesn't include the cookies or headers that
   // private caches are allowed to read. In production this is because private
