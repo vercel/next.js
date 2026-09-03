@@ -283,6 +283,14 @@ export async function startServer(
   if (keepAliveTimeout) {
     server.keepAliveTimeout = keepAliveTimeout
   }
+
+  // Disable request/headers timeouts in dev to prevent 400 errors on long-running
+  // operations and idle connections (HMR WebSocket, compilation, etc.)
+  if (isDev) {
+    server.requestTimeout = 0
+    server.headersTimeout = 0
+  }
+
   server.on('upgrade', async (req, socket, head) => {
     try {
       await upgradeHandler(req, socket, head)
