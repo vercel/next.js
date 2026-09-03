@@ -115,6 +115,17 @@ const ROOT_APP_ROUTE_TRANSPORT_MATCHER = `/?index(?:${APP_ROUTE_TRANSPORT_SUFFIX
 const MIDDLEWARE_DATA_SUFFIX_MATCHER = `\\.json|${APP_ROUTE_TRANSPORT_SUFFIX_MATCHER}`
 const OPTIONAL_MIDDLEWARE_NEXT_DATA_PREFIX = '/:nextData(_next/data/[^/]{1,})?'
 
+function doesMiddlewareSourceMatchRoot(source: string) {
+  const regexStr = tryToParsePath(source).regexStr
+  return regexStr ? new RegExp(regexStr).test('/') : false
+}
+
+function addBasePathRootToRegexp(regexp: string, basePath: string) {
+  return `^(?:${escapeStringRegexp(basePath)}[\\/#\\?]?|/?|${regexp
+    .replace(/^\^/, '')
+    .replace(/\$$/, '')})$`
+}
+
 const CLIENT_MODULE_LABEL =
   /\/\* __next_internal_client_entry_do_not_use__ ([^ ]*) (cjs|auto) \*\//
 
@@ -484,6 +495,7 @@ export function getMiddlewareMatchers(
         : `{(${MIDDLEWARE_DATA_SUFFIX_MATCHER})}?`
     }`
     source = `${OPTIONAL_MIDDLEWARE_NEXT_DATA_PREFIX}${source}${sourceSuffix}`
+    const sourceWithoutBasePath = source
 
     if (nextConfig.basePath) {
       source = `${nextConfig.basePath}${source}`
@@ -500,11 +512,24 @@ export function getMiddlewareMatchers(
       process.exit(1)
     }
 
+    const regexp = tryToParsePath(result.data).regexStr!
+    const sourceMatchesRoot =
+      Boolean(nextConfig.basePath) &&
+      doesMiddlewareSourceMatchRoot(sourceWithoutBasePath)
+    // A matcher that catches `/` should also catch the bare basePath, e.g.
+    // `/docs`.
+    const normalizedRegexp =
+      nextConfig.basePath &&
+      sourceMatchesRoot &&
+      !new RegExp(regexp).test(nextConfig.basePath)
+        ? addBasePathRootToRegexp(regexp, nextConfig.basePath)
+        : regexp
+
     return {
       ...rest,
       // We know that parsed.regexStr is not undefined because we already
       // checked that the source is valid.
-      regexp: tryToParsePath(result.data).regexStr!,
+      regexp: normalizedRegexp,
       originalSource: originalSource || source,
     }
   })

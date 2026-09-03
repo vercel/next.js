@@ -470,6 +470,61 @@ describe.each([
   }
 )
 
+describe('using a catch-all matcher with basePath', () => {
+  const { next } = nextTestSetup({
+    files: {
+      'pages/index.js': `
+        export default function Page() {
+          return <p>root page</p>
+        }
+      `,
+      'pages/api/hello.js': `
+        export default function handler(req, res) {
+          res.status(200).json({ hello: 'world' })
+        }
+      `,
+      'middleware.js': `
+        import { NextResponse } from 'next/server'
+
+        export const config = {
+          matcher: '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+        }
+
+        export default function middleware() {
+          const res = NextResponse.next()
+          res.headers.set('X-From-Middleware', 'true')
+          return res
+        }
+      `,
+      'next.config.js': `
+        module.exports = {
+          basePath: '/test',
+        }
+      `,
+    },
+    buildCommand: 'node node_modules/next/dist/bin/next build',
+    startCommand: (global as any).isNextDev
+      ? 'node node_modules/next/dist/bin/next dev'
+      : 'node node_modules/next/dist/bin/next start',
+    startServerTimeout: 30_000,
+    dependencies: {},
+  })
+
+  it('adds the header for the basePath root without a trailing slash', async () => {
+    const response = await fetchViaHTTP(next.url, '/test')
+
+    expect(response.headers.get('X-From-Middleware')).toBe('true')
+    expect(await response.text()).toContain('root page')
+  })
+
+  it('does not add the header for an excluded path', async () => {
+    const response = await fetchViaHTTP(next.url, '/test/api/hello')
+
+    expect(response.status).toBe(200)
+    expect(response.headers.get('X-From-Middleware')).toBeNull()
+  })
+})
+
 describe('using root matcher', () => {
   const { next } = nextTestSetup({
     files: {
