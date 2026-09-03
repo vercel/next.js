@@ -124,6 +124,16 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
 
 let isPageUnloading = false
 
+/**
+ * Whether the page is currently unloading (reloading or hard-navigating).
+ * When true, in-flight request failures are expected — the browser cancels
+ * pending requests during unload — so callers should suppress offline
+ * handling, retries, and error logging.
+ */
+export function getIsPageUnloading(): boolean {
+  return isPageUnloading
+}
+
 if (typeof window !== 'undefined') {
   // Track when the page is unloading, e.g. due to reloading the page or
   // performing hard navigations. This allows us to suppress error logging when
