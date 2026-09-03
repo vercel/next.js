@@ -160,6 +160,32 @@ async function run(): Promise<void> {
     projectPath = projectPath.trim()
   }
 
+  // Check if we're in a non-interactive environment before attempting to prompt
+  const isNonInteractive = !process.stdin.isTTY
+  const willNeedPrompts = !ciInfo.isCI && !opts.yes && !projectPath
+
+  if (isNonInteractive && willNeedPrompts) {
+    console.error(
+      red('\n✖ Interactive prompts not available\n') +
+        'This tool is running in a non-interactive environment:\n' +
+        '  • CI/CD pipeline\n' +
+        '  • Docker build\n' +
+        '  • AI coding tool (Claude Code, Cursor, Copilot)\n' +
+        '  • Automated script\n\n' +
+        cyan('Solution:\n\n') +
+        'Use the --yes flag to accept defaults:\n\n' +
+        bold(
+          `  npx create-next-app@latest ${projectPath || 'my-app'} --yes\n\n`
+        ) +
+        'Or specify all options:\n\n' +
+        bold(
+          '  npx create-next-app@latest my-app --typescript --tailwind --eslint --app --yes\n\n'
+        ) +
+        'Documentation: https://nextjs.org/docs/app/api-reference/cli/create-next-app'
+    )
+    process.exit(1)
+  }
+
   if (!projectPath) {
     const res = await prompts({
       onState: onPromptState,
@@ -333,6 +359,27 @@ async function run(): Promise<void> {
     if (!skipPrompt && hasProvidedOptions) {
       skipPrompt = true
       useRecommendedDefaults = true
+    }
+
+    // Check for non-interactive environment before showing any prompts
+    if (!skipPrompt && !process.stdin.isTTY) {
+      console.error(
+        red('\n✖ Interactive prompts not available\n') +
+          'This tool is running in a non-interactive environment:\n' +
+          '  • CI/CD pipeline\n' +
+          '  • Docker build\n' +
+          '  • AI coding tool (Claude Code, Cursor, Copilot)\n' +
+          '  • Automated script\n\n' +
+          cyan('Solution:\n\n') +
+          'Use the --yes flag:\n\n' +
+          bold(`  npx create-next-app@latest ${appName} --yes\n\n`) +
+          'Or specify options explicitly:\n\n' +
+          bold(
+            `  npx create-next-app@latest ${appName} --typescript --tailwind --eslint --app --yes\n\n`
+          ) +
+          'Documentation: https://nextjs.org/docs/app/api-reference/cli/create-next-app'
+      )
+      process.exit(1)
     }
 
     // Only show the "recommended defaults" prompt if:
