@@ -603,6 +603,8 @@ export async function generateStaticParams() {
 
 Paths you don't return are still served. Next.js prerenders a static shell for the unknown params and streams the rest at request time. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the full prerender-a-subset workflow.
 
+> **Good to know:** If you await `params` inside a `<Suspense>` boundary without [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), unlisted paths do not use ISR. Learn more in [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
+
 ### `dynamicParams` is not supported
 
 **Delete the export.** With Cache Components enabled, exporting `dynamicParams` fails the build with this error message:

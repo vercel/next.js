@@ -23,6 +23,8 @@ If you have used [ISR](/docs/app/guides/incremental-static-regeneration) or [`fa
 
 Enable both [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Cache Components produces the App Shell, while Partial Prefetching upgrades it to a full route once the params are known.
 
+> **Good to know:** If you await `params` inside a `<Suspense>` boundary, Partial Prefetching is required for unlisted paths to use ISR. The boundary lets Next.js serve the App Shell as a fallback, and Partial Prefetching upgrades the route for subsequent requests. Without Partial Prefetching, Next.js can still cache data used by the route, but it renders the URL-specific content on each request.
+
 ```ts filename="next.config.ts" highlight={4-5}
 import type { NextConfig } from 'next'
 
