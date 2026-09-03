@@ -1,9 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('app-dir - metadata-streaming', () => {
+function runMetadataStreamingTests(parallelRouteMetadata: boolean) {
   const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
+    nextConfig: {
+      experimental: {
+        parallelRouteMetadata,
+      },
+    },
   })
 
   it('should only insert metadata once for parallel routes when slots match', async () => {
@@ -58,6 +63,8 @@ describe('app-dir - metadata-streaming', () => {
     expect($('title').length).toBe(1)
     expect($('title').text()).toBe('parallel-routes-default layout title')
   })
+
+  if (!parallelRouteMetadata) return
 
   it('should prefer children when it defines metadata', async () => {
     const $ = await next.render$('/parallel-routes/metadata-conflict')
@@ -156,4 +163,11 @@ describe('app-dir - metadata-streaming', () => {
       'second page - @bar'
     )
   })
-})
+}
+
+describe.each([false, true])(
+  'app-dir - metadata-streaming (parallelRouteMetadata: %s)',
+  (parallelRouteMetadata) => {
+    runMetadataStreamingTests(parallelRouteMetadata)
+  }
+)

@@ -366,20 +366,16 @@ async function accumulateMetadataLayer(
     metadata = prerendered.result
   }
 
-  await mergeMetadata(
-    route,
-    pathname,
-    {
-      metadata,
-      resolvedMetadata: accumulator.metadata,
-      staticFilesMetadata,
-      titleTemplates: accumulator.titleTemplates,
-      metadataContext,
-      buildState: accumulator.buildState,
-      leafSegmentStaticIcons: accumulator.leafSegmentStaticIcons,
-    },
-    false
-  )
+  await mergeMetadata(route, pathname, {
+    metadata,
+    resolvedMetadata: accumulator.metadata,
+    staticFilesMetadata,
+    titleTemplates: accumulator.titleTemplates,
+    metadataContext,
+    buildState: accumulator.buildState,
+    leafSegmentStaticIcons: accumulator.leafSegmentStaticIcons,
+    cloneResolvedMetadata: false,
+  })
 
   return accumulator
 }
@@ -401,7 +397,11 @@ async function accumulateViewportLayer(
     viewport = prerendered.result
   }
 
-  mergeViewport({ resolvedViewport: accumulator.viewport, viewport }, false)
+  mergeViewport({
+    resolvedViewport: accumulator.viewport,
+    viewport,
+    cloneResolvedViewport: false,
+  })
   return accumulator
 }
 
@@ -830,27 +830,33 @@ async function walkMetadataTree(
   for (const parallelRouteKey of parallelRouteKeys) {
     const childTree = parallelRoutes[parallelRouteKey]
     const childKeyPath = [...state.keyPath, parallelRouteKey]
+    const branch = walkMetadataTree(context, {
+      tree: childTree,
+      treeRoute,
+      parentParams: currentParams,
+      parentOptionalCatchAllParamName: optionalCatchAllParamName,
+      metadataParent: prepareMetadataAccumulatorForChild(
+        metadata,
+        cloneAtFork && shouldResolveMetadata,
+        isPageTree(childTree),
+        context.errorConvention
+      ),
+      viewportParent: prepareViewportAccumulatorForChild(
+        viewport,
+        cloneAtFork && shouldResolveViewport
+      ),
+      errorLayer,
+      definitionDepth,
+      keyPath: childKeyPath,
+    })
+
+    // Child walks start eagerly, but are awaited in order below. Observe each
+    // rejection now so a failure in one branch cannot leave a later sibling's
+    // rejection unhandled.
+    branch.catch(() => null)
     pendingChildBranches.push({
       key: parallelRouteKey,
-      branch: walkMetadataTree(context, {
-        tree: childTree,
-        treeRoute,
-        parentParams: currentParams,
-        parentOptionalCatchAllParamName: optionalCatchAllParamName,
-        metadataParent: prepareMetadataAccumulatorForChild(
-          metadata,
-          cloneAtFork && shouldResolveMetadata,
-          isPageTree(childTree),
-          context.errorConvention
-        ),
-        viewportParent: prepareViewportAccumulatorForChild(
-          viewport,
-          cloneAtFork && shouldResolveViewport
-        ),
-        errorLayer,
-        definitionDepth,
-        keyPath: childKeyPath,
-      }),
+      branch,
     })
   }
 
