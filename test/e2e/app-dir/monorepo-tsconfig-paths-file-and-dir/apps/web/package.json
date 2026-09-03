@@ -1,0 +1,13 @@
+{
+  "name": "tsconfig-paths-web",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "@test/shared": "workspace:*"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "start": "next start",
+    "build": "next build"
+  }
+}
