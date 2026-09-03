@@ -40,7 +40,7 @@ use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     Completion, Completions, FxIndexMap, NonLocalValue, OperationValue, OperationVc, ReadRef,
-    ResolvedVc, State, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    ResolvedVc, State, TraitRef, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt, Vc,
     debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
@@ -2518,6 +2518,13 @@ impl Project {
 
     /// Get the version state for an HMR session. Initialized with the first seen
     /// version in that session.
+    #[tracing::instrument(
+        target = "turbopack_hmr_diagnostics",
+        level = "info",
+        name = "initialize HMR version state",
+        skip_all,
+        fields(chunk_name = %chunk_name, target = %target),
+    )]
     #[turbo_tasks::function]
     pub async fn hmr_version_state(
         self: ResolvedVc<Self>,
@@ -2549,18 +2556,32 @@ impl Project {
                 Ok(Vc::upcast(NotFoundVersion::new()))
             }
         }
-        let version_op = hmr_version_operation(self, chunk_name, target);
+        let version_op = hmr_version_operation(self, chunk_name.clone(), target);
 
         // INVALIDATION: This is intentionally untracked to avoid invalidating this
         // function completely. We want to initialize the VersionState with the
         // first seen version of the session.
-        let state = VersionState::new(
-            version_op
-                .read_trait_strongly_consistent()
+        let initial_version = version_op
+            .read_trait_strongly_consistent()
+            .untracked()
+            .await?;
+        if tracing::enabled!(target: "turbopack_hmr_diagnostics", tracing::Level::INFO) {
+            let version_id = TraitRef::cell(initial_version.clone())
+                .id()
                 .untracked()
-                .await?,
-        )
-        .await?;
+                .owned()
+                .await?;
+            tracing::info_span!(
+                target: "turbopack_hmr_diagnostics",
+                parent: None,
+                "hmr version baseline",
+                chunk_name = %chunk_name,
+                target = %target,
+                version_id = %version_id,
+            )
+            .in_scope(|| {});
+        }
+        let state = VersionState::new(initial_version).await?;
         Ok(state)
     }
 
