@@ -140,11 +140,26 @@ export function normalizeDynamicRouteParams(
     return false
   }
 
+  const isEncodedDefaultValueMatch = (
+    candidateValue: string | undefined,
+    defaultValue: string
+  ) => {
+    if (
+      !candidateValue ||
+      decodeQueryPathParameter(candidateValue) === candidateValue
+    ) {
+      return false
+    }
+
+    return isDefaultValueMatch(candidateValue, defaultValue)
+  }
+
   let hasValidParams = true
   let params: ParsedUrlQuery = {}
 
   for (const key of Object.keys(defaultRouteRegex.groups)) {
-    let value: string | string[] | undefined = query[key]
+    const rawValue: string | string[] | undefined = query[key]
+    let value = rawValue
 
     if (typeof value === 'string') {
       value = normalizeRscURL(value)
@@ -157,6 +172,16 @@ export function normalizeDynamicRouteParams(
     // to parse x-now-route-matches or not
     const defaultValue = defaultRouteMatches![key]
     const isOptional = defaultRouteRegex!.groups[key].optional
+    const rawValues = Array.isArray(rawValue) ? rawValue : [rawValue]
+    const isEncodedOptionalDefaultValue =
+      isOptional &&
+      ignoreMissingOptional &&
+      rawValues.length === 1 &&
+      (Array.isArray(defaultValue)
+        ? defaultValue.some((defaultVal) =>
+            isEncodedDefaultValueMatch(rawValues[0], defaultVal)
+          )
+        : isEncodedDefaultValueMatch(rawValues[0], defaultValue as string))
     const isDefaultValue = Array.isArray(defaultValue)
       ? defaultValue.some((defaultVal) => {
           return Array.isArray(value)
@@ -167,15 +192,17 @@ export function normalizeDynamicRouteParams(
         ? value.some((val) => isDefaultValueMatch(val, defaultValue as string))
         : isDefaultValueMatch(value, defaultValue as string)
 
-    // An optional route placeholder represents an omitted param. Remove it
-    // before validating defaults so the raw params object is normalized too.
-    if (isOptional && ignoreMissingOptional && isDefaultValue) {
+    // The proxy represents an omitted optional catch-all with a single encoded
+    // route placeholder. Restrict this sentinel handling to that exact shape;
+    // a decoded literal or a matching value among multiple segments is valid
+    // catch-all input.
+    if (isEncodedOptionalDefaultValue) {
       delete query[key]
       continue
     }
 
     if (
-      isDefaultValue ||
+      (isDefaultValue && !(isOptional && ignoreMissingOptional)) ||
       (typeof value === 'undefined' && !(isOptional && ignoreMissingOptional))
     ) {
       return { params: {}, hasValidParams: false }
@@ -188,11 +215,9 @@ export function normalizeDynamicRouteParams(
       (!value ||
         (Array.isArray(value) &&
           value.length === 1 &&
-          // fallback optional catch-all SSG pages have
-          // [[...paramName]] for the root path on Vercel
-          (value[0] === 'index' || value[0] === `[[...${key}]]`)) ||
-        value === 'index' ||
-        value === `[[...${key}]]`)
+          // Optional catch-all SSG pages can use index for the root path.
+          value[0] === 'index') ||
+        value === 'index')
     ) {
       value = undefined
       delete query[key]
