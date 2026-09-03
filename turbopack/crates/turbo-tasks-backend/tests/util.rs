@@ -23,7 +23,7 @@ use turbo_tasks_backend::{
 /// Reusing the same `path` (after the previous backend has been stopped) reopens the persisted
 /// database, which is how a test can assert that state survives a restart.
 fn open_tt_at(path: &Path, num_workers: usize) -> Arc<TurboTasks<TurboTasksBackend>> {
-    open_tt_at_with_gc(path, num_workers, Some(true), None)
+    open_tt_at_with_gc(path, num_workers, Some(true), None, None)
 }
 
 /// Like [`open_tt_at`], but forces the GC on or off for this backend instead of deriving it from
@@ -37,6 +37,7 @@ fn open_tt_at_with_gc(
     num_workers: usize,
     gc: Option<bool>,
     gc_root_ttl: Option<Duration>,
+    gc_min_progress: Option<Duration>,
 ) -> Arc<TurboTasks<TurboTasksBackend>> {
     TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -48,6 +49,7 @@ fn open_tt_at_with_gc(
             eviction_mode: EvictionMode::Full,
             gc,
             gc_root_ttl,
+            gc_min_progress,
             ..Default::default()
         },
         turbo_tasks_backend::turbo_backing_storage(
@@ -80,7 +82,7 @@ pub fn create_persistence_dir(name: &str) -> tempfile::TempDir {
 /// [`open_tt_at_with_gc`]). The previous backend must already be stopped so its shutdown snapshot
 /// has been flushed.
 pub fn reopen_tt_with_gc(dir: &tempfile::TempDir) -> Arc<TurboTasks<TurboTasksBackend>> {
-    open_tt_at_with_gc(dir.path(), 2, Some(true), None)
+    open_tt_at_with_gc(dir.path(), 2, Some(true), None, None)
 }
 
 /// [`reopen_tt_with_gc`] with the GC root TTL pinned, so a test can age a root out inside the test
@@ -89,7 +91,7 @@ pub fn reopen_tt_with_gc_ttl(
     dir: &tempfile::TempDir,
     gc_root_ttl: Duration,
 ) -> Arc<TurboTasks<TurboTasksBackend>> {
-    open_tt_at_with_gc(dir.path(), 2, Some(true), Some(gc_root_ttl))
+    open_tt_at_with_gc(dir.path(), 2, Some(true), Some(gc_root_ttl), None)
 }
 
 /// A fresh persistent backend in its own temp directory, with `num_workers` workers.
@@ -105,4 +107,17 @@ pub fn create_tt_with_workers(
 /// A fresh persistent backend in its own temp directory, with the default worker count.
 pub fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     create_tt_with_workers(name, 2)
+}
+
+/// [`create_tt`] with the GC min-progress floor pinned, so a test that asserts on exact collected
+/// counts can't have a pass shortened under it by an operation blocking behind GC. Set at
+/// construction, where the floor is resolved; per-backend, so it doesn't race the
+/// `TURBO_ENGINE_GC_MIN_PROGRESS_MS` env var that every test in the binary would share.
+pub fn create_tt_with_gc_min_progress(
+    name: &str,
+    gc_min_progress: Duration,
+) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
+    let dir = create_persistence_dir(name);
+    let tt = open_tt_at_with_gc(dir.path(), 2, Some(true), None, Some(gc_min_progress));
+    (tt, dir)
 }

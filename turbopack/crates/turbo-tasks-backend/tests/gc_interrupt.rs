@@ -12,7 +12,7 @@
 //! deliberately *not* used here: it forces an uninterruptible pass, because the exact-count
 //! regression tests depend on a full pass.
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
 use turbo_tasks::{
@@ -31,7 +31,10 @@ fn create_test_persistence_dir(name: &str) -> tempfile::TempDir {
         .unwrap()
 }
 
-fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
+fn create_tt(
+    name: &str,
+    gc_min_progress: Duration,
+) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempDir) {
     let dir = create_test_persistence_dir(name);
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
@@ -41,6 +44,7 @@ fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::TempD
             eviction_mode: EvictionMode::Full,
             // Force GC on so `snapshot_and_evict_for_testing` runs a real pass.
             gc: Some(true),
+            gc_min_progress: Some(gc_min_progress),
             ..Default::default()
         },
         turbo_tasks_backend::turbo_backing_storage(
@@ -123,10 +127,8 @@ async fn build_generation(tt: &Arc<TurboTasks<TurboTasksBackend>>, gen_value: u3
 /// least one completes uninterrupted; an unconditional trip could never produce that.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_does_not_interrupt_without_a_waiter() {
-    let (tt, _persistence_dir) = create_tt("gc_no_interrupt_without_waiter");
-
     // Interruptible from the first job — but nothing of ours is waiting.
-    tt.backend().set_gc_min_progress_for_testing(0);
+    let (tt, _persistence_dir) = create_tt("gc_no_interrupt_without_waiter", Duration::ZERO);
 
     const ROUNDS: u32 = 5;
     let mut saw_uninterrupted = false;
@@ -162,13 +164,11 @@ async fn gc_does_not_interrupt_without_a_waiter() {
 /// mid-pass does.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_min_progress_floor_beats_a_waiting_operation() {
-    let (tt, _persistence_dir) = create_tt("gc_min_progress_floor");
+    // A floor far longer than the pass: the interrupt must never be honoured.
+    let (tt, _persistence_dir) = create_tt("gc_min_progress_floor", Duration::from_secs(60));
 
     build_generation(&tt, 0).await;
     build_generation(&tt, 1).await;
-
-    // A floor far longer than the pass: the interrupt must never be honoured.
-    tt.backend().set_gc_min_progress_for_testing(60_000);
 
     let tt_waiter = tt.clone();
     let waiter = tokio::spawn(async move {
@@ -209,10 +209,8 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
 /// this test exists to make.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_interrupt_is_self_healing() {
-    let (tt, _persistence_dir) = create_tt("gc_interrupt_is_self_healing");
-
     // Interruptible from the first job for the whole test, so passes are free to abandon work.
-    tt.backend().set_gc_min_progress_for_testing(0);
+    let (tt, _persistence_dir) = create_tt("gc_interrupt_is_self_healing", Duration::ZERO);
 
     build_generation(&tt, 0).await;
 
