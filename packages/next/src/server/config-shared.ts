@@ -1919,7 +1919,12 @@ export interface NextConfig {
   httpAgentOptions?: { keepAlive?: boolean }
 
   /**
-   * Timeout after waiting to generate static pages in seconds
+   * Timeout after waiting to generate static pages in seconds.
+   *
+   * Applies both to page data collection during `next build` and to background
+   * revalidations at runtime: a revalidation that has not settled within this
+   * budget is abandoned and retried on a later request, so a request that never
+   * settles cannot freeze a route on its stale response.
    *
    * @default 60
    */

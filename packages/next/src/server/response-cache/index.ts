@@ -68,6 +68,34 @@ const KEY_SEPARATOR = '\0'
 const TTL_SENTINEL = '__ttl_sentinel__'
 
 /**
+ * Rejects if `promise` does not settle within `timeoutMs`.
+ *
+ * The original promise is left running — there is no way to abort a response
+ * generator — but its rejection is swallowed so a late failure of an abandoned
+ * revalidation cannot surface as an unhandled rejection.
+ */
+function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  onTimeout: () => Error
+): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => reject(onTimeout()), timeoutMs)
+  })
+
+  // Mark the abandoned promise as handled. The race below still observes a
+  // rejection that happens before the timeout; this only prevents a late one
+  // from becoming an unhandled rejection.
+  promise.catch(() => {})
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    clearTimeout(timeout)
+  })
+}
+
+/**
  * Entry stored in the LRU cache.
  */
 type CacheEntry = {
@@ -214,6 +242,13 @@ export default class ResponseCache implements ResponseCacheBase {
        * in-memory cache to a single revalidation request in minimal mode.
        */
       invocationID?: string
+
+      /**
+       * How long a background revalidation may run, in milliseconds, before it
+       * is abandoned. Derived from `staticPageGenerationTimeout`. Omitted or
+       * `0` keeps the previous behavior of waiting indefinitely.
+       */
+      revalidationTimeout?: number
     }
   ): Promise<ResponseCacheEntry | null> {
     // If there is no key for the cache, we can't possibly look this up in the
@@ -268,6 +303,7 @@ export default class ResponseCache implements ResponseCacheBase {
       waitUntil,
       routeKind,
       invocationID,
+      revalidationTimeout,
     } = context
 
     const response = await this.getBatcher.batch(
@@ -284,6 +320,7 @@ export default class ResponseCache implements ResponseCacheBase {
             isPrefetch,
             routeKind,
             invocationID,
+            revalidationTimeout,
           },
           resolve
         )
@@ -326,6 +363,7 @@ export default class ResponseCache implements ResponseCacheBase {
       isPrefetch: boolean
       routeKind: RouteKind
       invocationID: string | undefined
+      revalidationTimeout: number | undefined
     },
     resolve: (value: IncrementalResponseCacheEntry | null) => void
   ): Promise<IncrementalResponseCacheEntry | null> {
@@ -382,7 +420,8 @@ export default class ResponseCache implements ResponseCacheBase {
               context.isFallback,
               responseGenerator,
               previousIncrementalCacheEntry,
-              resolved
+              resolved,
+              context.revalidationTimeout
             )
           : await this.revalidate(
               key,
@@ -391,7 +430,9 @@ export default class ResponseCache implements ResponseCacheBase {
               context.isFallback,
               responseGenerator,
               previousIncrementalCacheEntry,
-              resolved
+              resolved,
+              undefined,
+              context.revalidationTimeout
             )
 
       // Handle null response
@@ -433,7 +474,7 @@ export default class ResponseCache implements ResponseCacheBase {
    * @param previousIncrementalCacheEntry - The previous cache entry to use to revalidate the cache entry.
    * @param hasResolved - Whether the response has been resolved.
    * @param waitUntil - Optional function to register background work.
-   * @param invocationID - The invocation ID for cache key scoping.
+   * @param revalidationTimeout - How long a background revalidation may run before it is abandoned.
    * @returns The revalidated cache entry.
    */
   public async revalidate(
@@ -444,7 +485,8 @@ export default class ResponseCache implements ResponseCacheBase {
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
     hasResolved: boolean,
-    waitUntil?: (prom: Promise<any>) => void
+    waitUntil?: (prom: Promise<any>) => void,
+    revalidationTimeout?: number
   ) {
     return this.revalidateBatcher.batch(key, () => {
       const promise = this.handleRevalidate(
@@ -454,7 +496,8 @@ export default class ResponseCache implements ResponseCacheBase {
         isFallback,
         responseGenerator,
         previousIncrementalCacheEntry,
-        hasResolved
+        hasResolved,
+        revalidationTimeout
       )
 
       // We need to ensure background revalidates are passed to waitUntil.
@@ -471,15 +514,38 @@ export default class ResponseCache implements ResponseCacheBase {
     isFallback: boolean,
     responseGenerator: ResponseGenerator,
     previousIncrementalCacheEntry: IncrementalResponseCacheEntry | null,
-    hasResolved: boolean
+    hasResolved: boolean,
+    revalidationTimeout?: number
   ) {
     try {
       // Generate the response cache entry using the response generator.
-      const responseCacheEntry = await responseGenerator({
+      const generation = responseGenerator({
         hasResolved,
         previousCacheEntry: previousIncrementalCacheEntry,
         isRevalidating: true,
       })
+
+      // A background revalidation runs after the stale response was already
+      // sent, so nothing is waiting on it. If its data fetching never settles,
+      // the batcher entry for this key stays pending forever and every later
+      // request reuses that same already-resolved promise: the route keeps
+      // serving the version cached at the moment it hung and stops hitting the
+      // cache handler at all. Bounding it turns "hangs forever" into "failed",
+      // and a failed revalidation is retried on the next request.
+      const responseCacheEntry =
+        hasResolved && revalidationTimeout
+          ? await withTimeout(
+              generation,
+              revalidationTimeout,
+              () =>
+                new Error(
+                  `Revalidation for ${key} timed out after ${
+                    revalidationTimeout / 1000
+                  } seconds. See more info here https://nextjs.org/docs/messages/static-page-generation-timeout`
+                )
+            )
+          : await generation
+
       if (!responseCacheEntry) {
         return null
       }
