@@ -237,6 +237,7 @@
       "test/e2e/app-dir/prefetching-not-found/prefetching-not-found.test.ts",
       "test/e2e/app-dir/prerender-encoding/prerender-encoding.test.ts",
       "test/e2e/app-dir/react-max-headers-length/react-max-headers-length.test.ts",
+      "test/e2e/app-dir/request-api-context-retention/request-api-context-retention.test.ts",
       "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts",
       "test/e2e/app-dir/revalidatetag-rsc/revalidatetag-rsc.test.ts",
       "test/e2e/app-dir/rewrite-with-search-params/rewrite-with-search-params.test.ts",
