@@ -1,8 +1,8 @@
 name: Next Maintainer Auto Close
 
 on:
-  # schedule:
-  #   - cron: '0 * * * *'
+  schedule:
+    - cron: '0 * * * *'
   workflow_dispatch:
 
 permissions: {}
