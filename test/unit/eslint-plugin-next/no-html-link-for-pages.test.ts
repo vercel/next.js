@@ -10,6 +10,7 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withPageExtensions = path.join(__dirname, 'with-page-extensions')
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +27,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withPageExtensions: new Linter({
+    cwd: withPageExtensions,
     configType: 'eslintrc',
   }),
 }
@@ -69,6 +74,14 @@ const linterConfigWithNestedContentRootDirDirectory = {
   settings: {
     next: {
       rootDir: path.join(withNestedPagesDir, 'demos/with-nextjs'),
+    },
+  },
+}
+const linterConfigWithPageExtensions: any = {
+  ...linterConfig,
+  settings: {
+    next: {
+      pageExtensions: ['mdx', 'md', 'tsx', 'ts', 'jsx', 'js'],
     },
   },
 }
@@ -494,5 +507,66 @@ describe('no-html-link-for-pages', function () {
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
+  })
+  it('detects .mdx pages in pages/ when pageExtensions is set', function () {
+    const [report] = linters.withPageExtensions.verify(
+      invalidStaticCode,
+      linterConfigWithPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(
+      report,
+      undefined,
+      'No lint errors found for / route from index.mdx'
+    )
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('detects .mdx pages with custom path when pageExtensions is set', function () {
+    const invalidAboutCode = `
+      import Link from 'next/link';
+      export class Blah extends Head {
+        render() {
+          return (
+            <div>
+              <a href='/about/'>About</a>
+              <h1>Hello title</h1>
+            </div>
+          );
+        }
+      }
+    `
+    const [report] = linters.withPageExtensions.verify(
+      invalidAboutCode,
+      linterConfigWithPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(
+      report,
+      undefined,
+      'No lint errors found for /about/ route from about.mdx'
+    )
+  })
+  it('detects .mdx page in app/ when pageExtensions is set', function () {
+    const [report] = linters.withPageExtensions.verify(
+      invalidStaticCode,
+      linterConfigWithPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(
+      report,
+      undefined,
+      'No lint errors found for / route from app/page.mdx'
+    )
+  })
+  it('does not detect .mdx pages without pageExtensions configured', function () {
+    const report = linters.withPageExtensions.verify(
+      invalidStaticCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
   })
 })
