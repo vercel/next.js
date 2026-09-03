@@ -12,7 +12,10 @@ import {
   resolveViewportForBranch,
 } from './resolve-metadata-parallel'
 import type { MetadataContext } from './types/resolvers'
-import { createMetadataElements, createViewportElements } from './metadata'
+import {
+  createMetadataElements,
+  createViewportElements,
+} from './metadata-elements'
 import {
   MetadataBoundary,
   ViewportBoundary,

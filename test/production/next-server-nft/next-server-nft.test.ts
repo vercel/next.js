@@ -300,6 +300,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/metadata/index.js",
            "/node_modules/next/dist/lib/metadata/is-metadata-route.js",
            "/node_modules/next/dist/lib/metadata/metadata-context.js",
+           "/node_modules/next/dist/lib/metadata/metadata-elements.js",
            "/node_modules/next/dist/lib/metadata/metadata-parallel.js",
            "/node_modules/next/dist/lib/metadata/metadata-resolution-primitives.js",
            "/node_modules/next/dist/lib/metadata/metadata.js",
