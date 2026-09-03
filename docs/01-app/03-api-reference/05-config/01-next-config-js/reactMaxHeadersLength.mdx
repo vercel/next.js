@@ -14,3 +14,14 @@ module.exports = {
 > **Good to know**: This option is only available in App Router.
 
 Depending on the type of proxy between the browser and the server, the headers can be truncated. For example, if you are using a reverse proxy that doesn't support long headers, you should set a lower value to ensure that the headers are not truncated.
+
+> **Good to know**: `reactMaxHeadersLength` only controls the size of outgoing
+> preload headers emitted by React during static rendering (e.g. `Link:` headers
+> for fonts, stylesheets, and scripts). It does **not** affect Node.js's incoming
+> request header size limit. If you are seeing `431 Request Header Fields Too Large`
+> errors caused by large incoming request headers (e.g. long query strings or cookies),
+> increase Node.js's limit instead:
+>
+> ```bash
+> NODE_OPTIONS='--max-http-header-size=32768' next start
+> ```
