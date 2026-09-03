@@ -39,8 +39,8 @@ import {
 } from './work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import {
-  createVaryParamsAccumulator,
   emptyVaryParamsAccumulator,
+  getSegmentVaryParamsAccumulator,
   type VaryParamsAccumulator,
 } from './vary-params'
 import type {
@@ -810,12 +810,12 @@ async function createComponentTreeInternal(
   const Component = MaybeComponent
   const isClientComponent = isClientReference(layoutOrPageMod)
 
-  const varyParamsAccumulator =
+  const varyParamsAccumulator: VaryParamsAccumulator | null =
     isClientComponent && cacheComponents
       ? // Client components with Cache Components enabled don't receive params
         // from the server, so they have an empty vary params set.
         emptyVaryParamsAccumulator
-      : createVaryParamsAccumulator()
+      : getSegmentVaryParamsAccumulator(workUnitStore, tree)
 
   if (
     process.env.NODE_ENV === 'development' &&

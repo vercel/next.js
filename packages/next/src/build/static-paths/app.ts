@@ -630,6 +630,8 @@ async function callGenerateStaticParams(
     phase: 'render',
     implicitTags,
     rootParams,
+    segmentStore: null,
+    metadataSegmentStore: null,
   }
 
   const generatedParams: unknown = await workUnitAsyncStorage.run(
