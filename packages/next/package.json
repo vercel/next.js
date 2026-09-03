@@ -296,7 +296,7 @@
     "p-queue": "6.6.2",
     "path-browserify": "1.0.1",
     "path-to-regexp": "6.3.0",
-    "picomatch": "4.0.1",
+    "picomatch": "4.0.5",
     "postcss-flexbugs-fixes": "5.0.2",
     "postcss-modules-extract-imports": "3.0.0",
     "postcss-modules-local-by-default": "4.2.0",
