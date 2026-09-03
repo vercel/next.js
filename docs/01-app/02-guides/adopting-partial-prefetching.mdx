@@ -46,7 +46,7 @@ To adopt an existing app by hand:
 2. [Enable `partialPrefetching`](#enable-partial-prefetching). For larger migrations, you can [adopt incrementally](#adopting-incrementally) with the global flag off. The [dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial) insight identifies each destination that still uses the legacy full prefetch.
 3. [Move URL data behind Suspense](#move-url-data-behind-suspense), resolving the [URL data outside of Suspense](/docs/messages/instant-shell-url-data) insight.
 4. Optionally, [prefetch URL data](#prefetching-url-data) on the routes where streaming in after navigation isn't enough.
-5. Optionally, [exclude cached content from a prefetch](/docs/app/guides/optimizing-prefetching#exclude-content-from-a-prefetch) with [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation), on the routes where caching content into the App Shell made it heavier than you want.
+5. Optionally, [exclude cached content from a prefetch](/docs/app/guides/optimizing-prefetching#exclude-content-from-a-prefetch) on the routes where caching content into the App Shell made it heavier than you want.
 
 Both insights are development-only and never block the build. They appear in the dev overlay with fix cards that link the docs page for each fix. If a route isn't ready to adopt, export [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) from its page or layout to opt the route out of instant-navigation validation, and return to it later.
 
