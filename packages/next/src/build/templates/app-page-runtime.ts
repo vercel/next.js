@@ -554,12 +554,11 @@ export function createAppPageEntrypoint({
     const supportsRDCForNavigations =
       isRoutePPREnabled && nextConfig.cacheComponents === true
 
-    // Cached Navigation RSC responses use dynamic rendering to stage a
-    // reusable static segment before revealing request-specific content. They
-    // still need prerender fallback params even though the response itself is
-    // dynamic.
+    // Cached Navigations stage a reusable static segment during dynamic RSC
+    // renders and when resuming postponed HTML. Both paths need prerender
+    // fallback params even though the response itself is dynamic.
     const isStagedCachedNavigationRender =
-      isDynamicRSCRequest &&
+      (isDynamicRSCRequest || hasPostponedState) &&
       nextConfig.experimental.cachedNavigations === true &&
       !isPossibleServerAction
 
