@@ -188,22 +188,17 @@ Everything inside the scope shares the same lifetime. Colocate `"use cache: priv
 
 ## Exclude content from a prefetch
 
-The two sections above add content to a prefetch. Sometimes the useful move is the opposite: a subtree that is expensive to produce, and that you would rather not include in every prefetch of the route.
+Optimizing a prefetch also means excluding content from it. Some subtrees are expensive enough to produce that you would rather not pay for them on every prefetch of the route.
 
-Two experimental functions defer a subtree past a prefetch stage. The fallback of the nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary takes its place, and the deferred content renders at the stage you chose:
-
-- [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) keeps the content out of the App Shell. It renders on a per-link prefetch when the link requests one with `prefetch={true}`, and otherwise on an actual navigation.
-- [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) keeps it out of per-link prefetches too, so it renders only on navigation.
-
-Await the function above the work to defer. Take the dashboard again, where a ranking keyed on the session is too expensive to include in the App Shell that every link into the route prefetches:
+Awaiting [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of every prefetch of the route, so it is produced when the user navigates. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees on navigation, while the content streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
 
 ```tsx filename="app/dashboard/recommendations.tsx" highlight={6}
 import { cookies } from 'next/headers'
-import { unstable_prefetch } from 'next/cache'
+import { unstable_navigation } from 'next/cache'
 
 async function Recommendations() {
   const session = (await cookies()).get('session')?.value
-  await unstable_prefetch()
+  await unstable_navigation()
   const items = await rank(session)
   return <List items={items} />
 }
@@ -216,7 +211,9 @@ async function rank(session?: string) {
 
 The session is read above the call, so it resolves in the shell like any other session data. Only the ranking is left out, and it keeps its cache lifetime.
 
-Without these functions, keeping a subtree out of a prefetch means leaving it uncached, which gives up that lifetime on the navigation too. Neither call can sit inside a cached scope, so put the caching directive on a function called below the call, as `rank` does here.
+Without it, keeping a subtree out of a prefetch means leaving it uncached, which gives up that lifetime on the navigation too. The call cannot sit inside a cached scope, so put the caching directive on a function called below it, as `rank` does here.
+
+To keep a subtree that would otherwise sit in the App Shell out of it, while a `<Link prefetch={true}>` can still resolve it before the click, use [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) instead.
 
 ## Trade-offs
 
@@ -243,7 +240,7 @@ When many links to a route are visible at once, such as a grid of cards, each `<
 | Cost    | Bounded by route count                      | Bounded by visible-link count            |
 | Role    | Default prefetch                            | More rendered before click               |
 
-[Excluding content](#exclude-content-from-a-prefetch) is one more control on top of these. The trade is the `<Suspense>` fallback on arrival against producing that content ahead of the click, in a prefetch that may never be used.
+[Excluding content](#exclude-content-from-a-prefetch) is one more control on top of these. The trade is generating content for a prefetch that may never be used, against momentarily showing a `<Suspense>` fallback while that content streams in.
 
 ## Next steps
 
