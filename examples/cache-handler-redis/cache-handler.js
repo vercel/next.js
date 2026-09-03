@@ -3,6 +3,7 @@ const createRedisHandler = require("@neshca/cache-handler/redis-stack").default;
 const createLruHandler = require("@neshca/cache-handler/local-lru").default;
 const { createClient } = require("redis");
 const { PHASE_PRODUCTION_BUILD } = require("next/constants");
+const { version: nextVersion } = require("next/package.json");
 
 /* from https://caching-tools.github.io/next-shared-cache/redis */
 CacheHandler.onCreation(async () => {
@@ -10,9 +11,12 @@ CacheHandler.onCreation(async () => {
   // use redis client during build could cause issue https://github.com/caching-tools/next-shared-cache/issues/284#issuecomment-1919145094
   if (PHASE_PRODUCTION_BUILD !== process.env.NEXT_PHASE) {
     try {
-      // Create a Redis client.
+      // Create a Redis client with Next.js identification.
+      // The clientInfoTag follows the pattern: <framework>_v<version>
+      // This will appear in Redis as: node-redis(next.js_v<version>)
       client = createClient({
         url: process.env.REDIS_URL ?? "redis://localhost:6379",
+        clientInfoTag: `next.js_v${nextVersion}`,
       });
 
       // Redis won't work without error handling.
