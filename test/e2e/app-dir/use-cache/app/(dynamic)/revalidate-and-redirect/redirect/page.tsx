@@ -26,6 +26,15 @@ export default function Page() {
       >
         Revalidate path and redirect
       </button>
+      <button
+        id="redirect-without-revalidations"
+        formAction={async () => {
+          'use server'
+          redirect('/revalidate-and-redirect')
+        }}
+      >
+        Redirect without revalidations
+      </button>
     </form>
   )
 }

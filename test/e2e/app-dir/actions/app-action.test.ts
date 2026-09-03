@@ -1419,6 +1419,33 @@ describe('app-dir action handling', () => {
       })
     })
 
+    it('should use the fetch cache when rendering after a redirect without revalidations', async () => {
+      const browser = await next.browser('/revalidate')
+      // Uncached random, should be different every time
+      const randomNumber = await browser.elementByCss('#random-number').text()
+      // Cached fetches
+      const justPutIt = await browser.elementByCss('#justputit').text()
+      const thankYouNext = await browser.elementByCss('#thankyounext').text()
+
+      // Trigger an action that redirects to the same page
+      await browser.elementByCss('#redirect').click()
+
+      // The action should return a freshly rendered version of the page,
+      // so the random number should change
+      await retry(async () => {
+        const newRandomNumber = await browser
+          .elementByCss('#random-number')
+          .text()
+        expect(newRandomNumber).not.toBe(randomNumber)
+      })
+
+      // The new render should re-use the cached fetches, so they should be the same
+      const newJustPutIt = await browser.elementByCss('#justputit').text()
+      const newThankYouNext = await browser.elementByCss('#thankyounext').text()
+      expect(newJustPutIt).toBe(justPutIt)
+      expect(newThankYouNext).toBe(thankYouNext)
+    })
+
     it('should store revalidation data in the prefetch cache', async () => {
       const browser = await next.browser('/revalidate')
       const justPutIt = await browser.elementByCss('#justputit').text()

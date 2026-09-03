@@ -347,8 +347,11 @@ describe('use-cache', () => {
 
   it('should revalidate caches after redirect', async () => {
     const browser = await next.browser('/revalidate-and-redirect')
+    // A and B come from the same cache
     const valueA = await browser.elementById('a').text()
     const valueB = await browser.elementById('b').text()
+    // C is unrelated to A and B
+    const valueC = await browser.elementById('c').text()
 
     expect(valueA).toBe(valueB)
 
@@ -356,15 +359,20 @@ describe('use-cache', () => {
       .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
       .click()
 
+    // Revalidate a tag that A/B are tagged with, and redirect to the page where they are used.
     await browser.elementById('revalidate-tag-redirect').click()
 
     const newValueA = await browser.elementById('a').text()
     const newValueB = await browser.elementById('b').text()
+    const newValueC = await browser.elementById('c').text()
 
-    expect(newValueA).toBe(newValueB)
+    // The action should return an updated page with new values for A and B
     expect(newValueA).not.toBe(valueA)
-    expect(newValueB).toBe(newValueB)
+    expect(newValueA).toBe(newValueB)
+    // We didn't revalidate C, so it should remain unchanged
+    expect(newValueC).toBe(valueC)
 
+    // Revalidate the path of the original page, which should bypass all the caches it used
     await browser
       .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
       .click()
@@ -372,10 +380,40 @@ describe('use-cache', () => {
 
     const finalValueA = await browser.elementById('a').text()
     const finalValueB = await browser.elementById('b').text()
+    const finalValueC = await browser.elementById('c').text()
 
     expect(finalValueA).not.toBe(newValueA)
     expect(finalValueB).not.toBe(newValueB)
-    expect(finalValueB).toBe(finalValueB)
+    expect(finalValueC).not.toBe(valueC)
+  })
+
+  it('should use existing caches after a redirect without any revalidations', async () => {
+    const browser = await next.browser('/revalidate-and-redirect')
+
+    // Uncached, should change on every render
+    const initialTimestamp = await browser.elementById('timestamp').text()
+
+    // A and B come from the same cache
+    const valueA = await browser.elementById('a').text()
+    const valueB = await browser.elementById('b').text()
+    expect(valueA).toBe(valueB)
+
+    await browser
+      .elementByCss('a[href="/revalidate-and-redirect/redirect"]')
+      .click()
+
+    // Redirect back to the page we started on.
+    await browser.elementById('redirect-without-revalidations').click()
+
+    // The action should return an updated page. The timestamp is not cached, so it should change.
+    const updatedTimestamp = await browser.elementById('timestamp').text()
+    expect(initialTimestamp).not.toBe(updatedTimestamp)
+
+    // We didn't revalidate A/B, so they should use the existing cache entries and return the same value as before.
+    const newValueA = await browser.elementById('a').text()
+    const newValueB = await browser.elementById('b').text()
+    expect(newValueA).toBe(valueA)
+    expect(newValueB).toBe(valueB)
   })
 
   it('should reach a "use cache" rendered after a stale unstable_cache', async () => {
