@@ -595,6 +595,17 @@ export function transformDynamicProps(
           params[propsArgumentIndex] = propsIdentifier
 
           modified = true
+        } else if (j.ObjectPattern.check(currentParam)) {
+          // Even when params/searchParams aren't used in the body,
+          // we still need to wrap their type annotations in Promise<>
+          // to satisfy Next.js 15's type requirements.
+          const typesModified = modifyTypes(
+            currentParam.typeAnnotation,
+            propsIdentifier,
+            root,
+            j
+          )
+          modified ||= typesModified
         }
       } else {
         // When the prop argument is not destructured, we need to add comments to the spread properties
