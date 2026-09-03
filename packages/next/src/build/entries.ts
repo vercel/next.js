@@ -287,7 +287,7 @@ export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
     ;(opts as any).projectRoot = normalize(join(__dirname, '../../..'))
   }
   return {
-    import: `${getAppLoader()}?${stringify(opts)}!`,
+    import: `${getAppLoader()}?${JSON.stringify(opts)}!`,
     layer: WEBPACK_LAYERS.reactServerComponents,
   }
 }
