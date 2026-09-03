@@ -56,12 +56,11 @@ pub struct DetachedVc<T> {
 impl<T> DetachedVc<T> {
     pub fn new(turbopack_ctx: NextTurbopackContext, vc: OperationVc<T>) -> Self {
         // Pin the operation's task so GC treats this out-of-graph handle as a root.
-        let gc_root = GcRoot::pin(turbopack_ctx.turbo_tasks().clone(), vc.task_id());
 
         Self {
             turbopack_ctx,
             vc,
-            _gc_root: gc_root,
+            _gc_root: GcRoot::pin(turbopack_ctx.turbo_tasks().clone(), vc.task_id()),
         }
     }
 

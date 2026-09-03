@@ -241,16 +241,11 @@ pub struct TurboTasksBackend {
     task_statistics: TaskStatisticsApi,
 
     backing_storage: TurboBackingStorage,
-    /// How long a GC root may go un-anchored before it ages out, resolved once at construction
-    /// from [`BackendOptions::gc_root_ttl`] / the `TURBO_ENGINE_GC_ROOT_TTL_MS` env /
-    /// [`DEFAULT_GC_ROOT_TTL`].
+    /// How long a GC root may go un-anchored before it ages out.
     gc_root_ttl: Duration,
 
-    /// `true` until the first GC pass of this session runs. Only that pass may demote a live root
-    /// to `TtlCounter::FirstStale` — GC runs many times per session (on the snapshot cadence), and
-    /// a single pass can easily miss a root that is still live (evicted, or not yet re-requested).
-    /// Demoting on every pass would make the TTL measure idleness within a session rather than
-    /// "was not live in a whole session". See `gc_roots_refresh_and_age_out`.
+    /// `true` until the first GC pass of this session runs. Used to detect 'session boundaries'
+    /// which allows us to detect which roots have become stale from prior sessions.
     first_gc_pass_of_session: AtomicBool,
 
     #[cfg(feature = "verify_aggregation_graph")]
