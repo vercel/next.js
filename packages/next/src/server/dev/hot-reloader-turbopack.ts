@@ -156,6 +156,14 @@ const isTestMode = !!(
   process.env.__NEXT_TEST_MODE ||
   process.env.DEBUG
 )
+const isHmrDiagnosticsEnabled =
+  process.env.NEXT_TURBOPACK_HMR_DIAGNOSTICS === '1'
+
+function hmrDiagnostic(event: string, details: Record<string, unknown> = {}) {
+  if (isHmrDiagnosticsEnabled) {
+    console.log(`[Turbopack HMR diagnostic] ${event}`, details)
+  }
+}
 
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
 
@@ -218,25 +226,37 @@ function setupServerHmr(
 ) {
   async function runSubscription() {
     const subscription = project.allHmrEvents(HmrTarget.Server)
+    hmrDiagnostic('server-subscription-created')
 
     // Subscribing immediately emits one event describing the current state.
     // There's no previous state to diff it against, so it never carries anything
     // to apply. Drop it; real updates start with the second event.
-    await subscription.next()
+    const initial = await subscription.next()
+    hmrDiagnostic('server-subscription-initial', {
+      done: initial.done,
+      updateType: initial.value?.type,
+    })
 
     for await (const result of subscription) {
       const update = result as NodeJsHmrUpdate
+      hmrDiagnostic('server-subscription-update', {
+        updateType: update.type,
+        instructionType:
+          update.type === 'partial' ? update.instruction?.type : undefined,
+      })
 
       // A 'restart' from the wire protocol means the update can't be applied
       // incrementally, so we must fully re-evaluate all chunks from disk. This
       // clears the module cache and notifies browsers to refetch RSC.
       const requiresFullReEvaluation = update.type === 'restart'
       if (requiresFullReEvaluation) {
+        hmrDiagnostic('server-update-full-re-evaluation')
         await reEvaluateAllModulesExpensive()
         continue
       }
 
       if (update.type !== 'partial') {
+        hmrDiagnostic('server-update-ignored', { updateType: update.type })
         continue
       }
 
@@ -259,16 +279,23 @@ function setupServerHmr(
       // until the next request.
       const handlers = globalThis.__turbopack_server_hmr_handlers__
       if (!handlers || handlers.size === 0) {
+        hmrDiagnostic('server-update-no-handlers')
         continue
       }
 
       if (typeof __turbopack_server_hmr_apply__ === 'function') {
         try {
           __turbopack_server_hmr_apply__(update)
+          hmrDiagnostic('server-update-applied', {
+            handlerCount: handlers.size,
+          })
           // The validation worker keeps its own copy of the module graph, and
           // applies the same update to it.
           mirrorModuleStateToDevValidationWorker({ type: 'apply', update })
-        } catch {
+        } catch (error) {
+          hmrDiagnostic('server-update-apply-failed', {
+            error: error instanceof Error ? error.message : String(error),
+          })
           // A matching runtime tried the apply and threw. Evict require.cache
           // so the next request loads fresh, then skip onApplied. (A no-match
           // update is a no-op and does not throw.)
@@ -281,9 +308,15 @@ function setupServerHmr(
         // transition or a new endpoint); nothing changed on disk, so don't
         // invalidate manifests or ping browsers to refetch RSC.
         if (updatedChunkPaths.length > 0) {
+          hmrDiagnostic('server-update-notifying', {
+            updatedChunkCount: updatedChunkPaths.length,
+          })
           await onApplied(updatedChunkPaths)
+        } else {
+          hmrDiagnostic('server-update-empty-partial')
         }
       } else {
+        hmrDiagnostic('server-update-runtime-missing')
         await reEvaluateAllModulesExpensive()
       }
     }
@@ -814,6 +847,11 @@ export async function createHotReloaderTurbopack(
         ? createBinaryHmrMessageData(message)
         : JSON.stringify(message)
 
+    hmrDiagnostic('websocket-send', {
+      messageType: message.type,
+      byteLength:
+        typeof data === 'string' ? Buffer.byteLength(data) : data.byteLength,
+    })
     client.send(data)
   }
 
@@ -851,6 +889,7 @@ export async function createHotReloaderTurbopack(
   function sendEnqueuedMessages() {
     if (hasCompilationErrors()) {
       // During compilation errors we want to delay the HMR events until errors are fixed
+      hmrDiagnostic('client-flush-blocked-project-errors')
       return
     }
 
@@ -860,6 +899,7 @@ export async function createHotReloaderTurbopack(
     ]) {
       const state = clientStates.get(client)
       if (!state) {
+        hmrDiagnostic('client-flush-skipped-missing-state')
         continue
       }
 
@@ -869,10 +909,15 @@ export async function createHotReloaderTurbopack(
             .length > 0
         ) {
           // During compilation errors we want to delay the HMR events until errors are fixed
+          hmrDiagnostic('client-flush-blocked-client-errors')
           return
         }
       }
 
+      hmrDiagnostic('client-flush', {
+        messageCount: state.messages.size,
+        turbopackUpdateCount: state.turbopackUpdates.length,
+      })
       for (const message of state.messages.values()) {
         sendToClient(client, message)
       }
@@ -909,6 +954,18 @@ export async function createHotReloaderTurbopack(
     payload.diagnostics = []
     payload.issues = []
     pendingBuilding.flush()
+
+    const diagnosticPayload = payload as TurbopackUpdate & {
+      resource?: { path?: string }
+      instruction?: { type?: string }
+    }
+    hmrDiagnostic('client-update-enqueued', {
+      updateType: payload.type,
+      resource: diagnosticPayload.resource?.path,
+      instructionType: diagnosticPayload.instruction?.type,
+      clientCount:
+        clientsWithoutHtmlRequestId.size + clientsByHtmlRequestId.size,
+    })
 
     for (const client of [
       ...clientsWithoutHtmlRequestId,
@@ -976,29 +1033,54 @@ export async function createHotReloaderTurbopack(
     const key = getEntryKey('assets', 'client', id)
     if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
       // maybe throw an error / force the client to reload?
+      hmrDiagnostic('client-subscription-rejected-missing-entrypoint', { id })
       return
     }
 
     const state = clientStates.get(client)
     if (!state || state.subscriptions.has(id)) {
+      hmrDiagnostic('client-subscription-rejected', {
+        id,
+        reason: !state ? 'missing-state' : 'already-subscribed',
+      })
       return
     }
 
     const subscription = project!.hmrEvents(id, HmrTarget.Client)
     state.subscriptions.set(id, subscription)
+    hmrDiagnostic('client-subscription-created', { id })
 
     // The subscription will always emit once, which is the initial
     // computation. This is not a change, so swallow it.
     try {
-      await subscription.next()
+      const initial = await subscription.next()
+      hmrDiagnostic('client-subscription-initial', {
+        id,
+        done: initial.done,
+        updateType: initial.value?.type,
+      })
 
       for await (const data of subscription) {
+        hmrDiagnostic('client-subscription-update', {
+          id,
+          updateType: data.type,
+          instructionType:
+            'instruction' in data
+              ? (data.instruction as { type?: string } | undefined)?.type
+              : undefined,
+        })
         processIssues(state.clientIssues, key, data, false, true)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data as TurbopackUpdate)
+        } else {
+          hmrDiagnostic('client-update-issues-only', { id })
         }
       }
     } catch (e) {
+      hmrDiagnostic('client-subscription-error', {
+        id,
+        error: e instanceof Error ? e.message : String(e),
+      })
       // The client might be using an HMR session from a previous server, tell them
       // to fully reload the page to resolve the issue. We can't use
       // `hotReloader.send` since that would force every connected client to

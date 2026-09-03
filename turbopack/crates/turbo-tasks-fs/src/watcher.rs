@@ -101,6 +101,7 @@ fn trace_raw_event(event: &notify::Event, watcher_backend: WatcherBackend) {
         && matches!(watcher_backend, WatcherBackend::Recommended)
         && rescan;
     let span = tracing::info_span!(
+        target: "turbopack_hmr_diagnostics",
         parent: None,
         "watcher raw event",
         watcher_backend = watcher_backend.as_str(),
@@ -119,6 +120,7 @@ fn trace_raw_event(event: &notify::Event, watcher_backend: WatcherBackend) {
         .enumerate()
     {
         let _path_span = tracing::info_span!(
+            target: "turbopack_hmr_diagnostics",
             "watcher raw event path",
             path_index,
             path = %path.display(),
@@ -131,6 +133,7 @@ fn trace_watcher_error(kind: &notify::ErrorKind, paths: &[PathBuf]) {
     let path_count = paths.len();
     let paths_truncated = path_count.saturating_sub(MAX_DIAGNOSTIC_EVENT_PATHS);
     let span = tracing::info_span!(
+        target: "turbopack_hmr_diagnostics",
         parent: None,
         "watcher error",
         kind = ?kind,
@@ -140,6 +143,7 @@ fn trace_watcher_error(kind: &notify::ErrorKind, paths: &[PathBuf]) {
     let _entered = span.enter();
     for (path_index, path) in paths.iter().take(MAX_DIAGNOSTIC_EVENT_PATHS).enumerate() {
         let _path_span = tracing::info_span!(
+            target: "turbopack_hmr_diagnostics",
             "watcher error path",
             path_index,
             path = %path.display(),
@@ -638,6 +642,7 @@ impl DiskWatcher {
                             let directory_invalidator_path_count =
                                 fs_inner.dir_invalidator_map.lock().unwrap().len();
                             let _rescan_span = tracing::info_span!(
+                                target: "turbopack_hmr_diagnostics",
                                 parent: None,
                                 "watcher rescan",
                                 watcher_backend = watcher_backend.as_str(),
@@ -686,6 +691,7 @@ impl DiskWatcher {
                         // `BATCH_DELAY`.
                         let retained = batch.add_event(event);
                         tracing::info_span!(
+                            target: "turbopack_hmr_diagnostics",
                             parent: None,
                             "watcher event classification",
                             retained,
@@ -766,6 +772,7 @@ impl DiskWatcher {
             );
             for summary in summaries {
                 tracing::info_span!(
+                    target: "turbopack_hmr_diagnostics",
                     parent: None,
                     "watcher invalidator map summary",
                     map = summary.map_kind.as_str(),
@@ -918,6 +925,7 @@ impl BatchedInvalidations {
         let path_count = self.paths.len();
         let paths_truncated = path_count.saturating_sub(MAX_DIAGNOSTIC_BATCH_PATHS);
         let span = tracing::info_span!(
+            target: "turbopack_hmr_diagnostics",
             parent: None,
             "watcher invalidation batch",
             path_count,
@@ -932,6 +940,7 @@ impl BatchedInvalidations {
             .enumerate()
         {
             let _path_span = tracing::info_span!(
+                target: "turbopack_hmr_diagnostics",
                 "watcher batched path",
                 path_index,
                 path = %path.display(),
@@ -1103,6 +1112,7 @@ impl BatchedInvalidations {
                 summary.invalidator_count += invalidator_count;
                 if path_index < MAX_DIAGNOSTIC_BATCH_PATHS {
                     tracing::info_span!(
+                        target: "turbopack_hmr_diagnostics",
                         parent: None,
                         "watcher invalidator lookup",
                         map = summary.map_kind.as_str(),
@@ -1121,13 +1131,6 @@ impl BatchedInvalidations {
     }
 }
 
-#[instrument(
-    parent = None,
-    level = "info",
-    name = "file change",
-    skip_all,
-    fields(name = %invalidation_reason_path.display())
-)]
 fn invalidate(
     inner: &DiskFileSystemInner,
     turbo_tasks: &dyn TurboTasksApi,
@@ -1135,6 +1138,13 @@ fn invalidate(
     invalidation_reason_path: &Path,
     invalidator: Invalidator,
 ) {
+    let _span = tracing::info_span!(
+        target: "turbopack_hmr_diagnostics",
+        parent: None,
+        "file change",
+        name = %invalidation_reason_path.display(),
+    )
+    .entered();
     if report_invalidation_reason
         && let Some(path) =
             format_absolute_fs_path(invalidation_reason_path, &inner.name, inner.root_path())
