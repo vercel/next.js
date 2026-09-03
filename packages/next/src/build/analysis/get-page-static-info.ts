@@ -48,7 +48,12 @@ import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-pat
 import { isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
-  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
+  /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|unstable_selectMetadata|unstable_selectViewport|middleware|proxy/
+
+const METADATA_SELECTOR_EXPORTS = new Set([
+  'unstable_selectMetadata',
+  'unstable_selectViewport',
+])
 
 export type ProxyMatcher = {
   regexp: string
@@ -183,6 +188,7 @@ function checkExports(
   generateStaticParams?: boolean
   directives?: Set<string>
   exports?: Set<string>
+  metadataSelectors?: Set<string>
 } {
   const exportsSet = new Set<string>([
     'getStaticProps',
@@ -202,6 +208,7 @@ function checkExports(
     let generateSitemaps: boolean = false
     let generateStaticParams = false
     let exports = new Set<string>()
+    let metadataSelectors = new Set<string>()
     let directives = new Set<string>()
     let hasLeadingNonDirectiveNode = false
 
@@ -228,10 +235,22 @@ function checkExports(
         node.declaration?.type === 'VariableDeclaration'
       ) {
         for (const declaration of node.declaration?.declarations) {
-          if (expectedExports.includes(declaration.id.value)) {
-            exports.add(declaration.id.value)
+          const exportName = declaration.id.value
+          if (expectedExports.includes(exportName)) {
+            exports.add(exportName)
+          }
+          if (METADATA_SELECTOR_EXPORTS.has(exportName)) {
+            metadataSelectors.add(exportName)
           }
         }
+      }
+
+      if (
+        node.type === 'ExportDeclaration' &&
+        node.declaration?.type === 'FunctionDeclaration' &&
+        METADATA_SELECTOR_EXPORTS.has(node.declaration.identifier?.value)
+      ) {
+        metadataSelectors.add(node.declaration.identifier.value)
       }
 
       if (
@@ -268,6 +287,11 @@ function checkExports(
             specifier.orig?.type === 'Identifier'
           ) {
             const value = specifier.orig.value
+            const exportedValue = specifier.exported?.value ?? value
+
+            if (METADATA_SELECTOR_EXPORTS.has(exportedValue)) {
+              metadataSelectors.add(exportedValue)
+            }
 
             if (!getServerSideProps && value === 'getServerSideProps') {
               getServerSideProps = true
@@ -304,6 +328,7 @@ function checkExports(
       generateStaticParams,
       directives,
       exports,
+      metadataSelectors,
     }
   } catch {}
 
@@ -652,7 +677,27 @@ export async function getAppPageStaticInfo({
     generateSitemaps,
     exports,
     directives,
+    metadataSelectors,
   } = checkExports(ast, AppSegmentConfigSchemaKeys, page)
+
+  if (
+    metadataSelectors?.size &&
+    !nextConfig.experimental?.parallelRouteMetadata
+  ) {
+    const relativePath = relative(process.cwd(), pageFilePath)
+    const resolvedPath = relativePath.startsWith('.')
+      ? relativePath
+      : `./${relativePath}`
+    const selectorExports = Array.from(
+      metadataSelectors,
+      (selector) => `\`${selector}\``
+    ).join(' and ')
+    const hasMultipleSelectors = metadataSelectors.size > 1
+
+    Log.warnOnce(
+      `The ${selectorExports} export${hasMultipleSelectors ? 's' : ''} in "${resolvedPath}" require${hasMultipleSelectors ? '' : 's'} \`experimental.parallelRouteMetadata: true\` in next.config.js. ${hasMultipleSelectors ? 'These exports' : 'This export'} will be ignored.`
+    )
+  }
 
   const { type: rsc } = getRSCModuleInformation(content, true)
 

@@ -35,9 +35,18 @@ export type {
   MetadataRoute,
   ResolvedMetadata,
   ResolvingMetadata,
+  SelectedMetadata,
+  MetadataSelection,
+  MetadataSelectionHandle,
+  MetadataSelector,
+  MetadataSelectorResult,
   Viewport,
   ResolvingViewport,
   ResolvedViewport,
+  ViewportSelection,
+  ViewportSelectionHandle,
+  ViewportSelector,
+  ViewportSelectorResult,
 } from './lib/metadata/types/metadata-interface'
 
 export type { Instant } from './build/segment-config/app/app-segment-config'

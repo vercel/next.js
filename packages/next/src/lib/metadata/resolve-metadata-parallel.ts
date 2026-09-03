@@ -1,8 +1,16 @@
 import type {
   Metadata,
+  MetadataSelection,
+  MetadataSelectionHandle,
+  MetadataSelector,
+  MetadataSelectorResult,
   ResolvedMetadata,
   ResolvedViewport,
   Viewport,
+  ViewportSelection,
+  ViewportSelectionHandle,
+  ViewportSelector,
+  ViewportSelectorResult,
 } from './types/metadata-interface'
 import type { MetadataContext } from './types/resolvers'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
@@ -82,12 +90,15 @@ type RejectedOutcome = {
 type ResolutionOutcome<T> = ResolvedOutcome<T> | RejectedOutcome
 
 type MetadataBranchOutcome =
-  | (ResolvedOutcome<SelectedMetadata> & { warnings: Set<string> })
+  | (ResolvedOutcome<SelectedMetadata | undefined> & {
+      warnings: Set<string>
+    })
   | RejectedOutcome
-type ViewportBranchOutcome = ResolutionOutcome<ResolvedViewport>
+type ViewportBranchOutcome = ResolutionOutcome<ResolvedViewport | undefined>
 
 type MetadataResolution = {
-  selectedKeyPath: string[]
+  selectedMetadataKeyPath: string[]
+  selectedViewportKeyPath: string[]
   selectedMetadata: Promise<MetadataBranchOutcome>
   selectedViewport: Promise<ViewportBranchOutcome>
   outlets: Map<LoaderTree, Promise<null>>
@@ -115,8 +126,30 @@ type MetadataLayer = {
 }
 
 type MetadataBranch = {
-  metadata: Promise<MetadataBranchOutcome>
-  viewport: Promise<ViewportBranchOutcome>
+  metadata: SelectedMetadataBranch | Promise<SelectedMetadataBranch>
+  viewport: SelectedViewportBranch | Promise<SelectedViewportBranch>
+  outletScope: MetadataOutletScope
+  keyPath: string[]
+  definitionDepth: number
+  isBuiltinFallback: boolean
+}
+
+// Keep the fork structure so selector failures can be added to every
+// descendant outlet without flattening and repeatedly copying leaf arrays.
+type MetadataOutletScope = {
+  tree: LoaderTree | null
+  branches: MetadataOutletScope[] | null
+}
+
+type SelectedMetadataBranch = {
+  outcome: Promise<MetadataBranchOutcome>
+  keyPath: string[]
+  definitionDepth: number
+  isBuiltinFallback: boolean
+}
+
+type SelectedViewportBranch = {
+  outcome: Promise<ViewportBranchOutcome>
   keyPath: string[]
   definitionDepth: number
   isBuiltinFallback: boolean
@@ -124,6 +157,8 @@ type MetadataBranch = {
 
 type CollectedMetadata = MetadataLayer & {
   errorLayer: MetadataLayer | null
+  metadataSelector: MetadataSelector | null
+  viewportSelector: ViewportSelector | null
 }
 
 async function collectMetadataAndViewport({
@@ -171,6 +206,16 @@ async function collectMetadataAndViewport({
     shouldResolveViewport && moduleResult.mod
       ? getDefinedViewport(moduleResult.mod, props, { route })
       : null
+  const metadataSelector =
+    moduleResult.modType === 'layout' &&
+    typeof moduleResult.mod?.unstable_selectMetadata === 'function'
+      ? (moduleResult.mod.unstable_selectMetadata as MetadataSelector)
+      : null
+  const viewportSelector =
+    moduleResult.modType === 'layout' &&
+    typeof moduleResult.mod?.unstable_selectViewport === 'function'
+      ? (moduleResult.mod.unstable_selectViewport as ViewportSelector)
+      : null
 
   let errorLayer: MetadataLayer | null = null
   if (errorConvention && tree[2][errorConvention]) {
@@ -195,6 +240,8 @@ async function collectMetadataAndViewport({
     staticFilesMetadata,
     hasStaticFilesMetadata,
     errorLayer,
+    metadataSelector,
+    viewportSelector,
   }
 }
 
@@ -493,14 +540,24 @@ type MetadataTreeState = {
   metadataParent: Promise<MetadataAccumulator>
   viewportParent: Promise<ViewportAccumulator>
   errorLayer: MetadataLayer | null
+  metadataSelector: MetadataSelector | null
+  viewportSelector: ViewportSelector | null
   definitionDepth: number
   keyPath: string[]
 }
 
-type MetadataBranchAtFork = {
-  key: string
-  branch: MetadataBranch
+type SelectableBranch = {
+  keyPath: string[]
+  definitionDepth: number
+  isBuiltinFallback: boolean
 }
+
+type BranchAtFork<T extends SelectableBranch> = {
+  key: string
+  branch: T
+}
+
+type MetadataBranchAtFork = BranchAtFork<MetadataBranch>
 
 function getResolutionStatus(
   reason: unknown
@@ -581,6 +638,44 @@ function createOutletPromise(
   return outlet
 }
 
+function combineOutletPromises(
+  first: Promise<null>,
+  second: Promise<null>
+): Promise<null> {
+  let pending = 2
+  const combined = new Promise<null>((resolve, reject) => {
+    function settle() {
+      if (--pending === 0) resolve(null)
+    }
+
+    first.then(settle, reject)
+    second.then(settle, reject)
+  })
+  combined.catch(() => null)
+  return combined
+}
+
+function attachOutletPromise(
+  scope: MetadataOutletScope,
+  additional: Promise<null>,
+  outlets: Map<LoaderTree, Promise<null>>
+): void {
+  if (scope.tree !== null) {
+    const outlet = outlets.get(scope.tree)
+    if (outlet) {
+      outlets.set(scope.tree, combineOutletPromises(outlet, additional))
+    }
+    return
+  }
+
+  const branches = scope.branches
+  if (branches) {
+    for (const branch of branches) {
+      attachOutletPromise(branch, additional, outlets)
+    }
+  }
+}
+
 function appendTreeRoute(
   parentRoute: string | null,
   segment: string
@@ -629,10 +724,10 @@ function hasStaticMetadataFiles(tree: LoaderTree): boolean {
   )
 }
 
-function selectDefaultMetadataBranch(
-  branches: MetadataBranchAtFork[],
+function selectDefaultMetadataBranch<T extends SelectableBranch>(
+  branches: Array<BranchAtFork<T>>,
   forkDepth: number
-): MetadataBranch {
+): T {
   if (branches.length === 0) {
     throw new InvariantError('Expected at least one metadata branch')
   }
@@ -686,6 +781,342 @@ function selectDefaultMetadataBranch(
   return selected.branch
 }
 
+function isPendingSelection<T>(
+  selection: T | Promise<T>
+): selection is Promise<T> {
+  return typeof (selection as Promise<T>).then === 'function'
+}
+
+function selectDefaultResolvedMetadataBranch(
+  branches: MetadataBranchAtFork[],
+  forkDepth: number
+): SelectedMetadataBranch | Promise<SelectedMetadataBranch> {
+  if (branches.some(({ branch }) => isPendingSelection(branch.metadata))) {
+    return Promise.all(
+      branches.map(async ({ key, branch }) => ({
+        key,
+        branch: await branch.metadata,
+      }))
+    ).then((resolvedBranches) =>
+      selectDefaultMetadataBranch(resolvedBranches, forkDepth)
+    )
+  }
+
+  const resolvedBranches: Array<BranchAtFork<SelectedMetadataBranch>> = []
+  for (const { key, branch } of branches) {
+    resolvedBranches.push({
+      key,
+      branch: branch.metadata as SelectedMetadataBranch,
+    })
+  }
+  return selectDefaultMetadataBranch(resolvedBranches, forkDepth)
+}
+
+function selectDefaultResolvedViewportBranch(
+  branches: MetadataBranchAtFork[],
+  forkDepth: number
+): SelectedViewportBranch | Promise<SelectedViewportBranch> {
+  if (branches.some(({ branch }) => isPendingSelection(branch.viewport))) {
+    return Promise.all(
+      branches.map(async ({ key, branch }) => ({
+        key,
+        branch: await branch.viewport,
+      }))
+    ).then((resolvedBranches) =>
+      selectDefaultMetadataBranch(resolvedBranches, forkDepth)
+    )
+  }
+
+  const resolvedBranches: Array<BranchAtFork<SelectedViewportBranch>> = []
+  for (const { key, branch } of branches) {
+    resolvedBranches.push({
+      key,
+      branch: branch.viewport as SelectedViewportBranch,
+    })
+  }
+  return selectDefaultMetadataBranch(resolvedBranches, forkDepth)
+}
+
+function createMetadataSelection(
+  outcome: MetadataBranchOutcome
+): MetadataSelection {
+  if (outcome.status === 'resolved') {
+    return {
+      status: 'resolved',
+      value: outcome.value,
+    }
+  }
+  return {
+    status: outcome.status,
+    reason: outcome.reason,
+  }
+}
+
+function isObject(value: unknown): value is object {
+  return typeof value === 'object' && value !== null
+}
+
+function isMetadataSelection(value: unknown): value is MetadataSelection {
+  if (!isObject(value) || !('status' in value)) return false
+
+  switch (value.status) {
+    case 'resolved':
+    case 'not-found':
+    case 'forbidden':
+    case 'unauthorized':
+    case 'redirect':
+    case 'error':
+      return true
+    default:
+      return false
+  }
+}
+
+function createUserSelectedMetadataBranch(
+  result: SelectedMetadata | MetadataSelection,
+  fallback: SelectedMetadataBranch,
+  definitionDepth: number
+): SelectedMetadataBranch {
+  let outcome: MetadataBranchOutcome
+  if (isMetadataSelection(result)) {
+    outcome =
+      result.status === 'resolved'
+        ? {
+            status: 'resolved',
+            value: result.value,
+            warnings: new Set<string>(),
+          }
+        : {
+            status: result.status,
+            reason: result.reason,
+          }
+  } else {
+    outcome = {
+      status: 'resolved',
+      value: result,
+      warnings: new Set<string>(),
+    }
+  }
+
+  return {
+    outcome: Promise.resolve(outcome),
+    keyPath: fallback.keyPath,
+    definitionDepth,
+    isBuiltinFallback: false,
+  }
+}
+
+function selectMetadataBranchWithUserlandSelector(
+  selector: MetadataSelector,
+  branches: MetadataBranchAtFork[],
+  fallback: Promise<SelectedMetadataBranch>,
+  definitionDepth: number,
+  outletScope: MetadataOutletScope,
+  outlets: Map<LoaderTree, Promise<null>>
+): Promise<SelectedMetadataBranch> {
+  const handles: Record<string, MetadataSelectionHandle> = {}
+  // Preserve branch identity when userland returns a provided handle, its
+  // resolved outcome, or the SelectedMetadata value from that outcome.
+  const branchByHandle = new WeakMap<object, Promise<SelectedMetadataBranch>>()
+  const branchByResult = new WeakMap<object, SelectedMetadataBranch>()
+
+  for (const { key, branch } of branches) {
+    const pendingBranch = Promise.resolve(branch.metadata)
+    const handle = pendingBranch.then(async (selectedBranch) => {
+      const result = createMetadataSelection(await selectedBranch.outcome)
+      branchByResult.set(result, selectedBranch)
+      if (result.status === 'resolved' && isObject(result.value)) {
+        branchByResult.set(result.value, selectedBranch)
+      }
+      return result
+    })
+    handles[key] = handle
+    branchByHandle.set(handle, pendingBranch)
+  }
+
+  let result: MetadataSelectorResult
+  try {
+    result = selector(handles)
+  } catch (reason) {
+    result = Promise.reject(reason)
+  }
+
+  if (isObject(result)) {
+    const selectedBranch = branchByHandle.get(result)
+    if (selectedBranch) return selectedBranch
+  }
+
+  const normalized = Promise.resolve(result).then(async (resolvedResult) => {
+    if (!isObject(resolvedResult)) {
+      throw new InvariantError(
+        'Expected unstable_selectMetadata to return a metadata handle, selection, or SelectedMetadata object'
+      )
+    }
+
+    const selectedBranch = branchByResult.get(resolvedResult)
+    if (selectedBranch) return selectedBranch
+
+    return createUserSelectedMetadataBranch(
+      resolvedResult,
+      await fallback,
+      definitionDepth
+    )
+  })
+
+  const selectorOutlet = normalized.then(() => null)
+  // A selector is associated with the fork rather than one slot. Add its
+  // failure to every descendant outlet so whichever slots render can replay
+  // it through their normal error or navigation handling.
+  attachOutletPromise(outletScope, selectorOutlet, outlets)
+
+  return normalized.catch(async (reason) => {
+    const fallbackBranch = await fallback
+    return {
+      outcome: Promise.resolve(createRejectedOutcome(reason)),
+      keyPath: fallbackBranch.keyPath,
+      definitionDepth,
+      isBuiltinFallback: false,
+    }
+  })
+}
+
+function createViewportSelection(
+  outcome: ViewportBranchOutcome
+): ViewportSelection {
+  if (outcome.status === 'resolved') {
+    return {
+      status: 'resolved',
+      value: outcome.value,
+    }
+  }
+  return {
+    status: outcome.status,
+    reason: outcome.reason,
+  }
+}
+
+function isViewportSelection(value: unknown): value is ViewportSelection {
+  if (!isObject(value) || !('status' in value)) return false
+
+  switch (value.status) {
+    case 'resolved':
+    case 'not-found':
+    case 'forbidden':
+    case 'unauthorized':
+    case 'redirect':
+    case 'error':
+      return true
+    default:
+      return false
+  }
+}
+
+function createUserSelectedViewportBranch(
+  result: ResolvedViewport | ViewportSelection,
+  fallback: SelectedViewportBranch,
+  definitionDepth: number
+): SelectedViewportBranch {
+  let outcome: ViewportBranchOutcome
+  if (isViewportSelection(result)) {
+    outcome =
+      result.status === 'resolved'
+        ? {
+            status: 'resolved',
+            value: result.value,
+          }
+        : {
+            status: result.status,
+            reason: result.reason,
+          }
+  } else {
+    outcome = {
+      status: 'resolved',
+      value: result,
+    }
+  }
+
+  return {
+    outcome: Promise.resolve(outcome),
+    keyPath: fallback.keyPath,
+    definitionDepth,
+    isBuiltinFallback: false,
+  }
+}
+
+function selectViewportBranchWithUserlandSelector(
+  selector: ViewportSelector,
+  branches: MetadataBranchAtFork[],
+  fallback: Promise<SelectedViewportBranch>,
+  definitionDepth: number,
+  outletScope: MetadataOutletScope,
+  outlets: Map<LoaderTree, Promise<null>>
+): Promise<SelectedViewportBranch> {
+  const handles: Record<string, ViewportSelectionHandle> = {}
+  // Preserve branch identity when userland returns a provided handle, its
+  // resolved outcome, or the ResolvedViewport value from that outcome.
+  const branchByHandle = new WeakMap<object, Promise<SelectedViewportBranch>>()
+  const branchByResult = new WeakMap<object, SelectedViewportBranch>()
+
+  for (const { key, branch } of branches) {
+    const pendingBranch = Promise.resolve(branch.viewport)
+    const handle = pendingBranch.then(async (selectedBranch) => {
+      const result = createViewportSelection(await selectedBranch.outcome)
+      branchByResult.set(result, selectedBranch)
+      if (result.status === 'resolved' && isObject(result.value)) {
+        branchByResult.set(result.value, selectedBranch)
+      }
+      return result
+    })
+    handles[key] = handle
+    branchByHandle.set(handle, pendingBranch)
+  }
+
+  let result: ViewportSelectorResult
+  try {
+    result = selector(handles)
+  } catch (reason) {
+    result = Promise.reject(reason)
+  }
+
+  if (isObject(result)) {
+    const selectedBranch = branchByHandle.get(result)
+    if (selectedBranch) return selectedBranch
+  }
+
+  const normalized = Promise.resolve(result).then(async (resolvedResult) => {
+    if (!isObject(resolvedResult)) {
+      throw new InvariantError(
+        'Expected unstable_selectViewport to return a viewport handle, selection, or ResolvedViewport object'
+      )
+    }
+
+    const selectedBranch = branchByResult.get(resolvedResult)
+    if (selectedBranch) return selectedBranch
+
+    return createUserSelectedViewportBranch(
+      resolvedResult,
+      await fallback,
+      definitionDepth
+    )
+  })
+
+  const selectorOutlet = normalized.then(() => null)
+  // A selector is associated with the fork rather than one slot. Add its
+  // failure to every descendant outlet so whichever slots render can replay
+  // it through their normal error or navigation handling.
+  attachOutletPromise(outletScope, selectorOutlet, outlets)
+
+  return normalized.catch(async (reason) => {
+    const fallbackBranch = await fallback
+    return {
+      outcome: Promise.resolve(createRejectedOutcome(reason)),
+      keyPath: fallbackBranch.keyPath,
+      definitionDepth,
+      isBuiltinFallback: false,
+    }
+  })
+}
+
 async function walkMetadataTree(
   context: MetadataTreeContext,
   state: MetadataTreeState
@@ -730,6 +1161,11 @@ async function walkMetadataTree(
     errorConvention: context.errorConvention,
     resolutionTarget: context.resolutionTarget,
   })
+  // The closest selector above a fork wins. Once a fork is reached it is
+  // consumed, and each branch starts looking for the selector for its next
+  // nested fork.
+  const metadataSelector = layer.metadataSelector || state.metadataSelector
+  const viewportSelector = layer.viewportSelector || state.viewportSelector
   let definitionDepth = hasHeadDefinition(layer) ? depth : state.definitionDepth
 
   // Invoke each active generator as soon as this layer is discovered. Its
@@ -813,12 +1249,25 @@ async function walkMetadataTree(
       state.tree,
       createOutletPromise(metadataOutcome, viewportOutcome)
     )
-    return {
-      metadata: metadataOutcome,
-      viewport: viewportOutcome,
+    const branchProperties = {
       keyPath: state.keyPath,
       definitionDepth,
       isBuiltinFallback: isBuiltinFallback(state.tree),
+    }
+    return {
+      metadata: {
+        outcome: metadataOutcome,
+        ...branchProperties,
+      },
+      viewport: {
+        outcome: viewportOutcome,
+        ...branchProperties,
+      },
+      outletScope: {
+        tree: state.tree,
+        branches: null,
+      },
+      ...branchProperties,
     }
   }
 
@@ -848,6 +1297,8 @@ async function walkMetadataTree(
           cloneAtFork && shouldResolveViewport
         ),
         errorLayer,
+        metadataSelector: cloneAtFork ? null : metadataSelector,
+        viewportSelector: cloneAtFork ? null : viewportSelector,
         definitionDepth,
         keyPath: childKeyPath,
       }),
@@ -862,7 +1313,54 @@ async function walkMetadataTree(
     })
   }
 
-  return selectDefaultMetadataBranch(childBranches, depth)
+  if (!cloneAtFork) {
+    return childBranches[0].branch
+  }
+
+  const outletBranches: MetadataOutletScope[] = []
+  for (const { branch } of childBranches) {
+    outletBranches.push(branch.outletScope)
+  }
+  const outletScope: MetadataOutletScope = {
+    tree: null,
+    branches: outletBranches,
+  }
+
+  const selectedBranch = selectDefaultMetadataBranch(childBranches, depth)
+  let selectedMetadata = selectDefaultResolvedMetadataBranch(
+    childBranches,
+    depth
+  )
+  let selectedViewport = selectDefaultResolvedViewportBranch(
+    childBranches,
+    depth
+  )
+  if (metadataSelector && cloneAtFork && shouldResolveMetadata) {
+    selectedMetadata = selectMetadataBranchWithUserlandSelector(
+      metadataSelector,
+      childBranches,
+      Promise.resolve(selectedMetadata),
+      depth,
+      outletScope,
+      context.outlets
+    )
+  }
+  if (viewportSelector && cloneAtFork && shouldResolveViewport) {
+    selectedViewport = selectViewportBranchWithUserlandSelector(
+      viewportSelector,
+      childBranches,
+      Promise.resolve(selectedViewport),
+      depth,
+      outletScope,
+      context.outlets
+    )
+  }
+  return {
+    ...selectedBranch,
+    outletScope,
+    metadata: selectedMetadata,
+    viewport: selectedViewport,
+  }
 }
 
 async function resolveMetadataTree(
@@ -903,12 +1401,20 @@ async function resolveMetadataTree(
         viewport: createDefaultViewport(),
       }),
       errorLayer: null,
+      metadataSelector: null,
+      viewportSelector: null,
       definitionDepth: -1,
       keyPath: [],
     }
   )
 
-  const selected = selectedBranch.metadata.then((outcome) => {
+  const selectedMetadataBranch = isPendingSelection(selectedBranch.metadata)
+    ? await selectedBranch.metadata
+    : selectedBranch.metadata
+  const selectedViewportBranch = isPendingSelection(selectedBranch.viewport)
+    ? await selectedBranch.viewport
+    : selectedBranch.viewport
+  const selected = selectedMetadataBranch.outcome.then((outcome) => {
     if (outcome.status === 'resolved') {
       for (const warning of outcome.warnings) {
         Log.warn(warning)
@@ -918,9 +1424,10 @@ async function resolveMetadataTree(
   })
 
   return {
-    selectedKeyPath: selectedBranch.keyPath,
+    selectedMetadataKeyPath: selectedMetadataBranch.keyPath,
+    selectedViewportKeyPath: selectedViewportBranch.keyPath,
     selectedMetadata: selected,
-    selectedViewport: selectedBranch.viewport,
+    selectedViewport: selectedViewportBranch.outcome,
     outlets,
   }
 }

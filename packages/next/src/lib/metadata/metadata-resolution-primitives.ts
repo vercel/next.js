@@ -4,6 +4,7 @@ import type {
   ResolvedViewport,
   ResolvingMetadata,
   ResolvingViewport,
+  SelectedMetadata,
   Viewport,
   WithStringifiedURLs,
 } from './types/metadata-interface'
@@ -69,31 +70,7 @@ export type MetadataItems = Array<
 
 export type ViewportItems = Array<Viewport | ViewportResolver | null>
 
-type WithSelectedTitle<T> = T extends { title: AbsoluteTemplateString }
-  ? Omit<T, 'title'> & { title: string }
-  : T
-
-/**
- * Metadata that has finished route-level resolution and post-processing. It
- * contains only values that can be turned into metadata elements; it is never
- * used as the parent of another metadata resolver.
- */
-export type SelectedMetadata = Omit<
-  ResolvedMetadata,
-  | 'metadataBase'
-  | 'title'
-  | 'openGraph'
-  | 'twitter'
-  | 'themeColor'
-  | 'colorScheme'
-  | 'viewport'
-> & {
-  title: string | null
-  openGraph: WithSelectedTitle<
-    NonNullable<ResolvedMetadata['openGraph']>
-  > | null
-  twitter: WithSelectedTitle<NonNullable<ResolvedMetadata['twitter']>> | null
-}
+export type { SelectedMetadata } from './types/metadata-interface'
 
 export type TitleTemplates = {
   title: string | null
