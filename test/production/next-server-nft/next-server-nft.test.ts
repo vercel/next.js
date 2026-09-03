@@ -412,6 +412,40 @@ async function readNormalizedNFT(next, name) {
       })
     })
 
+    describe('with output:standalone and images.unoptimized', () => {
+      const { next, skipped } = nextTestSetup({
+        files: __dirname,
+        dependencies: {
+          typescript: '5.9.2',
+        },
+        nextConfig: {
+          output: 'standalone',
+          images: {
+            unoptimized: true,
+          },
+        },
+      })
+
+      if (skipped) {
+        return
+      }
+
+      it('should not trace sharp in next-server.js.nft.json', async () => {
+        const trace = await readNormalizedNFT(
+          next,
+          '.next/next-server.js.nft.json'
+        )
+
+        expect(
+          trace.filter(
+            (file: string) =>
+              file.includes('/node_modules/sharp/') ||
+              file.includes('/node_modules/@img/')
+          )
+        ).toEqual([])
+      })
+    })
+
     describe('default mode', () => {
       const { next, skipped } = nextTestSetup({
         files: __dirname,
