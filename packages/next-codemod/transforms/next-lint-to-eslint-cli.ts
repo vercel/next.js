@@ -907,6 +907,9 @@ function updatePackageJsonScripts(packageJsonContent: string): {
 
               if (token === '--strict') {
                 eslintArgs.push('--max-warnings', '0')
+              } else if (token === '--fix' || token === '--fix-dry-run') {
+                // Boolean flags: do not consume the next token as a value.
+                eslintArgs.push(token)
               } else if (token === '--dir' && i + 1 < argTokens.length) {
                 paths.push(argTokens[++i])
               } else if (token === '--file' && i + 1 < argTokens.length) {
