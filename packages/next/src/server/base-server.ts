@@ -1039,7 +1039,7 @@ export default abstract class Server<
       // This should be done before any normalization of the pathname happens as
       // it captures the initial URL.
       this.attachRequestMeta(req, parsedUrl)
-
+      addRequestMeta(req, 'basePath', this.nextConfig.basePath || '')
       let finished = await this.handleRSCRequest(req, res, parsedUrl)
       if (finished) return
 
