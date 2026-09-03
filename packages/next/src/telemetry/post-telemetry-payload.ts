@@ -16,8 +16,16 @@ interface Payload {
 }
 
 export function postNextTelemetryPayload(payload: Payload, signal?: any) {
-  if (!signal && 'timeout' in AbortSignal) {
-    signal = AbortSignal.timeout(5000)
+  // The built-in timeout must always bound the wait, even when the caller
+  // provides its own cancellation signal (e.g. `next build`). Otherwise a
+  // stalled telemetry endpoint can delay the process far beyond the timeout.
+  if ('timeout' in AbortSignal) {
+    const timeoutSignal = AbortSignal.timeout(5000)
+    if (signal && 'any' in AbortSignal) {
+      signal = AbortSignal.any([signal, timeoutSignal])
+    } else if (!signal) {
+      signal = timeoutSignal
+    }
   }
   return (
     retry(
