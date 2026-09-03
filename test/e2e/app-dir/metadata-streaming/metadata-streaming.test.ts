@@ -196,5 +196,29 @@ describe('app-dir - metadata-streaming', () => {
       expect($('title').length).toBe(1)
       expect($('head title').text()).toBe('partial static page')
     })
+
+    it("should still render blocking metadata for Meta's 2024 crawlers", async () => {
+      // Meta's current crawlers alongside the legacy facebookexternalhit.
+      // None of them execute JavaScript, so streamed metadata (tags after
+      // </head>) is invisible to them and link previews render blank.
+      // x-ref: https://developers.facebook.com/docs/sharing/webmasters/web-crawlers
+      const userAgents = [
+        'meta-externalagent/1.1 (+https://developers.facebook.com/docs/sharing/webmasters/crawler)',
+        'meta-externalfetcher/1.1',
+      ]
+      for (const userAgent of userAgents) {
+        const $ = await next.render$(
+          '/static/partial',
+          {},
+          {
+            headers: {
+              'user-agent': userAgent,
+            },
+          }
+        )
+        expect($('title').length).toBe(1)
+        expect($('head title').text()).toBe('partial static page')
+      }
+    })
   })
 })
