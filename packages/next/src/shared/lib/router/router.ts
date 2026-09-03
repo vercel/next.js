@@ -171,6 +171,34 @@ function resolveDynamicRoute(pathname: string, pages: string[]) {
   return removeTrailingSlash(pathname)
 }
 
+/**
+ * Key under which `prefetch()` stores the `{ __appRouter: true }` marker in
+ * `router.components` when the client router filter matches an `as` path, and
+ * under which `change()` looks it up again.
+ *
+ * The filter is evaluated against the `as` path, so the marker has to be keyed
+ * by the `as` pathname as well. `href` and `as` can differ (e.g. `href` is the
+ * current route with an extra query param and `as` is a different URL), and
+ * keying the marker by the `href` pathname would replace the cached route info
+ * of a pages route the filter never matched.
+ *
+ * Returns `null` for non-local URLs (e.g. `mailto:`), which can never be an
+ * App Router path.
+ */
+function getAppRouterMarkerKey(router: NextRouter, as: string): string | null {
+  if (!isLocalURL(as)) {
+    return null
+  }
+
+  let { pathname } = parseRelativeUrl(hasBasePath(as) ? removeBasePath(as) : as)
+
+  if (process.env.__NEXT_I18N_SUPPORT) {
+    pathname = normalizeLocalePath(pathname, router.locales).pathname
+  }
+
+  return removeTrailingSlash(pathname)
+}
+
 function getMiddlewareData<T extends FetchDataOutput>(
   source: string,
   response: Response,
@@ -1446,9 +1474,13 @@ export default class Router implements BaseRouter {
     let route = removeTrailingSlash(pathname)
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
 
-    // if we detected the path as app route during prefetching
+    // if we detected the `as` path as app route during prefetching
     // trigger hard navigation
-    if ((this.components[pathname] as any)?.__appRouter) {
+    const appRouterMarkerKey = getAppRouterMarkerKey(this, cleanedAs)
+    if (
+      appRouterMarkerKey !== null &&
+      (this.components[appRouterMarkerKey] as any)?.__appRouter
+    ) {
       handleHardNavigation({ url: as, router: this })
       return new Promise(() => {})
     }
@@ -2073,6 +2105,15 @@ export default class Router implements BaseRouter {
 
     try {
       let existingInfo: PrivateRouteInfo | undefined = this.components[route]
+
+      // `prefetch()` stores an `__appRouter` marker in `this.components` when
+      // the client router filter matches a path. It is not route info (it has
+      // no `Component` and no `props`), so treat it as a cache miss and load
+      // the route again instead of rendering it.
+      if ((existingInfo as any)?.__appRouter) {
+        existingInfo = undefined
+      }
+
       if (routeProps.shallow && existingInfo && this.route === route) {
         return existingInfo
       }
@@ -2173,6 +2214,9 @@ export default class Router implements BaseRouter {
 
           // Check again the cache with the new destination.
           existingInfo = this.components[route]
+          if ((existingInfo as any)?.__appRouter) {
+            existingInfo = undefined
+          }
           if (
             routeProps.shallow &&
             existingInfo &&
@@ -2416,7 +2460,6 @@ export default class Router implements BaseRouter {
       return
     }
     let parsed = parseRelativeUrl(url)
-    const urlPathname = parsed.pathname
 
     let { pathname, query } = parsed
     const originalPathname = pathname
@@ -2553,8 +2596,12 @@ export default class Router implements BaseRouter {
 
     const route = removeTrailingSlash(pathname)
 
-    if (await this._bfl(asPath, resolvedAs, options.locale, true)) {
-      this.components[urlPathname] = { __appRouter: true } as any
+    const appRouterMarkerKey = getAppRouterMarkerKey(this, asPath)
+    if (
+      appRouterMarkerKey !== null &&
+      (await this._bfl(asPath, resolvedAs, options.locale, true))
+    ) {
+      this.components[appRouterMarkerKey] = { __appRouter: true } as any
     }
 
     await Promise.all([

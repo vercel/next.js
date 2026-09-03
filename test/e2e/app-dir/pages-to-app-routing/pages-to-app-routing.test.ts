@@ -1,5 +1,5 @@
 import { join } from 'path'
-import { nextTestSetup, type NextInstance } from 'e2e-utils'
+import { nextTestSetup, type NextInstance, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 // In dev the first request to a not-yet-registered dynamic route can return a
@@ -264,4 +264,115 @@ describe('pages-to-app-routing with a pages optional catch-all owning the root',
       expect(didHardNavigateToRoot).toBe(false)
     }
   )
+})
+
+// While prefetching a link, the Pages Router checks the link's `as` path
+// against the client router filter and, on a match, records
+// `{ __appRouter: true }` in `router.components` so that clicking the link
+// hard-navigates right away. That marker has to be keyed by the `as` pathname
+// the filter was checked against. `href` and `as` differ for "route as modal"
+// links, where `href` stays on the current pages route and `as` is a
+// different URL: keyed by `href`, the marker replaced the cached route info of
+// the current pages route, so the next shallow navigation hard-navigated
+// (static route) or rendered the page without its props (dynamic route), and
+// every navigation through the dynamic route pattern hard-navigated.
+describe('pages-to-app-routing with a prefetched link whose `as` is an app route', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: join(__dirname, 'fixtures', 'prefetch-marker'),
+  })
+
+  it('should not render an app router marker as route info on a shallow navigation', async () => {
+    const browser = await next.browser('/blog/first')
+    expect(await browser.elementByCss('#page-title').text()).toBe(
+      'Pages Blog: first'
+    )
+
+    // Plant the marker `prefetch()` writes under the current route directly
+    // so this does not depend on the client router filter (and on prefetching
+    // being enabled, which it is not in dev).
+    await browser.eval(
+      "window.next.router.components['/blog/[slug]'] = { __appRouter: true }"
+    )
+    await browser.eval(
+      "window.next.router.push('/blog/first?tab=b', undefined, { shallow: true })"
+    )
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#tab').text()).toBe('b')
+    })
+    expect(await browser.elementByCss('#page-title').text()).toBe(
+      'Pages Blog: first'
+    )
+  })
+
+  // Prefetching is a no-op in development, so the marker is only ever written
+  // in production.
+  ;(isNextDev ? describe.skip : describe)('in production', () => {
+    async function waitForPrefetchedAppRoute(browser: Playwright) {
+      await browser.eval('window.beforeNav = 1')
+      await retry(async () => {
+        expect(
+          await browser.eval(
+            'Object.values(window.next.router.components).some((c) => c && c.__appRouter)'
+          )
+        ).toBe(true)
+      })
+    }
+
+    it('should hard-navigate to the app route when the link is clicked', async () => {
+      const browser = await next.browser('/')
+      await waitForPrefetchedAppRoute(browser)
+
+      await browser.elementByCss('#to-dashboard-link').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('#page-title').text()).toBe(
+          'App Dashboard'
+        )
+      })
+      expect(await browser.eval('window.beforeNav')).toBeUndefined()
+    })
+
+    it('should keep a shallow navigation on the static pages route client-side', async () => {
+      const browser = await next.browser('/')
+      await waitForPrefetchedAppRoute(browser)
+
+      await browser.elementByCss('#tab-b-link').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('#tab').text()).toBe('b')
+      })
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    })
+
+    it('should keep a shallow navigation on the dynamic pages route client-side', async () => {
+      const browser = await next.browser('/blog/first')
+      await waitForPrefetchedAppRoute(browser)
+
+      await browser.elementByCss('#tab-b-link').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('#tab').text()).toBe('b')
+      })
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+      // A shallow navigation keeps the page's props.
+      expect(await browser.elementByCss('#page-title').text()).toBe(
+        'Pages Blog: first'
+      )
+    })
+
+    it('should keep a navigation within the dynamic pages route client-side', async () => {
+      const browser = await next.browser('/blog/first')
+      await waitForPrefetchedAppRoute(browser)
+
+      await browser.elementByCss('#to-second-link').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('#page-title').text()).toBe(
+          'Pages Blog: second'
+        )
+      })
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    })
+  })
 })
