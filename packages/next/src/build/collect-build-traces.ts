@@ -584,12 +584,22 @@ export async function collectBuildTraces({
       ].map(async ([entryName]) => {
         const isApp = entryName.startsWith('app/')
         const isPages = entryName.startsWith('pages/')
+        // `instrumentation` and (Node-runtime) `middleware` are registered
+        // as top-level entries whose webpack entry name is the bare string
+        // (no `app/` or `pages/` prefix). Normalize them to `/`-prefixed
+        // route keys so users can target them via `outputFileTracingIncludes`
+        // with the same convention they use for app and pages routes.
+        const isTopLevelEntry =
+          entryName === 'instrumentation' || entryName === 'middleware'
         let route = entryName
         if (isApp) {
           route = normalizeAppPath(entryName)
         }
         if (isPages) {
           route = normalizePagePath(entryName)
+        }
+        if (isTopLevelEntry) {
+          route = `/${entryName}`
         }
 
         if (staticPages.includes(route)) {
