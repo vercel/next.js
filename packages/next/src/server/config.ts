@@ -1168,15 +1168,17 @@ function assignDefaultsAndValidate(
     }
   }
 
-  if (result?.turbopack?.additionalRoots) {
-    result.turbopack.additionalRoots = Object.fromEntries(
-      Object.entries(result.turbopack.additionalRoots).map(([key, root]) => [
-        key,
-        {
-          ...root,
-          path: isAbsolute(root.path) ? root.path : resolve(root.path),
-        },
-      ])
+  if (result?.experimental?.turbopackAdditionalRoots) {
+    result.experimental.turbopackAdditionalRoots = Object.fromEntries(
+      Object.entries(result.experimental.turbopackAdditionalRoots).map(
+        ([key, root]) => [
+          key,
+          {
+            ...root,
+            path: isAbsolute(root.path) ? root.path : resolve(root.path),
+          },
+        ]
+      )
     )
   }
 

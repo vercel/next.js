@@ -310,12 +310,12 @@ describe('loadConfig', () => {
     })
   })
 
-  describe('turbopack.additionalRoots', () => {
+  describe('experimental.turbopackAdditionalRoots', () => {
     it('resolves relative paths and preserves property order', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
-          turbopack: {
-            additionalRoots: {
+          experimental: {
+            turbopackAdditionalRoots: {
               second: { path: './second', ignoreIfMissing: true },
               first: { path: '../first' },
             },
@@ -323,7 +323,9 @@ describe('loadConfig', () => {
         },
       })
 
-      expect(Object.entries(result.turbopack?.additionalRoots ?? {})).toEqual([
+      expect(
+        Object.entries(result.experimental.turbopackAdditionalRoots ?? {})
+      ).toEqual([
         ['second', { path: resolve('./second'), ignoreIfMissing: true }],
         ['first', { path: resolve('../first') }],
       ])

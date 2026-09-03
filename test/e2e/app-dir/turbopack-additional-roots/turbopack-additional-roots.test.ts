@@ -9,8 +9,8 @@ import { retry } from 'next-test-utils'
       files: __dirname,
       subDir: 'project',
       nextConfig: {
-        turbopack: {
-          additionalRoots: {
+        experimental: {
+          turbopackAdditionalRoots: {
             linkedPackages: { path: '../additional-root' },
             missingOptional: {
               path: './missing-optional-root',

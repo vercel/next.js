@@ -655,7 +655,7 @@ function bindingToApi(
     options: ProjectOptions
   ): Promise<NapiProjectOptions> {
     const additionalRoots = Object.entries(
-      options.nextConfig.turbopack?.additionalRoots ?? {}
+      options.nextConfig.experimental.turbopackAdditionalRoots ?? {}
     ).map(([key, root]) => ({ key, ...root }))
     return {
       ...options,

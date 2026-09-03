@@ -165,15 +165,6 @@ const zTurbopackRuleConfigCollection: zod.ZodType<TurbopackRuleConfigCollection>
   ])
 
 const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
-  additionalRoots: z
-    .record(
-      z.string(),
-      z.strictObject({
-        path: z.string(),
-        ignoreIfMissing: z.boolean().optional(),
-      })
-    )
-    .optional(),
   rules: z.record(z.string(), zTurbopackRuleConfigCollection).optional(),
   resolveAlias: z
     .record(
@@ -201,6 +192,15 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
+  turbopackAdditionalRoots: z
+    .record(
+      z.string(),
+      z.strictObject({
+        path: z.string(),
+        ignoreIfMissing: z.boolean().optional(),
+      })
+    )
+    .optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
