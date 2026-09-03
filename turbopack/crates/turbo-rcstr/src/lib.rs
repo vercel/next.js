@@ -36,7 +36,7 @@ use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 use crate::{
     dynamic::{
         DynamicPrehashedString, deref_dynamic, deref_static, hash_bytes, new_atom,
-        new_atom_from_prehashed, new_static_atom,
+        new_atom_from_prehashed, new_owned_atom, new_static_atom,
     },
     tagged_value::{MAX_INLINE_LEN, TaggedValue},
 };
@@ -228,7 +228,7 @@ impl From<BytesStr> for RcStr {
 impl From<Arc<String>> for RcStr {
     fn from(s: Arc<String>) -> Self {
         match Arc::try_unwrap(s) {
-            Ok(v) => new_atom(Cow::Owned(v)),
+            Ok(v) => RcStr::from(v),
             Err(arc) => new_atom(Cow::Borrowed(&**arc)),
         }
     }
@@ -236,7 +236,11 @@ impl From<Arc<String>> for RcStr {
 
 impl From<String> for RcStr {
     fn from(s: String) -> Self {
-        new_atom(Cow::Owned(s))
+        if s.len() == s.capacity() {
+            new_owned_atom(s)
+        } else {
+            new_atom(Cow::Owned(s))
+        }
     }
 }
 
@@ -248,7 +252,10 @@ impl From<&'_ str> for RcStr {
 
 impl From<Cow<'_, str>> for RcStr {
     fn from(s: Cow<str>) -> Self {
-        new_atom(s)
+        match s {
+            Cow::Borrowed(s) => new_atom(Cow::Borrowed(s)),
+            Cow::Owned(s) => RcStr::from(s),
+        }
     }
 }
 
@@ -739,6 +746,33 @@ mod tests {
 
         let _ = str.clone().into_owned();
         assert_eq!(refcount(&str), 1);
+    }
+
+    #[test]
+    fn test_from_owned_reuses_allocation() {
+        let text = String::from(
+            String::from("this owned string is too long to be stored inline").into_boxed_str(),
+        );
+        assert_eq!(text.len(), text.capacity());
+        let ptr = text.as_ptr();
+
+        let rcstr = RcStr::from(text);
+        assert_eq!(rcstr.as_ptr(), ptr);
+
+        let text = rcstr.into_owned();
+        assert_eq!(text.as_ptr(), ptr);
+    }
+
+    #[test]
+    fn test_from_owned_with_spare_capacity_copies() {
+        let mut text = String::with_capacity(128);
+        text.push_str("this owned string is too long to be stored inline");
+        assert!(text.len() < text.capacity());
+        let ptr = text.as_ptr();
+
+        let rcstr = RcStr::from(text);
+        assert_ne!(rcstr.as_ptr(), ptr);
+        assert_eq!(rcstr, "this owned string is too long to be stored inline");
     }
 
     #[test]

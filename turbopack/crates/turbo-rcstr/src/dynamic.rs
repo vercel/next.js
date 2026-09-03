@@ -63,9 +63,27 @@ pub(crate) fn new_atom<T: AsRef<str> + Into<String>>(text: T) -> RcStr {
     let hash = hash_bytes(text.as_bytes());
 
     let prehashed = DynamicPrehashedString {
-        // NOTE: This will capture as a Box<str> which will essentially
-        // `shrink_to_fit` the bytes.
         value: text.into(),
+        hash,
+    };
+    new_atom_from_prehashed(prehashed)
+}
+
+pub(crate) fn new_owned_atom(text: String) -> RcStr {
+    if is_atom_inlineable(&text) {
+        let len = text.len();
+        // INLINE_TAG ensures this is never zero
+        let tag = INLINE_TAG_INIT | ((len as u8) << LEN_OFFSET);
+        let mut unsafe_data = TaggedValue::new_tag(tag);
+        unsafe {
+            unsafe_data.data_mut()[..len].copy_from_slice(text.as_bytes());
+        }
+        return RcStr { unsafe_data };
+    }
+
+    let hash = hash_bytes(text.as_bytes());
+    let prehashed = DynamicPrehashedString {
+        value: text.into_boxed_str(),
         hash,
     };
     new_atom_from_prehashed(prehashed)

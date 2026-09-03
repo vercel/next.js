@@ -46,6 +46,13 @@ fn bench_construct(c: &mut Criterion) {
     g.bench_with_input("from/large", "large", |f, _| {
         f.iter(|| RcStr::from("this is a long string that will take time to copy"));
     });
+    g.bench_function("from/owned-large", |f| {
+        f.iter_batched(
+            || String::from("this is a long string that will take time to copy"),
+            RcStr::from,
+            BatchSize::SmallInput,
+        );
+    });
 }
 criterion_group!(
   name = benches;
