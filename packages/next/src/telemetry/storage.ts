@@ -175,33 +175,16 @@ export class Telemetry {
     _events: TelemetryEvent | TelemetryEvent[],
     deferred?: boolean
   ): Promise<RecordObject> => {
-    const prom = (
-      deferred
-        ? // if we know we are going to immediately call
-          // flushDetached we can skip starting the initial
-          // submitRecord which will then be cancelled
-          new Promise((resolve) =>
-            resolve({
-              isFulfilled: true,
-              isRejected: false,
-              value: _events,
-            })
-          )
-        : this.submitRecord(_events)
-    )
-      .then((value) => ({
-        isFulfilled: true,
-        isRejected: false,
-        value,
-      }))
-      .catch((reason) => ({
-        isFulfilled: false,
-        isRejected: true,
-        reason,
-      }))
-      // Acts as `Promise#finally` because `catch` transforms the error
+    const submitted = deferred
+      ? new Promise((resolve) =>
+          resolve({ isFulfilled: true, isRejected: false, value: _events })
+        )
+      : this.submitRecord(_events)
+
+    const prom = submitted
+      .then((value) => ({ isFulfilled: true, isRejected: false, value }))
+      .catch((reason) => ({ isFulfilled: false, isRejected: true, reason }))
       .then((res) => {
-        // Clean up the event to prevent unbounded `Set` growth
         if (!deferred) {
           this.queue.delete(prom)
         }
@@ -209,8 +192,7 @@ export class Telemetry {
       })
 
     ;(prom as any)._events = Array.isArray(_events) ? _events : [_events]
-    ;(prom as any)._controller = (prom as any)._controller
-    // Track this `Promise` so we can flush pending events
+    ;(prom as any)._controller = (submitted as any)._controller // ← read from submitted, not prom
     this.queue.add(prom)
 
     return prom
