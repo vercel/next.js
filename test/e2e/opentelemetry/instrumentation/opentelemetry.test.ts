@@ -94,6 +94,12 @@ function setup({
             'fixtures/use-cache-server-action/next.config.js'
           )
         ),
+        'stale-cache-handler.js': new FileRef(
+          path.join(
+            __dirname,
+            'fixtures/use-cache-server-action/stale-cache-handler.js'
+          )
+        ),
       }
     : __dirname
 
@@ -1937,6 +1943,131 @@ describe('opentelemetry use cache Server Functions', () => {
         )
       )
     ).toBe(true)
+  })
+
+  it('traces background revalidation under the invocation that scheduled it', async () => {
+    const cacheKey = `background-${Date.now()}`
+    const previousSpanIds = currentSpanIds()
+
+    const { revalidationSpan } = await retry(async () => {
+      expect(
+        await next
+          .fetch(`/api/cache?background=1&key=${cacheKey}`, { method: 'POST' })
+          .then((res) => res.status)
+      ).toBe(200)
+
+      const spans = getCollector().getSpans()
+      const schedulingSpan = spans.find(
+        (span) =>
+          !previousSpanIds.has(span.id) &&
+          span.attributes?.['next.span_type'] === 'UseCache.execute' &&
+          span.attributes?.['next.cache.name'] === 'readStaleCachedValue' &&
+          span.attributes?.['next.cache.background_refresh'] === true
+      )
+      const revalidationSpan = spans.find(
+        (span) =>
+          !previousSpanIds.has(span.id) &&
+          span.attributes?.['next.span_type'] === 'UseCache.revalidate' &&
+          span.attributes?.['next.cache.name'] === 'readStaleCachedValue'
+      )
+      const nestedSpan = spans.find(
+        (span) =>
+          span.parentId === revalidationSpan?.id &&
+          span.attributes?.['next.span_type'] === 'UseCache.execute'
+      )
+
+      expect(schedulingSpan).toEqual(
+        expect.objectContaining({
+          attributes: expect.objectContaining({
+            'next.cache.outcome': isNextDev ? 'hit' : 'stale',
+            'next.cache.handler': 'custom',
+            ...(isNextDev
+              ? {
+                  'next.cache.reason': 'dev-rewarm',
+                }
+              : {}),
+          }),
+        })
+      )
+      expect(revalidationSpan).toEqual(
+        expect.objectContaining({
+          name: 'revalidate use cache readStaleCachedValue',
+          parentId: schedulingSpan?.id,
+          traceId: schedulingSpan?.traceId,
+          attributes: expect.objectContaining({
+            'next.span_name': 'revalidate use cache readStaleCachedValue',
+            'next.span_type': 'UseCache.revalidate',
+            'next.span_category': 'application',
+            'next.cache.name': 'readStaleCachedValue',
+            ...(isNextDev
+              ? {
+                  'next.cache.file': 'app/api/cache/route.ts',
+                }
+              : {}),
+            'next.cache.kind': 'public',
+            'next.cache.handler': 'custom',
+            'next.cache.reason': isNextDev ? 'dev-rewarm' : 'stale',
+          }),
+          status: { code: 0 },
+        })
+      )
+      expect(nestedSpan).toBeDefined()
+      expect(JSON.stringify(revalidationSpan)).not.toContain(cacheKey)
+      return { revalidationSpan }
+    }, 10_000)
+
+    expect(revalidationSpan).toBeDefined()
+
+    const failingKey = `background-failure-${Date.now()}`
+    const beforePrimeSpanIds = currentSpanIds()
+    await retry(async () => {
+      expect(
+        await next
+          .fetch(`/api/cache?background=1&key=${failingKey}`, {
+            method: 'POST',
+          })
+          .then((res) => res.status)
+      ).toBe(200)
+      expect(
+        getCollector()
+          .getSpans()
+          .some(
+            (span) =>
+              !beforePrimeSpanIds.has(span.id) &&
+              span.attributes?.['next.span_type'] === 'UseCache.revalidate' &&
+              span.attributes?.['next.cache.name'] === 'readStaleCachedValue'
+          )
+      ).toBe(true)
+    }, 10_000)
+
+    const beforeFailureSpanIds = currentSpanIds()
+    await retry(async () => {
+      expect(
+        await next
+          .fetch(
+            `/api/cache?background=1&background-fail=1&key=${failingKey}`,
+            {
+              method: 'POST',
+            }
+          )
+          .then((res) => res.status)
+      ).toBe(200)
+
+      const failureSpan = getCollector()
+        .getSpans()
+        .find(
+          (span) =>
+            !beforeFailureSpanIds.has(span.id) &&
+            span.attributes?.['next.span_type'] === 'UseCache.revalidate'
+        )
+
+      expect(failureSpan).toEqual(
+        expect.objectContaining({
+          status: expect.objectContaining({ code: 2 }),
+        })
+      )
+      expect(JSON.stringify(failureSpan)).not.toContain(failingKey)
+    }, 10_000)
   })
 
   it('records use cache failures without exposing arguments', async () => {
