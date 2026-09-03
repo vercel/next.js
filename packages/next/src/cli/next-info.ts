@@ -102,8 +102,11 @@ async function printInfo() {
   let versionInfo
 
   try {
-    const registry = getRegistry()
-    const res = await fetch(`${registry}-/package/next/dist-tags`)
+    const { registry, authToken } = getRegistry()
+    const headers: HeadersInit = authToken
+      ? { Authorization: `Bearer ${authToken}` }
+      : {}
+    const res = await fetch(`${registry}-/package/next/dist-tags`, { headers })
     const tags = await res.json()
 
     versionInfo = parseVersionInfo({
