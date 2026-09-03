@@ -895,7 +895,15 @@ export function getResolveRoutes(
             if (parsedUrl.pathname !== parsedDestination.pathname) {
               res.setHeader(
                 NEXT_REWRITTEN_PATH_HEADER,
-                parsedDestination.pathname
+                // Emit the basePath-free route pathname: clients parse route
+                // params from this value, and route paths never include the
+                // basePath (middleware rewrites via web/adapter.ts already
+                // emit the basePath-free form). Only strip for internal
+                // rewrites — external destinations never had this app's
+                // basePath prepended.
+                parsedDestination.origin
+                  ? parsedDestination.pathname
+                  : removePathPrefix(parsedDestination.pathname, config.basePath)
               )
               resHeaders[NEXT_REWRITTEN_PATH_HEADER] =
                 parsedDestination.pathname
