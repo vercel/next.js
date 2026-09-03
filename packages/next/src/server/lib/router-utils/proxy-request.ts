@@ -7,6 +7,46 @@ import { stringifyQuery } from '../../server-route-utils'
 import { Duplex } from 'stream'
 import { createPromiseWithResolvers } from '../../../shared/lib/promise-with-resolvers'
 
+// RFC 9110 §7.6.1: hop-by-hop fields are meaningful only for a single
+// transport-level connection, so a proxy must not forward the fields a
+// client's Connection header nominates: an upstream honoring the token list
+// would silently strip them, and Next's own hop semantics must not be
+// influenced by the client's tokens.
+//
+// `connection` and `transfer-encoding` are left byte-identical: Node's HTTP
+// server re-reads `connection` after the handler to manage the client-facing
+// connection, and without `transfer-encoding` httpxy cannot tell the request
+// carries a streamed body — the unread body would linger on the client socket
+// and be parsed as the next request (see the rewrite-request-smuggling
+// suite). Nominated fields are deleted instead, so the tokens dangle
+// harmlessly at the upstream.
+const HOP_BY_HOP_HEADERS = new Set([
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'proxy-connection',
+  'te',
+  'trailer',
+])
+
+export function stripHopByHopRequestHeaders(req: IncomingMessage): void {
+  for (const name of HOP_BY_HOP_HEADERS) {
+    delete req.headers[name]
+  }
+
+  // Fields the Connection field nominates are hop-by-hop regardless of name.
+  const connection = req.headers.connection
+  if (typeof connection !== 'string') return
+  for (const token of connection.split(',')) {
+    const name = token.trim().toLowerCase()
+    if (!name) continue
+    // Framing tokens name connection-level semantics, not forwarded fields.
+    if (name === 'close' || name === 'keep-alive') continue
+    if (name === 'transfer-encoding') continue
+    delete req.headers[name]
+  }
+}
+
 export async function proxyRequest(
   req: IncomingMessage,
   res: ServerResponse | Duplex,
@@ -26,6 +66,8 @@ export async function proxyRequest(
   const target = new URL(url.format(parsedUrl))
   const { ProxyServer } =
     require('next/dist/compiled/httpxy') as typeof import('next/dist/compiled/httpxy')
+
+  stripHopByHopRequestHeaders(req)
 
   const proxy = new ProxyServer({
     target,
