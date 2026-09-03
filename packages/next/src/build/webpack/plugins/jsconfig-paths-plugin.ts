@@ -129,6 +129,19 @@ export function patternText({ prefix, suffix }: Pattern): string {
 }
 
 /**
+ * Resolves the candidate filesystem path for a matched tsconfig/jsconfig
+ * path substitution.
+ *
+ * When TypeScript 5.5+ resolves the `${configDir}` template variable in
+ * `compilerOptions.paths`, it stores absolute paths in `options.paths`.
+ * An absolute `curPath` must be used as-is; joining it with `baseUrl` via
+ * `path.join` produces an incorrect result on both POSIX and Windows.
+ */
+export function resolveCandidatePath(baseUrl: string, curPath: string): string {
+  return path.isAbsolute(curPath) ? curPath : path.join(baseUrl, curPath)
+}
+
+/**
  * Calls the iterator function for each entry of the array
  * until the first result or error is reached
  */
@@ -258,7 +271,10 @@ export class JsConfigPathsPlugin implements ResolvePluginPlugin {
                 // try next path candidate
                 return pathCallback()
               }
-              const candidate = path.join(resolvedBaseUrl.baseUrl, curPath)
+              const candidate = resolveCandidatePath(
+                resolvedBaseUrl.baseUrl,
+                curPath
+              )
               const obj = Object.assign({}, request, {
                 request: candidate,
               })
