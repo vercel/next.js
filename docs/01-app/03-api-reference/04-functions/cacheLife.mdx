@@ -37,6 +37,8 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
+> **Good to know:** The `dynamicIO` flag is **not** required to use `cacheLife`. In current versions of Next.js canary, `cacheComponents: true` in your `next.config` is sufficient. If you see references to `dynamicIO` in older docs or examples, they may be outdated.
+
 `cacheLife` can only be used within a cache directive scope.
 
 Add a cache directive (for example, `use cache`) at the file level or at the top of an async function or component.

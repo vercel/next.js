@@ -162,6 +162,8 @@ Client-side transitions make server-rendered apps _feel_ like client-rendered ap
 
 Next.js also handles [scrolling to the top of the page](/docs/app/api-reference/components/link#scroll) during client-side transitions. If content scrolls behind a sticky or fixed header after navigation, you can fix this with CSS [`scroll-padding-top`](/docs/app/api-reference/components/link#scroll-offset-with-sticky-headers).
 
+> **Known Limitation:** Full scroll restoration (restoring the exact scroll position when navigating back) is not fully supported in the App Router. As a workaround, you can save and restore scroll position manually using `sessionStorage` in a `useEffect` hook, or use a third-party library. This is a known issue being tracked by the Next.js team.
+
 ## What can make transitions slow?
 
 These Next.js optimizations make navigation fast and responsive. However, under certain conditions, transitions can still _feel_ slow. Here are some common causes and how to improve the user experience:
