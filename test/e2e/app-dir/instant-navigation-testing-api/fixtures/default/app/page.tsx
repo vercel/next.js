@@ -29,6 +29,15 @@ export default function HomePage() {
           </Link>
         </li>
         <li>
+          <Link
+            href="/full-prefetch-runtime-target"
+            prefetch={true}
+            id="link-to-full-prefetch-runtime"
+          >
+            Go to full prefetch runtime target
+          </Link>
+        </li>
+        <li>
           <Link href="/cookies-page" id="link-to-cookies-page">
             Go to cookies page
           </Link>
