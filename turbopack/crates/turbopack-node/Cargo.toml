@@ -56,6 +56,9 @@ napi = { workspace = true, features = ["error_anyhow"], optional = true }
 napi-derive = { workspace = true, optional = true }
 
 [dev-dependencies]
+# Resolve N-API symbols dynamically at runtime so test binaries for the
+# worker_pool feature link without libnode; tests never call into Node.
+napi-sys = { version = "2", features = ["dyn-symbols"] }
 rustc-hash = { workspace = true }
 turbo-tasks-backend = { workspace = true }
 turbo-tasks-testing = { workspace = true }
