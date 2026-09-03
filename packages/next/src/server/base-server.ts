@@ -605,6 +605,8 @@ export default abstract class Server<
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         optimisticRouting:
           this.nextConfig.experimental.optimisticRouting ?? false,
+        parallelRouteMetadata:
+          this.nextConfig.experimental.parallelRouteMetadata ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,

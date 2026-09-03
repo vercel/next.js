@@ -50,20 +50,16 @@ import type {
 
 export type StaticIcons = Pick<ResolvedIcons, 'icon' | 'apple'>
 
-export type Resolved<T> = T extends Metadata
-  ? ResolvedMetadata
-  : ResolvedViewport
-
-export type InstrumentedResolver<TData> = ((
-  parent: Promise<Resolved<TData>>
+export type InstrumentedResolver<TData, TResolved> = ((
+  parent: Promise<TResolved>
 ) => TData | Promise<TData>) & {
   $$original: (
     props: unknown,
-    parent: Promise<Resolved<TData>>
+    parent: Promise<TResolved>
   ) => TData | Promise<TData>
 }
-export type MetadataResolver = InstrumentedResolver<Metadata>
-export type ViewportResolver = InstrumentedResolver<Viewport>
+export type MetadataResolver = InstrumentedResolver<Metadata, ResolvedMetadata>
+export type ViewportResolver = InstrumentedResolver<Viewport, ResolvedViewport>
 
 export type MetadataErrorType = 'not-found' | 'forbidden' | 'unauthorized'
 
@@ -235,9 +231,12 @@ export async function mergeMetadata(
     metadataContext: MetadataContext
     buildState: BuildState
     leafSegmentStaticIcons: StaticIcons
-  }
+  },
+  cloneResolvedMetadata = true
 ): Promise<ResolvedMetadata> {
-  const newResolvedMetadata = structuredClone(resolvedMetadata)
+  const newResolvedMetadata = cloneResolvedMetadata
+    ? structuredClone(resolvedMetadata)
+    : resolvedMetadata
 
   const metadataBase = normalizeMetadataBase(
     metadata?.metadataBase !== undefined
@@ -454,14 +453,19 @@ export async function mergeMetadata(
 /**
  * Merges the given viewport with the resolved viewport. Returns a new object.
  */
-export function mergeViewport({
-  resolvedViewport,
-  viewport,
-}: {
-  resolvedViewport: ResolvedViewport
-  viewport: Viewport | null
-}): ResolvedViewport {
-  const newResolvedViewport = structuredClone(resolvedViewport)
+export function mergeViewport(
+  {
+    resolvedViewport,
+    viewport,
+  }: {
+    resolvedViewport: ResolvedViewport
+    viewport: Viewport | null
+  },
+  cloneResolvedViewport = true
+): ResolvedViewport {
+  const newResolvedViewport = cloneResolvedViewport
+    ? structuredClone(resolvedViewport)
+    : resolvedViewport
 
   if (viewport) {
     for (const key_ in viewport) {

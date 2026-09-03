@@ -734,6 +734,7 @@ async function generateDynamicRSCPayload(
       metadataContext: createMetadataContext(ctx.renderOpts),
       interpolatedParams: ctx.interpolatedParams,
       serveStreamingMetadata,
+      parallelRouteMetadata: ctx.renderOpts.experimental.parallelRouteMetadata,
     })
 
     const rscHead = createElement(
@@ -2191,6 +2192,7 @@ async function getRSCPayload(
     metadataContext: createMetadataContext(ctx.renderOpts),
     interpolatedParams: ctx.interpolatedParams,
     serveStreamingMetadata,
+    parallelRouteMetadata: ctx.renderOpts.experimental.parallelRouteMetadata,
   })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -2335,6 +2337,7 @@ async function getErrorRSCPayload(
       errorType,
       interpolatedParams: ctx.interpolatedParams,
       serveStreamingMetadata: serveStreamingMetadata,
+      parallelRouteMetadata: ctx.renderOpts.experimental.parallelRouteMetadata,
     })
     Viewport = metadataComponents.Viewport
     Metadata = metadataComponents.Metadata
