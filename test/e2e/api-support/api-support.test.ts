@@ -248,8 +248,11 @@ describe('API routes', () => {
     const response = await next.fetch('/api/blog')
     const etag = response.headers.get('etag')
 
+    // undici injects Cache-Control: no-cache into requests with
+    // conditional headers, which would defeat the etag freshness check.
     const unmodifiedResponse = await next.fetch('/api/blog', {
       headers: { 'If-None-Match': etag },
+      cache: 'force-cache',
     })
 
     expect(unmodifiedResponse.status).toBe(304)

@@ -10,6 +10,14 @@ import {
 
 const basePath = process.env.BASE_PATH ?? ''
 
+// Streams a request body with global fetch. undici accepts Node.js readable
+// streams and requires duplex: 'half' for them; the repository's global
+// RequestInit type is DOM-flavored and knows neither.
+function streamingBody(stream: Readable) {
+  // @ts-expect-error
+  return { body: stream, duplex: 'half' } as RequestInit
+}
+
 describe('app-custom-routes', () => {
   const { next, isNextDeploy, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
@@ -248,7 +256,7 @@ describe('app-custom-routes', () => {
 
         const res = await next.fetch(basePath + '/advanced/body/streaming', {
           method: 'POST',
-          body: stream,
+          ...streamingBody(stream),
         })
 
         expect(res.status).toEqual(200)
@@ -270,7 +278,7 @@ describe('app-custom-routes', () => {
 
       const res = await next.fetch(basePath + '/edge/advanced/body/streaming', {
         method: 'POST',
-        body: stream,
+        ...streamingBody(stream),
       })
 
       expect(res.status).toEqual(200)
@@ -343,7 +351,7 @@ describe('app-custom-routes', () => {
         })
         const res = await next.fetch(basePath + '/advanced/body/json', {
           method: 'POST',
-          body: stream,
+          ...streamingBody(stream),
         })
 
         expect(res.status).toEqual(200)
@@ -366,7 +374,7 @@ describe('app-custom-routes', () => {
       })
       const res = await next.fetch(basePath + '/edge/advanced/body/json', {
         method: 'POST',
-        body: stream,
+        ...streamingBody(stream),
       })
 
       expect(res.status).toEqual(200)

@@ -8,6 +8,7 @@ import {
 } from 'fs'
 import { inspect, promisify } from 'util'
 import http from 'http'
+import https from 'https'
 import path from 'path'
 
 import type cheerio from 'cheerio'
@@ -198,82 +199,84 @@ export function getFetchUrl(
   return getFullUrl(appPort, url)
 }
 
-/**
- * node-fetch compatibility options accepted by the fetch helpers in this
- * file. `agent` and `timeout` have no equivalent in the global fetch API, so
- * they are translated before the request is made. `body` additionally
- * accepts a Node.js readable stream, which node-fetch allowed.
- */
-export type RequestInitCompat = Omit<RequestInit, 'body'> & {
-  agent?: http.Agent
-  timeout?: number
-  body?: RequestInit['body'] | NodeJS.ReadableStream
-  dispatcher?: import('undici').Dispatcher
-  duplex?: 'half'
-}
-
-const dispatchers = new WeakMap<http.Agent, import('undici').Dispatcher>()
-
-// Lazily required so that importing this file does not pull undici into test
-// environments that restrict module loading (e.g. edge-runtime unit tests).
-function agentToDispatcher(agent: http.Agent): import('undici').Dispatcher {
-  let dispatcher = dispatchers.get(agent)
-  if (dispatcher === undefined) {
-    const { Agent } = require('undici') as typeof import('undici')
-    // `options` is where http.Agent stores its constructor options. Only the
-    // TLS-related ones have a meaning for undici's Agent.
-    const options = (agent as import('https').Agent).options ?? {}
-    dispatcher = new Agent({
-      connect: {
-        ca: options.ca,
-        cert: options.cert,
-        key: options.key,
-        rejectUnauthorized: options.rejectUnauthorized,
-      },
-    })
-    dispatchers.set(agent, dispatcher)
-  }
-  return dispatcher
-}
-
 export function fetchViaHTTP(
   appPort: string | number,
   pathname: string,
   query?: Record<string, any> | string | null | undefined,
-  opts?: RequestInitCompat
+  opts?: RequestInit
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
-  if (
-    opts === undefined ||
-    (opts.agent === undefined &&
-      opts.timeout === undefined &&
-      !isStreamBody(opts.body))
-  ) {
-    return fetch(getFullUrl(appPort, url), opts as RequestInit)
-  }
-  const { agent, timeout, ...init } = opts
-  if (timeout !== undefined) {
-    const timeoutSignal = AbortSignal.timeout(timeout)
-    init.signal = init.signal
-      ? AbortSignal.any([init.signal, timeoutSignal])
-      : timeoutSignal
-  }
-  if (agent !== undefined) {
-    init.dispatcher = agentToDispatcher(agent)
-  }
-  if (isStreamBody(init.body) && init.duplex === undefined) {
-    // undici requires opting into half-duplex for streaming request bodies.
-    init.duplex = 'half'
-  }
-  return fetch(getFullUrl(appPort, url), init as RequestInit)
+  return fetch(getFullUrl(appPort, url), opts)
 }
 
-function isStreamBody(body: RequestInitCompat['body'] | undefined): boolean {
-  return (
-    typeof body === 'object' &&
-    body !== null &&
-    (Symbol.asyncIterator in body || 'getReader' in body)
-  )
+/**
+ * Sends a request without any URL parsing or normalization and with full
+ * control over the Host header. Global fetch cannot be used for this: its
+ * WHATWG URL parser normalizes backslashes, dot-segments, and repeated
+ * slashes, and it derives the Host header from the URL authority. The
+ * response is returned verbatim, including a raw relative Location header.
+ */
+export function fetchViaRawHttp(
+  appPortOrUrl: string | number,
+  rawPath: string,
+  opts?: {
+    method?: string
+    headers?: Record<string, string>
+    /** Accepted for drop-in compatibility; raw requests never follow redirects. */
+    redirect?: 'manual'
+    /** Passed to the TLS connection for https URLs (e.g. self-signed servers). */
+    rejectUnauthorized?: boolean
+  }
+): Promise<Response> {
+  const baseUrl =
+    typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
+      ? new URL(appPortOrUrl)
+      : null
+  return new Promise((resolve, reject) => {
+    const req = (baseUrl?.protocol === 'https:' ? https : http).request(
+      {
+        hostname: baseUrl ? baseUrl.hostname : '127.0.0.1',
+        port: baseUrl ? baseUrl.port : appPortOrUrl,
+        path: rawPath,
+        method: opts?.method ?? 'GET',
+        headers: opts?.headers,
+        rejectUnauthorized: opts?.rejectUnauthorized,
+      },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk) => chunks.push(chunk))
+        res.on('end', () => {
+          const status = res.statusCode ?? 200
+          const headers = new Headers()
+          for (const [key, value] of Object.entries(res.headers)) {
+            for (const item of Array.isArray(value) ? value : [value]) {
+              if (item !== undefined) {
+                headers.append(key, item)
+              }
+            }
+          }
+          const body = Buffer.concat(chunks)
+          resolve(
+            new Response(status === 204 || status === 304 ? null : body, {
+              status,
+              statusText: res.statusMessage,
+              headers,
+            })
+          )
+        })
+      }
+    )
+    req.on('error', reject)
+    req.end()
+  })
+}
+
+export function renderViaRawHTTP(
+  appPortOrUrl: string | number,
+  rawPath: string,
+  opts?: Parameters<typeof fetchViaRawHttp>[2]
+) {
+  return fetchViaRawHttp(appPortOrUrl, rawPath, opts).then((res) => res.text())
 }
 
 export function expectVaryHeaderToContain(
@@ -327,7 +330,7 @@ export function renderViaHTTP(
   appPort: string | number,
   pathname: string,
   query?: Record<string, any> | string | undefined,
-  opts?: RequestInitCompat
+  opts?: RequestInit
 ) {
   return fetchViaHTTP(appPort, pathname, query, opts).then((res) => res.text())
 }
