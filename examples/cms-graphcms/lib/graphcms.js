@@ -1,29 +1,38 @@
 async function fetchAPI(query, { variables, preview } = {}) {
-  const res = await fetch(process.env.GRAPHCMS_PROJECT_API, {
+  // Validate critical environment variables
+  const apiUrl = process.env.GRAPHCMS_PROJECT_API;
+  if (!apiUrl) throw new Error("Missing GRAPHCMS_PROJECT_API environment variable");
+
+  const token = preview
+    ? process.env.GRAPHCMS_DEV_AUTH_TOKEN
+    : process.env.GRAPHCMS_PROD_AUTH_TOKEN;
+
+  if (!token) throw new Error(`Missing ${preview ? "GRAPHCMS_DEV_AUTH_TOKEN" : "GRAPHCMS_PROD_AUTH_TOKEN"} environment variable`);
+
+  // Perform API request
+  const res = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${
-        preview
-          ? process.env.GRAPHCMS_DEV_AUTH_TOKEN
-          : process.env.GRAPHCMS_PROD_AUTH_TOKEN
-      }`,
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify({
       query,
       variables,
     }),
   });
+
+  // Parse response
   const json = await res.json();
 
   if (json.errors) {
-    console.log(process.env.NEXT_EXAMPLE_CMS_GCMS_PROJECT_ID);
-    console.error(json.errors);
+    console.error("GraphCMS API errors:", json.errors);
     throw new Error("Failed to fetch API");
   }
 
   return json.data;
 }
+
 
 export async function getPreviewPostBySlug(slug) {
   const data = await fetchAPI(
