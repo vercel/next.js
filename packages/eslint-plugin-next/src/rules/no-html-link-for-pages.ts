@@ -2,6 +2,10 @@ import { defineRule } from '../utils/define-rule'
 import * as path from 'path'
 import * as fs from 'fs'
 import { getRootDirs } from '../utils/get-root-dirs'
+import {
+  getPageExtensions,
+  buildPageExtensionRegex,
+} from '../utils/page-extensions'
 
 import {
   getUrlFromPagesDirectories,
@@ -24,7 +28,10 @@ const fsExistsSyncCache = {}
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
   const cache = {}
   return (...args: any[]): T => {
-    const key = JSON.stringify(args)
+    // Stringify args, but handle RegExp specially by converting to string
+    const key = JSON.stringify(
+      args.map((arg) => (arg instanceof RegExp ? arg.toString() : arg))
+    )
     if (cache[key] === undefined) {
       cache[key] = fn(...args)
     }
@@ -74,6 +81,10 @@ export default defineRule({
 
     const rootDirs = getRootDirs(context)
 
+    // Get page extensions from config or use defaults
+    const pageExtensions = getPageExtensions(context)
+    const pageExtensionRegex = buildPageExtensionRegex(pageExtensions)
+
     const pagesDirs = (
       customPagesDirectory
         ? [customPagesDirectory]
@@ -107,8 +118,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensionRegex
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensionRegex
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
