@@ -17,7 +17,7 @@ interface PlaywrightBrowserContext {
       expires?: number
     }>
   ): Promise<void>
-  cookies(): Promise<
+  cookies(urls?: string | string[]): Promise<
     Array<{ name: string; value: string; domain: string; path: string }>
   >
 }
@@ -29,21 +29,13 @@ interface PlaywrightPage {
 
 const INSTANT_COOKIE = 'next-instant-navigation-testing'
 
-// Browser contexts that currently have an instant() scope executing. The
-// instant cookie is scoped to the browser context, so the context is the
-// natural granularity for the scope: two concurrent instant() calls on the same
-// context share one cookie and genuinely conflict, whereas calls on different
-// contexts (or different browsers) are independent and must not. Keying on the
-// context object preserves that isolation while giving a race-free nesting
-// signal.
+// Track active instant() scopes per browser context so overlapping calls in the
+// same context are rejected. Calls in separate contexts remain independent.
 //
-// We track this in-process rather than inferring nesting from the cookie's
-// presence: a locked page asynchronously re-writes the instant cookie on every
-// MPA load (see navigation-testing-lock.ts), and that write can land right
-// after a prior scope's release deletes it, resurrecting the cookie once the
-// scope has already ended. Treating such a leftover as an active scope would
-// turn a benign residue into a cascading failure across every later test that
-// shares the browser context.
+// We track this in-process rather than using cookie presence because a locked
+// MPA load can race release and recreate the cookie after the scope has ended
+// (see navigation-testing-lock.ts). Treating that stale cookie as an active
+// scope would break later tests that reuse the context.
 const contextsWithActiveScope = new WeakSet<PlaywrightBrowserContext>()
 
 /**
@@ -84,16 +76,15 @@ export async function instant<T>(
   // Resolve the cookie's scope before touching any browser state, so misuse on
   // a fresh page (no baseURL and no prior navigation) fails with the
   // descriptive error from resolveURL rather than half-entering a scope.
-  const { hostname } = new URL(resolveURL(page, options))
+  const scopeURL = resolveURL(page, options)
+  const { hostname } = new URL(scopeURL)
 
   contextsWithActiveScope.add(context)
   try {
-    // A completed prior scope on this context can leave the cookie behind (its
-    // client-side release races an in-flight captured-cookie write from a
-    // locked MPA page load; see the note above). No scope is active for this
-    // context, so a present cookie is always stale here — clear it before
-    // acquiring so a completed prior scope never blocks this one.
-    await releaseInstantCookie(context)
+    // A completed scope can leave a stale cookie behind if an MPA cookie write
+    // races release. Remove stale entries that apply to this application URL
+    // before acquiring the next scope.
+    await releaseInstantCookie(context, scopeURL)
 
     // Acquire the lock by setting the cookie via the browser context. This
     // ensures the cookie is present even on the very first navigation. The
@@ -112,7 +103,9 @@ export async function instant<T>(
     try {
       return await fn()
     } finally {
-      await step('Release Instant Lock', () => releaseInstantCookie(context))
+      await step('Release Instant Lock', () =>
+        releaseInstantCookie(context, scopeURL)
+      )
     }
   } finally {
     contextsWithActiveScope.delete(context)
@@ -120,32 +113,29 @@ export async function instant<T>(
 }
 
 /**
- * Deletes the instant cookie, leaving every other cookie untouched.
+ * Deletes instant cookie entries that apply to the application URL without
+ * disturbing other cookie entries.
  *
- * We must NOT use `context.clearCookies({ name: INSTANT_COOKIE })` here.
- * Playwright implements a filtered `clearCookies` by clearing the ENTIRE cookie
- * jar and then re-adding the cookies that don't match the filter. That briefly
- * removes the application's own cookies too. Next.js reacts to the instant
- * cookie's deletion by immediately re-rendering, and if that render's request
- * races the empty window it observes none of the app's cookies (e.g. a
- * navigated page renders as if no cookies were set).
+ * Do not use `context.clearCookies({ name: INSTANT_COOKIE })` here. Playwright
+ * implements a filtered clear by clearing the entire cookie jar and then
+ * re-adding non-matching cookies. That briefly removes the application's own
+ * cookies, so a render triggered by releasing the instant lock can observe a
+ * request with no application cookies.
  *
- * Instead we read the instant cookie's stored entries (Next.js may have updated
- * the value, e.g. from [0] to [1,null], but preserves the domain and path) and
- * re-add each with a past expiry, which deletes only those entries without
- * disturbing the rest of the jar.
+ * Instead, read the entries that apply to the application URL and expire those
+ * records individually. Next.js may update the value during capture, but it
+ * preserves the domain and path.
  *
- * A locked MPA page load can asynchronously re-write (resurrect) the cookie
- * just after we delete it: the client only stops writing once it observes the
- * deletion, an event that races the pending write. We therefore re-read and
- * re-delete until the cookie stays gone, bounded so a cookie that some other
- * actor keeps re-setting can't loop forever.
+ * A locked MPA page load can recreate the cookie after deletion if its pending
+ * write races release. Re-read and re-delete until it stays gone, with a fixed
+ * retry bound so another actor cannot keep this loop running.
  */
 async function releaseInstantCookie(
-  context: PlaywrightBrowserContext
+  context: PlaywrightBrowserContext,
+  scopeURL: string
 ): Promise<void> {
   for (let attempt = 0; attempt < 5; attempt++) {
-    const instantCookies = (await context.cookies()).filter(
+    const instantCookies = (await context.cookies(scopeURL)).filter(
       (cookie) => cookie.name === INSTANT_COOKIE
     )
     if (instantCookies.length === 0) {
