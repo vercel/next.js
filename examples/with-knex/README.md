@@ -88,4 +88,4 @@ To deploy your local project to Vercel, push it to GitHub/GitLab/Bitbucket and [
 
 Alternatively, you can deploy using our template by clicking on the Deploy button below.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-knex&project-name=with-knex&repository-name=with-knex&env=PG_URI&envDescription=Required%20to%20connect%20the%20app%20with%20Knex)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-knex&project-name=with-knex&repository-name=with-knex&env=PG_URI&envDescription=Required%20to%20connect%20the%20app%20with%20Postgres)
