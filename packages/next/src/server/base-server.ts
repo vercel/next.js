@@ -2639,6 +2639,21 @@ export default abstract class Server<
       res.statusCode = parseInt(pathname.slice(1), 10)
     }
 
+    // In dev mode, pages are never pre-rendered to HTML strings, so the
+    // `typeof components.Component === 'string'` branch below doesn't catch
+    // plain Pages Router pages (no getStaticProps / getServerSideProps /
+    // getInitialProps). Compute the "auto-static" condition explicitly so
+    // those pages still 405 on non-GET/HEAD in dev — matching the production
+    // behavior. Pages with `getServerSideProps` or `getInitialProps` (per-page
+    // or via a custom `_app.tsx`) intentionally accept non-GET/HEAD methods
+    // because their handler receives `req` and can act on it.
+    const isPagesAutoStaticPage =
+      !isAppPath &&
+      !hasServerProps &&
+      !components.Component?.getInitialProps &&
+      components.App?.getInitialProps ===
+        (components.App as any)?.origGetInitialProps
+
     if (
       // Server actions can use non-GET/HEAD methods.
       !isPossibleServerAction &&
@@ -2649,7 +2664,9 @@ export default abstract class Server<
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
-      (typeof components.Component === 'string' || isSSG)
+      (typeof components.Component === 'string' ||
+        isSSG ||
+        isPagesAutoStaticPage)
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
