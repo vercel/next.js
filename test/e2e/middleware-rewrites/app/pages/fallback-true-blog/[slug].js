@@ -39,6 +39,10 @@ export function getStaticPaths() {
 }
 
 export function getStaticProps({ params }) {
+  if (params.slug === 'not-found') {
+    return { notFound: true }
+  }
+
   return {
     props: {
       params,
