@@ -19,7 +19,8 @@ use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskTypeArc, event::Event, p
 
 use crate::{
     backend::storage_schema::{
-        DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
+        DropPartialOutcome, KeyEvictability, TaskSlot, TaskStorage, UnevictableReason,
+        ValueEvictability,
     },
     backing_storage::SnapshotItem,
     database::key_value_database::KeySpace,
@@ -175,9 +176,6 @@ pub struct Storage {
     ///
     /// Indexed by `map.determine_shard(map.hash_usize(&key))` and guaranteed by construction so
     /// that  `shard_modified_counts.len()==map.shards().len()`
-    ///
-    /// Should only be modified while holding either the task's intrusive lock and shard read
-    /// guard, or the corresponding DashMap shard write lock.
     shard_modified_counts: Box<[CachePadded<AtomicU64>]>,
     /// Stores snapshots of task state for tasks accessed during snapshot mode.
     /// - `Some(snapshot)`: Task was modified before snapshot mode and accessed again during it.
@@ -209,7 +207,7 @@ pub struct Storage {
     /// while `SnapshotShardIter::next` holds the map shard write lock; both then take a
     /// `snapshots` shard lock. `end_snapshot` must lock in the same order — see the shard-zipping
     /// pattern there.
-    map: FxDashMap<TaskId, Box<TaskStorage>>,
+    map: FxDashMap<TaskId, Box<TaskSlot>>,
     /// A shared event notified whenever any task finishes restoring (successfully or not).
     ///
     /// Threads waiting for another thread's in-progress restore subscribe to this event,
@@ -357,6 +355,7 @@ impl Storage {
             let work = if drain_entries {
                 let mut shard_guard = shard.write();
                 shard_guard.retain(|(key, task)| {
+                    let task = task.get_mut_exclusive();
                     let modified_task = task.flags.any_modified();
                     if modified_task {
                         debug_assert!(
@@ -489,7 +488,7 @@ impl Storage {
                 // write lock and would also obscure the pairing.
                 let hash = self.map.hasher().hash_one(key);
                 if let Some((_, task)) = map_guard.find_mut(hash, |(k, _)| *k == key) {
-                    self.promote_during_snapshot_flags(task, shard_idx);
+                    self.promote_during_snapshot_flags(task.get_mut_exclusive(), shard_idx);
                 }
             }
             // If we are saving a non-trivial amount of memory just clear it out.
@@ -515,7 +514,7 @@ impl Storage {
             let inner = match self.map.entry(key) {
                 dashmap::mapref::entry::Entry::Occupied(entry) => entry.into_ref(),
                 dashmap::mapref::entry::Entry::Vacant(entry) => {
-                    entry.insert(Box::new(TaskStorage::new()))
+                    entry.insert(Box::new(TaskSlot::new()))
                 }
             };
             StorageWriteGuard::new(self, inner.downgrade().into())
@@ -582,9 +581,13 @@ impl Storage {
         };
         // `get_disjoint` obtains all shard guards in shard-index order (sharing one guard for a
         // same-shard pair) before task locks are taken here in TaskId order.
-        let (lower, upper) = get_disjoint(&self.map, lower_key, upper_key, || {
-            Box::new(TaskStorage::new())
-        });
+        let (lower, upper) =
+            get_disjoint(
+                &self.map,
+                lower_key,
+                upper_key,
+                || Box::new(TaskSlot::new()),
+            );
         let lower = StorageWriteGuard::new(self, lower);
         let upper = StorageWriteGuard::new(self, upper);
         if reverse {
@@ -658,6 +661,7 @@ impl Storage {
                     }
                 };
             shard.retain(|(task_id, task)| {
+                let task = task.get_mut_exclusive();
                 if task_id.is_transient() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
                     return true;
@@ -762,23 +766,25 @@ impl Storage {
 
 pub struct StorageWriteGuard<'a> {
     storage: &'a Storage,
-    inner: Ref<'a, TaskId, Box<TaskStorage>>,
-    task: *mut TaskStorage,
+    inner: Ref<'a, TaskId, Box<TaskSlot>>,
     // Match parking_lot's default guard behavior: task guards must not cross `.await`.
     _not_send: PhantomData<*const ()>,
 }
 
 impl<'a> StorageWriteGuard<'a> {
-    fn new(storage: &'a Storage, inner: Ref<'a, TaskId, Box<TaskStorage>>) -> Self {
-        let task = inner.value().as_ref() as *const TaskStorage as *mut TaskStorage;
-        // SAFETY: The DashMap read guard keeps the boxed task alive at this stable address.
-        unsafe { &*task }.lock();
+    fn new(storage: &'a Storage, inner: Ref<'a, TaskId, Box<TaskSlot>>) -> Self {
+        // The map guard keeps the opaque slot alive while its raw lock is acquired.
+        inner.value().lock();
         Self {
             storage,
             inner,
-            task,
             _not_send: PhantomData,
         }
+    }
+
+    fn task(&self) -> &TaskStorage {
+        // SAFETY: `new` acquired this slot's lock, and `inner` keeps it alive.
+        unsafe { self.inner.value().get() }
     }
 }
 
@@ -814,7 +820,7 @@ impl StorageWriteGuard<'_> {
             "track_modification called on transient task {:?}",
             self.inner.key()
         );
-        let flags = &self.inner.flags;
+        let flags = &self.flags;
         if flags.is_modified_during_snapshot(category) {
             // We can early return since `end_snapshot` is responsible for reconciling.
             return TrackOutcome::NoChange;
@@ -860,7 +866,7 @@ impl StorageWriteGuard<'_> {
                 if inserted_snapshot {
                     // Snapshot all non-transient fields, carrying the modified bits into
                     // the copy so the iterator knows which categories to persist.
-                    let mut snapshot = self.inner.clone_snapshot();
+                    let mut snapshot = self.clone_snapshot();
                     snapshot.flags.set_data_modified(flags.data_modified());
                     snapshot.flags.set_meta_modified(flags.meta_modified());
                     snapshot.flags.set_new_task(flags.new_task());
@@ -919,10 +925,10 @@ impl StorageWriteGuard<'_> {
             "discard_modifications_for_gc_new_task must run before the snapshot starts"
         );
         debug_assert!(
-            self.inner.flags.new_task(),
+            self.flags.new_task(),
             "only a never-persisted (new_task) collected task may be discarded this way"
         );
-        if self.inner.flags.any_modified() {
+        if self.flags.any_modified() {
             let shard_idx = self.storage.shard_index(self.inner.key());
             self.storage.shard_modified_counts[shard_idx].fetch_sub(1, Ordering::Relaxed);
         }
@@ -936,15 +942,14 @@ impl Deref for StorageWriteGuard<'_> {
     type Target = TaskStorage;
 
     fn deref(&self) -> &Self::Target {
-        // SAFETY: `new` locked this task, and `inner` keeps its Box alive until after `Drop`.
-        unsafe { &*self.task }
+        self.task()
     }
 }
 
 impl DerefMut for StorageWriteGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        // SAFETY: The task's intrusive lock gives this guard exclusive payload access.
-        unsafe { &mut *self.task }
+        // SAFETY: This guard owns the slot's task lock, and `inner` keeps it alive.
+        unsafe { &mut *self.inner.value().as_ptr() }
     }
 }
 
@@ -953,7 +958,7 @@ impl Drop for StorageWriteGuard<'_> {
         // SAFETY: This guard acquired the lock in `new`, still owns it, and performs no task
         // access after unlocking. Rust drops `inner` only after this method returns, so the Box
         // remains alive through the unlock.
-        unsafe { (&*self.task).unlock() };
+        unsafe { self.inner.value().unlock() };
     }
 }
 
@@ -1045,7 +1050,7 @@ enum ShardWork {
     /// (modified-only) shard table out of the map. The iterator owns that table and drains it
     /// directly, freeing each task box as it is serialized. No second map lookup, no flag
     /// bookkeeping (the whole map is discarded right after this snapshot).
-    Drain(hash_table::IntoIter<(TaskId, Box<TaskStorage>)>),
+    Drain(hash_table::IntoIter<(TaskId, Box<TaskSlot>)>),
 }
 
 pub struct SnapshotShard<'l, P> {
@@ -1127,12 +1132,13 @@ where
             }
             ShardWork::Drain(entries) => {
                 // Shutdown only: the scan already moved this shard's modified entries out of the
-                // map, so we own each `Box<TaskStorage>` here. Serialize from a borrow of the owned
-                // box and let it drop at the end of this branch — freeing the task's memory as it
+                // map, so we own each `Box<TaskSlot>` here. Move out the storage, serialize it, and
+                // let it drop at the end of this branch — freeing the task's memory as it
                 // is persisted rather than after the whole batch is written. We skip the flag
                 // bookkeeping the normal path does, since the entire map is discarded right after
                 // this snapshot.
                 let (task_id, inner) = entries.next()?;
+                let inner = (*inner).into_inner();
                 Some(serialize_task(task_id, &inner))
                 // we don't need to update any bits because everything is getting dropped.
             }

@@ -250,7 +250,8 @@ impl TurboTasksBackend {
     }
 
     pub fn new(mut options: BackendOptions, backing_storage: TurboBackingStorage) -> Self {
-        let shard_amount = compute_shard_amount(options.num_workers, options.small_preallocation);
+        let resident_shard_amount =
+            compute_shard_amount(options.num_workers, options.small_preallocation);
         if !options.dependency_tracking {
             options.active_tracking = false;
         }
@@ -287,7 +288,7 @@ impl TurboTasksBackend {
                 TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(),
                 TaskId::MAX,
             ),
-            storage: Storage::new(shard_amount, small_preallocation),
+            storage: Storage::new(resident_shard_amount, small_preallocation),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
             stopping: AtomicBool::new(false),
