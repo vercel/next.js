@@ -758,6 +758,11 @@ function assignDefaultsAndValidate(
               `Specified images.remotePatterns must have protocol "http" or "https" received "${proto}".`
             )
           }
+          if (hostname === undefined || hostname === '') {
+            throw new Error(
+              `Pattern should define hostname but found \n${JSON.stringify({ protocol, hostname, port, pathname, search })}`
+            )
+          }
           return {
             protocol: proto as 'http' | 'https' | undefined,
             hostname,
