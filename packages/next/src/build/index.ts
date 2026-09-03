@@ -1529,7 +1529,11 @@ export default async function build(
       // the logic from packages/next/src/shared/lib/router/utils/sorted-routes.ts
       // but is instead specifically focused on code that can be shared
       // eventually with the development code.
-      validateAppPaths(appPaths)
+      // For static export (output: 'export'), skip catch-all position validation
+      // since all routes are pre-generated and there's no runtime routing ambiguity
+      validateAppPaths(appPaths, {
+        skipCatchAllValidation: config.output === 'export',
+      })
 
       // Interception routes are modelled as beforeFiles rewrites
       rewrites.beforeFiles.push(

@@ -426,6 +426,22 @@ describe('validateAppPaths', () => {
           `"You cannot use both a required and optional catch-all route at the same level in route "/docs/[...required]/[[...optional]]"."`
         )
       })
+
+      it('allows catch-all not at the end when skipCatchAllValidation is true', () => {
+        const paths = ['/docs/[...slug]/more']
+
+        expect(() =>
+          validateAppPaths(paths, { skipCatchAllValidation: true })
+        ).not.toThrow()
+      })
+
+      it('allows optional catch-all not at the end when skipCatchAllValidation is true', () => {
+        const paths = ['/docs/[[...slug]]/more']
+
+        expect(() =>
+          validateAppPaths(paths, { skipCatchAllValidation: true })
+        ).not.toThrow()
+      })
     })
 
     describe('optional catch-all specificity conflicts', () => {
