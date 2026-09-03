@@ -18,10 +18,7 @@ use std::{
     hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
-    sync::{
-        Arc, LazyLock,
-        atomic::{AtomicU64, Ordering},
-    },
+    sync::{Arc, LazyLock},
     time::SystemTime,
 };
 
@@ -178,6 +175,16 @@ pub struct BackendOptions {
     /// derives it from the `TURBO_ENGINE_GC_ROOT_TTL_MS` env var, falling back to
     /// [`DEFAULT_GC_ROOT_TTL`].
     pub gc_root_ttl: Option<Duration>,
+
+    /// Overrides how long a GC pass runs before it will honour an interrupt. `None` (default)
+    /// derives it from the `TURBO_ENGINE_GC_MIN_PROGRESS_MS` env var, falling back to
+    /// [`GC_MIN_PROGRESS`].
+    ///
+    /// Tests that assert on exact collected counts pin this beyond any plausible pass length so a
+    /// blocked operation can't shorten the pass under them; tests of the interrupt path itself pin
+    /// it to zero. Per-backend rather than relying on the env var, which every test in a binary
+    /// would share.
+    pub gc_min_progress: Option<Duration>,
 }
 
 impl Default for BackendOptions {
@@ -191,6 +198,7 @@ impl Default for BackendOptions {
             eviction_mode: EvictionMode::Off,
             gc: None,
             gc_root_ttl: None,
+            gc_min_progress: None,
         }
     }
 }
@@ -273,13 +281,10 @@ pub struct TurboTasksBackend {
     /// How long a GC root may go un-anchored before it ages out.
     gc_root_ttl: Duration,
 
-    /// Test-only override of the GC min-progress floor, in milliseconds; `u64::MAX` means "unset"
-    /// (use [`GC_MIN_PROGRESS`] / the `TURBO_ENGINE_GC_MIN_PROGRESS_MS` env). Per-backend for the
-    /// same reason as `gc_root_ttl_override_ms`: parallel tests must not race a process-global.
-    /// `0` makes a pass interruptible immediately; `u64::MAX / 2` effectively disables
-    /// interruption (used by `gc_for_testing`, whose contract is a full pass). See
-    /// `set_gc_min_progress_for_testing`.
-    gc_min_progress_override_ms: AtomicU64,
+    /// How long a GC pass runs before it will honour an interrupt, resolved once at construction
+    /// from [`BackendOptions::gc_min_progress`] / the `TURBO_ENGINE_GC_MIN_PROGRESS_MS` env /
+    /// [`GC_MIN_PROGRESS`].
+    gc_min_progress: Duration,
 
     /// Test-only record of the most recent GC pass. The production signal for these fields is the
     /// `gc` span, which a unit test can't read; this lets a test assert on what the *pass* did
@@ -327,6 +332,22 @@ impl TurboTasksBackend {
             gc_enabled = false;
         }
 
+        let gc_min_progress = options.gc_min_progress.unwrap_or_else(|| {
+            match std::env::var("TURBO_ENGINE_GC_MIN_PROGRESS_MS") {
+                Ok(v) => match v.parse::<u64>() {
+                    Ok(ms) => Duration::from_millis(ms),
+                    Err(e) => {
+                        eprintln!(
+                            "warning: TURBO_ENGINE_GC_MIN_PROGRESS_MS set but is not parsable: \
+                             {e}. Using the default instead."
+                        );
+                        GC_MIN_PROGRESS
+                    }
+                },
+                Err(_) => GC_MIN_PROGRESS,
+            }
+        });
+
         let gc_root_ttl = options.gc_root_ttl.unwrap_or_else(|| {
             match std::env::var("TURBO_ENGINE_GC_ROOT_TTL_MS") {
                 Ok(v) => match v.parse::<u64>() {
@@ -367,7 +388,7 @@ impl TurboTasksBackend {
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
             gc_root_ttl,
-            gc_min_progress_override_ms: AtomicU64::new(u64::MAX),
+            gc_min_progress,
             last_gc_stats: Mutex::new(None),
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
@@ -475,15 +496,6 @@ impl TurboTasksBackend {
         self.storage
             .with_task(task, |t| t.gc_transient_ref_count())
             .unwrap_or(0)
-    }
-
-    /// Override the GC min-progress floor for this backend (milliseconds). `0` makes a pass
-    /// honour an interrupt from its very first job, which is what a test that wants to observe a
-    /// partial pass needs. Per-backend, so parallel tests don't race the global env. Test-only.
-    #[doc(hidden)]
-    pub fn set_gc_min_progress_for_testing(&self, min_progress_ms: u64) {
-        self.gc_min_progress_override_ms
-            .store(min_progress_ms, Ordering::Relaxed);
     }
 
     /// `(collected, interrupted)` for the most recent GC pass run inside

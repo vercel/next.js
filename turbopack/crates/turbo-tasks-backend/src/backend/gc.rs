@@ -29,7 +29,7 @@ use turbo_tasks::{TaskId, TurboTasks, scope_unbounded::scope_unbounded_with};
 
 use crate::{
     backend::{
-        AnyOperation, GC_MIN_PROGRESS, TurboTasksBackend,
+        AnyOperation, TurboTasksBackend,
         operation::{
             AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext, ExecuteContextImpl,
             TaskGuard, capture_all_outgoing_edges,
@@ -217,7 +217,7 @@ impl TurboTasksBackend {
         let budget = GcBudget {
             coord: &self.snapshot_coord,
             started: Instant::now(),
-            min_progress: self.gc_min_progress(),
+            min_progress: self.gc_min_progress,
             stopped: AtomicBool::new(false),
             interruptible,
         };
@@ -231,14 +231,7 @@ impl TurboTasksBackend {
                 .chain(aged_out.into_iter().map(GcJob::Collect)),
             GcStats::default,
             |spawner, job, stats| {
-                // The **only** interrupt point: at job entry, before any mutation. Everything past
-                // here runs to completion, which is what makes a partial pass safe to hand to
-                // `into_snapshot` — every task we marked deleted also had its edges torn down and
-                // its children's `parent_count` decremented, so the graph the snapshot sees is
-                // consistent. Never check the budget between `set_deleted` and `CleanupOldEdges`.
-                //
-                // `Break` closes the queue: remaining jobs are discarded without being dispatched,
-                // and in-flight jobs cannot re-grow it as they finish.
+                // Abort the gc loop if we are interrupted
                 if budget.should_stop() {
                     return ControlFlow::Break(());
                 }
@@ -318,24 +311,6 @@ impl TurboTasksBackend {
         let roots_to_persist: Option<Vec<_>> =
             (roots != roots_before).then(|| roots.into_iter().collect());
         (stats, roots_to_persist)
-    }
-
-    /// The min-progress floor for this pass — how long GC runs before it will honour an interrupt.
-    /// Same precedence chain as [`Self::gc_root_ttl`]: the per-backend test override
-    /// (`set_gc_min_progress_for_testing`, race-free across parallel tests) → the
-    /// `TURBO_ENGINE_GC_MIN_PROGRESS_MS` env → [`GC_MIN_PROGRESS`].
-    fn gc_min_progress(&self) -> Duration {
-        let override_ms = self.gc_min_progress_override_ms.load(Ordering::Relaxed);
-        if override_ms != u64::MAX {
-            return Duration::from_millis(override_ms);
-        }
-        match std::env::var("TURBO_ENGINE_GC_MIN_PROGRESS_MS") {
-            Ok(v) => match v.parse::<u64>() {
-                Ok(ms) => Duration::from_millis(ms),
-                Err(_) => GC_MIN_PROGRESS,
-            },
-            Err(_) => GC_MIN_PROGRESS,
-        }
     }
 
     /// Compute which persisted roots have expired their TTL

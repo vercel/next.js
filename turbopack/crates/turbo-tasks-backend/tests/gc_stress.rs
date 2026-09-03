@@ -4,13 +4,13 @@
 
 mod util;
 
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, State, TurboTasks, Vc};
 use turbo_tasks_backend::TurboTasksBackend;
 
-use crate::util::create_tt;
+use crate::util::create_tt_with_gc_min_progress;
 
 #[turbo_tasks::value(transparent)]
 struct Generation(State<u32>);
@@ -54,16 +54,15 @@ async fn wide_root(generation: ResolvedVc<Generation>) -> Result<Vc<u32>> {
 /// evicts, and the resident count must return to a flat baseline.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn gc_re_rooting_stays_flat() {
-    let (tt, _persistence_dir) = create_tt("gc_re_rooting_stays_flat");
-    let tt2 = tt.clone();
-
     // This test asserts on *how much* GC collects, so it must not race the interrupt heuristic.
     // `gc_for_testing` already pins the floor for its own pass, but each round also runs
     // `snapshot_and_evict_for_testing`, whose GC pass is fully interruptible: on a loaded machine
     // it can wind down as soon as an operation blocks behind it, collecting less through no fault
     // of GC. Pin the floor beyond any plausible pass so the counts are deterministic; the
     // interrupt path has its own tests.
-    tt.backend().set_gc_min_progress_for_testing(u64::MAX / 2);
+    let (tt, _persistence_dir) =
+        create_tt_with_gc_min_progress("gc_re_rooting_stays_flat", Duration::from_secs(60 * 60));
+    let tt2 = tt.clone();
 
     const ROUNDS: u32 = 20;
 
