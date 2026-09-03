@@ -1,7 +1,7 @@
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
 import z from 'next/dist/compiled/zod'
-import type { RequestInsight } from '../../../next-devtools/shared/request-insights'
-import { summarizeRequestInsight } from '../../../next-devtools/shared/request-insights-summary'
+import type { RequestInsight } from '../../../shared/lib/request-insights'
+import { summarizeRequestInsight } from '../../../shared/lib/request-insights-summary'
 import {
   getRequestInsightsSnapshot,
   isRequestInsightsEnabled,

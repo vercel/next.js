@@ -1,24 +1,22 @@
 import type { AttributeValue } from 'next/dist/compiled/@opentelemetry/api'
 import {
-  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
-  type RequestInsight,
-  type RequestInsightFetch,
-  type RequestInsightsSnapshot,
-} from '../../../next-devtools/shared/request-insights'
-import type {
-  RequestInsightFilter,
-  RequestInsightsHistoryPage,
-} from '../../../next-devtools/shared/request-insights-summary'
-import type { RequestInsightKind } from '../../../shared/lib/request-insights'
-import {
   getRequestInsightKey,
   getRequestInsightKind,
   getRequestInsightSource,
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
   REQUEST_INSIGHT_PROXY_SPAN_TYPE,
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+  type RequestInsight,
+  type RequestInsightFetch,
+  type RequestInsightKind,
   type RequestInsightProxyStatus,
   type RequestInsightSource,
+  type RequestInsightsSnapshot,
 } from '../../../shared/lib/request-insights'
+import type {
+  RequestInsightFilter,
+  RequestInsightsHistoryPage,
+} from '../../../shared/lib/request-insights-summary'
 import type {
   LocalSpanBatch,
   LocalSpanParent,

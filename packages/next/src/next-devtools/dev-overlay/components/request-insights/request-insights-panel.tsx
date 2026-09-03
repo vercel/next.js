@@ -131,13 +131,17 @@ export function RequestInsightsPanel() {
 
     const controller = new AbortController()
     const key = getRequestInsightKey(selectedListItem)
-    void loadRequestInsightDetail(selectedListItem, controller.signal).then(
-      (request) => {
+    void loadRequestInsightDetail(selectedListItem, controller.signal)
+      .then((request) => {
         if (request) {
           setHistoricalRequest({ key, request })
         }
-      }
-    )
+      })
+      .catch((error) => {
+        if (!controller.signal.aborted) {
+          console.error('Failed to load Request Insights detail', error)
+        }
+      })
     return () => controller.abort()
   }, [selectedListItem])
   const selectedRequest = selectedListItem

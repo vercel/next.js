@@ -1263,6 +1263,17 @@ describe('request insights', () => {
           })
         )
         expect(matchingRequests[0].completedAt).toBeUndefined()
+
+        const detailResponse = await next.fetch(
+          `/_next/development/request-insights?view=detail&requestId=${encodeURIComponent(matchingRequests[0].requestId)}&kind=request`
+        )
+        expect(detailResponse.status).toBe(200)
+
+        const detail = (await detailResponse.json()) as {
+          request: RequestInsight
+        }
+        expect(detail.request.requestId).toBe(matchingRequests[0].requestId)
+        expect(detail.request.completedAt).toBeUndefined()
       }, 30_000)
     } finally {
       await retry(async () => {

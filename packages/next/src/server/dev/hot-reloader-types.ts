@@ -16,7 +16,7 @@ import type { DevToolsConfig } from '../../next-devtools/dev-overlay/shared'
 import type {
   RequestInsight,
   RequestInsightsSnapshot,
-} from '../../next-devtools/shared/request-insights'
+} from '../../shared/lib/request-insights'
 import type { ReactDebugChannelForBrowser } from './debug-channel'
 import type { AnyStream } from '../app-render/stream-ops'
 
