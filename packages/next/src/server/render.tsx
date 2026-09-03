@@ -855,12 +855,31 @@ export async function renderToHTMLImpl(
     return <>{styles}</>
   }
 
+  // `_app`'s `getInitialProps` receives the same `res` as the page, so it
+  // can call `res.setHeader('Cache-Control', ...)`. For an SSG/ISR page the
+  // Cache-Control header is fully determined by `getStaticProps`'
+  // `revalidate` value further down, so snapshot whatever was set before
+  // this call and restore it afterwards to undo any header `_app` added.
+  // Otherwise it would incorrectly take precedence over the ISR header in
+  // `sendRenderResult`, which only applies its own header when none is set.
+  const cacheControlBeforeAppGetInitialProps = isSSG
+    ? res.getHeader('Cache-Control')
+    : undefined
+
   props = await loadGetInitialProps(App, {
     AppTree: ctx.AppTree,
     Component,
     router,
     ctx,
   })
+
+  if (isSSG) {
+    if (cacheControlBeforeAppGetInitialProps === undefined) {
+      res.removeHeader('Cache-Control')
+    } else {
+      res.setHeader('Cache-Control', cacheControlBeforeAppGetInitialProps)
+    }
+  }
 
   if ((isSSG || getServerSideProps) && isPreview) {
     props.__N_PREVIEW = true
