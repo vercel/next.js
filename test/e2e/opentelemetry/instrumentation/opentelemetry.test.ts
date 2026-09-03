@@ -75,6 +75,12 @@ function setup({
             'fixtures/use-cache-server-action/app/api/cache/route.ts'
           )
         ),
+        'app/api/after/route.ts': new FileRef(
+          path.join(
+            __dirname,
+            'fixtures/use-cache-server-action/app/api/after/route.ts'
+          )
+        ),
         'constants.ts': new FileRef(path.join(__dirname, 'constants.ts')),
         'instrumentation-node.ts': new FileRef(
           path.join(__dirname, 'instrumentation-node.ts')
@@ -1769,7 +1775,7 @@ describe.each(
   })
 })
 
-describe('opentelemetry use cache Server Functions', () => {
+describe('opentelemetry use cache and after', () => {
   const {
     next: { next, skipped },
     getCollector,
@@ -2068,6 +2074,67 @@ describe('opentelemetry use cache Server Functions', () => {
       )
       expect(JSON.stringify(failureSpan)).not.toContain(failingKey)
     }, 10_000)
+  })
+
+  it('traces after callbacks with their captured request context', async () => {
+    let previousSpanIds = currentSpanIds()
+    expect(await next.fetch('/api/after').then((res) => res.status)).toBe(200)
+
+    await retry(() => {
+      const spans = getCollector()
+        .getSpans()
+        .filter((span) => !previousSpanIds.has(span.id))
+      const afterSpans = spans.filter(
+        (span) =>
+          span.attributes?.['next.span_type'] === 'After.executeCallback'
+      )
+      const afterSpan = afterSpans[0]
+      const parentSpan = spans.find((span) => span.id === afterSpan?.parentId)
+      const nestedSpan = spans.find(
+        (span) =>
+          span.name === 'work inside after callback' &&
+          span.parentId === afterSpan?.id
+      )
+
+      expect(afterSpans).toHaveLength(1)
+      expect(afterSpan).toEqual(
+        expect.objectContaining({
+          name: 'after callback',
+          traceId: parentSpan?.traceId,
+          attributes: expect.objectContaining({
+            'next.span_name': 'after callback',
+            'next.span_type': 'After.executeCallback',
+            'next.span_category': 'application',
+          }),
+          status: { code: 0 },
+        })
+      )
+      expect(parentSpan?.attributes?.['next.span_type']).toBe(
+        'AppRouteRouteHandlers.runHandler'
+      )
+      expect(nestedSpan).toBeDefined()
+    })
+
+    previousSpanIds = currentSpanIds()
+    expect(
+      await next.fetch('/api/after?fail=1').then((res) => res.status)
+    ).toBe(200)
+
+    await retry(() => {
+      const failureSpan = getCollector()
+        .getSpans()
+        .find(
+          (span) =>
+            !previousSpanIds.has(span.id) &&
+            span.attributes?.['next.span_type'] === 'After.executeCallback'
+        )
+
+      expect(failureSpan).toEqual(
+        expect.objectContaining({
+          status: expect.objectContaining({ code: 2 }),
+        })
+      )
+    })
   })
 
   it('records use cache failures without exposing arguments', async () => {
