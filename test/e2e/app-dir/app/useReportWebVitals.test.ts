@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { check } from 'next-test-utils'
+import { retry } from 'next-test-utils'
+import type { Page } from 'playwright'
 
 describe('useReportWebVitals hook', () => {
   const { next } = nextTestSetup({
@@ -15,30 +16,45 @@ describe('useReportWebVitals hook', () => {
     await next.start()
   })
 
+  function collectWebVitals(page: Page, events: Array<Record<string, string>>) {
+    return page.route('https://example.vercel.sh/vitals', async (route) => {
+      events.push(
+        Object.fromEntries(
+          new URLSearchParams(route.request().postData() ?? '')
+        )
+      )
+      await route.fulfill()
+    })
+  }
+
   // Analytics events are only sent in production
   it('should send web-vitals', async () => {
     await next.fetch('/report-web-vitals')
 
-    let eventsCount = 0
+    const events: Array<Record<string, string>> = []
     const browser = await next.browser('/report-web-vitals', {
-      beforePageLoad: (page) => {
-        page.route('https://example.vercel.sh/vitals', (route) => {
-          eventsCount += 1
-          route.fulfill()
-        })
+      beforePageLoad: async (currentPage) => {
+        await collectWebVitals(currentPage, events)
       },
     })
 
-    // Refresh will trigger CLS and LCP. When page loads FCP and TTFB will trigger:
+    // Refresh will report another set of navigation metrics.
     await browser.refresh()
 
-    // After interaction LCP and FID will trigger
+    // Exercise the interaction reporting path.
     await browser.elementById('btn').click()
 
     // Make sure all registered events in performance-relayer has fired
-    await check(async () => {
-      expect(eventsCount).toBeGreaterThanOrEqual(6)
-      return 'success'
-    }, 'success')
+    await retry(() => {
+      expect(events.length).toBeGreaterThanOrEqual(4)
+    })
+    expect(events.map((event) => event.name)).not.toContain('FID')
+    expect(events).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          navigationURL: expect.stringMatching(/\/report-web-vitals$/),
+        }),
+      ])
+    )
   })
 })
