@@ -2,7 +2,10 @@ import { createReadStream } from 'fs'
 import { appendFile, mkdir, stat, writeFile } from 'fs/promises'
 import path from 'path'
 import { createInterface } from 'readline'
-import type { RequestInsight } from '../../../next-devtools/shared/request-insights'
+import {
+  getRequestInsightKind,
+  type RequestInsight,
+} from '../../../shared/lib/request-insights'
 import {
   getRequestInsightTags,
   matchesRequestInsightFilters,
@@ -11,8 +14,7 @@ import {
   type RequestInsightFilter,
   type RequestInsightsHistoryPage,
   type RequestInsightSummary,
-} from '../../../next-devtools/shared/request-insights-summary'
-import { getRequestInsightKind } from '../../../shared/lib/request-insights'
+} from '../../../shared/lib/request-insights-summary'
 
 const JOURNAL_SIZE_LIMIT = 50 * 1024 * 1024
 const JOURNAL_FILENAME = 'request-insights.ndjson'

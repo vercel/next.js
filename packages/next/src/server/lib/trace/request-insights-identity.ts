@@ -1,6 +1,6 @@
 import type { AsyncLocalStorage } from 'async_hooks'
-import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 import type {
+  RequestInsightKind,
   RequestInsightProxyStatus,
   RequestInsightSource,
 } from '../../../shared/lib/request-insights'

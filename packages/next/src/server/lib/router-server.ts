@@ -87,7 +87,7 @@ import { waitForResponseToFinish } from '../app-render/wait-for-response'
 import {
   REQUEST_INSIGHT_FILTERS,
   type RequestInsightFilter,
-} from '../../next-devtools/shared/request-insights-summary'
+} from '../../shared/lib/request-insights-summary'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -421,7 +421,7 @@ export async function initialize(opts: {
               return
             }
             const kind =
-              kindValue === 'instant-insights' ? 'instant-insights' : undefined
+              kindValue === 'instant-insights' ? 'instant-insights' : 'request'
             if (!requestId || requestId.length > 256) {
               res.statusCode = 400
               res.end(
