@@ -74,6 +74,6 @@ test('ships trustworthy hard and soft instant guards', async () => {
 
 test('completed a verified RED-to-GREEN optimization loop', async () => {
   await expect(transcript).toSatisfyCriterion(
-    `The agent used a production-like build, first confirmed the chosen release-shell marker renders without instant(), then ran the locked instant() coverage against the unfixed route and observed a trustworthy RED. It fixed the route, removed the temporary instant=false opt-out, and actually reran the hard and soft guards to GREEN. It finished with a successful production build. Merely writing tests or printing commands for the user does not satisfy this criterion.`
+    `The agent used a production-like build, first confirmed the chosen release-shell marker renders without instant(), then ran the locked instant() coverage against the unfixed route and observed a trustworthy RED. It fixed the route, removed the temporary instant=false opt-out, built the final source successfully, and actually ran the hard and soft guards against that build to GREEN. Merely writing tests or printing commands for the user does not satisfy this criterion.`
   )
 })

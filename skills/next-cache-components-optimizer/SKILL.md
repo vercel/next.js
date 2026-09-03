@@ -249,9 +249,11 @@ untrustworthy REDs, the checklist, and worked cases are in
 
 ## D. FIX: push each boundary down to the data it guards
 
-Read
-[Optimizing the static shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell)
-before editing the route. Apply the matching public pattern for the blocker:
+Before editing the route, read the bundled **Optimizing the static shell** guide
+at `node_modules/next/dist/docs/01-app/02-guides/optimizing-the-static-shell.md`.
+If the bundled guide is unavailable, use the
+[online guide](https://nextjs.org/docs/app/guides/optimizing-the-static-shell).
+Apply the matching public pattern for the blocker:
 
 - [Choose what belongs in the static shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-1-choose-what-belongs-in-the-static-shell).
 - [Keep the layout visible while authentication resolves](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-2-keep-the-layout-visible-while-authentication-resolves).
@@ -352,6 +354,8 @@ PR-specific items:
 
 - [ ] **Differential shown**: RED without the fix, GREEN with it, runs linked.
 - [ ] **Parity confirmed (E)**: same content, redirects, and state.
+- [ ] **Cache lifetime explicit**: every new `use cache` scope calls
+      `cacheLife()` with a lifetime that matches the data.
 - [ ] **Existing loading UI reused**: no new page-mirroring skeleton.
 - [ ] **Shell matches the real render at supported desktop and mobile widths**.
 - [ ] **Baseline removed**: only the locked test from C remains.
