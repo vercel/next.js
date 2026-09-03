@@ -14,6 +14,19 @@ import glob from 'glob'
 import { LONG_RUNNING_MS } from './src/pages/api/long-running'
 import { once } from 'events'
 
+// This suite drives server shutdown and asserts on connection refusal.
+// node-fetch v2 (the previous harness client) closed every connection after
+// its response, while undici keeps them alive in a pool, which delays the
+// server's shutdown past the probe windows. These requests therefore close
+// their connections explicitly.
+const fetchViaHTTPClose = (
+  appPort: string | number,
+  pathname: string
+): Promise<Response> =>
+  fetchViaHTTP(appPort, pathname, undefined, {
+    headers: { connection: 'close' },
+  })
+
 const appDir = join(__dirname, './src')
 let appPort: number
 let app: ChildProcess
@@ -235,7 +248,7 @@ function runTests(dev = false) {
       const res = await resPromise
       assertDefined(res)
       expect(res.status).toBe(200)
-      expect(await res.json()).toStrictEqual({ hello: 'world' })
+      expect(await res.json()).toEqual({ hello: 'world' })
 
       expect(app.exitCode).toBe(null)
       expect(responseResolved).toBe(true)
@@ -248,21 +261,21 @@ function runTests(dev = false) {
       it('should finish pending requests but refuse new ones', async () => {
         const appKilledPromise = once(app, 'exit')
 
-        const resPromise = fetchViaHTTP(appPort, '/api/long-running')
+        const resPromise = fetchViaHTTPClose(appPort, '/api/long-running')
 
         await waitFor(20)
         process.kill(app.pid!, 'SIGTERM')
         expect(app.exitCode).toBe(null)
 
         await waitForAppToStartRefusingConnections(
-          () => fetchViaHTTP(appPort, '/api/fast'),
+          () => fetchViaHTTPClose(appPort, '/api/fast'),
           1000
         )
 
         await expect(resPromise).resolves.toBeDefined()
         const res = await resPromise
         expect(res.status).toBe(200)
-        expect(await res.json()).toStrictEqual({ hello: 'world' })
+        expect(await res.json()).toEqual({ hello: 'world' })
 
         expect(await appKilledPromise).toEqual([143, null])
         expect(app.exitCode).toBe(143)
@@ -275,13 +288,13 @@ function runTests(dev = false) {
         // its SIGTERM handler before we send the signal. Without this, CI runs
         // can occasionally race and exit via the default signal disposition
         // (signal=SIGTERM, code=null) instead of the graceful exit (code=143).
-        await fetchViaHTTP(appPort, '/api/fast').catch(() => {})
+        await fetchViaHTTPClose(appPort, '/api/fast').catch(() => {})
 
         process.kill(app.pid!, 'SIGTERM')
         expect(app.exitCode).toBe(null)
 
         await waitForAppToStartRefusingConnections(
-          () => fetchViaHTTP(appPort, '/api/fast'),
+          () => fetchViaHTTPClose(appPort, '/api/fast'),
           1000
         )
 
@@ -298,11 +311,15 @@ async function waitForAppToStartRefusingConnections(
 ) {
   await retry(
     async () => {
-      await expect(sendRequest).rejects.toEqual(
-        expect.objectContaining({
-          code: 'ECONNREFUSED',
-        })
+      const err = await sendRequest().then(
+        () => {
+          throw new Error('Expected request to be refused')
+        },
+        (e) => e
       )
+      // Global fetch rejects with `TypeError: fetch failed` and keeps the
+      // socket error on `cause`.
+      expect(err.cause?.code).toBe('ECONNREFUSED')
     },
     maxDuration,
     100,

@@ -18,7 +18,7 @@ describe('GS(S)P Redirect Support', () => {
     })
     expect(res.status).toBe(307)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe('/404')
   })
 
@@ -28,7 +28,7 @@ describe('GS(S)P Redirect Support', () => {
     })
     expect(res.status).toBe(308)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toMatch(/url=\/404/)
   })
@@ -39,7 +39,7 @@ describe('GS(S)P Redirect Support', () => {
     })
     expect(res.status).toBe(301)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toBe(null)
   })
@@ -50,7 +50,7 @@ describe('GS(S)P Redirect Support', () => {
     })
     expect(res.status).toBe(303)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe('/404')
     expect(res.headers.get('refresh')).toBe(null)
   })
@@ -253,7 +253,7 @@ describe('GS(S)P Redirect Support', () => {
     })
     expect(res.status).toBe(307)
 
-    const parsed = new URL(res.headers.get('location')!)
+    const parsed = new URL(res.headers.get('location')!, res.url)
     expect(parsed.hostname).toBe('example.vercel.sh')
     expect(parsed.pathname).toBe('/')
   })

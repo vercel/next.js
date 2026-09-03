@@ -15,7 +15,6 @@ import {
   fetchViaHTTP,
   findPort,
   getDistDir,
-  type RequestInitCompat,
 } from 'next-test-utils'
 import cheerio from 'cheerio'
 import { once } from 'events'
@@ -1203,7 +1202,7 @@ export class NextInstance {
    * @param opts the optional options to pass to the underlying fetch
    * @returns the fetch response
    */
-  public async fetch(pathname: string, opts?: RequestInitCompat) {
+  public async fetch(pathname: string, opts?: RequestInit) {
     try {
       this.throwIfUnavailable()
     } catch (error) {

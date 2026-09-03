@@ -20,7 +20,7 @@ describe('GS(S)P Redirect with basePath', () => {
     })
     expect(res.status).toBe(307)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe(`${basePath}/404`)
   })
 
@@ -34,7 +34,7 @@ describe('GS(S)P Redirect with basePath', () => {
     const text = await res.text()
     expect(text).toEqual(`/404`)
 
-    const parsedUrl = new URL(res.headers.get('location')!)
+    const parsedUrl = new URL(res.headers.get('location')!, res.url)
     expect(parsedUrl.pathname).toBe(`/404`)
 
     const browser = await next.browser(`${basePath}`)
@@ -57,7 +57,7 @@ describe('GS(S)P Redirect with basePath', () => {
     const text = await res.text()
     expect(text).toEqual(`${basePath}/404`)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe(`${basePath}/404`)
     expect(res.headers.get('refresh')).toContain(`url=${basePath}/404`)
   })
@@ -72,7 +72,7 @@ describe('GS(S)P Redirect with basePath', () => {
     const text = await res.text()
     expect(text).toEqual(`${basePath}/404`)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe(`${basePath}/404`)
     expect(res.headers.get('refresh')).toBe(null)
   })
@@ -87,7 +87,7 @@ describe('GS(S)P Redirect with basePath', () => {
     const text = await res.text()
     expect(text).toEqual(`${basePath}/404`)
 
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(pathname).toBe(`${basePath}/404`)
     expect(res.headers.get('refresh')).toBe(null)
   })
@@ -213,7 +213,7 @@ describe('GS(S)P Redirect with basePath', () => {
     )
     expect(res.status).toBe(307)
 
-    const parsed = new URL(res.headers.get('location')!)
+    const parsed = new URL(res.headers.get('location')!, res.url)
     expect(parsed.hostname).toBe('example.vercel.sh')
     expect(parsed.pathname).toBe('/')
   })

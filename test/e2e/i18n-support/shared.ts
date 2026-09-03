@@ -8,6 +8,7 @@ import escapeRegex from 'escape-string-regexp'
 import assert from 'assert'
 import {
   fetchViaHTTP,
+  fetchViaRawHttp,
   renderViaHTTP,
   waitFor,
   normalizeRegEx,
@@ -2122,7 +2123,7 @@ export function runTests(ctx) {
       })
       expect(res.status).toBe(308)
 
-      const parsed = new URL(res.headers.get('location'))
+      const parsed = new URL(res.headers.get('location'), res.url)
       expect(parsed.pathname).toBe(path)
 
       if (hostname === 'localhost') {
@@ -2158,7 +2159,7 @@ export function runTests(ctx) {
       expect(res.status).toBe(shouldRedirect ? 307 : 200)
 
       if (shouldRedirect) {
-        const parsed = new URL(res.headers.get('location'))
+        const parsed = new URL(res.headers.get('location'), res.url)
         expect(parsed.pathname).toBe(
           `${ctx.basePath}${locale || ''}${pathname || '/somewhere-else'}`
         )
@@ -2826,16 +2827,13 @@ export function runTests(ctx) {
   }
 
   it('should use correct default locale for locale domains', async () => {
-    const res = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath || '/'}`,
-      undefined,
-      {
-        headers: {
-          host: 'example.do',
-        },
-      }
-    )
+    // Global fetch derives the Host header from the URL authority and cannot
+    // override it, so locale-domain tests use a raw HTTP request.
+    const res = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath || '/'}`, {
+      headers: {
+        host: 'example.do',
+      },
+    })
 
     expect(res.status).toBe(200)
 
@@ -2849,16 +2847,11 @@ export function runTests(ctx) {
     // expect(JSON.parse($('#router-locales').text())).toEqual(['fr','fr-BE'])
     expect(JSON.parse($('#router-locales').text())).toEqual(locales)
 
-    const res2 = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath || '/'}`,
-      undefined,
-      {
-        headers: {
-          host: 'example.com',
-        },
-      }
-    )
+    const res2 = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath || '/'}`, {
+      headers: {
+        host: 'example.com',
+      },
+    })
 
     expect(res2.status).toBe(200)
 
@@ -2874,17 +2867,12 @@ export function runTests(ctx) {
   })
 
   it('should not strip locale prefix for default locale with locale domains', async () => {
-    const res = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath}/do`,
-      undefined,
-      {
-        headers: {
-          host: 'example.do',
-        },
-        redirect: 'manual',
-      }
-    )
+    const res = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath}/do`, {
+      headers: {
+        host: 'example.do',
+      },
+      redirect: 'manual',
+    })
 
     expect(res.status).toBe(200)
 
@@ -2892,17 +2880,12 @@ export function runTests(ctx) {
     // expect(result.pathname).toBe('/')
     // expect(result.query).toEqual({})
 
-    const res2 = await fetchViaHTTP(
-      ctx.appPort,
-      `${ctx.basePath}/go`,
-      undefined,
-      {
-        headers: {
-          host: 'example.com',
-        },
-        redirect: 'manual',
-      }
-    )
+    const res2 = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath}/go`, {
+      headers: {
+        host: 'example.com',
+      },
+      redirect: 'manual',
+    })
 
     expect(res2.status).toBe(200)
 
@@ -2965,18 +2948,13 @@ export function runTests(ctx) {
     for (const check of checks) {
       const [domain, locale, location] = check
 
-      const res = await fetchViaHTTP(
-        ctx.appPort,
-        `${ctx.basePath || '/'}`,
-        undefined,
-        {
-          headers: {
-            host: domain,
-            'accept-language': locale,
-          },
-          redirect: 'manual',
-        }
-      )
+      const res = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath || '/'}`, {
+        headers: {
+          host: domain,
+          'accept-language': locale,
+        },
+        redirect: 'manual',
+      })
 
       expect(res.status).toBe(307)
       expect(res.headers.get('location')).toBe(location)
@@ -3007,10 +2985,9 @@ export function runTests(ctx) {
       it.each(domainItems.reduce((prev, cur) => [...prev, ...cur.locales], []))(
         'should handle locale %s',
         async (locale) => {
-          const res = await fetchViaHTTP(
+          const res = await fetchViaRawHttp(
             ctx.appPort,
             `${ctx.basePath || '/'}`,
-            undefined,
             {
               headers: {
                 host: domain,
@@ -3067,17 +3044,12 @@ export function runTests(ctx) {
       { host: 'example.do', locale: 'do' },
       { host: 'example.com', locale: 'go' },
     ]) {
-      const res = await fetchViaHTTP(
-        ctx.appPort,
-        `${ctx.basePath}/gssp`,
-        undefined,
-        {
-          redirect: 'manual',
-          headers: {
-            host,
-          },
-        }
-      )
+      const res = await fetchViaRawHttp(ctx.appPort, `${ctx.basePath}/gssp`, {
+        redirect: 'manual',
+        headers: {
+          host,
+        },
+      })
 
       expect(res.status).toBe(200)
       const html = await res.text()
@@ -3487,7 +3459,7 @@ export function runTests(ctx) {
     )
     expect(res.status).toBe(307)
 
-    const parsedUrl = new URL(res.headers.get('location'))
+    const parsedUrl = new URL(res.headers.get('location'), res.url)
     expect(parsedUrl.pathname).toBe(`${ctx.basePath}/nl-NL`)
     expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
 
@@ -3504,7 +3476,7 @@ export function runTests(ctx) {
     )
     expect(res2.status).toBe(307)
 
-    const parsedUrl2 = new URL(res2.headers.get('location'))
+    const parsedUrl2 = new URL(res2.headers.get('location'), res2.url)
     expect(parsedUrl2.pathname).toBe(`${ctx.basePath}/en`)
     expect(Object.fromEntries(parsedUrl2.searchParams.entries())).toEqual({
       hello: 'world',
