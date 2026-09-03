@@ -51,7 +51,6 @@ pub struct EsmAsyncAssetReference {
     pub export_usage: ExportUsage,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     pub request_string: Option<RcStr>,
-    pub import_site: RcStr,
     /// Whether the target is compiled only after its runtime proxy is activated.
     pub lazy_compilation: bool,
 }
@@ -68,7 +67,6 @@ impl EsmAsyncAssetReference {
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
         request_string: Option<RcStr>,
-        import_site: RcStr,
         lazy_compilation: bool,
     ) -> Result<Self> {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
@@ -91,25 +89,31 @@ impl EsmAsyncAssetReference {
             export_usage,
             resolve_override,
             request_string,
-            import_site,
             lazy_compilation,
         })
     }
+}
 
-    fn without_lazy_compilation(&self) -> Self {
-        Self {
-            origin: self.origin,
-            request: self.request,
-            issue_source: self.issue_source,
-            error_mode: self.error_mode,
-            import_externals: self.import_externals,
-            export_usage: self.export_usage.clone(),
-            resolve_override: self.resolve_override,
-            request_string: self.request_string.clone(),
-            import_site: self.import_site.clone(),
-            lazy_compilation: false,
-        }
+#[turbo_tasks::function]
+fn lazy_compilation_target_reference(
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: IssueSource,
+    error_mode: ResolveErrorMode,
+    import_externals: bool,
+) -> Vc<EsmAsyncAssetReference> {
+    EsmAsyncAssetReference {
+        origin,
+        request,
+        issue_source,
+        error_mode,
+        import_externals,
+        export_usage: ExportUsage::All,
+        resolve_override: None,
+        request_string: None,
+        lazy_compilation: false,
     }
+    .cell()
 }
 
 #[turbo_tasks::value_impl]
@@ -124,18 +128,22 @@ impl ModuleReference for EsmAsyncAssetReference {
                 let origin = self.origin.into_trait_ref().await?;
                 let ident = AssetIdent::from_path(origin.origin_path())
                     .with_layer(origin.asset_context().into_trait_ref().await?.layer())
-                    .with_modifier(
-                        format!("lazy compilation proxy {request:?} at {}", self.import_site)
-                            .into(),
-                    )
+                    .with_modifier(format!("lazy compilation proxy {request:?}").into())
                     .into_vc()
                     .to_resolved()
                     .await?;
-                let target: ResolvedVc<Box<dyn ModuleReference>> =
-                    ResolvedVc::upcast(self.without_lazy_compilation().resolved_cell());
                 let key = activation_key(&ident.to_string().await?);
+                let target = lazy_compilation_target_reference(
+                    *self.origin,
+                    *self.request,
+                    self.issue_source.without_range(),
+                    self.error_mode,
+                    self.import_externals,
+                )
+                .to_resolved()
+                .await?;
                 let proxy = LazyCompilationProxyModule::new_unresolved(
-                    *target,
+                    *ResolvedVc::upcast(target),
                     *self.request,
                     request_string.clone(),
                     *self.origin,

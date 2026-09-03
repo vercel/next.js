@@ -283,7 +283,7 @@ export const invalid = ;`
       })
     })
 
-    it('gives repeated imports distinct proxies', async () => {
+    it('shares a proxy for repeated imports', async () => {
       const browser = await next.browser('/duplicate')
       const getActivationKeys = async (): Promise<string[]> =>
         browser.eval(`
@@ -320,7 +320,7 @@ export const invalid = ;`
         manifestsAfterSecond.filter(
           (pathname) => !manifestsAfterFirst.includes(pathname)
         )
-      ).toHaveLength(1)
+      ).toHaveLength(0)
     })
   }
 )

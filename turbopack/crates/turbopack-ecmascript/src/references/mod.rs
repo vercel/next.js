@@ -1880,7 +1880,6 @@ async fn handle_dynamic_import_with_linked_args(
                 export_usage,
                 resolve_override,
                 request_string,
-                format!("{}-{}", span.lo.to_u32(), span.hi.to_u32()).into(),
                 lazy_compilation,
             )
             .await?,
