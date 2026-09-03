@@ -153,7 +153,25 @@ if (!allowedActions.has(actionInfo.actionName) && !actionInfo.isRelease) {
         })
         .catch(console.error)
 
-      process.env.NEXT_TEST_NATIVE_DIR = nativeDir
+      const nativeBindings = (await fs.readdir(nativeDir).catch(() => [])) //
+        .filter((file) => file.endsWith('.node'))
+
+      if (nativeBindings.length > 0) {
+        process.env.NEXT_TEST_NATIVE_DIR = nativeDir
+      } else {
+        const message =
+          `No native @next/swc binaries found in ${nativeDir}. ` +
+          `Without them, the stats app builds download the binaries from npm, ` +
+          `which fails when the version isn't published (yet), and can be ` +
+          `incompatible with the PR's JS when it changes the bindings.`
+
+        // Local runs may not have built binaries; downloading is fine there.
+        if (actionInfo.isLocal) {
+          logger(message)
+        } else {
+          throw new Error(message)
+        }
+      }
 
       logger(`Packing packages in ${dir}`)
       const turboJsonPath = path.join(dir, 'turbo.json')
