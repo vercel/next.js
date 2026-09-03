@@ -1050,8 +1050,10 @@ export async function createHotReloaderTurbopack(
     state.subscriptions.set(id, subscription)
     hmrDiagnostic('client-subscription-created', { id })
 
-    // The subscription will always emit once, which is the initial
-    // computation. This is not a change, so swallow it.
+    // The subscription always emits once for its initial computation. Usually
+    // that is issues-only, but an edit can land while the baseline is being
+    // established. In that case the first emission is already a real update
+    // and must be forwarded to the browser.
     try {
       const initial = await subscription.next()
       hmrDiagnostic('client-subscription-initial', {
@@ -1059,6 +1061,23 @@ export async function createHotReloaderTurbopack(
         done: initial.done,
         updateType: initial.value?.type,
       })
+      if (initial.done) {
+        return
+      }
+
+      const initialData = initial.value
+      processIssues(state.clientIssues, key, initialData, false, true)
+      if (initialData.type !== 'issues') {
+        hmrDiagnostic('client-subscription-initial-update', {
+          id,
+          updateType: initialData.type,
+          instructionType:
+            'instruction' in initialData
+              ? (initialData.instruction as { type?: string } | undefined)?.type
+              : undefined,
+        })
+        sendTurbopackMessage(initialData as TurbopackUpdate)
+      }
 
       for await (const data of subscription) {
         hmrDiagnostic('client-subscription-update', {

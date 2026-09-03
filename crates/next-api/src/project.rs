@@ -2558,13 +2558,12 @@ impl Project {
         }
         let version_op = hmr_version_operation(self, chunk_name.clone(), target);
 
-        // INVALIDATION: This is intentionally untracked to avoid invalidating this
-        // function completely. We want to initialize the VersionState with the
-        // first seen version of the session.
-        let initial_version = version_op
-            .read_trait_strongly_consistent()
-            .untracked()
-            .await?;
+        // INVALIDATION: This is intentionally eventual and untracked. The baseline
+        // must remain the first version observed when the subscription starts. A
+        // strongly consistent read can restart after an invalidation and instead
+        // adopt the post-edit version. The following update then appears empty even
+        // though an already-loaded browser still has the pre-edit output.
+        let initial_version = version_op.connect().into_trait_ref().untracked().await?;
         if tracing::enabled!(target: "turbopack_hmr_diagnostics", tracing::Level::INFO) {
             let version_id = TraitRef::cell(initial_version.clone())
                 .id()
