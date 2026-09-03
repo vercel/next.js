@@ -23,6 +23,8 @@
   "@statsig/statsig-node-core",
   // Native Node.js addons
   "@swc/core",
+  // Native Node.js addons
+  "@takumi-rs/core",
   "@xenova/transformers",
   // Builds on top of @prisma/client so dynamically loads the version.
   "@zenstackhq/runtime",
