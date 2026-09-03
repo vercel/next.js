@@ -67,7 +67,7 @@ export function formatUrl(urlObj: UrlObject) {
   if (search && search[0] !== '?') search = '?' + search
 
   pathname = pathname.replace(/[?#]/g, encodeURIComponent)
-  search = search.replace('#', '%23')
+  search = search.replace(/#/g, '%23')
 
   return `${protocol}${host}${pathname}${search}${hash}`
 }
