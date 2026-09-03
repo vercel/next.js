@@ -16,21 +16,41 @@
   "author": "Next.js Team <support@vercel.com>",
   "license": "MIT",
   "main": "dist/index.js",
+  "module": "dist/index.mjs",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist"
   ],
   "scripts": {
-    "dev": "ncc build ./index.ts -w -o dist/",
+    "dev": "run-p dev:cjs dev:esm",
+    "dev:cjs": "ncc build ./index.ts -w -o dist/",
+    "dev:esm": "swc ./index.ts -w -o ./dist/index.mjs -C module.type=es6 -C jsc.target=es2015",
     "prebuild:source": "node ../../scripts/rm.mjs dist",
     "types": "tsc --declaration --emitDeclarationOnly --declarationDir dist",
-    "build:source": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
+    "build:source": "pnpm build:source:cjs && pnpm build:source:esm",
+    "build:source:cjs": "ncc build ./index.ts -o ./dist/ --minify --no-cache --no-source-map-register",
+    "build:source:esm": "swc ./index.ts -o ./dist/index.mjs -C module.type=es6 -C jsc.target=es2015",
     "build": "pnpm build:source && pnpm types",
     "pack-for-isolated-tests": "pnpm pack --out ./packed.tgz"
   },
-  "devDependencies": {
-    "@vercel/ncc": "0.38.4",
+  "dependencies": {
     "dotenv": "16.3.1",
     "dotenv-expand": "10.0.0"
+  },
+  "devDependencies": {
+    "@swc/cli": "0.1.55",
+    "@swc/core": "1.11.24",
+    "@vercel/ncc": "0.38.4",
+    "npm-run-all": "4.1.5"
   }
 }
