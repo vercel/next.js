@@ -565,7 +565,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .optional(),
         relay: z
           .object({
-            src: z.string(),
+            src: z.string().optional(),
             artifactDirectory: z.string().optional(),
             language: z.enum(['javascript', 'typescript', 'flow']).optional(),
             eagerEsModules: z.boolean().optional(),
