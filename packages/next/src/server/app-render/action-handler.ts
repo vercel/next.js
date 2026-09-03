@@ -58,6 +58,7 @@ import {
   getServerModuleMap,
   getActionNotFoundError,
   getInvalidServerReferenceIdError,
+  isActionNotFoundError,
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
 import { normalizeFilePath } from './segment-explorer-path'
@@ -503,7 +504,7 @@ type Host =
 /**
  * Ensures the value of the header can't create long logs.
  */
-function limitUntrustedHeaderValueForLogs(value: string) {
+function limitUntrustedValueForLogs(value: string) {
   return value.length > 100 ? value.slice(0, 100) + '...' : value
 }
 
@@ -610,7 +611,7 @@ export async function handleAction({
     isPossibleServerAction,
   } = getServerActionRequestMetadata(req)
 
-  const handleUnrecognizedFetchAction = (err: unknown): HandleActionResult => {
+  const handleUnrecognizedAction = (err: unknown): HandleActionResult => {
     // If the deployment doesn't have skew protection, this is expected to occasionally happen,
     // so we use a warning instead of an error.
     console.warn(err)
@@ -627,6 +628,37 @@ export async function handleAction({
       result: RenderResult.fromStatic('Server action not found.', 'text/plain'),
     }
   }
+
+  /**
+   * The request could not be parsed or decoded as a Server Action payload.
+   * This is malformed client input -- a truncated upload, a hand-crafted
+   * request, or (most commonly) automated vulnerability scanner traffic --
+   * rather than a server fault, so it should not be reported as a 500.
+   */
+  const handleMalformedActionRequest = (err: unknown): HandleActionResult => {
+    // Malformed payloads are common in the wild, so this is a warning, not an error.
+    console.warn(describeDecodeFailureForLogs(err))
+
+    res.setHeader('content-type', 'text/plain')
+    res.statusCode = 400
+    metadata.statusCode = 400
+    return {
+      type: 'done',
+      result: RenderResult.fromStatic('Bad Request', 'text/plain'),
+    }
+  }
+
+  /**
+   * Turns a failure from the Flight decoder into a response. A payload can fail
+   * to decode because it references a server action that no longer exists in
+   * this build -- for instance a bound argument holding a stale server
+   * reference -- which is skew, and gets the same 404 the client router already
+   * knows how to recover from. Anything else is a payload we couldn't parse.
+   */
+  const handleActionDecodeFailure = (err: unknown): HandleActionResult =>
+    isActionNotFoundError(err)
+      ? handleUnrecognizedAction(err)
+      : handleMalformedActionRequest(err)
 
   // If it can't be a Server Action, skip handling.
   // Note that this can be a false positive -- any multipart/urlencoded POST can get us here,
@@ -654,7 +686,7 @@ export async function handleAction({
       actionId !== null && !mightBeServerReferenceId(actionId)
         ? getInvalidServerReferenceIdError(actionId)
         : getActionNotFoundError(actionId)
-    return handleUnrecognizedFetchAction(error)
+    return handleUnrecognizedAction(error)
   }
 
   let temporaryReferences: TemporaryReferenceSet | undefined
@@ -663,15 +695,33 @@ export async function handleAction({
   workStore.fetchCache = 'default-no-store'
 
   const originHeader = req.headers['origin']
-  const originHost =
-    typeof originHeader === 'string'
-      ? // 'null' is a valid origin e.g. from privacy-sensitive contexts like sandboxed iframes.
-        // However, these contexts can still send along credentials like cookies,
-        // so we need to check if they're allowed cross-origin requests.
-        originHeader === 'null'
-        ? 'null'
-        : new URL(originHeader).host
-      : undefined
+  let originHost: string | undefined
+
+  if (typeof originHeader === 'string') {
+    if (originHeader === 'null') {
+      // 'null' is a valid origin e.g. from privacy-sensitive contexts like sandboxed iframes.
+      // However, these contexts can still send along credentials like cookies,
+      // so we need to check if they're allowed cross-origin requests.
+      originHost = 'null'
+    } else {
+      let parsedOrigin: URL
+      try {
+        parsedOrigin = new URL(originHeader)
+      } catch {
+        // The `origin` header is not a parseable URL (e.g. `Origin: http://`).
+        // `new URL()` would throw a `TypeError` here and surface as a 500, but
+        // this is malformed client input, so we reject it as a bad request.
+        return handleMalformedActionRequest(
+          new Error(
+            `Invalid \`origin\` header from a forwarded Server Actions request: ${limitUntrustedValueForLogs(
+              originHeader
+            )}.`
+          )
+        )
+      }
+      originHost = parsedOrigin.host
+    }
+  }
   const host = parseHostHeader(req.headers)
 
   let warning: string | undefined = undefined
@@ -699,11 +749,9 @@ export async function handleAction({
       if (host) {
         // This seems to be an CSRF attack. We should not proceed the action.
         console.error(
-          `\`${
-            host.type
-          }\` header with value \`${limitUntrustedHeaderValueForLogs(
+          `\`${host.type}\` header with value \`${limitUntrustedValueForLogs(
             host.value
-          )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
+          )}\` does not match \`origin\` header with value \`${limitUntrustedValueForLogs(
             originHost
           )}\` from a forwarded Server Actions request. Aborting the action.`
         )
@@ -857,34 +905,48 @@ export async function handleAction({
             // would fail to match and `formData()` would throw. An explicit header
             // on the Request takes precedence over the Blob's normalized type.
             const edgeBodyBlob = new Blob(edgeChunks as BlobPart[])
-            const formData = await new Request('http://n/', {
-              method: 'POST',
-              headers: { 'content-type': req.headers['content-type'] ?? '' },
-              body: edgeBodyBlob,
-            }).formData()
+            let formData: FormData
+            try {
+              formData = await new Request('http://n/', {
+                method: 'POST',
+                headers: { 'content-type': req.headers['content-type'] ?? '' },
+                body: edgeBodyBlob,
+              }).formData()
+            } catch (err) {
+              // The body could not be parsed as multipart form data.
+              return handleMalformedActionRequest(err)
+            }
             if (isFetchAction) {
               // A fetch action with a multipart body.
 
               try {
                 actionModId = getActionModIdOrError(actionId, serverModuleMap)
               } catch (err) {
-                return handleUnrecognizedFetchAction(err)
+                return handleUnrecognizedAction(err)
               }
 
-              boundActionArguments = await decodeReply<unknown[]>(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
+              try {
+                boundActionArguments = await decodeReply<unknown[]>(
+                  formData,
+                  serverModuleMap,
+                  { temporaryReferences }
+                )
+              } catch (err) {
+                return handleActionDecodeFailure(err)
+              }
             } else {
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
-              if (areAllActionIdsValid(formData, serverModuleMap) === false) {
-                // TODO: This can be from skew or manipulated input. We should handle this case
-                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
-                throw new Error(
-                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-                )
+              const invalidPayloadError = findInvalidActionPayloadError(
+                formData,
+                serverModuleMap
+              )
+              if (invalidPayloadError) {
+                // The payload references action IDs that don't exist in this build.
+                // This can be deployment skew or manipulated input -- either way it's
+                // not a server fault, so we respond like any other unrecognized action
+                // (404) rather than throwing, which used to surface as a 500.
+                return handleUnrecognizedAction(invalidPayloadError)
               }
 
               const action = await decodeAction(formData, serverModuleMap)
@@ -932,7 +994,7 @@ export async function handleAction({
             try {
               actionModId = getActionModIdOrError(actionId, serverModuleMap)
             } catch (err) {
-              return handleUnrecognizedFetchAction(err)
+              return handleUnrecognizedAction(err)
             }
 
             // A fetch action with a non-multipart body.
@@ -963,11 +1025,15 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply<unknown[]>(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
+            try {
+              boundActionArguments = await decodeReply<unknown[]>(
+                actionData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } catch (err) {
+              return handleActionDecodeFailure(err)
+            }
           }
         } else if (
           // The type check here ensures that `req` is correctly typed, and the
@@ -1029,7 +1095,7 @@ export async function handleAction({
               try {
                 actionModId = getActionModIdOrError(actionId, serverModuleMap)
               } catch (err) {
-                return handleUnrecognizedFetchAction(err)
+                return handleUnrecognizedAction(err)
               }
 
               const busboy = (
@@ -1052,7 +1118,10 @@ export async function handleAction({
                 ])
               } catch (err) {
                 abortController.abort()
-                throw err
+                // The size limit runs concurrently with decoding here, so a
+                // body size violation can surface as this rejection.
+                if (isBodySizeLimitError(err)) throw err
+                return handleActionDecodeFailure(err)
               }
             } else {
               // Multipart POST, but not a fetch action.
@@ -1083,15 +1152,20 @@ export async function handleAction({
                 ])
               } catch (err) {
                 abortController.abort()
-                throw err
+                if (isBodySizeLimitError(err)) throw err
+                return handleMalformedActionRequest(err)
               }
 
-              if (areAllActionIdsValid(formData, serverModuleMap) === false) {
-                // TODO: This can be from skew or manipulated input. We should handle this case
-                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
-                throw new Error(
-                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-                )
+              const invalidPayloadError = findInvalidActionPayloadError(
+                formData,
+                serverModuleMap
+              )
+              if (invalidPayloadError) {
+                // The payload references action IDs that don't exist in this build.
+                // This can be deployment skew or manipulated input -- either way it's
+                // not a server fault, so we respond like any other unrecognized action
+                // (404) rather than throwing, which used to surface as a 500.
+                return handleUnrecognizedAction(invalidPayloadError)
               }
 
               // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
@@ -1141,7 +1215,7 @@ export async function handleAction({
             try {
               actionModId = getActionModIdOrError(actionId, serverModuleMap)
             } catch (err) {
-              return handleUnrecognizedFetchAction(err)
+              return handleUnrecognizedAction(err)
             }
 
             // A fetch action with a non-multipart body.
@@ -1162,11 +1236,15 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply<unknown[]>(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
+            try {
+              boundActionArguments = await decodeReply<unknown[]>(
+                actionData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } catch (err) {
+              return handleActionDecodeFailure(err)
+            }
           }
         } else {
           throw new Error('Invariant: Unknown request type.')
@@ -1482,6 +1560,35 @@ function getActionModIdOrError(
   return entry.id
 }
 
+/**
+ * Body size limit violations are surfaced as `ApiError`s. They currently end up
+ * as a 500 (see the TODO on the catch-all handler about responding with a 413
+ * instead), and reclassifying them as malformed input would be a separate
+ * behavior change, so they are rethrown rather than answered with a 400.
+ */
+function isBodySizeLimitError(err: unknown): boolean {
+  const { ApiError } = require('../api-utils') as typeof import('../api-utils')
+  return err instanceof ApiError && err.statusCode === 413
+}
+
+/**
+ * Renders a decoder failure as a single log line. The Flight decoder quotes the
+ * offending input in its message (as does `JSON.parse`), so the message
+ * contains bytes taken straight from the request body. `JSON.stringify` escapes
+ * newlines and other control characters so that a crafted body can't forge log
+ * lines or emit terminal escape sequences, and the length cap keeps a flood of
+ * scanner traffic from filling the log. The stack is dropped because it only
+ * ever points into the decoder.
+ */
+function describeDecodeFailureForLogs(err: unknown): string {
+  const description =
+    err instanceof Error ? `${err.name}: ${err.message}` : String(err)
+
+  return `Failed to decode a Server Action request: ${JSON.stringify(
+    limitUntrustedValueForLogs(description)
+  )}`
+}
+
 const $ACTION_ = '$ACTION_'
 const $ACTION_REF_ = '$ACTION_REF_'
 const $ACTION_ID_ = '$ACTION_ID_'
@@ -1490,11 +1597,15 @@ const $ACTION_ID_ = '$ACTION_ID_'
  * This function mirrors logic inside React's decodeAction and should be kept in sync with that.
  * It pre-parses the FormData to ensure that any action IDs referred to are actual action IDs for
  * this Next.js application.
+ *
+ * Returns `null` when the payload can be decoded as an MPA action, or the error
+ * to report when it can't. The error names the offending action ID whenever one
+ * could be extracted, since that is the useful part when diagnosing skew.
  */
-function areAllActionIdsValid(
+function findInvalidActionPayloadError(
   mpaFormData: FormData,
   serverModuleMap: ServerModuleMap
-): boolean {
+): Error | null {
   let seenActionRefs = 0
   let hasAtLeastOneAction = false
   // Before we attempt to decode the payload for a possible MPA action, assert that all
@@ -1507,8 +1618,9 @@ function areAllActionIdsValid(
 
     if (key.startsWith($ACTION_ID_)) {
       // No Bound args case
-      if (isInvalidActionIdFieldName(key, serverModuleMap)) {
-        return false
+      const error = getInvalidActionIdFieldNameError(key, serverModuleMap)
+      if (error) {
+        return error
       }
 
       hasAtLeastOneAction = true
@@ -1517,7 +1629,7 @@ function areAllActionIdsValid(
         // We only expect to see at most 2 $ACTION_REF_ fields in the form data:
         // one from <form action="..." method="post">
         // and one from <input action="..." type="submit">
-        return false
+        return getActionNotFoundError(null)
       }
 
       // Bound args case
@@ -1525,56 +1637,55 @@ function areAllActionIdsValid(
         $ACTION_ + key.slice($ACTION_REF_.length) + ':0'
       const actionFields = mpaFormData.getAll(actionDescriptorField)
       if (actionFields.length !== 1) {
-        return false
+        return getActionNotFoundError(null)
       }
       const actionField = actionFields[0]
       if (typeof actionField !== 'string') {
-        return false
+        return getActionNotFoundError(null)
       }
 
-      if (isInvalidStringActionDescriptor(actionField, serverModuleMap)) {
-        return false
+      const error = getInvalidStringActionDescriptorError(
+        actionField,
+        serverModuleMap
+      )
+      if (error) {
+        return error
       }
       hasAtLeastOneAction = true
     }
   }
-  return hasAtLeastOneAction
+
+  return hasAtLeastOneAction ? null : getActionNotFoundError(null)
 }
 
 const ACTION_DESCRIPTOR_ID_PREFIX = '{"id":"'
-function isInvalidStringActionDescriptor(
+function getInvalidStringActionDescriptorError(
   actionDescriptor: string,
   serverModuleMap: ServerModuleMap
-): unknown {
+): Error | null {
   if (actionDescriptor.startsWith(ACTION_DESCRIPTOR_ID_PREFIX) === false) {
-    return true
+    return getActionNotFoundError(null)
   }
 
   const from = ACTION_DESCRIPTOR_ID_PREFIX.length
   const to = actionDescriptor.indexOf('"', from)
   if (to === -1) {
-    return true
+    return getActionNotFoundError(null)
   }
 
   // We expect actionDescriptor to be '{"id":"<actionId>",...}'
   const actionId = actionDescriptor.slice(from, to)
   if (!mightBeServerReferenceId(actionId)) {
-    return true
+    return getInvalidServerReferenceIdError(actionId)
   }
 
-  const entry = serverModuleMap[actionId]
-
-  if (entry == null) {
-    return true
-  }
-
-  return false
+  return getUnresolvedActionIdError(actionId, serverModuleMap)
 }
 
-function isInvalidActionIdFieldName(
+function getInvalidActionIdFieldNameError(
   actionIdFieldName: string,
   serverModuleMap: ServerModuleMap
-): boolean {
+): Error | null {
   // The field name must always start with $ACTION_ID_ but since it is
   // the id is extracted from the key of the field we have already validated
   // this before entering this function
@@ -1582,14 +1693,28 @@ function isInvalidActionIdFieldName(
   if (!mightBeServerReferenceId(actionId)) {
     // this field name has too few or too many characters
     // or it is otherwise in the wrong format
-    return true
+    return getInvalidServerReferenceIdError(actionId)
   }
 
-  const entry = serverModuleMap[actionId]
+  return getUnresolvedActionIdError(actionId, serverModuleMap)
+}
 
-  if (entry == null) {
-    return true
+/**
+ * Returns the error explaining why `actionId` doesn't resolve in this build, or
+ * `null` if it does. `serverModuleMap` is a proxy that throws for unregistered
+ * IDs rather than returning `undefined`, so the throw is captured and returned:
+ * an unresolvable ID is skew or manipulated input rather than a server fault,
+ * and the caller answers 404 instead of letting it surface as a 500.
+ */
+function getUnresolvedActionIdError(
+  actionId: string,
+  serverModuleMap: ServerModuleMap
+): Error | null {
+  try {
+    return serverModuleMap[actionId] == null
+      ? getActionNotFoundError(actionId)
+      : null
+  } catch (err) {
+    return err instanceof Error ? err : getActionNotFoundError(actionId)
   }
-
-  return false
 }

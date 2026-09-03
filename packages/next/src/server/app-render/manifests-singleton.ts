@@ -18,20 +18,43 @@ export interface ServerModuleMap {
   }
 }
 
-export function getActionNotFoundError(actionId: string | null): Error {
-  return new Error(
-    `Failed to find Server Action${actionId ? ` "${actionId}"` : ''}. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+/**
+ * Marks a not-found error so that callers decoding an action payload can tell
+ * it apart from other decoding failures. A well-formed ID that isn't in this
+ * build means client/server skew, which a client can recover from by reloading
+ * to pick up the current build. That is not true of a payload we simply
+ * couldn't parse, nor of an ID that never had the right shape to begin with
+ * (see `getInvalidServerReferenceIdError`), so those stay unmarked.
+ */
+const ACTION_NOT_FOUND = Symbol.for('next.action-not-found')
+
+export function isActionNotFoundError(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && ACTION_NOT_FOUND in error
   )
+}
+
+export function getActionNotFoundError(actionId: string | null): Error {
+  // `actionId` is client-provided. It has passed the length gate, which bounds
+  // it but does not constrain its bytes, so it is escaped for the same reason
+  // as in `getInvalidServerReferenceIdError`. `JSON.stringify` supplies the
+  // surrounding quotes and renders a well-formed id unchanged.
+  const error = new Error(
+    `Failed to find Server Action${actionId ? ` ${JSON.stringify(actionId)}` : ''}. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
+  )
+
+  Object.defineProperty(error, ACTION_NOT_FOUND, { value: true })
+
+  return error
 }
 
 export function getInvalidServerReferenceIdError(id: string): Error {
   // `id` is arbitrary client-provided input. Unlike the not-found case, it has
-  // not passed the length gate and can reach this error via a malformed server
-  // reference in an action payload, so it may be of any length and contain
-  // control characters. `JSON.stringify` escapes newlines and quotes so it
-  // can't forge log lines, and truncating overly long ids prevents log
-  // flooding. Ids at or below the cap are logged in full so that we only add an
-  // ellipsis to ids that are meaningfully longer than the truncated length.
+  // not passed the length gate, so it may be of any length. `JSON.stringify`
+  // escapes newlines and quotes so it can't forge log lines, and truncating
+  // overly long ids prevents log flooding. Ids at or below the cap are logged
+  // in full so that we only add an ellipsis to ids that are meaningfully
+  // longer than the truncated length.
   const encoded = JSON.stringify(
     id.length > MAX_LOGGED_SERVER_REFERENCE_ID_LENGTH
       ? id.slice(0, TRUNCATED_SERVER_REFERENCE_ID_LENGTH) + '…'
