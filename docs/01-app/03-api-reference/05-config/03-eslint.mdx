@@ -114,6 +114,9 @@ The `@next/eslint-plugin-next` rules included are:
 |      <Check size={18} />      | @next/next/no-typos                                                                                                      | Prevent common typos in [Next.js's data fetching functions](/docs/pages/building-your-application/data-fetching) |
 |      <Check size={18} />      | [@next/next/no-unwanted-polyfillio](/docs/messages/no-unwanted-polyfillio)                                               | Prevent duplicate polyfills from Polyfill.io.                                                                    |
 
+> **Note:** The rule `@next/next/no-html-link-for-pages` does **not currently detect pages** when using custom `pageExtensions` (e.g., `.mdx` or `.page.tsx`).  
+> You may need to disable this rule or configure ESLint manually until support is added. See [issue #53473](https://github.com/vercel/next.js/issues/53473).
+
 We recommend using an appropriate [integration](https://eslint.org/docs/user-guide/integrations#editors) to view warnings and errors directly in your code editor during development.
 
 <details>
