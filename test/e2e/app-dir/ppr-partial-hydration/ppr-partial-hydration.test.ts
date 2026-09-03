@@ -109,28 +109,33 @@ describe('PPR - partial hydration', () => {
       // In particular, RSC script tags should never appear before the initial HTML
       // (which could happen if we e.g. have no static shell and don't wait for it to be rendered before sending them)
       const response = await next.fetch(path)
+      expect(response.status).toBe(200)
+
       let body = ''
-      // Drain the body in the background so the assertions below can poll
-      // the accumulated content. A ReadableStream has no event emitter API,
-      // unlike the Node.js streams node-fetch exposed.
-      ;(async () => {
-        if (response.body === null) return
-        for await (const chunk of response.body) {
-          body += Buffer.from(chunk).toString('utf-8')
+      let checkedPrefix = false
+      for await (const chunk of response.body!) {
+        body += Buffer.from(chunk).toString('utf-8')
+        if (!checkedPrefix) {
+          // The sentinel may be split across chunks, so wait for content that
+          // cannot be part of it. For pages with no static shell it ends up at
+          // the front and messes up the assertion, so strip it.
+          if ('<!-- PPR_BOUNDARY_SENTINEL -->'.startsWith(body)) {
+            continue
+          }
+          const trimmed = body.replace('<!-- PPR_BOUNDARY_SENTINEL -->', '')
+          if (trimmed === '') {
+            continue
+          }
+          expect(trimmed).toStartWith('<!DOCTYPE html>')
+          checkedPrefix = true
+          // Unblock the slow component so the rest of the document streams in.
+          await next.patchFile('slowComponentReady', 'marker file')
         }
-      })().catch(() => {})
-      await retry(() => {
-        expect(response.status).toBe(200)
-        // Ignore the sentinel. For pages with no static shell, it ends up at the front
-        // and messes up the assertion.
-        const trimmed = body.replace('<!-- PPR_BOUNDARY_SENTINEL -->', '')
-        expect(trimmed).toStartWith('<!DOCTYPE html>')
-      })
-      await next.patchFile('slowComponentReady', 'marker file', async () => {
-        await retry(() => {
-          expect(body).toEndWith('</body></html>')
-        })
-      })
+      }
+      await next.deleteFile('slowComponentReady')
+
+      expect(checkedPrefix).toBe(true)
+      expect(body).toEndWith('</body></html>')
     })
 
     it('should display the shell without JS', async () => {
