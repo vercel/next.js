@@ -139,6 +139,10 @@ enum UseCacheSpan {
   revalidate = 'UseCache.revalidate',
 }
 
+enum AfterSpan {
+  executeCallback = 'After.executeCallback',
+}
+
 type SpanTypes =
   | `${BaseServerSpan}`
   | `${LoadComponentsSpan}`
@@ -157,6 +161,7 @@ type SpanTypes =
   | `${ResolveMetadataSpan}`
   | `${MiddlewareSpan}`
   | `${UseCacheSpan}`
+  | `${AfterSpan}`
 
 // This list is used to filter out spans that are not relevant to the user
 export const NextVanillaSpanAllowlist = new Set([
@@ -169,6 +174,7 @@ export const NextVanillaSpanAllowlist = new Set([
   AppRenderSpan.executeServerAction,
   UseCacheSpan.execute,
   UseCacheSpan.revalidate,
+  AfterSpan.executeCallback,
   LoadComponentsSpan.loadRouteModule,
   RenderSpan.renderDocument,
   NodeSpan.runHandler,
@@ -212,6 +218,7 @@ export {
   ResolveMetadataSpan,
   MiddlewareSpan,
   UseCacheSpan,
+  AfterSpan,
 }
 
 export type { SpanTypes }

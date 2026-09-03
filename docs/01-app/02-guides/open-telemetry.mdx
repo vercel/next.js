@@ -366,6 +366,18 @@ Attributes:
 - `next.server_action.name`: the exported action name, `<inline action>` for an inline action, or `<action>` when the name is unavailable
 - `next.server_action.file`: the project-relative source file in development; omitted in production
 
+### `after callback`
+
+- `next.span_type`: `After.executeCallback`
+
+This span represents a function callback passed to [`after`](/docs/app/api-reference/functions/after). It starts when the callback runs after the response is finished and may therefore outlive its parent request span. The callback runs with the trace context captured when `after()` was called, so spans created inside it are children of this span. Promises passed directly to `after()` are not traced because they begin executing before `after()` receives them.
+
+Attributes:
+
+- `next.span_name`: `after callback`
+- `next.span_type`: `After.executeCallback`
+- `next.span_category`: `application`
+
 ### `executing api route (app) [next.route]`
 
 - `next.span_type`: `AppRouteRouteHandlers.runHandler`.
