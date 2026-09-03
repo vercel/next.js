@@ -71,31 +71,24 @@ let DEV_BACKEND: DevRuntimeBackend
         link.rel = 'stylesheet'
         link.crossOrigin = CROSS_ORIGIN
 
-        if (
-          navigator.userAgent.includes('Firefox') ||
-          (navigator.userAgent.includes('Safari') &&
-            !navigator.userAgent.includes('Chrome') &&
-            !navigator.userAgent.includes('Chromium'))
-        ) {
-          // Firefox won't reload CSS files that were previously loaded on the
-          // current page: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
-          //
-          // Safari serves cached CSS when a <link rel=preload> exists for the
-          // same URL: https://bugs.webkit.org/show_bug.cgi?id=187726
-          //
-          // Replace or add a fresh `ts` cache-busting param without
-          // discarding other query parameters that may already be present.
-          const url = new URL(chunkUrl, location.origin)
-          // Reduced timer precision in some browers could lead to an update getting dropped
-          // in Firefox if it happens fast enough (in firefox precision is sometimes 100ms!).
-          // So trust that the server is only updating us when it is important and use a
-          // random number to bust the cache.
-          url.searchParams.set('ts', `${Date.now()}.${Math.random()}`)
-          link.href = url.pathname + url.search
-        } else {
-          link.href = chunkUrl
-        }
-
+        // Browsers might not reload CSS files that were previously loaded on the
+        // current page, see [1] and [2] for context. Additionally, Safari
+        // has a bug[3] where cached CSS is served when a <link rel=preload>
+        // exists for the same URL.
+        //
+        // Replace or add a fresh `ts` cache-busting param without discarding
+        // other query parameters that may already be present. We use both a
+        // timestamp and a random number, trusting that the server is only
+        // updating us when it is important. A timestamp alone could
+        // lead to an update getting dropped if it happens fast enough,
+        // specially if Date.now() has reduced precision.
+        //
+        // [1]: https://bugzilla.mozilla.org/show_bug.cgi?id=1037506
+        // [2]: https://github.com/vercel/next.js/discussions/92516
+        // [3]: https://bugs.webkit.org/show_bug.cgi?id=193533
+        const url = new URL(chunkUrl, location.origin)
+        url.searchParams.set('ts', `${Date.now()}.${Math.random()}`)
+        link.href = url.pathname + url.search
         link.onerror = () => {
           reject()
         }
