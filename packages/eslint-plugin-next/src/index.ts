@@ -124,4 +124,11 @@ Object.assign(plugin.configs, {
 } satisfies ESLintPluginConfigs)
 
 export default plugin
-export const { rules, configs } = plugin
+export const rules = plugin.rules
+export const configs = plugin.configs
+
+if (typeof module !== 'undefined') {
+  module.exports = plugin
+  module.exports.rules = plugin.rules
+  module.exports.configs = plugin.configs
+}
