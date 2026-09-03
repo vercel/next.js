@@ -11,8 +11,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    DeterministicHasher, NonLocalValue, ReadRef, TaskInput, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    NonLocalValue, ReadRef, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
     FileSystemEntryType, FileSystemPath, LinkContent, RawDirectoryContent, RawDirectoryEntry,
@@ -34,25 +34,6 @@ pub enum Pattern {
 // Use a manual impl since llvm cannot prove the default generated recursive impl always returns
 // false from `is_transient`
 impl TaskInput for Pattern {
-    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
-        match self {
-            Pattern::Constant(value) => {
-                state.write_u32(0);
-                value.persistence_hash(state);
-            }
-            Pattern::Dynamic => state.write_u32(1),
-            Pattern::DynamicNoSlash => state.write_u32(2),
-            Pattern::Alternatives(values) => {
-                state.write_u32(3);
-                values.persistence_hash(state);
-            }
-            Pattern::Concatenation(values) => {
-                state.write_u32(4);
-                values.persistence_hash(state);
-            }
-        }
-    }
-
     fn is_transient(&self) -> bool {
         // contains no vcs
         false

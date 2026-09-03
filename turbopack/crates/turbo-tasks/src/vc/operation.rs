@@ -14,9 +14,9 @@ use serde::{Deserialize, Serialize};
 pub use turbo_tasks_macros::OperationValue;
 
 use crate::{
-    CollectiblesSource, DeterministicHasher, RawVc, ReadVcFuture, ResolvedVc, TaskId, TaskInput,
-    UpcastStrict, Vc, VcValueTrait, VcValueTraitCast, VcValueType,
-    marker_trait::impl_auto_marker_trait, trace::TraceRawVcs, turbo_tasks,
+    CollectiblesSource, RawVc, ReadVcFuture, ResolvedVc, TaskId, TaskInput, UpcastStrict, Vc,
+    VcValueTrait, VcValueTraitCast, VcValueType, marker_trait::impl_auto_marker_trait,
+    trace::TraceRawVcs, turbo_tasks,
 };
 
 /// A future returned by [`OperationVc::resolve`] that connects an [`OperationVc<T>`] and resolves
@@ -242,10 +242,6 @@ impl<T> TaskInput for OperationVc<T>
 where
     T: ?Sized + Send + Sync,
 {
-    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
-        state.write_u32(*self.task);
-    }
-
     fn is_transient(&self) -> bool {
         self.task.is_transient()
     }

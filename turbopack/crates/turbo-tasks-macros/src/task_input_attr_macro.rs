@@ -38,8 +38,7 @@ use syn::{
 use crate::{
     derive::non_local_value_macro::non_local_value_impl,
     expand::{
-        generate_exhaustive_destructuring, item_data, match_expansion,
-        task_input_is_transient_body, task_input_persistence_hash_body,
+        generate_exhaustive_destructuring, item_data, match_expansion, task_input_is_transient_body,
     },
 };
 
@@ -119,7 +118,6 @@ pub fn task_input(args: TokenStream, input: TokenStream) -> TokenStream {
     // All TaskInput impls (whether or not `contains_unresolved_vcs`) include a field-walking
     // `is_transient`: any contained Vc field can carry transience.
     let is_transient_impl = task_input_is_transient_body(&ident, &data);
-    let persistence_hash_impl = task_input_persistence_hash_body(&ident, &data);
 
     // When the type holds Vc<T>, resolve_input must walk fields and recursively resolve. This
     // is the same expansion the deleted `#[derive(TaskInput)]` produced; we reuse the
@@ -206,15 +204,6 @@ pub fn task_input(args: TokenStream, input: TokenStream) -> TokenStream {
 
                 #[allow(non_snake_case)]
                 #[allow(unreachable_code)]
-                fn persistence_hash<__PersistenceHasher: turbo_tasks::DeterministicHasher>(
-                    &self,
-                    __state__: &mut __PersistenceHasher,
-                ) {
-                    #persistence_hash_impl
-                }
-
-                #[allow(non_snake_case)]
-                #[allow(unreachable_code)]
                 #[allow(clippy::manual_async_fn)]
                 fn resolve_input(
                     &self,
@@ -245,15 +234,6 @@ pub fn task_input(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[allow(unreachable_code)]
                 fn is_transient(&self) -> bool {
                     #is_transient_impl
-                }
-
-                #[allow(non_snake_case)]
-                #[allow(unreachable_code)]
-                fn persistence_hash<__PersistenceHasher: turbo_tasks::DeterministicHasher>(
-                    &self,
-                    __state__: &mut __PersistenceHasher,
-                ) {
-                    #persistence_hash_impl
                 }
             }
         }

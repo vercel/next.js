@@ -59,67 +59,6 @@ pub fn task_input_is_transient_body(ident: &Ident, data: &Data) -> TokenStream {
     )
 }
 
-/// Emit a deterministic, field-walking body for `TaskInput::persistence_hash`.
-/// Enum variants are identified by their source-order index rather than Rust's
-/// compiler-defined discriminant hashing.
-pub fn task_input_persistence_hash_body(ident: &Ident, data: &Data) -> TokenStream {
-    let hash_named = |_ident: TokenStream, fields: &FieldsNamed| {
-        let (capture, fields) = generate_exhaustive_destructuring(fields.named.iter());
-        (
-            capture,
-            quote! {{
-                #(turbo_tasks::TaskInput::persistence_hash(#fields, __state__);)*
-            }},
-        )
-    };
-    let hash_unnamed = |_ident: TokenStream, fields: &FieldsUnnamed| {
-        let (capture, fields) = generate_exhaustive_destructuring(fields.unnamed.iter());
-        (
-            capture,
-            quote! {{
-                #(turbo_tasks::TaskInput::persistence_hash(#fields, __state__);)*
-            }},
-        )
-    };
-    let hash_unit = |_ident: TokenStream| quote! {{}};
-
-    if let Data::Enum(DataEnum { variants, .. }) = data {
-        if variants.is_empty() {
-            return quote! {};
-        }
-        let arms = variants.iter().enumerate().map(|(index, variant)| {
-            let variant_ident = &variant.ident;
-            let constructor = quote! { #ident::#variant_ident };
-            let cfgs = variant
-                .attrs
-                .iter()
-                .filter(|attr| attr.path().is_ident("cfg"));
-            let (capture, hash_fields) = expand_fields(
-                constructor.clone(),
-                &variant.fields,
-                &hash_named,
-                &hash_unnamed,
-                &|ident| (TokenStream::new(), hash_unit(ident)),
-            );
-            let index = index as u32;
-            quote! {
-                #(#cfgs)*
-                #constructor #capture => {
-                    __state__.write_u32(#index);
-                    #hash_fields
-                }
-            }
-        });
-        quote! {
-            match self {
-                #(#arms),*
-            }
-        }
-    } else {
-        match_expansion(ident, data, &hash_named, &hash_unnamed, &hash_unit)
-    }
-}
-
 /// Handles the expansion of a struct/enum into a match statement that accesses
 /// every field for procedural code generation.
 ///

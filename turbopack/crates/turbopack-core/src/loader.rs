@@ -2,9 +2,7 @@ use std::hash::{Hash, Hasher};
 
 use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{
-    DeterministicHasher, NonLocalValue, OperationValue, TaskInput, trace::TraceRawVcs,
-};
+use turbo_tasks::{NonLocalValue, OperationValue, TaskInput, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 
 #[derive(
@@ -39,13 +37,6 @@ impl Hash for WebpackLoaderItem {
 }
 
 impl TaskInput for WebpackLoaderItem {
-    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
-        self.loader.persistence_hash(state);
-        serde_json::to_string(&self.options)
-            .unwrap_or_default()
-            .persistence_hash(state);
-    }
-
     fn is_transient(&self) -> bool {
         false
     }
@@ -68,13 +59,6 @@ impl Hash for ResolvedWebpackLoaderItem {
 }
 
 impl TaskInput for ResolvedWebpackLoaderItem {
-    fn persistence_hash<H: DeterministicHasher>(&self, state: &mut H) {
-        self.loader.persistence_hash(state);
-        serde_json::to_string(&self.options)
-            .unwrap_or_default()
-            .persistence_hash(state);
-    }
-
     fn is_transient(&self) -> bool {
         false
     }

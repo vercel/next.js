@@ -73,7 +73,6 @@ pub use anyhow::{Error, Result};
 use auto_hash_map::AutoSet;
 use rustc_hash::FxHasher;
 pub use shrink_to_fit::ShrinkToFit;
-pub use turbo_tasks_hash::DeterministicHasher;
 pub use turbo_tasks_macros::{DeterministicHash, turbobail, turbofmt};
 
 #[cfg(feature = "inline_execution_stats")]

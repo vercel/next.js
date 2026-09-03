@@ -5,7 +5,6 @@ use bincode::{Decode, Encode};
 use futures::Future;
 use tracing::Span;
 use turbo_bincode::{AnyDecodeFn, AnyEncodeFn};
-use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 #[cfg(feature = "task_dirty_cause")]
 use crate::TaskDirtyCause;
@@ -31,17 +30,9 @@ type FilterOwnedArgsFunctor =
     for<'a> fn(&'a mut dyn DynTaskInputsStorage) -> (InputResolution, HeapDynTaskInputsStorage);
 type FilterAndResolveFunctor = ResolveFunctor;
 
-/// Function pointer that persistence-hashes a task argument after type erasure.
-///
-/// The concrete hasher keeps recursive [`TaskInput::persistence_hash`] calls statically dispatched;
-/// only this argument-erasure boundary uses an indirect call.
-type AnyPersistenceHashFn = fn(&dyn Any, &mut Xxh3Hash64Hasher);
-
 pub struct ArgMeta {
     // TODO: This should be an `Option` with `None` for transient tasks. We can skip some codegen.
     pub bincode: (AnyEncodeFn, AnyDecodeFn<Box<dyn DynTaskInputs>>),
-    /// Run-to-run deterministic hash used by the persistent task cache.
-    pub persistence_hash: AnyPersistenceHashFn,
     resolve: ResolveFunctor,
     /// Used for trait methods to filter out unused arguments. `None` when all arguments are used
     /// (no filtering needed).
@@ -106,9 +97,6 @@ impl ArgMeta {
                     Ok(Box::new(val))
                 },
             ),
-            persistence_hash: |this, hasher| {
-                T::persistence_hash(any_as_encode::<T>(this), hasher);
-            },
             resolve: resolve_functor_impl::<T>,
             filter_owned,
             filter_and_resolve,

@@ -77,10 +77,6 @@ async fn read_incorrect_task_input(value: IncorrectTaskInput) -> Result<Vc<u64>>
 struct IncorrectTaskInput(ResolvedVc<u64>);
 
 impl TaskInput for IncorrectTaskInput {
-    fn persistence_hash<H: turbo_tasks::DeterministicHasher>(&self, state: &mut H) {
-        self.0.persistence_hash(state);
-    }
-
     fn is_transient(&self) -> bool {
         false
     }

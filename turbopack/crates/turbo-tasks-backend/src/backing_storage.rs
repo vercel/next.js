@@ -46,8 +46,8 @@ impl SnapshotItem {
 
 /// Computes a deterministic 64-bit hash of a CachedTaskType for use as a TaskCache key.
 ///
-/// The hash is run-to-run deterministic and uses stable registry IDs plus
-/// [`turbo_tasks::TaskInput::persistence_hash`] for arguments.
+/// The hash is run-to-run deterministic for persistent task inputs and uses stable registry IDs
+/// rather than process-local function pointers.
 pub fn compute_task_type_hash(task_type: &CachedTaskType) -> TaskTypeHash {
     let mut hasher = Xxh3Hash64Hasher::new();
     task_type.persistence_hash(&mut hasher);

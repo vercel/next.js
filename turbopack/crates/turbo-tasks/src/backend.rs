@@ -26,7 +26,7 @@ use turbo_bincode::{
     impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks_hash::{DeterministicHasher, Xxh3Hash64Hasher};
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::{
     CellId, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ReadRef, SharedReference,
@@ -89,7 +89,7 @@ impl CachedTaskType {
         self.native_fn.ty.name
     }
 
-    /// Adds a run-to-run deterministic representation of this task type to `hasher`.
+    /// Hashes this task type for persistent task-cache lookup.
     pub fn persistence_hash(&self, hasher: &mut Xxh3Hash64Hasher) {
         Self::persistence_hash_components(self.native_fn, self.this, &*self.arg, hasher);
     }
@@ -239,22 +239,20 @@ impl CachedTaskType {
         state.finish()
     }
 
-    /// Compute the deterministic backing-storage hash from borrowed components.
+    /// Hash this task type for backing storage from borrowed components.
+    ///
+    /// The stable function ID is used instead of the process-local function pointer. `DynHash`
+    /// also includes the concrete argument `TypeId`; the cache version pins the engine/toolchain,
+    /// and full task-type equality is checked after hash-bucket lookup.
     pub fn persistence_hash_components(
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
         hasher: &mut Xxh3Hash64Hasher,
     ) {
-        hasher.write_u16(*registry::get_function_id(native_fn));
-        match this {
-            None => hasher.write_u8(0),
-            Some(raw) => {
-                hasher.write_u8(1);
-                hasher.write_u64(raw.bits());
-            }
-        }
-        (native_fn.arg_meta.persistence_hash)(arg, hasher);
+        registry::get_function_id(native_fn).hash(hasher);
+        this.hash(hasher);
+        arg.hash(hasher);
     }
 
     /// Check equality of components against this CachedTaskType.

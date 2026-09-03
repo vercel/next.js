@@ -133,3 +133,26 @@ impl DynTaskInputsStorage for HeapDynTaskInputsStorage {
         self
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use std::hash::Hash;
+
+    use turbo_tasks_hash::Xxh3Hash64Hasher;
+
+    use super::DynTaskInputs;
+
+    fn hash(value: &dyn DynTaskInputs) -> u64 {
+        let mut hasher = Xxh3Hash64Hasher::new();
+        value.hash(&mut hasher);
+        hasher.finish()
+    }
+
+    #[test]
+    fn dynamic_hash_is_repeatable_for_equal_inputs() {
+        let first = (42u32, "input".to_owned());
+        let second = first.clone();
+        assert_eq!(hash(&first), hash(&first));
+        assert_eq!(hash(&first), hash(&second));
+    }
+}
