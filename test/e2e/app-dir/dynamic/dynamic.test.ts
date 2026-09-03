@@ -165,4 +165,115 @@ describe('app dir - next/dynamic', () => {
       )
     })
   })
+
+  describe('conditional dynamic loading', () => {
+    it('should only include the rendered module script tag', async () => {
+      const $ = await next.render$('/conditional-loading/first?component=first')
+      const html = $('html').html()
+      expect(html).toContain('First Dynamic Component')
+      expect(html).not.toContain('Second Dynamic Component')
+
+      const scriptSrcs = $('script[src]')
+        .map((_, el) => $(el).attr('src'))
+        .get()
+      const hasSecondComponentChunk = scriptSrcs.some(
+        (src) =>
+          src &&
+          (src.includes('second-dynamic') || src.includes('second_dynamic'))
+      )
+      expect(hasSecondComponentChunk).toBe(false)
+    })
+
+    it('should only load the rendered module in the browser', async () => {
+      const browser = await next.browser(
+        '/conditional-loading/first?component=first'
+      )
+      await browser.waitForElementByCss('#dynamic-content')
+
+      const html = await browser.eval('document.documentElement.innerHTML')
+      expect(html).toContain('First Dynamic Component')
+      expect(html).not.toContain('Second Dynamic Component')
+
+      await browser.close()
+    })
+
+    it('should handle client-side navigation between conditional components', async () => {
+      const browser = await next.browser(
+        '/conditional-loading/first?component=first'
+      )
+      await browser.waitForElementByCss('#dynamic-content')
+
+      expect(await browser.elementByCss('#dynamic-content').text()).toContain(
+        'First Dynamic Component'
+      )
+
+      await browser.elementByCss('#nav-second').click()
+
+      await retry(async () => {
+        const text = await browser.elementByCss('#dynamic-content').text()
+        expect(text).toContain('Second Dynamic Component')
+      })
+
+      const finalContent = await browser.elementByCss('#dynamic-content').text()
+      expect(finalContent).not.toContain('First Dynamic Component')
+
+      await browser.close()
+    })
+
+    if (isNextStart) {
+      it('should not load unnecessary chunks for conditional imports - first component', async () => {
+        const browser = await next.browser(
+          '/conditional-loading/first?component=first'
+        )
+        await browser.waitForElementByCss('#dynamic-content')
+
+        const networkRequests = await browser.eval(() => {
+          return Array.from(performance.getEntriesByType('resource'))
+            .filter((entry) => entry.name.includes('.js'))
+            .map((entry) => entry.name)
+        })
+
+        const firstComponentRequests = networkRequests.filter(
+          (req) =>
+            req.includes('first-dynamic') || req.includes('first_dynamic')
+        )
+        const secondComponentRequests = networkRequests.filter(
+          (req) =>
+            req.includes('second-dynamic') || req.includes('second_dynamic')
+        )
+
+        expect(firstComponentRequests.length).toBeGreaterThan(0)
+        expect(secondComponentRequests.length).toBe(0)
+
+        await browser.close()
+      })
+
+      it('should not load unnecessary chunks for conditional imports - second component', async () => {
+        const browser = await next.browser(
+          '/conditional-loading/second?component=second'
+        )
+        await browser.waitForElementByCss('#dynamic-content')
+
+        const networkRequests = await browser.eval(() => {
+          return Array.from(performance.getEntriesByType('resource'))
+            .filter((entry) => entry.name.includes('.js'))
+            .map((entry) => entry.name)
+        })
+
+        const firstComponentRequests = networkRequests.filter(
+          (req) =>
+            req.includes('first-dynamic') || req.includes('first_dynamic')
+        )
+        const secondComponentRequests = networkRequests.filter(
+          (req) =>
+            req.includes('second-dynamic') || req.includes('second_dynamic')
+        )
+
+        expect(secondComponentRequests.length).toBeGreaterThan(0)
+        expect(firstComponentRequests.length).toBe(0)
+
+        await browser.close()
+      })
+    }
+  })
 })
