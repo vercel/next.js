@@ -34,7 +34,7 @@ use crate::{
             AggregationUpdateQueue, CleanupOldEdgesOperation, ExecuteContext, ExecuteContextImpl,
             TaskGuard, capture_all_outgoing_edges,
         },
-        snapshot_coordinator::{SnapshotCoordinator, SnapshotPhase},
+        snapshot_coordinator::SnapshotPhase,
         storage::{SpecificTaskDataCategory, TaskDataCategory},
         storage_schema::TaskStorageAccessors,
     },
@@ -73,32 +73,29 @@ enum GcJob {
 
 /// Decides when a GC pass should stop early because it is delaying real work.
 struct GcBudget<'a> {
-    coord: &'a SnapshotCoordinator<AnyOperation>,
+    phase: &'a SnapshotPhase<'a, AnyOperation>,
     started: Instant,
+    /// The minimum quantum of work this pass does before any interrupt is honoured.
     min_progress: Duration,
     /// Latched on the first trip. Re-polling per job would let a waiter that arrives and leaves
     /// produce a ragged pass that stops and starts; once we have decided to wind down, we commit.
     /// Also reports whether the pass was interrupted, for [`GcStats`].
     stopped: AtomicBool,
-    /// When false the pass ignores waiters entirely and runs to completion. See
-    /// [`TurboTasksBackend::gc_collect`].
-    interruptible: bool,
 }
 
 impl GcBudget<'_> {
     fn should_stop(&self) -> bool {
-        if !self.interruptible {
-            return false;
-        }
         if self.stopped.load(Ordering::Relaxed) {
             return true;
         }
         if self.started.elapsed() < self.min_progress {
             return false;
         }
-        if !self.coord.operations_waiting() {
+        if !self.phase.operations_waiting() {
             return false;
         }
+        // If we get here then there is an operation waiting _and_ we have already executed for at
+        // least our min_progress duration
         self.stopped.store(true, Ordering::Relaxed);
         true
     }
@@ -187,9 +184,11 @@ impl TurboTasksBackend {
     /// `phase` is the held exclusion; it is the caller's proof that no operation is running, which
     /// is what makes it safe to mutate the graph here.
     ///
-    /// Returns [`GcStats`] for the pass.
-    /// `interruptible` false pins the pass to run to completion, ignoring waiters. Used for the
-    /// shutdown pass, which has no successor to finish what it skips.
+    /// `interruptible` controls whether we should abandon GC if other tasks are waiting to run.
+    /// Abandonment is controlled by [`GcBudget`] which ensures we can make a minimum amount of
+    /// progress even under load.
+    ///
+    /// Returns [`GcStats`] for the pass and the new roots to persist if any
     pub(crate) fn gc_collect(
         &self,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
@@ -214,16 +213,17 @@ impl TurboTasksBackend {
 
         let aged_out_count = aged_out.len();
         // TODO(perf): recycle the task ids of collected tasks.
-        let budget = GcBudget {
-            coord: &self.snapshot_coord,
-            started: Instant::now(),
-            min_progress: self.gc_min_progress,
-            stopped: AtomicBool::new(false),
-            interruptible,
+        let budget = if interruptible {
+            Some(GcBudget {
+                phase,
+                started: Instant::now(),
+                min_progress: self.gc_min_progress,
+                stopped: AtomicBool::new(false),
+            })
+        } else {
+            None
         };
 
-        // Each job builds its own GC `ExecuteContext`; see the doc above for the concurrency
-        // argument. No root classification happens in here — that is the post-drain scan below.
         let mut stats: GcStats = scope_unbounded_with(
             // Start by scanning all shards and collecting the aged out roots from prior sessions
             (0..self.storage.shard_count())
@@ -232,7 +232,9 @@ impl TurboTasksBackend {
             GcStats::default,
             |spawner, job, stats| {
                 // Abort the gc loop if we are interrupted
-                if budget.should_stop() {
+                if let Some(budget) = &budget
+                    && budget.should_stop()
+                {
                     return ControlFlow::Break(());
                 }
                 let collector = |task_id| spawner.spawn(GcJob::Collect(task_id));
@@ -305,7 +307,10 @@ impl TurboTasksBackend {
 
         stats.gc_roots = roots.len();
         stats.aged_out_roots = aged_out_count;
-        stats.interrupted = budget.was_interrupted();
+        // No budget means an uninterruptible pass, which by construction never interrupts.
+        stats.interrupted = budget
+            .as_ref()
+            .is_some_and(|budget| budget.was_interrupted());
 
         // Only persist the roots map if it actually changed
         let roots_to_persist: Option<Vec<_>> =

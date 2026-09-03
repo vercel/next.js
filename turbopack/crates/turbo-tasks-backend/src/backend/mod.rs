@@ -96,14 +96,22 @@ use crate::{
 /// the operation will be parallelized.
 const DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD: usize = 10000;
 
-/// How long a GC pass runs before it will honour an interrupt.
+/// The minimum useful quantum of GC work: how much a pass always does before it will honour an
+/// interrupt.
 ///
 /// A GC pass holds total operation exclusion, so a waiting invalidation (an HMR edit) is stalled
-/// for its whole duration. The pass therefore watches
-/// [`SnapshotCoordinator::operations_waiting`](snapshot_coordinator::SnapshotCoordinator::operations_waiting)
+/// for its whole duration. An interruptible pass therefore watches
+/// [`SnapshotPhase::operations_waiting`](snapshot_coordinator::SnapshotPhase::operations_waiting)
 /// and winds down early when it is standing in someone's way — but not before this floor has
 /// elapsed. Without a floor, a dev server under sustained edits could interrupt every pass at its
 /// first job and never reclaim anything.
+///
+/// The floor is unconditional, so it also applies when a waiter is already present as the pass
+/// begins — an operation that suspended to let the exclusion start, or one that arrived in the
+/// race between deciding to run and acquiring it. Such a pass does exactly this much work and then
+/// yields. That is the intended trade: the alternative, bailing at zero cost when the race is
+/// lost, buys a little HMR latency at the price of passes that can accomplish nothing at all under
+/// steady contention.
 ///
 /// A *time* floor rather than a task count because the property we want is a bound on the stall
 /// itself: whatever the graph looks like, the worst case an edit can wait behind GC is roughly this
@@ -230,12 +238,27 @@ impl SnapshotReason {
 
     /// Whether a GC pass run for this reason may wind down early when an operation is waiting.
     ///
-    /// False only for `Stop`. An interrupted pass leaves tasks unexamined and its cycle is
-    /// therefore skipped entirely (see `snapshot_and_persist`); at shutdown that would mean not
-    /// persisting at all, and there is no later cycle to retry. Nothing is waiting on a
-    /// shutting-down backend anyway, so running to completion costs nothing.
+    /// True for `IdleTimeout`, because it is the only *opportunistic* schedule: it fires on a bet
+    /// that the system is idle and the exclusion is therefore free. A waiter falsifies the bet —
+    /// either we lost a race (an operation arrived between the decision to run and
+    /// `begin_exclusion`) or one was already mid-flight and suspended to let us in — so the pass
+    /// should take its minimum quantum and yield. There is no deadline to miss; the next idle
+    /// window retries.
+    ///
+    /// The periodic reasons are not claiming the system is idle, only that a snapshot is due, so
+    /// a waiter is not evidence they should stand down — and interrupting them is expensive rather
+    /// than merely late. An interrupted pass leaves tasks unexamined, so its whole cycle is
+    /// skipped (see `snapshot_and_persist`), discarding the accumulated compilation time that the
+    /// `MIN_SNAPSHOT_ACTIVE_TIME` threshold had just judged worth persisting. `Stop` has no later
+    /// cycle at all.
+    ///
+    /// `Test` is not a schedule but a stand-in for one, so it follows whatever the caller is
+    /// exercising: it stays interruptible, which is what lets `gc_interrupt.rs` drive a
+    /// production-shaped interruptible pass. Tests needing a guaranteed full pass pin
+    /// `BackendOptions::gc_min_progress` high (or use `gc_for_testing`, which forces
+    /// `interruptible = false` outright).
     fn gc_is_interruptible(self) -> bool {
-        !matches!(self, SnapshotReason::Stop)
+        matches!(self, SnapshotReason::IdleTimeout | SnapshotReason::Test)
     }
 
     /// True only for `Stop`: at shutdown the whole map is dropped right after, so each task
@@ -1208,20 +1231,21 @@ impl TurboTasksBackend {
                 stats = tracing::field::Empty,
             )
             .entered();
-            // Shutdown is the last pass there will ever be, so a partial one has no successor to
-            // finish its work. Run it to completion regardless of contention.
+            // Only the opportunistic idle pass yields to waiters; a due snapshot and shutdown run
+            // to completion. See `SnapshotReason::gc_is_interruptible`.
             let (stats, roots) =
                 self.gc_collect(turbo_tasks, &snapshot_phase, reason.gc_is_interruptible());
             let interrupted = stats.interrupted;
             *self.last_gc_stats.lock() = Some((&stats).into());
             gc_span.record("stats", display(stats));
             // `interruptible = false` makes this structurally impossible; the assert guards the
-            // wiring, not the runtime, so a future change that reintroduces a way to interrupt a
-            // shutdown pass fails loudly instead of silently skipping the final persist.
+            // wiring, not the runtime, so a future change that reintroduces a way to interrupt an
+            // uninterruptible pass fails loudly instead of silently skipping the persist.
             debug_assert!(
                 !(interrupted && !reason.gc_is_interruptible()),
-                "a shutdown GC pass must never be interrupted: it has no successor to finish its \
-                 work"
+                "GC pass for reason {} must never be interrupted: skipping its cycle would \
+                 discard the snapshot it was run to take",
+                reason.as_str()
             );
             if interrupted {
                 // Persisting now would write the tasks this pass never examined as live, and the
