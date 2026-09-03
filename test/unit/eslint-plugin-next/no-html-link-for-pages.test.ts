@@ -7,6 +7,7 @@ import path from 'path'
 const NextESLintRule = rules['no-html-link-for-pages']
 
 const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
+const withPageExtensionsDir = path.join(__dirname, 'with-page-extensions')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
@@ -26,6 +27,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withPageExtensions: new Linter({
+    cwd: withPageExtensionsDir,
     configType: 'eslintrc',
   }),
 }
@@ -170,6 +175,21 @@ export class Blah extends Head {
 }
 `
 
+const validPlainTsxLink = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/plain'>Plain</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
 const invalidStaticCode = `
 import Link from 'next/link';
 
@@ -295,6 +315,26 @@ describe('no-html-link-for-pages', function () {
     const report = linters.withCustomPages.verify(
       validCode,
       linterConfigWithCustomDirectory,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
+  })
+  it('invalid link element with pageExtensions', function () {
+    const [report] = linters.withPageExtensions.verify(
+      invalidStaticCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('does not treat default extensions as pages when pageExtensions is configured', function () {
+    const report = linters.withPageExtensions.verify(
+      validPlainTsxLink,
+      linterConfig,
       { filename: 'foo.js' }
     )
     assert.deepEqual(report, [])
