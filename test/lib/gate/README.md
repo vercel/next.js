@@ -201,7 +201,9 @@ var is not what the fixture actually resolved.
    through Jest's native `test.failing` and the inversion is Jest's own. A
    lazy gate can't be decided until the fixture's config resolves, so those
    tests wrap the body and invert the outcome at runtime. The `it`/`test`
-   globals are wrapped so a gate on a `describe` reaches the tests inside.
+   globals are wrapped so a gate on a `describe` reaches the tests inside. The
+   `beforeAll`/`afterAll`/`beforeEach`/`afterEach` globals are wrapped too, but
+   only to skip hooks registered under a false lazy `@force-gate`.
 4. `state.ts` holds the fixture `createNext()` registered;
    `NextInstance.getResolvedConfig()` resolves its config out of process (in
    process, `loadConfig` would mutate the Jest worker's `process.env` from the
@@ -226,7 +228,9 @@ A suite with no lazy gate never resolves a config, so the cost is zero.
   anyway. In practice `createRouterAct` and Playwright fail fast instead of
   stalling.
 - Only the test body is gated. A failure from an `afterEach` (e.g. the redbox
-  matchers) still fails the test.
+  matchers) still fails the test. Hooks registered inside a `describe` whose
+  lazy `@force-gate` is false are the one exception: the suite's build and
+  tests are skipped, so its hooks are skipped too.
 - `jest.retryTimes(1)` is on for non-dev CI. A stale gate fails deterministically
   on both attempts, but a *flaky* gated-false test now "passes" whenever it
   happens to fail.
