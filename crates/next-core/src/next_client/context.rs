@@ -379,8 +379,9 @@ pub async fn get_client_module_options_context(
             mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
             cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
             cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
-            lazy_compilation: next_mode.is_development()
-                && *next_config.turbopack_lazy_dynamic_imports().await?,
+            lazy_compilation: *next_config
+                .turbopack_lazy_dynamic_imports(*next_mode)
+                .await?,
             preset_env_config,
             ..Default::default()
         },

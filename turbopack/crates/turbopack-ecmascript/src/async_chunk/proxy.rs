@@ -210,7 +210,7 @@ impl Module for LazyCompilationProxyModule {
 
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
-        ModuleSideEffects::SideEffectFree.cell()
+        ModuleSideEffects::SideEffectful.cell()
     }
 }
 

@@ -2745,11 +2745,13 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn turbopack_lazy_dynamic_imports(&self) -> Vc<bool> {
+    pub async fn turbopack_lazy_dynamic_imports(&self, next_mode: NextMode) -> Vc<bool> {
         Vc::cell(
-            self.experimental
-                .turbopack_lazy_dynamic_imports
-                .unwrap_or(false),
+            next_mode.is_development()
+                && self
+                    .experimental
+                    .turbopack_lazy_dynamic_imports
+                    .unwrap_or(false),
         )
     }
 

@@ -1625,7 +1625,9 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), true),
             shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
             per_page_module_graph: self.per_page_module_graph(),
-            lazy_dynamic_imports: self.next_config().turbopack_lazy_dynamic_imports(),
+            lazy_dynamic_imports: self
+                .next_config()
+                .turbopack_lazy_dynamic_imports(*self.next_mode().await?),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),
