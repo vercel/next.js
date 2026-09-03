@@ -169,8 +169,18 @@ interface NextFetchRequestConfig {
   tags?: string[]
 }
 
-interface RequestInit {
+interface NextFetchRequestInit extends RequestInit {
   next?: NextFetchRequestConfig | undefined
 }
 
 declare var _N_E_STYLE_LOAD: (href: string) => Promise<void>
+
+// Make this file a module so we can augment global scope
+export { }
+
+declare global {
+  function fetch(
+    input: RequestInfo | URL,
+    init?: NextFetchRequestInit
+  ): Promise<Response>
+}
