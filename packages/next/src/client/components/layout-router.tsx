@@ -699,6 +699,9 @@ export default function OuterLayoutRouter({
               notFound={notFound}
               forbidden={forbidden}
               unauthorized={unauthorized}
+              // A refresh replaces the segment's RSC attempt while preserving
+              // its React state identity.
+              resetKey={cacheNode.rsc}
             >
               <RedirectBoundary>
                 <InnerLayoutRouter
