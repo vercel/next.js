@@ -494,7 +494,10 @@ describe.each([true, false])(
       if (isNextDev) {
         it('should support parallel routes with no page component', async () => {
           const browser = await next.browser('/parallel-no-page/foo')
-          const timestamp = await browser.elementByCss('#timestamp').text()
+          // Use waitForElementByCss since with PPR/Cache Components the element is streamed
+          const timestamp = await browser
+            .waitForElementByCss('#timestamp')
+            .text()
 
           await new Promise((resolve) => {
             setTimeout(resolve, 3000)
@@ -502,14 +505,19 @@ describe.each([true, false])(
 
           await check(async () => {
             // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly
-            const newTimestamp = await browser.elementByCss('#timestamp').text()
+            const newTimestamp = await browser
+              .waitForElementByCss('#timestamp')
+              .text()
             return newTimestamp !== timestamp ? 'failure' : 'success'
           }, 'success')
         })
 
         it('should support nested parallel routes', async () => {
           const browser = await next.browser('parallel-nested/home/nested')
-          const timestamp = await browser.elementByCss('#timestamp').text()
+          // Use waitForElementByCss since with PPR/Cache Components the element is streamed
+          const timestamp = await browser
+            .waitForElementByCss('#timestamp')
+            .text()
 
           await new Promise((resolve) => {
             setTimeout(resolve, 3000)
@@ -517,7 +525,9 @@ describe.each([true, false])(
 
           await check(async () => {
             // an invalid response triggers a fast refresh, so if the timestamp doesn't update, this behaved correctly
-            const newTimestamp = await browser.elementByCss('#timestamp').text()
+            const newTimestamp = await browser
+              .waitForElementByCss('#timestamp')
+              .text()
             return newTimestamp !== timestamp ? 'failure' : 'success'
           }, 'success')
         })

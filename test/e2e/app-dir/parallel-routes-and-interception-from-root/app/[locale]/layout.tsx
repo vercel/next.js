@@ -1,4 +1,6 @@
-export const runtime = 'edge'
+export function generateStaticParams() {
+  return [{ locale: 'en' }]
+}
 
 export default async function RootLayout({
   children,

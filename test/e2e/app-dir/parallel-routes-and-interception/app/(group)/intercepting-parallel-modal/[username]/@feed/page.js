@@ -1,5 +1,9 @@
 import Link from 'next/link'
 
+export function generateStaticParams() {
+  return [{ username: 'vercel' }]
+}
+
 export default async function Page({ params }) {
   return (
     <>

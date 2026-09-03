@@ -1,3 +1,7 @@
+export function generateStaticParams() {
+  return [{ id: '1' }]
+}
+
 export default async function Page({ params }) {
   return (
     <div>

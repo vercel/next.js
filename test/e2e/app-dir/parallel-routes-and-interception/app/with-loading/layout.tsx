@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { ReactNode } from 'react'
+import { ReactNode, Suspense } from 'react'
 
 export default function Layout({
   children,
@@ -16,7 +16,9 @@ export default function Layout({
       <div>
         <Link href="/with-loading/foo">To Loading Page</Link>
       </div>
-      <div id="slot">{slot}</div>
+      <div id="slot">
+        <Suspense fallback="loading slot...">{slot}</Suspense>
+      </div>
       <div id="children">{children}</div>
     </>
   )
