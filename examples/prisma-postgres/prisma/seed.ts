@@ -1,6 +1,4 @@
-import { PrismaClient } from "../lib/generated/prisma-client";
-
-const prisma = new PrismaClient();
+import prisma from "../lib/prisma";
 
 async function main() {
   // Create 5 users
@@ -12,6 +10,7 @@ async function main() {
       { email: "diana@example.com", name: "Diana" },
       { email: "edward@example.com", name: "Edward" },
     ],
+    skipDuplicates: true,
   });
 
   // Find all users to get their IDs
