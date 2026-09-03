@@ -52,16 +52,15 @@ export function applyDestination(currentUrl: URL, destination: string): URL {
   // Create a new URL with the updated pathname
   const newUrl = new URL(currentUrl.toString())
 
-  // Handle destinations with query strings
-  const [pathname, search] = destination.split('?')
-  newUrl.pathname = pathname
+  // Let the URL parser split the destination so a `#` starts the hash and only
+  // the first `?` starts the query
+  const parsed = new URL(destination, currentUrl)
+  newUrl.pathname = parsed.pathname
+  newUrl.hash = parsed.hash
 
-  if (search) {
-    // Merge query parameters
-    const newParams = new URLSearchParams(search)
-    for (const [key, value] of newParams.entries()) {
-      newUrl.searchParams.set(key, value)
-    }
+  // Merge query parameters
+  for (const [key, value] of parsed.searchParams.entries()) {
+    newUrl.searchParams.set(key, value)
   }
 
   return newUrl
