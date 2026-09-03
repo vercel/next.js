@@ -1500,6 +1500,22 @@ export interface ExperimentalConfig {
   mcpServer?: boolean
 
   /**
+   * Adapt the dev server for AI coding agents. Active only when an AI coding
+   * agent is detected driving the process (via `@vercel/detect-agent`). When
+   * active, `next dev` serves a machine-readable index at `/_next/agent`,
+   * intercepts raw CLI HTTP clients (curl/wget) with structured guidance
+   * toward the MCP endpoint, and `next dev` / `next build` collision and
+   * validation messages point at the running server's tooling instead of
+   * suggesting workarounds.
+   *
+   * Can also be enabled with `__NEXT_EXPERIMENTAL_AGENT_MODE=true`
+   * (or `force` to bypass agent detection, for testing).
+   *
+   * @default false
+   */
+  agentMode?: boolean
+
+  /**
    * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
    * build`. Failing to acquire the lock causes the process to exit with an
    * error message.
@@ -2375,6 +2391,7 @@ export const defaultConfig = Object.freeze({
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
+    agentMode: false,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
     turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
@@ -2495,6 +2512,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
     | 'requestInsights'
+    | 'agentMode'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2565,6 +2583,7 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
+    agentMode: ex.agentMode,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,

@@ -230,7 +230,8 @@ import {
 } from '../server/lib/router-utils/route-types-utils'
 import { writeCacheLifeTypes } from '../server/lib/router-utils/cache-life-type-utils'
 import { writeRootParamsTypes } from '../server/lib/router-utils/root-params-type-utils'
-import { Lockfile } from './lockfile'
+import { Lockfile, parseDevServerInfo, readLockfileContent } from './lockfile'
+import { isAgentModeEnabled } from '../server/lib/agent-mode'
 import {
   buildPrefetchSegmentDataRoute,
   type PrefetchSegmentDataRoute,
@@ -1272,6 +1273,33 @@ export default async function build(
           path.join(distDir, 'lock'),
           'next build'
         )
+      }
+
+      if (await isAgentModeEnabled(config)) {
+        // Dev servers record their info in `<distDir>/dev/lock` (the dev
+        // distDir gets a `/dev` suffix — see PHASE_DEVELOPMENT_SERVER
+        // handling in server/config.ts).
+        const devLockContent = readLockfileContent(
+          path.join(distDir, 'dev', 'lock')
+        )
+        const devServerInfo = devLockContent
+          ? parseDevServerInfo(devLockContent)
+          : undefined
+        let devServerAlive = false
+        if (devServerInfo) {
+          try {
+            process.kill(devServerInfo.pid, 0)
+            devServerAlive = true
+          } catch {}
+        }
+        if (devServerAlive && devServerInfo) {
+          Log.warn(
+            `Agent mode: a dev server for this project is already running at ${devServerInfo.appUrl}.`
+          )
+          Log.warn(
+            `If this build is only meant to validate that the app compiles, the running dev server can check routes without a full production build: \`npx next experimental-agent-dev compile_route path=/\` (or \`npx next experimental-agent-dev get_errors\`; JSON index: ${devServerInfo.appUrl}/_next/agent).`
+          )
+        }
       }
 
       if (config.cleanDistDir && !isGenerateMode) {
