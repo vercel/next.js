@@ -1,8 +1,8 @@
-import { i18n, type Locale } from "@/i18n-config";
+import { i18n, assertValidLocale } from "@/i18n-config";
 
 export const metadata = {
   title: "i18n within app router - Vercel Examples",
-  description: "How to do i18n in Next.js 15 within app router",
+  description: "How to do i18n in Next.js 16 within app router",
 };
 
 export async function generateStaticParams() {
@@ -11,15 +11,14 @@ export async function generateStaticParams() {
 
 export default async function Root(props: {
   children: React.ReactNode;
-  params: Promise<{ lang: Locale }>;
+  params: Promise<{ lang: string }>;
 }) {
-  const params = await props.params;
-
-  const { children } = props;
+  const { lang } = await props.params;
+  assertValidLocale(lang);
 
   return (
-    <html lang={params.lang}>
-      <body>{children}</body>
+    <html lang={lang}>
+      <body>{props.children}</body>
     </html>
   );
 }
