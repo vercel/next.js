@@ -425,7 +425,7 @@ program
   )
   .addHelpText(
     'after',
-    `\nLearn more: ${cyan('https://nextjs.org/docs/api-reference/cli#info')}`
+    `\nLearn more: ${cyan('https://nextjs.org/docs/app/api-reference/cli#info')}`
   )
   .option('--verbose', 'Collects additional information for debugging.')
   .action((options: NextInfoOptions) =>
