@@ -343,7 +343,8 @@
       "@vercel/blob": "patches/@vercel__blob.patch",
       "postcss-scss": "patches/postcss-scss.patch",
       "playwright-core@1.61.0": "patches/playwright-core@1.61.0.patch",
-      "@types/node@20.17.7": "patches/@types__node@20.17.7.patch"
+      "@types/node@20.17.7": "patches/@types__node@20.17.7.patch",
+      "@edge-runtime/primitives@6.0.0": "patches/@edge-runtime__primitives@6.0.0.patch"
     }
   }
 }

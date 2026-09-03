@@ -1732,6 +1732,8 @@ var require_undici_core_request = __commonJS({
       } else if (request.contentType === null && headerName === "content-type") {
         request.contentType = val;
         request.headers.push(key, val);
+      } else if (headerName === "transfer-encoding" || headerName === "keep-alive" || headerName === "upgrade") {
+        throw new InvalidArgumentError(`invalid ${headerName} header`);
       } else if (headerName === "connection") {
         const value = typeof val === "string" ? val.toLowerCase() : null;
         if (value !== "close" && value !== "keep-alive") {

@@ -26,6 +26,9 @@ overrides:
 packageExtensionsChecksum: sha256-ylDR55omOZlT4Sfpfh6n7mO2r/cLCmlirAikJ/E/LAw=
 
 patchedDependencies:
+  '@edge-runtime/primitives@6.0.0':
+    hash: a1ab5639c9597bfebb04f5d9da945f7204c4de796451af23d4ff386a25540047
+    path: patches/@edge-runtime__primitives@6.0.0.patch
   '@modelcontextprotocol/sdk':
     hash: 680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12
     path: patches/@modelcontextprotocol__sdk.patch
@@ -1208,7 +1211,7 @@ importers:
         version: 4.0.0
       '@edge-runtime/primitives':
         specifier: 6.0.0
-        version: 6.0.0
+        version: 6.0.0(patch_hash=a1ab5639c9597bfebb04f5d9da945f7204c4de796451af23d4ff386a25540047)
       '@hapi/accept':
         specifier: 5.0.2
         version: 5.0.2
@@ -20151,11 +20154,11 @@ snapshots:
 
   '@edge-runtime/ponyfill@4.0.0': {}
 
-  '@edge-runtime/primitives@6.0.0': {}
+  '@edge-runtime/primitives@6.0.0(patch_hash=a1ab5639c9597bfebb04f5d9da945f7204c4de796451af23d4ff386a25540047)': {}
 
   '@edge-runtime/vm@5.0.0':
     dependencies:
-      '@edge-runtime/primitives': 6.0.0
+      '@edge-runtime/primitives': 6.0.0(patch_hash=a1ab5639c9597bfebb04f5d9da945f7204c4de796451af23d4ff386a25540047)
 
   '@emnapi/core@1.10.0':
     dependencies:
