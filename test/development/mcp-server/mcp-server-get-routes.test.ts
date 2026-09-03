@@ -53,6 +53,7 @@ describe('get_routes MCP tool', () => {
           "/blog/[slug]",
           "/docs/[...slug]",
           "/products/[id]",
+          "/robots.txt",
         ],
         "pagesRouter": [
           "/about",
@@ -76,6 +77,7 @@ describe('get_routes MCP tool', () => {
           "/blog/[slug]",
           "/docs/[...slug]",
           "/products/[id]",
+          "/robots.txt",
         ],
       }
     `)
