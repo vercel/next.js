@@ -1089,3 +1089,40 @@ describe('parallel-routes-and-interception-conflicting-pages', () => {
     }
   })
 })
+
+describe('parallel-routes-and-interception-hmr', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: __dirname,
+    nextConfig,
+  })
+
+  it('should not accumulate interception rewrites in beforeFiles on repeated HMR updates', async () => {
+    if (!isNextDev) return
+
+    const filePath = 'app/[lang]/foo/page.js'
+    const fileContent = await next.readFile(filePath)
+
+    try {
+      // Simulate 3 file saves to trigger HMR aggregated event multiple times
+      // If the bug is present, interception rewrites accumulate and corrupt
+      // the pathname, throwing "Invalid interception route: /photos/(.)(.)(.)1"
+      await next.patchFile(filePath, fileContent + '\n// hmr-1')
+      await next.patchFile(filePath, fileContent + '\n// hmr-2')
+      await next.patchFile(filePath, fileContent + '\n// hmr-3')
+
+      // Navigate to the page with the interception route link
+      const browser = await next.browser('/en/foo')
+
+      // Click the link that triggers the interception route
+      await browser.elementByCss('a[href="/photos"]').click()
+
+      // The interception route should still work after multiple HMR saves
+      await check(
+        () => browser.waitForElementByCss('#intercepted').text(),
+        'intercepted'
+      )
+    } finally {
+      await next.patchFile(filePath, fileContent)
+    }
+  })
+})
