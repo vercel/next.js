@@ -10324,6 +10324,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbo-wiki"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "tokio",
+ "turbo-bincode",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-fs",
+ "turbo-tasks-malloc",
+]
+
+[[package]]
 name = "turbopack"
 version = "0.1.0"
 dependencies = [

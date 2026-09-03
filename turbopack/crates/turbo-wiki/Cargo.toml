@@ -1,0 +1,29 @@
+[package]
+name = "turbo-wiki"
+version = "0.1.0"
+description = "An incremental wiki compiler built directly on turbo-tasks (no turbopack crates)"
+license = "MIT"
+edition = "2024"
+autobenches = false
+
+[[bin]]
+name = "turbo-wiki"
+path = "src/main.rs"
+bench = false
+
+[features]
+default = ["custom_allocator"]
+custom_allocator = ["turbo-tasks-malloc/custom_allocator"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-bincode = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-malloc = { workspace = true, default-features = false }
