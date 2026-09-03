@@ -60,6 +60,33 @@ export default defineRule({
               type: 'string',
             },
           },
+          {
+            type: 'object',
+            properties: {
+              pagesDir: {
+                oneOf: [
+                  {
+                    type: 'string',
+                  },
+                  {
+                    type: 'array',
+                    uniqueItems: true,
+                    items: {
+                      type: 'string',
+                    },
+                  },
+                ],
+              },
+              pageExtensions: {
+                type: 'array',
+                uniqueItems: true,
+                items: {
+                  type: 'string',
+                },
+              },
+            },
+            additionalProperties: false,
+          },
         ],
       },
     ],
@@ -69,8 +96,17 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const [ruleOption] = context.options
+
+    let customPagesDirectory: string | string[] | undefined
+    let pageExtensions: string[] | undefined
+
+    if (typeof ruleOption === 'string' || Array.isArray(ruleOption)) {
+      customPagesDirectory = ruleOption
+    } else if (ruleOption && typeof ruleOption === 'object') {
+      customPagesDirectory = ruleOption.pagesDir
+      pageExtensions = ruleOption.pageExtensions
+    }
 
     const rootDirs = getRootDirs(context)
 
@@ -107,8 +143,16 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
+    const appDirUrls = cachedGetUrlFromAppDirectory(
+      '/',
+      foundAppDirs,
+      pageExtensions
+    )
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
