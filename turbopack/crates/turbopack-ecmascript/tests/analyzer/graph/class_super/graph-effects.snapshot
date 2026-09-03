@@ -58,7 +58,7 @@
                                 Constructor(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -86,10 +86,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -171,7 +171,7 @@
                                 Constructor(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -199,10 +199,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -255,7 +255,7 @@
                             Constructor(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -283,8 +283,8 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
                         ],
                     ),
@@ -323,7 +323,7 @@
             Constructor(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

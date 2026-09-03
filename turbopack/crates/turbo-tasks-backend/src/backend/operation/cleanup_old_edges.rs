@@ -54,6 +54,39 @@ pub enum OutdatedEdge {
     CollectiblesDependency(CollectiblesRef),
 }
 
+/// Captures *all* of a task's outgoing edges as [`OutdatedEdge`]s
+pub fn capture_all_outgoing_edges(task: &impl TaskStorageAccessors) -> Vec<OutdatedEdge> {
+    let mut old_edges: Vec<OutdatedEdge> = Vec::new();
+    old_edges.extend(task.iter_children().map(OutdatedEdge::Child));
+    old_edges.extend(
+        task.iter_output_dependencies()
+            .map(OutdatedEdge::OutputDependency),
+    );
+    old_edges.extend(
+        task.iter_cell_dependencies()
+            .map(OutdatedEdge::CellDependency),
+    );
+    old_edges.extend(
+        task.iter_cell_dependencies_hashed()
+            .map(|(r, k)| OutdatedEdge::HashedCellDependency(r, k)),
+    );
+    old_edges.extend(
+        task.iter_collectibles_dependencies()
+            .map(OutdatedEdge::CollectiblesDependency),
+    );
+    old_edges
+}
+
+/// The category to open a dependency *target* with when scrubbing its incoming edge.
+fn dependent_scrub_category<'e, C: ExecuteContext<'e>>(ctx: &C) -> TaskDataCategory {
+    if ctx.collects_gc_candidates() {
+        // Under GC we need to query meta fields so be sure to recover Meta also
+        TaskDataCategory::All
+    } else {
+        TaskDataCategory::Data
+    }
+}
+
 #[cfg(feature = "trace_aggregation_update_stats")]
 type Stats = super::aggregation_update::AggregationUpdateQueueStats;
 #[cfg(not(feature = "trace_aggregation_update_stats"))]
@@ -194,11 +227,15 @@ impl CleanupOldEdgesOperation {
                                     cell,
                                 } = forward;
                                 {
-                                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependents(&CellRef {
+                                    let category = dependent_scrub_category(ctx);
+                                    let mut task = ctx.task(cell_task_id, category);
+                                    let removed = task.remove_cell_dependents(&CellRef {
                                         task: task_id,
                                         cell,
                                     });
+                                    if removed && task.is_cell_dependents_empty() {
+                                        ctx.note_maybe_collectible(&task);
+                                    }
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
@@ -212,14 +249,19 @@ impl CleanupOldEdgesOperation {
                                     cell,
                                 } = forward;
                                 {
-                                    let mut task = ctx.task(cell_task_id, TaskDataCategory::Data);
-                                    task.remove_cell_dependents_hashed(&(
+                                    let category = dependent_scrub_category(ctx);
+                                    let mut task = ctx.task(cell_task_id, category);
+                                    let removed = task.remove_cell_dependents_hashed(&(
                                         CellRef {
                                             task: task_id,
                                             cell,
                                         },
                                         key,
                                     ));
+
+                                    if removed && task.is_cell_dependents_hashed_empty() {
+                                        ctx.note_maybe_collectible(&task);
+                                    }
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
@@ -235,8 +277,12 @@ impl CleanupOldEdgesOperation {
                                 )
                                 .entered();
                                 {
-                                    let mut task = ctx.task(output_task_id, TaskDataCategory::Data);
-                                    task.remove_output_dependent(&task_id);
+                                    let category = dependent_scrub_category(ctx);
+                                    let mut task = ctx.task(output_task_id, category);
+                                    let removed = task.remove_output_dependent(&task_id);
+                                    if removed && task.is_output_dependent_empty() {
+                                        ctx.note_maybe_collectible(&task);
+                                    }
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
@@ -248,12 +294,15 @@ impl CleanupOldEdgesOperation {
                                 task: dependent_task_id,
                             }) => {
                                 {
-                                    let mut task =
-                                        ctx.task(dependent_task_id, TaskDataCategory::Data);
-                                    task.remove_collectibles_dependents(&(
+                                    let category = dependent_scrub_category(ctx);
+                                    let mut task = ctx.task(dependent_task_id, category);
+                                    let removed = task.remove_collectibles_dependents(&(
                                         collectible_type,
                                         task_id,
                                     ));
+                                    if removed && task.collectibles_dependents_len() == 0 {
+                                        ctx.note_maybe_collectible(&task);
+                                    }
                                 }
                                 {
                                     let mut task = ctx.task(task_id, TaskDataCategory::Data);
