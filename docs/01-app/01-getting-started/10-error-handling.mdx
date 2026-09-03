@@ -285,7 +285,7 @@ For component-level error recovery, the [`catchError`](/docs/app/api-reference/f
 
 import { catchError, type ErrorInfo } from 'next/error'
 
-function ErrorFallback(props: { title: string }, { error, retry }: ErrorInfo) {
+function CustomErrorBoundary(props: { title: string }, { error, retry }: ErrorInfo) {
   return (
     <div>
       <h2>{props.title}</h2>
@@ -295,7 +295,7 @@ function ErrorFallback(props: { title: string }, { error, retry }: ErrorInfo) {
   )
 }
 
-export default catchError(ErrorFallback)
+export default catchError(CustomErrorBoundary)
 ```
 
 ```jsx filename="app/custom-error-boundary.js" switcher
@@ -303,7 +303,7 @@ export default catchError(ErrorFallback)
 
 import { catchError } from 'next/error'
 
-function ErrorFallback(props, { error, retry }) {
+function CustomErrorBoundary(props, { error, retry }) {
   return (
     <div>
       <h2>{props.title}</h2>
@@ -313,24 +313,24 @@ function ErrorFallback(props, { error, retry }) {
   )
 }
 
-export default catchError(ErrorFallback)
+export default catchError(CustomErrorBoundary)
 ```
 
 Then use the returned component as a wrapper in any layout or page:
 
 ```tsx filename="app/some-component.tsx" switcher
-import ErrorBoundary from './custom-error-boundary'
+import CustomErrorBoundary from './custom-error-boundary'
 
 export default function Component({ children }: { children: React.ReactNode }) {
-  return <ErrorBoundary title="Dashboard Error">{children}</ErrorBoundary>
+  return <CustomErrorBoundary title="Dashboard Error">{children}</CustomErrorBoundary>
 }
 ```
 
 ```jsx filename="app/some-component.js" switcher
-import ErrorBoundary from './custom-error-boundary'
+import CustomErrorBoundary from './custom-error-boundary'
 
 export default function Component({ children }) {
-  return <ErrorBoundary title="Dashboard Error">{children}</ErrorBoundary>
+  return <CustomErrorBoundary title="Dashboard Error">{children}</CustomErrorBoundary>
 }
 ```
 
