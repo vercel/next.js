@@ -87,4 +87,56 @@ describe('metadata-soft-nav-cache-components', () => {
       )
     })
   })
+
+  it('does not reuse metadata across dynamic params', async () => {
+    let page: Playwright.Page = null as any
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // Reveal several links to the same dynamic route in one render. This
+    // populates shared prefetch state for the route, while the final metadata
+    // depends on the concrete `handle` param.
+    await act(async () => {
+      await browser.elementByCss('input[data-product-links]').click()
+    })
+    await act(async () => {
+      await browser.elementByCss('a[href="/products/gamma"]').click()
+    })
+    await retry(async () => {
+      expect(await browser.elementByCss('#product-title').text()).toBe(
+        'Gamma Product'
+      )
+      expect(await browser.eval(() => document.title)).toBe(
+        'Gamma Product | Site'
+      )
+    })
+
+    await browser.elementByCss('a[href="/"]').click()
+    await browser.waitForElementByCss('#home')
+
+    // Beta is intentionally not prefetched. Its full navigation response
+    // contains Beta's metadata and body; neither may be replaced by the
+    // previously visited Gamma route's cached result.
+    await browser.elementByCss('input[data-beta-link]').click()
+    await browser.waitForElementByCss('a[href="/products/beta"]')
+
+    await act(
+      async () => {
+        await browser.elementByCss('a[href="/products/beta"]').click()
+      },
+      { includes: 'Beta Product' }
+    )
+    await retry(async () => {
+      expect(await browser.elementByCss('#product-title').text()).toBe(
+        'Beta Product'
+      )
+      expect(await browser.eval(() => document.title)).toBe(
+        'Beta Product | Site'
+      )
+    })
+  })
 })
