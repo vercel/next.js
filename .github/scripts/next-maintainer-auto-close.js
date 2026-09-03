@@ -3,10 +3,6 @@ async function deliverOneVerifiedClose({ core, github }) {
     'https://next-maintainer-agent.vercel.tools/eve/agents/close-verifier/eve/v1/auto-close'
   const repository = 'vercel/next.js'
   const [owner, repo] = repository.split('/')
-  const uuid =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/iu
-
-  class StaleApproval extends Error {}
 
   async function queueRequest(path, body) {
     const token = await core.getIDToken('next-maintainer-auto-close')
@@ -31,61 +27,17 @@ async function deliverOneVerifiedClose({ core, github }) {
     return text.length === 0 ? null : JSON.parse(text)
   }
 
-  function validateClaim(value) {
-    if (value === null) return null
-    if (typeof value !== 'object')
-      throw new StaleApproval('Invalid queue claim.')
-    if (value.repository !== repository)
-      throw new StaleApproval('Unexpected repository.')
-    if (!uuid.test(value.approvalId) || !uuid.test(value.leaseToken))
-      throw new StaleApproval('Invalid queue identity.')
-    if (!Number.isInteger(value.issueNumber) || value.issueNumber <= 0)
-      throw new StaleApproval('Invalid issue number.')
-    if (
-      !Number.isInteger(value.sourceConfidence) ||
-      value.sourceConfidence < 80 ||
-      value.sourceConfidence > 100
-    ) {
-      throw new StaleApproval('Invalid source confidence.')
-    }
-    if (
-      typeof value.closeComment !== 'string' ||
-      value.closeComment.length === 0
-    ) {
-      throw new StaleApproval('Invalid close comment.')
-    }
-    if (
-      !['completed', 'not_planned', 'duplicate'].includes(value.stateReason)
-    ) {
-      throw new StaleApproval('Invalid state reason.')
-    }
-    if (value.stateReason === 'duplicate') {
-      if (
-        !Number.isInteger(value.duplicateIssueNumber) ||
-        value.duplicateIssueNumber <= 0 ||
-        value.duplicateIssueNumber === value.issueNumber
-      ) {
-        throw new StaleApproval('Invalid duplicate issue.')
-      }
-    } else if (value.duplicateIssueNumber !== null) {
-      throw new StaleApproval('Unexpected duplicate issue.')
-    }
-    const marker = `<!-- next-maintainer-auto-close:${value.approvalId} -->`
-    if (
-      value.marker !== marker ||
-      `${value.closeComment}\n\n${marker}`.length > 65_536
-    ) {
-      throw new StaleApproval('Invalid marker or comment length.')
-    }
-    return value
-  }
-
   async function report(claim, outcome, error) {
-    await queueRequest(`/${claim.approvalId}/delivery`, {
+    await queueRequest(`/${encodeURIComponent(claim.approvalId)}/delivery`, {
       leaseToken: claim.leaseToken,
       outcome,
       ...(error === undefined ? {} : { error: error.slice(0, 2_000) }),
     })
+  }
+
+  async function reportStale(claim, message) {
+    core.warning(message)
+    await report(claim, 'stale', message)
   }
 
   async function readIssue(number) {
@@ -97,47 +49,30 @@ async function deliverOneVerifiedClose({ core, github }) {
         issue.number !== number ||
         issue.repository_url !== `https://api.github.com/repos/${repository}`
       ) {
-        throw new StaleApproval('Issue was transferred to another repository.')
+        return null
       }
       return issue
     } catch (error) {
-      if (error?.status === 404 || error?.status === 410)
-        throw new StaleApproval('Issue no longer exists.')
+      if (error?.status === 404 || error?.status === 410) return null
       throw error
     }
   }
 
-  async function wasReopenedAfter(comment, issueNumber) {
-    if (!Number.isInteger(comment.id))
-      throw new Error('Marker comment has no ID.')
-    const timeline = await github.paginate(
-      github.rest.issues.listEventsForTimeline,
-      {
-        owner,
-        repo,
-        issue_number: issueNumber,
-        per_page: 100,
-      }
-    )
-    const markerIndex = timeline.findIndex(
-      (event) => event.event === 'commented' && event.id === comment.id
-    )
-    if (markerIndex === -1)
-      throw new Error('Marker comment is missing from the timeline.')
-    return timeline
-      .slice(markerIndex + 1)
-      .some((event) => event.event === 'reopened')
-  }
-
   const claimed = await queueRequest('/claim')
   if (claimed === null) return
-  let claim = claimed
+  const claim = claimed
+  const marker = `<!-- next-maintainer-auto-close:${claim.approvalId} -->`
 
   try {
-    claim = validateClaim(claim)
     const issue = await readIssue(claim.issueNumber)
-    if (issue.pull_request !== undefined)
-      throw new StaleApproval('Target is a pull request.')
+    if (issue === null) {
+      await reportStale(claim, 'Issue no longer exists in this repository.')
+      return
+    }
+    if (issue.pull_request !== undefined) {
+      await reportStale(claim, 'Target is a pull request.')
+      return
+    }
 
     const comments = await github.paginate(github.rest.issues.listComments, {
       owner,
@@ -146,42 +81,46 @@ async function deliverOneVerifiedClose({ core, github }) {
       per_page: 100,
     })
     const markerComment = comments.find((comment) =>
-      (comment.body ?? '').includes(claim.marker)
+      (comment.body ?? '').includes(marker)
     )
 
     if (issue.state === 'closed') {
-      if (markerComment === undefined)
-        throw new StaleApproval('Issue was closed independently.')
-      if (issue.state_reason !== claim.stateReason) {
-        throw new StaleApproval('Issue closed with a different reason.')
+      if (markerComment === undefined) {
+        await reportStale(claim, 'Issue was closed independently.')
+      } else {
+        await report(claim, 'closed')
       }
-      await report(claim, 'closed')
       return
     }
-    if (issue.state !== 'open') throw new StaleApproval('Issue is not open.')
-    if (
-      markerComment !== undefined &&
-      (await wasReopenedAfter(markerComment, claim.issueNumber))
-    ) {
-      throw new StaleApproval('Issue was reopened after delivery.')
+    if (markerComment !== undefined) {
+      // This is either a partial prior run or a human reopen. Leave it open.
+      await reportStale(claim, 'Issue is open after a prior delivery comment.')
+      return
     }
 
     let duplicateIssueId
     if (claim.stateReason === 'duplicate') {
+      if (claim.duplicateIssueNumber === claim.issueNumber) {
+        await reportStale(claim, 'Issue cannot be a duplicate of itself.')
+        return
+      }
       const canonical = await readIssue(claim.duplicateIssueNumber)
-      if (canonical.pull_request !== undefined)
-        throw new StaleApproval('Duplicate target is not an issue.')
+      if (canonical === null || canonical.pull_request !== undefined) {
+        await reportStale(
+          claim,
+          'Duplicate target is not an issue in this repository.'
+        )
+        return
+      }
       duplicateIssueId = canonical.id
     }
 
-    if (markerComment === undefined) {
-      await github.rest.issues.createComment({
-        owner,
-        repo,
-        issue_number: claim.issueNumber,
-        body: `${claim.closeComment}\n\n${claim.marker}`,
-      })
-    }
+    await github.rest.issues.createComment({
+      owner,
+      repo,
+      issue_number: claim.issueNumber,
+      body: `${claim.closeComment}\n\n${marker}`,
+    })
 
     const updated = (
       await github.rest.issues.update({
@@ -199,28 +138,17 @@ async function deliverOneVerifiedClose({ core, github }) {
       updated.state !== 'closed' ||
       updated.state_reason !== claim.stateReason
     ) {
-      throw new StaleApproval(
-        'GitHub did not apply the requested close reason.'
-      )
+      throw new Error('GitHub did not apply the requested close reason.')
     }
     await report(claim, 'closed')
   } catch (error) {
-    const outcome = error instanceof StaleApproval ? 'stale' : 'retry'
     const message = error instanceof Error ? error.message : String(error)
-    if (
-      typeof claim === 'object' &&
-      claim !== null &&
-      uuid.test(claim.approvalId) &&
-      uuid.test(claim.leaseToken)
-    ) {
-      try {
-        await report(claim, outcome, message)
-      } catch (callbackError) {
-        core.warning(`Could not report ${outcome}: ${callbackError}`)
-      }
+    try {
+      await report(claim, 'retry', message)
+    } catch (callbackError) {
+      core.warning(`Could not report retry: ${callbackError}`)
     }
-    if (outcome === 'retry') throw error
-    core.warning(message)
+    throw error
   }
 }
 
