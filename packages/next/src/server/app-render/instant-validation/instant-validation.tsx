@@ -10,7 +10,11 @@ import {
   type FullTransportNode,
   type TransportSegmentData,
 } from '../../../shared/lib/rsc-transport'
-import { RenderStage } from '../staged-rendering'
+import {
+  RENDER_STAGE_ADVANCE_ORDER,
+  RenderStage,
+  type AdvanceableRenderStage,
+} from '../staged-rendering'
 import { getServerModuleMap } from '../manifests-singleton'
 import { runInSequentialTasks } from '../app-render-render-utils'
 import { workAsyncStorage } from '../work-async-storage.external'
@@ -166,12 +170,7 @@ function stringifySegment(segment: Segment): SegmentPath {
 // 2. Separating a stream into segments
 //===============================================================
 
-export type SegmentStage =
-  | RenderStage.Static
-  | RenderStage.ShellRuntime
-  | RenderStage.Runtime
-  | RenderStage.NavigationRuntime
-  | RenderStage.Dynamic
+export type SegmentStage = AdvanceableRenderStage
 
 /** The stages that a prefetched segment can be in. */
 export type PrefetchedSegmentStage = Exclude<SegmentStage, RenderStage.Dynamic>
@@ -206,7 +205,16 @@ export async function collectStagedSegmentData(
 
   let partialStages: SegmentStage[]
   switch (prefetchKind) {
-    case ValidationPrefetchKind.Shell: {
+    case ValidationPrefetchKind.StaticAppShell: {
+      partialStages = [
+        RenderStage.ShellStatic,
+        RenderStage.PrefetchStatic,
+        RenderStage.NavigationStatic, // TODO(cache-stages): only if needed
+        RenderStage.Runtime,
+      ]
+      break
+    }
+    case ValidationPrefetchKind.RuntimeAppShell: {
       partialStages = [
         RenderStage.ShellRuntime,
         RenderStage.Runtime,
@@ -283,7 +291,10 @@ async function collectSegmentDataForStage(
     const currentStage = controller.currentStage
     switch (currentStage) {
       case RenderStage.Before:
+      case RenderStage.ShellStatic:
+      case RenderStage.PrefetchStatic:
       case RenderStage.Static:
+      case RenderStage.NavigationStatic:
         return 'Prerender'
       case RenderStage.ShellRuntime: // TODO(app-shells) - proper environmentName
       case RenderStage.Runtime:
@@ -794,13 +805,11 @@ function createSegmentCache(): SegmentCache {
 }
 
 function createSegmentCacheItem(): SegmentCacheItem {
-  return {
-    [RenderStage.Static]: null,
-    [RenderStage.ShellRuntime]: null,
-    [RenderStage.Runtime]: null,
-    [RenderStage.NavigationRuntime]: null,
-    [RenderStage.Dynamic]: null,
+  const result: Partial<SegmentCacheItem> = {}
+  for (const stage of RENDER_STAGE_ADVANCE_ORDER) {
+    result[stage] = null
   }
+  return result as SegmentCacheItem
 }
 
 function createSegmentCacheItemStageEntry(
@@ -998,10 +1007,10 @@ export type ValidationPayloadResult = {
 }
 
 export enum ValidationPrefetchKind {
-  /** App Shells, for `<Link>` without `prefetch={true}` */
-  Shell = 1,
-  // TODO(app-shells): validate speculative prefetches
-  // Speculative = 2,
+  /** App Shells, for `<Link>` without `prefetch={true}`, including session data */
+  RuntimeAppShell = 1,
+  /** App Shells, for `<Link>` without `prefetch={true}`, only static data */
+  StaticAppShell = 2,
   /** Behavior when Partial Prefetching is not enabled. */
   LegacySpeculative = 3,
 }
@@ -1308,7 +1317,11 @@ export async function createCombinedPayloadAtDepth(
 
     let stage: PrefetchedSegmentStage
     switch (prefetchKind) {
-      case ValidationPrefetchKind.Shell: {
+      case ValidationPrefetchKind.StaticAppShell: {
+        stage = overrideStageForPartialSegments ?? RenderStage.ShellStatic
+        break
+      }
+      case ValidationPrefetchKind.RuntimeAppShell: {
         stage = overrideStageForPartialSegments ?? RenderStage.ShellRuntime
         break
       }
@@ -1431,7 +1444,11 @@ export async function createCombinedPayloadAtDepth(
 
   let headStage: PrefetchedSegmentStage
   switch (prefetchKind) {
-    case ValidationPrefetchKind.Shell: {
+    case ValidationPrefetchKind.StaticAppShell: {
+      headStage = overrideStageForPartialSegments ?? RenderStage.ShellStatic
+      break
+    }
+    case ValidationPrefetchKind.RuntimeAppShell: {
       headStage = overrideStageForPartialSegments ?? RenderStage.ShellRuntime
       break
     }
