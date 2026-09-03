@@ -100,6 +100,16 @@ function runParallelRouteNotFoundTests(parallelRouteMetadata: boolean) {
     it('should handle `notFound()` in a slot with no `children` slot', async () => {
       const browser = await next.browser('/not-found-metadata/no-page')
 
+      // The slot's `generateMetadata` function threw a `notFound()` error,
+      // so we should see the not found page.
+      expect(await browser.elementByCss('body').text()).toContain(
+        'Custom Not Found!'
+      )
+    })
+  } else {
+    it('should handle `notFound()` in a slot', async () => {
+      const browser = await next.browser('/not-found-metadata/slot-error')
+
       // The page's `generateMetadata` function threw a `notFound()` error,
       // so we should see the not found page.
       expect(await browser.elementByCss('body').text()).toContain(
