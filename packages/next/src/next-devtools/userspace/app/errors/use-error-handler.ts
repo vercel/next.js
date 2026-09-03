@@ -4,6 +4,7 @@ import {
   formatConsoleArgs,
   parseConsoleArgs,
 } from '../../../../client/lib/console'
+import { formatServerError } from '../../../../lib/format-server-error'
 import isError from '../../../../lib/is-error'
 import { createConsoleError } from '../../../shared/console-error'
 import { coerceError, setOwnerStackIfAvailable } from './stitched-error'
@@ -33,6 +34,9 @@ export function handleConsoleError(
       environmentName
     )
   }
+  // React may replay the original message before server-side formatting ran.
+  // Re-apply helpful rewrites so the overlay matches the terminal.
+  formatServerError(error)
   setOwnerStackIfAvailable(error)
 
   errorQueue.push(error)
@@ -46,6 +50,7 @@ export function handleConsoleError(
 }
 
 export function handleClientError(error: Error) {
+  formatServerError(error)
   errorQueue.push(error)
   for (const handler of errorHandlers) {
     // Delayed the error being passed to React Dev Overlay,

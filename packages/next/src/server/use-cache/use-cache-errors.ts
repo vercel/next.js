@@ -1,3 +1,5 @@
+import { setErrorMessage } from '../../lib/format-server-error'
+
 export class UseCacheTimeoutError extends Error {
   constructor(route: string) {
     super(
@@ -29,4 +31,45 @@ export class NestedDynamicUseCacheError extends Error {
     )
     this.name = 'Nested dynamic "use cache"'
   }
+}
+
+/**
+ * React Flight reports non-serializable functions with a Client Components
+ * message. Inside `"use cache"` that framing is misleading — the real issue is
+ * the cache serialization boundary. Append a clearer hint while preserving
+ * React's function annotation (e.g. `[function fn]`).
+ */
+const REACT_FUNCTION_SERIALIZATION_ERROR =
+  'Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.'
+
+const USE_CACHE_FUNCTION_DOCS_URL =
+  'https://nextjs.org/docs/app/api-reference/directives/use-cache'
+
+// Docs: return values may include JSX; bare functions are unsupported (except
+// pass-through args). See /docs/app/api-reference/directives/use-cache.
+const USE_CACHE_FUNCTION_SERIALIZATION_HINT = `Inside \`"use cache"\`, return JSX or serializable data — not a function (including a component reference). See ${USE_CACHE_FUNCTION_DOCS_URL}`
+
+export function annotateUseCacheFunctionSerializationError(
+  error: unknown
+): void {
+  if (!(error instanceof Error) || typeof error.message !== 'string') {
+    return
+  }
+
+  if (!error.message.includes(REACT_FUNCTION_SERIALIZATION_ERROR)) {
+    return
+  }
+
+  // Avoid appending the hint more than once if the error is reported again.
+  if (error.message.includes(USE_CACHE_FUNCTION_DOCS_URL)) {
+    return
+  }
+
+  setErrorMessage(
+    error,
+    error.message.replace(
+      REACT_FUNCTION_SERIALIZATION_ERROR,
+      `${REACT_FUNCTION_SERIALIZATION_ERROR}\n\n${USE_CACHE_FUNCTION_SERIALIZATION_HINT}`
+    )
+  )
 }

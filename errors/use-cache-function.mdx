@@ -1,0 +1,70 @@
+---
+title: Functions cannot be passed into or returned from `"use cache"`
+---
+
+## Why This Error Occurred
+
+A function (including a React component reference) was passed into or returned from a `"use cache"` function in a way that requires serialization.
+
+Per the [`use cache`](/docs/app/api-reference/directives/use-cache) docs, arguments and return values must be serializable. **Functions are unsupported**, except as [pass-through](/docs/app/api-reference/directives/use-cache#pass-through-non-serializable-arguments) props that you do not call or inspect. **JSX elements are valid return values** — returning `<Component />` is fine; returning `Component` itself is not.
+
+Return values use React Client Components serialization, which is why the overlay may mention Client Components even though the real issue is the `"use cache"` boundary.
+
+React may also show a short value preview under the message, such as `[function fn]` or `{}`. That preview is not part of the Next.js hint; it is React describing the non-serializable value.
+
+Common cases:
+
+- Returning an MDX or Server Component function from a cached helper, then rendering it as `<Content />`
+- Closing over a local function and calling it inside `"use cache"` (captured closed-over values become part of the cache key / bound args)
+
+## Possible Ways to Fix It
+
+### Return JSX or serializable data instead of a component function
+
+Before:
+
+```jsx filename="app/lib/post.js"
+export async function getPostContent(slug) {
+  'use cache'
+  const { default: Post } = await import(`../content/${slug}.mdx`)
+  return Post // ❌ function — not serializable
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js"
+export default async function Page({ params }) {
+  const { slug } = await params
+  const Content = await getPostContent(slug)
+  return <Content />
+}
+```
+
+After:
+
+```jsx filename="app/lib/post.js"
+export async function getPostContent(slug) {
+  'use cache'
+  const { default: Post } = await import(`../content/${slug}.mdx`)
+  return <Post /> // ✅ cache the rendered output
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js"
+export default async function Page({ params }) {
+  const { slug } = await params
+  const content = await getPostContent(slug)
+  return <>{content}</>
+}
+```
+
+### Avoid closing over non-serializable functions
+
+Move helper logic into the cached function, or pass serializable data instead of a function reference.
+
+If you only need to pass a Server Action through a cached component without calling it inside the cache scope, that [pass-through](/docs/app/api-reference/directives/use-cache#pass-through-non-serializable-arguments) pattern is supported — mark the action with `"use server"` and do not invoke it inside `"use cache"`.
+
+## Useful Links
+
+- [`use cache` directive — Serialization](/docs/app/api-reference/directives/use-cache#serialization)
+- [`use cache` directive — Pass-through](/docs/app/api-reference/directives/use-cache#pass-through-non-serializable-arguments)
+- [Caching in Next.js](/docs/app/getting-started/caching)
