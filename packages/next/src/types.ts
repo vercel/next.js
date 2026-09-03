@@ -66,6 +66,31 @@ export type {
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type Route<RouteInferType = any> = string & {}
 
+/**
+ * Stub static routes type before `next dev` or `next build` is run.
+ * Will be populated with actual static routes during build.
+ * @example
+ * ```ts
+ * import type { StaticRoutes } from 'next'
+ * const route: StaticRoutes = "/about"
+ * ```
+ */
+export type StaticRoutes = never
+
+/**
+ * Stub dynamic routes type before `next dev` or `next build` is run.
+ * Will be populated with actual dynamic routes during build.
+ *
+ * The type parameter T represents the union of all possible values that can fill any dynamic segment in your routes.
+ * @example
+ * ```ts
+ * import type { DynamicRoutes } from 'next'
+ * // T applies to ALL dynamic segments across ALL routes
+ * const route: DynamicRoutes<"en" | "fr"> = "/en/about"
+ * ```
+ */
+export type DynamicRoutes<_T extends string = string> = never
+
 // Extend the React types with missing properties
 declare module 'react' {
   // <img fetchPriority=""> support
