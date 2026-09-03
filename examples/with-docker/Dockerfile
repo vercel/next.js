@@ -13,7 +13,7 @@ FROM node:${NODE_VERSION} AS dependencies
 WORKDIR /app
 
 # Copy package-related files first to leverage Docker's caching mechanism
-COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* .npmrc* ./
+COPY package.json yarn.lock* package-lock.json* pnpm-lock.yaml* pnpm-workspace.yaml* .npmrc* ./
 
 # Install project dependencies with frozen lockfile for reproducible builds
 RUN --mount=type=cache,target=/root/.npm \
@@ -80,6 +80,14 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+# Sharp recommends jemalloc on glibc-based Linux to reduce memory fragmentation.
+# Remove this setup when using Alpine, which uses musl instead of glibc:
+# https://sharp.pixelplumbing.com/install/#linux-memory-allocator
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libjemalloc2 \
+  && rm -rf /var/lib/apt/lists/*
+ENV LD_PRELOAD=libjemalloc.so.2
 
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
