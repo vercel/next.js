@@ -1,0 +1,24 @@
+services:
+  mailtrap-local:
+    image: mailtrap/mailtrap-local:latest
+    ports:
+      - "3535:3535" # SMTP
+      - "3550:3550" # web ui - http://localhost:3550
+    volumes:
+      - mailtrap-local:/var/lib/mailtrap-local
+
+  # Auth.js stores magic-link verification tokens in a database, so the Email provider needs one.
+  # The schema in init.sql is loaded automatically on the first start.
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: app
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+
+volumes:
+  mailtrap-local:
