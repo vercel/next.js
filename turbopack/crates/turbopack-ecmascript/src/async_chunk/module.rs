@@ -159,20 +159,41 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let supports_arrow_functions = *chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?;
         let options = EcmascriptChunkItemOptions {
-            supports_arrow_functions: *chunking_context
-                .environment()
-                .runtime_versions()
-                .supports_arrow_functions()
-                .await?,
+            supports_arrow_functions,
             ..Default::default()
+        };
+        let parent_import_function = if supports_arrow_functions {
+            "(parentImport) => {"
+        } else {
+            "function(parentImport) {"
+        };
+        let no_args_function = if supports_arrow_functions {
+            "() => {"
+        } else {
+            "function() {"
+        };
+        let empty_function = if supports_arrow_functions {
+            "() => {}"
+        } else {
+            "function() {}"
+        };
+        let load_chunk_function = if supports_arrow_functions {
+            format!("(chunk) => {TURBOPACK_LOAD}(chunk)")
+        } else {
+            format!("function(chunk) {{ return {TURBOPACK_LOAD}(chunk); }}")
         };
 
         if estimated {
             let code = formatdoc! {
                 r#"
-                    {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                        return Promise.all([].map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{}});
+                    {TURBOPACK_EXPORT_VALUE}({parent_import_function}
+                        return Promise.all([].map({load_chunk_function})).then({empty_function});
                     }});
                 "#,
             };
@@ -206,8 +227,8 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             (Some(id), true) => {
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                            return Promise.resolve().then(() => {{
+                        {TURBOPACK_EXPORT_VALUE}({parent_import_function}
+                            return Promise.resolve().then({no_args_function}
                                 return parentImport({id});
                             }});
                         }});
@@ -218,8 +239,8 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             (Some(id), false) => {
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                            return Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
+                        {TURBOPACK_EXPORT_VALUE}({parent_import_function}
+                            return Promise.all({chunks:#}.map({load_chunk_function})).then({no_args_function}
                                 return parentImport({id});
                             }});
                         }});
@@ -231,7 +252,7 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             (None, true) => {
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                        {TURBOPACK_EXPORT_VALUE}({parent_import_function}
                             return Promise.resolve();
                         }});
                     "#,
@@ -240,8 +261,8 @@ impl EcmascriptChunkPlaceable for AsyncLoaderModule {
             (None, false) => {
                 formatdoc! {
                     r#"
-                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                            return Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{}});
+                        {TURBOPACK_EXPORT_VALUE}({parent_import_function}
+                            return Promise.all({chunks:#}.map({load_chunk_function})).then({empty_function});
                         }});
                     "#,
                     chunks = StringifyJs(&chunks_data),

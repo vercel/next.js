@@ -19,8 +19,8 @@ use turbopack_core::{
 use super::chunk_asset::ManifestAsyncModule;
 use crate::{
     chunk::{
-        EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
-        data::EcmascriptChunkData, ecmascript_chunk_item,
+        EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
+        EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
@@ -129,11 +129,40 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
     #[turbo_tasks::function]
     async fn chunk_item_content(
         self: Vc<Self>,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
         _module_graph: Vc<ModuleGraph>,
         _async_module_info: Option<Vc<AsyncModuleInfo>>,
         _estimated: bool,
     ) -> Result<Vc<EcmascriptChunkItemContent>> {
+        let supports_arrow_functions = *chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?;
+        let options = EcmascriptChunkItemOptions {
+            supports_arrow_functions,
+            ..Default::default()
+        };
+        let parent_import_function = if supports_arrow_functions {
+            "(parentImport) => {"
+        } else {
+            "function(parentImport) {"
+        };
+        let no_args_function = if supports_arrow_functions {
+            "() => {"
+        } else {
+            "function() {"
+        };
+        let chunks_function = if supports_arrow_functions {
+            "(chunks) => {"
+        } else {
+            "function(chunks) {"
+        };
+        let load_chunk_function = if supports_arrow_functions {
+            format!("(chunk) => {TURBOPACK_LOAD}(chunk)")
+        } else {
+            format!("function(chunk) {{ return {TURBOPACK_LOAD}(chunk); }}")
+        };
         let this = self.await?;
         let mut code = Vec::new();
 
@@ -168,12 +197,12 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
         writedoc!(
             code,
             r#"
-                {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                    return Promise.all({chunks_server_data}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
+                {TURBOPACK_EXPORT_VALUE}({parent_import_function}
+                    return Promise.all({chunks_server_data}.map({load_chunk_function})).then({no_args_function}
                         return {TURBOPACK_REQUIRE}({item_id});
-                    }}).then((chunks) => {{
-                        return Promise.all(chunks.map((chunk) => {TURBOPACK_LOAD}(chunk)));
-                    }}).then(() => {{
+                    }}).then({chunks_function}
+                        return Promise.all(chunks.map({load_chunk_function}));
+                    }}).then({no_args_function}
                         return parentImport({dynamic_id});
                     }});
                 }});
@@ -190,6 +219,7 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
 
         Ok(EcmascriptChunkItemContent {
             inner_code: code.into(),
+            options,
             ..Default::default()
         }
         .cell())
