@@ -74,6 +74,11 @@ export default defineRule({
 
     const rootDirs = getRootDirs(context)
 
+    // Read pageExtensions from Next.js settings (next.config.js)
+    const nextSettings: { pageExtensions?: string[] } =
+      context.settings.next || {}
+    const pageExtensions = nextSettings.pageExtensions
+
     const pagesDirs = (
       customPagesDirectory
         ? [customPagesDirectory]
@@ -107,8 +112,8 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, pageExtensions)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, pageExtensions)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
