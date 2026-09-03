@@ -223,6 +223,7 @@ export async function mergeMetadata(
     metadataContext,
     buildState,
     leafSegmentStaticIcons,
+    cloneResolvedMetadata = true,
   }: {
     metadata: Metadata | null
     resolvedMetadata: ResolvedMetadata
@@ -231,8 +232,8 @@ export async function mergeMetadata(
     metadataContext: MetadataContext
     buildState: BuildState
     leafSegmentStaticIcons: StaticIcons
-  },
-  cloneResolvedMetadata = true
+    cloneResolvedMetadata?: boolean
+  }
 ): Promise<ResolvedMetadata> {
   const newResolvedMetadata = cloneResolvedMetadata
     ? structuredClone(resolvedMetadata)
@@ -453,16 +454,15 @@ export async function mergeMetadata(
 /**
  * Merges the given viewport with the resolved viewport. Returns a new object.
  */
-export function mergeViewport(
-  {
-    resolvedViewport,
-    viewport,
-  }: {
-    resolvedViewport: ResolvedViewport
-    viewport: Viewport | null
-  },
-  cloneResolvedViewport = true
-): ResolvedViewport {
+export function mergeViewport({
+  resolvedViewport,
+  viewport,
+  cloneResolvedViewport = true,
+}: {
+  resolvedViewport: ResolvedViewport
+  viewport: Viewport | null
+  cloneResolvedViewport?: boolean
+}): ResolvedViewport {
   const newResolvedViewport = cloneResolvedViewport
     ? structuredClone(resolvedViewport)
     : resolvedViewport
