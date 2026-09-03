@@ -42,6 +42,7 @@ import {
 import {
   throwWithStaticGenerationBailoutErrorWithDynamicError,
   throwForSearchParamsAccessInUseCache,
+  throwForSearchParamsEnumerationInUseCache,
 } from './utils'
 
 export type SearchParams = { [key: string]: string | string[] | undefined }
@@ -522,7 +523,34 @@ export function makeErroringSearchParamsForUseCache(): Promise<SearchParams> {
     return cachedSearchParams
   }
 
-  const promise = Promise.resolve({})
+  // The error is triggered when a search param is read from the resolved
+  // object, and not when the promise itself is awaited. Merely touching the
+  // promise must stay side-effect free, because React's dev-only debug info
+  // serializer probes every prop of a rendered Server Component for
+  // thenability by reading `.then`. Otherwise a cached page that only forwards
+  // its props to a child Server Component would error without reading any
+  // search param.
+  const underlyingSearchParams = new Proxy({} as SearchParams, {
+    get: function get(target, prop, receiver) {
+      if (typeof prop === 'string' && !wellKnownProperties.has(prop)) {
+        throwForSearchParamsAccessInUseCache(workStore, get)
+      }
+
+      return ReflectAdapter.get(target, prop, receiver)
+    },
+    has: function has(target, prop) {
+      if (typeof prop === 'string' && !wellKnownProperties.has(prop)) {
+        throwForSearchParamsAccessInUseCache(workStore, has)
+      }
+
+      return Reflect.has(target, prop)
+    },
+    ownKeys: function ownKeys() {
+      throwForSearchParamsEnumerationInUseCache(workStore, ownKeys)
+    },
+  })
+
+  const promise = Promise.resolve(underlyingSearchParams)
 
   const proxiedPromise = new Proxy(promise, {
     get: function get(target, prop, receiver) {
@@ -534,10 +562,8 @@ export function makeErroringSearchParamsForUseCache(): Promise<SearchParams> {
         return ReflectAdapter.get(target, prop, receiver)
       }
 
-      if (
-        typeof prop === 'string' &&
-        (prop === 'then' || !wellKnownProperties.has(prop))
-      ) {
+      if (typeof prop === 'string' && !wellKnownProperties.has(prop)) {
+        // Sync access of a search param on the unawaited promise.
         throwForSearchParamsAccessInUseCache(workStore, get)
       }
 

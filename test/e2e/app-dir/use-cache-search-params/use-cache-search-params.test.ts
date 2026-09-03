@@ -34,11 +34,11 @@ describe('use-cache-search-params', () => {
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Cache",
            "label": "Runtime Error",
-           "source": "app/search-params-used/page.tsx (8:17) @ Page
+           "source": "app/search-params-used/page.tsx (8:38) @ Page
          >  8 |   const param = (await searchParams).foo
-              |                 ^",
+              |                                      ^",
            "stack": [
-             "Page app/search-params-used/page.tsx (8:17)",
+             "Page app/search-params-used/page.tsx (8:38)",
            ],
          }
         `)
@@ -46,7 +46,7 @@ describe('use-cache-search-params', () => {
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
         expect(cliOutput).toContain(`Error: ${getExpectedErrorMessage(route)}
-    at Page (app/search-params-used/page.tsx:8:17)`)
+    at Page (app/search-params-used/page.tsx:8:38)`)
       })
     })
 
@@ -65,11 +65,11 @@ describe('use-cache-search-params', () => {
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/search-params-caught/page.tsx (11:5) @ Page
+           "source": "app/search-params-caught/page.tsx (11:34) @ Page
          > 11 |     param = (await searchParams).foo
-              |     ^",
+              |                                  ^",
            "stack": [
-             "Page app/search-params-caught/page.tsx (11:5)",
+             "Page app/search-params-caught/page.tsx (11:34)",
            ],
          }
         `)
@@ -77,7 +77,7 @@ describe('use-cache-search-params', () => {
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
         expect(cliOutput).toContain(`Error: ${getExpectedErrorMessage(route)}
-    at Page (app/search-params-caught/page.tsx:11:5)`)
+    at Page (app/search-params-caught/page.tsx:11:34)`)
       })
 
       it('should also show an error after the second reload', async () => {
@@ -94,11 +94,11 @@ describe('use-cache-search-params', () => {
          Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
            "environmentLabel": "Server",
            "label": "Console Error",
-           "source": "app/search-params-caught/page.tsx (11:5) @ Page
+           "source": "app/search-params-caught/page.tsx (11:34) @ Page
          > 11 |     param = (await searchParams).foo
-              |     ^",
+              |                                  ^",
            "stack": [
-             "Page app/search-params-caught/page.tsx (11:5)",
+             "Page app/search-params-caught/page.tsx (11:34)",
            ],
          }
         `)
@@ -108,6 +108,53 @@ describe('use-cache-search-params', () => {
     describe('when searchParams are unused inside of "use cache"', () => {
       beforeAll(() => {
         route = '/search-params-unused'
+      })
+
+      it('should not show an error', async () => {
+        const outputIndex = next.cliOutput.length
+        const browser = await next.browser(`${route}?foo=1`)
+
+        await waitForNoRedbox(browser)
+
+        const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
+        expect(cliOutput).not.toContain(getExpectedErrorMessage(route))
+      })
+    })
+
+    describe('when searchParams are enumerated inside of "use cache"', () => {
+      beforeAll(() => {
+        route = '/search-params-enumerated'
+      })
+
+      it('should show an error', async () => {
+        const outputIndex = next.cliOutput.length
+        const browser = await next.browser(`${route}?foo=1`)
+
+        await expect(browser).toDisplayRedbox(`
+         {
+           "description": "Route "/search-params-enumerated": \`searchParams\` can't be read inside \`"use cache"\`. Await it outside the cached function and pass what you need as an argument.
+         Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
+           "environmentLabel": "Cache",
+           "label": "Runtime Error",
+           "source": "app/search-params-enumerated/page.tsx (8:24) @ Page
+         >  8 |   const params = { ...(await searchParams) }
+              |                        ^",
+           "stack": [
+             "Page app/search-params-enumerated/page.tsx (8:24)",
+           ],
+         }
+        `)
+
+        const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
+        expect(cliOutput).toContain(getExpectedErrorMessage(route))
+      })
+    })
+
+    describe('when searchParams are forwarded to a child Server Component inside of "use cache"', () => {
+      beforeAll(() => {
+        route = '/search-params-forwarded'
       })
 
       it('should not show an error', async () => {
@@ -133,11 +180,11 @@ describe('use-cache-search-params', () => {
        Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
-         "source": "app/search-params-used-generate-metadata/page.tsx (9:17) @ generateMetadata
+         "source": "app/search-params-used-generate-metadata/page.tsx (9:38) @ generateMetadata
        >  9 |   const title = (await searchParams).title
-            |                 ^",
+            |                                      ^",
          "stack": [
-           "generateMetadata app/search-params-used-generate-metadata/page.tsx (9:17)",
+           "generateMetadata app/search-params-used-generate-metadata/page.tsx (9:38)",
          ],
        }
       `)
@@ -154,11 +201,11 @@ describe('use-cache-search-params', () => {
        Learn more: https://nextjs.org/docs/messages/next-request-in-use-cache",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
-         "source": "app/search-params-used-generate-viewport/page.tsx (9:17) @ generateViewport
+         "source": "app/search-params-used-generate-viewport/page.tsx (9:38) @ generateViewport
        >  9 |   const color = (await searchParams).color
-            |                 ^",
+            |                                      ^",
          "stack": [
-           "generateViewport app/search-params-used-generate-viewport/page.tsx (9:17)",
+           "generateViewport app/search-params-used-generate-viewport/page.tsx (9:38)",
          ],
        }
       `)
@@ -179,8 +226,16 @@ describe('use-cache-search-params', () => {
         getExpectedErrorMessage('/search-params-caught')
       )
 
+      expect(cliOutput).toInclude(
+        getExpectedErrorMessage('/search-params-enumerated')
+      )
+
       expect(cliOutput).not.toInclude(
         getExpectedErrorMessage('/search-params-unused')
+      )
+
+      expect(cliOutput).not.toInclude(
+        getExpectedErrorMessage('/search-params-forwarded')
       )
 
       expect(cliOutput).toInclude(
@@ -191,8 +246,16 @@ describe('use-cache-search-params', () => {
         'Error occurred prerendering page "/search-params-caught"'
       )
 
+      expect(cliOutput).toInclude(
+        'Error occurred prerendering page "/search-params-enumerated"'
+      )
+
       expect(cliOutput).not.toInclude(
         'Error occurred prerendering page "/search-params-unused"'
+      )
+
+      expect(cliOutput).not.toInclude(
+        'Error occurred prerendering page "/search-params-forwarded"'
       )
     })
 

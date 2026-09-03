@@ -26,6 +26,25 @@ export function throwForSearchParamsAccessInUseCache(
   throw error
 }
 
+/**
+ * Same as `throwForSearchParamsAccessInUseCache`, except that the error is not
+ * recorded as an invalid dynamic usage. This is used for enumerating the search
+ * params, which React's dev-only debug info serializer does itself when it
+ * serializes them as a component prop. Recording it would report an error for a
+ * cached page that never read a search param. An enumeration in user code is
+ * still surfaced, because the thrown error propagates through the render.
+ */
+export function throwForSearchParamsEnumerationInUseCache(
+  workStore: WorkStore,
+  constructorOpt: Function
+): never {
+  const error = createSearchParamsInUseCacheError(workStore.route)
+
+  Error.captureStackTrace(error, constructorOpt)
+
+  throw error
+}
+
 export function isRequestApiAllowedInCurrentPhase(
   workUnitStore: WorkUnitStore
 ): boolean {
