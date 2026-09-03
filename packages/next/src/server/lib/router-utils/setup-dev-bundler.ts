@@ -44,6 +44,7 @@ import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-s
 import { createClientRouterFilter } from '../../../lib/create-client-router-filter'
 import { absolutePathToPage } from '../../../shared/lib/page-path/absolute-path-to-page'
 import { generateInterceptionRoutesRewrites } from '../../../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../../../lib/is-interception-route-rewrite'
 
 import {
   CLIENT_STATIC_FILES_PATH,
@@ -1160,7 +1161,13 @@ async function startWatcher(
         )
       )
 
-      opts.fsChecker.rewrites.beforeFiles.push(...interceptionRoutes)
+      const beforeFilesRewrites = opts.fsChecker.rewrites.beforeFiles
+      for (let i = beforeFilesRewrites.length - 1; i >= 0; i--) {
+        if (isInterceptionRouteRewrite(beforeFilesRewrites[i])) {
+          beforeFilesRewrites.splice(i, 1)
+        }
+      }
+      beforeFilesRewrites.push(...interceptionRoutes)
 
       const exportPathMap =
         (typeof nextConfig.exportPathMap === 'function' &&
