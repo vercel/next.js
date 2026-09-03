@@ -120,9 +120,7 @@ export async function collectBuildTraces({
   const includeGlobKeys = Object.keys(outputFileTracingIncludes)
 
   await nextBuildSpan
-    .traceChild('node-file-trace-build', {
-      isTurbotrace: 'false', // TODO(arlyon): remove this
-    })
+    .traceChild('node-file-trace-build')
     .traceAsyncFn(async () => {
       const nextServerTraceOutput = path.join(
         distDir,
