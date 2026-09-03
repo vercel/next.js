@@ -47,3 +47,17 @@ The following libraries are optimized by default:
 - `react-icons/*`
 - `effect`
 - `@effect/*`
+
+### Modularizing imports from custom barrel files
+
+If you maintain internal packages or libraries that export from multiple directories through a single barrel file, you can add them to `optimizePackageImports` to prevent Next.js from evaluating modules that are not used.
+
+```js filename="next.config.js"
+module.exports = {
+  experimental: {
+    optimizePackageImports: ['@my-org/ui-library', 'my-internal-utils'],
+  },
+}
+```
+
+This ensures that statements like `import { Button } from '@my-org/ui-library'` bypass the full barrel file resolution and load only the required underlying module.
