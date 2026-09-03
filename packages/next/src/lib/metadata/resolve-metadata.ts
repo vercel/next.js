@@ -641,13 +641,13 @@ export async function resolveMetadata(
   interpolatedParams: Params,
   metadataContext: MetadataContext
 ): Promise<ResolvedMetadata> {
+  const workStore = workAsyncStorage.getStore()
   const metadataItems = await resolveMetadataItems(
     tree,
     searchParams,
     errorConvention,
     interpolatedParams
   )
-  const workStore = workAsyncStorage.getStore()
   if (!workStore) {
     throw new InvariantError('Expected workStore to be initialized')
   }
