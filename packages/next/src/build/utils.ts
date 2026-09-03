@@ -68,7 +68,12 @@ import { collectSegments } from './segment-config/app/app-segments'
 import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
 import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from './static-paths/app'
-import { collectStaticVariantCombinations } from './variants/combinations'
+import type { VariantCombinationGroups } from '../server/variants/combinations'
+import {
+  collectStaticVariantCombinations,
+  expandPrerenderedRoutesByVariants,
+  groupStaticVariantCombinations,
+} from './variants/combinations'
 import { buildPagesStaticPaths } from './static-paths/pages'
 import type {
   PrerenderRouteMatcher,
@@ -679,6 +684,13 @@ type PageIsStaticResult = {
   prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
   prerenderFallbackMode: FallbackMode | undefined
   rootParamKeys: readonly string[] | undefined
+  /**
+   * The static variant combinations the page declared, grouped by which
+   * variants they assign. A request is matched against these groups to find the
+   * combination it was prerendered against. It is undefined for a page that
+   * declared none.
+   */
+  variantCombinationGroups: VariantCombinationGroups | undefined
   isNextImageImported?: boolean
   traceIncludes?: string[]
   traceExcludes?: string[]
@@ -751,6 +763,7 @@ export async function isPageStatic({
       prerenderedRoutes: undefined,
       prerenderRouteMatchers: undefined,
       rootParamKeys: undefined,
+      variantCombinationGroups: undefined,
       hasStaticProps: false,
       hasServerProps: false,
       isNextImageImported: false,
@@ -780,6 +793,7 @@ export async function isPageStatic({
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
+      let variantCombinationGroups: VariantCombinationGroups | undefined
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
 
       if (pathIsEdgeRuntime) {
@@ -881,24 +895,28 @@ export async function isPageStatic({
         const route = parseNormalizedAppRoute(page)
 
         // The build reads the static variant combinations of every app route
-        // here, and rejects what it cannot use. Nothing prerenders against them
-        // yet, so the result is discarded. A page with no dynamic segments
+        // here, and rejects what it cannot use. A page with no dynamic segments
         // builds no static paths, and can still declare combinations, so this
         // call does not belong with the static paths below.
-        //
-        // TODO(variants): prerender each route against the combinations it
-        // declared.
-        await collectStaticVariantCombinations(segments, page)
+        const variantCombinations = await collectStaticVariantCombinations(
+          segments,
+          page
+        )
+
+        if (variantCombinations.length > 0) {
+          variantCombinationGroups =
+            groupStaticVariantCombinations(variantCombinations)
+        }
+
+        let pathname = normalizeAppPath(page)
+        if (pathname.endsWith('/route')) {
+          pathname = pathname.slice(0, -'/route'.length)
+        }
 
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
         // paths.
         if (route.dynamicSegments.length > 0 && !pathIsEdgeRuntime) {
-          let pathname = normalizeAppPath(page)
-          if (pathname.endsWith('/route')) {
-            pathname = pathname.slice(0, -'/route'.length)
-          }
-
           if (
             routeModule.definition.kind === RouteKind.APP_ROUTE &&
             isStaticMetadataFile(pathname)
@@ -920,6 +938,7 @@ export async function isPageStatic({
               durableUseCacheEntries,
               staticPageGenerationTimeout,
               segments,
+              variantCombinations,
               distDir,
               requestHeaders: {},
               isrFlushToDisk,
@@ -934,6 +953,38 @@ export async function isPageStatic({
               rootParamKeys,
             }))
           }
+        } else if (variantCombinations.length > 0 && !pathIsEdgeRuntime) {
+          // A page with no dynamic segments builds no static paths, and a
+          // variant combination it declared still has to be prerendered
+          // against. Its one route stands in for the params matrix a dynamic
+          // page would have, and the same expansion applies to it.
+          //
+          // The edge runtime disables static generation, so this branch
+          // skips it, as the one above does.
+          const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>(
+            [
+              [
+                pathname,
+                {
+                  params: {},
+                  pathname,
+                  encodedPathname: pathname,
+                  fallbackRouteParams: [],
+                  fallbackMode: prerenderFallbackMode,
+                  fallbackRootParams: [],
+                  throwOnEmptyStaticShell: true,
+                },
+              ],
+            ]
+          )
+
+          expandPrerenderedRoutesByVariants(
+            prerenderedRoutesByPathname,
+            variantCombinations,
+            isRoutePPREnabled
+          )
+
+          prerenderedRoutes = [...prerenderedRoutesByPathname.values()]
         }
       } else {
         if (!Comp || !isValidElementType(Comp) || typeof Comp === 'string') {
@@ -1007,6 +1058,7 @@ export async function isPageStatic({
         prerenderedRoutes,
         prerenderRouteMatchers,
         rootParamKeys,
+        variantCombinationGroups,
         hasStaticProps,
         hasServerProps,
         isNextImageImported,

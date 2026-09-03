@@ -3,11 +3,10 @@ import { headers } from 'next/headers'
 
 import { locale, theme } from '../variants'
 
-// `connection()` holds both reads at request time. A prerender cannot yet
-// supply a variant value, so a read during one has nothing to return.
-//
-// A variant is runtime data, and Cache Components requires a Suspense boundary
-// above a read of one. Every caller of this component provides that boundary.
+// Reading a variant while prerendering is not supported yet, so the reads are
+// kept at request time. `connection()` defers them, and callers wrap this in a
+// `<Suspense>` boundary, which Cache Components requires for a dynamic read.
+// Remove both once static generation supports variants.
 export async function VariantValues() {
   await connection()
   const requestHeaders = await headers()

@@ -1,10 +1,16 @@
 import type { AppSegment } from '../segment-config/app/app-segments'
+import type { PrerenderedRoute } from '../static-paths/types'
+import type {
+  VariantCombinationGroup,
+  VariantCombinationGroups,
+} from '../../server/variants/combinations'
 
 import {
   assertValidVariantValue,
   getVariantKey,
   isVariant,
 } from '../../server/request/variants'
+import { hashVariants } from '../../server/variants/encoding'
 
 /**
  * Normalizes one combination that `unstable_generateStaticVariants` returned
@@ -88,6 +94,7 @@ export async function collectStaticVariantCombinations(
 
   const declared: readonly unknown[] = returned
   const combinations: Array<Record<string, string>> = []
+  const seen = new Set<string>()
 
   for (const assignments of declared) {
     const values = normalizeVariantAssignments(assignments, route)
@@ -98,7 +105,16 @@ export async function collectStaticVariantCombinations(
       )
     }
 
-    combinations.push(values)
+    // The same combination declared twice would prerender the same artifact
+    // twice, because the hash of the combination is what names it. Two
+    // declarations of one combination hash alike whatever order they assign the
+    // variants in.
+    const hash = hashVariants(values)
+
+    if (!seen.has(hash)) {
+      seen.add(hash)
+      combinations.push(values)
+    }
   }
 
   assertUnambiguousVariantCombinations(combinations, route)
@@ -107,8 +123,8 @@ export async function collectStaticVariantCombinations(
 }
 
 /**
- * Rejects two combinations that one request can match with no order between
- * them.
+ * Rejects two static variant combinations that one request can match with no
+ * order between them.
  *
  * Two combinations are ordered when one assigns everything the other assigns
  * and more. The larger one is the more specific, and that is how a page covers
@@ -147,6 +163,103 @@ function assertUnambiguousVariantCombinations(
           `\`unstable_generateStaticVariants\` for ${route} declared two combinations that a single request can match, neither of which is more specific than the other: ${JSON.stringify(a)} and ${JSON.stringify(b)}. Give one of them the other's variants as well, so that it is the more specific match, or give them different values for a variant they share so that no request matches both.`
         )
       }
+    }
+  }
+}
+
+/**
+ * Groups the static variant combinations of one page by which variants they
+ * assign, and orders the groups most specific first.
+ *
+ * A request resolves every variant its route reads, while a combination may
+ * assign only some of them, so the resolved values cannot be hashed as they
+ * arrive. The `keys` of a group say which values to select before hashing, and
+ * that projection is what makes a partial combination findable.
+ *
+ * Each combination keeps its values positional against the sorted keys of its
+ * group, which is the form the manifests carry.
+ */
+export function groupStaticVariantCombinations(
+  combinations: ReadonlyArray<Record<string, string>>
+): VariantCombinationGroups {
+  const groupsBySignature = new Map<string, VariantCombinationGroup>()
+
+  for (const combination of combinations) {
+    const keys = Object.keys(combination).sort()
+    const signature = JSON.stringify(keys)
+
+    let group = groupsBySignature.get(signature)
+
+    if (!group) {
+      group = { keys, combinations: [] }
+      groupsBySignature.set(signature, group)
+    }
+
+    group.combinations.push({
+      hash: hashVariants(combination),
+      values: group.keys.map((key) => combination[key]),
+    })
+  }
+
+  // A combination that assigns more variants leaves fewer holes, so it is the
+  // better prerender to serve when two of them match one request. `sort` is
+  // stable, so groups of equal size keep the order the page declared them in.
+  // The rejection of ambiguous pairs above is what stops that order from
+  // deciding anything.
+  return [...groupsBySignature.values()].sort(
+    (a, b) => b.keys.length - a.keys.length
+  )
+}
+
+/**
+ * Multiplies the routes a page prerenders by the static variant combinations it
+ * declared, in place.
+ *
+ * A combination belongs to the whole route, so it applies to every concrete
+ * route the params produced and to every fallback shell alike. The copies
+ * cannot share a map key, because combinations of one route share a pathname: a
+ * prefix carries the hash of the combination, and routing removes that prefix
+ * before it matches the route.
+ *
+ * Where the route is partially prerendered, this also keeps the route it did
+ * not multiply, and marks it as the one that omits variants. A request whose
+ * combination no page declared is served from that one entry, instead of each
+ * value it happens to carry seeding an entry of its own. Without it a variant
+ * with many values would grow the cache in proportion to traffic rather than to
+ * what the page declared.
+ *
+ * Where the route is not partially prerendered there is no resume to fill the
+ * hole a left-out variant leaves, so no such entry is kept. An undeclared
+ * combination then renders dynamically for each request.
+ */
+export function expandPrerenderedRoutesByVariants(
+  prerenderedRoutesByPathname: Map<string, PrerenderedRoute>,
+  variantCombinations: ReadonlyArray<Record<string, string>>,
+  isRoutePPREnabled: boolean
+): void {
+  if (variantCombinations.length === 0) {
+    return
+  }
+
+  // Iterate over a snapshot, so that the copies added below are not expanded
+  // again.
+  for (const [key, prerenderedRoute] of [...prerenderedRoutesByPathname]) {
+    if (isRoutePPREnabled) {
+      prerenderedRoutesByPathname.set(key, {
+        ...prerenderedRoute,
+        omitsVariants: true,
+      })
+    } else {
+      prerenderedRoutesByPathname.delete(key)
+    }
+
+    for (const variantValues of variantCombinations) {
+      // Each copy is a distinct object, because later passes over these routes
+      // write to them.
+      prerenderedRoutesByPathname.set(
+        `${key}\0${hashVariants(variantValues)}`,
+        { ...prerenderedRoute, variantValues }
+      )
     }
   }
 }

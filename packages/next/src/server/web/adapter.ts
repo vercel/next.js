@@ -29,7 +29,13 @@ import { createWorkStore } from '../async-storage/work-store'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { NEXT_VARIANTS_HEADER } from '../../lib/constants'
-import { getProxyTarget } from '../variants/target'
+import type { VariantsManifest } from '../variants/manifest'
+
+import { getProxyTarget, getTargetRoutePathname } from '../variants/target'
+import { findVariantGroupsForPathname } from '../variants/manifest'
+import { findMatchingVariantCombination } from '../variants/combinations'
+import { decodeVariants, encodeVariants } from '../variants/encoding'
+import { insertVariantsPrefix } from '../variants/prefix'
 import type { ResolvedCacheLifeProfiles } from '../config-shared'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
@@ -95,6 +101,11 @@ export type AdapterOptions = {
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
   incrementalCacheHandler?: typeof import('../lib/incremental-cache').CacheHandler
   bypassNextUrl?: boolean
+  /**
+   * The combinations each route declared. They are absent for an edge
+   * middleware and for a project without variants.
+   */
+  variantsManifest?: VariantsManifest
 }
 
 // This has to be compatible with what the Vercel builder does as well:
@@ -153,6 +164,25 @@ function setRequestHeaderOverride(
   // This is written last, so that the value replaces an incoming header of the
   // same name, whichever branch above named it.
   response.headers.set(`x-middleware-request-${name}`, value)
+}
+
+/**
+ * Re-encodes the values that no declared combination assigns, and returns null
+ * when a combination assigns all of them.
+ */
+function encodeUndeclaredVariants(
+  resolved: Record<string, string>,
+  declared: Record<string, string>
+): string | null {
+  const undeclared: Record<string, string> = {}
+
+  for (const key in resolved) {
+    if (!(key in declared)) {
+      undeclared[key] = resolved[key]
+    }
+  }
+
+  return Object.keys(undeclared).length > 0 ? encodeVariants(undeclared) : null
 }
 
 let testApisIntercepted = false
@@ -295,6 +325,7 @@ export async function adapter(
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
+        variantCombinationGroups: {},
         preview: getEdgePreviewProps(),
       },
     })
@@ -517,17 +548,65 @@ export async function adapter(
       response.headers.delete(NEXT_VARIANTS_HEADER)
 
       const target = getProxyTarget(requestURL, response)
+      const resolvedVariants = decodeVariants(encodedVariants)
 
       // The target is null when the proxy rewrote the request to another
       // origin. That origin renders no route of this application, and it does
       // not remove an internal header, so this code drops the values.
-      if (target) {
-        setRequestHeaderOverride(
-          response,
-          requestHeaders,
-          NEXT_VARIANTS_HEADER,
-          encodedVariants
-        )
+      if (target && resolvedVariants) {
+        const basePath = params.request.nextConfig?.basePath
+
+        // TODO(variants): reject a request whose target already carries
+        // `NEXT_VARIANTS_QUERY_PARAM`. Only this code writes that parameter, so
+        // one already present came from the client. A deployment has to reject
+        // rather than remove it, because a rewrite merges the incoming query
+        // into the destination.
+        const groups = params.variantsManifest
+          ? findVariantGroupsForPathname(
+              params.variantsManifest,
+              getTargetRoutePathname(target.pathname, basePath)
+            )
+          : null
+
+        const matchedVariants = groups
+          ? findMatchingVariantCombination(groups, resolvedVariants)
+          : null
+
+        if (matchedVariants) {
+          // The prefix goes on last, after `NEXT_REWRITTEN_PATH_HEADER` and
+          // `NEXT_REWRITTEN_QUERY_HEADER` above. The client router reads those,
+          // and they describe the undecorated destination, so a prefix present
+          // earlier would show the router a rewrite to a different route
+          // structure.
+          target.pathname = insertVariantsPrefix(
+            target.pathname,
+            matchedVariants.hash,
+            basePath
+          )
+
+          response.headers.set('x-middleware-rewrite', target.toString())
+
+          // TODO(variants): set a marker header saying this application's own
+          // proxy wrote the prefix. A deployment needs one, because its routing
+          // rules read it to tell a prefix of ours from one a client invented.
+        }
+
+        // The runtime tier is what travels on. The prefix carries the hash of
+        // the matched combination, and the origin resolves that hash back to
+        // the static tier. Where no combination matched, every resolved value
+        // is runtime.
+        const runtimeVariants = matchedVariants
+          ? encodeUndeclaredVariants(resolvedVariants, matchedVariants.values)
+          : encodedVariants
+
+        if (runtimeVariants) {
+          setRequestHeaderOverride(
+            response,
+            requestHeaders,
+            NEXT_VARIANTS_HEADER,
+            runtimeVariants
+          )
+        }
       }
     }
   }

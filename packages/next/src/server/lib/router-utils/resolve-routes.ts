@@ -30,6 +30,8 @@ import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-local
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
+import { splitVariantsPrefix } from '../../variants/prefix'
+import { NEXT_VARIANTS_QUERY_PARAM } from '../../../lib/constants'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 
 import { addRequestMeta } from '../../request-meta'
@@ -748,6 +750,42 @@ export function getResolveRoutes(
                   parsedUrl,
                   resHeaders,
                   finished: true,
+                }
+              }
+
+              // Routing removes the variants prefix here and carries its hash
+              // in the query instead, so that the pathname matches a route
+              // pattern below. It runs before the locale is detected, because
+              // the prefix sits in front of the whole remaining public path,
+              // locale included.
+              //
+              // This is the only place the prefix is removed, and only a
+              // destination a proxy rewrote to reaches it. A prefix a client
+              // wrote therefore stays on the pathname and matches no route, so
+              // a self-hosted server answers 404.
+              //
+              // TODO(variants): reject a prefix and a
+              // `NEXT_VARIANTS_QUERY_PARAM` that arrive from a client. A
+              // deployment serves an artifact by path before any function runs,
+              // so a client reaches one there whatever this code does. The
+              // query write below overwrites a client's value only where a
+              // prefix is present, so a request the proxy matched no
+              // combination for keeps it.
+              if (config.experimental?.variants) {
+                const withoutPrefix = splitVariantsPrefix(
+                  parsedUrl.pathname || '',
+                  config.basePath
+                )
+
+                if (withoutPrefix) {
+                  // The query carries the hash the rest of the way. It survives
+                  // routing, and a platform routing rule produces the same
+                  // shape, because such a rule passes data only through the URL
+                  // it rewrites to. The origin therefore reads one channel for
+                  // a self-hosted request and a deployed one alike.
+                  parsedUrl.query[NEXT_VARIANTS_QUERY_PARAM] =
+                    withoutPrefix.hash
+                  parsedUrl.pathname = withoutPrefix.pathname
                 }
               }
 
