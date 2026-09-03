@@ -197,6 +197,31 @@ describe('resolveRoutes with i18n', () => {
       expect(result.redirect?.url.hostname).toBe('example.de')
       expect(result.redirect?.url.pathname).toBe('/')
     })
+
+    it('should stay on the current origin when the domain carries a port', async () => {
+      const result = await resolveRoutes({
+        ...baseParams,
+        url: new URL('http://example.de:3000/'),
+        headers: new Headers({
+          'accept-language': 'fr',
+        }),
+        i18n: {
+          defaultLocale: 'en',
+          locales: ['en', 'fr', 'de'],
+          domains: [
+            {
+              domain: 'example.de:3000',
+              defaultLocale: 'de',
+              locales: ['de', 'fr'],
+            },
+          ],
+        },
+      })
+
+      expect(result.redirect).toBeDefined()
+      expect(result.redirect?.url.origin).toBe('http://example.de:3000')
+      expect(result.redirect?.url.pathname).toBe('/fr/')
+    })
   })
 
   describe('locale prefix in pathname', () => {
