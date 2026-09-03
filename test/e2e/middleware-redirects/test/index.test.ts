@@ -40,6 +40,15 @@ describe('Middleware Redirect', () => {
       )
     })
 
+    it('should not crash when a manually constructed response has a relative Location header', async () => {
+      const res = await next.fetch('/relative-location', {
+        // workaround for https://github.com/node-fetch/node-fetch/issues/417
+        redirect: 'manual-dont-change' as any,
+      })
+      expect(res.status).toBe(307)
+      expect(res.headers.get('Location')).toBe('/new-home')
+    })
+
     it('should have relative path for same host redirect', async () => {
       const res = await next.fetch('/to?pathname=/another', {
         // workaround for https://github.com/node-fetch/node-fetch/issues/417
