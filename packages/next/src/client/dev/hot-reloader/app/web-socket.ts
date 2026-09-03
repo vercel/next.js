@@ -15,6 +15,10 @@ import {
 import { logQueue } from '../../../../next-devtools/userspace/app/forward-logs'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
 import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
+import {
+  closeAllDebugChannels,
+  resetDebugChannelState,
+} from '../../debug-channel'
 
 let reconnections = 0
 let reloading = false
@@ -46,6 +50,8 @@ export function createWebSocket(
     if (webSocket) {
       webSocket.close()
     }
+
+    resetDebugChannelState()
 
     const newWebSocket = new window.WebSocket(
       `${getSocketUrl(assetPrefix)}/_next/hmr?id=${self.__next_r}`
@@ -116,6 +122,7 @@ export function createWebSocket(
     }
 
     function handleDisconnect() {
+      closeAllDebugChannels()
       newWebSocket.onerror = null
       newWebSocket.onclose = null
       newWebSocket.close()
