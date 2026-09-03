@@ -1,6 +1,11 @@
-use std::{any::Any, collections::VecDeque, fmt::Display, sync::Arc, time::Duration};
+use std::{
+    any::Any,
+    collections::{HashMap, VecDeque},
+    fmt::Display,
+    sync::Arc,
+    time::Duration,
+};
 
-use dashmap::DashMap;
 use serde::Serialize;
 use tokio::sync::{Mutex, mpsc};
 
@@ -22,71 +27,113 @@ enum EventChannelType {
     Type(String),
 }
 
+/// State guarded by a single mutex so that pushing an event to history and
+/// registering a subscriber observe a consistent order.
+///
+/// The dedup between live delivery and history replay hinges on `send` and
+/// `subscribe` mutating this state under the *same* lock, and on *where* an
+/// event lives at that moment:
+/// - `send` locks, pushes the event to `history`, and snapshots the current `subscribers` in one
+///   critical section, then delivers live after unlocking.
+/// - `subscribe` locks, registers its channel in `subscribers`, and snapshots the current `history`
+///   to replay in one critical section, then replays after unlocking.
+///
+/// Therefore, for any event and any subscriber, exactly one of these holds:
+/// - the event was pushed **before** the subscriber registered — it is in the subscriber's history
+///   snapshot (replayed) but not in `send`'s subscriber snapshot (not delivered live), or
+/// - the event was pushed **after** — it is in `send`'s subscriber snapshot (delivered live) but
+///   not in the subscriber's history snapshot (not replayed).
+struct QueueState {
+    /// Bounded ring buffer of recently-sent events, oldest first.
+    history: VecDeque<Arc<dyn CompilationEvent>>,
+    /// Active subscriber channels, keyed by the channel type they registered on.
+    subscribers: HashMap<EventChannelType, Vec<CompilationEventChannel>>,
+}
+
 pub struct CompilationEventQueue {
-    event_history: ArcMx<VecDeque<Arc<dyn CompilationEvent>>>,
-    subscribers: Arc<DashMap<EventChannelType, Vec<CompilationEventChannel>>>,
+    state: ArcMx<QueueState>,
 }
 
 impl Default for CompilationEventQueue {
     fn default() -> Self {
-        let subscribers = DashMap::new();
-        subscribers.insert(
-            EventChannelType::Global,
-            Vec::<CompilationEventChannel>::new(),
-        );
-
         Self {
-            event_history: Arc::new(Mutex::new(VecDeque::with_capacity(MAX_QUEUE_SIZE))),
-            subscribers: Arc::new(subscribers),
+            state: Arc::new(Mutex::new(QueueState {
+                history: VecDeque::with_capacity(MAX_QUEUE_SIZE),
+                // Subscriber lists are created lazily via `entry().or_default()`
+                // when the first subscriber for a channel type registers.
+                subscribers: HashMap::new(),
+            })),
         }
     }
 }
 
 impl CompilationEventQueue {
+    /// Broadcast an event to all matching subscribers and record it in history
+    /// for future subscribers to replay.
+    ///
+    /// Delivery is **exactly once** per matching subscriber (a subscriber never
+    /// sees an event both live and via replay — see [`QueueState`]), but the
+    /// order in which events reach a subscriber is **not** guaranteed. Events will tend to be
+    /// delivered in arrival order but it is not guaranteed.  If needed we could enhance this to
+    /// guarantee order but this is not a current requirement.
     pub fn send(
         &self,
         message: Arc<dyn CompilationEvent>,
     ) -> Result<(), mpsc::error::SendError<Arc<dyn CompilationEvent>>> {
-        let event_history = self.event_history.clone();
-        let subscribers = self.subscribers.clone();
-        let message_clone = message.clone();
+        let state = self.state.clone();
 
         // Spawn a task to handle the async operations
         tokio::spawn(async move {
-            // Store the message in history
-            let mut history = event_history.lock().await;
-            if history.len() >= MAX_QUEUE_SIZE {
-                history.pop_front();
-            }
-            history.push_back(message_clone.clone());
+            // Under the lock: record the event in history and snapshot the set
+            // of subscribers that should receive it live. Doing the push and the
+            // subscriber snapshot in one critical section is what makes replay
+            // and live delivery mutually exclusive per subscriber (see
+            // `QueueState`). A subscriber that registers after this section
+            // captured its snapshot will instead see this event via history
+            // replay (the event is already in history when it snapshots); one
+            // that registered before is in this snapshot and receives it live.
+            let recipients = {
+                let mut state = state.lock().await;
 
-            // Send to all active receivers of the same message type
-            if let Some(mut type_subscribers) = subscribers.get_mut(&EventChannelType::Type(
-                message_clone.type_name().to_owned(),
-            )) {
-                let mut removal_indices = Vec::new();
-                for (ix, sender) in type_subscribers.iter().enumerate() {
-                    if sender.send(message_clone.clone()).await.is_err() {
-                        removal_indices.push(ix);
-                    }
+                if state.history.len() >= MAX_QUEUE_SIZE {
+                    state.history.pop_front();
                 }
+                state.history.push_back(message.clone());
 
-                for ix in removal_indices.iter().rev() {
-                    type_subscribers.remove(*ix);
+                // Clone the matching senders so we can `await` on delivery
+                // without holding the lock. Both the subscribers registered for
+                // this event's type and the global (unfiltered) subscribers
+                // receive it.
+                let mut recipients = Vec::new();
+                if let Some(type_subscribers) = state
+                    .subscribers
+                    .get(&EventChannelType::Type(message.type_name().to_owned()))
+                {
+                    recipients.extend(type_subscribers.iter().cloned());
+                }
+                if let Some(global) = state.subscribers.get(&EventChannelType::Global) {
+                    recipients.extend(global.iter().cloned());
+                }
+                recipients
+            };
+
+            // Deliver live without holding the lock.
+            let mut closed = false;
+            for sender in recipients {
+                if sender.send(message.clone()).await.is_err() {
+                    closed = true;
                 }
             }
 
-            // Send to all global message subscribers
-            let mut all_channel = subscribers.get_mut(&EventChannelType::Global).unwrap();
-            let mut removal_indices = Vec::new();
-            for (ix, sender) in all_channel.iter_mut().enumerate() {
-                if sender.send(message_clone.clone()).await.is_err() {
-                    removal_indices.push(ix);
-                }
-            }
-
-            for ix in removal_indices.iter().rev() {
-                all_channel.remove(*ix);
+            // If any receiver was gone, prune closed channels so they don't
+            // accumulate over a long session. Done under the lock, after
+            // delivery, so it never races registration.
+            if closed {
+                let mut state = state.lock().await;
+                state
+                    .subscribers
+                    .values_mut()
+                    .for_each(|senders| senders.retain(|s| !s.is_closed()));
             }
         });
 
@@ -98,34 +145,50 @@ impl CompilationEventQueue {
         event_types: Option<Vec<String>>,
     ) -> mpsc::Receiver<Arc<dyn CompilationEvent>> {
         let (tx, rx) = mpsc::channel(MAX_QUEUE_SIZE);
-        let subscribers = self.subscribers.clone();
-        let event_history = self.event_history.clone();
+        let state = self.state.clone();
         let tx_clone = tx.clone();
 
         // Spawn a task to handle the async operations
         tokio::spawn(async move {
-            // Store the sender
-            if let Some(event_types) = event_types {
-                for event_type in event_types.iter() {
-                    let mut type_subscribers = subscribers
-                        .entry(EventChannelType::Type(event_type.clone()))
-                        .or_default();
-                    type_subscribers.push(tx_clone.clone());
-                }
+            // Under the lock: register this subscriber and, in the same critical
+            // section, snapshot the history it must replay. Because `send` pushes
+            // to history and snapshots subscribers under this same lock, an event
+            // is in this history snapshot iff it is *not* in the subscriber
+            // snapshot `send` will use for it — so every event reaches this
+            // subscriber exactly once (via replay or live, never both or
+            // neither). See `QueueState`.
+            let replay = {
+                let mut state = state.lock().await;
 
-                for event in event_history.lock().await.iter() {
-                    if event_types.contains(&event.type_name().to_string()) {
-                        let _ = tx_clone.send(event.clone()).await;
+                if let Some(event_types) = &event_types {
+                    for event_type in event_types.iter() {
+                        state
+                            .subscribers
+                            .entry(EventChannelType::Type(event_type.clone()))
+                            .or_default()
+                            .push(tx_clone.clone());
                     }
-                }
-            } else {
-                let mut global_subscribers =
-                    subscribers.entry(EventChannelType::Global).or_default();
-                global_subscribers.push(tx_clone.clone());
 
-                for event in event_history.lock().await.iter() {
-                    let _ = tx_clone.send(event.clone()).await;
+                    state
+                        .history
+                        .iter()
+                        .filter(|event| event_types.contains(&event.type_name().to_string()))
+                        .cloned()
+                        .collect::<Vec<_>>()
+                } else {
+                    state
+                        .subscribers
+                        .entry(EventChannelType::Global)
+                        .or_default()
+                        .push(tx_clone.clone());
+
+                    state.history.iter().cloned().collect::<Vec<_>>()
                 }
+            };
+
+            // Replay history without holding the lock.
+            for event in replay {
+                let _ = tx_clone.send(event).await;
             }
         });
 
@@ -290,7 +353,138 @@ impl CompilationEvent for TraceEvent {
 
 #[cfg(test)]
 mod tests {
+    use std::{collections::HashSet, time::Duration};
+
+    use tokio::{sync::mpsc, time::timeout};
+
     use super::*;
+
+    /// A minimal event whose `type_name` and payload we control, so tests can
+    /// assert on both delivery counts and type-filtering.
+    #[derive(Debug)]
+    struct TestEvent {
+        type_name: &'static str,
+        id: u64,
+    }
+
+    impl TestEvent {
+        fn arc(type_name: &'static str, id: u64) -> Arc<dyn CompilationEvent> {
+            Arc::new(TestEvent { type_name, id })
+        }
+    }
+
+    impl CompilationEvent for TestEvent {
+        fn type_name(&self) -> &'static str {
+            self.type_name
+        }
+        fn severity(&self) -> Severity {
+            Severity::Event
+        }
+        fn message(&self) -> String {
+            self.id.to_string()
+        }
+        fn to_json(&self) -> String {
+            self.id.to_string()
+        }
+    }
+
+    /// Drain a receiver until it goes quiet, returning the id of each event in
+    /// arrival order. The idle timeout is generous because the queue delivers
+    /// from spawned tasks.
+    async fn drain(mut rx: mpsc::Receiver<Arc<dyn CompilationEvent>>) -> Vec<u64> {
+        let mut out = Vec::new();
+        while let Ok(Some(event)) = timeout(Duration::from_millis(200), rx.recv()).await {
+            out.push(event.message().parse().unwrap());
+        }
+        out
+    }
+
+    #[tokio::test]
+    async fn subscribe_before_send_delivers_each_event_once() {
+        let queue = CompilationEventQueue::default();
+        let rx = queue.subscribe(Some(vec!["TraceEvent".to_string()]));
+        // Let the subscribe task register before sending.
+        tokio::task::yield_now().await;
+
+        for id in 0..5 {
+            queue.send(TestEvent::arc("TraceEvent", id)).unwrap();
+        }
+
+        assert_eq!(drain(rx).await, vec![0, 1, 2, 3, 4]);
+    }
+
+    #[tokio::test]
+    async fn send_before_subscribe_replays_each_event_once() {
+        let queue = CompilationEventQueue::default();
+        for id in 0..5 {
+            queue.send(TestEvent::arc("TraceEvent", id)).unwrap();
+        }
+        // Let the send tasks record history before subscribing.
+        tokio::task::yield_now().await;
+
+        let rx = queue.subscribe(Some(vec!["TraceEvent".to_string()]));
+        assert_eq!(drain(rx).await, vec![0, 1, 2, 3, 4]);
+    }
+
+    #[tokio::test]
+    async fn subscription_filters_by_event_type() {
+        let queue = CompilationEventQueue::default();
+        queue.send(TestEvent::arc("TraceEvent", 1)).unwrap();
+        queue.send(TestEvent::arc("TimingEvent", 2)).unwrap();
+        tokio::task::yield_now().await;
+
+        let rx = queue.subscribe(Some(vec!["TraceEvent".to_string()]));
+        queue.send(TestEvent::arc("TraceEvent", 3)).unwrap();
+        queue.send(TestEvent::arc("TimingEvent", 4)).unwrap();
+
+        // Only TraceEvents (replayed 1, live 3) — never the TimingEvents.
+        assert_eq!(drain(rx).await, vec![1, 3]);
+    }
+
+    #[tokio::test]
+    async fn global_subscription_receives_all_types() {
+        let queue = CompilationEventQueue::default();
+        queue.send(TestEvent::arc("TraceEvent", 1)).unwrap();
+        tokio::task::yield_now().await;
+
+        let rx = queue.subscribe(None);
+        queue.send(TestEvent::arc("TimingEvent", 2)).unwrap();
+
+        assert_eq!(drain(rx).await, vec![1, 2]);
+    }
+
+    /// Core regression: no matter how `send` and `subscribe` interleave, a
+    /// subscriber must never receive the same event twice (the bug delivered an
+    /// event both live and via history replay). This drives the send-during-
+    /// subscribe window that produced duplicate `turbopack-persistence` spans.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn concurrent_send_and_subscribe_never_duplicates() {
+        for _ in 0..200 {
+            let queue = Arc::new(CompilationEventQueue::default());
+
+            // Send a burst concurrently with subscribing, so the subscription's
+            // register/replay critical section races the sends' push/deliver.
+            let sender = {
+                let queue = queue.clone();
+                tokio::spawn(async move {
+                    for id in 0..MAX_QUEUE_SIZE as u64 {
+                        queue.send(TestEvent::arc("TraceEvent", id)).unwrap();
+                    }
+                })
+            };
+
+            let rx = queue.subscribe(Some(vec!["TraceEvent".to_string()]));
+            sender.await.unwrap();
+
+            let received = drain(rx).await;
+            let unique: HashSet<u64> = received.iter().copied().collect();
+            assert_eq!(
+                received.len(),
+                unique.len(),
+                "an event was delivered more than once: {received:?}"
+            );
+        }
+    }
 
     #[test]
     fn test_timing_event_string_formatting() {
