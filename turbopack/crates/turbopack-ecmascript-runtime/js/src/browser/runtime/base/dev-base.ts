@@ -234,7 +234,20 @@ function registerExportsAndSetupBoundaryForReactRefresh(
   module: HotModule,
   helpers: RefreshHelpers
 ) {
-  const currentExports = module.exports
+  // For async modules (modules with top-level await or importing TLA modules),
+  // module.exports is replaced with a Promise by asyncModule(). The actual
+  // exports are stored in promise[turbopackExports]. We need to unwrap them
+  // for React Refresh to correctly identify the module as a refresh boundary.
+  // typeof is safe when async-module.ts was omitted from the runtime (no TLA).
+  let currentExports = module.exports
+  if (
+    currentExports != null &&
+    typeof currentExports === 'object' &&
+    typeof turbopackExports !== 'undefined' &&
+    turbopackExports in currentExports
+  ) {
+    currentExports = currentExports[turbopackExports]
+  }
   const prevExports = module.hot.data.prevExports ?? null
 
   helpers.registerExportsForReactRefresh(currentExports, module.id)
