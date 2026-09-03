@@ -10158,6 +10158,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "dotenvs",
+ "nom 7.1.3",
  "turbo-bincode",
  "turbo-rcstr",
  "turbo-tasks",
