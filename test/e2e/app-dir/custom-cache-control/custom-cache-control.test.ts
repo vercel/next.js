@@ -77,4 +77,11 @@ describe('custom-cache-control', () => {
       isNextDev ? 'no-store' : 's-maxage=36'
     )
   })
+
+  it('should respect cache-control header set in getServerSideProps', async () => {
+    const res = await next.fetch('/pages-ssr-overridden')
+    expect(res.headers.get('cache-control')).toBe(
+      isNextDev ? 'no-store, must-revalidate' : 's-maxage=getServerSideProps'
+    )
+  })
 })
