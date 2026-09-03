@@ -105,6 +105,56 @@ function findExistingEslintConfig(projectRoot: string): {
   return { exists: false, path: null, isLegacy: null }
 }
 
+function isRequireOf(node: any, moduleNames: string[]): boolean {
+  return (
+    node &&
+    node.type === 'CallExpression' &&
+    node.callee.type === 'Identifier' &&
+    node.callee.name === 'require' &&
+    node.arguments.length === 1 &&
+    (node.arguments[0].type === 'Literal' ||
+      node.arguments[0].type === 'StringLiteral') &&
+    moduleNames.includes(node.arguments[0].value)
+  )
+}
+
+// Flat configs migrated from a legacy `.eslintrc.js`/`.eslintrc.cjs` are
+// CommonJS, so added declarations must use require() instead of import.
+function isCommonJsConfig(configPath: string, j: any, root: any): boolean {
+  const extension = path.extname(configPath)
+  if (extension === '.cjs' || extension === '.cts') {
+    return true
+  }
+  if (extension === '.mjs' || extension === '.mts') {
+    return false
+  }
+  return (
+    root.find(j.ImportDeclaration).size() === 0 &&
+    root.find(j.ExportDefaultDeclaration).size() === 0 &&
+    root.find(j.ExportNamedDeclaration).size() === 0
+  )
+}
+
+function createDefaultImport(
+  j: any,
+  localName: string,
+  source: string,
+  useRequire: boolean
+) {
+  if (useRequire) {
+    return j.variableDeclaration('const', [
+      j.variableDeclarator(
+        j.identifier(localName),
+        j.callExpression(j.identifier('require'), [j.literal(source)])
+      ),
+    ])
+  }
+  return j.importDeclaration(
+    [j.importDefaultSpecifier(j.identifier(localName))],
+    j.literal(source)
+  )
+}
+
 function replaceFlatCompatInConfig(configPath: string): boolean {
   let configContent: string
   try {
@@ -127,6 +177,8 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   // Parse the file using jscodeshift
   const j = createParserFromPath(configPath)
   const root = j(configContent)
+
+  const isCommonJs = isCommonJsConfig(configPath, j, root)
 
   // Track if we need to add imports and preserve other configs
   let needsNext = false
@@ -238,12 +290,18 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
       // Leave path/url imports alone - they might be used elsewhere
     })
 
-    // Remove only the compat variable - keep __dirname and __filename
+    // Remove only the compat variable and FlatCompat-specific requires -
+    // keep __dirname and __filename
     root.find(j.VariableDeclaration).forEach((astPath) => {
       const node = astPath.value
       if (node.declarations) {
-        // Filter out only the compat variable
         const filteredDeclarations = node.declarations.filter((decl: any) => {
+          if (
+            decl &&
+            isRequireOf(decl.init, ['@eslint/eslintrc', '@eslint/js'])
+          ) {
+            return false
+          }
           if (decl && decl.id && decl.id.type === 'Identifier') {
             return decl.id.name !== 'compat'
           }
@@ -269,38 +327,52 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
   // Add imports in correct order: next first, then core-web-vitals, then typescript
   if (needsNext) {
     imports.push(
-      j.importDeclaration(
-        [j.importDefaultSpecifier(j.identifier('next'))],
-        j.literal('eslint-config-next')
-      )
+      createDefaultImport(j, 'next', 'eslint-config-next', isCommonJs)
     )
   }
 
   if (needsNextVitals) {
     imports.push(
-      j.importDeclaration(
-        [j.importDefaultSpecifier(j.identifier('nextCoreWebVitals'))],
-        j.literal('eslint-config-next/core-web-vitals')
+      createDefaultImport(
+        j,
+        'nextCoreWebVitals',
+        'eslint-config-next/core-web-vitals',
+        isCommonJs
       )
     )
   }
 
   if (needsNextTs) {
     imports.push(
-      j.importDeclaration(
-        [j.importDefaultSpecifier(j.identifier('nextTypescript'))],
-        j.literal('eslint-config-next/typescript')
+      createDefaultImport(
+        j,
+        'nextTypescript',
+        'eslint-config-next/typescript',
+        isCommonJs
       )
     )
   }
 
-  // Find the eslint/config import and insert our imports after it
+  // Find the eslint/config import (or require) and insert our imports after it
   let eslintConfigImportPath = null
-  root.find(j.ImportDeclaration).forEach((astPath) => {
-    if (astPath.value.source.value === 'eslint/config') {
-      eslintConfigImportPath = astPath
-    }
-  })
+  if (isCommonJs) {
+    root.find(j.VariableDeclaration).forEach((astPath) => {
+      if (
+        !eslintConfigImportPath &&
+        astPath.value.declarations?.some((decl: any) =>
+          isRequireOf(decl?.init, ['eslint/config'])
+        )
+      ) {
+        eslintConfigImportPath = astPath
+      }
+    })
+  } else {
+    root.find(j.ImportDeclaration).forEach((astPath) => {
+      if (astPath.value.source.value === 'eslint/config') {
+        eslintConfigImportPath = astPath
+      }
+    })
+  }
 
   // Insert imports after eslint/config import (or at beginning if not found)
   if (eslintConfigImportPath) {
@@ -1105,11 +1177,22 @@ export default function transformer(
           stdio: 'pipe',
         })
 
-        // The migration tool creates eslint.config.mjs by default
-        const outputPath = path.join(projectRoot, 'eslint.config.mjs')
-        if (!existsSync(outputPath)) {
+        // The migration tool derives its output filename from the legacy
+        // config: JS configs keep their extension (`.eslintrc.cjs` becomes
+        // `eslint.config.cjs`), other formats become `eslint.config.mjs`.
+        // No flat config existed before the tool ran, so whichever of these
+        // exists now was generated by it.
+        const generatedConfigFilenames = [
+          'eslint.config.mjs',
+          'eslint.config.js',
+          'eslint.config.cjs',
+        ]
+        const outputPath = generatedConfigFilenames
+          .map((filename) => path.join(projectRoot, filename))
+          .find((generatedPath) => existsSync(generatedPath))
+        if (!outputPath) {
           throw new Error(
-            `Failed to find the expected output file "${outputPath}" generated by the migration tool.`
+            `Failed to find the flat config file generated by the migration tool (expected one of ${generatedConfigFilenames.join(', ')} in "${projectRoot}").`
           )
         }
 
