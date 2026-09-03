@@ -1,0 +1,60 @@
+---
+title: Working with AI
+description: Learn about Next.js AI-specific resources and LLM instructions for building applications with AI assistance.
+---
+
+Next.js provides specialized resources to help AI assistants and developers work more effectively with the framework.
+
+## LLM Instructions
+
+Next.js includes comprehensive LLM instructions in [`ai/llm-instructions.md`](https://raw.githubusercontent.com/vercel/next.js/canary/ai/llm-instructions.md) designed to guide AI assistants in generating correct Next.js code. This file is highly opinionated and reflects current best practices for Next.js development.
+
+Results vary from model to model, but in general show a positive trend toward being helpful. We're actively seeking community feedback to improve and refine these guidelines.
+
+For now, downloading this file and placing it at the root of your Next.js project may help AI assistants provide better context-aware suggestions, though effectiveness varies by AI system.
+
+### Key Sections
+
+The LLM instructions cover essential areas including:
+
+- **Core Principles** - App Router first, async Server Components, Server Actions for forms
+- **Architecture & File Structure** - Proper app directory organization and file conventions
+- **Components** - Server vs Client Components, proper 'use client' usage
+- **Data Fetching** - Modern patterns with fetch and server-side data handling
+- **Routing & Navigation** - Dynamic routes, navigation patterns, and route groups
+- **API Routes** - Route handlers and dynamic API patterns
+- **Performance & Optimization** - Images, fonts, loading states, and caching
+- **TypeScript Patterns** - Proper typing for Next.js-specific features
+- **Component Modification Rules** - Critical guidelines for editing existing components
+
+### AI-Specific Guidance
+
+The instructions include specific patterns to help AI assistants:
+
+- **CRITICAL sections** highlighting common mistakes
+- **Code examples** showing correct vs incorrect implementations
+- **Validation patterns** for searchParams and form data
+- **Import completion requirements** to ensure features are fully implemented
+
+> **Good to know**:
+>
+> "The LLM instructions significantly improve my ability to generate correct App Router code. The specific patterns for async Server Components, proper 'use client' placement, and searchParams validation help me avoid common pitfalls. The CRITICAL sections are particularly valuable for preventing mistakes like duplicate exports or incomplete feature implementations."
+>
+> _— AI Assistant feedback on instruction effectiveness_
+
+## Documentation Context Files
+
+The Next.js documentation site provides dedicated endpoints for AI systems:
+
+- [`/docs/llms.txt`](https://nextjs.org/docs/llms.txt) - Condensed documentation context
+- [`/docs/llms-full.txt`](https://nextjs.org/docs/llms-full.txt) - Complete documentation context
+
+These endpoints allow you to include Next.js documentation directly in your system prompts or AI assistant context, ensuring up-to-date information about the framework.
+
+Additionally, any documentation page for the latest version can be accessed as raw markdown by appending `.md` to the URL. For example, this page is available at `/docs/app/getting-started/working-with-ai.md`.
+
+## Community Feedback
+
+This is an ongoing development effort. We welcome feedback and suggestions through our [GitHub Discussions](https://github.com/vercel/next.js/discussions) to improve AI assistance for Next.js development.
+
+The current approach is opinionated and based on patterns that work well in practice, but we're always looking to refine and improve these guidelines based on community input.
