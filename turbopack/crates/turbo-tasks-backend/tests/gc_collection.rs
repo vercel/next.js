@@ -29,8 +29,11 @@ fn leaf(n: u32) -> Vc<u32> {
     Vc::cell(n)
 }
 
-/// Resolves `leaf(n)` and returns the raw `TaskId` backing it, as a `u32`. Runs inside a tracked
-/// task so the eventually-consistent `.resolve()` read is ordered by the task graph.
+/// Resolves `leaf(n)` and returns the raw `TaskId` backing it, as a `u32`.
+///
+/// This runs inside a tracked task rather than at the top level of `run_once`, so the plain
+/// (eventually consistent) `.resolve()` read below is legal and deterministic — the read is
+/// ordered by the task graph instead of racing whatever the session happens to be doing.
 #[turbo_tasks::function(operation, root)]
 async fn leaf_task_id(n: u32) -> Result<Vc<u32>> {
     Ok(Vc::cell(*task_id_of(leaf(n).resolve().await?)))
@@ -46,14 +49,16 @@ async fn branch_b() -> Result<Vc<u32>> {
     Ok(Vc::cell(2 + *leaf(20).await?))
 }
 
-/// Pins itself against GC while executing.
+/// A task that pins itself against GC while executing. Once pinned it must survive collection even
+/// after it is disconnected.
 #[turbo_tasks::function]
 async fn pinned_branch() -> Result<Vc<u32>> {
     prevent_gc();
     Ok(Vc::cell(99))
 }
 
-/// Reads one branch depending on the selector; flipping it disconnects the other branch's subtree.
+/// Reads exactly one branch depending on the selector; flipping it re-executes and disconnects the
+/// previously-read branch (and its subtree), which should drop that branch's `parent_count` to 0.
 #[turbo_tasks::function(operation, root)]
 async fn select(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
     let use_b = *selector.await?.get();
@@ -65,7 +70,7 @@ async fn select(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
     Ok(Vc::cell(value))
 }
 
-/// [`select`] with `pinned_branch` in place of `branch_a`.
+/// Like `select`, but reads `pinned_branch` instead of `branch_a` when the selector is false.
 #[turbo_tasks::function(operation, root)]
 async fn select_pinned(selector: ResolvedVc<Selector>) -> Result<Vc<u32>> {
     let use_b = *selector.await?.get();
@@ -90,6 +95,7 @@ async fn gc_collects_disconnected_subtree() {
         let output = select(selector_vc);
         assert_eq!(*output.read_strongly_consistent().await?, 11);
 
+        // Flip: select drops branch_a; branch_a (parent_count 0) becomes a candidate.
         selector.set(true);
         assert_eq!(*output.read_strongly_consistent().await?, 22);
 
@@ -98,9 +104,16 @@ async fn gc_collects_disconnected_subtree() {
     .await;
     result.unwrap();
 
-    // branch_a and its cascaded child leaf(10).
-    assert_eq!(tt2.backend().gc_for_testing(&tt2), 2);
-    assert_eq!(tt2.backend().gc_for_testing(&tt2), 0);
+    let collected = tt2.backend().gc_for_testing(&tt2);
+    assert_eq!(
+        collected, 2,
+        "branch_a and its cascaded child leaf(10) should both be collected"
+    );
+    assert_eq!(
+        tt2.backend().gc_for_testing(&tt2),
+        0,
+        "a second GC pass must collect nothing"
+    );
 
     // Flipping back must recompute branch_a fresh, since it was collected.
     let tt3 = tt.clone();
@@ -121,7 +134,8 @@ async fn gc_collects_disconnected_subtree() {
     tt.stop_and_wait().await;
 }
 
-/// A task pinned via `prevent_gc()` must survive collection after it is disconnected.
+/// A task that pins itself via `prevent_gc()` must survive collection even after it is disconnected
+/// from the live graph, because the pin makes it a GC root.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn gc_does_not_collect_pinned_task() {
     let (tt, _persistence_dir) = create_tt("gc_does_not_collect_pinned_task");
@@ -135,6 +149,7 @@ async fn gc_does_not_collect_pinned_task() {
         let output = select_pinned(selector_vc);
         assert_eq!(*output.read_strongly_consistent().await?, 99);
 
+        // Flip: select_pinned re-executes, reads branch_b, and disconnects pinned_branch.
         selector.set(true);
         assert_eq!(*output.read_strongly_consistent().await?, 22);
 
@@ -143,13 +158,24 @@ async fn gc_does_not_collect_pinned_task() {
     .await;
     result.unwrap();
 
-    // The run has released activeness, so pinned_branch is disconnected and otherwise collectible.
-    assert_eq!(tt2.backend().gc_for_testing(&tt2), 0);
+    // GC runs after the run has released activeness, so pinned_branch is disconnected
+    // (parent_count 0) and otherwise collectible.
+    let collected = tt2.backend().gc_for_testing(&tt2);
+    assert_eq!(
+        collected, 0,
+        "a pinned task must not be collected even when disconnected"
+    );
 
-    // Eviction may drop a pinned task's Meta/Data, but the session-only `transient_ref_count` is
-    // retained as residue, so the task stays uncollectible.
+    // A snapshot + evict must not lose the (transient) pin. A pinned task is not forced fully
+    // resident — its Meta/Data may be partially evicted — but the session-only
+    // `transient_ref_count` is retained as residue (the map entry is kept), so the task stays
+    // uncollectible and a subsequent GC still collects nothing.
     tt2.backend().snapshot_and_evict_for_testing(&tt2);
-    assert_eq!(tt2.backend().gc_for_testing(&tt2), 0);
+    assert_eq!(
+        tt2.backend().gc_for_testing(&tt2),
+        0,
+        "pinned task must survive eviction and not be collected"
+    );
 
     tt.stop_and_wait().await;
 }
@@ -213,6 +239,7 @@ async fn dispose_root_task_releases_anchored_subgraph() {
 async fn unpin_after_stop_does_not_panic() {
     let (tt, _persistence_dir) = create_tt("unpin_after_stop_does_not_panic");
 
+    // Pin a real task inside a session (as `prevent_gc` / `DetachedVc::new` would).
     let tt2 = tt.clone();
     let leaf_id = turbo_tasks::run_once(tt.clone(), async move {
         let id = TaskId::try_from(*leaf_task_id(7).read_strongly_consistent().await?)?;
@@ -222,8 +249,8 @@ async fn unpin_after_stop_does_not_panic() {
     .await
     .unwrap();
 
-    // Stopping drops the in-memory task map, so the pinned task is no longer resident, exactly as
-    // at `next build` shutdown.
+    // Stop the backend — this drops the in-memory task map, so the pinned task is no longer
+    // resident (exactly as at `next build` shutdown).
     tt.stop_and_wait().await;
 
     tt.unpin_task_for_gc(leaf_id);

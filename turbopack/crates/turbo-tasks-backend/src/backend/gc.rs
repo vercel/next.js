@@ -58,7 +58,7 @@ pub(crate) const DEFAULT_GC_ROOT_TTL: Duration = Duration::from_secs(3 * 24 * 60
 pub enum TtlCounter {
     /// Observed live (a durable, anchored root) in the most recent session.
     MostRecent,
-    /// Wall-clock millis at which a session's **first** GC pass first found this root not live.
+    /// System time millis at which a session's **first** GC pass first found this root not live.
     FirstStale(u64),
 }
 
@@ -130,15 +130,16 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
         phase: &SnapshotPhase<'_, AnyOperation>,
     ) -> (GcStats, Option<Vec<(TaskId, TtlCounter)>>) {
-        let now = Self::now_ms();
+        // Record the time at the beginning of the loop to have a consistent timestamp for the roots
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
 
         let mut roots = self
             .backing_storage
             .roots()
-            .unwrap_or_else(|err| {
-                eprintln!("failed to read GC roots, treating as empty: {err:?}");
-                Vec::new()
-            })
+            .expect("reading gc roots should not fail")
             .into_iter()
             .collect::<FxHashMap<TaskId, TtlCounter>>();
         let roots_before = roots.clone();
@@ -230,14 +231,6 @@ impl TurboTasksBackend {
         let roots_to_persist: Option<Vec<_>> =
             (roots != roots_before).then(|| roots.into_iter().collect());
         (stats, roots_to_persist)
-    }
-
-    /// Wall-clock now as millis since the Unix epoch.
-    fn now_ms() -> u64 {
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .map(|d| d.as_millis() as u64)
-            .unwrap_or(0)
     }
 
     /// Compute which persisted roots have expired their TTL
@@ -337,12 +330,8 @@ impl TurboTasksBackend {
         let phase = self.snapshot_coord.begin_snapshot();
         let (stats, roots) = self.gc_collect(turbo_tasks, &phase);
 
-        // Persist the roots map this pass produced. Production does this by holding the same
-        // exclusion across the GC pass and the snapshot that follows it; this hook has no
-        // snapshot. Dropping the result would not merely lose an optimization: the pass also
-        // consumed the session's one demotion opportunity (`first_gc_pass_of_session`), so a root
-        // that went stale this session would stay `MostRecent` with no later pass able to demote
-        // it.
+        // Persist the roots map this pass produced. Some tests query the roots set and GC itself
+        // does as well, this ensures it is available to the next cycle.
         if let Some(roots) = roots
             && let Err(err) = self.backing_storage.save_snapshot(
                 Vec::new(),
