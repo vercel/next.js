@@ -44,6 +44,9 @@ patchedDependencies:
   playwright-core@1.61.0:
     hash: 1a56033776b3ac43fe8f35b6c9afa6d9f13a0d5163892f2a31d7661504b93b93
     path: patches/playwright-core@1.61.0.patch
+  postcss-merge-rules@7.0.4:
+    hash: 9d260c59d5222557ab8e7a88029144c1e5b3f576c38354cbbd3b81275b411ac6
+    path: patches/postcss-merge-rules@7.0.4.patch
   postcss-scss:
     hash: 88893e632b3e099730dc0ffcc93cf3654b31c277da9e2796e822f6b5aeedc093
     path: patches/postcss-scss.patch
@@ -27261,7 +27264,7 @@ snapshots:
       postcss-discard-empty: 7.0.0(postcss@8.5.23)
       postcss-discard-overridden: 7.0.0(postcss@8.5.23)
       postcss-merge-longhand: 7.0.4(postcss@8.5.23)
-      postcss-merge-rules: 7.0.4(postcss@8.5.23)
+      postcss-merge-rules: 7.0.4(patch_hash=9d260c59d5222557ab8e7a88029144c1e5b3f576c38354cbbd3b81275b411ac6)(postcss@8.5.23)
       postcss-minify-font-values: 7.0.0(postcss@8.5.23)
       postcss-minify-gradients: 7.0.0(postcss@8.5.23)
       postcss-minify-params: 7.0.2(postcss@8.5.23)
@@ -34728,7 +34731,7 @@ snapshots:
       postcss-selector-parser: 3.1.1
       vendors: 1.0.3
 
-  postcss-merge-rules@7.0.4(postcss@8.5.23):
+  postcss-merge-rules@7.0.4(patch_hash=9d260c59d5222557ab8e7a88029144c1e5b3f576c38354cbbd3b81275b411ac6)(postcss@8.5.23):
     dependencies:
       browserslist: 4.28.1
       caniuse-api: 3.0.0

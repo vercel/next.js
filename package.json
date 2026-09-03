@@ -343,7 +343,8 @@
       "@vercel/blob": "patches/@vercel__blob.patch",
       "postcss-scss": "patches/postcss-scss.patch",
       "playwright-core@1.61.0": "patches/playwright-core@1.61.0.patch",
-      "@types/node@20.17.7": "patches/@types__node@20.17.7.patch"
+      "@types/node@20.17.7": "patches/@types__node@20.17.7.patch",
+      "postcss-merge-rules@7.0.4": "patches/postcss-merge-rules@7.0.4.patch"
     }
   }
 }
