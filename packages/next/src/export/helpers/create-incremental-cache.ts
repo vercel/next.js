@@ -70,6 +70,7 @@ export async function createIncrementalCache({
       routes: {},
       dynamicRoutes: {},
       notFoundRoutes: [],
+      variantCombinationGroups: {},
       preview: previewProps,
     },
     fs: nodeFs,

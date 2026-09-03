@@ -65,10 +65,30 @@ export interface RequestStore extends CommonWorkUnitStore {
   readonly rootParams: Params
 
   /**
-   * The variants that this request resolved, keyed by variant identity, for
-   * example `theme@variants.ts`. It is null when the request resolved none.
+   * The variants this request matched a declared combination on, keyed by
+   * variant identity, for example `theme@variants.ts`. It is null when the
+   * request matched none.
+   *
+   * The prerender serving this request is produced for these values, so a
+   * render may put them in its output.
+   *
+   * "Static" here has the sense it has in `generateStaticParams`: constant
+   * within this output, not the same for every request. `theme=dark` is static
+   * within the dark prerender, and a request still chooses which prerender it
+   * gets.
    */
-  readonly variants: Record<string, string> | null
+  readonly staticVariants: Record<string, string> | null
+
+  /**
+   * The variants this request resolved that no declared combination assigns,
+   * keyed by variant identity. It is null when there are none.
+   *
+   * No artifact key mentions these, so nothing a render caches may hold one. A
+   * read of one waits until request time.
+   *
+   * This map is disjoint from `staticVariants`.
+   */
+  readonly runtimeVariants: Record<string, string> | null
 
   /**
    * The resume data cache for this request. Either a mutable
@@ -172,6 +192,16 @@ export interface PrerenderStoreModernServer
     StaticPrerenderStoreCommon {
   readonly type: 'prerender'
 
+  /**
+   * The variants this prerender's combination assigns, keyed by variant
+   * identity. It is null for a prerender produced without variants.
+   *
+   * This prerender is produced for these values, so a render may put them in
+   * its output rather than leaving a hole. Every other variant a request
+   * resolves stays a hole this prerender does not fill.
+   */
+  readonly staticVariants: Record<string, string> | null
+
   readonly stagedRendering: StagedRenderingController | null
 
   /**
@@ -228,6 +258,21 @@ export interface PrerenderStoreModernServer
 export interface PrerenderStoreModernRuntime
   extends PrerenderStoreModernCommon {
   readonly type: 'prerender-runtime'
+
+  /**
+   * The variants this prerender's combination assigns, keyed by variant
+   * identity. It is null for a runtime prerender produced without variants.
+   */
+  readonly staticVariants: Record<string, string> | null
+
+  /**
+   * The variants this runtime prerender resolved that no static variant
+   * combination assigns, keyed by variant identity.
+   *
+   * A runtime prerender runs against a real request, so unlike a static
+   * prerender it may read these.
+   */
+  readonly runtimeVariants: Record<string, string> | null
 
   /**
    * The staged rendering controller for this prerender. Models stage
@@ -328,6 +373,12 @@ export interface PrerenderStoreLegacy
     RevalidateStore {
   readonly type: 'prerender-legacy'
   readonly rootParams: Params
+
+  /**
+   * The variants this prerender's combination assigns, keyed by variant
+   * identity. It is null for a prerender produced without variants.
+   */
+  readonly staticVariants: Record<string, string> | null
 }
 
 export type PrerenderStore = PrerenderStoreLegacy | PrerenderStoreModern

@@ -165,7 +165,8 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       rootParams: msg.request.rootParams,
       // A `'use cache'` scope rejects a read of a variant, and this probe
       // exercises only such scopes, so it needs no values.
-      variants: null,
+      staticVariants: null,
+      runtimeVariants: null,
       implicitTags: { tags: [], expirationsByCacheKind: new Map() },
       resumeDataCache: null,
       previewProps: undefined,

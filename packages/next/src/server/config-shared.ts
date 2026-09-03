@@ -1592,6 +1592,15 @@ export type ExportPathMap = {
     _ssgPath?: string
 
     /**
+     * The static variant combination this output is prerendered against, keyed
+     * by variant identity. It is absent for an output prerendered without
+     * variants.
+     *
+     * @internal
+     */
+    _variantValues?: Readonly<Record<string, string>>
+
+    /**
      * The parameters that are currently unknown.
      *
      * @internal
@@ -2506,6 +2515,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
     | 'requestInsights'
+    | 'variants'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2576,6 +2586,7 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
+    variants: ex.variants,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,

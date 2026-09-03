@@ -102,6 +102,9 @@ async function exportPageImpl(
     // The parameters that are currently unknown.
     _fallbackRouteParams = [],
 
+    // The static variant combination this output is prerendered against.
+    _variantValues: staticVariants = null,
+
     // Check if this is an `app/` page.
     _isAppDir: isAppDir = false,
 
@@ -277,6 +280,7 @@ async function exportPageImpl(
     // If it's dynamic, then it can be handled when request hits the route.
     serveStreamingMetadata: true,
     allowEmptyStaticShell,
+    staticVariants,
     runInstantValidation,
     isFallbackUpgradeable,
     experimental: {

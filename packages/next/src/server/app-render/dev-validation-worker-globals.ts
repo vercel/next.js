@@ -50,7 +50,8 @@ export interface DevValidationRequestSnapshot {
   urlPathname: string
   urlSearch: string
   rootParams: Params
-  variants: Record<string, string> | null
+  staticVariants: Record<string, string> | null
+  runtimeVariants: Record<string, string> | null
   isDraftMode: boolean
   isHmrRefresh: boolean
   hmrRefreshHash: string | undefined
