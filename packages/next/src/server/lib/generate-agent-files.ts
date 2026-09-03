@@ -35,23 +35,58 @@ ${AGENT_RULES_END_MARKER}`
 
 const CLAUDE_MD_CONTENT = `@AGENTS.md\n`
 
-export type AgentFileAction = 'created' | 'updated' | 'unchanged' | 'skipped'
+export type AgentFileAction =
+  | 'created'
+  | 'updated'
+  | 'unchanged'
+  | 'skipped'
+  | 'malformed'
 
 export interface AgentFilesResult {
   agentsMd: AgentFileAction
   claudeMd: AgentFileAction
 }
 
+type AgentRulesMarkerState =
+  | { kind: 'absent' }
+  | { kind: 'malformed' }
+  | { kind: 'valid'; start: number; end: number }
+
+function findMarkerIndexes(content: string, marker: string): number[] {
+  const indexes: number[] = []
+  let offset = 0
+
+  while (true) {
+    const index = content.indexOf(marker, offset)
+    if (index === -1) return indexes
+    indexes.push(index)
+    offset = index + marker.length
+  }
+}
+
 /**
- * Returns the managed block (markers included) found in `content`, or
- * `null` when the markers are absent or malformed.
+ * A managed block is valid only when it has exactly one ordered marker pair.
+ * Treat every other marker layout as malformed so a later write cannot
+ * reinterpret user-authored text as part of the managed block.
  */
+function parseAgentRulesMarkers(content: string): AgentRulesMarkerState {
+  const starts = findMarkerIndexes(content, AGENT_RULES_START_MARKER)
+  const ends = findMarkerIndexes(content, AGENT_RULES_END_MARKER)
+
+  if (starts.length === 0 && ends.length === 0) return { kind: 'absent' }
+  if (starts.length !== 1 || ends.length !== 1 || ends[0] < starts[0]) {
+    return { kind: 'malformed' }
+  }
+  return { kind: 'valid', start: starts[0], end: ends[0] }
+}
+
 function extractAgentRulesBlock(content: string): string | null {
-  const start = content.indexOf(AGENT_RULES_START_MARKER)
-  if (start === -1) return null
-  const end = content.indexOf(AGENT_RULES_END_MARKER, start)
-  if (end === -1) return null
-  return content.slice(start, end + AGENT_RULES_END_MARKER.length)
+  const markers = parseAgentRulesMarkers(content)
+  if (markers.kind !== 'valid') return null
+  return content.slice(
+    markers.start,
+    markers.end + AGENT_RULES_END_MARKER.length
+  )
 }
 
 /**
@@ -95,12 +130,14 @@ export function writeAgentFiles(projectDir: string): AgentFilesResult {
   const agentsMdExists = fs.existsSync(agentsMdPath)
   const claudeMdExists = fs.existsSync(claudeMdPath)
 
+  const claudeMdContent = claudeMdExists ? tryReadFile(claudeMdPath) : null
+  const agentsMdContent = agentsMdExists ? tryReadFile(agentsMdPath) : null
   const claudeMdHostsBlock =
-    claudeMdExists &&
-    (tryReadFile(claudeMdPath)?.includes(AGENT_RULES_START_MARKER) ?? false)
+    claudeMdContent !== null &&
+    parseAgentRulesMarkers(claudeMdContent).kind !== 'absent'
   const agentsMdHostsBlock =
-    agentsMdExists &&
-    (tryReadFile(agentsMdPath)?.includes(AGENT_RULES_START_MARKER) ?? false)
+    agentsMdContent !== null &&
+    parseAgentRulesMarkers(agentsMdContent).kind !== 'absent'
 
   if (agentsMdExists && (agentsMdHostsBlock || !claudeMdHostsBlock)) {
     return {
@@ -136,6 +173,9 @@ function tryReadFile(filePath: string): string | null {
 
 function upsertFile(filePath: string, block: string): AgentFileAction {
   const existing = fs.readFileSync(filePath, 'utf-8')
+  if (parseAgentRulesMarkers(existing).kind === 'malformed') {
+    return 'malformed'
+  }
   const updated = upsertAgentRulesBlock(existing, block)
   if (updated === existing) return 'unchanged'
   fs.writeFileSync(filePath, updated, 'utf-8')
@@ -160,12 +200,11 @@ function upsertAgentRulesBlock(existing: string, block: string): string {
 
   existing = stripLegacyAgentRulesBlock(existing, eol)
 
-  const startIdx = existing.indexOf(AGENT_RULES_START_MARKER)
-  const endIdx = existing.indexOf(AGENT_RULES_END_MARKER)
+  const markers = parseAgentRulesMarkers(existing)
 
-  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    const before = existing.slice(0, startIdx)
-    const after = existing.slice(endIdx + AGENT_RULES_END_MARKER.length)
+  if (markers.kind === 'valid') {
+    const before = existing.slice(0, markers.start)
+    const after = existing.slice(markers.end + AGENT_RULES_END_MARKER.length)
     const replaced = before + normalizedBlock + after
     return replaced === existing ? existing : replaced
   }

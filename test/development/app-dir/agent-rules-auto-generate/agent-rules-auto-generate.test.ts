@@ -5,6 +5,7 @@ import path from 'path'
 import { writeAgentFiles } from 'next/dist/server/lib/generate-agent-files'
 
 const AGENT_RULES_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
+const AGENT_RULES_END_MARKER = '<!-- END:nextjs-agent-rules -->'
 
 /**
  * The canonical block as the version under test generates it,
@@ -16,6 +17,89 @@ function currentAgentRulesBlock(): string {
   writeAgentFiles(dir)
   return fs.readFileSync(path.join(dir, 'AGENTS.md'), 'utf-8').trimEnd()
 }
+
+function runAgentRulesWrite(content: string) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'agent-rules-write-'))
+  const filePath = path.join(dir, 'AGENTS.md')
+  fs.writeFileSync(filePath, content)
+
+  try {
+    const firstResult = writeAgentFiles(dir)
+    const afterFirstWrite = fs.readFileSync(filePath, 'utf-8')
+    const secondResult = writeAgentFiles(dir)
+    const afterSecondWrite = fs.readFileSync(filePath, 'utf-8')
+    return { firstResult, afterFirstWrite, secondResult, afterSecondWrite }
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+}
+
+describe('agent-rules marker safety', () => {
+  it.each([
+    ['start marker only', `${AGENT_RULES_MARKER}\n# User rules\n`],
+    ['end marker only', `# User rules\n${AGENT_RULES_END_MARKER}\n`],
+    [
+      'reversed markers',
+      `${AGENT_RULES_END_MARKER}\n# User rules\n${AGENT_RULES_MARKER}\n`,
+    ],
+    [
+      'nested start marker',
+      `${AGENT_RULES_MARKER}\n# User rules\n${AGENT_RULES_MARKER}\n${AGENT_RULES_END_MARKER}\n`,
+    ],
+    [
+      'duplicate blocks',
+      `${AGENT_RULES_MARKER}\nfirst\n${AGENT_RULES_END_MARKER}\n${AGENT_RULES_MARKER}\nsecond\n${AGENT_RULES_END_MARKER}\n`,
+    ],
+    [
+      'extra end marker',
+      `${AGENT_RULES_MARKER}\n# User rules\n${AGENT_RULES_END_MARKER}\n${AGENT_RULES_END_MARKER}\n`,
+    ],
+  ])('does not modify a file with a malformed %s', (_name, content) => {
+    const result = runAgentRulesWrite(content)
+
+    expect(result.firstResult).toEqual({
+      agentsMd: 'malformed',
+      claudeMd: 'skipped',
+    })
+    expect(result.secondResult).toEqual(result.firstResult)
+    expect(result.afterFirstWrite).toBe(content)
+    expect(result.afterSecondWrite).toBe(content)
+  })
+
+  it.each([
+    ['LF', '\n'],
+    ['CRLF', '\r\n'],
+  ])('updates one valid block idempotently with %s endings', (_name, eol) => {
+    const content = [
+      '# Team rules',
+      '',
+      AGENT_RULES_MARKER,
+      'stale managed content',
+      AGENT_RULES_END_MARKER,
+      '',
+      '# More team rules',
+      '',
+    ].join(eol)
+    const result = runAgentRulesWrite(content)
+
+    expect(result.firstResult).toEqual({
+      agentsMd: 'updated',
+      claudeMd: 'skipped',
+    })
+    expect(result.secondResult).toEqual({
+      agentsMd: 'unchanged',
+      claudeMd: 'skipped',
+    })
+    expect(result.afterSecondWrite).toBe(result.afterFirstWrite)
+    expect(result.afterFirstWrite).toContain('# Team rules')
+    expect(result.afterFirstWrite).toContain('# More team rules')
+    expect(result.afterFirstWrite).not.toContain('stale managed content')
+    expect(result.afterFirstWrite.split(AGENT_RULES_MARKER)).toHaveLength(2)
+    if (eol === '\r\n') {
+      expect(result.afterFirstWrite).not.toMatch(/(^|[^\r])\n/)
+    }
+  })
+})
 
 describe('agent-rules auto-generate on next dev (agent detected)', () => {
   const { next } = nextTestSetup({
@@ -144,6 +228,36 @@ Stale body from an older Next.js.
     await next.fetch('/')
     const after = fs.readFileSync(path.join(next.testDir, 'AGENTS.md'), 'utf-8')
     expect(after).toBe(before)
+  })
+})
+
+describe('agent-rules auto-generate on next dev (AGENTS.md has malformed markers)', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { CLAUDECODE: '1' },
+    skipStart: true,
+  })
+  const originalContent = `${AGENT_RULES_MARKER}\n# User-authored rules without an end marker\n`
+
+  beforeAll(async () => {
+    await next.patchFile('AGENTS.md', originalContent)
+    await next.start()
+  })
+
+  it('preserves the file and reports how to recover across restarts', async () => {
+    await next.fetch('/')
+    const filePath = path.join(next.testDir, 'AGENTS.md')
+
+    expect(fs.readFileSync(filePath, 'utf-8')).toBe(originalContent)
+    expect(next.cliOutput).toContain(
+      'Skipped updating AGENTS.md because its Next.js agent-rules markers are malformed.'
+    )
+    expect(next.cliOutput).toContain('agentRules: false')
+
+    await next.stop()
+    await next.start()
+    await next.fetch('/')
+    expect(fs.readFileSync(filePath, 'utf-8')).toBe(originalContent)
   })
 })
 
