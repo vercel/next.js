@@ -6,7 +6,7 @@ import { outdent } from 'outdent'
 describe('unrecognized server actions', () => {
   const unrecognizedActionId = '0'.repeat(42)
 
-  const { next, isNextDeploy, isNextDev } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -183,39 +183,16 @@ describe('unrecognized server actions', () => {
           }
         } else {
           // An MPA action, sent without JS.
+          // Unrecognized action IDs in MPA form submissions are treated as
+          // non-action requests and fall through to normal routing (404).
 
-          // FIXME: When deployed, the request is logged as a 500, but returns a 405.
-          // We also don't seem to display the error page correctly
-          if (!isNextDeploy) {
-            // FIXME: Currently, an unrecognized id in an MPA action results in a 500.
-            // This is not ideal, and ignores all nested `error.js` files, only showing the topmost one.
-            expect(response.status()).toBe(500)
-            if (isNextDev) {
-              expect(response.headers()['content-type']).toStartWith(
-                'text/html'
-              )
-            } else {
-              const responseText = await response.text()
-              expect(responseText).toBe('Internal Server Error')
-              expect(response.headers()['content-type']).toStartWith(
-                'text/plain'
-              )
-            }
-
-            // In dev, the 500 page doesn't have any SSR'd html, so it won't show anything without JS.
-            if (!isNextDev) {
-              expect(await browser.elementByCss('body').text()).toContain(
-                'Internal Server Error'
-              )
-            }
-
-            if (!isNextDeploy) {
-              await retry(async () =>
-                expect(getLogs()).toInclude(
-                  `Error: Failed to find Server Action "${unrecognizedActionId}". This request might be from an older or newer deployment`
-                )
-              )
-            }
+          if (isNextDeploy) {
+            // When deployed to vercel, the 404 page is a static route that
+            // doesn't support POST, so it returns 405.
+            expect(response.status()).toBe(405)
+            expect(response.headers()['content-type']).toStartWith('text/html')
+          } else {
+            expect(response.status()).toBe(404)
           }
         }
       }

@@ -880,11 +880,9 @@ export async function handleAction({
               // Multipart POST, but not a fetch action.
               // Potentially an MPA action, we have to try decoding it to check.
               if (areAllActionIdsValid(formData, serverModuleMap) === false) {
-                // TODO: This can be from skew or manipulated input. We should handle this case
-                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
-                throw new Error(
-                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-                )
+                // No valid action IDs in the form data — this is not a server action request.
+                // Return null so normal routing can handle it (e.g. return 404).
+                return null
               }
 
               const action = await decodeAction(formData, serverModuleMap)
@@ -1087,11 +1085,9 @@ export async function handleAction({
               }
 
               if (areAllActionIdsValid(formData, serverModuleMap) === false) {
-                // TODO: This can be from skew or manipulated input. We should handle this case
-                // more gracefully but this preserves the prior behavior where decodeAction would throw instead.
-                throw new Error(
-                  `Failed to find Server Action. This request might be from an older or newer deployment.\nRead more: https://nextjs.org/docs/messages/failed-to-find-server-action`
-                )
+                // No valid action IDs in the form data — this is not a server action request.
+                // Return null so normal routing can handle it (e.g. return 404).
+                return null
               }
 
               // TODO: Refactor so it is harder to accidentally decode an action before you have validated that the
