@@ -15,9 +15,7 @@ use std::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{
-    GcRoot, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
-};
+use turbo_tasks::{GcRoot, TurboTasks, Vc};
 use turbo_tasks_backend::TurboTasksBackend;
 
 use crate::{
@@ -81,7 +79,6 @@ async fn reused_root_survives_sessions_that_abandon_its_sibling() {
     let kept_root = {
         let tt = reopen_tt_with_gc(&dir);
         let ids = turbo_tasks::run_once(tt.clone(), async move {
-            unmark_top_level_task_may_leak_eventually_consistent_state();
             let kept = root_with_child(1);
             let dropped = root_with_child(2);
             assert_eq!(*kept.read_strongly_consistent().await?, 2);
@@ -107,7 +104,6 @@ async fn reused_root_survives_sessions_that_abandon_its_sibling() {
     for session in 2..=3 {
         let tt = reopen_tt_with_gc_ttl(&dir, Duration::ZERO);
         turbo_tasks::run_once(tt.clone(), async move {
-            unmark_top_level_task_may_leak_eventually_consistent_state();
             // Re-request root 1 only, so it has a resident entry to pin.
             assert_eq!(
                 *root_with_child(1).read_strongly_consistent().await?,
@@ -136,8 +132,6 @@ async fn reused_root_survives_sessions_that_abandon_its_sibling() {
         let kept_before = leaf_executions(1);
         let dropped_before = leaf_executions(2);
         let result = turbo_tasks::run_once(tt.clone(), async move {
-            unmark_top_level_task_may_leak_eventually_consistent_state();
-
             // A dangling edge left by the collection, or a resurrected half-deleted task, would
             // surface as a wrong value or a panic here.
             assert_eq!(*root_with_child(1).read_strongly_consistent().await?, 2);
@@ -171,7 +165,6 @@ async fn gc_collect_scrubs_disk_only_forward_dep_target() {
     {
         let tt = reopen_tt_with_gc(&dir);
         let root_id = turbo_tasks::run_once(tt.clone(), async move {
-            unmark_top_level_task_may_leak_eventually_consistent_state();
             let constant_op = create_constant();
             let constant_vc = constant_op.resolve().strongly_consistent().await?;
             let root_op = diamond_root_op(constant_vc, DIAMOND_FANOUT);
@@ -196,7 +189,6 @@ async fn gc_collect_scrubs_disk_only_forward_dep_target() {
         let tt = reopen_tt_with_gc_ttl(&dir, Duration::ZERO);
         let tt2 = tt.clone();
         turbo_tasks::run_once(tt.clone(), async move {
-            unmark_top_level_task_may_leak_eventually_consistent_state();
             // No panic in these passes is the real assertion. The diamond is a root plus
             // DIAMOND_FANOUT A/B pairs; the cascade may also reach the constant op above it.
             let collected = gc_until_collected(&tt2, 2 * DIAMOND_FANOUT as usize + 1).await;
@@ -215,7 +207,6 @@ async fn gc_collect_scrubs_disk_only_forward_dep_target() {
     {
         let tt = reopen_tt_with_gc(&dir);
         let result = turbo_tasks::run_once(tt.clone(), async move {
-            unmark_top_level_task_may_leak_eventually_consistent_state();
             let constant_op = create_constant();
             let constant_vc = constant_op.resolve().strongly_consistent().await?;
             diamond_root_op(constant_vc, DIAMOND_FANOUT)

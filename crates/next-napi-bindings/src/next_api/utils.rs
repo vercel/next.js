@@ -85,30 +85,32 @@ impl<T> Deref for DetachedVc<T> {
 /// task promptly. If it doesn't, [`Drop`] disposes it as a backstop.
 ///
 /// This is used by [`subscribe`] to create a computation that re-executes when dependencies change.
-pub struct RootTask {
+pub struct SubscriptionTask {
     turbopack_ctx: NextTurbopackContext,
     task_id: Option<TaskId>,
 }
 
-impl Drop for RootTask {
-    fn drop(&mut self) {
-        // Tear it down now if `root_task_dispose` wasn't called.
+impl SubscriptionTask {
+    fn dispose(&mut self) {
         if let Some(task) = self.task_id.take() {
             self.turbopack_ctx.turbo_tasks().dispose_root_task(task);
         }
     }
 }
 
+impl Drop for SubscriptionTask {
+    fn drop(&mut self) {
+        self.dispose();
+    }
+}
+
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: ExternalRef<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: ExternalRef<
+        SubscriptionTask,
+    >,
 ) -> napi::Result<()> {
-    if let Some(task) = root_task.task_id.take() {
-        root_task
-            .turbopack_ctx
-            .turbo_tasks()
-            .dispose_root_task(task);
-    }
+    root_task.dispose();
     Ok(())
 }
 
@@ -444,7 +446,7 @@ pub fn subscribe<
     func: &FunctionRef<V, ()>,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
     mapper: impl 'static + Sync + Send + FnMut(ThreadsafeCallContext<T>) -> napi::Result<V>,
-) -> napi::Result<External<RootTask>> {
+) -> napi::Result<External<SubscriptionTask>> {
     let js_func = func.borrow_back(env)?;
     let func: ThreadsafeFunction<T, (), V, Status, true> = js_func
         .build_threadsafe_function::<T>()
@@ -472,7 +474,7 @@ pub fn subscribe<
             }
         }
     });
-    Ok(External::new(RootTask {
+    Ok(External::new(SubscriptionTask {
         turbopack_ctx: ctx,
         task_id: Some(task_id),
     }))
