@@ -12,9 +12,7 @@ use std::{sync::Arc, time::Duration};
 use anyhow::Result;
 use criterion::{BatchSize, BenchmarkId, Criterion, Throughput};
 use tokio::runtime::Runtime;
-use turbo_tasks::{
-    ResolvedVc, State, TurboTasks, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
-};
+use turbo_tasks::{ResolvedVc, State, TurboTasks, Vc};
 use turbo_tasks_backend::{
     BackendOptions, BackingStorageOptions, EvictionMode, GitVersionInfo, StorageMode,
     TurboTasksBackend,
@@ -105,7 +103,6 @@ fn setup_wide_garbage(
         // backend must be constructed inside the runtime context.
         let (tt, dir) = create_tt();
         turbo_tasks::run_once(tt.clone(), async move {
-            unmark_top_level_task_may_leak_eventually_consistent_state();
             let generation_op = create_generation();
             let generation_vc = generation_op.resolve().strongly_consistent().await?;
             let generation = generation_op.read_strongly_consistent().await?;
