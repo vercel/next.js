@@ -287,7 +287,10 @@ import {
 } from './module-loading/track-module-loading.external'
 import { isReactLargeShellError } from './react-large-shell-error'
 import type { GlobalErrorComponent } from '../../client/components/builtin/global-error'
-import { normalizeConventionFilePath } from './segment-explorer-path'
+import {
+  isNextjsBuiltinFilePath,
+  normalizeConventionFilePath,
+} from './segment-explorer-path'
 import { getRequestMeta } from '../request-meta'
 import {
   getDynamicParam,
@@ -10465,7 +10468,13 @@ const getGlobalErrorStyles = async (
     injectedJS: new Set(),
   })
 
-  let globalErrorStyles: ReactNode = styles
+  // The built-in global-error doesn't import any stylesheets, so it doesn't
+  // need any styles. With Turbopack, its CSS entry still contains the root
+  // layout's stylesheets, which would otherwise be duplicated in the RSC
+  // payload.
+  const isBuiltinGlobalError = isNextjsBuiltinFilePath(globalErrorModule[1])
+
+  let globalErrorStyles: ReactNode = isBuiltinGlobalError ? undefined : styles
 
   if (process.env.__NEXT_DEV_SERVER) {
     const dir =
