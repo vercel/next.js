@@ -928,7 +928,15 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
 
           // In development, error the navigation API usage in runtime,
           // since it's not allowed to be used in pages router as it doesn't contain error boundary like app router.
-          if (isNextRouterError(initialErr)) {
+          if (
+            isNextRouterError(initialErr) &&
+            !initialErr.message.includes(
+              'Next.js navigation API is not allowed to be used in Middleware'
+            ) &&
+            !initialErr.message.includes(
+              'Next.js navigation API is not allowed to be used in Proxy'
+            )
+          ) {
             error.message =
               'Next.js navigation API is not allowed to be used in Pages Router.'
           }
