@@ -4,13 +4,178 @@ title: Client-side Exception Occurred
 
 ## Why This Error Occurred
 
-In your production application a client-side error occurred that was not caught by an error boundary. Additional information should be visible in the console tab of your browser.
+Your application encountered a rendering error that wasn't caught by a custom error boundary. This is Next.js's default fallback error page, a generic message shown to protect your users from seeing sensitive error details.
 
-## Possible Ways to Fix It
+## What To Do Right Now
 
-Add error boundaries in your React tree to gracefully handle client-side errors and render a fallback view when they occur.
+### 1. Find the Real Error
+
+**Open your browser's DevTools console** (press F12 or right-click → Inspect → Console tab). The actual error message and stack trace are logged there. This information is necessary to fix the issue.
+
+Look for error messages that appear red in the console. They'll tell you:
+
+- What went wrong (e.g., "Cannot read property 'name' of undefined")
+- Where it happened (file name and line number)
+- The component stack trace
+
+### 2. Debug the Error
+
+**Reproduce locally first**: Run `npm run dev` to see detailed error messages and unminified code.
+
+**If it doesn't reproduce locally**, check for:
+
+- Production-only code paths or environment variables
+- Corrupted/unexpected production data (missing fields, wrong types, null values)
+- **Browser compatibility issues**: Syntax errors like "Unexpected token" mean unsupported JavaScript features. Test in the target browser, check your `browserslist` config, or review if third-party libraries need transpilation
+
+**Use breakpoints**: Open DevTools Sources tab, add a breakpoint where the error occurs, and step through to identify if it's your code, a third-party library, or React/Next.js internals.
+
+**Enable source maps carefully**: `productionBrowserSourceMaps: true` helps debugging but exposes your source code. It is recommended to use error tracking services that upload source maps privately, rather than exposing these to all users.
+
+**Check error tracking**: If configured, review error aggregating services for full context and user sessions.
+
+## Preventing This Default Error Screen (App Router)
+
+Once you've identified and fixed the underlying error, replace this jarring default screen with your own error UI.
+
+**Add error.js files**: Create an `error.js` file in route segments to catch errors and show custom fallback UI. These must be Client Components and receive `error` and `reset` props.
+
+See the [error.js documentation](/docs/app/api-reference/file-conventions/error) for complete implementation details and examples.
+
+**Add global-error.js**: This is your last line of defense, catching errors in the root `layout.js` and any uncaught errors from your route tree. Must include `<html>` and `<body>` tags.
+
+See the [global-error.js documentation](/docs/app/api-reference/file-conventions/error#global-error) for implementation details.
+
+## Preventing This Default Error Screen (Pages Router)
+
+**Create a custom \_error.js page**: Replace the default error page by creating `pages/_error.js`. This component receives a `statusCode` prop and can render custom error UI.
+
+See the [Custom Error Page documentation](/docs/pages/building-your-application/routing/custom-error) for implementation details and examples.
+
+**Advanced: Add an error boundary in \_app.js**: For more control, implement a React error boundary in your custom `_app.js` using `componentDidCatch`. This catches errors before they reach the error page.
+
+## Common Causes
+
+This error screen typically appears due to rendering errors such as:
+
+- **Null/undefined property access**: Trying to read properties from `null` or `undefined` values
+
+  ```tsx
+  // Error: Cannot read property 'name' of undefined
+  <div>{user.name}</div> // when user is undefined
+  ```
+
+- **Invalid JSX**: Returning invalid values from components
+
+  ```tsx
+  // Error: Objects are not valid as a React child
+  return { name: 'John' } // instead of JSX
+  ```
+
+- **Component lifecycle errors**: Errors thrown during render or lifecycle methods
+
+  ```tsx
+  if (!data) {
+    throw new Error('Data is required') // caught by error boundary
+  }
+  ```
+
+- **Hydration mismatches**: Server and client render differently, causing runtime errors
+
+  ```tsx
+  // Server renders one thing, client renders another
+  <div>{typeof window !== 'undefined' ? 'client' : 'server'}</div>
+  ```
+
+- **Third-party component crashes**: External libraries throwing errors during render
+
+- **Chunk loading failures**: Network interruptions or cancelled requests while loading JavaScript chunks during navigation. This can happen if you press ESC during page navigation, lose network connectivity, or if there's a deployment mismatch between HTML and JS assets.
+
+## What This Screen Does NOT Handle
+
+This error screen is specifically for rendering errors. The following error types are handled differently:
+
+- **Event handler errors** (`onClick`, `onChange`): These only log to the console and don't show the full-screen UI
+- **Async errors**: Errors in `setTimeout`, `Promise` rejections, or `async` functions need manual handling
+
+For these cases, you need to handle errors manually within your code using try-catch blocks or error handling in event handlers.
+
+## Production Best Practices
+
+1. **Always implement custom error boundaries**: Don't rely on the default error screen
+   - Add `error.js` files in App Router route segments
+   - Add `global-error.js` for root-level errors
+   - Create custom `_error.js` in Pages Router
+
+2. **Integrate error tracking**: Use services like Sentry, Bugsnag, or LogRocket to capture production errors with full context and user sessions
+
+3. **Test error boundaries**: Use React DevTools to toggle error boundaries and test error states before deploying
+
+4. **Use TypeScript with strict mode**: Catch potential errors at build time rather than runtime
+
+   ```json filename="tsconfig.json"
+   {
+     "compilerOptions": {
+       "strict": true,
+       "noUncheckedIndexedAccess": true,
+       "noImplicitAny": true
+     }
+   }
+   ```
+
+Avoid using type assertions (`as`) and `any` types, which bypass type checking and can hide runtime errors.
+
+5. **Write defensive code**: Prevent common runtime errors with defensive patterns
+
+   ```tsx
+   function UserName({ user }) {
+     // Use optional chaining and nullish coalescing
+     return <div>{user?.name ?? 'Guest'}</div>
+   }
+
+   // Validate data at boundaries (API responses, props)
+   // Handle errors in async code, don't let them throw uncaught
+   async function fetchUser() {
+     try {
+       const res = await fetch('/api/user')
+       if (!res.ok) return null
+       const data = await res.json()
+
+       // Validate the shape
+       if (!data || typeof data.name !== 'string') return null
+
+       return data
+     } catch (error) {
+       console.error('Failed to fetch user:', error)
+       return null // Return safe default instead of throwing
+     }
+   }
+
+   // Provide fallbacks for arrays
+   const items = data?.items ?? []
+   ```
+
+   Consider using libraries like Zod or Yup to validate data shapes at runtime.
+
+6. **Monitor error rates**: Set up alerts when error rates spike or new error patterns emerge. Track which errors affect the most users and prioritize fixes accordingly.
+
+7. **Consider source maps carefully**: While source maps help with debugging, they expose your source code in production
+
+   ```js filename="next.config.js"
+   module.exports = {
+     // Only enable if you're comfortable exposing source code
+     productionBrowserSourceMaps: true,
+   }
+   ```
+
+   Alternative: Use error tracking services that upload source maps privately, so you get readable stack traces without exposing code to end users.
+
+8. **Provide helpful error UI**: Make your error boundaries user-friendly with clear messages and recovery actions
 
 ## Useful Links
 
-- [Error Boundaries Documentation](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary)
-- [Custom Error Page Documentation](/docs/pages/building-your-application/routing/custom-error#more-advanced-error-page-customizing)
+- [Error Handling in Next.js](/docs/app/getting-started/error-handling)
+- [error.js API Reference](/docs/app/api-reference/file-conventions/error)
+- [global-error.js API Reference](/docs/app/api-reference/file-conventions/error#global-error)
+- [Pages Router Custom Error Page](/docs/pages/building-your-application/routing/custom-error)
+- [React Error Boundaries](https://react.dev/reference/react/Component#catching-rendering-errors-with-an-error-boundary)
