@@ -217,8 +217,8 @@ async fn dispose_root_task_releases_anchored_subgraph() {
     assert_eq!(tt.backend().transient_ref_count_for_testing(leaf_id), 1);
     assert_eq!(tt.backend().gc_for_testing(&tt), 0);
 
-    // Disposing twice must not panic or underflow the child's count: JS may dispose explicitly and
-    // then drop.
+    // Disposing twice must not panic or underflow the child's count: JS could dispose explicitly
+    // multiple times
     tt.dispose_root_task(root_id);
     tt.dispose_root_task(root_id);
     assert_eq!(tt.backend().transient_ref_count_for_testing(leaf_id), 0);
