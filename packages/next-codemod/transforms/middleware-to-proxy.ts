@@ -74,7 +74,12 @@ export default function transformer(file: FileInfo) {
     hasChanges = hasChanges || hasConfigChanges
   }
 
+  // Middleware files must still be renamed to proxy.* even when the source
+  // does not need AST edits (e.g. `export { auth as default } from './auth'`).
   if (!hasChanges) {
+    if (isMiddlewareFile) {
+      return handleMiddlewareFileRename(file, file.source)
+    }
     return file.source
   }
 
