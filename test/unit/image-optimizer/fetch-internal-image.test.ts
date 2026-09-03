@@ -6,6 +6,80 @@ import {
 import type { IncomingMessage, ServerResponse } from 'http'
 
 describe('fetchInternalImage', () => {
+  describe('redirects', () => {
+    it('should follow absolute redirects to external images', async () => {
+      const mockReq = {} as IncomingMessage
+      const mockRes = {} as ServerResponse
+      const maximumResponseBody = 300_000_000
+
+      global.fetch = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        body: new ReadableStream({
+          start(controller) {
+            controller.enqueue(new Uint8Array([1, 2, 3]))
+            controller.close()
+          },
+        }),
+        headers: {
+          get: jest.fn((header: string) => {
+            if (header === 'Content-Type') return 'image/png'
+            return null
+          }),
+        },
+      })
+
+      const handleRequest = jest.fn(async (_req: IncomingMessage, res: any) => {
+        res.statusCode = 302
+        res.setHeader('Location', 'https://example.com/test.png')
+        res.end()
+      })
+
+      const result = await fetchInternalImage(
+        '/redirected-image',
+        mockReq,
+        mockRes,
+        maximumResponseBody,
+        handleRequest,
+        false
+      )
+
+      expect(result.buffer).toEqual(Buffer.from([1, 2, 3]))
+      expect(result.contentType).toBe('image/png')
+      expect(global.fetch).toHaveBeenCalledWith('https://example.com/test.png', {
+        signal: expect.any(AbortSignal),
+        redirect: 'manual',
+      })
+    })
+
+    it('should throw error when response has too many internal redirects', async () => {
+      const mockReq = {} as IncomingMessage
+      const mockRes = {} as ServerResponse
+      const maximumResponseBody = 300_000_000
+
+      const handleRequest = jest.fn(async (_req: IncomingMessage, res: any) => {
+        res.statusCode = 302
+        res.setHeader('Location', '/redirected-image')
+        res.end()
+      })
+
+      const error = await fetchInternalImage(
+        '/redirected-image',
+        mockReq,
+        mockRes,
+        maximumResponseBody,
+        handleRequest,
+        false
+      ).catch((e) => e)
+
+      expect(error).toBeInstanceOf(ImageError)
+      expect((error as ImageError).statusCode).toBe(508)
+      expect((error as ImageError).message).toBe(
+        '"url" parameter is valid but internal response is invalid'
+      )
+    })
+  })
+
   describe('response size limit', () => {
     it('should throw error when response has no buffers', async () => {
       const mockReq = {} as IncomingMessage

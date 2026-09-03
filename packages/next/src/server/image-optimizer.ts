@@ -989,7 +989,9 @@ export async function fetchInternalImage(
     newReq: IncomingMessage,
     newRes: ServerResponse,
     newParsedUrl?: NextUrlWithParsedQuery
-  ) => Promise<void>
+  ) => Promise<void>,
+  dangerouslyAllowLocalIP = false,
+  count = 3
 ): Promise<ImageUpstream> {
   try {
     // Coerce HEAD to GET to avoid issues with the image optimizer
@@ -1004,6 +1006,51 @@ export async function fetchInternalImage(
 
     await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
     await mocked.res.hasStreamed
+
+    const locationHeader = mocked.res.getHeader('Location')
+    if (
+      isRedirect(mocked.res.statusCode) &&
+      typeof locationHeader === 'string'
+    ) {
+      if (count === 0) {
+        Log.error('internal image response had too many redirects', href)
+        throw new ImageError(
+          508,
+          '"url" parameter is valid but internal response is invalid'
+        )
+      }
+
+      const redirect = URL.canParse(locationHeader)
+        ? new URL(locationHeader)
+        : URL.canParse(locationHeader, 'http://n')
+          ? new URL(locationHeader, 'http://n')
+          : null
+
+      if (
+        redirect &&
+        redirect.origin !== 'http://n' &&
+        (redirect.protocol === 'http:' || redirect.protocol === 'https:')
+      ) {
+        return fetchExternalImage(
+          redirect.href,
+          dangerouslyAllowLocalIP,
+          maximumResponseBody,
+          count - 1
+        )
+      }
+
+      if (redirect?.origin === 'http://n') {
+        return fetchInternalImage(
+          `${redirect.pathname}${redirect.search}`,
+          _req,
+          _res,
+          maximumResponseBody,
+          handleRequest,
+          dangerouslyAllowLocalIP,
+          count - 1
+        )
+      }
+    }
 
     if (!mocked.res.statusCode) {
       Log.error('image response failed for', href, mocked.res.statusCode)
