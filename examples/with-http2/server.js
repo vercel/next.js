@@ -1,6 +1,5 @@
 const next = require("next");
 const http2 = require("node:http2");
-const { parse } = require("node:url");
 const fs = require("node:fs");
 
 const port = parseInt(process.env.PORT, 10) || 3000;
@@ -21,8 +20,7 @@ const handler = app.getRequestHandler();
 app.prepare().then(() => {
   server.on("error", (err) => console.error(err));
   server.on("request", (req, res) => {
-    const parsedUrl = parse(req.url, true);
-    handler(req, res, parsedUrl);
+    handler(req, res);
   });
   server.listen(port);
 
