@@ -30,6 +30,7 @@ function getDesiredCompilerOptions(
   const moduleKindNode16 = 'node16'
   const moduleKindCommonJS = 'commonjs'
   const moduleKindAMD = 'amd'
+  const moduleKindNode20 = 'node20'
 
   // ModuleResolutionKind
   const moduleResolutionKindBundler = 'bundler'
@@ -78,6 +79,7 @@ function getDesiredCompilerOptions(
         moduleKindAMD,
         moduleKindNodeNext,
         moduleKindNode16,
+        semver.gte(typescriptVersion, '5.9.0') && moduleKindNode20,
       ],
       value: 'esnext',
       reason: 'for dynamic import() support',
