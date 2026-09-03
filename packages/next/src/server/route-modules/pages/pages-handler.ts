@@ -26,6 +26,7 @@ import {
   type CacheControl,
 } from '../../lib/cache-control'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
+import { isDynamicRoute } from '../../../shared/lib/router/utils'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import {
   CACHE_ONE_YEAR_SECONDS,
@@ -195,7 +196,11 @@ export const getHandler = ({
       }
 
       // ensure /index and / is normalized to one key
-      cacheKey = cacheKey === '/index' ? '/' : cacheKey
+      // Only applies for non-dynamic routes — dynamic routes with slug=index
+      // must keep /index to avoid cache-key collision with the root page.
+      if (cacheKey === '/index' && !isDynamicRoute(srcPage)) {
+        cacheKey = '/'
+      }
     }
 
     if (hasStaticPaths && !isDraftMode) {
