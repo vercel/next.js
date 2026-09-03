@@ -26,6 +26,6 @@
   },
   "devDependencies": {
     "@playwright/test": "1.61.0",
-    "typescript": "6.0.2"
+    "typescript": "7.0.1-rc"
   }
 }

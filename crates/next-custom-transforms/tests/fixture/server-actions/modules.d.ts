@@ -35,7 +35,7 @@ declare module 'components' {
 
   export function Button(
     props: {
-      action: () => Promise<any>
+      action: (...args: any[]) => Promise<any>
     } & React.ComponentProps<'button'>
   ): React.ReactNode
 

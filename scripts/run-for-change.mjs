@@ -186,7 +186,7 @@ async function main() {
         if (code !== 0) {
           return reject(new Error('command failed with code: ' + code))
         }
-        resolve()
+        resolve(undefined)
       })
       cmd.on('error', (err) => reject(err))
     })
