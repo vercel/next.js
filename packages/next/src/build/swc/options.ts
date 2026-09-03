@@ -161,7 +161,7 @@ function getBaseSWCOptions({
         legacyDecorator: enableLegacyDecorators,
         decoratorVersion:
           decoratorVersion === 'legacy' ? undefined : decoratorVersion,
-        decoratorMetadata: emitDecoratorMetadata,
+        decoratorMetadata: enableLegacyDecorators && emitDecoratorMetadata,
         useDefineForClassFields: useDefineForClassFields,
         react: {
           importSource:
