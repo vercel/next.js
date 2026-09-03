@@ -14,7 +14,10 @@ import { getCloneableBody } from '../../body-streams'
 import { filterReqHeaders, ipcForbiddenHeaders } from '../server-ipc/utils'
 import { stringifyQuery } from '../../server-route-utils'
 import { formatHostname } from '../format-hostname'
-import { toNodeOutgoingHttpHeaders } from '../../web/utils'
+import {
+  normalizeLoopbackHostname,
+  toNodeOutgoingHttpHeaders,
+} from '../../web/utils'
 import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import {
@@ -171,12 +174,13 @@ export function getResolveRoutes(
         : 'http'
 
     // When there are hostname and port we build an absolute URL
+    const initHostname = formatHostname(
+      normalizeLoopbackHostname(opts.hostname || 'localhost')
+    )
     const initUrl = (config.experimental as any).trustHostHeader
       ? `https://${req.headers.host || 'localhost'}${req.url}`
       : opts.port
-        ? `${protocol}://${formatHostname(opts.hostname || 'localhost')}:${
-            opts.port
-          }${req.url}`
+        ? `${protocol}://${initHostname}:${opts.port}${req.url}`
         : req.url || ''
 
     addRequestMeta(req, 'initURL', initUrl)
