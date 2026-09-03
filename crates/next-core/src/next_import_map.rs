@@ -6,7 +6,7 @@ use either::Either;
 use next_taskless::{EDGE_NODE_EXTERNALS, NODE_EXTERNALS};
 use rustc_hash::FxHashMap;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc, fxindexmap};
+use turbo_tasks::{FxIndexMap, PrettyPrintError, ResolvedVc, Vc, fxindexmap};
 use turbo_tasks_fs::{
     FileContent, FileSystem, FileSystemPath,
     glob::{Glob, GlobOptions},
@@ -1311,6 +1311,9 @@ pub async fn get_next_package(context_directory: FileSystemPath) -> Result<FileS
 struct MissingNextFolderIssue {
     path: FileSystemPath,
     root: FileSystemPath,
+    /// Set when resolving `next/package.json` failed with an error, rather than the package not
+    /// being found.
+    error_message: Option<RcStr>,
 }
 
 #[async_trait]
@@ -1347,7 +1350,7 @@ impl Issue for MissingNextFolderIssue {
             _ => rcstr!("{unknown}"),
         };
 
-        Ok(Some(StyledString::Stack(vec![
+        let mut description = vec![
             StyledString::Line(vec![
                 StyledString::Text(rcstr!("Resolved from: ")),
                 StyledString::Strong(context_path),
@@ -1356,6 +1359,14 @@ impl Issue for MissingNextFolderIssue {
                 StyledString::Text(rcstr!("Filesystem root used for resolution: ")),
                 StyledString::Strong(root_path),
             ]),
+        ];
+        if let Some(error_message) = &self.error_message {
+            description.push(StyledString::Line(vec![
+                StyledString::Text(rcstr!("Resolution error: ")),
+                StyledString::Text(error_message.clone()),
+            ]));
+        }
+        description.extend([
             StyledString::Line(vec![StyledString::Text(rcstr!(""))]),
             StyledString::Line(vec![StyledString::Text(rcstr!("Possible causes:"))]),
             StyledString::Line(vec![StyledString::Text(rcstr!(
@@ -1387,7 +1398,8 @@ impl Issue for MissingNextFolderIssue {
                 "Note: To ensure a hermetic build and a portable cache, files outside of the \
                  workspace root are not compiled."
             ))]),
-        ])))
+        ]);
+        Ok(Some(StyledString::Stack(description)))
     }
 
     fn documentation_link(&self) -> RcStr {
@@ -1408,12 +1420,20 @@ pub async fn try_get_next_package(
         Request::parse(Pattern::Constant(rcstr!("next/package.json"))),
         node_cjs_resolve_options(root.clone()),
     );
-    if let Some(source) = result.await?.first_source() {
+    // A resolution error (e.g. `node_modules` is a symlink whose target is outside of the
+    // filesystem root) is reported like a missing package. Propagating it would surface as a
+    // fatal internal error instead of a recoverable issue.
+    let (source, error_message) = match result.await {
+        Ok(result) => (result.first_source(), None),
+        Err(error) => (None, Some(PrettyPrintError(&error).to_string().into())),
+    };
+    if let Some(source) = source {
         Ok(Vc::cell(Some(source.ident().await?.path.parent())))
     } else {
         MissingNextFolderIssue {
             path: context_directory,
             root,
+            error_message,
         }
         .resolved_cell()
         .emit();
