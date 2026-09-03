@@ -1198,8 +1198,8 @@ importers:
         specifier: 1.0.0-beta.2
         version: 1.0.0-beta.2(@types/react@19.2.18)(react-dom@19.3.0-canary-f4e439e1-20260902(react@19.3.0-canary-f4e439e1-20260902))(react@19.3.0-canary-f4e439e1-20260902)
       '@capsizecss/metrics':
-        specifier: 3.4.0
-        version: 3.4.0
+        specifier: 3.6.2
+        version: 3.6.2
       '@edge-runtime/cookies':
         specifier: 6.0.0
         version: 6.0.0
@@ -2938,8 +2938,8 @@ packages:
   '@bundled-es-modules/statuses@1.0.1':
     resolution: {integrity: sha512-yn7BklA5acgcBr+7w064fGV+SGIFySjCKpqjcWgBAIfrAkY+4GQTJJHQMeT3V/sgz23VTEVV8TtOmkvJAhFVfg==}
 
-  '@capsizecss/metrics@3.4.0':
-    resolution: {integrity: sha512-hIn8MAHxLvwyUh6ZvLQHDt2GPShBz6+gxBs1JTD9GleBkht1AZvtCFo0adr7bQvYYuQzUJeKi69zqlAwgKMHNA==}
+  '@capsizecss/metrics@3.6.2':
+    resolution: {integrity: sha512-5uL1EIhAlfg0dvWsR1DGfqIsyiPBUsD/qlra15B82Ik28BcH7ScYEHLA4F34fZA0KamlpYcappvt2n1pTuDUfw==}
 
   '@csstools/postcss-color-function@1.1.0':
     resolution: {integrity: sha512-5D5ND/mZWcQoSfYnSPsXtuiFxhzmhxt6pcjrFLJyldj+p0ZN2vvRpYNX+lahFTtMhAYOa2WmkdGINr0yP0CvGA==}
@@ -20075,7 +20075,7 @@ snapshots:
     dependencies:
       statuses: 2.0.1
 
-  '@capsizecss/metrics@3.4.0': {}
+  '@capsizecss/metrics@3.6.2': {}
 
   '@csstools/postcss-color-function@1.1.0(postcss@8.5.23)':
     dependencies:
