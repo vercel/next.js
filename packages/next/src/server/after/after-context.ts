@@ -9,6 +9,8 @@ import { bindSnapshot } from '../app-render/async-local-storage'
 import type { WorkUnitStore } from '../app-render/work-unit-async-storage.external'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 import { scheduleImmediate } from '../../lib/scheduler'
+import { getTracer } from '../lib/trace/tracer'
+import { AfterSpan } from '../lib/trace/constants'
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
@@ -66,7 +68,6 @@ export class AfterContext {
     if (isThenable(task)) {
       this.addThenable(task)
     } else if (typeof task === 'function') {
-      // TODO(after): implement tracing
       this.addCallback(task, workUnitStore)
     } else {
       throw new Error('`after()`: Argument must be a promise or a function')
@@ -124,8 +125,18 @@ export class AfterContext {
       // See: https://github.com/facebook/react/pull/34911
       async () => {
         try {
-          await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
-            callback()
+          await getTracer().trace(
+            AfterSpan.executeCallback,
+            {
+              spanName: 'after callback',
+              attributes: {
+                'next.span_category': 'application',
+              },
+            },
+            () =>
+              afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
+                callback()
+              )
           )
         } catch (error) {
           this.reportTaskError('function', error)
