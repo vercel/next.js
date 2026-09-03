@@ -48,6 +48,14 @@ _You can skip these steps if you don't intend to modify any Rust code._
   xcode-select --install
   ```
 
+## Windows Setup
+
+If you are developing on Windows, you will need to enable long paths in Git to prevent `Filename too long` errors when cloning the repository:
+
+```bash
+git config --global core.longpaths true
+```
+
 ## Local Development
 
 1. Clone the Next.js repository (using a [blobless clone] for speed):
