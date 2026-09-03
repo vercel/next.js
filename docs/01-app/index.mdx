@@ -13,3 +13,1146 @@ related:
 ---
 
 The **App Router** is a file-system based router that uses React's latest features such as [Server Components](https://react.dev/reference/rsc/server-components), [Suspense](https://react.dev/reference/react/Suspense), and [Server Functions](https://react.dev/reference/rsc/server-functions).
+[01:00, 2026-03-21] Keremet: · 3D guides (boy and girl in …
+[12:33, 2026-03-21] Keremet: {
+  "name": "el-idea",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@react-three/fiber": "^8.15.12",
+    "@react-three/drei": "^9.92.7",
+    "clsx": "^2.0.0",
+    "leaflet": "^1.9.4",
+    "next": "14.0.4",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hook-form": "^7.48.2",
+    "react-leaflet": "^4.2.1",
+    "three": "^0.158.0"
+  },
+  "devDependencies": {
+    "@types/leaflet": "^1.9.8",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "autoprefixer": "^10",
+    "postcss": "^8",
+    "tailwindcss": "^3",
+    "typescript": "^5"
+  }
+}/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    "./src/pages/*/.{js,ts,jsx,tsx,mdx}",
+    "./src/components/*/.{js,ts,jsx,tsx,mdx}",
+    "./src/app/*/.{js,ts,jsx,tsx,mdx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        ruby: '#A6171C',
+        natural: '#D6D0C5',
+        sunny: '#F1C045',
+      },
+    },
+  },
+  plugins: [],
+}@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import 'leaflet/dist/leaflet.css';
+
+body {
+  background-color: #D6D0C5;
+}import type { Metadata } from "next";
+import "./globals.css";
+import { UserProvider } from "@/contexts/UserContext";
+import { CartProvider } from "@/contexts/CartContext";
+import { BataProvider } from "@/contexts/BataContext";
+import FloatingChatbot from "@/components/layout/FloatingChatbot";
+import Companion3D from "@/components/companion/Companion3D";
+
+export const metadata: Metadata = {
+  title: "Эл Idea - Креативные товары Кыргызстана",
+  description: "Платформа для креативных продуктов",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="ru">
+      <body className="bg-natural">
+        <UserProvider>
+          <CartProvider>
+            <BataProvider>
+              {children}
+              <FloatingChatbot />
+              <Companion3D />
+            </BataProvider>
+          </CartProvider>
+        </UserProvider>
+      </body>
+    </html>
+  );
+}"use client";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+
+export default function LanguagePage() {
+  const router = useRouter();
+  const [lang, setLang] = useState<string | null>(null);
+
+  const handleLanguage = (language: string) => {
+    localStorage.setItem("language", language);
+    router.push("/main");
+  };
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-natural p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
+        <div className="text-6xl mb-4">🎨</div>
+        <h1 className="text-3xl font-bold text-ruby mb-2">Эл Idea</h1>
+        <p className="text-gray-600 mb-8">Выберите язык / Тилди тандаңыз / Choose language</p>
+        <div className="space-y-3">
+          <button
+            onClick={() => handleLanguage("ky")}
+            className="w-full py-3 px-4 bg-natural rounded-lg hover:bg-sunny transition"
+          >
+            🇰🇬 Кыргызча
+          </button>
+          <button
+            onClick={() => handleLanguage("ru")}
+            className="w-full py-3 px-4 bg-natural rounded-lg hover:bg-sunny transition"
+          >
+            🇷🇺 Русский
+          </button>
+          <button
+            onClick={() => handleLanguage("en")}
+            className="w-full py-3 px-4 bg-natural rounded-lg hover:bg-sunny transition"
+          >
+            🇬🇧 English
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}"use client";
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/contexts/UserContext";
+import Button from "@/components/ui/Button";
+
+export default function LoginPage() {
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [useEmail, setUseEmail] = useState(false);
+  const { login } = useUser();
+  const router = useRouter();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const success = login(identifier, password);
+    if (success) {
+      router.push("/role-selection");
+    } else {
+      alert("Неверный номер/email или пароль (пароль должен быть 5 цифр)");
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-natural p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full">
+        <h2 className="text-2xl font-bold text-ruby text-center mb-6">Вход / Кирүү</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">
+              {useEmail ? "Email" : "Номер телефона"}
+            </label>
+            <input
+              type={useEmail ? "email" : "tel"}
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-ruby"
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Пароль (5 цифр)</label>
+            <input
+              type="password"
+              maxLength={5}
+              pattern="\d{5}"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-ruby"
+              required
+            />
+          </div>
+          <Button type="submit" variant="primary" className="w-full">
+            Войти
+          </Button>
+          <button
+            type="button"
+            onClick={() => setUseEmail(!useEmail)}
+            className="text-sm text-ruby underline w-full text-center"
+          >
+            {useEmail ? "Войти по номеру телефона" : "Войти по email"}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}"use client";
+import { useRouter } from "next/navigation";
+import { useUser } from "@/contexts/UserContext";
+import Button from "@/components/ui/Button";
+
+export default function RoleSelectionPage() {
+  const { setRole, user } = useUser();
+  const router = useRouter();
+
+  const selectRole = (role: "buyer" | "seller") => {
+    setRole(role);
+    router.push("/main");
+  };
+
+  if (!user) {
+    router.push("/login");
+    return null;
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-natural p-4">
+      <div className="bg-white rounded-2xl shadow-xl p-6 max-w-md w-full text-center">
+        <h2 className="text-2xl font-bold text-ruby mb-6">Выберите роль / Ролду тандоо</h2>
+        <div className="space-y-4">
+          <Button onClick={() => selectRole("buyer")} variant="primary" className="w-full">
+            🛍️ Покупатель / Сатып алуучу
+          </Button>
+          <Button onClick={() => selectRole("seller")} variant="secondary" className="w-full">
+            📦 Продавец / Сатуучу
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}"use client";
+import { useState } from "react";
+import Header from "@/components/layout/Header";
+import BottomNav from "@/components/layout/BottomNav";
+import ProductCard from "@/components/product/ProductCard";
+import { products, categories } from "@/lib/mockData";
+import Link from "next/link";
+
+export default function MainPage() {
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<"new" | "popular" | "price">("popular");
+
+  const filteredProducts = products
+    .filter(p => p.title.toLowerCase().includes(search.toLowerCase()))
+    .filter(p => !selectedCategory || p.category === selectedCategory)
+    .sort((a, b) => {
+      if (sortBy === "price") return a.price - b.price;
+      if (sortBy === "new") return b.createdAt - a.createdAt;
+      return b.rating - a.rating;
+    });
+
+  const topProducts = [...products].sort((a, b) => b.rating - a.rating).slice(0, 3);
+  const newProducts = [...products].sort((a, b) => b.createdAt - a.createdAt).slice(0, 3);
+
+  return (
+    <>
+      <Header />
+      <div className="pb-20 pt-2 px-4 max-w-md mx-auto">
+        {/* Поиск */}
+        <div className="sticky top-16 z-30 bg-natural py-2">
+          <input
+            type="text"
+            placeholder="Поиск товаров..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full p-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-ruby"
+          />
+        </div>
+
+        {/* Категории */}
+        <div className="flex overflow-x-auto gap-3 my-4 pb-2">
+          {categories.map(cat => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+              className={`flex-shrink-0 px-4 py-2 rounded-full ${
+                selectedCategory === cat.id ? "bg-ruby text-white" : "bg-white text-gray-700"
+              }`}
+            >
+              {cat.icon} {cat.name}
+            </button>
+          ))}
+        </div>
+
+        {/* Сортировка */}
+        <div className="flex justify-between items-center mb-4">
+          <span className="text-sm font-medium">Сортировка:</span>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as any)}
+            className="border rounded p-1"
+          >
+            <option value="popular">По популярности</option>
+            <option value="new">Новые</option>
+            <option value="price">По цене</option>
+          </select>
+        </div>
+
+        {/* Секция "Топ по Bata" */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-ruby mb-3">🏆 Топ по Bata</h2>
+          <div className="grid grid-cols-1 gap-3">
+            {topProducts.map(p => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+          <Link href="/top-bata" className="text-ruby text-sm mt-2 inline-block">
+            Все победители →
+          </Link>
+        </div>
+
+        {/* Новые товары */}
+        <div className="mb-6">
+          <h2 className="text-xl font-bold text-ruby mb-3">✨ Новые товары</h2>
+          <div className="grid grid-cols-2 gap-3">
+            {newProducts.map(p => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </div>
+        </div>
+
+        {/* Все товары */}
+        <h2 className="text-xl font-bold text-ruby mb-3">Все товары</h2>
+        <div className="grid grid-cols-2 gap-3">
+          {filteredProducts.map(p => (
+            <ProductCard key={p.id} product={p} />
+          ))}
+        </div>
+      </div>
+      <BottomNav />
+    </>
+  );
+}"use client";
+import { useEffect, useState } from "react";
+import { useUser } from "@/contexts/UserContext";
+import { useRouter } from "next/navigation";
+import Header from "@/components/layout/Header";
+import BottomNav from "@/components/layout/BottomNav";
+import ProductCard from "@/components/product/ProductCard";
+
+export default function FavoritesPage() {
+  const { user } = useUser();
+  const router = useRouter();
+  const [favorites, setFavorites] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user) {
+      alert("Войдите, чтобы видеть избранное");
+      router.push("/login");
+      return;
+    }
+    const favs = JSON.parse(localStorage.getItem(favorites_${user.id}) || "[]");
+    setFavorites(favs);
+  }, [user, router]);
+
+  const removeFavorite = (id: string) => {
+    const newFavs = favorites.filter(f => f.id !== id);
+    setFavorites(newFavs);
+    localStorage.setItem(favorites_${user!.id}, JSON.stringify(newFavs));
+  };
+
+  if (!user) return null;
+
+  return (
+    <>
+      <Header />
+      <div className="pb-20 pt-2 px-4 max-w-md mx-auto">
+        <h2 className="text-2xl font-bold text-ruby mb-4">Избранное ❤️</h2>
+        {favorites.length === 0 ? (
+          <p className="text-center text-gray-500 mt-10">Нет сохраненных товаров</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-3">
+            {favorites.map(p => (
+              <div key={p.id} className="relative">
+                <ProductCard product={p} />
+                <button
+                  onClick={() => removeFavorite(p.id)}
+                  className="absolute top-1 right-1 bg-white rounded-full p-1 shadow"
+                >
+                  ❌
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <BottomNav />
+    </>
+  );
+}"use client";
+import { useState } from "react";
+import { useUser } from "@/contexts/UserContext";
+import { useRouter } from "next/navigation";
+import Header from "@/components/layout/Header";
+import BottomNav from "@/components/layout/BottomNav";
+import Button from "@/components/ui/Button";
+
+export default function SellPage() {
+  const { user } = useUser();
+  const router = useRouter();
+  const [form, setForm] = useState({
+    title: "",
+    price: "",
+    description: "",
+    category: "accessories",
+    region: "Бишкек",
+    image: "",
+    coords: { lat: 42.8746, lng: 74.5698 },
+  });
+
+  if (!user) {
+    router.push("/login");
+    return null;
+  }
+  if (user.role !== "seller") {
+    return (
+      <>
+        <Header />
+        <div className="pb-20 pt-2 px-4 text-center">
+          <p className="text-red-500">Только для продавцов</p>
+          <Button onClick={() => router.push("/role-selection")}>Стать продавцом</Button>
+        </div>
+        <BottomNav />
+      </>
+    );
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const newProduct = {
+      id: Date.now().toString(),
+      ...form,
+      price: Number(form.price),
+      sellerId: user.id,
+      sellerName: user.name,
+      sellerRegion: form.region,
+      rating: 0,
+      createdAt: Date.now(),
+    };
+    const products = JSON.parse(localStorage.getItem("products") || "[]");
+    products.push(newProduct);
+    localStorage.setItem("products", JSON.stringify(products));
+    alert("Товар добавлен!");
+    router.push("/profile");
+  };
+
+  return (
+    <>
+      <Header />
+      <div className="pb-20 pt-2 px-4 max-w-md mx-auto">
+        <h2 className="text-2xl font-bold text-ruby mb-4">Добавить товар</h2>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Название"
+            value={form.title}
+            onChange={e => setForm({ ...form, title: e.target.value })}
+            className="w-full border rounded p-2"
+            required
+          />
+          <input
+            type="number"
+            placeholder="Цена (KGS)"
+            value={form.price}
+            onChange={e => setForm({ ...form, price: e.target.value })}
+            className="w-full border rounded p-2"
+            required
+          />
+          <textarea
+            placeholder="Описание"
+            value={form.description}
+            onChange={e => setForm({ ...form, description: e.target.value })}
+            className="w-full border rounded p-2"
+            rows={3}
+            required
+          />
+          <select
+            value={form.category}
+            onChange={e => setForm({ ...form, category: e.target.value })}
+            className="w-full border rounded p-2"
+          >
+            <option value="clothing">Одежда</option>
+            <option value="accessories">Аксессуары</option>
+            <option value="digital">Digital Art</option>
+            <option value="home">Дом</option>
+            <option value="jewelry">Украшения</option>
+          </select>
+          <select
+            value={form.region}
+            onChange={e => setForm({ ...form, region: e.target.value })}
+            className="w-full border rounded p-2"
+          >
+            <option>Бишкек</option>
+            <option>Ош</option>
+            <option>Нарын</option>
+            <option>Талас</option>
+            <option>Жалал-Абад</option>
+          </select>
+          <input
+            type="text"
+            placeholder="Ссылка на фото"
+            value={form.image}
+            onChange={e => setForm({ ...form, image: e.target.value })}
+            className="w-full border rounded p-2"
+            required
+          />
+          <Button type="submit" variant="primary" className="w-full">
+            Опубликовать
+          </Button>
+        </form>
+      </div>
+      <BottomNav />
+    </>
+  );
+}"use client";
+import { useState } from "react";
+import Header from "@/components/layout/Header";
+import BottomNav from "@/components/layout/BottomNav";
+import { announcements } from "@/lib/mockData";
+
+export default function AnnouncementsPage() {
+  const [selected, setSelected] = useState<any>(null);
+
+  return (
+    <>
+      <Header />
+      <div className="pb-20 pt-2 px-4 max-w-md mx-auto">
+        <h2 className="text-2xl font-bold text-ruby mb-4">📢 Объявления и конкурсы</h2>
+        <div className="space-y-4">
+          {announcements.map(ann => (
+            <div key={ann.id} className="bg-white rounded-lg p-4 shadow">
+              <h3 className="font-bold text-lg">{ann.title}</h3>
+              <p className="text-gray-600 text-sm mt-1">{ann.description}</p>
+              <p className="text-sunny font-semibold mt-2">Приз: {ann.prize}</p>
+              <button
+                onClick={() => setSelected(ann)}
+                className="text-ruby underline mt-2 text-sm"
+              >
+                Подробнее
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {selected && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg p-6 max-w-md w-full">
+              <h3 className="text-xl font-bold">{selected.title}</h3>
+              <p className="mt-2">{selected.description}</p>
+              <h4 className="font-semibold mt-4">Победители:</h4>
+              <ul className="list-disc pl-5">
+                {selected.winners.map((w: any, i: number) => (
+                  <li key={i}>{w.name} – {w.prize}</li>
+                ))}
+              </ul>
+              <button
+                onClick={() => setSelected(null)}
+                className="mt-4 bg-ruby text-white px-4 py-2 rounded"
+              >
+                Закрыть
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+      <BottomNav />
+    </>
+  );
+}"use client";
+import { useUser } from "@/contexts/UserContext";
+import { useRouter } from "next/navigation";
+import Header from "@/components/layout/Header";
+import BottomNav from "@/components/layout/BottomNav";
+import Button from "@/components/ui/Button";
+import { useState, useEffect } from "react";
+
+export default function ProfilePage() {
+  const { user, logout } = useUser();
+  const router = useRouter();
+  const [myProducts, setMyProducts] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user) {
+      router.push("/login");
+      return;
+    }
+    if (user.role === "seller") {
+      const allProducts = JSON.parse(localStorage.getItem("products") || "[]");
+      setMyProducts(allProducts.filter((p: any) => p.sellerId === user.id));
+    } else {
+      const allOrders = JSON.parse(localStorage.getItem(orders_${user.id}) || "[]");
+      setOrders(allOrders);
+    }
+  }, [user, router]);
+
+  if (!user) return null;
+
+  return (
+    <>
+      <Header />
+      <div className="pb-20 pt-2 px-4 max-w-md mx-auto">
+        <div className="bg-white rounded-lg p-4 mb-4">
+          <h2 className="text-xl font-bold">{user.name}</h2>
+          <p className="text-gray-600">{user.role === "seller" ? "Продавец" : "Покупатель"}</p>
+          <p className="text-sunny font-bold">☀️ Бата: {user.bataBalance}</p>
+          <Button variant="outline" onClick={logout} className="mt-2">Выйти</Button>
+        </div>
+
+        {user.role === "buyer" ? (
+          <>
+            <div className="bg-white rounded-lg p-4 mb-4">
+              <h3 className="font-bold text-lg">Заказы</h3>
+              {orders.length === 0 ? (
+                <p className="text-gray-500">Нет заказов</p>
+              ) : (
+                orders.map((order, i) => (
+                  <div key={i} className="border-t py-2">
+                    <p>Заказ #{order.id}</p>
+                    <p>Сумма: {order.total} KGS</p>
+                    <p>Статус: {order.status}</p>
+                  </div>
+                ))
+              )}
+            </div>
+            <div className="bg-white rounded-lg p-4">
+              <h3 className="font-bold text-lg">Ак Бата (отзывы)</h3>
+              <p className="text-gray-500">Вы еще не оставляли отзывы</p>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="bg-white rounded-lg p-4 mb-4">
+              <h3 className="font-bold text-lg">Мои товары</h3>
+              {myProducts.length === 0 ? (
+                <p className="text-gray-500">Нет товаров</p>
+              ) : (
+                myProducts.map(p => (
+                  <div key={p.id} className="border-t py-2 flex gap-2">
+                    <img src={p.image} alt={p.title} className="w-12 h-12 object-cover" />
+                    <div>
+                      <p className="font-semibold">{p.title}</p>
+                      <p>{p.price} KGS</p>
+                    </div>
+                  </div>
+                ))
+              )}
+              <Button variant="primary" onClick={() => router.push("/sell")} className="mt-2">
+                Добавить товар
+              </Button>
+            </div>
+            <div className="bg-white rounded-lg p-4">
+              <h3 className="font-bold text-lg">Продажи</h3>
+              <p className="text-gray-500">Статистика в разработке</p>
+            </div>
+          </>
+        )}
+      </div>
+      <BottomNav />
+    </>
+  );
+}"use client";
+import { useCart } from "@/contexts/CartContext";
+import { useUser } from "@/contexts/UserContext";
+import { useBata } from "@/contexts/BataContext";
+import Header from "@/components/layout/Header";
+import BottomNav from "@/components/layout/BottomNav";
+import Button from "@/components/ui/Button";
+import { useState } from "react";
+
+export default function CartPage() {
+  const { items, removeItem, updateQuantity, total, clearCart } = useCart();
+  const { user } = useUser();
+  const { balance, spend } = useBata();
+  const [useDiscount, setUseDiscount] = useState(false);
+
+  const discount = useDiscount ? Math.min(Math.floor(balance / 100) * 0.1, 0.5) * total : 0;
+  const finalTotal = total - discount;
+
+  const handleCheckout = () => {
+    if (!user) {
+      alert("Войдите, чтобы оформить заказ");
+      return;
+    }
+    if (useDiscount) {
+      const bataNeeded = Math.floor(discount / (total * 0.1)) * 100;
+      if (balance >= bataNeeded) {
+        spend(bataNeeded);
+      } else {
+        alert("Недостаточно Bata");
+        return;
+      }
+    }
+    // Создаем заказ
+    const order = {
+      id: Date.now(),
+      items: items,
+      total: finalTotal,
+      status: "Оформлен",
+      date: new Date().toISOString(),
+    };
+    const orders = JSON.parse(localStorage.getItem(orders_${user.id}) || "[]");
+    orders.push(order);
+    localStorage.setItem(orders_${user.id}, JSON.stringify(orders));
+    // Начисляем Bata за покупку
+    const earned = items.length * 50;
+    const newBalance = user.bataBalance + earned;
+    localStorage.setItem("currentUser", JSON.stringify({ ...user, bataBalance: newBalance }));
+    alert(Заказ оформлен! Вы получили ${earned} Bata);
+    clearCart();
+  };
+
+  if (items.length === 0) {
+    return (
+      <>
+        <Header />
+        <div className="pb-20 pt-2 px-4 text-center">
+          <p className="text-gray-500">Корзина пуста</p>
+        </div>
+        <BottomNav />
+      </>
+    );
+  }
+
+  return (
+    <>
+      <Header />
+      <div className="pb-20 pt-2 px-4 max-w-md mx-auto">
+        <h2 className="text-2xl font-bold text-ruby mb-4">Корзина</h2>
+        {items.map(item => (
+          <div key={item.productId} className="bg-white rounded-lg p-3 mb-2 flex gap-3">
+            <img src={item.image} className="w-16 h-16 object-cover rounded" />
+            <div className="flex-1">
+              <p className="font-semibold">{item.title}</p>
+              <p className="text-ruby">{item.price} KGS</p>
+              <div className="flex items-center gap-2 mt-1">
+                <button onClick={() => updateQuantity(item.productId, item.quantity - 1)} className="px-2 border rounded">-</button>
+                <span>{item.quantity}</span>
+                <button onClick={() => updateQuantity(item.productId, item.quantity + 1)} className="px-2 border rounded">+</button>
+                <button onClick={() => removeItem(item.productId)} className="text-red-500 ml-2">Удалить</button>
+              </div>
+            </div>
+          </div>
+        ))}
+        <div className="bg-white rounded-lg p-4 mt-4">
+          <div className="flex justify-between mb-2">
+            <span>Итого:</span>
+            <span>{total} KGS</span>
+          </div>
+          <div className="flex items-center justify-between mb-2">
+            <label className="flex items-center gap-2">
+              <input type="checkbox" checked={useDiscount} onChange={e => setUseDiscount(e.target.checked)} />
+              Использовать Bata (100 Bata = 10% скидки)
+            </label>
+            <span className="text-sunny">-{discount} KGS</span>
+          </div>
+          <div className="flex justify-between font-bold text-lg border-t pt-2">
+            <span>К оплате:</span>
+            <span>{finalTotal} KGS</span>
+          </div>
+          <Button onClick={handleCheckout} variant="primary" className="w-full mt-4">
+            Оформить заказ
+          </Button>
+        </div>
+      </div>
+      <BottomNav />
+    </>
+  );
+}"use client";
+import dynamic from "next/dynamic";
+import { sellers } from "@/lib/mockData";
+import Header from "@/components/layout/Header";
+import BottomNav from "@/components/layout/BottomNav";
+
+const MapWithNoSSR = dynamic(() => import("@/components/map/SellerMap"), { ssr: false });
+
+export default function MapPage() {
+  return (
+    <>
+      <Header />
+      <div className="pb-20 pt-2 px-4">
+        <h2 className="text-2xl font-bold text-ruby mb-4">Карта продавцов</h2>
+        <div className="h-[70vh] w-full">
+          <MapWithNoSSR sellers={sellers} />
+        </div>
+      </div>
+      <BottomNav />
+    </>
+  );
+}"use client";
+import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Исправляем иконки Leaflet
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png",
+  iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png",
+  shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png",
+});
+
+export default function SellerMap({ sellers }: { sellers: any[] }) {
+  const center: [number, number] = [41.20438, 74.766098];
+
+  return (
+    <MapContainer center={center} zoom={7} style={{ height: "100%", width: "100%" }}>
+      <TileLayer
+        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      />
+      {sellers.map(seller => (
+        <Marker
+          key={seller.id}
+          position={[seller.lat, seller.lng]}
+          icon={L.divIcon({
+            className: "custom-marker",
+            html: <div style="background-color: #F1C045; border: 2px solid #A6171C; border-radius: 50%; width: 30px; height: 30px; display: flex; align-items: center; justify-content: center; font-size: 18px;">📍</div>,
+            iconSize: [30, 30],
+          })}
+        >
+          <Popup>
+            <strong>{seller.name}</strong><br />
+            {seller.region}<br />
+            <a href={/profile?seller=${seller.id}} className="text-ruby">Поддержать</a>
+          </Popup>
+        </Marker>
+      ))}
+    </MapContainer>
+  );
+}"use client";
+import { useState } from "react";
+
+export default function FloatingChatbot() {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState<{ text: string; from: "user" | "bot" }[]>([
+    { text: "Привет! Я помогу найти товары, ответить про доставку и Bata баллы.", from: "bot" },
+  ]);
+  const [input, setInput] = useState("");
+
+  const handleSend = () => {
+    if (!input.trim()) return;
+    setMessages(prev => [...prev, { text: input, from: "user" }]);
+    setTimeout(() => {
+      let reply = "Извините, я пока не понял вопрос. Попробуйте спросить о товарах, доставке или Bata.";
+      if (input.toLowerCase().includes("товар")) reply = "Вы можете найти товары на главной странице или через поиск.";
+      else if (input.toLowerCase().includes("доставк")) reply = "Доставка по Кыргызстану бесплатная при заказе от 2000 KGS.";
+      else if (input.toLowerCase().includes("бата")) reply = "Bata баллы начисляются за покупки. 100 Bata = 10% скидки.";
+      setMessages(prev => [...prev, { text: reply, from: "bot" }]);
+    }, 500);
+    setInput("");
+  };
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(!open)}
+        className="fixed bottom-20 right-4 bg-ruby text-white rounded-full p-3 shadow-lg z-50"
+      >
+        💬
+      </button>
+      {open && (
+        <div className="fixed bottom-32 right-4 w-80 bg-white rounded-lg shadow-xl z-50 flex flex-col">
+          <div className="bg-ruby text-white p-3 rounded-t-lg flex justify-between">
+            <span>Чат-бот Эл Idea</span>
+            <button onClick={() => setOpen(false)}>✖</button>
+          </div>
+          <div className="h-80 overflow-y-auto p-3 space-y-2">
+            {messages.map((msg, i) => (
+              <div key={i} className={flex ${msg.from === "user" ? "justify-end" : "justify-start"}}>
+                <div className={max-w-[80%] p-2 rounded-lg ${msg.from === "user" ? "bg-ruby text-white" : "bg-gray-200"}}>
+                  {msg.text}
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="p-2 border-t flex gap-2">
+            <input
+              type="text"
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              onKeyPress={e => e.key === "Enter" && handleSend()}
+              className="flex-1 border rounded p-1"
+              placeholder="Напишите..."
+            />
+            <button onClick={handleSend} className="bg-ruby text-white px-3 rounded">➤</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}"use client";
+import { useState } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Box } from "@react-three/drei";
+
+export default function Companion3D() {
+  const [visible, setVisible] = useState(false);
+  const [gender, setGender] = useState<"boy" | "girl">("boy");
+
+  if (!visible) {
+    return (
+      <button
+        onClick={() => setVisible(true)}
+        className="fixed bottom-4 left-4 bg-sunny text-gray-800 rounded-full p-2 shadow-lg z-50"
+      >
+        🧑‍🎨 Сопроводитель
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed bottom-20 left-4 w-64 h-64 bg-white rounded-lg shadow-xl z-50">
+      <div className="bg-ruby text-white p-2 rounded-t-lg flex justify-between">
+        <span>Ваш гид</span>
+        <button onClick={() => setVisible(false)}>✖</button>
+      </div>
+      <div className="p-2">
+        <div className="flex gap-2 mb-2">
+          <button onClick={() => setGender("boy")} className={px-2 py-1 rounded ${gender === "boy" ? "bg-ruby text-white" : "bg-gray-200"}}>Мальчик</button>
+          <button onClick={() => setGender("girl")} className={px-2 py-1 rounded ${gender === "girl" ? "bg-ruby text-white" : "bg-gray-200"}}>Девочка</button>
+        </div>
+        <Canvas camera={{ position: [0, 0, 3] }}>
+          <ambientLight intensity={0.5} />
+          <pointLight position={[10, 10, 10]} />
+          <Box args={[1, 1.5, 0.5]}>
+            <meshStandardMaterial color={gender === "boy" ? "#A6171C" : "#F1C045"} />
+          </Box>
+          <OrbitControls enableZoom={false} />
+        </Canvas>
+        <p className="text-center text-sm mt-2">Я помогу найти лучшие товары!</p>
+      </div>
+    </div>
+  );
+}"use client";
+import Header from "@/components/layout/Header";
+import BottomNav from "@/components/layout/BottomNav";
+
+export default function TopBataPage() {
+  return (
+    <>
+      <Header />
+      <div className="pb-20 pt-2 px-4 max-w-md mx-auto">
+        <h2 className="text-2xl font-bold text-ruby mb-4">🏆 Топ продавцов по Bata</h2>
+        <div className="bg-white rounded-lg p-4">
+          <p className="text-center text-gray-500">Скоро здесь будут лучшие продавцы месяца</p>
+        </div>
+      </div>
+      <BottomNav />
+    </>
+  );
+}"use client";
+import Link from "next/link";
+import Button from "../ui/Button";
+import { useCart } from "@/contexts/CartContext";
+import { useUser } from "@/contexts/UserContext";
+
+export default function ProductCard({ product }: { product: any }) {
+  const { addItem } = useCart();
+  const { user } = useUser();
+
+  const handleBuy = () => {
+    if (!user) {
+      alert("Пожалуйста, войдите в аккаунт");
+      return;
+    }
+    addItem(product);
+  };
+
+  const handleFavorite = () => {
+    if (!user) {
+      alert("Войдите, чтобы добавить в избранное");
+      return;
+    }
+    const favs = JSON.parse(localStorage.getItem(favorites_${user.id}) || "[]");
+    if (!favs.find((f: any) => f.id === product.id)) {
+      favs.push(product);
+      localStorage.setItem(favorites_${user.id}, JSON.stringify(favs));
+      alert("Добавлено в избранное");
+    } else {
+      alert("Уже в избранном");
+    }
+  };
+
+  return (
+    <div className="bg-white rounded-lg overflow-hidden shadow-md hover:shadow-lg transition">
+      <Link href={/product/${product.id}}>
+        <img src={product.image} alt={product.title} className="w-full h-48 object-cover" />
+      </Link>
+      <div className="p-3">
+        <Link href={/product/${product.id}}>
+          <h3 className="font-semibold text-sm line-clamp-2">{product.title}</h3>
+        </Link>
+        <p className="text-ruby font-bold mt-1">{product.price} KGS</p>
+        <div className="flex items-center justify-between mt-2">
+          <div className="text-xs text-gray-500">
+            {product.sellerName} • {product.sellerRegion}
+          </div>
+          <div className="flex items-center gap-1">
+            <span className="text-yellow-500">★</span>
+            <span className="text-sm">{product.rating}</span>
+          </div>
+        </div>
+        <div className="flex gap-2 mt-3">
+          <Button size="sm" onClick={handleBuy} variant="primary">
+            Купить
+          </Button>
+          <Button size="sm" onClick={handleFavorite} variant="outline">
+            ❤️
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}"use client";
+import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import Header from "@/components/layout/Header";
+import BottomNav from "@/components/layout/BottomNav";
+import Button from "@/components/ui/Button";
+import { useCart } from "@/contexts/CartContext";
+import { useUser } from "@/contexts/UserContext";
+import ThreeDViewer from "@/components/product/ThreeDViewer";
+
+export default function ProductPage() {
+  const { id } = useParams();
+  const [product, setProduct] = useState<any>(null);
+  const [review, setReview] = useState({ rating: 5, text: "" });
+  const { addItem } = useCart();
+  const { user } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    const products = JSON.parse(localStorage.getItem("products") || "[]");
+    const found = products.find((p: any) => p.id === id) || {
+      id: "1",
+      title: "Кыргызский орнамент на сумке",
+      price: 1200,
+      image: "https://picsum.photos/id/1/400/400",
+      rating: 4.5,
+      sellerName: "Айгерим",
+      sellerRegion: "Бишкек",
+      description: "Сумка ручной работы с национальным орнаментом",
+    };
+    setProduct(found);
+  }, [id]);
+
+  const handleAddToCart = () => {
+    if (!user) {
+      alert("Войдите, чтобы добавить в корзину");
+      return;
+    }
+    addItem(product);
+    alert("Добавлено в корзину");
+  };
+
+  const handleReview = () => {
+    if (!user) {
+      alert("Войдите, чтобы оставить отзыв");
+      return;
+    }
+    alert(Спасибо за отзыв! ${review.rating} звезд: ${review.text});
+    setReview({ rating: 5, text: "" });
+  };
+
+  if (!product) return <div>Загрузка...</div>;
+
+  return (
+    <>
+      <Header />
+      <div className="pb-20 pt-2 px-4 max-w-md mx-auto">
+        <img src={product.image} className="w-full h-64 object-cover rounded-lg" />
+        <h1 className="text-2xl font-bold mt-4">{product.title}</h1>
+        <p className="text-ruby text-xl font-bold mt-1">{product.price} KGS</p>
+        <div className="flex items-center gap-2 mt-2">
+          <span className="text-yellow-500">★</span>
+          <span>{product.rating}</span>
+          <span className="text-gray-500">• {product.sellerName}</span>
+          <span className="text-gray-500">{product.sellerRegion}</span>
+        </div>
+        <p className="mt-4 text-gray-700">{product.description}</p>
+        <div className="flex gap-2 mt-4">
+          <Button variant="primary" onClick={handleAddToCart}>В корзину</Button>
+          <Button variant="secondary" onClick={() => router.push("/cart")}>Купить сейчас</Button>
+          <ThreeDViewer productId={product.id} />
+        </div>
+
+        <div className="mt-8">
+          <h3 className="font-bold text-lg mb-2">Оставить Ак Бата</h3>
+          <select
+            value={review.rating}
+            onChange={e => setReview({ ...review, rating: Number(e.target.value) })}
+            className="border rounded p-2 mb-2 w-full"
+          >
+            {[5,4,3,2,1].map(r => <option key={r}>{r} звезд</option>)}
+          </select>
+          <textarea
+            placeholder="Ваше благословение..."
+            value={review.text}
+            onChange={e => setReview({ ...review, text: e.target.value })}
+            className="w-full border rounded p-2"
+            rows={3}
+          />
+          <Button onClick={handleReview} variant="primary" className="mt-2">Отправить</Button>
+        </div>
+      </div>
+      <BottomNav />
+    </>
+  );
+}"use client";
+import { useState } from "react";
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Box } from "@react-three/drei";
+import Button from "../ui/Button";
+
+export default function ThreeDViewer({ productId }: { productId: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <Button variant="outline" onClick={() => setOpen(true)}>3D примерка</Button>
+      {open && (
+        <div className="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-4 w-96 h-96 relative">
+            <button className="absolute top-2 right-2 text-xl" onClick={() => setOpen(false)}>✖</button>
+            <Canvas camera={{ position: [0, 0, 3] }}>
+              <ambientLight intensity={0.5} />
+              <pointLight position={[10, 10, 10]} />
+              <Box args={[1.5, 1.5, 0.5]}>
+                <meshStandardMaterial color="#A6171C" />
+              </Box>
+              <OrbitControls />
+            </Canvas>
+            <p className="text-center text-sm mt-2">Вращайте модель для 3D-просмотра</p>
+          </div>
+        </div>
+      )}
+    </>
+  );
