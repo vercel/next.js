@@ -27,8 +27,8 @@ export type ServerInitResult = {
   experimentalFeatures: ConfiguredExperimentalFeature[]
   // Whether cache components is enabled
   cacheComponents: boolean
-  // Whether partial prefetching is enabled (and its mode)
-  partialPrefetching?: boolean | 'unstable_eager'
+  // Whether partial prefetching is enabled
+  partialPrefetching?: boolean
   // Whether AGENTS.md / CLAUDE.md auto-generation is enabled (default true)
   agentRules?: boolean
   // Whether the development server memory threshold restart is enabled
