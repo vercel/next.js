@@ -3446,7 +3446,15 @@
       "latin-ext",
       "symbols2",
       "vietnamese"
-    ]
+    ],
+    "metrics": {
+      "unitsPerEm": 2048,
+      "ascent": 2226,
+      "descent": 480,
+      "lineGap": 0,
+      "xHeight": 1060,
+      "capHeight": 1420
+    }
   },
   "Cascadia Mono": {
     "weights": ["200", "300", "400", "500", "600", "700", "variable"],
