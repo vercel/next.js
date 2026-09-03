@@ -15,7 +15,7 @@ export default function Home() {
     <Container className="md-container">
       <Head>
         <title>ReactJS with reactstrap</title>
-        <link rel="icon" href="/favicon-32x32.png" />
+        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
       </Head>
       <Container>
         <h1>
