@@ -96,6 +96,14 @@ describe('app dir - metadata dynamic routes', () => {
       expect(status).toBe(200)
     })
 
+    it('should render sitemap with generateStaticParams under a dynamic segment', async () => {
+      for (const locale of ['en', 'zh']) {
+        const res = await next.fetch(`/dynamic-gsp/${locale}/sitemap.xml`)
+        expect(res.status).toBe(200)
+        expect(await res.text()).toContain('<loc>https://example.com</loc>')
+      }
+    })
+
     it('should support alternate.languages in sitemap', async () => {
       const xml = await (await next.fetch('/lang/sitemap.xml')).text()
 
@@ -527,6 +535,8 @@ describe('app dir - metadata dynamic routes', () => {
          "/apple-icon",
          "/blog",
          "/client-ref-dependency/sitemap.xml",
+         "/dynamic-gsp/en/sitemap.xml",
+         "/dynamic-gsp/zh/sitemap.xml",
          "/gsp",
          "/gsp/icon/medium",
          "/gsp/icon/small",

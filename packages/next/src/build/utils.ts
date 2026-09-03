@@ -890,7 +890,16 @@ export async function isPageStatic({
 
           if (
             routeModule.definition.kind === RouteKind.APP_ROUTE &&
-            isStaticMetadataFile(pathname)
+            isStaticMetadataFile(pathname) &&
+            // Dynamic metadata routes (e.g. `sitemap.ts` under a dynamic
+            // segment) can export `generateStaticParams`; their output
+            // depends on the route params, so they must be prerendered once
+            // per param rather than collapsed to the `-`-placeholder
+            // pathname. Static metadata files never export
+            // `generateStaticParams`.
+            !segments.some(
+              (segment) => typeof segment.generateStaticParams === 'function'
+            )
           ) {
             ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
               buildStaticMetadataStaticPaths(page))
