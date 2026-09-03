@@ -37,6 +37,14 @@ const cachedGetUrlFromAppDirectory = memoize(getUrlFromAppDirectory)
 
 const url = 'https://nextjs.org/docs/messages/no-html-link-for-pages'
 
+type PagesDir = string | string[]
+type RuleOption =
+  | PagesDir
+  | {
+      pagesDir?: PagesDir
+      pageExtensions?: string[]
+    }
+
 export default defineRule({
   meta: {
     docs: {
@@ -60,6 +68,33 @@ export default defineRule({
               type: 'string',
             },
           },
+          {
+            type: 'object',
+            additionalProperties: false,
+            properties: {
+              pagesDir: {
+                oneOf: [
+                  {
+                    type: 'string',
+                  },
+                  {
+                    type: 'array',
+                    uniqueItems: true,
+                    items: {
+                      type: 'string',
+                    },
+                  },
+                ],
+              },
+              pageExtensions: {
+                type: 'array',
+                uniqueItems: true,
+                items: {
+                  type: 'string',
+                },
+              },
+            },
+          },
         ],
       },
     ],
@@ -69,8 +104,15 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const ruleOption = context.options[0] as RuleOption | undefined
+    const isPagesDirOption =
+      typeof ruleOption === 'string' || Array.isArray(ruleOption)
+    const customPagesDirectory = isPagesDirOption
+      ? ruleOption
+      : ruleOption?.pagesDir
+    const pageExtensions = isPagesDirOption
+      ? undefined
+      : ruleOption?.pageExtensions
 
     const rootDirs = getRootDirs(context)
 
@@ -107,7 +149,11 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories(
+      '/',
+      foundPagesDirs,
+      pageExtensions
+    )
     const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
