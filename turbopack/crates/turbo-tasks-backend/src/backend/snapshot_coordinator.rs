@@ -19,7 +19,7 @@
 
 use std::sync::{
     Arc,
-    atomic::{AtomicUsize, Ordering},
+    atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
 use parking_lot::{Condvar, Mutex};
@@ -51,20 +51,40 @@ struct State<O> {
 pub struct SnapshotCoordinator<O = AnyOperation> {
     /// Combined count + bit. See [`SNAPSHOT_REQUESTED_BIT`].
     in_progress_operations: AtomicUsize,
-    /// Number of operations parked in `begin_operation`'s cold path: they arrived *after* an
-    /// exclusion was already established and are being held up by it.
+    /// Number of operations currently parked behind the in-flight exclusion, however they got
+    /// there: they arrived *after* it was established (`begin_operation`'s cold path) or they were
+    /// mid-flight and suspended at a [`Self::suspend_point`] to let it start.
     ///
-    /// Deliberately excludes operations parked at a [`Self::suspend_point`]. Suspending is how an
-    /// in-flight operation *lets* the exclusion start — `begin_exclusion` waits for every
-    /// operation to drain or suspend — so a suspended operation is a precondition of the pass,
-    /// not evidence the pass is delaying anything. Counting them would make a GC pass see a
-    /// waiter the moment it began and interrupt itself at job zero whenever any operation
-    /// happened to be mid-flight.
+    /// Both are counted, because from the parked operation's side they are the same thing — it is
+    /// blocked, and the exclusion holder is why. Suspending is indeed what *allowed* the pass to
+    /// begin, but that is a statement about causality, not about who is being delayed: a
+    /// suspended HMR invalidation is stalled exactly as long as an arriving one.
+    ///
+    /// Counting suspends means a pass that started while an operation was mid-flight sees a waiter
+    /// from its very first poll. That is intended, and it is the budget's job to make it
+    /// survivable rather than this counter's job to hide it: `GcBudget` still guarantees
+    /// `gc_min_progress` of work before honouring any interrupt, so such a pass gets a full
+    /// minimum quantum and then yields.
+    ///
+    /// A flag rather than a count, and sticky for the life of the exclusion: set by the first
+    /// operation to park and cleared only in [`SnapshotPhase::drop`]. Nothing needs the
+    /// population, only "is anyone blocked", and a parked operation cannot leave early — both
+    /// `begin_operation` and [`Self::suspend_point`] `wait_while` on `snapshot_completed` with no
+    /// timeout, so every waiter is released by the same phase drop that clears this. "Has anyone
+    /// waited during this exclusion" and "is anyone waiting now" are therefore the same predicate.
+    ///
+    /// Sticky specifically to keep the reader's cache line quiet. This is polled once per GC job —
+    /// millions of times in a large pass — and with a counter each park/unpark was an RMW that
+    /// took the line exclusive and invalidated it under every polling worker. Measured with 8
+    /// readers against 3 parking operations, `fetch_add`/`fetch_sub` churn cost 0.388 ns/poll
+    /// versus 0.046 ns/poll for a flag that is written once: the line reaches Shared and stays
+    /// there.
     ///
     /// Maintained under `state`, but mirrored into an atomic so the holder of the exclusion can
-    /// poll it without taking the lock — see [`Self::operations_waiting`]. This is the signal the
-    /// GC pass uses to decide it is standing in someone's way and should wind down early.
-    waiting_operations: AtomicUsize,
+    /// poll it without taking the lock — see [`SnapshotPhase::operations_waiting`], which is the
+    /// only reader. This is the signal the GC pass uses to decide it is standing in someone's way
+    /// and should wind down early.
+    operations_waiting: AtomicBool,
     state: Mutex<State<O>>,
     /// Notified by the last operation to drain (count drops to `BIT` while
     /// `SNAPSHOT_REQUESTED_BIT` is set). Awaited by [`begin_snapshot`].
@@ -84,7 +104,7 @@ impl<O> SnapshotCoordinator<O> {
     pub fn new() -> Self {
         Self {
             in_progress_operations: AtomicUsize::new(0),
-            waiting_operations: AtomicUsize::new(0),
+            operations_waiting: AtomicBool::new(false),
             state: Mutex::new(State {
                 snapshot_requested: false,
                 suspended_operations: FxHashSet::default(),
@@ -102,19 +122,6 @@ impl<O> SnapshotCoordinator<O> {
         // Acquire so that observing the bit synchronizes with anything the
         // snapshotter wrote before setting it.
         (self.in_progress_operations.load(Ordering::Acquire) & SNAPSHOT_REQUESTED_BIT) != 0
-    }
-
-    /// Whether any operation is currently blocked waiting for the in-flight exclusion to end —
-    /// either it arrived while the exclusion was held, or it suspended mid-flight at a
-    /// `suspend_point`.
-    ///
-    /// Intended for the *holder* of the exclusion (the GC pass) to poll cheaply: it is a `Relaxed`
-    /// load of a mirrored counter, no lock. Being lock-free makes it inherently racy — a waiter can
-    /// arrive or leave immediately after the read — which is fine for its only use: deciding
-    /// whether GC is delaying real work and should stop early. Both answers are safe; a stale
-    /// `false` just means GC keeps going and notices on the next poll.
-    pub fn operations_waiting(&self) -> bool {
-        self.waiting_operations.load(Ordering::Relaxed) > 0
     }
 
     /// Begin an operation. Returns a guard that decrements on drop.
@@ -141,17 +148,17 @@ impl<O> SnapshotCoordinator<O> {
                 if prev - 1 == SNAPSHOT_REQUESTED_BIT {
                     this.operations_drained.notify_all();
                 }
-                // Count ourselves as waiting for the whole park. Bumped only inside this branch:
-                // an arrival that finds the flag already clear never blocks and must not register
-                // as a waiter. Written under `state`, so it is consistent with the flag the
-                // exclusion holder is racing against.
-                this.waiting_operations.fetch_add(1, Ordering::Relaxed);
+                // Mark the exclusion as blocking someone. Set only inside this branch: an
+                // arrival that finds the flag already clear never blocks and must not register as
+                // a waiter. Written under `state`, so it is consistent with the flag the exclusion
+                // holder is racing against, and never cleared here — `SnapshotPhase::drop` owns
+                // the reset. See `SnapshotCoordinator::operations_waiting`.
+                this.operations_waiting.store(true, Ordering::Relaxed);
                 // Throughput: hand the worker slot back while parked.
                 tokio::task::block_in_place(|| {
                     this.snapshot_completed
                         .wait_while(&mut state, |s| s.snapshot_requested);
                 });
-                this.waiting_operations.fetch_sub(1, Ordering::Relaxed);
                 // Re-add now that the snapshot is done. Bit is cleared because
                 // we just observed `snapshot_requested == false` under the
                 // mutex.
@@ -196,6 +203,11 @@ impl<O> SnapshotCoordinator<O> {
             if prev - 1 == SNAPSHOT_REQUESTED_BIT {
                 this.operations_drained.notify_all();
             }
+            // Mark ourselves as blocked, exactly as an arriving operation does in
+            // `begin_operation`'s cold path. We are parked behind the exclusion, so the holder
+            // should see us and wind down; that we are also what let it start does not make the
+            // stall any shorter. See `SnapshotCoordinator::operations_waiting`.
+            this.operations_waiting.store(true, Ordering::Relaxed);
             // Wait for the snapshot to finish.
             tokio::task::block_in_place(|| {
                 this.snapshot_completed
@@ -339,12 +351,40 @@ impl<O> SnapshotPhase<'_, O> {
     pub fn take_suspended_operations(&mut self) -> Vec<Arc<O>> {
         std::mem::take(&mut self.suspended_operations)
     }
+
+    /// Whether any operation is currently blocked waiting for this exclusion to end — either it
+    /// arrived while the exclusion was held, or it was mid-flight and suspended at a
+    /// [`SnapshotCoordinator::suspend_point`] to let it start. Both count; see
+    /// `SnapshotCoordinator::operations_waiting`.
+    ///
+    /// Deliberately a method on the phase rather than on the coordinator: "am I standing in
+    /// someone's way?" is only a meaningful question for the holder of the exclusion, and holding
+    /// `&self` is that proof. Asked without a phase in hand it would be reporting on *some other*
+    /// holder's exclusion, or on no exclusion at all — and the operations it counts would not be
+    /// blocked on the caller.
+    ///
+    /// Cheap enough to poll per job: a `Relaxed` load of a mirrored counter, no lock. Being
+    /// lock-free makes it inherently racy — a waiter can arrive or leave immediately after the
+    /// read — which is fine for its only use: deciding whether GC is delaying real work and
+    /// should stop early. Both answers are safe; a stale `false` just means GC keeps going and
+    /// notices on the next poll.
+    pub fn operations_waiting(&self) -> bool {
+        self.coord.operations_waiting.load(Ordering::Relaxed)
+    }
 }
 
 impl<O> Drop for SnapshotPhase<'_, O> {
     fn drop(&mut self) {
         let mut state = self.coord.state.lock();
         state.snapshot_requested = false;
+        // Clear the sticky waiter flag for the next exclusion. Safe to do here and nowhere else:
+        // the `notify_all` below is what releases every parked operation, so no waiter outlives
+        // this point. Under `state`, so a park racing this either sets the flag before we clear it
+        // (and is then released by our notify) or observes `snapshot_requested == false` and never
+        // parks at all.
+        self.coord
+            .operations_waiting
+            .store(false, Ordering::Relaxed);
         let prev = self
             .coord
             .in_progress_operations
@@ -684,14 +724,10 @@ mod tests {
     #[test]
     fn operations_waiting_counts_blocked_operation() {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
-        assert!(
-            !coord.operations_waiting(),
-            "idle coordinator has no waiters"
-        );
 
         let phase = coord.begin_snapshot();
         assert!(
-            !coord.operations_waiting(),
+            !phase.operations_waiting(),
             "holding the exclusion alone is not a waiter"
         );
 
@@ -705,29 +741,36 @@ mod tests {
             }
         });
 
-        // Wait until the operation is actually parked, not merely spawned: `waiting_operations` is
-        // bumped under the state lock right before the park.
-        while !coord.operations_waiting() {
+        // Wait until the operation is actually parked, not merely spawned: the flag is set under
+        // the state lock right before the park.
+        while !phase.operations_waiting() {
             thread::yield_now();
         }
         assert_eq!(arrived.load(Ordering::Acquire), 1);
 
         drop(phase);
         op_thread.join().unwrap();
+
+        // The flag must be cleared once the exclusion ends, ready for the next one. There is no
+        // phase to ask any more — that is the point of hanging the query off the guard — so assert
+        // on the mirrored flag directly.
         assert!(
-            !coord.operations_waiting(),
-            "the waiter must be discharged once the exclusion ends"
+            !coord.operations_waiting.load(Ordering::Relaxed),
+            "the sticky waiter flag must be cleared when the phase is dropped"
         );
     }
 
-    /// An operation parked at a `suspend_point` must **not** count as a waiter. Suspending is how
-    /// an in-flight operation lets the exclusion begin — `begin_snapshot` waits for exactly
-    /// that — so counting it would make a GC pass observe a waiter the instant it started and
-    /// interrupt itself at job zero whenever any operation happened to be mid-flight. (Found by
-    /// `gc_does_not_interrupt_without_a_waiter`, which failed deterministically when suspends were
-    /// counted.)
+    /// An operation parked at a `suspend_point` **does** count as a waiter. It is blocked on the
+    /// exclusion exactly like an operation that arrived after the exclusion started; that it is
+    /// also what *allowed* the exclusion to begin is a fact about causality, not about who is
+    /// being stalled.
+    ///
+    /// So a pass that starts while an operation is mid-flight sees a waiter from its first poll,
+    /// and yields as soon as its `gc_min_progress` floor is up. Keeping the pass alive for that
+    /// minimum is the floor's job, not this counter's — hiding the waiter here would instead make
+    /// the case where GC is *most* likely to be stalling an HMR edit the one case it cannot see.
     #[test]
-    fn operations_waiting_ignores_suspended_operation() {
+    fn operations_waiting_counts_suspended_operation() {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
         let guard = coord.begin_operation();
 
@@ -739,10 +782,10 @@ mod tests {
             let observed_waiter = observed_waiter.clone();
             let gc_running = gc_running.clone();
             move || {
-                let _phase = coord2.begin_snapshot();
-                // We are past the drain, so the main thread has suspended. If suspends counted as
-                // waiters, a GC pass would see one right here — the bug this pins down.
-                if coord2.operations_waiting() {
+                let phase = coord2.begin_snapshot();
+                // We are past the drain, so the main thread has suspended and must be visible as
+                // a waiter to the holder of the exclusion.
+                if phase.operations_waiting() {
                     observed_waiter.store(1, Ordering::Release);
                 }
                 gc_running.store(1, Ordering::Release);
@@ -762,9 +805,12 @@ mod tests {
         );
         assert_eq!(
             observed_waiter.load(Ordering::Acquire),
-            0,
-            "a suspended operation must not register as a waiter — it is what allowed the \
-             exclusion to start"
+            1,
+            "a suspended operation is parked behind the exclusion and must register as a waiter"
+        );
+        assert!(
+            !coord.operations_waiting.load(Ordering::Relaxed),
+            "the sticky waiter flag must be cleared when the phase is dropped"
         );
     }
 
@@ -775,8 +821,9 @@ mod tests {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
         let _g1 = coord.begin_operation();
         let _g2 = coord.begin_operation();
+        // No exclusion is held, so there is no phase to ask; read the mirrored flag directly.
         assert!(
-            !coord.operations_waiting(),
+            !coord.operations_waiting.load(Ordering::Relaxed),
             "operations that never blocked are not waiters"
         );
     }

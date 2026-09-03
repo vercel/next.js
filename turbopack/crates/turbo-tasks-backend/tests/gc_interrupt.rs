@@ -116,19 +116,21 @@ async fn build_generation(tt: &Arc<TurboTasks<TurboTasksBackend>>, gen_value: u3
     .unwrap();
 }
 
-/// A pass with the floor at 0 and nothing contending must **not** interrupt: the budget's trigger
-/// is real contention, not merely being interruptible. This is the control for the tests below —
-/// without it, "interrupted" could just mean "the budget fires unconditionally".
+/// An interruptible pass that is not actually blocking anyone must **not** interrupt: the budget's
+/// trigger is real contention, not merely being interruptible. This is the control for the tests
+/// below — without it, "interrupted" could just mean "the budget fires unconditionally".
 ///
-/// "Nothing contending" can't be *guaranteed* from the outside: the backend may take an operation
-/// guard for its own background work at any moment (a genuine waiter, correctly reported), and at a
-/// zero floor even one such arrival trips the budget. That is the mechanism working, not a bug —
-/// but it makes a single observation unreliable. So this runs several rounds and requires that at
-/// least one completes uninterrupted; an unconditional trip could never produce that.
+/// The floor is deliberately non-zero, because "nothing contending" cannot be arranged from the
+/// outside. The backend takes operation guards for its own background work, and one that is
+/// mid-flight when the exclusion begins suspends to let it start — a real waiter, visible from the
+/// pass's first poll (see `SnapshotCoordinator::waiting_operations`). At a zero floor that alone
+/// trips the budget every time, which is the mechanism working correctly but leaves no room to
+/// observe an *uninterrupted* pass. A short floor lets a quiet pass finish while still being far
+/// too small to mask a budget that fires unconditionally.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_does_not_interrupt_without_a_waiter() {
-    // Interruptible from the first job — but nothing of ours is waiting.
-    let (tt, _persistence_dir) = create_tt("gc_no_interrupt_without_waiter", Duration::ZERO);
+    let (tt, _persistence_dir) =
+        create_tt("gc_no_interrupt_without_waiter", Duration::from_secs(5));
 
     const ROUNDS: u32 = 5;
     let mut saw_uninterrupted = false;
@@ -201,7 +203,18 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
 
 /// An interrupted pass must be *self-healing*: whatever it abandons is re-derived and collected by
 /// a later pass, so garbage is never lost permanently. This is the property that makes abandoning
-/// work safe, and it holds regardless of whether any particular pass actually interrupted.
+/// work safe.
+///
+/// Structured in two phases so that both halves are actually observed rather than assumed. A
+/// floor tuned to interrupt *sometimes* would be timing-dependent and could silently degrade into
+/// either "never interrupts" (proving nothing about healing) or "always collects nothing"
+/// (proving nothing about recovery), so neither half is left to chance:
+///
+/// 1. **Abandon.** A zero floor with backend background work in flight means a waiter is present
+///    from the pass's first poll, so every pass interrupts immediately and collects nothing. The
+///    garbage accumulates, unexamined.
+/// 2. **Heal.** One uninterruptible pass (`gc_for_testing`) must then find all of it. If an
+///    interrupted pass had *lost* garbage rather than left it, this pass would come up short.
 ///
 /// Asserted on GC's **own** collected counts, not the resident task count. Eviction moves tasks to
 /// disk after every snapshot, so the resident count falls to near zero whether GC collected the
@@ -209,13 +222,14 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
 /// this test exists to make.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_interrupt_is_self_healing() {
-    // Interruptible from the first job for the whole test, so passes are free to abandon work.
+    // Interruptible from the first job, so every pass in phase 1 abandons its work.
     let (tt, _persistence_dir) = create_tt("gc_interrupt_is_self_healing", Duration::ZERO);
 
     build_generation(&tt, 0).await;
 
+    // Phase 1: accumulate garbage under passes that keep interrupting.
     const ROUNDS: u32 = 10;
-    let mut total_collected = 0usize;
+    let mut collected_while_interrupting = 0usize;
     let mut interrupted_rounds = 0usize;
     for gen_value in 1..=ROUNDS {
         // Each round disconnects the previous generation: 2*WIDTH tasks of fresh garbage.
@@ -226,26 +240,40 @@ async fn gc_interrupt_is_self_healing() {
             .last_gc_stats_for_testing()
             .expect("a GC pass should have run");
         println!("round {gen_value}: collected={collected} interrupted={interrupted}");
-        total_collected += collected;
+        collected_while_interrupting += collected;
         if interrupted {
             interrupted_rounds += 1;
         }
     }
 
-    // Each round produces 2*WIDTH garbage tasks, so ROUNDS rounds produce 2*WIDTH*ROUNDS. GC must
-    // have collected the bulk of that: an interrupted pass's whole cycle is skipped and retried by
-    // the next one, but across ROUNDS rounds the totals have to add up. If interruption lost
-    // garbage permanently, this would fall short.
-    let produced = (2 * WIDTH as usize) * (ROUNDS as usize);
-    let expected_min = produced / 2;
-    println!(
-        "self-healing: total_collected={total_collected} produced={produced} \
-         expected_min={expected_min} interrupted_rounds={interrupted_rounds}/{ROUNDS}"
+    // The premise of phase 2: these passes really did abandon work. Without this the test could
+    // pass while never exercising interruption at all.
+    assert!(
+        interrupted_rounds > 0,
+        "no pass interrupted across {ROUNDS} rounds at a zero floor, so nothing was abandoned and \
+         this test cannot say anything about healing"
     );
+
+    // Phase 2: one pass that runs to completion must recover everything left behind.
+    let healed = tt.backend().gc_for_testing(&tt);
+
+    let produced = (2 * WIDTH as usize) * (ROUNDS as usize);
+    let total_collected = collected_while_interrupting + healed;
+    println!(
+        "self-healing: collected_while_interrupting={collected_while_interrupting} \
+         healed={healed} total_collected={total_collected} produced={produced} \
+         interrupted_rounds={interrupted_rounds}/{ROUNDS}"
+    );
+
+    // Every generation but the live one is garbage, so the completing pass has to account for the
+    // bulk of what was produced. Falling short here means interrupted passes dropped garbage on
+    // the floor instead of leaving it for a successor.
+    let expected_min = produced / 2;
     assert!(
         total_collected >= expected_min,
-        "GC collected only {total_collected} of ~{produced} garbage tasks across {ROUNDS} rounds \
-         ({interrupted_rounds} interrupted); interrupted passes are losing garbage instead of \
+        "GC collected only {total_collected} of ~{produced} garbage tasks \
+         ({collected_while_interrupting} during {interrupted_rounds} interrupting rounds, \
+         {healed} in the completing pass); interrupted passes are losing garbage instead of \
          leaving it for the next pass"
     );
 
