@@ -24,6 +24,30 @@ describe('app dir - with output export (next start)', () => {
       })
     })
 
+    it('should error during next start with output export and custom distDir', async () => {
+      await next.patchFile(
+        'next.config.js',
+        (content) => content.replace('// distDir', 'distDir'),
+        async () => {
+          const { exitCode } = await next.build()
+          expect(exitCode).toBe(0)
+
+          try {
+            await next.start({ skipBuild: true })
+          } catch (e) {}
+
+          await retry(() => {
+            expect(next.cliOutput).toContain(
+              `"next start" does not work with "output: export" configuration. Use "npx serve@latest .next-custom" instead.`
+            )
+            expect(next.cliOutput).not.toContain(
+              'Could not find a production build'
+            )
+          })
+        }
+      )
+    })
+
     it('should warn during next start with output standalone', async () => {
       await next.patchFile(
         'next.config.js',
