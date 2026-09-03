@@ -244,10 +244,6 @@ pub struct TurboTasksBackend {
     /// How long a GC root may go un-anchored before it ages out.
     gc_root_ttl: Duration,
 
-    /// `true` until the first GC pass of this session runs. Used to detect 'session boundaries'
-    /// which allows us to detect which roots have become stale from prior sessions.
-    first_gc_pass_of_session: AtomicBool,
-
     #[cfg(feature = "verify_aggregation_graph")]
     root_tasks: Mutex<FxHashSet<TaskId>>,
 }
@@ -328,7 +324,6 @@ impl TurboTasksBackend {
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
             gc_root_ttl,
-            first_gc_pass_of_session: AtomicBool::new(true),
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
         }

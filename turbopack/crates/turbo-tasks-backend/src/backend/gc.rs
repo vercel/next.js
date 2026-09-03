@@ -144,8 +144,7 @@ impl TurboTasksBackend {
             .collect::<FxHashMap<TaskId, TtlCounter>>();
         let roots_before = roots.clone();
 
-        let first_pass_of_session = self.first_gc_pass_of_session.swap(false, Ordering::Relaxed);
-        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now, first_pass_of_session);
+        let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now);
 
         let aged_out_count = aged_out.len();
         // TODO(perf): recycle the task ids of collected tasks.
@@ -195,7 +194,7 @@ impl TurboTasksBackend {
                 drop(task); // drop the lock so CleanupOldEdgesOperation can run
                 stats.collected += 1;
                 stats.edges_deleted += old_edges.len();
-                // If we happeend to delete a known root at this point record it so we can reconcile
+                // If we happened to delete a known root at this point record it so we can reconcile
                 // later.
                 if roots.contains_key(&task_id) {
                     stats.deleted_roots.push(task_id);
@@ -235,13 +234,12 @@ impl TurboTasksBackend {
 
     /// Compute which persisted roots have expired their TTL
     /// Also
-    /// - update timestamps if this is the first pass
+    /// - start the staleness clock for roots that are no longer resident
     /// - drop roots that are resident (the GC pass will pass judgement)
     fn gc_roots_refresh_and_age_out(
         &self,
         map: &mut FxHashMap<TaskId, TtlCounter>,
         now: u64,
-        first_pass_of_session: bool,
     ) -> Vec<TaskId> {
         let ttl_ms = self.gc_root_ttl.as_millis() as u64;
 
@@ -253,12 +251,19 @@ impl TurboTasksBackend {
             }
             match *counter {
                 TtlCounter::MostRecent => {
-                    // First session in which it is missing from the heap: start the clock. Only
-                    // the first pass of a session may do this, so the TTL counts sessions rather
-                    // than passes.
-                    if first_pass_of_session {
-                        *counter = TtlCounter::FirstStale(now);
-                    }
+                    // First pass in which it is missing from the heap: start the clock.
+                    //
+                    // A root cannot return to `MostRecent` later in this session: the only writer
+                    // of `MostRecent` is the `gc_scan_roots` upgrade below, which requires the
+                    // task to be resident, and a resident root cannot go non-resident while
+                    // remaining a root (every pin that makes `gc_is_root` true either blocks
+                    // eviction outright -- `transient_ref_count` is transient-category so
+                    // eviction never drops it, and `in_progress`/`activeness` are
+                    // `UnevictableReason::InProgress` -- or is itself the residue that keeps the
+                    // map entry alive, and once it drains the task is collectible rather than a
+                    // root). So the clock is started at most once per root per session and the
+                    // TTL is never refreshed by pass churn.
+                    *counter = TtlCounter::FirstStale(now);
                     true
                 }
                 TtlCounter::FirstStale(since) => {

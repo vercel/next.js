@@ -93,7 +93,7 @@ use crate::{
             NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
         },
         utils::{
-            DetachedVc, NapiIssue, NapiUsedFeature, RootTask, TurbopackResult, get_issues,
+            DetachedVc, NapiIssue, NapiUsedFeature, SubscriptionTask, TurbopackResult, get_issues,
             strongly_consistent_catch_collectables, subscribe,
         },
     },
@@ -1772,7 +1772,7 @@ pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<Partial<NapiEntrypoints>>) => void")]
     func: FunctionRef<TurbopackResult<Option<NapiEntrypoints>>, ()>,
-) -> napi::Result<External<RootTask>> {
+) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = project.turbopack_ctx.clone();
     let container = project.container;
     subscribe(
@@ -2016,7 +2016,7 @@ pub fn project_client_hmr_events(
         TurbopackResult<Unknown<'static>>,
         (),
     >,
-) -> napi::Result<External<RootTask>> {
+) -> napi::Result<External<SubscriptionTask>> {
     let container = project.container;
     let session = TransientInstance::new(());
     subscribe(
@@ -2150,7 +2150,7 @@ pub fn project_client_hmr_chunk_names_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<HmrChunkNames>) => void")]
     func: FunctionRef<TurbopackResult<HmrChunkNames>, ()>,
-) -> napi::Result<External<RootTask>> {
+) -> napi::Result<External<SubscriptionTask>> {
     let container = project.container;
     subscribe(
         project.turbopack_ctx.clone(),
