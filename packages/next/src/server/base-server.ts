@@ -24,6 +24,7 @@ import {
   DecodeError,
   normalizeRepeatedSlashes,
   MissingStaticPage,
+  PageNotFoundError,
 } from '../shared/lib/utils'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
@@ -3228,16 +3229,27 @@ export default abstract class Server<
 
       if (is404) {
         if (hasAppDir) {
-          // Use the not-found entry in app directory
-          result = await this.findPageComponents({
-            locale: getRequestMeta(ctx.req, 'locale'),
-            page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
-            query,
-            params: {},
-            isAppPath: true,
-            shouldEnsure: true,
-            url: ctx.req.url,
-          })
+          // Use the not-found entry in app directory. In dev, ensuring this
+          // entry throws `PageNotFoundError` when the app directory exists
+          // but has no real app routes (e.g. it's only there for an unrelated
+          // reason alongside a Pages Router app) - treat that the same as the
+          // app directory not having a not-found page, and fall back to
+          // `pages/404` below instead of crashing.
+          try {
+            result = await this.findPageComponents({
+              locale: getRequestMeta(ctx.req, 'locale'),
+              page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+              query,
+              params: {},
+              isAppPath: true,
+              shouldEnsure: true,
+              url: ctx.req.url,
+            })
+          } catch (notFoundEntryErr) {
+            if (!(notFoundEntryErr instanceof PageNotFoundError)) {
+              throw notFoundEntryErr
+            }
+          }
           using404Page = result !== null
         }
 

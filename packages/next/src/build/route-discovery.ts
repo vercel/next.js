@@ -131,6 +131,32 @@ export async function collectAppFiles(
 }
 
 /**
+ * Cheaply determines whether the app directory contains any real app routes
+ * (page/route leaf files, metadata route files, or a root `not-found`),
+ * without necessarily walking the entire directory tree. Unlike
+ * `collectAppFiles`, this stops as soon as it finds a single match, so
+ * well-formed apps (which have a root `app/layout.tsx`) resolve after
+ * reading just the top-level directory. This is intended for existence
+ * checks (e.g. deciding whether an `app` directory should take over 404
+ * handling from `pages/404`), not for route collection.
+ */
+export async function hasAppRoutes(
+  appDir: string,
+  validFileMatcher: ReturnType<typeof createValidFileMatcher>
+): Promise<boolean> {
+  const matches = await recursiveReadDir(appDir, {
+    pathnameFilter: (absolutePath) =>
+      validFileMatcher.isAppRouterPage(absolutePath) ||
+      validFileMatcher.isRootNotFound(absolutePath),
+    ignorePartFilter: (part) => part.startsWith('_'),
+    stopAfterFirstMatch: true,
+    sortPathnames: false,
+  })
+
+  return matches.length > 0
+}
+
+/**
  * Collect pages from the pages directory
  */
 export async function collectPagesFiles(

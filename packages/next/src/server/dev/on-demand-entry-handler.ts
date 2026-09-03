@@ -11,9 +11,10 @@ import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import createDebug from 'next/dist/compiled/debug'
 import { EventEmitter } from 'events'
-import { findPageFile } from '../lib/find-page-file'
+import { findPageFile, createValidFileMatcher } from '../lib/find-page-file'
 import { runDependingOnPageType, isDeferredEntry } from '../../build/entries'
 import { getStaticInfoIncludingLayouts } from '../../build/get-static-info-including-layouts'
+import { hasAppRoutes } from '../../build/route-discovery'
 import { join, posix } from 'path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
@@ -478,14 +479,22 @@ export async function findPagePathData(
         }
       }
 
-      // If they're not presented, then fallback to global-not-found
-      return {
-        filename: require.resolve(
-          'next/dist/client/components/builtin/global-not-found'
-        ),
-        bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
-        page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+      // If they're not presented, only fall back to the built-in
+      // `global-not-found` when the app directory actually contains real
+      // app routes. A directory that merely happens to be named `app`
+      // (e.g. living alongside a Pages Router app with no real usage)
+      // shouldn't hijack 404 handling away from `pages/404`.
+      const validFileMatcher = createValidFileMatcher(extensions, appDir)
+      if (await hasAppRoutes(appDir, validFileMatcher)) {
+        return {
+          filename: require.resolve(
+            'next/dist/client/components/builtin/global-not-found'
+          ),
+          bundlePath: `app${UNDERSCORE_NOT_FOUND_ROUTE_ENTRY}`,
+          page: UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
+        }
       }
+      // Otherwise fall through so `pagesDir` can be checked for `pages/404`.
     }
     pagePath = await findPageFile(appDir, normalizedPagePath, extensions, true)
     if (pagePath) {
