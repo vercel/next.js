@@ -30,15 +30,11 @@ const InstantConfigObjectSchema = z
   })
   .strict()
 
-const InstantConfigSchema = z.union([
-  InstantConfigObjectSchema,
-  z.literal(true),
-  z.literal(false),
-])
+const InstantConfigSchema = z.union([InstantConfigObjectSchema, z.boolean()])
 
 const PrefetchSchema = z.enum(['auto', 'partial', 'force-disabled'])
 
-export type Instant = InstantConfig | true | false
+export type Instant = InstantConfig | boolean
 
 export type Prefetch = 'auto' | 'partial' | 'force-disabled'
 
