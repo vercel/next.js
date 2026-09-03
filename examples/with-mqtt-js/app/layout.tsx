@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { MqttProvider } from "@/lib/mqttProvider";
 
 export const metadata: Metadata = {
   title: "Next.js",
@@ -12,7 +13,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <MqttProvider>{children}</MqttProvider>
+      </body>
     </html>
   );
 }
