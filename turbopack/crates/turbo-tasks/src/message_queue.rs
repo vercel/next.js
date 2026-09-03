@@ -53,40 +53,62 @@ impl CompilationEventQueue {
 
         // Spawn a task to handle the async operations
         tokio::spawn(async move {
-            // Store the message in history
-            let mut history = event_history.lock().await;
-            if history.len() >= MAX_QUEUE_SIZE {
-                history.pop_front();
-            }
-            history.push_back(message_clone.clone());
-
-            // Send to all active receivers of the same message type
-            if let Some(mut type_subscribers) = subscribers.get_mut(&EventChannelType::Type(
-                message_clone.type_name().to_owned(),
-            )) {
-                let mut removal_indices = Vec::new();
-                for (ix, sender) in type_subscribers.iter().enumerate() {
-                    if sender.send(message_clone.clone()).await.is_err() {
-                        removal_indices.push(ix);
-                    }
+            // Append to history AND snapshot the channel lists atomically
+            // (under the history lock): this is the single serialization
+            // point that keeps subscribe-boundary events exactly-once — an
+            // event is either in a subscriber's history snapshot xor in its
+            // delivery snapshot, never both. The DashMap operations are
+            // synchronous (no await), so this can't deadlock: no lock is ever
+            // held across an await.
+            let type_key = EventChannelType::Type(message_clone.type_name().to_owned());
+            let type_channels: Vec<CompilationEventChannel>;
+            let global_channels: Vec<CompilationEventChannel>;
+            {
+                let mut history = event_history.lock().await;
+                if history.len() >= MAX_QUEUE_SIZE {
+                    history.pop_front();
                 }
-
-                for ix in removal_indices.iter().rev() {
-                    type_subscribers.remove(*ix);
-                }
-            }
-
-            // Send to all global message subscribers
-            let mut all_channel = subscribers.get_mut(&EventChannelType::Global).unwrap();
-            let mut removal_indices = Vec::new();
-            for (ix, sender) in all_channel.iter_mut().enumerate() {
-                if sender.send(message_clone.clone()).await.is_err() {
-                    removal_indices.push(ix);
-                }
+                history.push_back(message_clone.clone());
+                type_channels = subscribers
+                    .get(&type_key)
+                    .map(|v| v.clone())
+                    .unwrap_or_default();
+                global_channels = subscribers
+                    .get(&EventChannelType::Global)
+                    .map(|v| v.clone())
+                    .unwrap_or_default();
             }
 
-            for ix in removal_indices.iter().rev() {
-                all_channel.remove(*ix);
+            // Deliver to all subscribers concurrently: awaiting a full (but
+            // alive) typed channel must not stall or reorder delivery to
+            // global subscribers of the same event.
+            let failed: Vec<CompilationEventChannel> =
+                futures::future::join_all(type_channels.iter().chain(global_channels.iter()).map(
+                    |sender| {
+                        let message = message_clone.clone();
+                        async move {
+                            if sender.send(message).await.is_err() {
+                                Some(sender.clone())
+                            } else {
+                                None
+                            }
+                        }
+                    },
+                ))
+                .await
+                .into_iter()
+                .flatten()
+                .collect();
+
+            // Remove failed subscribers under freshly taken guards, matching
+            // by channel identity so concurrently added subscribers are kept.
+            if !failed.is_empty() {
+                if let Some(mut subs) = subscribers.get_mut(&type_key) {
+                    subs.retain(|s| !failed.iter().any(|f| f.same_channel(s)));
+                }
+                if let Some(mut subs) = subscribers.get_mut(&EventChannelType::Global) {
+                    subs.retain(|s| !failed.iter().any(|f| f.same_channel(s)));
+                }
             }
         });
 
@@ -104,27 +126,40 @@ impl CompilationEventQueue {
 
         // Spawn a task to handle the async operations
         tokio::spawn(async move {
-            // Store the sender
+            // Register the sender AND snapshot the history atomically (under
+            // the history lock): an event is either in the snapshot (replayed
+            // below) xor in some send's delivery snapshot (delivered live),
+            // never both. The entry() guard is dropped synchronously — no
+            // lock is ever held across an await.
+            // Register the sender AND replay the history inside the history
+            // lock. The replay uses try_send: the fresh channel's capacity
+            // (MAX_QUEUE_SIZE) is >= the history's capacity (also
+            // MAX_QUEUE_SIZE), so it can never block. Everything is
+            // synchronous while the lock is held — a later send's history
+            // append can't interleave — so subscribers see replayed history
+            // strictly before any live event, and every boundary event is
+            // delivered exactly once (see the send() side).
             if let Some(event_types) = event_types {
+                let history_guard = event_history.lock().await;
                 for event_type in event_types.iter() {
-                    let mut type_subscribers = subscribers
+                    subscribers
                         .entry(EventChannelType::Type(event_type.clone()))
-                        .or_default();
-                    type_subscribers.push(tx_clone.clone());
+                        .or_default()
+                        .push(tx_clone.clone());
                 }
-
-                for event in event_history.lock().await.iter() {
+                for event in history_guard.iter() {
                     if event_types.contains(&event.type_name().to_string()) {
-                        let _ = tx_clone.send(event.clone()).await;
+                        let _ = tx_clone.try_send(event.clone());
                     }
                 }
             } else {
-                let mut global_subscribers =
-                    subscribers.entry(EventChannelType::Global).or_default();
-                global_subscribers.push(tx_clone.clone());
-
-                for event in event_history.lock().await.iter() {
-                    let _ = tx_clone.send(event.clone()).await;
+                let history_guard = event_history.lock().await;
+                subscribers
+                    .entry(EventChannelType::Global)
+                    .or_default()
+                    .push(tx_clone.clone());
+                for event in history_guard.iter() {
+                    let _ = tx_clone.try_send(event.clone());
                 }
             }
         });
@@ -291,6 +326,114 @@ impl CompilationEvent for TraceEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Drives concurrent send + subscribe traffic and asserts everything
+    /// completes — the previous implementation held the history lock and
+    /// DashMap shard guards across awaits in opposite lock orders (ABBA),
+    /// which could deadlock the runtime.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn test_concurrent_send_and_subscribe_no_deadlock() {
+        for round in 0..50 {
+            let queue = CompilationEventQueue::default();
+
+            // Pre-fill history so subscribe(None) replays.
+            for i in 0..5 {
+                queue
+                    .send(Arc::new(DiagnosticEvent::new(
+                        Severity::Info,
+                        format!("seed {i}"),
+                    )))
+                    .unwrap();
+            }
+
+            let mut rx = queue.subscribe(None);
+            queue
+                .send(Arc::new(DiagnosticEvent::new(
+                    Severity::Info,
+                    "post".to_string(),
+                )))
+                .unwrap();
+
+            // Collect the replayed + live events with a deadline.
+            let count = tokio::time::timeout(Duration::from_secs(10), async {
+                let mut count = 0;
+                while count < 6 {
+                    match rx.recv().await {
+                        Some(_) => count += 1,
+                        None => break,
+                    }
+                }
+                count
+            })
+            .await
+            .unwrap_or_else(|_| panic!("round {round}: timed out (deadlock?)"));
+
+            assert_eq!(count, 6, "round {round}: expected 5 replayed + 1 live");
+
+            // And nothing else: an event crossing the subscribe boundary must
+            // be delivered exactly once (not replayed AND delivered live).
+            let extra = tokio::time::timeout(Duration::from_millis(100), rx.recv()).await;
+            assert!(
+                matches!(extra, Err(_) | Ok(None)),
+                "round {round}: unexpected duplicate event"
+            );
+        }
+    }
+
+    /// A subscriber whose receiver is dropped must be removed from the
+    /// subscriber list; live subscribers must be kept.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_dead_subscriber_removed_and_live_kept() {
+        let queue = CompilationEventQueue::default();
+
+        let mut rx_live = queue.subscribe(None);
+        let rx_dead = queue.subscribe(None);
+        drop(rx_dead);
+
+        // Let the subscribe tasks register both senders.
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        assert_eq!(
+            queue
+                .subscribers
+                .get(&EventChannelType::Global)
+                .unwrap()
+                .len(),
+            2
+        );
+
+        // This send delivers to the live one and must remove the dead one.
+        queue
+            .send(Arc::new(DiagnosticEvent::new(
+                Severity::Info,
+                "hello".to_string(),
+            )))
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        assert!(rx_live.try_recv().is_ok());
+        assert_eq!(
+            queue
+                .subscribers
+                .get(&EventChannelType::Global)
+                .unwrap()
+                .len(),
+            1
+        );
+
+        // A second event must still reach the live receiver — this only
+        // succeeds if the removal kept the live sender (identity-matched)
+        // rather than removing the wrong one.
+        queue
+            .send(Arc::new(DiagnosticEvent::new(
+                Severity::Info,
+                "second".to_string(),
+            )))
+            .unwrap();
+        tokio::time::timeout(Duration::from_secs(5), rx_live.recv())
+            .await
+            .expect("timed out waiting for the second event")
+            .expect("live subscriber was removed");
+    }
 
     #[test]
     fn test_timing_event_string_formatting() {
