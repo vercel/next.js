@@ -332,7 +332,7 @@ rustc-hash = "2.1.1"
 scattered-collect = "0.10.0"
 semver = "1.0.16"
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.151"
 serde_path_to_error = "0.1.20"
 serde_qs = "1.1.1"
 serde_with = "3.18.0"
