@@ -153,6 +153,18 @@ describe('next/font', () => {
           fontFamily: expect.stringMatching(/^'myFont2', 'myFont2 Fallback'$/),
         },
       })
+
+      // Test custom font-family with space in declarations
+      // This verifies the fix for the bug where @font-face and className
+      // used different font-family names when a custom declaration had a space
+      expect(JSON.parse($('#custom-family-with-space').text())).toEqual({
+        className: expect.stringMatching(getClassNameRegex('className')),
+        style: {
+          fontFamily: expect.stringMatching(
+            /^'My Custom Font', 'My Custom Font Fallback'$/
+          ),
+        },
+      })
     })
 
     test('Variable font without weight range', async () => {
@@ -664,6 +676,27 @@ describe('next/font', () => {
       expect(stylesheets).toContainEqual(
         expect.stringContaining('font-family: foobar;')
       )
+    })
+
+    test('custom font-family with space matches between @font-face and className', async () => {
+      const browser = await webdriver(next.url, '/with-local-fonts')
+
+      // Get the font data from the page to verify fontFamily matches
+      const fontData = await browser.eval(
+        `JSON.parse(document.querySelector('#custom-family-with-space').textContent)`
+      )
+
+      // The fontFamily should use the custom declaration value "My Custom Font"
+      // not the JS variable name "customFamilyWithSpace"
+      expect(fontData.style.fontFamily).toMatch(/My Custom Font/)
+
+      // Verify the font is actually loaded with the correct family name
+      const loadedFonts = await browser.eval(`
+        Array.from(document.fonts.values())
+          .map(font => font.family)
+          .filter(family => family.includes('My Custom Font'))
+      `)
+      expect(loadedFonts.length).toBeGreaterThan(0)
     })
   })
 })
