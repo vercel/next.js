@@ -293,7 +293,12 @@ pub struct ChunkingConfig {
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
-/// The owner of a standalone HMR chunk list.
+/// turbopack-browser needs to know the original
+/// source of the hmr chunk list to properly map to a
+/// EcmascriptDevChunkListSource and provide the correct
+/// updates. This maps one to one with that.
+/// We could consider lifting EcmascriptDevChunkListSource to
+/// core instead if this grows. Or using this type in browser instead.
 #[turbo_tasks::task_input]
 #[derive(
     Eq, PartialEq, Debug, Clone, Copy, Hash, TraceRawVcs, Serialize, Deserialize, Encode, Decode,

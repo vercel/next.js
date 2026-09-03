@@ -764,6 +764,10 @@ pub async fn project_activate_lazy_chunk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     chunk_path: RcStr,
 ) -> napi::Result<bool> {
+    if !chunk_path.contains("lazy-compilation") {
+        return Ok(false);
+    }
+
     let ctx = &project.turbopack_ctx;
     ctx.turbo_tasks()
         .run(async move {

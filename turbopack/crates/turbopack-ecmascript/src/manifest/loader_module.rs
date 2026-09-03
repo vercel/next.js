@@ -156,8 +156,8 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
             writedoc!(
                 code,
                 r#"
-                    {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
-                        return Promise.resolve().then(() => parentImport({dynamic_id}));
+                    {TURBOPACK_EXPORT_VALUE}(() => {{
+                        return Promise.resolve().then(() => {TURBOPACK_REQUIRE}({dynamic_id}));
                     }});
                 "#,
                 dynamic_id = StringifyModuleId(&dynamic_id),
