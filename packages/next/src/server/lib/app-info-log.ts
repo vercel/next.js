@@ -34,6 +34,25 @@ export function logStartInfo({
     ? ` (${bundlerName(getBundlerFromEnv())})`
     : ''
 
+  const allowedDevOriginsDocs =
+    'https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins'
+
+  function logAllowedDevOriginsInfo() {
+    Log.bootstrap(
+      [
+        'Cross-origin access to Next.js dev resources is blocked by default for safety.',
+        'If you need to access dev resources from another host, add it to "allowedDevOrigins" in next.config.js:',
+        '',
+        '// next.config.js',
+        'module.exports = {',
+        "  allowedDevOrigins: ['your-host'],",
+        '}',
+        '',
+        `Read more: ${allowedDevOriginsDocs}`,
+      ].join('\n')
+    )
+  }
+
   Log.bootstrap(
     `${bold(
       purple(`${Log.prefixes.ready} Next.js ${process.env.__NEXT_VERSION}`)
@@ -45,6 +64,9 @@ export function logStartInfo({
   if (networkUrl) {
     Log.bootstrap(`- Network:       ${networkUrl}`)
   }
+
+  logAllowedDevOriginsInfo()
+
   const inspectorUrl = inspector.url()
   if (inspectorUrl) {
     // Could also parse this port from the inspector URL.
