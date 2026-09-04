@@ -91,6 +91,9 @@ export const NextBuildContext: Partial<{
   clientRouterFilters: Parameters<
     typeof getBaseWebpackConfig
   >[1]['clientRouterFilters']
+  pagesRouterFilters: Parameters<
+    typeof getBaseWebpackConfig
+  >[1]['pagesRouterFilters']
   previewModeId: string
   fetchCacheKeyPrefix?: string
   allowedRevalidateHeaderKeys?: string[]
