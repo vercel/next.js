@@ -1416,17 +1416,26 @@ impl<B: Backend + 'static> TurboTasks<B> {
                                 reports += 1;
                                 // Cap the output: a 60s hang should leave a readable trail, not
                                 // hundreds of duplicate lines in the CI log.
-                                if reports <= 8 || reports % 10 == 0 {
+                                if reports <= 8 || reports.is_multiple_of(10) {
+                                    // `queued` with `workers == 0` means work is sitting in the
+                                    // priority queue with nobody to drain it — the invariant
+                                    // documented on `PriorityRunner::schedule`.
+                                    let (queued, workers, target) =
+                                        self.priority_runner.debug_queue_state();
                                     eprintln!(
                                         "[GC-HANG] stop_and_wait: waiting {:?} for \
                                          event_foreground_done; jobs_at_entry={} \
-                                         foreground_now={} background_now={}",
+                                         foreground_now={} background_now={} queued={} \
+                                         active_workers={} target_workers={}",
                                         start.elapsed(),
                                         pending,
                                         self.currently_scheduled_foreground_jobs
                                             .load(Ordering::Acquire),
                                         self.currently_scheduled_background_jobs
                                             .load(Ordering::Acquire),
+                                        queued,
+                                        workers,
+                                        target,
                                     );
                                 }
                             }
@@ -1449,7 +1458,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                             () = listener.as_mut() => break,
                             () = tokio::time::sleep(std::time::Duration::from_secs(2)) => {
                                 reports += 1;
-                                if reports <= 8 || reports % 10 == 0 {
+                                if reports <= 8 || reports.is_multiple_of(10) {
                                     eprintln!(
                                         "[GC-HANG] stop_and_wait: waiting {:?} for \
                                          event_background_done; jobs_at_entry={} \

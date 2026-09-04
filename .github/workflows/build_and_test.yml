@@ -502,12 +502,23 @@ jobs:
         # TEMP (do not merge): repeat only the hanging test to capture [GC-HANG] instrumentation.
         # An explicit test path short-circuits group sharding and the type filter in
         # run-tests.js, so this runs exactly one test on one job.
+        #
+        # NEXT_TEST_PASSED_FILE must be cleared: run-tests.js records passing tests there and
+        # skips them ("already passed on this commit (cached)"), which collapsed the loop to a
+        # single iteration on the previous run.
+        # Deliberately no `set -e` here: a failing iteration must not abort the loop, since the
+        # point is to sample how often the hang occurs across all 10 attempts.
+        unset NEXT_TEST_PASSED_FILE
+        hangs=0
         for i in 1 2 3 4 5 6 7 8 9 10; do
           echo "===== GC-HANG attempt $i ====="
-          node run-tests.js --retries=0 -c 1 \
-            test/production/app-dir/app-fetch-build-cache/app-fetch-build-cache.test.ts \
-            || echo "===== GC-HANG attempt $i FAILED ====="
+          if ! node run-tests.js --retries=0 -c 1 \
+            test/production/app-dir/app-fetch-build-cache/app-fetch-build-cache.test.ts; then
+            hangs=$((hangs+1))
+            echo "===== GC-HANG attempt $i FAILED (total: $hangs) ====="
+          fi
         done
+        echo "===== GC-HANG summary: $hangs/10 iterations failed ====="
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
       runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'

@@ -229,7 +229,7 @@ impl<O> SnapshotCoordinator<O> {
                         break;
                     }
                     reports += 1;
-                    if reports <= 4 || reports % 10 == 0 {
+                    if reports <= 4 || reports.is_multiple_of(10) {
                         eprintln!(
                             "[GC-HANG] begin_snapshot: waiting {:?} for operations to drain \
                              (in_progress={:#x}) on thread {:?}",
