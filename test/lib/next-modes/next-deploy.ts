@@ -420,6 +420,19 @@ export class NextDeployInstance extends NextInstance {
       additionalEnv.push(`${key}=${this.env[key]}`)
     }
 
+    // Providers can expose the hostname that routes to this deployment so
+    // fixtures can use it in host-sensitive configuration such as
+    // `i18n.domains`. Vercel fixtures can use the system-provided VERCEL_URL
+    // instead, but forward an explicit generic hostname when one is supplied.
+    if (
+      process.env.NEXT_TEST_DEPLOYMENT_HOST &&
+      this.env?.NEXT_TEST_DEPLOYMENT_HOST === undefined
+    ) {
+      additionalEnv.push(
+        `NEXT_TEST_DEPLOYMENT_HOST=${process.env.NEXT_TEST_DEPLOYMENT_HOST}`
+      )
+    }
+
     additionalEnv.push(
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
