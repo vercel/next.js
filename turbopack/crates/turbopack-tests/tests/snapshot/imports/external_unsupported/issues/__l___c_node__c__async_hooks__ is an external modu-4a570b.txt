@@ -1,0 +1,10 @@
+error - [code gen] /turbopack/crates/turbopack-tests/tests/snapshot/imports/external_unsupported/input/index.js:1:0  node:async_hooks is an external module, which is not supported in the browser environment
+  
+         + v--------------------------------------------------v
+       1 + import { AsyncLocalStorage } from 'node:async_hooks'
+         + ^--------------------------------------------------^
+       2 | 
+       3 | console.log(AsyncLocalStorage)
+       4 | 
+  
+  External modules are loaded by the runtime instead of being bundled, which the browser environment can't do — this includes Node.js built-in modules. Remove the import from code that is bundled for the browser environment, or use an alternative that works there.

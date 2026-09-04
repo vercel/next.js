@@ -14,7 +14,6 @@ use swc_core::{
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
-    turbobail,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -53,7 +52,9 @@ use crate::{
             export::{all_known_export_names, is_export_missing},
             mangle::generated_export_key,
         },
-        util::{SpecifiedChunkingType, throw_module_not_found_expr},
+        util::{
+            SpecifiedChunkingType, throw_module_not_found_error_expr, throw_module_not_found_expr,
+        },
     },
     runtime_functions::{TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT},
     utils::module_id_to_lit,
@@ -880,18 +881,18 @@ impl EsmAssetReference {
                                         request,
                                         ty: ExternalType::EcmaScriptModule,
                                     } => {
-                                        if !*chunking_context
+                                        let call = if !*chunking_context
                                             .environment()
                                             .supports_esm_externals()
                                             .await?
                                         {
-                                            turbobail!(
-                                                "the chunking context ({}) does not support \
-                                                 external modules (esm request: {request})",
-                                                chunking_context.name()
-                                            );
-                                        }
-                                        let call = if import_externals {
+                                            unsupported_external_expr(
+                                                chunking_context,
+                                                &request,
+                                                this.issue_source,
+                                            )
+                                            .await?
+                                        } else if import_externals {
                                             quote!(
                                                 "$turbopack_external_import($id)" as Expr,
                                                 turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
@@ -910,22 +911,24 @@ impl EsmAssetReference {
                                         request,
                                         ty: ExternalType::CommonJs | ExternalType::Url,
                                     } => {
-                                        if !*chunking_context
+                                        let call = if !*chunking_context
                                             .environment()
                                             .supports_commonjs_externals()
                                             .await?
                                         {
-                                            turbobail!(
-                                                "the chunking context ({}) does not support \
-                                                 external modules (request: {request})",
-                                                chunking_context.name()
-                                            );
-                                        }
-                                        let call = quote!(
-                                            "$turbopack_external_require($id, () => require($id), true)" as Expr,
-                                            turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
-                                            id: Expr = Expr::Lit(request.to_string().into())
-                                        );
+                                            unsupported_external_expr(
+                                                chunking_context,
+                                                &request,
+                                                this.issue_source,
+                                            )
+                                            .await?
+                                        } else {
+                                            quote!(
+                                                "$turbopack_external_require($id, () => require($id), true)" as Expr,
+                                                turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                                                id: Expr = Expr::Lit(request.to_string().into())
+                                            )
+                                        };
                                         (name.sym.as_str().into(), call)
                                     }
                                     // fallback in case we introduce a new `ExternalType`
@@ -966,6 +969,54 @@ impl EsmAssetReference {
 
         Ok(CodeGeneration::empty())
     }
+}
+
+/// The request was resolved to an external module, but the environment that this chunking context
+/// targets can't load external modules at runtime (e.g. a Node.js built-in module that was imported
+/// from code that is bundled for the browser).
+///
+/// Reports this as an issue (pointing at the import in the source code) and returns an expression
+/// that throws when the importing module is evaluated.
+async fn unsupported_external_expr(
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    request: &RcStr,
+    issue_source: IssueSource,
+) -> Result<Expr> {
+    let environment = chunking_context.environment().name().owned().await?;
+
+    CodeGenerationIssue {
+        severity: IssueSeverity::Error,
+        title: StyledString::Line(vec![
+            StyledString::Code(request.clone()),
+            StyledString::Text(
+                format!(
+                    " is an external module, which is not supported in the {environment} \
+                     environment"
+                )
+                .into(),
+            ),
+        ])
+        .resolved_cell(),
+        message: StyledString::Text(
+            format!(
+                "External modules are loaded by the runtime instead of being bundled, which the \
+                 {environment} environment can't do — this includes Node.js built-in modules. \
+                 Remove the import from code that is bundled for the {environment} environment, \
+                 or use an alternative that works there."
+            )
+            .into(),
+        )
+        .resolved_cell(),
+        path: issue_source.file_path().await?,
+        source: Some(issue_source),
+    }
+    .resolved_cell()
+    .emit();
+
+    Ok(throw_module_not_found_error_expr(
+        request,
+        &format!("external modules are not supported in the {environment} environment"),
+    ))
 }
 
 fn var_decl_with_span(mut decl: Stmt, span: Span) -> Stmt {
