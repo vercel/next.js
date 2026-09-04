@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -116,8 +116,12 @@ function createVariants(opts: {
 
 describe('Edge runtime module errors', () => {
   // ==================== DEVELOPMENT MODE ====================
-  ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    const { next, isTurbopack, skipped } = nextTestSetup({
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
+  // @force-gate dev
+  describe('development mode', () => {
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       dependencies: {
         nanoid: 'latest',
@@ -126,9 +130,7 @@ describe('Edge runtime module errors', () => {
       // pushes the initial server startup past the default 10s window on
       // loaded CI hardware.
       startServerTimeout: 30_000,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     // webpack's dev server lazily compiles Edge API routes on demand and
     // keeps serving the last-successful compilation when a later compile
@@ -574,16 +576,18 @@ describe('Edge runtime module errors', () => {
   })
 
   // ==================== PRODUCTION MODE ====================
-  ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    const { next, isTurbopack, skipped } = nextTestSetup({
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
+  // @force-gate start
+  describe('production mode', () => {
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       dependencies: {
         nanoid: 'latest',
       },
-      skipDeployment: true,
     })
-    if (skipped) return
 
     let originalApi: string
     let originalMiddleware: string

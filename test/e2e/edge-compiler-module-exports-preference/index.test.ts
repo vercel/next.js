@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('Edge compiler module exports preference', () => {
+  // Deploy mode exclusion: This suite manually creates a package in the local `node_modules` directory.
   if ((global as any).isNextDeploy) {
     // this test is skipped when deployed because it manually creates a package in the node_modules directory
     // which is unsupported

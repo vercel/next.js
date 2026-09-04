@@ -1,14 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// Deploy mode exclusion: The assertions exercise behavior specific to the local Next.js server.
+// This test is skipped because it sends requests with manipulated host headers
+// which doesn't work in a deployed environment
+// @force-gate !deploy
 describe('x-forwarded-headers', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // This test is skipped because it sends requests with manipulated host headers
-    // which doesn't work in a deployed environment
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should include x-forwarded-* headers', async () => {
     const res = await next.fetch('/')

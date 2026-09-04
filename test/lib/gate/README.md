@@ -86,8 +86,8 @@ There are two tiers:
   `turbopack`, `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `ci`),
   semantic aliases for `!dev` that state the reason rather than the mode
   (`prod`, `prefetching`), specialized CI variants (`adapter`,
-  `standaloneOutput`, `turbopackDev`, `turbopackBuild`), plus `FIXME` / `TODO`,
-  which are always false.
+  `nodeMiddleware`, `standaloneOutput`, `turbopackDev`, `turbopackBuild`), plus
+  `FIXME` / `TODO`, which are always false.
 - **lazy** — a predicate over the fixture's *resolved* `next.config`
   (`cacheComponents`, `ppr`, `prefetchInlining`, `output`, …), read the first
   time a gate asks for it.

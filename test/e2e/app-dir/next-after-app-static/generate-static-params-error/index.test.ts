@@ -5,14 +5,14 @@ import {
   getRedboxDescription,
 } from '../../../../lib/next-test-utils'
 
+// Deploy mode exclusion: This suite intentionally exercises a failed local build, so it cannot produce a deployment.
+// can't access build errors in deploy tests
+// @force-gate !deploy
 describe('after() in generateStaticParams - thrown errors', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true, // can't access build errors in deploy tests
   })
-
-  if (skipped) return
 
   if (isNextDev) {
     it('shows the error overlay if an error is thrown inside after', async () => {

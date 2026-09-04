@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { shouldUseTurbopack } from 'next-test-utils'
 import { retry } from 'next-test-utils'
 
@@ -14,12 +14,14 @@ const LIB_PATH = 'node_modules/lib/index.js'
 jest.setTimeout(120 * 1000)
 
 describe('Edge runtime configurable guards', () => {
-  ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    const { next, isTurbopack, skipped } = nextTestSetup({
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely expects a local build failure instead of a successful deployment.
+  // @force-gate !deploy
+  // @force-gate dev
+  describe('development mode', () => {
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     let originalApiRoute: string
     let originalMiddleware: string
@@ -341,14 +343,16 @@ describe('Edge runtime configurable guards', () => {
       }
     )
   })
-  ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    const { next, isTurbopack, skipped } = nextTestSetup({
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely expects a local build failure instead of a successful deployment.
+  // @force-gate !deploy
+  // @force-gate start
+  describe('production mode', () => {
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       env: shouldUseTurbopack() ? {} : { NEXT_TELEMETRY_DEBUG: '1' },
-      skipDeployment: true,
     })
-    if (skipped) return
 
     let originalApiRoute: string
     let originalMiddleware: string
@@ -393,7 +397,6 @@ describe('Edge runtime configurable guards', () => {
       }
     })
 
-    // eslint-disable-next-line jest/no-identical-title
     describe('Multiple functions with different configurations', () => {
       it('fails to build because of unallowed code', async () => {
         await next.patchFile(
