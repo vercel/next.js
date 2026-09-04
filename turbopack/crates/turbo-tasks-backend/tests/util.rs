@@ -111,10 +111,7 @@ pub fn create_tt(name: &str) -> (Arc<TurboTasks<TurboTasksBackend>>, tempfile::T
     create_tt_with_workers(name, 2)
 }
 
-/// [`create_tt`] with the GC min-progress floor pinned, so a test that asserts on exact collected
-/// counts can't have a pass shortened under it by an operation blocking behind GC. Set at
-/// construction, where the floor is resolved; per-backend, so it doesn't race the
-/// `TURBO_ENGINE_GC_MIN_PROGRESS_MS` env var that every test in the binary would share.
+/// [`create_tt`] with a custom GC min-progress floor
 pub fn create_tt_with_gc_min_progress(
     name: &str,
     gc_min_progress: Duration,
