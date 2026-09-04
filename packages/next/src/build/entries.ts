@@ -62,6 +62,7 @@ import { PAGE_TYPES } from '../lib/page-types'
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
 import { getPageFromPath } from './route-discovery'
+import { Bundler } from '../lib/bundler'
 
 export function getPageFilePath({
   absolutePagePath,
@@ -489,6 +490,7 @@ export async function createEntrypoints(
           absolutePagePath.startsWith(appDir))
 
       const staticInfo = await getStaticInfoIncludingLayouts({
+        dir: params.rootDir,
         isInsideAppDir,
         pageExtensions,
         pageFilePath,
@@ -496,6 +498,7 @@ export async function createEntrypoints(
         config,
         isDev,
         page,
+        bundler: process.env.NEXT_RSPACK ? Bundler.Rspack : Bundler.Webpack,
       })
 
       // TODO(timneutkens): remove this

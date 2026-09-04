@@ -89,6 +89,7 @@ use crate::{
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
+    static_info_manifest::StaticInfoManifestAsset,
 };
 
 #[turbo_tasks::value]
@@ -1184,6 +1185,7 @@ impl AppEndpoint {
             self.page.clone(),
             self.app_project.project().project_path().owned().await?,
             config,
+            None,
             next_config,
         ))
     }
@@ -1729,8 +1731,8 @@ impl AppEndpoint {
                             .config
                             .await?
                             .preferred_region
-                            .clone()
-                            .map(Regions::Multiple),
+                            .as_ref()
+                            .map(|region| Regions::Multiple(region.to_vec())),
                         matchers: vec![matchers],
                         env: project.edge_env().owned().await?,
                     };
@@ -2136,7 +2138,18 @@ impl Endpoint for AppEndpoint {
             let node_root = project.node_root().owned().await?;
             let client_relative_root = project.client_relative_path().owned().await?;
 
-            let output_assets = output.output_assets();
+            let output_assets =
+                output
+                    .output_assets()
+                    .concat_asset(Vc::upcast(StaticInfoManifestAsset::new_app(
+                        node_root.join(&format!(
+                            "server/app{}/static-info.json",
+                            &self.app_endpoint_entry().await?.original_name
+                        ))?,
+                        *self.app_endpoint_entry().await?.static_info_config,
+                        project.next_config(),
+                    )));
+
             let output_assets = if let Some(sri) =
                 &*project.next_config().experimental_sri().await?
                 && let Some(algorithm) = sri.algorithm.clone()

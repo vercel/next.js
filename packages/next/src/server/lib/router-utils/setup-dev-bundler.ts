@@ -118,6 +118,7 @@ import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
+import { Bundler } from '../../../lib/bundler'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -609,6 +610,7 @@ async function startWatcher(
             require('../../../build/get-static-info-including-layouts') as typeof import('../../../build/get-static-info-including-layouts')
           ).getStaticInfoIncludingLayouts
           const staticInfo = await getStaticInfoIncludingLayouts({
+            dir,
             pageFilePath: fileName,
             config: nextConfig,
             appDir: appDir,
@@ -616,6 +618,11 @@ async function startWatcher(
             isDev: true,
             isInsideAppDir: isAppPath,
             pageExtensions: nextConfig.pageExtensions,
+            bundler: opts?.turbo
+              ? Bundler.Turbopack
+              : process.env.NEXT_RSPACK
+                ? Bundler.Rspack
+                : Bundler.Webpack,
           })
           if (nextConfig.output === 'export') {
             Log.error(
