@@ -6,6 +6,7 @@ import {
   isLocalSpanRecordingEnabled,
   isRequestInsightsEnabled,
   recordSpan,
+  runWithLocalSpanSink,
   setSpanRecorderForTest,
   type SpanStoreRecord,
 } from './span-store'
@@ -88,6 +89,63 @@ describe('span recording', () => {
         }),
       ],
     })
+  })
+
+  it('scopes forwarded span recording without retaining it locally', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const records: SpanStoreRecord[] = []
+
+    runWithLocalSpanSink(
+      (span) => records.push(span),
+      () => {
+        recordSpan({ name: 'worker span', requestId: 'req_worker' })
+      }
+    )
+
+    expect(records).toEqual([
+      expect.objectContaining({
+        name: 'worker span',
+        requestId: 'req_worker',
+      }),
+    ])
+    expect(getRequestInsightsSnapshot()).toEqual({ requests: [] })
+  })
+
+  it('keeps concurrent local span sinks isolated', async () => {
+    const firstRecords: SpanStoreRecord[] = []
+    const secondRecords: SpanStoreRecord[] = []
+    let resumeFirst!: () => void
+    let firstStarted!: () => void
+    const firstPaused = new Promise<void>((resolve) => {
+      resumeFirst = resolve
+    })
+    const firstReady = new Promise<void>((resolve) => {
+      firstStarted = resolve
+    })
+
+    const first = runWithLocalSpanSink(
+      (span) => firstRecords.push(span),
+      async () => {
+        recordSpan({ name: 'first before pause' })
+        firstStarted()
+        await firstPaused
+        recordSpan({ name: 'first after pause' })
+      }
+    )
+
+    await firstReady
+    const second = runWithLocalSpanSink(
+      (span) => secondRecords.push(span),
+      async () => recordSpan({ name: 'second' })
+    )
+    resumeFirst()
+    await Promise.all([first, second])
+
+    expect(firstRecords.map((span) => span.name)).toEqual([
+      'first before pause',
+      'first after pause',
+    ])
+    expect(secondRecords.map((span) => span.name)).toEqual(['second'])
   })
 
   it('does not record spans outside the dev server', () => {

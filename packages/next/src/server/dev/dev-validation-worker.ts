@@ -4,6 +4,7 @@ import type {
   DevValidationWorkerResult,
 } from '../app-render/dev-validation-worker-globals'
 import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
+import type { LocalSpanBatch, SpanStoreRecord } from '../lib/trace/span-store'
 
 import '../require-hook'
 import '../node-environment'
@@ -28,6 +29,69 @@ import {
 } from '../app-render/manifests-singleton'
 import { setBundlerFindSourceMapImplementation } from '../patch-error-inspect'
 import type { ModernSourceMapPayload } from '../lib/source-maps'
+import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+import { runWithLocalSpanSink } from '../lib/trace/span-store'
+
+// Development runtimes externalize the recorder and span store, so the worker
+// and the App Page runtime share one local tracing core. Register sink-only
+// policy once for this worker realm; each validation still owns its collector
+// through AsyncLocalStorage.
+registerLocalSpanRecorder({ sinkOnly: true })
+
+// Bound the worker IPC payload independently from Request Insights retention.
+// The count limits per-record serialization/traversal work for many small
+// spans, while the byte limit protects against spans with large payloads.
+const MAX_WORKER_SPAN_BATCH_COUNT = 256
+const MAX_WORKER_SPAN_BATCH_BYTES = 256 * 1024
+
+function createWorkerSpanCollector() {
+  const spans: SpanStoreRecord[] = []
+  let serializedByteLength = 2
+  let droppedSpanCount = 0
+  let closed = false
+
+  return {
+    record(span: SpanStoreRecord): void {
+      if (closed) {
+        return
+      }
+      if (spans.length >= MAX_WORKER_SPAN_BATCH_COUNT) {
+        droppedSpanCount++
+        return
+      }
+
+      let spanByteLength: number
+      try {
+        const serializedSpan = JSON.stringify(span)
+        if (serializedSpan === undefined) {
+          droppedSpanCount++
+          return
+        }
+        spanByteLength = Buffer.byteLength(serializedSpan, 'utf8')
+      } catch {
+        droppedSpanCount++
+        return
+      }
+
+      const separatorByteLength = spans.length === 0 ? 0 : 1
+      if (
+        serializedByteLength + separatorByteLength + spanByteLength >
+        MAX_WORKER_SPAN_BATCH_BYTES
+      ) {
+        droppedSpanCount++
+        return
+      }
+
+      spans.push(span)
+      serializedByteLength += separatorByteLength + spanByteLength
+    },
+
+    finish(): LocalSpanBatch {
+      closed = true
+      return { spans, droppedSpanCount }
+    },
+  }
+}
 
 /**
  * Resolves a chunk's source map by reading the `.map` file the bundler emitted
@@ -310,6 +374,53 @@ export async function runDevValidation(
   message: DevValidationWorkerMessage,
   abortBuffer: SharedArrayBuffer
 ): Promise<DevValidationWorkerResult> {
+  const { signal, cleanup } = createSupersedeSignal(abortBuffer)
+  const collector = message.captureLocalSpans
+    ? createWorkerSpanCollector()
+    : null
+
+  if (isTestLoggingEnabled) {
+    console.log(
+      formatValidationEvent({
+        type: 'validation_start',
+        requestId: message.requestId,
+        url: message.request.urlPathname + message.request.urlSearch,
+        responseFinished: message.responseFinished,
+      })
+    )
+  }
+
+  try {
+    const chunks = collector
+      ? await runWithLocalSpanSink(collector.record, () =>
+          runDevValidationOperation(message, signal)
+        )
+      : await runDevValidationOperation(message, signal)
+
+    return {
+      chunks,
+      // Superseded validation is stale as a whole. Do not import a partial
+      // worker trace for a page the user has already left.
+      localSpans: signal.aborted ? null : (collector?.finish() ?? null),
+    }
+  } finally {
+    cleanup()
+    if (isTestLoggingEnabled) {
+      console.log(
+        formatValidationEvent({
+          type: signal.aborted ? 'validation_aborted' : 'validation_end',
+          requestId: message.requestId,
+          url: message.request.urlPathname + message.request.urlSearch,
+        })
+      )
+    }
+  }
+}
+
+async function runDevValidationOperation(
+  message: DevValidationWorkerMessage,
+  signal: AbortSignal
+): Promise<Uint8Array[] | null> {
   // Load the native SWC bindings and wire the code-frame renderer so the errors
   // logged below render with a source-mapped code frame, matching the
   // in-process dev output (the E2E tests snapshot the CLI text between the
@@ -344,67 +455,41 @@ export async function runDevValidation(
     message.additionalClientReferenceManifestPages
   )
 
-  const { signal, cleanup } = createSupersedeSignal(abortBuffer)
-
   if (isTestLoggingEnabled) {
-    console.log(
-      formatValidationEvent({
-        type: 'validation_start',
-        requestId: message.requestId,
-        url: message.request.urlPathname + message.request.urlSearch,
-        responseFinished: message.responseFinished,
-      })
-    )
+    await applyTestValidationDelay(signal)
   }
 
-  try {
-    if (isTestLoggingEnabled) {
-      await applyTestValidationDelay(signal)
-    }
+  if (signal.aborted) {
+    return null
+  }
 
-    if (signal.aborted) {
-      return null
-    }
+  // Crossing into the app-page bundle: the entire validation runs there, so
+  // the client prerenders use the same React the user's client components
+  // resolve through `ComponentMod`.
+  const validationErrors = await ComponentMod.routeModule.runValidationInDev(
+    ComponentMod,
+    message,
+    signal
+  )
 
-    // Crossing into the app-page bundle: the entire validation runs there, so
-    // the client prerenders use the same React the user's client components
-    // resolve through `ComponentMod`.
-    const validationErrors = await ComponentMod.routeModule.runValidationInDev(
-      ComponentMod,
-      message,
-      signal
-    )
+  if (validationErrors === undefined || signal.aborted) {
+    return null
+  }
 
-    if (validationErrors === undefined || signal.aborted) {
-      return null
-    }
-
-    const errors: Error[] = []
-    for (const validationError of validationErrors) {
-      // Log to the worker's stderr; `node-environment` +
-      // `installCodeFrameSupport` render the source-mapped stack and code frame
-      // there, matching the in-process CLI output.
-      console.error(validationError)
-      if (validationError instanceof Error) {
-        errors.push(validationError)
-      }
-    }
-
-    if (errors.length === 0) {
-      return null
-    }
-
-    return await serializeValidationErrorsToFlight(ComponentMod, errors)
-  } finally {
-    cleanup()
-    if (isTestLoggingEnabled) {
-      console.log(
-        formatValidationEvent({
-          type: signal.aborted ? 'validation_aborted' : 'validation_end',
-          requestId: message.requestId,
-          url: message.request.urlPathname + message.request.urlSearch,
-        })
-      )
+  const errors: Error[] = []
+  for (const validationError of validationErrors) {
+    // Log to the worker's stderr; `node-environment` +
+    // `installCodeFrameSupport` render the source-mapped stack and code frame
+    // there, matching the in-process CLI output.
+    console.error(validationError)
+    if (validationError instanceof Error) {
+      errors.push(validationError)
     }
   }
+
+  if (errors.length === 0) {
+    return null
+  }
+
+  return await serializeValidationErrorsToFlight(ComponentMod, errors)
 }
