@@ -374,6 +374,7 @@ export const PanelRouter = () => {
       {isAppRouter && !!process.env.__NEXT_REQUEST_INSIGHTS && (
         <PanelRoute name="request-insights">
           <DynamicPanel
+            containerProps={{ className: 'request-insights-panel-container' }}
             sharePanelSizeGlobally={false}
             sharePanelPositionGlobally={false}
             draggable

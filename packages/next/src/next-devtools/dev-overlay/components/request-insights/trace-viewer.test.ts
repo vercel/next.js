@@ -9,7 +9,12 @@ import {
   getRequestListEntries,
   isPageLoadRequest,
 } from './request-list'
-import { getTraceItems, getTracePosition, getTraceRange } from './trace-viewer'
+import {
+  getTraceItems,
+  getTraceNavigationIndex,
+  getTracePosition,
+  getTraceRange,
+} from './trace-viewer'
 
 function createRequest(
   overrides: Partial<RequestInsight> = {}
@@ -28,6 +33,18 @@ function createRequest(
 }
 
 describe('request insights trace viewer', () => {
+  it('moves the active trace row without leaving the listbox', () => {
+    expect(getTraceNavigationIndex(0, 3, 'ArrowDown')).toBe(1)
+    expect(getTraceNavigationIndex(2, 3, 'ArrowDown')).toBe(2)
+    expect(getTraceNavigationIndex(2, 3, 'ArrowUp')).toBe(1)
+    expect(getTraceNavigationIndex(1, 3, 'Home')).toBe(0)
+    expect(getTraceNavigationIndex(1, 3, 'End')).toBe(2)
+    expect(getTraceNavigationIndex(1, 3, 'ArrowRight')).toBeUndefined()
+    expect(getTraceNavigationIndex(1, 3, 'ArrowLeft')).toBeUndefined()
+    expect(getTraceNavigationIndex(0, 0, 'ArrowDown')).toBeUndefined()
+    expect(getTraceNavigationIndex(0, 3, 'Enter')).toBeUndefined()
+  })
+
   it('keeps the active request selected when newer requests arrive', () => {
     const selectedRequest = createRequest({ requestId: 'selected' })
     const newerRequest = createRequest({ requestId: 'newer' })
@@ -272,6 +289,40 @@ describe('request insights trace viewer', () => {
         }),
       })
     )
+  })
+
+  it('distinguishes same-origin and external fetches in the trace', () => {
+    const request = createRequest({
+      fetches: [
+        {
+          method: 'GET',
+          url: 'https://app.test/api/data?token=%3Credacted%3E',
+          startTime: 110,
+          durationMs: 10,
+        },
+        {
+          method: 'POST',
+          url: 'https://api.example.test/api/data',
+          startTime: 120,
+          durationMs: 20,
+        },
+      ],
+    })
+
+    expect(
+      getTraceItems(request, true, 'https://app.test').map(
+        ({ label, fullLabel }) => ({ label, fullLabel })
+      )
+    ).toEqual([
+      {
+        label: 'GET /api/data?token=%3Credacted%3E · Same origin',
+        fullLabel: 'GET https://app.test/api/data?token=%3Credacted%3E',
+      },
+      {
+        label: 'POST /api/data · External origin · api.example.test',
+        fullLabel: 'POST https://api.example.test/api/data',
+      },
+    ])
   })
 
   it('orders spans by their recorded parent-child hierarchy', () => {
