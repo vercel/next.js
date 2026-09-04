@@ -1,0 +1,19 @@
+warning - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/maybe-require/input/index.js:3:17  Module not found: Can't resolve 'missing'
+  
+       1 | globalThis.foobar = (v) => `this is ${v}`
+       2 | const load = globalThis.foobar || require
+         +                  v-------------v
+       3 + const nodeLess = load('missing')
+         +                  ^-------------^
+       4 | 
+       5 | it("doesn't replace alternative with require", () => {
+       6 |   expect(nodeLess).toBe('this is missing')
+       7 | })
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: module "'missing'"
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/maybe-require/input/index.js
+  | Type of request: commonjs request
+  |

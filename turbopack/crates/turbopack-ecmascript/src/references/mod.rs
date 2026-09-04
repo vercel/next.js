@@ -269,10 +269,19 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference with codegen to the analysis result.
-    pub fn add_reference_code_gen<R: IntoCodeGenReference>(&mut self, reference: R, path: AstPath) {
-        let (reference, code_gen) = reference.into_code_gen_reference(path);
-        self.references.insert(reference);
-        self.add_code_gen(code_gen);
+    pub fn add_reference_code_gen<R: IntoCodeGenReference>(
+        &mut self,
+        reference: R,
+        path: AstPath,
+        skip_code_gen: bool,
+    ) {
+        if skip_code_gen {
+            self.references.insert(reference.into_reference());
+        } else {
+            let (reference, code_gen) = reference.into_code_gen_reference(path);
+            self.references.insert(reference);
+            self.add_code_gen(code_gen);
+        }
     }
 
     /// Adds an ESM asset reference to the analysis result.
@@ -1386,6 +1395,7 @@ async fn analyze_ecmascript_module_internal(
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.to_vec().into(),
+                            /* skip_code_gen */ false,
                         )
                     } else {
                         if options.follow_reexports && !options.module_fragments_enabled {
@@ -1691,9 +1701,13 @@ async fn handle_call<'a>(
         } => {
             for alt in values {
                 if let JsValue::WellKnownFunction(wkf) = alt {
+                    // Only register the reference, but don't perform replacement, as it might
+                    // not actually be a require at runtime (due to the
+                    // alternatives)
                     handle_well_known_function_call(
                         wkf,
                         new,
+                        /* in_alternative */ true,
                         &linked_args,
                         handler,
                         span,
@@ -1720,6 +1734,7 @@ async fn handle_call<'a>(
             handle_well_known_function_call(
                 wkf,
                 new,
+                /* in_alternative */ false,
                 &linked_args,
                 handler,
                 span,
@@ -1876,6 +1891,7 @@ async fn handle_dynamic_import_with_linked_args(
             )
             .await?,
             ast_path.to_vec().into(),
+            /* skip_code_gen */ false,
         );
         return Ok(());
     }
@@ -1892,6 +1908,7 @@ async fn handle_dynamic_import_with_linked_args(
 async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     func: WellKnownFunctionKind<'a>,
     new: bool,
+    in_alternative: bool,
     linked_args: &F,
     handler: &Handler,
     span: Span,
@@ -1919,10 +1936,12 @@ where
         JsValue::explain_args(args, 10, 2)
     }
 
-    // Compute error mode from in_try and attributes.optional
     let error_mode = if attributes.optional {
+        // Explicitly marked optional
         ResolveErrorMode::Ignore
-    } else if in_try {
+    } else if in_try || in_alternative {
+        // In try-catch, or we are not certain that this function is called at runtime (e.g. in a
+        // logical alternative).
         ResolveErrorMode::Warn
     } else {
         ResolveErrorMode::Error
@@ -1989,6 +2008,7 @@ where
                             url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
                         ),
                         ast_path.to_vec().into(),
+                        /* skip_code_gen */ in_alternative,
                     );
                 }
                 return Ok(());
@@ -2033,6 +2053,7 @@ where
                                 is_shared,
                             ),
                             ast_path.to_vec().into(),
+                            /* skip_code_gen */ in_alternative,
                         );
                     }
 
@@ -2137,6 +2158,7 @@ where
                             tracing_only,
                         ),
                         ast_path.to_vec().into(),
+                        /* skip_code_gen */ in_alternative,
                     );
 
                     return Ok(());
@@ -2196,7 +2218,9 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if !in_alternative {
+                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        }
                         return Ok(());
                     }
                 }
@@ -2222,6 +2246,7 @@ where
                         state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
+                    /* skip_code_gen */ in_alternative,
                 );
                 return Ok(());
             }
@@ -2246,7 +2271,9 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if !in_alternative {
+                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        }
                         return Ok(());
                     }
                 }
@@ -2276,6 +2303,7 @@ where
                         state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
+                    /* skip_code_gen */ in_alternative,
                 );
                 return Ok(());
             }
@@ -2317,7 +2345,9 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if !in_alternative {
+                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        }
                         return Ok(());
                     }
                 }
@@ -2341,6 +2371,7 @@ where
                         resolve_override,
                     ),
                     ast_path.to_vec().into(),
+                    /* skip_code_gen */ in_alternative,
                 );
                 return Ok(());
             }
@@ -2380,6 +2411,7 @@ where
                     error_mode,
                 ),
                 ast_path.to_vec().into(),
+                /* skip_code_gen */ in_alternative,
             );
         }
 
@@ -2415,6 +2447,7 @@ where
                 )
                 .await?,
                 ast_path.to_vec().into(),
+                /* skip_code_gen */ in_alternative,
             );
         }
 
@@ -3211,6 +3244,7 @@ where
                             error_mode,
                         ),
                         ast_path.to_vec().into(),
+                        /* skip_code_gen */ in_alternative,
                     );
                 }
             }
@@ -3340,6 +3374,7 @@ where
                         emit_to_all_entries,
                     ),
                     ast_path.to_vec().into(),
+                    /* skip_code_gen */ in_alternative,
                 );
                 return Ok(());
             }
@@ -3392,6 +3427,7 @@ where
                 analysis.add_reference_code_gen(
                     CollectReference::new(origin, parent_module, namespace.as_rcstr()),
                     ast_path.to_vec().into(),
+                    /* skip_code_gen */ in_alternative,
                 );
                 return Ok(());
             }

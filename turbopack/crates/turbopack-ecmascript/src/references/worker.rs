@@ -308,6 +308,10 @@ impl ValueToString for WorkerAssetReference {
 }
 
 impl IntoCodeGenReference for WorkerAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         path: AstPath,

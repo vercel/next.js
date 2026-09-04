@@ -94,7 +94,7 @@ impl ModuleReference for CjsAssetReference {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug, ValueToString)]
 #[value_to_string("require {request}")]
 pub struct CjsRequireAssetReference {
@@ -174,6 +174,10 @@ impl ModuleReference for CjsRequireAssetReference {
 }
 
 impl IntoCodeGenReference for CjsRequireAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         path: AstPath,
@@ -316,6 +320,10 @@ impl ModuleReference for CjsRequireResolveAssetReference {
 }
 
 impl IntoCodeGenReference for CjsRequireResolveAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         path: AstPath,

@@ -118,6 +118,10 @@ impl ModuleReference for EsmAsyncAssetReference {
 }
 
 impl IntoCodeGenReference for EsmAsyncAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         path: AstPath,
