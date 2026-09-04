@@ -218,7 +218,7 @@ import { runAfterProductionCompile } from './after-production-compile'
 import { generatePreviewKeys } from './preview-key-utils'
 import { handleBuildComplete } from './adapter/build-complete'
 import type { VariantCombinationGroups } from '../server/variants/combinations'
-import { buildVariantsManifest } from './variants/manifest'
+import { buildVariantsManifest, recordVariantOutput } from './variants/manifest'
 import { getVariantOutputPath } from '../server/variants/prefix'
 import {
   sortPageObjects,
@@ -421,13 +421,13 @@ export type PrerenderManifest = {
   /** @deprecated only kept for the builder, use PreviewPropsManifest within Next.js itself */
   preview: __ApiPreviewProps
   /**
-   * The static variant combinations each page declared, grouped by which
-   * variants they assign, and keyed by page. A request is matched against these
-   * groups to find the combination it was prerendered against.
+   * The static variant combinations that produced a prefixed prerender output,
+   * grouped by which variants they assign, and keyed by page. A request uses
+   * these groups to recover the combination it was prerendered against.
    *
    * This is keyed by page rather than carried on a route entry, because a page
    * that declares combinations and has no fallback shell has no `dynamicRoutes`
-   * entry to hold them. The map is empty unless some page declared any.
+   * entry to hold them.
    */
   variantCombinationGroups: { [page: string]: VariantCombinationGroups }
 }
@@ -2184,13 +2184,14 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
-      // The build gathers page data before the prerender manifest exists, so
-      // the variant combination groups are collected here and moved into the
-      // manifest once it does.
+      // Static generation needs every declaration to produce its candidate
+      // outputs. The final manifests receive only the combinations whose
+      // candidates succeeded.
       const variantCombinationGroupsByPage = new Map<
         string,
         VariantCombinationGroups
       >()
+      const variantOutputHashesByPage = new Map<string, Set<string>>()
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
@@ -3051,26 +3052,13 @@ export default async function build(
         path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
       )
 
-      // This file is written whenever the flag is on, even when no page
-      // declared anything. A proxy then reads a file that is either present and
-      // current, or absent because the feature is off, and never has to tell a
-      // stale file from a missing one.
-      if (config.experimental.variants) {
-        await writeManifest(
-          path.join(distDir, SERVER_DIRECTORY, VARIANTS_MANIFEST),
-          buildVariantsManifest(variantCombinationGroupsByPage)
-        )
-      }
-
       const prerenderManifest: PrerenderManifest = {
         version: 4,
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
         preview: previewProps,
-        variantCombinationGroups: Object.fromEntries(
-          variantCombinationGroupsByPage
-        ),
+        variantCombinationGroups: {},
       }
 
       // Accumulate per-route segment inlining decisions for
@@ -3669,6 +3657,12 @@ export default async function build(
                   prefetchDataRoute,
                   allowHeader: ALLOWED_HEADERS,
                 }
+
+                recordVariantOutput(
+                  variantOutputHashesByPage,
+                  page,
+                  route.variantValues
+                )
               } else {
                 hasRevalidateZero = true
 
@@ -4012,6 +4006,12 @@ export default async function build(
                       ),
                   allowHeader: ALLOWED_HEADERS,
                 }
+
+                recordVariantOutput(
+                  variantOutputHashesByPage,
+                  page,
+                  prerenderCandidate?.variantValues
+                )
               }
             }
           })
@@ -4492,7 +4492,6 @@ export default async function build(
           }
         }
 
-        await writePrerenderManifest(distDir, prerenderManifest)
         await writeManifest(
           path.join(distDir, SERVER_DIRECTORY, PREFETCH_HINTS),
           prefetchHints
@@ -4502,16 +4501,27 @@ export default async function build(
           buildId,
           locales: config.i18n?.locales,
         })
-      } else {
-        await writePrerenderManifest(distDir, {
-          version: 4,
-          routes: {},
-          dynamicRoutes: {},
-          notFoundRoutes: [],
-          variantCombinationGroups: {},
-          preview: previewProps,
-        })
       }
+
+      // Build the variant groups and manifest after the prerender outputs are
+      // known. A declared static variant combination that produced no prerender
+      // output is omitted from both manifests.
+      if (config.experimental.variants) {
+        const { variantCombinationGroups, variantsManifest } =
+          buildVariantsManifest(
+            variantCombinationGroupsByPage,
+            variantOutputHashesByPage
+          )
+
+        prerenderManifest.variantCombinationGroups = variantCombinationGroups
+
+        await writeManifest(
+          path.join(distDir, SERVER_DIRECTORY, VARIANTS_MANIFEST),
+          variantsManifest
+        )
+      }
+
+      await writePrerenderManifest(distDir, prerenderManifest)
 
       await writeManifest(
         path.join(distDir, 'server', PREVIEW_PROPS_MANIFEST),

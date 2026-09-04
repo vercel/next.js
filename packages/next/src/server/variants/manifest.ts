@@ -1,8 +1,9 @@
 import type { VariantCombinationGroups } from './combinations'
 
 /**
- * The static variant combinations of every page that declared any, in the form
- * a proxy needs.
+ * The static variant combinations with a prefixed prerender output, in the form
+ * a proxy needs. A page that declared combinations remains present with empty
+ * groups when none produced an output.
  *
  * A proxy runs before any routing of ours, so it cannot look a page up by name.
  * It matches a pathname first, which is why this holds route regexes where the
@@ -57,8 +58,8 @@ function getDynamicMatchers(
 }
 
 /**
- * Finds the variant combination groups declared for the route that serves a
- * pathname, and returns null for a pathname no declaring route serves.
+ * Finds the variant combination groups with an available output for the route
+ * that serves a pathname. It returns null when no manifest route matches.
  *
  * A static route is looked up by pathname before any regex is tested, so a
  * concrete route wins over a dynamic one that would also match it.

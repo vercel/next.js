@@ -22,8 +22,10 @@ export async function unstable_generateStaticVariants() {
   ]
 }
 
-// Both variants sit behind a boundary, so the prerender of the smaller group
-// has a shell to serve while `locale` resolves.
+// With Cache Components, both variants sit behind a boundary, so the prerender
+// of the smaller group has a shell to serve while `locale` resolves. A legacy
+// prerender cannot leave that hole and produces no output for the smaller
+// group.
 //
 // A fallback carries the same id as the value it stands in for, so one
 // assertion reads either. A prerender that bakes a variant renders its value,
