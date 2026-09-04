@@ -51,7 +51,7 @@ module.exports =
     if (process.env.TURBOPACK) {
       const mdxRule = {
         loaders: [loader],
-        as: '*.tsx',
+        as: '*.js',
         condition: {
           path: extension,
         },
