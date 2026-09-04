@@ -144,7 +144,7 @@ describe('App Shell prefetching', () => {
     )
   })
 
-  it('skips the per-link Speculative prefetch for a route with prefetch = "partial"', async () => {
+  it('skips the per-link Speculative prefetch for a link without prefetch={true}', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -180,7 +180,7 @@ describe('App Shell prefetching', () => {
     }, 'no-requests')
   })
 
-  it('does NOT skip the Speculative prefetch for a prefetch={true} link, even on a partial route', async () => {
+  it('does NOT skip the Speculative prefetch for a link with prefetch={true}', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -277,8 +277,9 @@ describe('App Shell prefetching', () => {
         .elementByCss('input[data-link-accordion="/short-stale/1"]')
         .click()
     }, [
-      // The route reads request data, so its static-attempt hint is unset
-      // and the prefetch deopts to a runtime request.
+      // The route deliberately accesses cookies to force using a runtime shell.
+      // Note that the short-stale cache is omitted from both static and runtime shells,
+      // and thus is not counted as a runtime access.
       { includes: 'App shell for short-stale', kind: 'runtime' },
     ])
 

@@ -597,8 +597,7 @@ export class AppRouteRouteModule extends RouteModule<
             resumeDataCache: prerenderResumeDataCache,
             hmrRefreshHash: undefined,
             varyParamsAccumulator: null,
-            runtimeDataAccessed: null,
-            shouldAttemptStaticPrefetch: null,
+            prerenderDataTracking: null,
             isFallbackUpgradeable: false,
           })
 
@@ -696,8 +695,7 @@ export class AppRouteRouteModule extends RouteModule<
           resumeDataCache: prerenderResumeDataCache,
           hmrRefreshHash: undefined,
           varyParamsAccumulator: null,
-          runtimeDataAccessed: null,
-          shouldAttemptStaticPrefetch: null,
+          prerenderDataTracking: null,
           isFallbackUpgradeable: false,
         })
 

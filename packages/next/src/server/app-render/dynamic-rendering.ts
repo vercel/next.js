@@ -35,10 +35,7 @@ import React from 'react'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { getStagedRenderingController } from './work-unit-async-storage.external'
-import {
-  isClientHookDynamicError,
-  trackRuntimeDataAccessed,
-} from '../dynamic-rendering-utils'
+import { isClientHookDynamicError } from '../dynamic-rendering-utils'
 import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
@@ -348,15 +345,6 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
   errorWithStack: Error,
   prerenderStore: PrerenderStoreModern
 ): never {
-  // The synchronously accessed request data would have been available during
-  // a runtime prerender, which would have rendered past this point instead of
-  // aborting — so a runtime prefetch would produce more content than this
-  // render. Record that, same as when request data access creates a hanging
-  // promise (see makeRuntimeHangingPromise). Unlike
-  // `abortOnSynchronousPlatformIOAccess`, which aborts a runtime prerender
-  // all the same and therefore must not record anything.
-  trackRuntimeDataAccessed(prerenderStore, expression)
-
   const prerenderSignal = prerenderStore.controller.signal
   if (prerenderSignal.aborted === false) {
     // TODO it would be better to move this aborted check into the callsite so we can avoid making
