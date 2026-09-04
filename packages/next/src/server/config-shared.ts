@@ -1081,7 +1081,7 @@ export interface ExperimentalConfig {
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs
+   * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/mdxRs
    */
   mdxRs?:
     | boolean
@@ -1764,7 +1764,7 @@ export interface NextConfig {
   /**
    * The default cache handler for the Pages and App Router uses the filesystem cache. This requires no configuration, however, you can customize the cache handler if you prefer.
    *
-   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/incrementalCacheHandlerPath).
+   * @see [Configuring Caching](https://nextjs.org/docs/app/building-your-application/deploying#configuring-caching) and the [API Reference](https://nextjs.org/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath).
    */
   cacheHandler?: string | undefined
 
@@ -1822,7 +1822,7 @@ export interface NextConfig {
   /** @see [Disabling x-powered-by](https://nextjs.org/docs/app/api-reference/config/next-config-js/poweredByHeader) */
   poweredByHeader?: boolean
 
-  /** @see [Using the Image Component](https://nextjs.org/docs/app/api-reference/next-config-js/images) */
+  /** @see [Using the Image Component](https://nextjs.org/docs/app/api-reference/config/next-config-js/images) */
   images?: ImageConfig
 
   /** Configure indicators in development environment */
@@ -1867,7 +1867,7 @@ export interface NextConfig {
    */
   basePath?: string
 
-  /** @see [Customizing sass options](https://nextjs.org/docs/app/api-reference/next-config-js/sassOptions) */
+  /** @see [Customizing sass options](https://nextjs.org/docs/app/api-reference/config/next-config-js/sassOptions) */
   sassOptions?: {
     implementation?: string
     [key: string]: any
@@ -1912,7 +1912,7 @@ export interface NextConfig {
    * Next.js enables HTTP Keep-Alive by default.
    * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
    *
-   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/app/api-reference/next-config-js/httpAgentOptions)
+   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/app/api-reference/config/next-config-js/httpAgentOptions)
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
@@ -2103,13 +2103,13 @@ export interface NextConfig {
 
   /**
    * Enables the bundling of node_modules packages (externals) for pages server-side bundles.
-   * @see https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies
+   * @see https://nextjs.org/docs/pages/api-reference/config/next-config-js/bundlePagesRouterDependencies
    */
   bundlePagesRouterDependencies?: boolean
 
   /**
    * A list of packages that should be treated as external in the server build.
-   * @see https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages
+   * @see https://nextjs.org/docs/app/api-reference/config/next-config-js/serverExternalPackages
    */
   serverExternalPackages?: string[]
 
