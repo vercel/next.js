@@ -1,4 +1,5 @@
 import { connection } from 'next/server'
+import { headers } from 'next/headers'
 
 import { locale, theme } from '../variants'
 
@@ -9,11 +10,15 @@ import { locale, theme } from '../variants'
 // above a read of one. Every caller of this component provides that boundary.
 export async function VariantValues() {
   await connection()
+  const requestHeaders = await headers()
 
   return (
     <>
       <p id="theme">{await theme()}</p>
       <p id="locale">{await locale()}</p>
+      <p id="internal-variants-header">
+        {requestHeaders.has('x-next-internal-variants') ? 'present' : 'absent'}
+      </p>
     </>
   )
 }
