@@ -6,10 +6,14 @@ use criterion::{Criterion, criterion_group, criterion_main};
 pub(crate) mod overhead;
 pub(crate) mod scope_stress;
 pub(crate) mod stress;
+pub(crate) mod task_input_hash;
 
 criterion_group!(
     name = turbo_tasks_backend_stress;
     config = Criterion::default();
-    targets = stress::fibonacci, scope_stress::scope_stress, overhead::overhead
+    targets = stress::fibonacci,
+        scope_stress::scope_stress,
+        overhead::overhead,
+        task_input_hash::task_input_hash
 );
 criterion_main!(turbo_tasks_backend_stress);

@@ -1,16 +1,20 @@
 use std::{
     any::{Any, type_name},
     fmt::Debug,
-    hash::Hash,
+    hash::{Hash, Hasher},
 };
 
-use turbo_dyn_eq_hash::{
-    DynEq, DynHash, impl_eq_for_dyn, impl_hash_for_dyn, impl_partial_eq_for_dyn,
-};
+use turbo_dyn_eq_hash::{DynEq, impl_eq_for_dyn, impl_partial_eq_for_dyn};
 
 use crate::trace::TraceRawVcs;
 
-pub trait DynTaskInputs: Debug + DynEq + DynHash + TraceRawVcs + Send + Sync + 'static {
+pub trait DynTaskInputs: Debug + DynEq + TraceRawVcs + Send + Sync + 'static {
+    /// Hashes the concrete task input value after type erasure.
+    ///
+    /// Unlike the general-purpose `DynHash`, this omits `TypeId`: a task's registered function
+    /// already determines its argument type.
+    fn hash_value(&self, state: &mut dyn Hasher);
+
     #[cfg(debug_assertions)]
     fn dyn_type_name(&self) -> &'static str;
 }
@@ -19,6 +23,10 @@ impl<T> DynTaskInputs for T
 where
     T: Debug + Eq + Hash + Send + Sync + TraceRawVcs + 'static,
 {
+    fn hash_value(&self, mut state: &mut dyn Hasher) {
+        self.hash(&mut state);
+    }
+
     #[cfg(debug_assertions)]
     fn dyn_type_name(&self) -> &'static str {
         std::any::type_name::<T>()
@@ -27,7 +35,6 @@ where
 
 impl_partial_eq_for_dyn!(dyn DynTaskInputs);
 impl_eq_for_dyn!(dyn DynTaskInputs);
-impl_hash_for_dyn!(dyn DynTaskInputs);
 
 pub fn any_as_encode<T: Any>(this: &dyn Any) -> &T {
     if let Some(enc) = this.downcast_ref::<T>() {
@@ -131,28 +138,5 @@ impl DynTaskInputsStorage for HeapDynTaskInputsStorage {
     #[inline]
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use std::hash::Hash;
-
-    use turbo_tasks_hash::Xxh3Hash64Hasher;
-
-    use super::DynTaskInputs;
-
-    fn hash(value: &dyn DynTaskInputs) -> u64 {
-        let mut hasher = Xxh3Hash64Hasher::new();
-        value.hash(&mut hasher);
-        hasher.finish()
-    }
-
-    #[test]
-    fn dynamic_hash_is_repeatable_for_equal_inputs() {
-        let first = (42u32, "input".to_owned());
-        let second = first.clone();
-        assert_eq!(hash(&first), hash(&first));
-        assert_eq!(hash(&first), hash(&second));
     }
 }

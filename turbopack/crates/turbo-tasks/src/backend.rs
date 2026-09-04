@@ -212,7 +212,7 @@ impl Hash for CachedTaskType {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.native_fn.hash(state);
         self.this.hash(state);
-        self.arg.hash(state);
+        self.arg.hash_value(state);
     }
 }
 
@@ -235,15 +235,14 @@ impl CachedTaskType {
         let mut state = hasher.build_hasher();
         native_fn.hash(&mut state);
         this.hash(&mut state);
-        arg.hash(&mut state);
+        arg.hash_value(&mut state);
         state.finish()
     }
 
     /// Hash this task type for backing storage from borrowed components.
     ///
-    /// The stable function ID is used instead of the process-local function pointer. `DynHash`
-    /// also includes the concrete argument `TypeId`; the cache version pins the engine/toolchain,
-    /// and full task-type equality is checked after hash-bucket lookup.
+    /// The stable function ID is used instead of the process-local function pointer. Arguments use
+    /// the same erased `Hash` implementation as the in-memory cache, without a redundant `TypeId`.
     pub fn persistence_hash_components(
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
@@ -252,7 +251,7 @@ impl CachedTaskType {
     ) {
         registry::get_function_id(native_fn).hash(hasher);
         this.hash(hasher);
-        arg.hash(hasher);
+        arg.hash_value(hasher);
     }
 
     /// Check equality of components against this CachedTaskType.
@@ -747,7 +746,12 @@ pub trait Backend: Sized + Sync + Send {
 
 #[cfg(test)]
 mod cached_task_type_tests {
-    use std::{collections::hash_map::RandomState, hash::BuildHasher};
+    use std::{
+        collections::hash_map::RandomState,
+        hash::{BuildHasher, Hash},
+    };
+
+    use turbo_tasks_hash::Xxh3Hash64Hasher;
 
     use crate::{
         RawVc, TaskId,
@@ -829,6 +833,16 @@ mod cached_task_type_tests {
         let expected = hash_task(&rs, &task);
         let actual = CachedTaskType::hash_from_components(&rs, &FN_A, this, &*arg);
         assert_eq!(actual, expected);
+    }
+
+    #[test]
+    fn erased_arg_hash_uses_concrete_hash_impl() {
+        let arg = (42i32,);
+        let mut expected = Xxh3Hash64Hasher::new();
+        arg.hash(&mut expected);
+        let mut actual = Xxh3Hash64Hasher::new();
+        (&arg as &dyn DynTaskInputs).hash_value(&mut actual);
+        assert_eq!(expected.finish(), actual.finish());
     }
 
     // -----------------------------------------------------------------------
