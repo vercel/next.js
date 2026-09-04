@@ -191,8 +191,6 @@ async function requestHandler(
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
           nextConfig.experimental.maxPostponedStateSize
         ),
-        disableResumeDataCacheCompression:
-          nextConfig.experimental.disableResumeDataCacheCompression ?? false,
         exposeTestingApi:
           nextConfig.cacheComponents === true &&
           (pageRouteModule.isDev === true ||

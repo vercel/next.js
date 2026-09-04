@@ -1,5 +1,4 @@
 import {
-  deflateResumeDataCache,
   stringifyResumeDataCache,
   createRenderResumeDataCache,
 } from './resume-data-cache'
@@ -150,14 +149,12 @@ describe('stringifyResumeDataCache', () => {
 })
 
 describe('parseResumeDataCache', () => {
-  it('throws in the edge runtime before handling an uncompressed cache', () => {
+  it('throws in the edge runtime before parsing an empty cache', () => {
     const nextRuntime = process.env.NEXT_RUNTIME
     process.env.NEXT_RUNTIME = 'edge'
 
     try {
-      expect(() =>
-        createRenderResumeDataCache('null', undefined, true)
-      ).toThrow(
+      expect(() => createRenderResumeDataCache('null')).toThrow(
         '`createRenderResumeDataCache` should not be called in edge runtime.'
       )
     } finally {
@@ -170,7 +167,7 @@ describe('parseResumeDataCache', () => {
   })
 
   it('parses an empty cache', () => {
-    const parsed = createRenderResumeDataCache('null', undefined)
+    const parsed = createRenderResumeDataCache('null')
     expect(parsed.cache).toEqual(new Map())
     expect(parsed.fetch).toEqual(new Map())
     expect(parsed.encryptedBoundArgs).toEqual(new Map())
@@ -178,26 +175,16 @@ describe('parseResumeDataCache', () => {
     expect(parsed.dynamicCacheKeys).toBeUndefined()
   })
 
-  it.each([false, true])(
-    'parses a filled cache with compression disabled: %s',
-    async (disableResumeDataCacheCompression) => {
-      const cache = createMockedCache()
-      const serialized = await stringifyResumeDataCache(
-        cache,
-        isCacheComponentsEnabled
-      )
+  it('parses a filled cache', async () => {
+    const cache = createMockedCache()
+    const serialized = await stringifyResumeDataCache(
+      cache,
+      isCacheComponentsEnabled
+    )
 
-      const persisted = disableResumeDataCacheCompression
-        ? serialized
-        : deflateResumeDataCache(serialized)
-      const parsed = createRenderResumeDataCache(
-        persisted,
-        undefined,
-        disableResumeDataCacheCompression
-      )
+    const parsed = createRenderResumeDataCache(serialized)
 
-      expect(parsed.cache.size).toBe(isCacheComponentsEnabled ? 1 : 3)
-      expect(parsed.fetch.size).toBe(0)
-    }
-  )
+    expect(parsed.cache.size).toBe(isCacheComponentsEnabled ? 1 : 3)
+    expect(parsed.fetch.size).toBe(0)
+  })
 })
