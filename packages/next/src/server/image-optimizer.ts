@@ -514,6 +514,11 @@ export class ImageOptimizerCache {
     }
   }
 }
+
+// Base origin used to resolve the `Location` header of an internal (relative
+// `src`) image response, which is handled in-process and has no real origin.
+const INTERNAL_IMAGE_BASE_URL = 'http://n'
+
 function isRedirect(statusCode: number) {
   return [301, 302, 303, 307, 308].includes(statusCode)
 }
@@ -638,7 +643,12 @@ export async function fetchInternalImage(
     newReq: IncomingMessage,
     newRes: ServerResponse,
     newParsedUrl?: NextUrlWithParsedQuery
-  ) => Promise<void>
+  ) => Promise<void>,
+  imagesConfig?: Pick<
+    ImageConfigComplete,
+    'dangerouslyAllowLocalIP' | 'maximumRedirects'
+  >,
+  count = imagesConfig?.maximumRedirects ?? 0
 ): Promise<ImageUpstream> {
   try {
     // Coerce HEAD to GET to avoid issues with the image optimizer
@@ -653,6 +663,65 @@ export async function fetchInternalImage(
 
     await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
     await mocked.res.hasStreamed
+
+    const locationHeader = mocked.res.getHeader('Location')
+    if (
+      imagesConfig &&
+      mocked.res.statusCode &&
+      isRedirect(mocked.res.statusCode) &&
+      locationHeader &&
+      URL.canParse(locationHeader, INTERNAL_IMAGE_BASE_URL)
+    ) {
+      if (count === 0) {
+        Log.error('internal image response had too many redirects', href)
+        throw new ImageError(
+          508,
+          '"url" parameter is valid but internal response is invalid'
+        )
+      }
+
+      const redirect = new URL(
+        locationHeader,
+        new URL(href, INTERNAL_IMAGE_BASE_URL)
+      )
+      const isInternalRedirect =
+        redirect.origin === INTERNAL_IMAGE_BASE_URL &&
+        !locationHeader.startsWith('//')
+
+      if (isInternalRedirect) {
+        const internalHref = `${redirect.pathname}${redirect.search}`
+        if (
+          /\/_next\/image($|\/)/.test(decodeURIComponent(redirect.pathname))
+        ) {
+          Log.error(
+            'internal image response redirected to the image optimizer for',
+            href
+          )
+          throw new ImageError(
+            400,
+            '"url" parameter is valid but internal response is invalid'
+          )
+        }
+        return fetchInternalImage(
+          internalHref,
+          _req,
+          _res,
+          maximumResponseBody,
+          handleRequest,
+          imagesConfig,
+          count - 1
+        )
+      }
+
+      // Like a redirect from a remote image, the redirect location does not
+      // need to satisfy `images.remotePatterns`.
+      return fetchExternalImage(
+        redirect.href,
+        imagesConfig.dangerouslyAllowLocalIP,
+        maximumResponseBody,
+        count - 1
+      )
+    }
 
     if (
       !mocked.res.statusCode ||
