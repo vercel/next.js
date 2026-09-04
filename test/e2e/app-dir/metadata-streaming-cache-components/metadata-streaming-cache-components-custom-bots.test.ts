@@ -1,5 +1,6 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
+import { assertNoConsoleErrors } from 'next-test-utils'
 const describeCacheComponents = isNextDev ? describe.skip : describe
 
 describeCacheComponents('metadata streaming with a custom bot list', () => {
@@ -54,6 +55,20 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
     const $ = cheerio.load(await res.text())
     expect($('body title').text()).toBe('dynamic title')
     expect($('#dynamic-content').text()).toBe('dynamic content')
+  })
+
+  it('should hydrate blocking metadata without a tree mismatch', async () => {
+    const browser = await next.browser('/partial', {
+      userAgent: 'MyBot',
+      pushErrorAsConsoleLog: true,
+    })
+
+    expect(
+      await browser
+        .waitForElementByCss('head title', { state: 'attached' })
+        .text()
+    ).toBe('dynamic title')
+    await assertNoConsoleErrors(browser)
   })
 
   it('should continue streaming the body after blocking metadata for a configured HTML-limited bot', async () => {
