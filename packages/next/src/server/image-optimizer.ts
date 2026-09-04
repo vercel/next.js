@@ -81,6 +81,77 @@ export interface ImageParamsResult {
   minimumCacheTTL: number
 }
 
+type ImageUrlParamResult =
+  | { href: string; isAbsolute: boolean }
+  | { errorMessage: string }
+
+function validateUrlParam(
+  url: string | string[] | undefined,
+  imageData: ImageConfigComplete,
+  isRedirect = false
+): ImageUrlParamResult {
+  // Note - We intentionally skip validation for local/remotePatterns when
+  // validating redirect locations so that we don't break a src img redirect
+  // to a new domain (e.g. github.com => githubusercontent.com).
+  const { domains = [], remotePatterns = [], localPatterns } = imageData
+
+  if (!isRedirect && domains.length > 0) {
+    Log.warnOnce(
+      'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
+    )
+  }
+
+  if (!url) {
+    return { errorMessage: '"url" parameter is required' }
+  } else if (Array.isArray(url)) {
+    return { errorMessage: '"url" parameter cannot be an array' }
+  }
+
+  if (url.length > 3072) {
+    return { errorMessage: '"url" parameter is too long' }
+  }
+
+  if (url.startsWith('//')) {
+    return {
+      errorMessage: '"url" parameter cannot be a protocol-relative URL (//)',
+    }
+  }
+
+  if (url.startsWith('/')) {
+    if (
+      /\/_next\/image($|\/)/.test(
+        decodeURIComponent(parseUrl(url)?.pathname ?? '')
+      )
+    ) {
+      return {
+        errorMessage: '"url" parameter cannot be recursive',
+      }
+    }
+    if (!isRedirect && !hasLocalMatch(localPatterns, url)) {
+      return { errorMessage: '"url" parameter is not allowed' }
+    }
+    return { href: url, isAbsolute: false }
+  }
+
+  let hrefParsed: URL
+
+  try {
+    hrefParsed = new URL(url)
+  } catch (_error) {
+    return { errorMessage: '"url" parameter is invalid' }
+  }
+
+  if (!['http:', 'https:'].includes(hrefParsed.protocol)) {
+    return { errorMessage: '"url" parameter is invalid' }
+  }
+
+  if (!isRedirect && !hasRemoteMatch(domains, remotePatterns, hrefParsed)) {
+    return { errorMessage: '"url" parameter is not allowed' }
+  }
+
+  return { href: hrefParsed.toString(), isAbsolute: true }
+}
+
 function getSupportedMimeType(options: string[], accept = ''): string {
   const mimeType = mediaType(accept, options)
   return accept.includes(mimeType) ? mimeType : ''
@@ -166,73 +237,14 @@ export class ImageOptimizerCache {
     const {
       deviceSizes = [],
       imageSizes = [],
-      domains = [],
       minimumCacheTTL = 14400,
       formats = ['image/webp'],
     } = imageData
-    const remotePatterns = nextConfig.images?.remotePatterns || []
-    const localPatterns = nextConfig.images?.localPatterns
     const qualities = nextConfig.images?.qualities
     const { url, w, q } = query
-    let href: string
-
-    if (domains.length > 0) {
-      Log.warnOnce(
-        'The "images.domains" configuration is deprecated. Please use "images.remotePatterns" configuration instead.'
-      )
-    }
-
-    if (!url) {
-      return { errorMessage: '"url" parameter is required' }
-    } else if (Array.isArray(url)) {
-      return { errorMessage: '"url" parameter cannot be an array' }
-    }
-
-    if (url.length > 3072) {
-      return { errorMessage: '"url" parameter is too long' }
-    }
-
-    if (url.startsWith('//')) {
-      return {
-        errorMessage: '"url" parameter cannot be a protocol-relative URL (//)',
-      }
-    }
-
-    let isAbsolute: boolean
-
-    if (url.startsWith('/')) {
-      href = url
-      isAbsolute = false
-      if (
-        /\/_next\/image($|\/)/.test(
-          decodeURIComponent(parseUrl(url)?.pathname ?? '')
-        )
-      ) {
-        return {
-          errorMessage: '"url" parameter cannot be recursive',
-        }
-      }
-      if (!hasLocalMatch(localPatterns, url)) {
-        return { errorMessage: '"url" parameter is not allowed' }
-      }
-    } else {
-      let hrefParsed: URL
-
-      try {
-        hrefParsed = new URL(url)
-        href = hrefParsed.toString()
-        isAbsolute = true
-      } catch (_error) {
-        return { errorMessage: '"url" parameter is invalid' }
-      }
-
-      if (!['http:', 'https:'].includes(hrefParsed.protocol)) {
-        return { errorMessage: '"url" parameter is invalid' }
-      }
-
-      if (!hasRemoteMatch(domains, remotePatterns, hrefParsed)) {
-        return { errorMessage: '"url" parameter is not allowed' }
-      }
+    const urlResult = validateUrlParam(url, imageData)
+    if ('errorMessage' in urlResult) {
+      return urlResult
     }
 
     if (!w) {
@@ -301,10 +313,10 @@ export class ImageOptimizerCache {
     }
 
     const mimeType = getSupportedMimeType(formats || [], req.headers['accept'])
-
+    const { href, isAbsolute } = urlResult
     const isStatic =
-      url.startsWith(`${nextConfig.basePath || ''}/_next/static/media`) ||
-      url.startsWith(
+      href.startsWith(`${nextConfig.basePath || ''}/_next/static/media`) ||
+      href.startsWith(
         `${nextConfig.basePath || ''}/_next/static/immutable/media`
       )
 
@@ -519,7 +531,7 @@ export class ImageOptimizerCache {
 // `src`) image response, which is handled in-process and has no real origin.
 const INTERNAL_IMAGE_BASE_URL = 'http://n'
 
-function isRedirect(statusCode: number) {
+function isRedirectStatus(statusCode: number) {
   return [301, 302, 303, 307, 308].includes(statusCode)
 }
 
@@ -571,7 +583,7 @@ export async function fetchExternalImage(
 
   const locationHeader = res.headers.get('Location')
   if (
-    isRedirect(res.status) &&
+    isRedirectStatus(res.status) &&
     locationHeader &&
     URL.canParse(locationHeader, href)
   ) {
@@ -638,15 +650,13 @@ export async function fetchInternalImage(
   href: string,
   _req: IncomingMessage,
   _res: ServerResponse,
-
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
     newParsedUrl?: NextUrlWithParsedQuery
   ) => Promise<void>,
-  dangerouslyAllowLocalIP: boolean,
-  maximumResponseBody: number,
-  count: number
+  imagesConfig: ImageConfigComplete,
+  count = imagesConfig.maximumRedirects
 ): Promise<ImageUpstream> {
   try {
     // Coerce HEAD to GET to avoid issues with the image optimizer
@@ -656,7 +666,7 @@ export async function fetchInternalImage(
       url: href,
       method,
       socket: _req.socket,
-      maximumResponseBody,
+      maximumResponseBody: imagesConfig.maximumResponseBody,
     })
 
     await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
@@ -665,7 +675,7 @@ export async function fetchInternalImage(
     const locationHeader = mocked.res.getHeader('Location')
     if (
       mocked.res.statusCode &&
-      isRedirect(mocked.res.statusCode) &&
+      isRedirectStatus(mocked.res.statusCode) &&
       locationHeader &&
       URL.canParse(locationHeader, INTERNAL_IMAGE_BASE_URL)
     ) {
@@ -676,34 +686,27 @@ export async function fetchInternalImage(
           '"url" parameter is valid but internal response is invalid'
         )
       }
-      validateRedirectUrl(locationHeader)
 
-      const redirect = new URL(
-        locationHeader,
-        new URL(href, INTERNAL_IMAGE_BASE_URL)
-      )
-      const isInternalRedirect = redirect.origin === INTERNAL_IMAGE_BASE_URL
+      const urlResult = validateUrlParam(locationHeader, imagesConfig, true)
+      if ('errorMessage' in urlResult) {
+        throw new ImageError(400, urlResult.errorMessage)
+      }
 
-      if (isInternalRedirect) {
+      if (!urlResult.isAbsolute) {
         return fetchInternalImage(
-          locationHeader,
+          urlResult.href,
           _req,
           _res,
           handleRequest,
-          dangerouslyAllowLocalIP,
-          maximumResponseBody,
+          imagesConfig,
           count - 1
         )
       }
 
-      // Intentionally skip validation for remotePatterns on
-      // redirect so that we don't break a src img redirect to
-      // a new domain (e.g. github.com => githubusercontent.com).
-
       return fetchExternalImage(
-        redirect.href,
-        dangerouslyAllowLocalIP,
-        maximumResponseBody,
+        urlResult.href,
+        imagesConfig.dangerouslyAllowLocalIP,
+        imagesConfig.maximumResponseBody,
         count - 1
       )
     }
