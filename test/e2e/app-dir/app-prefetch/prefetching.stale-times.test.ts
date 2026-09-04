@@ -3,12 +3,14 @@ import { createRouterAct } from 'router-act'
 import { createTimeController } from './test-utils'
 import { join } from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('app dir - prefetching (custom staleTime)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: {
       app: new FileRef(join(__dirname, 'app')),
     },
-    skipDeployment: true,
     nextConfig: {
       experimental: {
         staleTimes: {

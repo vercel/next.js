@@ -3,6 +3,7 @@ import { findPort } from 'next-test-utils'
 import http from 'node:http'
 
 describe('ppr-unstable-cache', () => {
+  // Deploy mode exclusion: This suite starts a local HTTP data server on a dynamically allocated port.
   if (isNextDeploy) {
     it.skip('should not run in deploy mode', () => {})
     return

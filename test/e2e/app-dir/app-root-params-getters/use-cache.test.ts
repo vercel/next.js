@@ -291,14 +291,13 @@ describe('app-root-param-getters - cache - at build', () => {
   }
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// In deploy mode, concurrent requests could hit different lambdas.
+// @force-gate !deploy
 describe('app-root-param-getters - cache dedup with root params', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
-    // In deploy mode, concurrent requests could hit different lambdas.
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should dedupe same root params and isolate different root params', async () => {
     // Three concurrent requests: ca/en, ca/fr, ca/fr.

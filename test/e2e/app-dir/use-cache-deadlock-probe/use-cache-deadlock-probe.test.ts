@@ -24,18 +24,17 @@ function expectedDeadlockMessage(route: string) {
 // than detected as a deadlock. Revisit by surfacing these deadlocks at build
 // time via `next build --debug-prerender`, then re-enable (and retarget) this
 // suite.
-describe.skip('use-cache-deadlock-probe', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
+// @force-gate TODO
+describe('use-cache-deadlock-probe', () => {
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     // Probe behavior is dev-only; skip the production server start, but
     // let dev mode auto-start.
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
-
-  if (skipped) {
-    return
-  }
 
   if (!isNextDev) {
     it('is a dev-only suite', () => {})

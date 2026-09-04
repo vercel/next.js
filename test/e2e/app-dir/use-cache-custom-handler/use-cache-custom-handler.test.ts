@@ -3,14 +3,13 @@ import { retry } from 'next-test-utils'
 
 const isoDateRegExp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Skip deployment so we can test the custom cache handlers log output
+// @force-gate !deploy
 describe('use-cache-custom-handler', () => {
-  const { next, skipped, isNextStart } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    // Skip deployment so we can test the custom cache handlers log output
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   let outputIndex: number
 

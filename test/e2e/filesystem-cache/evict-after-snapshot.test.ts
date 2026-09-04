@@ -1,9 +1,13 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 
 // Eviction requires the dev server (HMR) and persistent caching (Turbopack).
 // Skip entirely in prod/start mode.
-;(isNextDev ? describe : describe.skip)('evict-after-snapshot', () => {
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
+// @force-gate dev
+describe('evict-after-snapshot', () => {
   const envVars = [
     'ENABLE_CACHING=1',
     'TURBO_ENGINE_IGNORE_DIRTY=1',
@@ -14,9 +18,8 @@ import { retry, waitFor } from 'next-test-utils'
     'ENABLE_EVICTION=1',
   ].join(' ')
 
-  const { skipped, next } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     packageJson: {
       scripts: {
         dev: `${envVars} next dev`,
@@ -25,10 +28,6 @@ import { retry, waitFor } from 'next-test-utils'
     installCommand: 'npm i',
     startCommand: 'npm run dev',
   })
-
-  if (skipped) {
-    return
-  }
 
   async function waitForSnapshotAndEviction() {
     // The idle timeout is 1s, give extra time for snapshot + eviction to complete
