@@ -3,7 +3,12 @@ import {
   fetchInternalImage,
   ImageError,
 } from 'next/dist/server/image-optimizer'
+import { serveStatic } from 'next/dist/server/serve-static'
 import type { IncomingMessage, ServerResponse } from 'http'
+import { EventEmitter } from 'events'
+import { promises as fs } from 'fs'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 describe('fetchInternalImage', () => {
   describe('non-2xx responses', () => {
@@ -204,6 +209,77 @@ describe('fetchInternalImage', () => {
 
       expect(result.buffer).toBeInstanceOf(Buffer)
       expect(result.buffer.length).toBe(maximumResponseBody)
+    })
+  })
+
+  describe('when the requester goes away', () => {
+    it('completes even though the requesting socket is already closed', async () => {
+      const size = 4 * 1024 * 1024
+      const filePath = join(tmpdir(), `fetch-internal-image-disconnect.bin`)
+      await fs.writeFile(filePath, Buffer.alloc(size, 1))
+
+      const closedSocket = Object.assign(new EventEmitter(), {
+        writable: false,
+      })
+      const mockReq = {
+        method: 'GET',
+        socket: closedSocket,
+      } as unknown as IncomingMessage
+      const mockRes = {} as ServerResponse
+
+      let hungTimer: ReturnType<typeof setTimeout> | undefined
+      try {
+        const result = await Promise.race([
+          fetchInternalImage(
+            '/test-image.jpg',
+            mockReq,
+            mockRes,
+            50_000_000,
+            (req, res) => serveStatic(req, res, filePath)
+          ),
+          new Promise((resolve) => {
+            hungTimer = setTimeout(() => resolve('hung'), 5_000)
+          }),
+        ])
+
+        expect(result).not.toBe('hung')
+        expect((result as { buffer: Buffer }).buffer.length).toBe(size)
+      } finally {
+        if (hungTimer) clearTimeout(hungTimer)
+        await fs.unlink(filePath).catch(() => {})
+      }
+    })
+
+    it('rejects rather than hanging when the response never finishes', async () => {
+      jest.useFakeTimers()
+
+      try {
+        const mockReq = { method: 'GET' } as IncomingMessage
+        const mockRes = {} as ServerResponse
+
+        const handleRequest = jest.fn(
+          async (_req: IncomingMessage, res: any) => {
+            res.statusCode = 200
+            res.getHeader = jest.fn(() => 'image/jpeg')
+            res.write(Buffer.alloc(16))
+          }
+        )
+
+        const pending = fetchInternalImage(
+          '/test-image.jpg',
+          mockReq,
+          mockRes,
+          50_000_000,
+          handleRequest
+        ).catch((e) => e)
+
+        await jest.advanceTimersByTimeAsync(30_000)
+
+        const error = await pending
+        expect(error).toBeInstanceOf(ImageError)
+      } finally {
+        jest.useRealTimers()
+      }
     })
   })
 })
