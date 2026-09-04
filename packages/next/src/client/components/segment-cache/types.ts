@@ -59,8 +59,8 @@ export const enum FetchStrategy {
   // session data (cookies, headers) — and less complete than PPR at concrete
   // paths, which includes prerendered param-dependent content.
   StaticShell = 1,
-  RuntimeShell = 2,
-  PPR = 3,
+  PPR = 2,
+  RuntimeShell = 3,
   PPRRuntime = 4,
   Full = 5,
 }
