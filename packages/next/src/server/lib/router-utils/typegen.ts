@@ -905,12 +905,140 @@ ${layoutValidations}
 `
 }
 
+function generateNextRouteTypesAugmentation(
+  routesManifest: RouteTypesManifest
+): string {
+  const appRoutes = Object.keys(routesManifest.appRoutes).sort()
+  let appRoutesMap = ''
+  for (const route of appRoutes) {
+    appRoutesMap += `      ${JSON.stringify(route)}: true\n`
+  }
+
+  const pageRoutes = Object.keys(routesManifest.pageRoutes).sort()
+  let pageRoutesMap = ''
+  for (const route of pageRoutes) {
+    pageRoutesMap += `      ${JSON.stringify(route)}: true\n`
+  }
+
+  const layoutRoutes = Object.keys(routesManifest.layoutRoutes).sort()
+  let layoutRoutesMap = ''
+  for (const route of layoutRoutes) {
+    layoutRoutesMap += `      ${JSON.stringify(route)}: true\n`
+  }
+
+  const redirectRoutes = Object.keys(routesManifest.redirectRoutes).sort()
+  let redirectRoutesMap = ''
+  for (const route of redirectRoutes) {
+    redirectRoutesMap += `      ${JSON.stringify(route)}: true\n`
+  }
+
+  const rewriteRoutes = Object.keys(routesManifest.rewriteRoutes).sort()
+  let rewriteRoutesMap = ''
+  for (const route of rewriteRoutes) {
+    rewriteRoutesMap += `      ${JSON.stringify(route)}: true\n`
+  }
+
+  const appRouteHandlerRoutes = Object.keys(
+    routesManifest.appRouteHandlerRoutes
+  ).sort()
+  let appRouteHandlerRoutesMap = ''
+  for (const route of appRouteHandlerRoutes) {
+    appRouteHandlerRoutesMap += `      ${JSON.stringify(route)}: true\n`
+  }
+
+  const allRoutes = {
+    ...routesManifest.appRoutes,
+    ...routesManifest.appRouteHandlerRoutes,
+    ...routesManifest.pageRoutes,
+    ...routesManifest.layoutRoutes,
+    ...routesManifest.redirectRoutes,
+    ...routesManifest.rewriteRoutes,
+  }
+
+  let paramMapEntries = ''
+  const sortedRoutes = Object.entries(allRoutes).sort(([a], [b]) =>
+    a.localeCompare(b)
+  )
+  for (const [route, routeInfo] of sortedRoutes) {
+    const { groups } = routeInfo
+    if (!isDynamicRoute(route) || Object.keys(groups ?? {}).length === 0) {
+      paramMapEntries += `      ${JSON.stringify(route)}: {}\n`
+      continue
+    }
+    let paramType = '{'
+    for (const [key, group] of Object.entries(groups)) {
+      const escapedKey = JSON.stringify(key)
+      if (group.repeat) {
+        if (group.optional) {
+          paramType += ` ${escapedKey}?: string[];`
+        } else {
+          paramType += ` ${escapedKey}: string[];`
+        }
+      } else {
+        if (group.optional) {
+          paramType += ` ${escapedKey}?: string;`
+        } else {
+          paramType += ` ${escapedKey}: string;`
+        }
+      }
+    }
+    paramType += ' }'
+    paramMapEntries += `      ${JSON.stringify(route)}: ${paramType}\n`
+  }
+
+  let layoutSlots = ''
+  const sortedLayoutRoutes = Object.entries(routesManifest.layoutRoutes).sort(
+    ([a], [b]) => a.localeCompare(b)
+  )
+  for (const [route, routeInfo] of sortedLayoutRoutes) {
+    if ('slots' in routeInfo && Array.isArray(routeInfo.slots)) {
+      const slots = routeInfo.slots.sort()
+      for (const slot of slots) {
+        layoutSlots += `      ${JSON.stringify(`${route}#${slot}`)}: true\n`
+      }
+    }
+  }
+
+  let innerAugmentations = ''
+  if (appRoutes.length > 0) {
+    innerAugmentations += `    interface AppRoutesMap {\n${appRoutesMap}    }\n`
+  }
+  if (pageRoutes.length > 0) {
+    innerAugmentations += `    interface PageRoutesMap {\n${pageRoutesMap}    }\n`
+  }
+  if (layoutRoutes.length > 0) {
+    innerAugmentations += `    interface LayoutRoutesMap {\n${layoutRoutesMap}    }\n`
+  }
+  if (redirectRoutes.length > 0) {
+    innerAugmentations += `    interface RedirectRoutesMap {\n${redirectRoutesMap}    }\n`
+  }
+  if (rewriteRoutes.length > 0) {
+    innerAugmentations += `    interface RewriteRoutesMap {\n${rewriteRoutesMap}    }\n`
+  }
+  if (appRouteHandlerRoutes.length > 0) {
+    innerAugmentations += `    interface AppRouteHandlerRoutesMap {\n${appRouteHandlerRoutesMap}    }\n`
+  }
+  if (paramMapEntries.length > 0) {
+    innerAugmentations += `    interface ParamMap {\n${paramMapEntries}    }\n`
+  }
+  if (layoutSlots.length > 0) {
+    innerAugmentations += `    interface LayoutSlots {\n${layoutSlots}    }\n`
+  }
+
+  return `declare global {
+  namespace __NextRouteTypes {
+${innerAugmentations}  }
+}`
+}
+
 export function generateRouteTypesFile(
   routesManifest: RouteTypesManifest
 ): string {
   const routeTypes = generateRouteTypes(routesManifest)
   const paramTypes = generateParamTypes(routesManifest)
   const layoutSlotMap = generateLayoutSlotMap(routesManifest)
+  const nextRouteTypesAugmentation =
+    generateNextRouteTypesAugmentation(routesManifest)
 
   const hasAppRouteHandlers =
     Object.keys(routesManifest.appRouteHandlerRoutes).length > 0
@@ -930,9 +1058,9 @@ export function generateRouteTypesFile(
 
   const exportStatement = `export type { ${routeExports.join(', ')} }`
 
-  const routeContextInterface = hasAppRouteHandlers
+  const routeContextDeclaration = hasAppRouteHandlers
     ? `
-
+declare global {
   /**
    * Context for Next.js App Router route handlers
    * @example
@@ -943,13 +1071,23 @@ export function generateRouteTypesFile(
    * }
    * \`\`\`
    */
-  interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes> {
-    params: Promise<ParamMap[AppRouteHandlerRoute]>
-  }`
+  interface RouteContext<
+    AppRouteHandlerRoute extends AppRouteHandlerRoutes = AppRouteHandlerRoutes
+  > {
+    params: Promise<
+      AppRouteHandlerRoute extends keyof __NextRouteTypes.ParamMap
+        ? __NextRouteTypes.ParamMap[AppRouteHandlerRoute]
+        : Record<string, string | string[] | undefined>
+    >
+  }
+}
+`
     : ''
 
   return `// This file is generated automatically by Next.js
 // Do not edit this file manually
+
+import 'next/types/routes'
 
 ${routeTypes}
 
@@ -961,38 +1099,7 @@ ${layoutSlotMap}
 
 ${exportStatement}
 
-declare global {
-  /**
-   * Props for Next.js App Router page components
-   * @example
-   * \`\`\`tsx
-   * export default function Page(props: PageProps<'/blog/[slug]'>) {
-   *   const { slug } = await props.params
-   *   return <div>Blog post: {slug}</div>
-   * }
-   * \`\`\`
-   */
-  interface PageProps<AppRoute extends AppRoutes> {
-    params: Promise<ParamMap[AppRoute]>
-    searchParams: Promise<Record<string, string | string[] | undefined>>
-  }
-
-  /**
-   * Props for Next.js App Router layout components
-   * @example
-   * \`\`\`tsx
-   * export default function Layout(props: LayoutProps<'/dashboard'>) {
-   *   return <div>{props.children}</div>
-   * }
-   * \`\`\`
-   */
-  type LayoutProps<LayoutRoute extends LayoutRoutes> = {
-    params: Promise<ParamMap[LayoutRoute]>
-    children: React.ReactNode
-  } & {
-    [K in LayoutSlotMap[LayoutRoute]]: React.ReactNode
-  }${routeContextInterface}
-}
+${nextRouteTypesAugmentation}${routeContextDeclaration}
 `
 }
 
@@ -1002,9 +1109,37 @@ export function generateRouteTypesFileStrict(
   const routeTypes = generateRouteTypes(routesManifest)
   const paramTypes = generateParamTypes(routesManifest)
   const layoutSlotMap = generateLayoutSlotMap(routesManifest)
+  const nextRouteTypesAugmentation =
+    generateNextRouteTypesAugmentation(routesManifest)
 
   const hasAppRouteHandlers =
     Object.keys(routesManifest.appRouteHandlerRoutes).length > 0
+
+  const routeContextDeclaration = hasAppRouteHandlers
+    ? `
+declare global {
+  /**
+   * Context for Next.js App Router route handlers
+   * @example
+   * \`\`\`tsx
+   * export async function GET(request: NextRequest, context: RouteContext<'/api/users/[id]'>) {
+   *   const { id } = await context.params
+   *   return Response.json({ id })
+   * }
+   * \`\`\`
+   */
+  interface RouteContext<
+    AppRouteHandlerRoute extends AppRouteHandlerRoutes = AppRouteHandlerRoutes
+  > {
+    params: Promise<
+      AppRouteHandlerRoute extends keyof __NextRouteTypes.ParamMap
+        ? __NextRouteTypes.ParamMap[AppRouteHandlerRoute]
+        : Record<string, string | string[] | undefined>
+    >
+  }
+}
+`
+    : ''
 
   // Build export statement based on what's actually generated
   const routeExports = [
@@ -1022,26 +1157,10 @@ export function generateRouteTypesFileStrict(
 
   const exportStatement = `export type { ${routeExports.join(', ')} }`
 
-  const routeContextInterface = hasAppRouteHandlers
-    ? `
-
-  /**
-   * Context for Next.js App Router route handlers
-   * @example
-   * \`\`\`tsx
-   * export async function GET(request: NextRequest, context: RouteContext<'/api/users/[id]'>) {
-   *   const { id } = await context.params
-   *   return Response.json({ id })
-   * }
-   * \`\`\`
-   */
-  interface RouteContext<AppRouteHandlerRoute extends AppRouteHandlerRoutes> {
-    params: Promise<ParamMap[AppRouteHandlerRoute]>
-  }`
-    : ''
-
   return `// This file is generated automatically by Next.js with experimental.strictRouteTypes
 // Do not edit this file manually
+
+import 'next/types/routes'
 
 ${routeTypes}
 
@@ -1053,37 +1172,6 @@ ${layoutSlotMap}
 
 ${exportStatement}
 
-declare global {
-  /**
-   * Props for Next.js App Router page components
-   * @example
-   * \`\`\`tsx
-   * export default function Page(props: PageProps<'/blog/[slug]'>) {
-   *   const { slug } = await props.params
-   *   return <div>Blog post: {slug}</div>
-   * }
-   * \`\`\`
-   */
-  interface PageProps<AppRoute extends AppRoutes> {
-    params: Promise<ParamMap[AppRoute]>
-    searchParams: Promise<Record<string, string | string[] | undefined>>
-  }
-
-  /**
-   * Props for Next.js App Router layout components
-   * @example
-   * \`\`\`tsx
-   * export default function Layout(props: LayoutProps<'/dashboard'>) {
-   *   return <div>{props.children}</div>
-   * }
-   * \`\`\`
-   */
-  type LayoutProps<LayoutRoute extends LayoutRoutes> = {
-    params: Promise<ParamMap[LayoutRoute]>
-    children: React.ReactNode
-  } & {
-    [K in LayoutSlotMap[LayoutRoute]]: React.ReactNode
-  }${routeContextInterface}
-}
+${nextRouteTypesAugmentation}${routeContextDeclaration}
 `
 }

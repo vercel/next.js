@@ -168,26 +168,10 @@ export function generateCacheLifeTypes(cacheLife: {
   // Redefine the cacheLife() accepted arguments.
   return `// Type definitions for Next.js cacheLife configs
 
+import 'next/cache'
+
 declare module 'next/cache' {
-  export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
-  export {
-    updateTag,
-    revalidateTag,
-    revalidatePath,
-    refresh,
-  } from 'next/dist/server/web/spec-extension/revalidate'
-  export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
-  export { io } from 'next/dist/server/request/io'
-  export { unstable_navigation } from 'next/dist/server/request/cache-stages'
-  export { unstable_prefetch } from 'next/dist/server/request/cache-stages'
-
   ${overloads}
-
-  import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
-  export { cacheTag }
-
-  export const unstable_cacheTag: typeof cacheTag
-  export const unstable_cacheLife: typeof cacheLife
 }
 `
 }
