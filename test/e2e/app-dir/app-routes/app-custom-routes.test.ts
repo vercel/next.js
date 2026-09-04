@@ -689,7 +689,8 @@ describe('app-custom-routes', () => {
     })
   }
 
-  // This test is skipped in deploy mode because `next.cliOutput` will only contain build-time logs.
+  // Deploy mode exclusion: This nested suite asserts local CLI output that
+  // deployments do not expose.
   if (!isNextDeploy) {
     describe('no response returned', () => {
       it('should print an error when no response is returned', async () => {

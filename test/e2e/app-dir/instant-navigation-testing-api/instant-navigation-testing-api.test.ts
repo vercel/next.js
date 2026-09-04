@@ -1323,6 +1323,9 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
 // lock) is a dev-time concern, so this suite uses a dedicated fixture and runs
 // in dev only; `next start`/deploy register a single placeholder so the build
 // is never attempted.
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('instant-navigation-testing-api - blocking routes (dev only)', () => {
   if (!isNextDev) {
     it('skips blocking route tests outside dev (route cannot be production-built)', () => {})
@@ -1331,7 +1334,6 @@ describe('instant-navigation-testing-api - blocking routes (dev only)', () => {
 
   const { next } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'blocking'),
-    skipDeployment: true,
   })
 
   // The cookie value must not commit while the instant lock is held; it only

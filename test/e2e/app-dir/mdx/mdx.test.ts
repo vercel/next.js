@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
 for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
+  // TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+  // It was excluded as a known deploy failure without a documented root cause.
   describe(`mdx ${type}`, () => {
     const { next } = nextTestSetup({
       files: __dirname,

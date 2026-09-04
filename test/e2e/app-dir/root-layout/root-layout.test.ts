@@ -1,19 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, check, getRedboxSource } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('app-dir root layout', () => {
-  const {
-    next,
-    isNextDev: isDev,
-    skipped,
-  } = nextTestSetup({
+  const { next, isNextDev: isDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isDev) {
     // TODO-APP: re-enable after reworking the error overlay.

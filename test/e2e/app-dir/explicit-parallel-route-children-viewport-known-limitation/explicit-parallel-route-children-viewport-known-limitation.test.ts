@@ -3,21 +3,19 @@ import { createRouterAct } from 'router-act'
 
 const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
+// Deploy mode exclusion: A deployed fixture cannot be patched before
+// startup. The ordinary deploy run remains covered; Cache Components
+// behavior is exercised in the local dev and production test runs.
+// @force-gate !deploy || !cacheComponents
 describe('explicit parallel route children viewport limitation', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     // Cache Components requires this route to declare `instant = false`, but
     // that declaration is invalid when Cache Components is disabled. Delay
     // startup only in that mode so we can add the declaration to the isolated
     // fixture first.
     skipStart: isCacheComponentsEnabled,
-    // A deployed fixture cannot be patched before startup. The ordinary deploy
-    // run remains covered; Cache Components behavior is exercised in the local
-    // dev and production test runs.
-    skipDeployment: isCacheComponentsEnabled,
   })
-
-  if (skipped) return
 
   beforeAll(async () => {
     if (!isCacheComponentsEnabled) return

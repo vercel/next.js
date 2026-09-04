@@ -2,15 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 
 // TODO-APP: fix test as it's failing randomly
 describe.skip('app-dir back button download bug', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // No deploy-specific incompatibility is documented.
+  // @force-gate !deploy
   describe('app-dir back button download bug', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should redirect route when clicking link', async () => {
       const browser = await next.browser('/')

@@ -6,13 +6,9 @@ import {
 } from './utils'
 
 describe('metadata-files-static-output-dynamic-route', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should have correct link tags for dynamic page with static placeholder', async () => {
     const browser = await next.browser('/dynamic/123')

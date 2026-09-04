@@ -18,8 +18,8 @@ describe('unrecognized server actions', () => {
     return next.cliOutput.slice(cliOutputPosition)
   }
 
-  // This is disabled when deployed because the 404 page will be served as a static route
-  // which will not support POST requests, and will return a 405 instead.
+  // Deploy mode exclusion: Deployed 404 pages are static routes, so POST
+  // requests return 405 instead of this suite's local 404 behavior.
   if (!isNextDeploy) {
     it('should 404 when POSTing a non-server-action request to a nonexistent page', async () => {
       const res = await next.fetch('/non-existent-route', {

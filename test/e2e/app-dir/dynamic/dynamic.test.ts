@@ -2,15 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import path from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('app dir - next/dynamic', () => {
-  const { next, isNextStart, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextStart, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should handle ssr: false in pages when appDir is enabled', async () => {
     const $ = await next.render$('/legacy/no-ssr')

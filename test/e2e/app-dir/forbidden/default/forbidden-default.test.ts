@@ -5,15 +5,13 @@ import {
   getRedboxDescription,
 } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('app dir - forbidden with default forbidden boundary', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // TODO: error forbidden usage in root layout
   it.skip('should error on client forbidden from root layout in browser', async () => {
