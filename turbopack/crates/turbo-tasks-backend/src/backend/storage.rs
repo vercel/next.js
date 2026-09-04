@@ -313,7 +313,10 @@ impl Storage {
     ) -> Vec<SnapshotShard<'l, P>> {
         let guard = Arc::new(guard);
         let modified_count = self.modified_count.swap(0, Ordering::Relaxed);
-        if modified_count == 0 && !drain_entries {
+        // `modified_count` is only a hint: an increment and its queue push are separate, and a
+        // crossing undo may saturating-decrement after a snapshot claimed its own increment. Only
+        // skip when both signals agree that there is no work.
+        if modified_count == 0 && self.dirty_tasks.is_empty() && !drain_entries {
             return Vec::new();
         }
 
@@ -391,7 +394,8 @@ impl Storage {
         // Enter snapshot mode first so concurrent modifications switch to the during-snapshot
         // path and stop incrementing the pre-snapshot count.
         self.snapshot_mode.store(true, Ordering::SeqCst);
-        let has_modifications = self.modified_count.load(Ordering::Relaxed) > 0;
+        let has_modifications =
+            self.modified_count.load(Ordering::Relaxed) > 0 || !self.dirty_tasks.is_empty();
         (SnapshotGuard::new(self), has_modifications)
     }
 
@@ -1451,6 +1455,27 @@ mod tests {
         assert_eq!(storage.map.task_id_scan_count(), scans + 1);
     }
 
+    #[tokio::test(flavor = "multi_thread")]
+    async fn queued_dirty_task_is_not_hidden_by_zero_count_hint() {
+        let storage = Storage::new(true);
+        let task_id = non_transient_task(1);
+        {
+            let mut task = storage.access_mut(task_id);
+            task.flags.set_data_modified(true);
+        }
+        storage.dirty_tasks.push(task_id).unwrap();
+        assert_eq!(storage.modified_count.load(Ordering::Relaxed), 0);
+
+        let (guard, has_modifications) = storage.start_snapshot();
+        assert!(has_modifications);
+        let items: Vec<_> = storage
+            .take_snapshot(guard, &dummy_process, false)
+            .into_iter()
+            .flat_map(IntoIterator::into_iter)
+            .collect();
+        assert_eq!(items.len(), 1);
+    }
+
     #[test]
     fn dirty_counter_decrement_saturates_at_zero() {
         let storage = Storage::new(true);
@@ -1496,12 +1521,18 @@ mod tests {
             assert!(!guard.flags.any_modified());
         }
 
-        // Counter is back to zero: the next snapshot sees no modifications.
-        let (_guard, has_modifications) = storage.start_snapshot();
-        assert!(
-            !has_modifications,
-            "undo must decrement the dirty counter so no modifications remain"
-        );
+        // The counter is back to zero, but the bounded work queue intentionally tolerates stale
+        // IDs because it cannot remove by value. This may conservatively report work for one
+        // cycle; the scan must still emit nothing and drain that stale entry.
+        assert_eq!(storage.modified_count.load(Ordering::Relaxed), 0);
+        let (guard, has_modifications) = storage.start_snapshot();
+        assert!(has_modifications);
+        let items: Vec<_> = storage
+            .take_snapshot(guard, &dummy_process, false)
+            .into_iter()
+            .flat_map(IntoIterator::into_iter)
+            .collect();
+        assert!(items.is_empty(), "undone work must not be persisted");
     }
 
     /// A second track on an already-modified category returns `NoChange`; undoing it is a no-op and
