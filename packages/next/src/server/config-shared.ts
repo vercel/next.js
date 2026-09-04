@@ -546,6 +546,13 @@ export interface ExperimentalConfig {
   concurrentRouterQueue?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
   varyParams?: boolean
+
+  /**
+   * Enables variants. A variant is a value resolved for each request, from
+   * cookies, headers, or a flags service, that a route can be prerendered
+   * against, in addition to its route params. Turbopack only.
+   */
+  variants?: boolean
   prefetchInlining?:
     | boolean
     | {
@@ -1586,6 +1593,14 @@ export type ExportPathMap = {
     _fallbackRouteParams?: readonly FallbackRouteParam[]
 
     /**
+     * The variant combination this entry is prerendered against, keyed by
+     * variant identity. Absent when the entry has no variants.
+     *
+     * @internal
+     */
+    _variantValues?: Readonly<Record<string, string>>
+
+    /**
      * @internal
      */
     _isAppDir?: boolean
@@ -2493,6 +2508,7 @@ export interface NextConfigRuntime {
     | 'exposeTestingApiInProductionBuild'
     | 'instantInsights'
     | 'requestInsights'
+    | 'variants'
   > & {
     // Pick on @internal fields generates invalid .d.ts files
     /** @internal */
@@ -2563,6 +2579,7 @@ export function getNextConfigRuntime(
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
+    variants: ex.variants,
 
     trustHostHeader: ex.trustHostHeader,
     isExperimentalCompile: ex.isExperimentalCompile,

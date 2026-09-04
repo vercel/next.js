@@ -30,6 +30,12 @@ import {
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import { isNonHtmlSecFetchDest } from '../../server/lib/is-non-html-sec-fetch-dest' with { 'turbopack-transition': 'next-server-utility' }
+import { insertVariantsPrefix } from '../../server/variants/prefix' with { 'turbopack-transition': 'next-server-utility' }
+import { decodeVariants } from '../../server/variants/hash' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  findVariantCombinationByHash,
+  splitVariantsByTier,
+} from '../../server/variants/combinations' with { 'turbopack-transition': 'next-server-utility' }
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../shared/lib/entry-constants' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
@@ -71,6 +77,8 @@ import {
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
+  NEXT_VARIANTS_HEADER,
+  NEXT_VARIANTS_QUERY_PARAM,
 } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
@@ -270,9 +278,129 @@ export function createAppPageEntrypoint({
       resolvedPathname,
       prerenderManifest
     )
-    const prerenderInfo = prerenderMatch?.route ?? null
 
-    const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
+    // The combination this request was prerendered against. It is null when the
+    // request was prerendered against none. A request carries every variant the
+    // proxy resolved, but an artifact contains only those a combination
+    // declared. This value separates the two: its values name the artifact and
+    // are fixed for it, and every other resolved variant is a dynamic hole.
+    //
+    // It is computed once, because three things need the same answer: the cache
+    // key, the cache key of the fallback shell, and the render itself.
+    //
+    // It is behind the flag, so that a project without variants compiles none
+    // of this, instead of matching against an empty list on every request.
+    const variantCombinationGroups = process.env.__NEXT_VARIANTS
+      ? prerenderManifest.variantCombinationGroups[normalizedSrcPage]
+      : undefined
+
+    // The values a proxy resolved for this request, decoded from the header
+    // they travelled in.
+    //
+    // This code reads the header here, and does not recover it upstream and
+    // pass it down, because this is the only site a self-hosted request and a
+    // deployed request are certain to share. Self-hosted, the proxy runs in the
+    // router server. Deployed, it runs at the CDN, and the route module that
+    // answers the request is where the origin first sees it. To read the header
+    // where it is consumed also keeps the two in one place, instead of one
+    // server producing a value that another server trusts.
+    //
+    // Only the variants that no combination declared come from here. The rest
+    // come from the build, below.
+    const encodedVariants = process.env.__NEXT_VARIANTS
+      ? req.headers[NEXT_VARIANTS_HEADER]
+      : undefined
+
+    const resolvedVariants =
+      typeof encodedVariants === 'string'
+        ? (decodeVariants(encodedVariants) ?? undefined)
+        : undefined
+
+    // This code recovers the combination from its hash, against what the build
+    // declared, and does not match the values the request carried.
+    //
+    // A hash reaches this route only because a proxy resolved a declared
+    // combination and put it on the path as a prefix. Its presence therefore
+    // already answers whether a combination matched, and the record the build
+    // made of that combination is what the artifact under that hash was
+    // prerendered from. To derive it from the request instead would let the
+    // values a render contains disagree with the ones its artifact was built
+    // for.
+    //
+    // It must also work for a request that carries no values at all. When a
+    // platform fills or revalidates a prerender, it rebuilds the request from
+    // the artifact, so the header is gone and only the hash in the path
+    // remains. Routing translates the prefix away before the origin matches a
+    // route, and the hash moves into this query parameter as it does so.
+    //
+    // This reads the routing query, and not the query of the URL, because the
+    // two modes put the values of routing in different places. Deployed, they
+    // are added to the URL the function is called with. Self-hosted, they are
+    // kept beside it, so that they stay out of `asPath`. The routing query is
+    // the merge of both.
+    const variantsHash = process.env.__NEXT_VARIANTS
+      ? query[NEXT_VARIANTS_QUERY_PARAM]
+      : undefined
+
+    // This code removes the parameter from the query once it has read it. The
+    // parameter is transport, as the prefix it came from is, and `searchParams`
+    // is the view the page has of what the client asked for, and not of how the
+    // request was routed.
+    if (typeof variantsHash === 'string') {
+      delete query[NEXT_VARIANTS_QUERY_PARAM]
+    }
+
+    const matchedVariants =
+      variantCombinationGroups?.length && typeof variantsHash === 'string'
+        ? findVariantCombinationByHash(variantCombinationGroups, variantsHash)
+        : null
+
+    // This names the artifact a path stands for, and not the route the path
+    // belongs to. The artifacts of a combination are written under its hash, so
+    // every cache key and every manifest lookup for this request goes through
+    // here. Anything that describes the route must not: route matching,
+    // interception patterns, and implicit revalidation tags are shared by every
+    // combination, and `revalidatePath('/x')` has to reach all of them.
+    //
+    // An unmatched combination keeps the plain path, which is where the
+    // prerender that omits variants is. A route that is not partially
+    // prerendered has no such prerender, and therefore nothing at that path,
+    // which is what makes such a request render for itself.
+    const toOutputPathname = (basePathname: string): string =>
+      matchedVariants
+        ? insertVariantsPrefix(basePathname, matchedVariants.hash)
+        : basePathname
+
+    const outputPathname = toOutputPathname(resolvedPathname)
+
+    const isPrerendered = !!prerenderManifest.routes[outputPathname]
+
+    // Each combination has a fallback shell of its own, and the shells do not
+    // agree: one can be empty where another is not, and that decides whether a
+    // request is served a shell or rendered blocking. Therefore the entry that
+    // describes the matched combination is the one that must answer this
+    // request.
+    //
+    // This code finds the entry by key, and not by matching, because the route
+    // regex of the entry covers the prefixed path while route matching runs
+    // against the pathname with the prefix already removed. That is deliberate.
+    // A regex over the plain route would let the entry of one combination match
+    // a request that resolved to another.
+    const matchedVariantsPrerenderInfo = matchedVariants
+      ? prerenderManifest.dynamicRoutes[toOutputPathname(normalizedSrcPage)]
+      : undefined
+
+    const prerenderInfo =
+      matchedVariantsPrerenderInfo ?? prerenderMatch?.route ?? null
+
+    // The split gives a render only what it may treat as fixed. A render may
+    // contain the matched combination, and may not contain anything else the
+    // proxy resolved, so a store that must not contain a value does not receive
+    // it.
+    const variantsByTier = splitVariantsByTier(
+      resolvedVariants,
+      matchedVariants
+    )
 
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
@@ -486,7 +614,7 @@ export function createAppPageEntrypoint({
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
     const staticPrefetchDataRoute =
-      prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+      prerenderManifest.routes[outputPathname]?.prefetchDataRoute
 
     let isDynamicRSCRequest =
       isRoutePPREnabled &&
@@ -545,6 +673,16 @@ export function createAppPageEntrypoint({
     const supportsRDCForNavigations =
       isRoutePPREnabled && nextConfig.cacheComponents === true
 
+    // A combination nobody declared is served from the prerender that omits
+    // variants, and a route that is not partially prerendered has no such
+    // prerender: omitting a variant leaves a hole only a resume can fill. So
+    // the request is rendered for itself instead. Without this it would take
+    // the static path, where a variant read has no value to find and interrupts
+    // static generation.
+    const requiresDynamicResponseForVariants = Boolean(
+      !isRoutePPREnabled && variantCombinationGroups?.length && !matchedVariants
+    )
+
     // In development, we always want to generate dynamic HTML.
     const supportsDynamicResponse: boolean =
       // If we're in development, we always support dynamic HTML, unless it's
@@ -555,6 +693,7 @@ export function createAppPageEntrypoint({
       // If this is not SSG or does not have static paths, then it supports
       // dynamic HTML.
       !isSSG ||
+      requiresDynamicResponseForVariants ||
       // If this request has provided postponed data, it supports dynamic
       // HTML.
       hasPostponedState ||
@@ -639,6 +778,14 @@ export function createAppPageEntrypoint({
         }
       } else {
         ssgCacheKey = resolvedPathname
+      }
+
+      // The cache key is what the incremental cache turns into a path on disk,
+      // so it names an artifact. This applies to a completed shell key as much
+      // as to a resolved pathname: a shell prerendered against one combination
+      // must not be served for another.
+      if (ssgCacheKey !== null) {
+        ssgCacheKey = toOutputPathname(ssgCacheKey)
       }
     }
 
@@ -858,6 +1005,12 @@ export function createAppPageEntrypoint({
             Component: interopDefault(ComponentMod),
 
             params,
+            // The combination this request resolved to, so that a prerender
+            // generated on demand is generated *for* it. At build time this
+            // comes from the export task instead; here the proxy has already
+            // resolved it and the cache key is derived from the same values, so
+            // the entry produced lands at the key the request looked up.
+            ...variantsByTier,
             routeModule,
             page: srcPage,
             postponed,
@@ -1178,10 +1331,22 @@ export function createAppPageEntrypoint({
                 ? !isDynamicRSCRequest
                 : !isRSCRequest)
             ) {
-              const cacheKey =
+              // A fallback shell is prerendered once per declared combination,
+              // so the shell's own cache key names an artifact too. Without
+              // that every combination resolves to the same shell and a request
+              // is served content prerendered for a combination other than its
+              // own.
+              //
+              // `prerenderInfo.fallback` already names one, because the entry
+              // it came from is the one keyed by this combination. Only the
+              // route pattern fallen back to below is bare and needs the
+              // combination folded in.
+              const fallbackCacheKey =
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
                   : normalizedSrcPage
+
+              const cacheKey = toOutputPathname(fallbackCacheKey)
 
               let fallbackRouteParams: OpaqueFallbackRouteParams | null
               if (isProduction) {
@@ -1374,8 +1539,14 @@ export function createAppPageEntrypoint({
             // from entering an infinite loop of revalidations.
             !forceStaticRender
           ) {
+            // The key is the artifact, so that a request resumes from the
+            // postponed state of the combination it matched. The entry that
+            // omits variants leaves a variant read as a hole, and does not
+            // contain the value. Therefore, to resume a matched request from
+            // that entry would discard the shell its combination was
+            // prerendered against.
             const incrementalCacheEntry = await incrementalCache.get(
-              resolvedPathname,
+              outputPathname,
               {
                 kind: IncrementalCacheKind.APP_PAGE,
                 isRoutePPREnabled: true,
@@ -1411,7 +1582,7 @@ export function createAppPageEntrypoint({
 
                   try {
                     await responseCache.revalidate(
-                      resolvedPathname,
+                      outputPathname,
                       incrementalCache,
                       isRoutePPREnabled,
                       false,

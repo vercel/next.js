@@ -37,6 +37,9 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   MATCHED_PATH_HEADER,
+  NEXT_VARIANTS_HEADER,
+  NEXT_VARIANTS_QUERY_PARAM,
+  VARIANTS_PATH_PREFIX,
   type RSC_SEGMENTS_DIR_SUFFIX,
   type RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
@@ -82,6 +85,7 @@ import {
   SERVER_REFERENCE_MANIFEST,
   FUNCTIONS_CONFIG_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
+  VARIANTS_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
   PREVIEW_PROPS_MANIFEST,
 } from '../shared/lib/constants'
@@ -97,6 +101,9 @@ import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
+import { getVariantOutputPath } from '../server/variants/prefix'
+import type { VariantCombinationGroups } from '../server/variants/combinations'
+import type { VariantsManifest } from '../server/variants/manifest'
 import * as ciEnvironment from '../server/ci-info'
 import {
   turborepoTraceAccess,
@@ -153,7 +160,10 @@ import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { installBindings } from './swc/install-bindings'
-import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
+import {
+  getNamedRouteRegex,
+  getRouteRegex,
+} from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
 import {
@@ -416,6 +426,20 @@ export type PrerenderManifest = {
   notFoundRoutes: string[]
   /** @deprecated only kept for the builder, use PreviewPropsManifest within Next.js itself */
   preview: __ApiPreviewProps
+
+  /**
+   * The variant combinations each page declared, grouped by which variants they
+   * assign, and keyed by page. A request is matched against these groups to
+   * find the combination it was prerendered against. That combination decides
+   * which artifact serves the request, and which of its variants the artifact
+   * contains rather than leaves as dynamic holes.
+   *
+   * This is keyed by page, and not carried on a route entry, because every page
+   * that declares combinations needs it. That includes a page whose route has
+   * no fallback shell, and therefore no `dynamicRoutes` entry to hold it. The
+   * map is empty unless some page declared combinations.
+   */
+  variantCombinationGroups: { [page: string]: VariantCombinationGroups }
 }
 
 function getPprAppPageClassification(
@@ -460,6 +484,101 @@ function getPprAppPageClassification(
       : 'static',
     htmlSize: result.htmlSize,
   }
+}
+
+/**
+ * Turns the combination groups of each page into the form the proxy matches
+ * against.
+ *
+ * Static routes are held apart from dynamic ones, so that the proxy can answer
+ * the common case by lookup, and so that no dynamic route that matches the same
+ * pathname can hide a concrete page. Dynamic routes keep the order that
+ * `sortPages` gives them, which is the order route matching resolves them in
+ * everywhere else.
+ */
+function buildVariantsManifest(
+  groupsByPage: ReadonlyMap<string, VariantCombinationGroups>
+): VariantsManifest {
+  const manifest: VariantsManifest = {
+    version: 1,
+    staticRoutes: {},
+    dynamicRoutes: [],
+  }
+
+  const dynamicPages: string[] = []
+
+  for (const page of groupsByPage.keys()) {
+    if (isDynamicRoute(page)) {
+      dynamicPages.push(page)
+    } else {
+      const groups = groupsByPage.get(page)
+
+      if (groups) {
+        manifest.staticRoutes[page] = groups
+      }
+    }
+  }
+
+  for (const page of sortPages(dynamicPages)) {
+    const groups = groupsByPage.get(page)
+
+    if (groups) {
+      manifest.dynamicRoutes.push({
+        regex: getRouteRegex(page).re.source,
+        groups,
+      })
+    }
+  }
+
+  return manifest
+}
+
+/**
+ * Aliases of each variant route. An alias matches the same page under the
+ * prefix of a combination.
+ *
+ * A request normally reaches the origin with the prefix already translated
+ * away, because the routing output carries a rule whose source matches the
+ * prefix and whose destination is the plain page. A request can also reach the
+ * origin without ever being routed: when a platform fills or revalidates a
+ * prerender, it builds that request from the path of the artifact, which
+ * carries the prefix, so nothing translates it. The page must still resolve in
+ * that case, and route matching is where that is decided.
+ *
+ * `page` stays plain, so that it names a real page with a real module, and only
+ * the regexes carry the prefix. The prefix is captured under the same name the
+ * routing rule uses, so a matcher that moves capture groups into the query
+ * passes the combination on exactly as it would for a routed request.
+ *
+ * The hash is matched by its shape, and not enumerated, as the prefix is
+ * recognized everywhere else. Therefore one alias covers every combination of
+ * its page.
+ */
+function buildVariantRouteAliases(
+  pages: Iterable<string>
+): DynamicManifestRoute[] {
+  const aliases: DynamicManifestRoute[] = []
+
+  for (const page of pages) {
+    const routeRegex = getNamedRouteRegex(page, { prefixRouteKeys: true })
+
+    aliases.push({
+      page,
+      sourcePage: undefined,
+      regex: normalizeRouteRegex(
+        routeRegex.re.source.replace('^', `^/${VARIANTS_PATH_PREFIX}/[^/]+`)
+      ),
+      routeKeys: routeRegex.routeKeys,
+      namedRegex: routeRegex.namedRegex.replace(
+        '^',
+        `^/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
+      ),
+      skipInternalRouting: true,
+      variantsPrefixed: true,
+    })
+  }
+
+  return aliases
 }
 
 function getStaticAppPageClassification(
@@ -539,6 +658,16 @@ export type ManifestRoute = ManifestBuiltRoute & {
    * routers.
    */
   skipInternalRouting?: boolean
+
+  /**
+   * True when this route matches an alternate path for its page, and not the
+   * path of the page itself. Nothing can then derive `regex` and `namedRegex`
+   * from `page` again, and a caller must read them from the entry. The
+   * variant-prefixed aliases set this. They exist so that a router outside
+   * Next.js can resolve a request that arrived under the prefix of a
+   * combination.
+   */
+  variantsPrefixed?: boolean
 }
 
 type ManifestDataRoute = {
@@ -2173,6 +2302,13 @@ export default async function build(
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
+      // This is collected here because the build gathers page data before the
+      // prerender manifest exists, and moves it into the manifest once the
+      // manifest exists.
+      const variantCombinationGroupsByPage = new Map<
+        string,
+        VariantCombinationGroups
+      >()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
       const pageInfos: PageInfos = new Map<string, PageInfo>()
       let pagesManifest = await readManifest<PagesManifest>(pagesManifestPath)
@@ -2617,7 +2753,15 @@ export default async function build(
                             // - It has no dynamic param
                             // - It doesn't have generateStaticParams but `dynamic` is set to
                             //   `error` or `force-static`
-                            if (!isDynamic) {
+                            //
+                            // A route with no dynamic params is prerendered
+                            // once, and needs the one route synthesized for it
+                            // here. A route that declared variant combinations
+                            // is different: the worker already expanded it into
+                            // one route per combination, and to replace those
+                            // with a single route would drop every combination
+                            // it declared.
+                            if (!isDynamic && !workerResult.prerenderedRoutes) {
                               staticPaths.set(originalAppPath, [
                                 {
                                   params: {},
@@ -2646,6 +2790,15 @@ export default async function build(
                             fallbackModes.set(
                               originalAppPath,
                               workerResult.prerenderFallbackMode
+                            )
+                          }
+
+                          if (workerResult.variantCombinationGroups?.length) {
+                            // The key is the page as the runtime knows it,
+                            // which is what a request is matched against.
+                            variantCombinationGroupsByPage.set(
+                              page,
+                              workerResult.variantCombinationGroups
                             )
                           }
 
@@ -3010,7 +3163,46 @@ export default async function build(
         dynamicRoutes: {},
         notFoundRoutes: [],
         preview: previewProps,
+        variantCombinationGroups: Object.fromEntries(
+          variantCombinationGroupsByPage
+        ),
       }
+
+      // The same combinations again, in the form the proxy needs. The proxy
+      // runs before any routing of ours. The origin can look the groups of its
+      // route up by name, but the proxy must first match a pathname, and it
+      // needs the regexes to do that.
+      //
+      // The build writes this file whenever the flag is on, and writes it even
+      // when the map is empty. The proxy then reads a file that is either
+      // present and current, or absent because the feature is off, and never
+      // has to tell a stale file from a missing one.
+      if (config.experimental.variants) {
+        await writeManifest(
+          path.join(distDir, SERVER_DIRECTORY, `${VARIANTS_MANIFEST}.json`),
+          buildVariantsManifest(variantCombinationGroupsByPage)
+        )
+      }
+
+      // The variants header means something only to a project that has
+      // variants. The `allowHeader` of every route is part of the build output,
+      // so to add the header always would change the output of every project
+      // that has none.
+      //
+      // TODO(variants): make this gate narrower. The flag only stands in for
+      // the question until GA removes it. Whether the project exports a variant
+      // at all is equally sound, and it outlives the flag. Per-route is the end
+      // state, because `allowHeader` is already per entry, but it needs the
+      // emit and collect substrate to answer which routes can reach a variant
+      // reader. Do not use `generateStaticVariants` for this: to declare is not
+      // to read, and a route that reads an undeclared variant needs the header
+      // most, because the value that arrives at request time is the only thing
+      // that fills the hole. Stay over-inclusive when unsure. `allowHeader`
+      // forwards a header without keying on it, so a spare header costs bytes,
+      // and a missing one becomes a read that hangs.
+      const allowHeader: string[] = config.experimental.variants
+        ? [...ALLOWED_HEADERS, NEXT_VARIANTS_HEADER]
+        : ALLOWED_HEADERS
 
       // Accumulate per-route segment inlining decisions for
       // prefetch-hints.json. First-writer-wins: if multiple param
@@ -3178,14 +3370,38 @@ export default async function build(
                     return
                   }
 
-                  defaultMap[route.pathname] = {
+                  // The export map is keyed by the path the artifact is written
+                  // to, and `_ssgPath` carries the path that is rendered. A
+                  // variant combination uses that split. It renders the same
+                  // route as every other combination, so only the written path
+                  // separates them, by the hash of the combination.
+                  const outputPath = getVariantOutputPath(
+                    route.pathname,
+                    route.variantValues
+                  )
+
+                  defaultMap[outputPath] = {
                     page: originalAppPath,
                     _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
-                    _allowEmptyStaticShell: !route.throwOnEmptyStaticShell,
+                    // A prerender that omits the variants answers every request
+                    // whose combination was not declared, and nothing later
+                    // replaces it, because a combination is not an axis a
+                    // prerender is produced for. It therefore may not be empty,
+                    // which requires a boundary above each variant read.
+                    //
+                    // Such a prerender is allowed to be empty only where the
+                    // params say so, which is where a concrete prerender backs
+                    // the shell. A route without params has no such entry, so
+                    // an absent value is not an allowance for it.
+                    _allowEmptyStaticShell:
+                      route.omitsVariants === true
+                        ? route.throwOnEmptyStaticShell === false
+                        : !route.throwOnEmptyStaticShell,
+                    _variantValues: route.variantValues,
                     // A fallback shell can only be upgraded if at least one of
                     // its fallback params is a `generateStaticParams` candidate,
                     // and only when Partial Prefetching is enabled. Otherwise
@@ -3262,10 +3478,19 @@ export default async function build(
             // If the route has an empty static shell and is not configured to
             // throw on empty static shell, then we should use the blocking
             // static render mode.
+            //
+            // This never applies to a prerender that omits variants. A blocking
+            // render would resolve the variants that prerender deliberately
+            // left out, and would put them in an entry whose key does not
+            // mention them. The next request that carried different values
+            // would then be served these ones. It stays a prerender, and the
+            // resume supplies the values for each request instead, which is
+            // also what keeps one entry from becoming one entry per value.
             if (
               prerenderCandidate &&
               hasEmptyStaticShell &&
               !prerenderCandidate.throwOnEmptyStaticShell &&
+              !prerenderCandidate.omitsVariants &&
               matcher.fallbackMode === FallbackMode.PRERENDER
             ) {
               return FallbackMode.BLOCKING_STATIC_RENDER
@@ -3403,6 +3628,22 @@ export default async function build(
                     },
                   ]
                 : []),
+              // No prerender of this route can serve a combination that nobody
+              // declared. Without partial prerendering there is no hole to
+              // leave the variant in, so the request must render for itself. A
+              // bypass is what keeps it out of the entry of the prerender, so
+              // that a value nobody declared never seeds one, and no two such
+              // requests share a cached answer.
+              //
+              // The header is present in exactly that case. The origin recovers
+              // what a declared combination assigns from the hash in the path,
+              // so the proxy sends only what no combination covers. A route
+              // that can be prerendered here at all is a route that declares
+              // every variant it reads.
+              ...(!isRoutePPREnabled &&
+              variantCombinationGroupsByPage.get(page)?.length
+                ? [{ type: 'header' as const, key: NEXT_VARIANTS_HEADER }]
+                : []),
             ]
 
             // Candidates without unknown params can become concrete static
@@ -3488,7 +3729,21 @@ export default async function build(
               if (isDynamicRoute(page) && route.pathname === page) continue
 
               const pageInfo = pageInfos.get(page) as PageInfo
-              const routeResult = exportResult.byPath.get(route.pathname)
+
+              // The path the artifacts of this route were written to. For a
+              // variant combination that path carries the hash of the
+              // combination as a prefix. Everything that names those artifacts
+              // derives from this one value. If each site derived it again, one
+              // of them could keep the plain pathname without any error: a
+              // lookup that misses returns a plausible wrong answer, such as no
+              // cache control, the entry of another combination, or a data
+              // route that names a file nobody wrote.
+              const outputPathname = getVariantOutputPath(
+                route.pathname,
+                route.variantValues
+              )
+
+              const routeResult = exportResult.byPath.get(outputPathname)
               const {
                 metadata = {},
                 hasEmptyStaticShell,
@@ -3497,7 +3752,7 @@ export default async function build(
               } = routeResult ?? {}
 
               const cacheControl = getCacheControl(
-                route.pathname,
+                outputPathname,
                 appConfig.revalidate
               )
 
@@ -3532,7 +3787,7 @@ export default async function build(
               }
 
               if (cacheControl.revalidate !== 0) {
-                const normalizedRoute = normalizePagePath(route.pathname)
+                const normalizedRoute = normalizePagePath(outputPathname)
 
                 let dataRoute: string | null
                 if (isAppRouteHandler) {
@@ -3576,7 +3831,13 @@ export default async function build(
                   }
                 }
 
-                prerenderManifest.routes[route.pathname] = {
+                // The key is the path the artifact was written to, so that each
+                // entry describes the render that produced it. A combination
+                // goes to its prefixed path, and the render that omits variants
+                // goes to the plain path, which is what an undeclared
+                // combination resolves to. A route without variants writes the
+                // plain path as before.
+                prerenderManifest.routes[outputPathname] = {
                   initialStatus: status,
                   initialHeaders: meta.headers,
                   renderingMode: isAppPPREnabled
@@ -3592,7 +3853,7 @@ export default async function build(
                   srcRoute: page,
                   dataRoute,
                   prefetchDataRoute,
-                  allowHeader: ALLOWED_HEADERS,
+                  allowHeader,
                 }
               } else {
                 hasRevalidateZero = true
@@ -3699,12 +3960,16 @@ export default async function build(
                   continue
                 }
 
-                // This is the artifact associated with this matcher entry. It
-                // currently has the same pathname as the logical matcher, but
-                // that is not an invariant: variants can write several
-                // artifacts for one matcher under distinct output paths.
-                const prerenderOutputPathname =
-                  prerenderCandidate?.pathname ?? route.pathname
+                // The path this fallback shell was written to. For a variant
+                // combination that path carries the hash of the combination as
+                // a prefix. It is named once, so that the lookups below cannot
+                // disagree about which shell they describe.
+                const prerenderOutputPathname = prerenderCandidate
+                  ? getVariantOutputPath(
+                      prerenderCandidate.pathname,
+                      prerenderCandidate.variantValues
+                    )
+                  : route.pathname
 
                 const normalizedRoute = normalizePagePath(
                   prerenderOutputPathname
@@ -3791,9 +4056,42 @@ export default async function build(
                         '$segment'
                       )
                     dynamicRoute.prefetchSegmentDataRoutes ??= []
-                    dynamicRoute.prefetchSegmentDataRoutes.push(
+
+                    // This route is built from the matcher and from the page
+                    // segment path of the candidate. Candidates are grouped by
+                    // pathname, so the matcher is fixed, and every candidate of
+                    // one matcher has given the same segment path in every
+                    // build measured. Therefore the route repeats, once per
+                    // candidate, and a route that declares variant
+                    // combinations has one candidate per combination.
+                    //
+                    // The other per-candidate writes in this loop cannot
+                    // repeat themselves. The manifest entry above is looked up
+                    // in the same array it is pushed to, so the next candidate
+                    // finds it. Prefetch hints keep the first writer. The
+                    // prerender manifest entry is keyed on the output path,
+                    // which carries the combination. This array is the one
+                    // that is appended to without a key, and routing takes the
+                    // first match, so a repeated entry is reached by nothing.
+                    //
+                    // The route is compared in full, and not by one field of
+                    // it. The segment path is candidate data, and nothing here
+                    // holds it constant, so a candidate that gives a different
+                    // one contributes its own route rather than losing it.
+                    const builtSegmentDataRouteKey = JSON.stringify(
                       builtSegmentDataRoute
                     )
+                    const hasSegmentDataRoute =
+                      dynamicRoute.prefetchSegmentDataRoutes.some(
+                        (existing) =>
+                          JSON.stringify(existing) === builtSegmentDataRouteKey
+                      )
+
+                    if (!hasSegmentDataRoute) {
+                      dynamicRoute.prefetchSegmentDataRoutes.push(
+                        builtSegmentDataRoute
+                      )
+                    }
                   }
 
                   // Collect prefetch hints (first-writer-wins per page)
@@ -3850,6 +4148,11 @@ export default async function build(
                     ? cacheControl
                     : undefined
 
+                // This names the shell written for this combination, and not
+                // the route it belongs to. An external router serves this file
+                // as it is, so the plain pathname would give every combination
+                // the shell that omits variants. For a route that reads a
+                // variant above its boundary, that shell is empty.
                 const fallback: Fallback = fallbackModeToFallbackField(
                   fallbackMode,
                   route.pathname
@@ -3883,6 +4186,13 @@ export default async function build(
                   }
                 }
 
+                // Each combination has a shell of its own, so each needs an
+                // entry of its own. One entry per route pattern could describe
+                // only one of them, and whichever was written last would decide
+                // how every other combination is served.
+                //
+                // The `fallback` field stays the route pattern, which is what
+                // the runtime combines the combination of the request into.
                 prerenderManifest.dynamicRoutes[prerenderOutputPathname] = {
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
@@ -3894,6 +4204,13 @@ export default async function build(
                     : undefined,
                   ...classification,
                   experimentalBypassFor: bypassFor,
+                  // The regex comes from the prefixed path, so that this
+                  // entry matches only requests that carry its own
+                  // combination. A regex that
+                  // covered the plain route would also match a pathname the
+                  // prefix was removed from, and route matching would then pick
+                  // the entry of one combination for a request that resolved to
+                  // another.
                   routeRegex: normalizeRouteRegex(
                     getNamedRouteRegex(prerenderOutputPathname, {
                       prefixRouteKeys: false,
@@ -3933,7 +4250,7 @@ export default async function build(
                           excludeOptionalTrailingSlash: true,
                         }).re.source
                       ),
-                  allowHeader: ALLOWED_HEADERS,
+                  allowHeader,
                 }
               }
             }
@@ -4178,7 +4495,7 @@ export default async function build(
                         `${localePage}.json`
                       ),
                       prefetchDataRoute: undefined,
-                      allowHeader: ALLOWED_HEADERS,
+                      allowHeader,
                     }
                   }
                 } else {
@@ -4208,7 +4525,7 @@ export default async function build(
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
-                    allowHeader: ALLOWED_HEADERS,
+                    allowHeader,
                   }
                 }
                 if (pageInfo) {
@@ -4247,7 +4564,7 @@ export default async function build(
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
-                    allowHeader: ALLOWED_HEADERS,
+                    allowHeader,
                   }
 
                   if (pageInfo) {
@@ -4260,6 +4577,12 @@ export default async function build(
 
           await writeManifest(pagesManifestPath, pagesManifest)
         })
+
+        if (config.experimental.variants) {
+          dynamicRoutes.push(
+            ...buildVariantRouteAliases(variantCombinationGroupsByPage.keys())
+          )
+        }
 
         // As we may have modified the dynamicRoutes, we need to sort the
         // dynamic routes by page.
@@ -4391,7 +4714,7 @@ export default async function build(
             // Pages does not have a prefetch data route.
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,
-            allowHeader: ALLOWED_HEADERS,
+            allowHeader,
           }
         })
 
@@ -4431,6 +4754,7 @@ export default async function build(
           routes: {},
           dynamicRoutes: {},
           notFoundRoutes: [],
+          variantCombinationGroups: {},
           preview: previewProps,
         })
       }

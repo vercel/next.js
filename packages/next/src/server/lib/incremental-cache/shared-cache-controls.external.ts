@@ -40,7 +40,12 @@ export class SharedCacheControls {
     let cacheControl = SharedCacheControls.cacheControls.get(route)
     if (cacheControl) return cacheControl
 
-    let prerenderData = this.prerenderManifest.routes[route]
+    // A variant combination is cached under its own key and has a manifest
+    // entry under that same key, so the plain lookup finds it. Combinations of
+    // one route genuinely do differ here: a variant value read outside a cache
+    // scope and passed into one can select a different `cacheLife`, which then
+    // describes the whole prerender, so the entries must not be shared.
+    const prerenderData = this.prerenderManifest.routes[route]
 
     if (prerenderData) {
       const { initialRevalidateSeconds, initialExpireSeconds } = prerenderData
