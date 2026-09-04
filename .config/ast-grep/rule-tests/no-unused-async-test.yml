@@ -1,0 +1,36 @@
+id: no-unused-async
+valid:
+  - 'async { work().await }'
+  - 'async move { work().await }'
+  - 'async || work().await'
+  - 'async move |value| process(value).await'
+  - 'async { join!(left, right) }'
+  - 'async move { tokio::join!(left, right) }'
+  - |
+    async {
+        assert_eq!(work().await, expected);
+    }
+  - |
+    async move || {
+        assert!(work().await);
+    }
+invalid:
+  - 'async {}'
+  - 'async { work() }'
+  - 'async move { work() }'
+  - 'async || value'
+  - 'async move |value| process(value)'
+  - |
+    async {
+        let future = async { work().await };
+        future
+    }
+  - |
+    async || {
+        let callback = async || work().await;
+        callback
+    }
+  - |
+    async {
+        async { join!(left, right) }
+    }

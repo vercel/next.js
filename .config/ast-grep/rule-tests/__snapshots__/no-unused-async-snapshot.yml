@@ -1,0 +1,72 @@
+id: no-unused-async
+snapshots:
+  async move { work() }:
+    labels:
+    - source: async move { work() }
+      style: primary
+      start: 0
+      end: 21
+  async move |value| process(value):
+    labels:
+    - source: async move |value| process(value)
+      style: primary
+      start: 0
+      end: 33
+  ? |
+    async {
+        async { join!(left, right) }
+    }
+  : labels:
+    - source: |-
+        async {
+            async { join!(left, right) }
+        }
+      style: primary
+      start: 0
+      end: 42
+  ? |
+    async {
+        let future = async { work().await };
+        future
+    }
+  : labels:
+    - source: |-
+        async {
+            let future = async { work().await };
+            future
+        }
+      style: primary
+      start: 0
+      end: 61
+  async { work() }:
+    labels:
+    - source: async { work() }
+      style: primary
+      start: 0
+      end: 16
+  async {}:
+    labels:
+    - source: async {}
+      style: primary
+      start: 0
+      end: 8
+  async || value:
+    labels:
+    - source: async || value
+      style: primary
+      start: 0
+      end: 14
+  ? |
+    async || {
+        let callback = async || work().await;
+        callback
+    }
+  : labels:
+    - source: |-
+        async || {
+            let callback = async || work().await;
+            callback
+        }
+      style: primary
+      start: 0
+      end: 67
