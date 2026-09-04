@@ -12,6 +12,7 @@ import { banner, locale, theme } from './variants'
 // route renders.
 const variantsByRoute = {
   '/': [banner, locale, theme],
+  '/conditional-runtime/[slug]': [banner, theme],
   '/enumerated/[slug]': [locale, theme],
   '/on-demand/[slug]': [banner, theme],
   '/paramless': [locale, theme],
@@ -54,6 +55,7 @@ export const config = {
     '/',
     '/rewrite-source',
     '/external',
+    '/conditional-runtime/:slug',
     '/enumerated/:slug',
     '/shell/:slug',
     '/on-demand/:slug',

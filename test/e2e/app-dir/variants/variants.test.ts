@@ -479,6 +479,34 @@ import { startExternalServer } from './external-server.mjs'
     expect(light('#theme').text()).toBe('light')
   })
 
+  it('should render an unknown param dynamically when it reads a runtime variant', async () => {
+    if (isNextStart) {
+      const response = await next.fetch(url('/conditional-runtime/built'), {
+        headers: { cookie: 'theme=dark' },
+      })
+
+      expect(response.headers.get('x-nextjs-cache')).toBe('HIT')
+    }
+
+    for (const banner of ['first', 'second']) {
+      const browser = await next.browser(url('/conditional-runtime/runtime'), {
+        async beforePageLoad(page: Playwright.Page) {
+          await page.context().addCookies([
+            { name: 'theme', value: 'dark', url: next.url },
+            { name: 'banner', value: banner, url: next.url },
+          ])
+        },
+      })
+
+      await retry(async () => {
+        expect(await browser.elementByCss('#theme').text()).toBe('dark')
+        expect(await browser.elementByCss('#banner').text()).toBe(banner)
+      })
+
+      expect(await browser.elementByCss('#slug').text()).toBe('runtime')
+    }
+  })
+
   it('should prerender a fallback shell per variant combination', async () => {
     // `shell/[slug]` declares no static params, so its fallback shell is the
     // only thing prerendered for it. That shell reads a variant above the
