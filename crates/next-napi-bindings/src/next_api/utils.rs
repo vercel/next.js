@@ -47,20 +47,18 @@ use crate::next_api::turbopack_ctx::NextTurbopackContext;
 /// handle exists.
 pub struct DetachedVc<T> {
     turbopack_ctx: NextTurbopackContext,
-    /// The Vc. Must be unresolved, otherwise you are referencing an inactive operation.
-    vc: OperationVc<T>,
-    /// Holds a pin on this operation to prevent GC
-    _gc_root: GcRoot,
+    /// Pins the operation to prevent GC, and holds the `Vc` itself. Must be unresolved, otherwise
+    /// you are referencing an inactive operation.
+    gc_root: GcRoot<T>,
 }
 
 impl<T> DetachedVc<T> {
     pub fn new(turbopack_ctx: NextTurbopackContext, vc: OperationVc<T>) -> Self {
         // Pin the operation's task so GC treats this out-of-graph handle as a root.
-
+        let gc_root = GcRoot::pin(turbopack_ctx.turbo_tasks().clone(), vc);
         Self {
             turbopack_ctx,
-            vc,
-            _gc_root: GcRoot::pin(turbopack_ctx.turbo_tasks().clone(), vc.task_id()),
+            gc_root,
         }
     }
 
@@ -73,7 +71,7 @@ impl<T> Deref for DetachedVc<T> {
     type Target = OperationVc<T>;
 
     fn deref(&self) -> &Self::Target {
-        &self.vc
+        &self.gc_root
     }
 }
 

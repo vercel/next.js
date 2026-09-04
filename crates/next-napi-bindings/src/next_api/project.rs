@@ -420,7 +420,7 @@ pub struct ProjectInstance {
     // Never locked across an await point.
     exit_receiver: Mutex<Option<ExitReceiver>>,
     // Pin the ProjectContainer for as long as this struct survives.
-    _container_gc_root: GcRoot,
+    _container_gc_root: GcRoot<ProjectContainer>,
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
@@ -615,17 +615,17 @@ pub fn project_new<'env>(
             let options = ProjectOptions::from(options);
             let is_dev = options.dev;
             let root_path = options.root_path.clone();
-            let (container, container_root_task) = turbo_tasks
+            let (container, container_op) = turbo_tasks
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     ProjectContainer::initialize(container_op, options).await?;
                     let container = container_op.resolve().strongly_consistent().await?;
-                    // Capture the container task id so we can pin it below
-                    Ok((container, container_op.task_id()))
+                    // Return the operation itself so we can pin it below
+                    Ok((container, container_op))
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
-            let container_gc_root = GcRoot::pin(turbo_tasks.clone(), container_root_task);
+            let container_gc_root = GcRoot::pin(turbo_tasks.clone(), container_op);
 
             if is_dev {
                 Handle::current().spawn({

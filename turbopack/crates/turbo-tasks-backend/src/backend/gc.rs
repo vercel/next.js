@@ -19,7 +19,6 @@
 use std::{
     fmt::Display,
     ops::ControlFlow,
-    sync::atomic::Ordering,
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
@@ -295,12 +294,12 @@ impl TurboTasksBackend {
         op: &'static str,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
-        // Once stopping, GC bookkeeping is irrelevant. This also keeps handles finalized during
-        // shutdown (after the map is dropped) from underflowing the count.
-        if self.stopping.load(Ordering::Acquire) {
+        // We expect this call to come from outside a turbo-task context, at least sometimes
+        // So be defensive about conostructing a context.  If we get none then we are shutting down
+        // and it is too late for ref-counting.
+        let Some(mut ctx) = self.try_execute_context(turbo_tasks) else {
             return;
-        }
-        let mut ctx = self.execute_context(turbo_tasks);
+        };
         // Technically we only need to manipulate transient data so meta is overkill. But the task
         // must be resident if we are adding a pin so this isn't wasteful
         let mut task = ctx.task(task, TaskDataCategory::Meta);
