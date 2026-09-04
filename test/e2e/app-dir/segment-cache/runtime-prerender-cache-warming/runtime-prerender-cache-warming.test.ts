@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
-const CACHE_MISS_WARNING = 'Unexpected cache miss after cache warming phase'
+import { UNEXPECTED_CACHE_MISS_MESSAGE } from 'next/src/server/use-cache/use-cache-errors'
 
 describe('runtime prerender cache warming', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -45,7 +45,7 @@ describe('runtime prerender cache warming', () => {
     // leaving them hanging, the cached page's key would differ between the two
     // prerenders and the final prerender would log an "Unexpected cache miss"
     // warning and degrade the cached segment to a dynamic hole.
-    expect(next.cliOutput).not.toContain(CACHE_MISS_WARNING)
+    expect(next.cliOutput).not.toContain(UNEXPECTED_CACHE_MISS_MESSAGE)
 
     // When we navigate, params become available.
     await act(() => browser.elementByCss('a[href="/slug/prerendered"]').click())
@@ -76,7 +76,7 @@ describe('runtime prerender cache warming', () => {
       },
     ])
 
-    expect(next.cliOutput).not.toContain(CACHE_MISS_WARNING)
+    expect(next.cliOutput).not.toContain(UNEXPECTED_CACHE_MISS_MESSAGE)
 
     // Navigate, but capture the result of the cache as shown in the shell.
     const cachedDataInShell = await act(async () => {
@@ -122,7 +122,7 @@ describe('runtime prerender cache warming', () => {
       },
     ])
 
-    expect(next.cliOutput).not.toContain(CACHE_MISS_WARNING)
+    expect(next.cliOutput).not.toContain(UNEXPECTED_CACHE_MISS_MESSAGE)
 
     // Navigate, but capture the result of the cache as shown in the shell.
     const cachedDataInShell = await act(async () => {

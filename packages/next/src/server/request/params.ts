@@ -447,7 +447,16 @@ function createRuntimePrerenderParams(
     }
   }
 
-  return stagedRendering.delayUntilStage(paramsStage, 'params', userspaceParams)
+  // If params don't resolve in this prerender, caches need to treat them as a hanging input.
+  if (stagedRendering.finalStage && stagedRendering.finalStage < paramsStage) {
+    return makeHangingParams(underlyingParams, workStore, workUnitStore)
+  } else {
+    return stagedRendering.delayUntilStage(
+      paramsStage,
+      'params',
+      userspaceParams
+    )
+  }
 }
 
 function createRenderParamsForPage(
