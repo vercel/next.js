@@ -1,34 +1,13 @@
+import { getRequestInsightKind } from '../../../shared/request-insights'
 import {
-  getRequestInsightKind,
-  getRequestInsightSource,
-  type RequestInsight,
-} from '../../../shared/request-insights'
-import {
-  getRequestInsightRepresentation,
-  getRequestInsightStatusCode,
-  hasRequestInsightProxyActivity,
-} from './request-list'
+  getRequestInsightTags,
+  matchesRequestInsightFilters,
+  REQUEST_INSIGHT_FILTERS,
+  type RequestInsightFilter,
+  type RequestInsightListItem,
+} from '../../../shared/request-insights-summary'
 
-export type RequestInsightFilter =
-  | 'source:page'
-  | 'source:api'
-  | 'source:image'
-  | 'source:asset'
-  | 'source:unknown'
-  | 'representation:html'
-  | 'representation:rsc'
-  | 'representation:unknown'
-  | 'activity:proxy'
-  | 'activity:instant-insights'
-  | 'status:error'
-  | 'status:http-4xx'
-  | 'status:http-5xx'
-  | 'fetches:present'
-  | 'fetches:none'
-  | 'cache:hit'
-  | 'cache:miss'
-  | 'cache:skip'
-  | 'cache:none'
+export type { RequestInsightFilter } from '../../../shared/request-insights-summary'
 
 export type RequestInsightFilterGroup = Readonly<{
   label: string
@@ -91,19 +70,15 @@ export const REQUEST_INSIGHT_FILTER_GROUPS: readonly RequestInsightFilterGroup[]
     },
   ]
 
-const ALL_FILTERS = REQUEST_INSIGHT_FILTER_GROUPS.flatMap((group) =>
-  group.options.map((option) => option.value)
-)
-
 type RequestInsightFilterResult = Readonly<{
-  requests: RequestInsight[]
+  requests: RequestInsightListItem[]
   matchingRequestCount: number
   totalRequestCount: number
   optionCounts: Readonly<Record<RequestInsightFilter, number>>
 }>
 
 export function getRequestInsightFilterResult(
-  requests: readonly RequestInsight[],
+  requests: readonly RequestInsightListItem[],
   activeFilters: readonly RequestInsightFilter[],
   showInternal = false
 ): RequestInsightFilterResult {
@@ -112,9 +87,8 @@ export function getRequestInsightFilterResult(
   const visibleRequests = requests.filter(
     (request) => getRequestInsightKind(request) === 'request' || revealInternal
   )
-  const activeFiltersByFacet = groupFiltersByFacet(activeFilters)
   const optionCounts = Object.fromEntries(
-    ALL_FILTERS.map((filter) => [filter, 0])
+    REQUEST_INSIGHT_FILTERS.map((filter) => [filter, 0])
   ) as Record<RequestInsightFilter, number>
 
   for (const request of requests) {
@@ -129,7 +103,7 @@ export function getRequestInsightFilterResult(
   }
 
   const matchingRequests = visibleRequests.filter((request) =>
-    matchesActiveFilters(getRequestInsightTags(request), activeFiltersByFacet)
+    matchesRequestInsightFilters(request, activeFilters)
   )
 
   return {
@@ -147,122 +121,4 @@ export function toggleRequestInsightFilter(
   return activeFilters.includes(filter)
     ? activeFilters.filter((activeFilter) => activeFilter !== filter)
     : [...activeFilters, filter]
-}
-
-function getRequestInsightTags(
-  request: RequestInsight
-): Set<RequestInsightFilter> {
-  const tags = new Set<RequestInsightFilter>()
-  const source = getRequestSourceFilter(request)
-  if (source) {
-    tags.add(source)
-  }
-
-  switch (getRequestInsightRepresentation(request)) {
-    case 'html':
-      tags.add('representation:html')
-      break
-    case 'rsc':
-      tags.add('representation:rsc')
-      break
-    case 'unknown':
-      tags.add('representation:unknown')
-      break
-    case 'not-applicable':
-      break
-  }
-
-  if (hasRequestInsightProxyActivity(request)) {
-    tags.add('activity:proxy')
-  }
-  if (getRequestInsightKind(request) === 'instant-insights') {
-    tags.add('activity:instant-insights')
-  }
-
-  if (
-    request.status === 'error' ||
-    request.spans.some((span) => span.status === 'error' || span.error)
-  ) {
-    tags.add('status:error')
-  }
-  const statusCode = getRequestInsightStatusCode(request)
-  if (statusCode !== undefined && statusCode >= 400 && statusCode < 500) {
-    tags.add('status:http-4xx')
-  } else if (
-    statusCode !== undefined &&
-    statusCode >= 500 &&
-    statusCode < 600
-  ) {
-    tags.add('status:http-5xx')
-  }
-
-  if (request.fetches.length === 0) {
-    tags.add('fetches:none')
-    tags.add('cache:none')
-  } else {
-    tags.add('fetches:present')
-    for (const fetch of request.fetches) {
-      if (
-        fetch.cacheStatus === 'hit' ||
-        fetch.cacheStatus === 'miss' ||
-        fetch.cacheStatus === 'skip'
-      ) {
-        tags.add(`cache:${fetch.cacheStatus}`)
-      }
-    }
-  }
-
-  return tags
-}
-
-function getRequestSourceFilter(
-  request: RequestInsight
-): RequestInsightFilter | undefined {
-  const source = getRequestInsightSource(request)
-  switch (source) {
-    case 'page':
-      return 'source:page'
-    case 'app-route':
-    case 'pages-api':
-      return 'source:api'
-    case 'image':
-      return 'source:image'
-    case 'asset':
-      return 'source:asset'
-    case 'proxy':
-    case 'instant-insights':
-      return undefined
-    case 'unknown':
-      return 'source:unknown'
-  }
-}
-
-function groupFiltersByFacet(
-  filters: readonly RequestInsightFilter[]
-): Map<string, RequestInsightFilter[]> {
-  const filtersByFacet = new Map<string, RequestInsightFilter[]>()
-
-  for (const filter of filters) {
-    const facet = filter.slice(0, filter.indexOf(':'))
-    const facetFilters = filtersByFacet.get(facet)
-    if (facetFilters) {
-      facetFilters.push(filter)
-    } else {
-      filtersByFacet.set(facet, [filter])
-    }
-  }
-
-  return filtersByFacet
-}
-
-function matchesActiveFilters(
-  tags: ReadonlySet<RequestInsightFilter>,
-  activeFiltersByFacet: ReadonlyMap<string, RequestInsightFilter[]>
-): boolean {
-  for (const facetFilters of activeFiltersByFacet.values()) {
-    if (!facetFilters.some((filter) => tags.has(filter))) {
-      return false
-    }
-  }
-  return true
 }

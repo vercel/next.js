@@ -2,6 +2,7 @@ import {
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsight,
 } from '../../../shared/request-insights'
+import { summarizeRequestInsight } from '../../../shared/request-insights-summary'
 import { getRequestInsightFilterResult } from './request-filters'
 import {
   getActiveRequestKey,
@@ -166,6 +167,11 @@ describe('request insights trace viewer', () => {
       getRequestInsightFilterResult([page, rsc, api, asset], ['source:asset'])
         .requests
     ).toEqual([asset])
+    const summaries = [page, rsc, api, asset].map(summarizeRequestInsight)
+    expect(
+      getRequestInsightFilterResult(summaries, ['source:page', 'cache:miss'])
+        .requests
+    ).toEqual([summaries[0]])
   })
 
   it('only marks the exact initial document request as the page load', () => {

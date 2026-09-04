@@ -84,6 +84,17 @@ import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
+import {
+  appendRequestInsightToJournal,
+  closeRequestInsightsJournal,
+  configureRequestInsightsJournal,
+  getRequestInsightsHistory as getJournalHistory,
+  readRequestInsightsJournal,
+} from '../lib/trace/request-insights-journal'
+import {
+  clearRequestInsightsHistoryProvider,
+  configureRequestInsightsHistoryProvider,
+} from '../lib/trace/request-insights'
 
 registerLocalSpanRecorder()
 
@@ -270,6 +281,18 @@ export default class DevServer extends Server {
   protected async prepareImpl(): Promise<void> {
     setGlobal('distDir', this.distDir)
     setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
+    if (this.nextConfig.experimental.requestInsights) {
+      await configureRequestInsightsJournal(this.distDir)
+      configureRequestInsightsHistoryProvider({
+        append: appendRequestInsightToJournal,
+        getHistory: (query) => getJournalHistory(this.distDir, query),
+        read: (query) => readRequestInsightsJournal(this.distDir, query),
+      })
+      this.onServerClose(async () => {
+        clearRequestInsightsHistoryProvider()
+        await closeRequestInsightsJournal()
+      })
+    }
 
     // Use existing telemetry instance from traceGlobals instead of creating a new one.
     // Creating a new instance would overwrite the existing one, causing any telemetry

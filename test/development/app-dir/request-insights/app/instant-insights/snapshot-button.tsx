@@ -10,7 +10,7 @@ export function EmitRequestInsightsSnapshot() {
         const startTime = Date.now()
         dispatcher.onRequestInsightsSnapshot({
           requests: [
-            ...Array.from({ length: 40 }, (_, index) => ({
+            ...Array.from({ length: 200 }, (_, index) => ({
               requestId: `synthetic-request-${index}`,
               kind: 'request' as const,
               source: 'page' as const,
@@ -30,7 +30,7 @@ export function EmitRequestInsightsSnapshot() {
               htmlRequestId: 'synthetic-internal-document',
               route: '/synthetic-internal',
               url: '/synthetic-internal',
-              startTime: startTime + 40,
+              startTime: startTime + 200,
               durationMs: 1,
               status: 'ok',
               spans: [],

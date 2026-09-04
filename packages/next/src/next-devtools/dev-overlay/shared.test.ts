@@ -47,6 +47,30 @@ describe('updateRequestInsights', () => {
       )
     ).toEqual([request, updatedInstantInsights])
   })
+
+  it('keeps active requests outside the completed request limit', () => {
+    const active = {
+      ...createRequestInsight('request', 25),
+      requestId: 'active',
+      completedAt: undefined,
+    }
+    const completed = Array.from({ length: 101 }, (_, index) => ({
+      ...createRequestInsight('request', 25),
+      requestId: `completed-${index}`,
+      completedAt: index + 1,
+    }))
+
+    const requests = completed.reduce<RequestInsight[]>(
+      (current, request) => updateRequestInsights(current, request),
+      [active]
+    )
+
+    expect(requests).toHaveLength(101)
+    expect(requests[0]).toBe(active)
+    expect(
+      requests.some((request) => request.requestId === 'completed-0')
+    ).toBe(false)
+  })
 })
 
 describe('getInstantErrorRoute', () => {

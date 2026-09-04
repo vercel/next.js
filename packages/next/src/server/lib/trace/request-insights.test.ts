@@ -1,12 +1,27 @@
 import {
+  clearRequestInsightsHistoryProvider,
   clearRequestInsightsForTest,
+  completeRequestInsight,
+  configureRequestInsightsHistoryProvider,
   getRequestInsightsSnapshot,
   importRequestInsightSpans,
   recordRequestInsightFetch,
   recordRequestInsightSource,
   subscribeRequestInsights,
 } from './request-insights'
+import {
+  appendRequestInsightToJournal,
+  closeRequestInsightsJournal,
+  getRequestInsightsHistory,
+  initializeRequestInsightsJournal,
+  readRequestInsightsJournal,
+  resetRequestInsightsJournalForTest,
+  StaleRequestInsightsHistoryCursorError,
+} from './request-insights-journal'
 import { recordSpan } from './span-store'
+import { mkdtemp, readFile, rm } from 'fs/promises'
+import { tmpdir } from 'os'
+import path from 'path'
 
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -24,9 +39,11 @@ describe('request insights', () => {
     process.env.__NEXT_DEV_SERVER = '1'
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     restoreEnv('__NEXT_REQUEST_INSIGHTS', originalRequestInsights)
     restoreEnv('__NEXT_DEV_SERVER', originalDevServer)
+    await resetRequestInsightsJournalForTest()
+    clearRequestInsightsHistoryProvider()
     clearRequestInsightsForTest()
   })
 
@@ -277,6 +294,260 @@ describe('request insights', () => {
         durationMs: 50,
       })
     )
+  })
+
+  it('waits for explicit outer completion after middleware and final routing', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    await initializeRequestInsightsJournal(distDir)
+    configureJournalProvider(distDir)
+
+    recordSpan({
+      name: 'middleware request',
+      requestId: 'middleware-route',
+      startTime: 1,
+      durationMs: 2,
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+    expect(getRequestInsightsSnapshot().requests[0].completedAt).toBeUndefined()
+    await expect(
+      readRequestInsightsJournal(distDir, { requestId: 'middleware-route' })
+    ).resolves.toEqual([])
+
+    recordSpan({
+      name: 'final route handler',
+      requestId: 'middleware-route',
+      startTime: 3,
+      durationMs: 4,
+    })
+    completeRequestInsight({ requestId: 'middleware-route' })
+    completeRequestInsight({ requestId: 'middleware-route' })
+
+    await expect(
+      readRequestInsightsJournal(distDir, { requestId: 'middleware-route' })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        completedAt: expect.any(Number),
+        spans: [
+          expect.objectContaining({ name: 'middleware request' }),
+          expect.objectContaining({ name: 'final route handler' }),
+        ],
+      }),
+    ])
+
+    await resetRequestInsightsJournalForTest()
+    await rm(distDir, { recursive: true, force: true })
+  })
+
+  it('keeps active requests until they finish before applying the completed request limit', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+    recordSpan({
+      name: 'long-running work',
+      requestId: 'long-running',
+      startTime: 1,
+      durationMs: 1,
+    })
+
+    for (let index = 0; index < 101; index++) {
+      recordSpan({
+        name: `GET /completed/${index}`,
+        requestId: `completed-${index}`,
+        startTime: index + 10,
+        durationMs: 1,
+        attributes: {
+          'next.span_type': 'BaseServer.handleRequest',
+        },
+      })
+      completeRequestInsight({ requestId: `completed-${index}` })
+    }
+
+    expect(
+      getRequestInsightsSnapshot()
+        .requests.find((request) => request.requestId === 'long-running')
+        ?.spans.map((span) => span.name)
+    ).toEqual(['long-running work'])
+
+    recordSpan({
+      name: 'GET /long-running',
+      requestId: 'long-running',
+      startTime: 1,
+      durationMs: 200,
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+    completeRequestInsight({ requestId: 'long-running' })
+
+    const snapshot = getRequestInsightsSnapshot()
+    expect(snapshot.requests).toHaveLength(100)
+    expect(
+      snapshot.requests
+        .find((request) => request.requestId === 'long-running')
+        ?.spans.map((span) => span.name)
+    ).toEqual(['long-running work', 'GET /long-running'])
+  })
+
+  it('journals a completed request once with its full sanitized trace', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    await initializeRequestInsightsJournal(distDir)
+    configureJournalProvider(distDir)
+
+    recordSpan({
+      name: 'render route',
+      requestId: 'journaled',
+      htmlRequestId: 'document',
+      startTime: 100,
+      durationMs: 20,
+    })
+    expect(
+      await readRequestInsightsJournal(distDir, { requestId: 'journaled' })
+    ).toEqual([])
+
+    recordSpan({
+      name: 'GET /journaled',
+      requestId: 'journaled',
+      htmlRequestId: 'document',
+      startTime: 90,
+      durationMs: 40,
+      status: 'ok',
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+    completeRequestInsight({
+      requestId: 'journaled',
+      htmlRequestId: 'document',
+    })
+
+    clearRequestInsightsForTest()
+    expect(
+      await readRequestInsightsJournal(distDir, { requestId: 'journaled' })
+    ).toEqual([
+      expect.objectContaining({
+        requestId: 'journaled',
+        htmlRequestId: 'document',
+        completedAt: expect.any(Number),
+        spans: [
+          expect.objectContaining({ name: 'render route' }),
+          expect.objectContaining({ name: 'GET /journaled' }),
+        ],
+      }),
+    ])
+
+    await resetRequestInsightsJournalForTest()
+    await rm(distDir, { recursive: true, force: true })
+  })
+
+  it('closes the journal idempotently and flushes pending appends', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    await initializeRequestInsightsJournal(distDir)
+    configureJournalProvider(distDir)
+
+    recordSpan({
+      name: 'GET /flushed',
+      requestId: 'flushed',
+      htmlRequestId: 'document',
+      startTime: 1,
+      durationMs: 2,
+      attributes: {
+        'next.span_type': 'BaseServer.handleRequest',
+      },
+    })
+    completeRequestInsight({
+      requestId: 'flushed',
+      htmlRequestId: 'document',
+    })
+    await closeRequestInsightsJournal()
+
+    await expect(
+      readRequestInsightsJournal(distDir, { requestId: 'flushed' })
+    ).resolves.toEqual([
+      expect.objectContaining({
+        requestId: 'flushed',
+        completedAt: expect.any(Number),
+      }),
+    ])
+
+    await expect(closeRequestInsightsJournal()).resolves.toBeUndefined()
+    await rm(distDir, { recursive: true, force: true })
+  })
+
+  it('resets session history on initialization and stores the journal directly in distDir', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    await initializeRequestInsightsJournal(distDir)
+    configureJournalProvider(distDir)
+
+    recordSpan({
+      name: 'GET /history',
+      requestId: 'history',
+      startTime: 1,
+      durationMs: 2,
+    })
+    completeRequestInsight({ requestId: 'history' })
+
+    await expect(getRequestInsightsHistory(distDir)).resolves.toEqual(
+      expect.objectContaining({
+        requests: [expect.objectContaining({ requestId: 'history' })],
+      })
+    )
+    expect(
+      await readFile(path.join(distDir, 'request-insights.ndjson'), 'utf8')
+    ).toContain('"requestId":"history"')
+
+    await initializeRequestInsightsJournal(distDir)
+    await expect(getRequestInsightsHistory(distDir)).resolves.toEqual(
+      expect.objectContaining({ requests: [] })
+    )
+    await resetRequestInsightsJournalForTest()
+    await rm(distDir, { recursive: true, force: true })
+  })
+
+  it('pages session summaries with a stable cursor and rejects an old session cursor', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    await initializeRequestInsightsJournal(distDir)
+    configureJournalProvider(distDir)
+
+    for (let index = 0; index < 3; index++) {
+      recordSpan({
+        name: `GET /history/${index}`,
+        requestId: `history-${index}`,
+        startTime: index,
+        durationMs: 1,
+      })
+      completeRequestInsight({ requestId: `history-${index}` })
+    }
+
+    const firstPage = await getRequestInsightsHistory(distDir, { limit: 2 })
+    expect(firstPage.requests.map((request) => request.requestId)).toEqual([
+      'history-2',
+      'history-1',
+    ])
+    expect(firstPage.nextCursor).toEqual(expect.any(String))
+
+    const secondPage = await getRequestInsightsHistory(distDir, {
+      cursor: firstPage.nextCursor,
+      limit: 2,
+    })
+    expect(secondPage.requests.map((request) => request.requestId)).toEqual([
+      'history-0',
+    ])
+
+    await initializeRequestInsightsJournal(distDir)
+    await expect(
+      getRequestInsightsHistory(distDir, {
+        cursor: firstPage.nextCursor,
+      })
+    ).rejects.toBeInstanceOf(StaleRequestInsightsHistoryCursorError)
+
+    await resetRequestInsightsJournalForTest()
+    await rm(distDir, { recursive: true, force: true })
   })
 
   it('classifies framework request sources without letting the root span erase a specific source', () => {
@@ -757,3 +1028,11 @@ describe('request insights', () => {
     ).not.toContain('sk_live_SENTINEL')
   })
 })
+
+function configureJournalProvider(distDir: string): void {
+  configureRequestInsightsHistoryProvider({
+    append: appendRequestInsightToJournal,
+    getHistory: (query) => getRequestInsightsHistory(distDir, query),
+    read: (query) => readRequestInsightsJournal(distDir, query),
+  })
+}

@@ -8,11 +8,12 @@ import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-ser
 import { parseStack } from '../../server/lib/parse-stack'
 import { isConsoleError } from '../shared/console-error'
 import type { CacheIndicatorState } from './cache-indicator'
-import type {
-  RequestInsight,
-  RequestInsightsSnapshot,
+import {
+  getRequestInsightKey,
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
+  type RequestInsight,
+  type RequestInsightsSnapshot,
 } from '../shared/request-insights'
-import { getRequestInsightKey } from '../shared/request-insights'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
 import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
@@ -137,7 +138,25 @@ export function updateRequestInsights(
     (request) => getRequestInsightKey(request) !== insightKey
   )
   requests.push(insight)
-  return requests.slice(-100)
+
+  let completedCount = requests.reduce(
+    (count, request) => count + (request.completedAt === undefined ? 0 : 1),
+    0
+  )
+  if (completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS) {
+    return requests
+  }
+
+  return requests.filter((request) => {
+    if (
+      request.completedAt === undefined ||
+      completedCount <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
+    ) {
+      return true
+    }
+    completedCount--
+    return false
+  })
 }
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
