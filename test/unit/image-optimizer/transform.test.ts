@@ -1,10 +1,7 @@
 /* eslint-env jest */
 import { readFile } from 'fs-extra'
 import { join } from 'path'
-import {
-  imageOptimizerTransform,
-  type ImageOptimizerTransformOptions,
-} from 'next/dist/server/image-optimizer/transform'
+import { imageOptimizerTransform } from 'next/dist/server/image-optimizer/transform'
 import type {
   CachedRouteKind,
   IncrementalResponseCacheEntry,
@@ -12,8 +9,6 @@ import type {
 
 const getImage = (filename: string) =>
   readFile(join(__dirname, 'images', filename))
-
-const isValidMime = (contentType: string) => contentType === 'image/png'
 
 const config = {
   images: {
@@ -29,11 +24,7 @@ const config = {
   },
 }
 
-async function transform(
-  filename: string,
-  mimeType = 'image/webp',
-  options?: ImageOptimizerTransformOptions
-) {
+async function transform(filename: string, mimeType = 'image/webp') {
   const buffer = await getImage(filename)
   return imageOptimizerTransform(
     {
@@ -43,8 +34,7 @@ async function transform(
       etag: 'source-etag',
     },
     { href: `/${filename}`, width: 64, quality: 75, mimeType },
-    config,
-    { isValidMime, ...options }
+    config
   )
 }
 
@@ -110,6 +100,11 @@ describe('imageOptimizerTransform', () => {
     expect(result.contentType).toBe('image/webp')
   })
 
+  it('downlevels an avif source when no output format is requested', async () => {
+    const result = await transform('test.avif', '')
+    expect(result.contentType).toBe('image/jpeg')
+  })
+
   it('generates blur placeholders in development', async () => {
     const result = await transformInDevelopment('test.png')
     expect(result.contentType).toBe('image/svg+xml')
@@ -167,8 +162,7 @@ describe('imageOptimizerTransform', () => {
         {
           ...config,
           images: { ...config.images, dangerouslyAllowSVG: false },
-        },
-        { isValidMime }
+        }
       )
     ).rejects.toMatchObject({ statusCode: 400 })
   })
@@ -183,8 +177,7 @@ describe('imageOptimizerTransform', () => {
           etag: 'source-etag',
         },
         { href: '/bad', width: 64, quality: 75, mimeType: 'image/webp' },
-        config,
-        { isValidMime }
+        config
       )
     ).rejects.toMatchObject({ statusCode: 400 })
   })

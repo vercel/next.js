@@ -921,7 +921,7 @@ function matchKnownRoutePart(
         ) {
           resolvedParams.set(
             paramName,
-            pathnameParts.slice(partIndex).join('/')
+            pathnameParts.slice(partIndex).map(canonicalizeURLPart).join('/')
           )
           return { part: dynamicPart, pattern: dynamicPattern }
         }
@@ -932,7 +932,7 @@ function matchKnownRoutePart(
           if (urlPart !== null) {
             resolvedParams.set(
               paramName,
-              pathnameParts.slice(partIndex).join('/')
+              pathnameParts.slice(partIndex).map(canonicalizeURLPart).join('/')
             )
             return { part: dynamicPart, pattern: dynamicPattern }
           }
@@ -951,7 +951,7 @@ function matchKnownRoutePart(
         // Unlike catch-all which terminates here, regular dynamic must
         // continue recursing to find the leaf pattern.
         if (urlPart !== null) {
-          resolvedParams.set(paramName, urlPart)
+          resolvedParams.set(paramName, canonicalizeURLPart(urlPart))
           return matchKnownRoutePart(
             now,
             dynamicPart,

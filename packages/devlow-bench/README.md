@@ -10,19 +10,36 @@ npm install devlow-bench
 
 ## Usage
 
-```bash
-Usage: devlow-bench [options] <scenario files>
-## Selecting scenarios
-  --scenario=<filter>, -s=<filter>   Only run the scenario with the given name
-  --interactive, -i                  Select scenarios and variants interactively
-  --<prop>=<value>                   Filter by any variant property defined in scenarios
-## Output
-  --json=<path>, -j=<path>           Write the results to the given path as JSON
-  --console                          Print the results to the console
-  --datadog[=<hostname>]             Upload the results to Datadog
-                                     (requires DATADOG_API_KEY environment variables)
-## Help
-  --help, -h, -?                     Show this help
+```text
+Usage: devlow-bench [options] [command]
+
+Run developer-workflow benchmarks.
+
+Options:
+  -h, --help                       display help for command
+
+Commands:
+  run [options] [scenarios...]     Run scenario files and report measurements.
+  compare <baseline> <current>     Compare two snapshot CSVs side-by-side.
+  help [command]                   display help for command
+```
+
+`run` is the default command, so scenario paths can still be passed without
+writing `run` explicitly. Its options include:
+
+```text
+-s, --scenario <filter>            Only run scenarios whose name matches the filter (repeatable).
+-F, --filter <pair>                Filter variants by property: key=value (repeatable).
+-i, --interactive                  Select scenarios and variants interactively.
+--n <number>                       Run each variant N times.
+--warmup <number>                  Discard the first N runs before sampling.
+--snapshot <path>                  Override the snapshot CSV path.
+--compare                          Print a comparison table after the run.
+--baseline <path>                  Select a comparison baseline; implies --compare.
+-j, --json <path>                  Write results as JSON.
+--no-console                       Suppress console output.
+--datadog [host]                   Upload results to Datadog.
+--snowflake [batchUri]             Upload results to Snowflake.
 ```
 
 ## Scenarios

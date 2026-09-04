@@ -129,8 +129,11 @@ impl EvictionControl {
         evict
     }
 
-    /// Call after completing an eviction cycle. Seeds the memory floor with the
-    /// post-eviction usage; later cycles lower it further as memory settles.
+    /// Call after completing an eviction cycle and after mimalloc is cleaned up
+    /// with [`TurboMalloc::collect`], since the freed memory is only reflected
+    /// in [`TurboMalloc::memory_usage`] once it has been. Seeds the memory floor
+    /// with the post-eviction usage; later cycles lower it further as memory
+    /// settles.
     pub(crate) fn record_eviction(&mut self) {
         self.memory_floor = Some(TurboMalloc::memory_usage());
     }

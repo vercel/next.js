@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
+import { UNEXPECTED_CACHE_MISS_MESSAGE } from 'next/src/server/use-cache/use-cache-errors'
 
 describe('runtime prefetching', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -28,6 +29,15 @@ describe('runtime prefetching', () => {
   const resetCliOutput = () => {
     currentCliOutputIndex = next.cliOutput.length
   }
+
+  // We never expect to see this logged here.
+  afterEach(() => {
+    if (getCliOutput().includes(UNEXPECTED_CACHE_MISS_MESSAGE)) {
+      throw new Error(
+        `A test unexpectedly logged "${UNEXPECTED_CACHE_MISS_MESSAGE}"`
+      )
+    }
+  })
 
   describe.each([
     {

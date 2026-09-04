@@ -17,7 +17,7 @@ use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 
 use crate::{
-    QueryKey,
+    Compression, QueryKey,
     arc_bytes::ArcBytes,
     be,
     compression::checksum_block,
@@ -33,12 +33,56 @@ use crate::{
 pub const BLOCK_TYPE_INDEX: u8 = 0;
 /// The block header for a key block with 8-byte hash per entry.
 pub const BLOCK_TYPE_KEY_WITH_HASH: u8 = 1;
-/// The block header for a key block without hash.
+/// The block header for a key block without hash. Entries are ordered by key.
 pub const BLOCK_TYPE_KEY_NO_HASH: u8 = 2;
 /// The block header for a fixed-size key block with 8-byte hash per entry.
 pub const BLOCK_TYPE_FIXED_KEY_WITH_HASH: u8 = 3;
-/// The block header for a fixed-size key block without hash.
+/// The block header for a fixed-size key block without hash. Entries are ordered by key.
 pub const BLOCK_TYPE_FIXED_KEY_NO_HASH: u8 = 4;
+
+/// Whether a key block stores a hash per entry, and therefore what order its entries are in.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum KeyBlockLayout {
+    /// 8-byte hash stored ahead of each key; entries sorted by `(hash, key)`.
+    HashThenKey,
+    /// No hash stored; entries sorted by key.
+    KeyOnly,
+}
+
+impl KeyBlockLayout {
+    /// Bytes each entry spends on its stored hash: 8, or 0 when the hash is omitted.
+    #[inline]
+    pub fn hash_len(self) -> u8 {
+        match self {
+            KeyBlockLayout::HashThenKey => size_of::<u64>() as u8,
+            KeyBlockLayout::KeyOnly => 0,
+        }
+    }
+
+    /// The on-disk block type byte for this layout, for `fixed`-size or variable-size entries.
+    #[inline]
+    pub fn block_type(self, fixed: bool) -> u8 {
+        match (self, fixed) {
+            (KeyBlockLayout::HashThenKey, false) => BLOCK_TYPE_KEY_WITH_HASH,
+            (KeyBlockLayout::KeyOnly, false) => BLOCK_TYPE_KEY_NO_HASH,
+            (KeyBlockLayout::HashThenKey, true) => BLOCK_TYPE_FIXED_KEY_WITH_HASH,
+            (KeyBlockLayout::KeyOnly, true) => BLOCK_TYPE_FIXED_KEY_NO_HASH,
+        }
+    }
+
+    /// Decodes a key block's type byte into its layout, plus whether entries are fixed-size.
+    /// Returns `None` for a byte that is not a key block type.
+    #[inline]
+    pub fn from_block_type(block_type: u8) -> Option<(Self, bool)> {
+        match block_type {
+            BLOCK_TYPE_KEY_WITH_HASH => Some((KeyBlockLayout::HashThenKey, false)),
+            BLOCK_TYPE_KEY_NO_HASH => Some((KeyBlockLayout::KeyOnly, false)),
+            BLOCK_TYPE_FIXED_KEY_WITH_HASH => Some((KeyBlockLayout::HashThenKey, true)),
+            BLOCK_TYPE_FIXED_KEY_NO_HASH => Some((KeyBlockLayout::KeyOnly, true)),
+            _ => None,
+        }
+    }
+}
 
 /// Written in a fixed-size key block header's value type field when entries share a value size but
 /// not a value type. Each entry then carries its own type byte ahead of its value.
@@ -155,6 +199,7 @@ trait ValueBlockCache<B: SharedBytes> {
         mmap: &B::MmapHandle,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<B>;
 }
 
@@ -174,26 +219,39 @@ impl ValueBlockCache<ArcBytes> for ArcBlockCacheReader<'_> {
         mmap: &Arc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<ArcBytes> {
-        get_or_cache_block(mmap, meta, block_index, self.cache, self.verified_blocks)
+        get_or_cache_block(
+            mmap,
+            meta,
+            block_index,
+            self.cache,
+            self.verified_blocks,
+            compression,
+        )
     }
 }
 
 /// Iteration-path: lightweight single-entry cache for sequential reads.
-impl ValueBlockCache<RcBytes> for &mut Option<(u16, RcBytes)> {
+struct RcBlockCacheReader<'a> {
+    cache: &'a mut Option<(u16, RcBytes)>,
+}
+
+impl ValueBlockCache<RcBytes> for RcBlockCacheReader<'_> {
     fn get_or_read(
         self,
         mmap: &Rc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<RcBytes> {
-        if let Some((idx, block)) = self.as_ref()
+        if let Some((idx, block)) = self.cache.as_ref()
             && *idx == block_index
         {
             return Ok(block.clone());
         }
-        let block: RcBytes = read_block_generic(mmap, meta, block_index)?;
-        *self = Some((block_index, block.clone()));
+        let block: RcBytes = read_block_generic(mmap, meta, block_index, compression)?;
+        *self.cache = Some((block_index, block.clone()));
         Ok(block)
     }
 }
@@ -226,12 +284,17 @@ pub struct StaticSortedFile {
     /// bitmap the CRC would be re-computed on every access. `Relaxed` ordering
     /// suffices: racing first-time verifications are idempotent.
     verified_blocks: Box<[AtomicU64]>,
+    compression: Compression,
 }
 
 impl StaticSortedFile {
-    /// Opens an SST file at the given path. This memory maps the file, but does not read it yet.
-    /// It's lazy read on demand.
-    pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
+    /// Opens an SST file at the given path with the compression algorithm specified by its meta
+    /// file. This memory maps the file, but does not read it yet.
+    pub fn open(
+        db_path: &Path,
+        meta: StaticSortedFileMetaData,
+        compression: Compression,
+    ) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
         let file = File::open(&path)?;
@@ -257,6 +320,7 @@ impl StaticSortedFile {
             meta,
             mmap: Arc::new(mmap),
             verified_blocks,
+            compression,
         })
     }
 
@@ -281,6 +345,7 @@ impl StaticSortedFile {
             index_block_index,
             key_block_cache,
             &self.verified_blocks,
+            self.compression,
         )?;
         let key_block_index = self.lookup_index_block(&index_block, key_hash)?;
 
@@ -290,29 +355,25 @@ impl StaticSortedFile {
             key_block_index,
             key_block_cache,
             &self.verified_blocks,
+            self.compression,
         )?;
         let reader = ArcBlockCacheReader {
             cache: value_block_cache,
             verified_blocks: &self.verified_blocks,
         };
         let block_type = be::read_u8(&key_block_arc);
-        match block_type {
-            BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
-                let has_hash = block_type == BLOCK_TYPE_KEY_WITH_HASH;
-                self.lookup_key_block::<K, FIND_ALL>(key_block_arc, key_hash, key, has_hash, reader)
+        match KeyBlockLayout::from_block_type(block_type) {
+            Some((layout, false)) => {
+                self.lookup_key_block::<K, FIND_ALL>(key_block_arc, key_hash, key, layout, reader)
             }
-
-            BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
-                let has_hash = block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH;
-                self.lookup_fixed_key_block::<K, FIND_ALL>(
-                    key_block_arc,
-                    key_hash,
-                    key,
-                    has_hash,
-                    reader,
-                )
-            }
-            _ => {
+            Some((layout, true)) => self.lookup_fixed_key_block::<K, FIND_ALL>(
+                key_block_arc,
+                key_hash,
+                key,
+                layout,
+                reader,
+            ),
+            None => {
                 bail!("Invalid block type");
             }
         }
@@ -349,10 +410,10 @@ impl StaticSortedFile {
         block: ArcBytes,
         key_hash: u64,
         key: &K,
-        has_hash: bool,
+        layout: KeyBlockLayout,
         reader: ArcBlockCacheReader<'_>,
     ) -> Result<SstLookupResult> {
-        let hash_len: u8 = if has_hash { 8 } else { 0 };
+        let hash_len = layout.hash_len();
         ensure!(block.len() >= 4, "key block too short");
         let entry_count = be::read_u24(&block[1..]) as usize;
         let data = &block[4..];
@@ -363,9 +424,15 @@ impl StaticSortedFile {
         let offsets = &data[..entry_count * 4];
         let entries = &data[entry_count * 4..];
 
-        self.lookup_block_inner::<K, FIND_ALL>(&block, entry_count, key_hash, key, reader, |i| {
-            get_key_entry(offsets, entries, entry_count, i, hash_len)
-        })
+        self.lookup_block_inner::<K, FIND_ALL>(
+            &block,
+            entry_count,
+            key_hash,
+            key,
+            layout,
+            reader,
+            |i| get_key_entry(offsets, entries, entry_count, i, hash_len),
+        )
     }
 
     /// Looks up a key in a fixed-size key block.
@@ -377,10 +444,10 @@ impl StaticSortedFile {
         block: ArcBytes,
         key_hash: u64,
         key: &K,
-        has_hash: bool,
+        layout: KeyBlockLayout,
         reader: ArcBlockCacheReader<'_>,
     ) -> Result<SstLookupResult> {
-        let hash_len: u8 = if has_hash { 8 } else { 0 };
+        let hash_len = layout.hash_len();
         ensure!(block.len() >= 6, "fixed key block too short");
         let entry_count = be::read_u24(&block[1..]) as usize;
         let key_size = be::read_u8(&block[4..]) as usize;
@@ -397,9 +464,15 @@ impl StaticSortedFile {
             "fixed key block for {entry_count} entries must is the wrong size"
         );
 
-        self.lookup_block_inner::<K, FIND_ALL>(&block, entry_count, key_hash, key, reader, |i| {
-            get_fixed_key_entry(entries, i, hash_len, key_size, value_type, stride)
-        })
+        self.lookup_block_inner::<K, FIND_ALL>(
+            &block,
+            entry_count,
+            key_hash,
+            key,
+            layout,
+            reader,
+            |i| get_fixed_key_entry(entries, i, hash_len, key_size, value_type, stride),
+        )
     }
 
     /// Shared binary search + collection logic for both key block variants.
@@ -412,6 +485,7 @@ impl StaticSortedFile {
         entry_count: usize,
         key_hash: u64,
         key: &K,
+        layout: KeyBlockLayout,
         reader: ArcBlockCacheReader<'_>,
         get_entry: impl Fn(usize) -> Result<GetKeyEntryResult<'a>>,
     ) -> Result<SstLookupResult> {
@@ -427,7 +501,7 @@ impl StaticSortedFile {
                 val,
             } = get_entry(m)?;
 
-            let comparison = compare_hash_key(mid_hash, mid_key, key_hash, key);
+            let comparison = compare_hash_key(layout, mid_hash, mid_key, key_hash, key);
 
             match comparison {
                 Ordering::Less => r = m,
@@ -450,7 +524,7 @@ impl StaticSortedFile {
                             ty,
                             val,
                         } = get_entry(i)?;
-                        if !entry_matches_key(hash, entry_key, key_hash, key) {
+                        if !entry_matches_key(layout, hash, entry_key, key_hash, key) {
                             break;
                         }
                         results.push(self.handle_key_match(ty, val, block, reader)?);
@@ -469,7 +543,7 @@ impl StaticSortedFile {
                             ty,
                             val,
                         } = get_entry(i)?;
-                        if !entry_matches_key(hash, entry_key, key_hash, key) {
+                        if !entry_matches_key(layout, hash, entry_key, key_hash, key) {
                             break;
                         }
                         results.push(self.handle_key_match(ty, val, block, reader)?);
@@ -491,7 +565,15 @@ impl StaticSortedFile {
         key_block_arc: &ArcBytes,
         reader: ArcBlockCacheReader<'_>,
     ) -> Result<LookupValue> {
-        handle_key_match_generic(&self.mmap, &self.meta, ty, val, key_block_arc, reader)
+        handle_key_match_generic(
+            &self.mmap,
+            &self.meta,
+            ty,
+            val,
+            key_block_arc,
+            self.compression,
+            reader,
+        )
     }
 }
 
@@ -509,6 +591,7 @@ fn get_or_cache_block(
     block_index: u16,
     cache: &BlockCache,
     verified_blocks: &[AtomicU64],
+    compression: Compression,
 ) -> Result<ArcBytes> {
     let (uncompressed_length, checksum, block_data) = get_raw_block_slice(mmap, meta, block_index)
         .with_context(|| {
@@ -533,13 +616,15 @@ fn get_or_cache_block(
                 // A cached block may have been evicted, so re-reading still
                 // benefits from the bitmap to skip redundant CRC verification.
                 verify_checksum_once(meta, block_data, checksum, block_index, verified_blocks)?;
-                let block = ArcBytes::from_decompressed(uncompressed_length, block_data)
-                    .with_context(|| {
-                        format!(
-                            "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
-                            block_index, meta.sequence_number, uncompressed_length
-                        )
-                    })?;
+                let block =
+                    ArcBytes::from_decompressed(compression, uncompressed_length, block_data)
+                        .with_context(|| {
+                            format!(
+                                "Failed to decompress block {} from {:08}.sst ({} bytes \
+                                 uncompressed)",
+                                block_index, meta.sequence_number, uncompressed_length
+                            )
+                        })?;
                 let _ = guard.insert(block.clone());
                 block
             }
@@ -673,6 +758,7 @@ fn read_block_generic<B: SharedBytes>(
     mmap: &B::MmapHandle,
     meta: &StaticSortedFileMetaData,
     block_index: u16,
+    compression: Compression,
 ) -> Result<B> {
     let (uncompressed_length, expected_checksum, block) =
         get_raw_block_slice(mmap, meta, block_index).with_context(|| {
@@ -689,12 +775,13 @@ fn read_block_generic<B: SharedBytes>(
         return Ok(unsafe { B::from_mmap(mmap, block) });
     }
 
-    let buffer = B::from_decompressed(uncompressed_length, block).with_context(|| {
-        format!(
-            "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
-            block_index, meta.sequence_number, uncompressed_length
-        )
-    })?;
+    let buffer =
+        B::from_decompressed(compression, uncompressed_length, block).with_context(|| {
+            format!(
+                "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
+                block_index, meta.sequence_number, uncompressed_length
+            )
+        })?;
     Ok(buffer)
 }
 
@@ -705,6 +792,7 @@ fn handle_key_match_generic<B: SharedBytes>(
     ty: u8,
     val: &[u8],
     key_block: &B,
+    compression: Compression,
     reader: impl ValueBlockCache<B>,
 ) -> Result<LookupValue<B>> {
     Ok(match ty {
@@ -713,13 +801,13 @@ fn handle_key_match_generic<B: SharedBytes>(
             let size = be::read_u16(&val[2..]) as usize;
             let position = be::read_u32(&val[4..]) as usize;
             let value = reader
-                .get_or_read(mmap, meta, block)?
+                .get_or_read(mmap, meta, block, compression)?
                 .slice(position..position + size);
             LookupValue::Slice { value }
         }
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
             let block = be::read_u16(val);
-            let value = read_block_generic(mmap, meta, block)?;
+            let value = read_block_generic(mmap, meta, block, compression)?;
             LookupValue::Slice { value }
         }
         KEY_BLOCK_ENTRY_TYPE_BLOB => {
@@ -763,14 +851,14 @@ pub struct StaticSortedFileIter {
     /// value blocks sequentially and don't revisit earlier blocks, so caching
     /// just the current one avoids redundant decompression.
     value_block_cache: Option<(u16, RcBytes)>,
+    compression: Compression,
 }
 
 enum CurrentKeyBlockKind {
     /// Variable-size entries with an offset table for random access.
-    Variable { offsets: RcBytes, hash_len: u8 },
+    Variable { offsets: RcBytes },
     /// Fixed-size entries with uniform key size and value size (no offset table).
     Fixed {
-        hash_len: u8,
         key_size: usize,
         /// The type shared by every entry, or `None` if each entry carries its own type byte.
         value_type: Option<u8>,
@@ -778,13 +866,48 @@ enum CurrentKeyBlockKind {
     },
 }
 
+impl CurrentKeyBlockKind {
+    /// Decodes entry `index`, dispatching on the block's entry layout.
+    fn entry<'l>(
+        &self,
+        entries: &'l [u8],
+        entry_count: u32,
+        index: usize,
+        hash_len: u8,
+    ) -> Result<GetKeyEntryResult<'l>> {
+        match self {
+            CurrentKeyBlockKind::Variable { offsets } => {
+                get_key_entry(offsets, entries, entry_count as usize, index, hash_len)
+            }
+            CurrentKeyBlockKind::Fixed {
+                key_size,
+                value_type,
+                stride,
+            } => get_fixed_key_entry(entries, index, hash_len, *key_size, *value_type, *stride),
+        }
+    }
+}
+
+/// One entry of a [`CurrentKeyBlock::hash_order`] plan: the key's hash and the index of the entry
+/// it was computed from.
+struct HashOrderEntry {
+    hash: u64,
+    entry_index: u32,
+}
+
 struct CurrentKeyBlock {
     kind: CurrentKeyBlockKind,
+    /// Whether entries carry a hash, and so what order they are stored in.
+    layout: KeyBlockLayout,
     entries: RcBytes,
     /// Number of entries in this key block (max ~819 per 16 KiB block).
     entry_count: u32,
-    /// Current position within the key block.
+    /// Current iteration position. Indexes `hash_order` when that is present, and the block's
+    /// entries directly otherwise.
     index: u32,
+    /// Iteration plan for a [`KeyBlockLayout::KeyOnly`] block, in `(hash, key)` order.
+    /// `None` for [`KeyBlockLayout::HashThenKey`], whose entries are already stored in that order.
+    hash_order: Option<Vec<HashOrderEntry>>,
 }
 
 impl Iterator for StaticSortedFileIter {
@@ -796,10 +919,14 @@ impl Iterator for StaticSortedFileIter {
 }
 
 impl StaticSortedFileIter {
-    /// Opens an SST file for sequential iteration. Uses `MADV_SEQUENTIAL` for
-    /// read-ahead and wraps the mmap in `Rc<Mmap>` directly (no `Arc`),
-    /// eliminating all atomic refcounting during iteration.
-    pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
+    /// Opens an SST file for sequential iteration with the compression algorithm specified by its
+    /// meta file. Uses `MADV_SEQUENTIAL` for read-ahead and wraps the mmap in `Rc<Mmap>` directly
+    /// (no `Arc`), eliminating all atomic refcounting during iteration.
+    pub fn open(
+        db_path: &Path,
+        meta: StaticSortedFileMetaData,
+        compression: Compression,
+    ) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
         let file = File::open(&path)?;
@@ -813,13 +940,17 @@ impl StaticSortedFileIter {
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Sequential)?;
         advise_mmap_for_persistence(&mmap)?;
-        Self::new(Rc::new(mmap), meta)
+        Self::new(Rc::new(mmap), meta, compression)
             .with_context(|| format!("Unable to open static sorted file {filename}"))
     }
 
-    fn new(mmap: Rc<Mmap>, meta: StaticSortedFileMetaData) -> Result<Self> {
+    fn new(
+        mmap: Rc<Mmap>,
+        meta: StaticSortedFileMetaData,
+        compression: Compression,
+    ) -> Result<Self> {
         let root_block_index = meta.block_count - 1;
-        let block: RcBytes = read_block_generic(&mmap, &meta, root_block_index)?;
+        let block: RcBytes = read_block_generic(&mmap, &meta, root_block_index, compression)?;
         let block_type = block[0];
 
         // The builder always writes an index block as the root block.
@@ -838,7 +969,7 @@ impl StaticSortedFileIter {
             - size_of::<u16>())
             / INDEX_BLOCK_ENTRY_SIZE;
 
-        let current_key_block = Self::parse_key_block(&mmap, &meta, first_child)?;
+        let current_key_block = Self::parse_key_block(&mmap, &meta, first_child, compression)?;
         Ok(StaticSortedFileIter {
             mmap,
             meta,
@@ -847,6 +978,7 @@ impl StaticSortedFileIter {
             index_pos: 1,
             current_key_block,
             value_block_cache: None,
+            compression,
         })
     }
 
@@ -855,62 +987,64 @@ impl StaticSortedFileIter {
         mmap: &Rc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<CurrentKeyBlock> {
-        let block: RcBytes = read_block_generic(mmap, meta, block_index)?;
+        let block: RcBytes = read_block_generic(mmap, meta, block_index, compression)?;
         let data = &*block;
         ensure!(data.len() >= 4, "key block too short");
         let block_type = data[0];
         let entry_count = be::read_u24(&data[1..]);
-        match block_type {
-            BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
-                let hash_len = if block_type == BLOCK_TYPE_KEY_WITH_HASH {
-                    8
-                } else {
-                    0
-                };
-                let n = entry_count as usize;
-                let offsets_range = 4..4 + n * 4;
-                let entries_range = 4 + n * 4..block.len();
-                let offsets = block.clone().slice(offsets_range);
-                let entries = block.slice(entries_range);
-                Ok(CurrentKeyBlock {
-                    kind: CurrentKeyBlockKind::Variable { offsets, hash_len },
-                    entries,
-                    entry_count,
-                    index: 0,
-                })
-            }
-            BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
-                let hash_len = if block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH {
-                    8
-                } else {
-                    0
-                };
-                let key_size = data[4] as usize;
-                let FixedValueLayout {
+        let block_len = block.len();
+        let Some((layout, fixed)) = KeyBlockLayout::from_block_type(block_type) else {
+            bail!("Invalid key block type: {block_type}");
+        };
+        let hash_len = layout.hash_len();
+
+        let (kind, entries) = if fixed {
+            ensure!(data.len() >= 6, "fixed key block too short");
+            // In fixed blocks the size of the keys (<=32) is stored immediately after the block len
+            // (retrieved above)
+            let key_size = data[4] as usize;
+            let FixedValueLayout {
+                value_type,
+                val_size,
+                header_size,
+            } = fixed_value_layout(data, data[5])?;
+            let stride = hash_len as usize + key_size + val_size;
+            let entries = block.slice(header_size..block_len);
+            (
+                CurrentKeyBlockKind::Fixed {
+                    key_size,
                     value_type,
-                    val_size,
-                    header_size,
-                } = fixed_value_layout(data, data[5])?;
-                let stride = hash_len as usize + key_size + val_size;
-                let entries_range = header_size..block.len();
-                let entries = block.slice(entries_range);
-                Ok(CurrentKeyBlock {
-                    kind: CurrentKeyBlockKind::Fixed {
-                        hash_len,
-                        key_size,
-                        value_type,
-                        stride,
-                    },
-                    entries,
-                    entry_count,
-                    index: 0,
-                })
-            }
-            _ => {
-                bail!("Invalid key block type: {block_type}");
-            }
-        }
+                    stride,
+                },
+                entries,
+            )
+        } else {
+            let offset_table_begin = 4usize;
+            let offset_table_end = offset_table_begin + (entry_count as usize) * 4;
+            // In variable blocks the offsets table starts immediately after the entry count
+            let offsets = block.clone().slice(offset_table_begin..offset_table_end);
+            let entries = block.slice(offset_table_end..block_len);
+            (CurrentKeyBlockKind::Variable { offsets }, entries)
+        };
+
+        // Compute the hash order if needed
+        let hash_order = match layout {
+            KeyBlockLayout::HashThenKey => None,
+            KeyBlockLayout::KeyOnly => Some(hash_order_for_block(entry_count, |i| {
+                kind.entry(&entries, entry_count, i, hash_len)
+            })?),
+        };
+
+        Ok(CurrentKeyBlock {
+            kind,
+            layout,
+            entries,
+            entry_count,
+            index: 0,
+            hash_order,
+        })
     }
 
     /// Gets the next entry in the file and moves the cursor.
@@ -918,30 +1052,19 @@ impl StaticSortedFileIter {
         loop {
             let kb = &mut self.current_key_block;
             if kb.index < kb.entry_count {
-                let index = kb.index as usize;
-                let entry_count = kb.entry_count as usize;
-                let GetKeyEntryResult { hash, key, ty, val } = match &kb.kind {
-                    CurrentKeyBlockKind::Variable { offsets, hash_len } => {
-                        get_key_entry(offsets, &kb.entries, entry_count, index, *hash_len)?
+                let (precomputed_hash, index) = match &kb.hash_order {
+                    None => (None, kb.index as usize),
+                    Some(hash_order) => {
+                        let HashOrderEntry { hash, entry_index } = hash_order[kb.index as usize];
+                        (Some(hash), entry_index as usize)
                     }
-                    CurrentKeyBlockKind::Fixed {
-                        hash_len,
-                        key_size,
-                        value_type,
-                        stride,
-                    } => get_fixed_key_entry(
-                        &kb.entries,
-                        index,
-                        *hash_len,
-                        *key_size,
-                        *value_type,
-                        *stride,
-                    )?,
                 };
-                let full_hash = if hash.is_empty() {
-                    crate::key::hash_key(&key)
-                } else {
-                    be::read_u64(hash)
+                let GetKeyEntryResult { hash, key, ty, val } =
+                    kb.kind
+                        .entry(&kb.entries, kb.entry_count, index, kb.layout.hash_len())?;
+                let full_hash = match precomputed_hash {
+                    Some(hash) => hash,
+                    None => be::read_u64(hash),
                 };
                 let value = if ty == KEY_BLOCK_ENTRY_TYPE_MEDIUM {
                     let block = be::read_u16(val);
@@ -959,7 +1082,10 @@ impl StaticSortedFileIter {
                         ty,
                         val,
                         &kb.entries,
-                        &mut self.value_block_cache,
+                        self.compression,
+                        RcBlockCacheReader {
+                            cache: &mut self.value_block_cache,
+                        },
                     )?
                     .into()
                 };
@@ -976,7 +1102,7 @@ impl StaticSortedFileIter {
                 let block_index = be::read_u16(&self.index_entries[base..]);
                 self.index_pos += 1;
                 self.current_key_block =
-                    Self::parse_key_block(&self.mmap, &self.meta, block_index)?;
+                    Self::parse_key_block(&self.mmap, &self.meta, block_index, self.compression)?;
             } else {
                 return Ok(None);
             }
@@ -991,47 +1117,63 @@ struct GetKeyEntryResult<'l> {
     val: &'l [u8],
 }
 
-/// Compares a query (full_hash + query_key) against an entry (entry_hash + entry_key).
-/// Returns the ordering of query relative to entry.
-/// When entry_hash is empty, computes full hash from entry_key.
+/// Computes `(key hash, entry index)` for every entry of a no-hash key block, in `(hash, key)`
+/// order.
+fn hash_order_for_block<'l>(
+    entry_count: u32,
+    get_entry: impl Fn(usize) -> Result<GetKeyEntryResult<'l>>,
+) -> Result<Vec<HashOrderEntry>> {
+    let mut order = Vec::with_capacity(entry_count as usize);
+    for entry_index in 0..entry_count {
+        let key = get_entry(entry_index as usize)?.key;
+        order.push(HashOrderEntry {
+            hash: crate::key::hash_key(&key),
+            entry_index,
+        });
+    }
+    // Stable sort by hash, stability is important to preserve the original hash order
+    // This keeps tombstones in their correct relative positions.
+    order.sort_by_key(|entry| entry.hash);
+    Ok(order)
+}
+
+/// Compares a query against an entry, returning the ordering of the query relative to the entry in
+/// the block's own sort order.
 fn compare_hash_key<K: QueryKey>(
+    layout: KeyBlockLayout,
     entry_hash: &[u8],
     entry_key: &[u8],
     full_hash: u64,
     query_key: &K,
 ) -> Ordering {
-    if entry_hash.is_empty() {
-        // No hash stored - compute full hash from entry key
-        let entry_full_hash = crate::key::hash_key(&entry_key);
-        match full_hash.cmp(&entry_full_hash) {
+    match layout {
+        KeyBlockLayout::KeyOnly => {
+            debug_assert!(entry_hash.is_empty(), "KeyOnly entries carry no hash");
+            query_key.cmp(entry_key)
+        }
+        KeyBlockLayout::HashThenKey => match full_hash.to_be_bytes()[..].cmp(entry_hash) {
             Ordering::Equal => query_key.cmp(entry_key),
             ord => ord,
-        }
-    } else {
-        // Full 8-byte hash stored - compare hashes first
-        let full_hash_bytes = full_hash.to_be_bytes();
-        match full_hash_bytes[..].cmp(entry_hash) {
-            Ordering::Equal => query_key.cmp(entry_key),
-            ord => ord,
-        }
+        },
     }
 }
 
-/// Checks if a query key equals an entry key, optionally comparing stored hashes first.
-/// When a hash is stored (8 bytes), compares hashes before keys for speed.
-/// When no hash is stored, compares keys directly (avoiding hash recomputation).
+/// Checks whether a query key names the same entry, used to walk a key group outward from a hit.
 fn entry_matches_key<K: QueryKey>(
+    layout: KeyBlockLayout,
     entry_hash: &[u8],
     entry_key: &[u8],
     full_hash: u64,
     query_key: &K,
 ) -> bool {
-    if entry_hash.is_empty() {
-        // No hash stored - compare keys directly instead of recomputing hash
-        query_key.cmp(entry_key) == Ordering::Equal
-    } else {
-        // Hash stored - cheap 8-byte comparison first, then key comparison
-        full_hash.to_be_bytes()[..] == *entry_hash && query_key.cmp(entry_key) == Ordering::Equal
+    match layout {
+        KeyBlockLayout::KeyOnly => {
+            debug_assert!(entry_hash.is_empty(), "KeyOnly entries carry no hash");
+            query_key.eq(entry_key)
+        }
+        KeyBlockLayout::HashThenKey => {
+            full_hash.to_be_bytes()[..] == *entry_hash && query_key.eq(entry_key)
+        }
     }
 }
 
@@ -1149,4 +1291,52 @@ fn get_fixed_key_entry<'l>(
         ty,
         val: &entries[val_start..(index + 1) * stride],
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// `block_type` and `from_block_type` must be inverses over every layout and both entry
+    /// sizings. This is what lets the writer and the readers agree: the writer picks a variant and
+    /// encodes it, and each reader decodes the same variant back.
+    #[test]
+    fn block_type_round_trips() {
+        for layout in [KeyBlockLayout::HashThenKey, KeyBlockLayout::KeyOnly] {
+            for fixed in [false, true] {
+                let byte = layout.block_type(fixed);
+                assert_eq!(
+                    KeyBlockLayout::from_block_type(byte),
+                    Some((layout, fixed)),
+                    "{layout:?} (fixed={fixed}) encoded as {byte} did not round-trip"
+                );
+            }
+        }
+    }
+
+    /// The four key block types must be distinct, and must not collide with the index block type —
+    /// a collision would silently route a key block into the index decoder or vice versa.
+    #[test]
+    fn block_types_are_distinct() {
+        let mut seen = vec![BLOCK_TYPE_INDEX];
+        for layout in [KeyBlockLayout::HashThenKey, KeyBlockLayout::KeyOnly] {
+            for fixed in [false, true] {
+                let byte = layout.block_type(fixed);
+                assert!(!seen.contains(&byte), "block type {byte} is used twice");
+                seen.push(byte);
+            }
+        }
+        assert!(KeyBlockLayout::from_block_type(BLOCK_TYPE_INDEX).is_none());
+    }
+
+    /// Only `HashThenKey` stores hash bytes, and it stores exactly a `u64` of them. `get_key_entry`
+    /// and `get_fixed_key_entry` both slice the entry using this length.
+    #[test]
+    fn hash_len_matches_layout() {
+        assert_eq!(
+            KeyBlockLayout::HashThenKey.hash_len() as usize,
+            size_of::<u64>()
+        );
+        assert_eq!(KeyBlockLayout::KeyOnly.hash_len(), 0);
+    }
 }

@@ -10,6 +10,8 @@ async function DynamicCache({ id }: { id: string }) {
   return <Client>{getDate()}</Client>
 }
 
+export const instant = false
+
 export default async function Page() {
   await connection()
 

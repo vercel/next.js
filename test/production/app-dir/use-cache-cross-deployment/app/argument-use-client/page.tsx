@@ -1,9 +1,11 @@
 import { connection } from 'next/server'
-import { client } from './client'
+import { Client } from './client'
 import { getData } from './get-data'
+
+export const instant = false
 
 export default async function Page() {
   await connection()
 
-  return <span id="data">{await getData(client)}</span>
+  return <div>{await getData(Client)}</div>
 }

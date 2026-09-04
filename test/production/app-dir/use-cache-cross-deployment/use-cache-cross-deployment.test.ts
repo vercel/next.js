@@ -241,6 +241,7 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
     // TODO when serializing server reference arguments, we need to include the server reference's
     // entropy in the argument-part of the cache key.
+    // But currently, you cannot do anything with the passed server reference anyway.
     it.skip('should recompute when a use cache reference argument changes', async () => {
       const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
 
@@ -258,7 +259,8 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
     // TODO when serializing server reference arguments, we need to include the server reference's
     // entropy in the argument-part of the cache key.
-    // Furthermore, we need to compute the metadata information for use-server functions.
+    // But currently, you cannot do anything with the passed server reference anyway.
+    // Furthermore, we need to compute the metadata information for `use cache` functions as well.
     it.skip('should recompute when a use server reference argument changes', async () => {
       const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
 
@@ -349,22 +351,29 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       )
     })
 
-    // TODO this seems like a preexisting bug? The reference gets serialized into the cache key as just "$T"
-    it.skip('should recompute when a client reference argument changes', async () => {
+    it('should work still when a client reference argument changes', async () => {
+      // The client reference is passed as an opaque argument. Instead, we need to make sure that
+      // the client reference still uses the up-to-date chunks.
       const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
       await next.patchFile(
         'app/argument-use-client/client.tsx',
         (oldContent) =>
-          oldContent.replace(
-            "'use client'",
-            "'use client'\n\nawait Promise.resolve()"
-          ),
+          oldContent
+            .replace('Client Component A', 'Client Component B')
+            .replace('Button clicked', 'Handle clicked'),
         async () => {
           const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
 
-          expect(key1.keyArgumentUseClient).not.toBe(key2.keyArgumentUseClient)
-          expect(key1.dataArgumentUseClient).not.toBe(
-            key2.dataArgumentUseClient
+          expect(key1.keyArgumentUseClient).toBe(key2.keyArgumentUseClient)
+          expect(key1.dataArgumentUseClient).toBe(key2.dataArgumentUseClient)
+
+          const browser = await next.browser('/argument-use-client')
+          expect(await browser.elementById('title').text()).toBe(
+            'Client Component B'
+          )
+          await browser.elementByCss('button').click()
+          expect(await browser.elementById('state').text()).toBe(
+            'Handle clicked'
           )
         }
       )

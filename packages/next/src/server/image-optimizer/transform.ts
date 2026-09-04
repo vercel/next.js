@@ -62,7 +62,6 @@ export interface ImageOptimizerTransformLogger {
 }
 
 export interface ImageOptimizerTransformOptions {
-  isValidMime: (contentType: string) => boolean
   previousOutput?: {
     buffer: Buffer
     maxAge?: number
@@ -195,7 +194,7 @@ export async function imageOptimizerTransform(
   imageUpstream: ImageUpstream,
   paramsResult: ImageOptimizerTransformParams,
   nextConfig: ImageOptimizerTransformConfig,
-  opts: ImageOptimizerTransformOptions
+  opts: ImageOptimizerTransformOptions = {}
 ): Promise<ImageOptimizerResult> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
@@ -256,14 +255,11 @@ export async function imageOptimizerTransform(
 
   if (mimeType) {
     contentType = mimeType
-  } else if (
-    opts.isValidMime(upstreamType) &&
-    upstreamType !== WEBP &&
-    upstreamType !== AVIF
-  ) {
-    contentType = upstreamType
-  } else {
+  } else if (upstreamType === WEBP || upstreamType === AVIF) {
+    // Downlevel WebP and AVIF when the client does not advertise support.
     contentType = JPEG
+  } else {
+    contentType = upstreamType
   }
 
   if (opts.previousOutput) {
@@ -301,21 +297,14 @@ export async function imageOptimizerTransform(
       upstreamEtag,
     }
   } catch (error) {
-    if (upstreamType) {
-      // If we fail to optimize, fallback to the original image
-      return {
-        buffer: upstreamBuffer,
-        contentType: upstreamType,
-        maxAge: nextConfig.images.minimumCacheTTL,
-        etag: upstreamEtag,
-        upstreamEtag,
-        error,
-      }
-    } else {
-      throw new ImageError(
-        400,
-        'Unable to optimize image and unable to fallback to upstream image'
-      )
+    // If we fail to optimize, fallback to the original image
+    return {
+      buffer: upstreamBuffer,
+      contentType: upstreamType,
+      maxAge: nextConfig.images.minimumCacheTTL,
+      etag: upstreamEtag,
+      upstreamEtag,
+      error,
     }
   }
 }
