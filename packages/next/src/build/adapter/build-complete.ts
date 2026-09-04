@@ -15,7 +15,11 @@ import {
   normalizeAppPath,
   selectAppPageEntry,
 } from '../../shared/lib/router/utils/app-paths'
-import { AdapterOutputType, type PHASE_TYPE } from '../../shared/lib/constants'
+import {
+  AdapterOutputType,
+  VARIANTS_MANIFEST,
+  type PHASE_TYPE,
+} from '../../shared/lib/constants'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import {
@@ -44,8 +48,11 @@ import {
   HTML_CONTENT_TYPE_HEADER,
   JSON_CONTENT_TYPE_HEADER,
   NEXT_QUERY_PARAM_PREFIX,
+  NEXT_VARIANTS_QUERY_PARAM,
   NEXT_RESUME_HEADER,
+  VARIANTS_PATH_PREFIX,
 } from '../../lib/constants'
+import { splitVariantsPrefix } from '../../server/variants/prefix'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
@@ -653,6 +660,25 @@ export async function handleBuildComplete({
   ) as NextAdapter
 
   if (typeof adapterMod.onBuildComplete === 'function') {
+    const variantRoutePages = config.experimental.variants
+      ? new Set(Object.keys(prerenderManifest.variantCombinationGroups))
+      : undefined
+
+    // Record route pathnames that have a prefixed dynamic prerender output. A
+    // routing destination can retain the prefix only when such an output
+    // exists.
+    const variantOutputPathnames = new Set<string>()
+
+    if (variantRoutePages) {
+      for (const outputPathname in prerenderManifest.dynamicRoutes) {
+        const variantsPrefix = splitVariantsPrefix(outputPathname, undefined)
+
+        if (variantsPrefix) {
+          variantOutputPathnames.add(variantsPrefix.pathname)
+        }
+      }
+    }
+
     const outputs: AdapterOutputs = {
       pages: [],
       pagesApi: [],
@@ -1092,6 +1118,27 @@ export async function handleBuildComplete({
           middlewareFile,
           'neutral'
         )
+
+        // Include the variants manifest in the Node proxy output. The proxy
+        // reads it from a computed path at request time, and static generation
+        // writes it after compilation traces the proxy, so file tracing cannot
+        // discover it.
+        if (config.experimental.variants) {
+          const variantsManifestFile = path.join(
+            distDir,
+            'server',
+            VARIANTS_MANIFEST
+          )
+          await pushAsset(
+            assets,
+            assetsHashes,
+            path.relative(repoRoot, variantsManifestFile),
+            variantsManifestFile,
+            bundler,
+            config.outputHashSalt || ''
+          )
+        }
+
         const functionConfig =
           functionsConfigManifest.functions['/_middleware'] || {}
 
@@ -1430,7 +1477,7 @@ export async function handleBuildComplete({
 
         let allowQuery: string[] | undefined
         const routeKeys = routesManifest.dynamicRoutes.find(
-          (item) => item.page === srcRoute
+          (item) => item.page === srcRoute && !item.variantsPrefixed
         )?.routeKeys
 
         if (!isDynamicRoute(route)) {
@@ -1719,16 +1766,26 @@ export async function handleBuildComplete({
           experimentalBypassFor,
         } = prerenderManifest.dynamicRoutes[dynamicRoute]
 
-        const srcRoute = fallbackSourceRoute || dynamicRoute
+        const variantsPrefix = config.experimental.variants
+          ? splitVariantsPrefix(dynamicRoute, undefined)
+          : null
+        const routePathname = variantsPrefix?.pathname ?? dynamicRoute
+        const srcRoute = fallbackSourceRoute || routePathname
         const parentOutput = getParentOutput(srcRoute, dynamicRoute)
         const isAppPage = Boolean(appOutputMap[srcRoute])
 
         const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
         const routeKeys =
           routesManifest.dynamicRoutes.find(
-            (item) => item.page === dynamicRoute
+            (item) => item.page === routePathname && !item.variantsPrefixed
           )?.routeKeys || {}
-        const allowQuery = Object.values(routeKeys)
+
+        // A deployment translates the variants prefix into this query value.
+        // Preserve it alongside route params so the origin can recover the
+        // static tier.
+        const allowQuery = variantRoutePages?.has(srcRoute)
+          ? [...Object.values(routeKeys), NEXT_VARIANTS_QUERY_PARAM]
+          : Object.values(routeKeys)
         const partialFallback =
           // Partial fallback shells are only emitted when Partial Prefetching
           // is enabled in the app's Next.js config.
@@ -1805,13 +1862,31 @@ export async function handleBuildComplete({
           didFilterBlockingAllowQuery = true
         }
 
+        // Parameter filtering controls which dynamic params partition a shell.
+        // The variant combination hash is independent and must remain available
+        // to the origin.
+        if (
+          variantRoutePages?.has(srcRoute) &&
+          !htmlAllowQuery.includes(NEXT_VARIANTS_QUERY_PARAM)
+        ) {
+          htmlAllowQuery = [...htmlAllowQuery, NEXT_VARIANTS_QUERY_PARAM]
+        }
+
+        // Keep `fallback` as the bare route pattern the runtime combines with
+        // params. A variant-specific fallback file is written under the
+        // prefixed manifest key, so only the file lookup uses that pathname.
+        const fallbackPathname =
+          typeof fallback === 'string' && variantsPrefix
+            ? dynamicRoute
+            : fallback
+
         // app router dynamic route fallbacks don't have the extension so
         // ensure it's added here
         const fallbackHtmlFile =
-          typeof fallback === 'string'
-            ? fallback.endsWith('.html')
-              ? fallback
-              : `${fallback}.html`
+          typeof fallbackPathname === 'string'
+            ? fallbackPathname.endsWith('.html')
+              ? fallbackPathname
+              : `${fallbackPathname}.html`
             : undefined
 
         const fallbackHtmlPath =
@@ -2112,6 +2187,13 @@ export async function handleBuildComplete({
       : undefined
 
     for (const route of routesManifest.dynamicRoutes) {
+      // The deployment function uses this alias to resolve an artifact path to
+      // a page module. The external routing rule comes from the canonical page
+      // entry below, so processing the alias would emit that rule twice.
+      if (route.variantsPrefixed) {
+        continue
+      }
+
       // An earlier entry in this loop serves this shell.
       if (fallbackShellRuns?.replacedPages.has(route.page)) {
         continue
@@ -2152,10 +2234,17 @@ export async function handleBuildComplete({
         ? path.posix.join('/', '$shellPrefix', fallbackShellRun.tail)
         : route.page
 
-      const sourceRegex = pagePattern.replace(
-        '^',
-        `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
-      )
+      // Build the source regex for the ordinary page path and for the same path
+      // under a variants prefix. `pathPrefix` belongs after `basePath` and
+      // before the locale. Starting from `pagePattern` keeps a collapsed
+      // shell's `shellPrefix` group in both regexes.
+      const buildSourceRegex = (pathPrefix: string) =>
+        pagePattern.replace(
+          '^',
+          `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${pathPrefix}${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
+        )
+
+      const sourceRegex = buildSourceRegex('')
       const destination =
         path.posix.join(
           '/',
@@ -2236,10 +2325,87 @@ export async function handleBuildComplete({
         })
       }
 
-      // The entry above resolves a per-segment request on its own, because its
-      // suffix group accepts a segment path. A build that turns the collapse
-      // off emits a dedicated route for each segment, and the table lists those
-      // before that entry.
+      // The ordinary route above cannot match a pathname after the proxy adds a
+      // variants prefix. Add routes for every page with an available
+      // combination to match its hash and pass it to the origin.
+      //
+      // TODO(variants): Remove these per-page routes when deployment
+      // infrastructure can select a prerender through non-path cache-key inputs
+      // and invoke it with the clean route pathname.
+      if (variantRoutePages?.has(route.page)) {
+        // A route with a prefixed output keeps the prefix to select it. Other
+        // routes have no output under the prefix, so their destination remains
+        // the bare page.
+        const variantsDestination = variantOutputPathnames.has(route.page)
+          ? path.posix.join(
+              '/',
+              config.basePath,
+              `/${VARIANTS_PATH_PREFIX}/$${NEXT_VARIANTS_QUERY_PARAM}`,
+              shouldLocalize ? '/$nextLocale' : '',
+              pagePath
+            ) + getDestinationQuery(route.routeKeys)
+          : destination
+
+        const variantsSourceRegex = buildSourceRegex(
+          `/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
+        )
+
+        // The source captures the combination hash from the prefix. The query
+        // carries it to the origin, where the route recovers its static variant
+        // values.
+        const withCombination = (destinationPath: string) =>
+          destinationPath +
+          `${destinationPath.includes('?') ? '&' : '?'}${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`
+
+        // Insert the captured suffix before the query. An empty capture then
+        // produces the document destination unchanged.
+        const rscDestination = variantsDestination.replace(
+          /($|\?)/,
+          '$rscSuffix$1'
+        )
+
+        if (canMergeSuffixedAndPlain) {
+          // The prefix does not change the suffix relation that lets the
+          // ordinary route merge document, RSC, and segment requests.
+          dynamicRoutes.push({
+            source: pagePath,
+            sourceRegex: variantsSourceRegex.replace(
+              new RegExp(escapeStringRegexp('(?:/)?$')),
+              '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$'
+            ),
+            destination: withCombination(rscDestination),
+            has: plainHas,
+            missing: undefined,
+          })
+        } else {
+          if (hasAppPages) {
+            // Match a payload or segment before the document route. A dynamic
+            // param in the document matcher could otherwise consume its suffix.
+            dynamicRoutes.push({
+              source: pagePath + '.rsc',
+              sourceRegex: variantsSourceRegex.replace(
+                new RegExp(escapeStringRegexp('(?:/)?$')),
+                '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+              ),
+              destination: withCombination(rscDestination),
+              has: suffixedHas,
+              missing: undefined,
+            })
+          }
+
+          dynamicRoutes.push({
+            source: pagePath,
+            sourceRegex: variantsSourceRegex,
+            destination: withCombination(variantsDestination),
+            has: plainHas,
+            missing: undefined,
+          })
+        }
+      }
+
+      // With route collapsing, the suffix groups above resolve per-segment
+      // requests. Without it, the table emits one dedicated route per segment
+      // before these page routes.
       if (!config.experimental.collapseAdapterRoutes) {
         for (const segmentRoute of route.prefetchSegmentDataRoutes || []) {
           dynamicSegmentRoutes.push({
