@@ -24,6 +24,7 @@ pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
 pub mod minify;
+pub mod module_canonicalization;
 pub mod module_fragments;
 pub mod parse;
 mod path_visitor;

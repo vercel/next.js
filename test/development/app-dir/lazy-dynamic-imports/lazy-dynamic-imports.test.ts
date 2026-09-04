@@ -265,14 +265,48 @@ export const invalid = ;`
       }
     })
 
+    it('parses a client next/dynamic target before it is rendered', async () => {
+      const targetPath = path.join('app', 'client-next-dynamic', 'target.tsx')
+      const originalTarget = await next.readFile(targetPath)
+
+      try {
+        await next.patchFile(
+          targetPath,
+          `${originalTarget}\nexport const invalid = ;`
+        )
+        const browser = await next.browser('/client-next-dynamic')
+
+        await waitForRedbox(browser)
+        expect(await getRedboxSource(browser)).toContain(
+          './app/client-next-dynamic/target.tsx'
+        )
+      } finally {
+        await next.patchFile(targetPath, originalTarget)
+      }
+    })
+
     it('activates a pattern import without colliding with its target', async () => {
       const browser = await next.browser('/pattern')
+      const getActivationKeys = async (): Promise<string[]> =>
+        browser.eval(`
+          [...new Set(performance.getEntriesByType('resource')
+            .map((entry) => entry.name.match(/lazy-compilation-([0-9a-f]{16})/)?.[1])
+            .filter(Boolean))]
+        `)
+      const initialManifests = await getActivationKeys()
+
       await browser.elementByCss('#load-pattern').click()
       await retry(async () => {
         expect(await browser.elementByCss('#load-pattern').text()).toBe(
           'pattern a'
         )
       })
+      const manifestsAfterA = await getActivationKeys()
+      expect(
+        manifestsAfterA.filter(
+          (pathname) => !initialManifests.includes(pathname)
+        )
+      ).toHaveLength(1)
 
       await browser.eval(`location.hash = 'b'`)
       await browser.elementByCss('#load-pattern').click()
@@ -281,6 +315,12 @@ export const invalid = ;`
           'pattern b'
         )
       })
+      const manifestsAfterB = await getActivationKeys()
+      expect(
+        manifestsAfterB.filter(
+          (pathname) => !manifestsAfterA.includes(pathname)
+        )
+      ).toHaveLength(1)
     })
 
     it('shares a proxy for repeated imports', async () => {
@@ -321,6 +361,69 @@ export const invalid = ;`
           (pathname) => !manifestsAfterFirst.includes(pathname)
         )
       ).toHaveLength(0)
+
+      await browser.elementByCss('#load-third').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#load-third').text()).toBe(
+          'duplicate target'
+        )
+      })
+      const manifestsAfterThird = await getActivationKeys()
+      expect(
+        manifestsAfterThird.filter(
+          (pathname) => !manifestsAfterSecond.includes(pathname)
+        )
+      ).toHaveLength(0)
+    })
+
+    it('supports different requests from one origin resolving to the same target', async () => {
+      const browser = await next.browser('/proxy-identity')
+      const getActivationKeys = async (): Promise<string[]> =>
+        browser.eval(`
+          [...new Set(performance.getEntriesByType('resource')
+            .map((entry) => entry.name.match(/lazy-compilation-([0-9a-f]{16})/)?.[1])
+            .filter(Boolean))]
+        `)
+      const initialManifests = await getActivationKeys()
+
+      await browser.elementByCss('#load-extensionless').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#load-extensionless').text()).toBe(
+          'proxy identity target'
+        )
+      })
+      const manifestsAfterFirst = await getActivationKeys()
+      expect(
+        manifestsAfterFirst.filter(
+          (pathname) => !initialManifests.includes(pathname)
+        )
+      ).toHaveLength(1)
+      await browser.elementByCss('#load-explicit-extension').click()
+      await retry(async () => {
+        expect(
+          await browser.elementByCss('#load-explicit-extension').text()
+        ).toBe('proxy identity target')
+      })
+      const manifestsAfterSecond = await getActivationKeys()
+      expect(
+        manifestsAfterSecond.filter(
+          (pathname) => !manifestsAfterFirst.includes(pathname)
+        )
+      ).toHaveLength(0)
+    })
+
+    it('waits for top-level await in an activated target', async () => {
+      const browser = await next.browser('/top-level-await')
+
+      expect(await browser.elementByCss('#load-top-level-await').text()).toBe(
+        'top-level await idle'
+      )
+      await browser.elementByCss('#load-top-level-await').click()
+      await retry(async () => {
+        expect(await browser.elementByCss('#load-top-level-await').text()).toBe(
+          'top-level await target'
+        )
+      })
     })
 
     it('supports direct dynamic CSS imports', async () => {
