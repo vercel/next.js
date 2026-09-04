@@ -62,11 +62,6 @@ pub async fn diamond_root_op(constant: ResolvedVc<Constant>, fanout: u32) -> Res
 }
 
 // --- Generation fixture ---
-//
-// A wide set of tasks keyed by a generation counter. Bumping the generation makes `wide_root` read
-// an entirely fresh set, disconnecting the whole previous generation (`2 * width` tasks) as garbage
-// in one shot. `width` is a task argument rather than a constant so callers can pick their own
-// scale while sharing these definitions.
 
 /// The generation counter. A `State` so a test can bump it without rebuilding the graph.
 #[turbo_tasks::value(transparent)]

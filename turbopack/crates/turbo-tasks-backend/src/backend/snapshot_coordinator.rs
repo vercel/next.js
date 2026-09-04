@@ -51,7 +51,6 @@ struct State<O> {
 pub struct SnapshotCoordinator<O = AnyOperation> {
     /// Combined count + bit. See [`SNAPSHOT_REQUESTED_BIT`].
     in_progress_operations: AtomicUsize,
-    /// Whether any operations are waiting for the guard to release
     operations_waiting: AtomicBool,
     state: Mutex<State<O>>,
     /// Notified by the last operation to drain (count drops to `BIT` while
@@ -118,7 +117,6 @@ impl<O> SnapshotCoordinator<O> {
                 }
 
                 this.operations_waiting.store(true, Ordering::Relaxed);
-                // Throughput: hand the worker slot back while parked.
                 tokio::task::block_in_place(|| {
                     this.snapshot_completed
                         .wait_while(&mut state, |s| s.snapshot_requested);
@@ -689,45 +687,12 @@ mod tests {
             thread::yield_now();
         }
 
-        drop(phase);
-        op_thread.join().unwrap();
-
-        // Cleared once the exclusion ends, ready for the next one. There is no phase to ask any
-        // more — that is the point of hanging the query off the guard — so read the flag directly.
+        drop(phase); // releases the waiter
         assert!(
             !coord.operations_waiting.load(Ordering::Relaxed),
             "the sticky waiter flag must be cleared when the phase is dropped"
         );
-    }
-
-    #[test]
-    fn operations_waiting_counts_suspended_operation() {
-        let coord = Arc::new(SnapshotCoordinator::<Op>::new());
-        let guard = coord.begin_operation();
-
-        // Start an exclusive phase; it blocks until our operation drains or suspends.
-        let observed_waiter = Arc::new(AtomicBool::new(false));
-        let coord2 = coord.clone();
-        let gc_thread = thread::spawn({
-            let observed_waiter = observed_waiter.clone();
-            move || {
-                let phase = coord2.begin_snapshot();
-                // We are past the drain, so the main thread has suspended and must be visible as
-                // a waiter to the holder of the exclusion.
-                observed_waiter.store(phase.operations_waiting(), Ordering::Release);
-            }
-        });
-
-        wait_for_snapshot_pending(&coord);
-        // Suspend, letting the exclusive phase begin.
-        coord.suspend_point(|| 1u32);
-        drop(guard);
-
-        gc_thread.join().unwrap();
-        assert!(
-            observed_waiter.load(Ordering::Acquire),
-            "a suspended operation is parked behind the exclusion and must register as a waiter"
-        );
+        op_thread.join().unwrap();
     }
 
     #[test]

@@ -284,7 +284,6 @@ impl TurboTasksBackend {
 
         stats.gc_roots = roots.len();
         stats.aged_out_roots = aged_out_count;
-        // No budget means an uninterruptible pass, which by construction never interrupts.
         stats.interrupted = budget
             .as_ref()
             .is_some_and(|budget| budget.was_interrupted());
@@ -385,9 +384,7 @@ impl TurboTasksBackend {
         );
         let _serialize = self.snapshot_in_progress.lock();
         let phase = self.snapshot_coord.begin_snapshot();
-        // Uninterruptible: the exact-count tests this hook exists for need a full pass, and an
-        // interrupted one would silently collect less than they assert.
-        let (stats, roots) = self.gc_collect(turbo_tasks, &phase, false);
+        let (stats, roots) = self.gc_collect(turbo_tasks, &phase, /* interruptible= */ false);
 
         // Persist the roots map this pass produced. Some tests query the roots set and GC itself
         // does as well, this ensures it is available to the next cycle.

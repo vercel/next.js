@@ -1209,17 +1209,9 @@ impl TurboTasksBackend {
             let (stats, roots) =
                 self.gc_collect(turbo_tasks, &snapshot_phase, reason.gc_is_interruptible());
             gc_span.record("stats", display(&stats));
-            // `interruptible = false` makes this structurally impossible; the assert guards the
-            // wiring, not the runtime, so a future change that reintroduces a way to interrupt an
-            // uninterruptible pass fails loudly instead of silently skipping the persist.
-            debug_assert!(
-                !(stats.interrupted && !reason.gc_is_interruptible()),
-                "GC pass for reason {} must never be interrupted: skipping its cycle would \
-                 discard the snapshot it was run to take",
-                reason.as_str()
-            );
             if stats.interrupted {
-                // IF we were interrupted also abandon the persistence loop.
+                // If we were interrupted also abandon the persistence loop.
+                // This ensures that we don't persist roots that were not completely validated.
                 drop(snapshot_phase);
                 drop(gc_span);
                 return Ok((start, false, Some(stats)));

@@ -2,11 +2,7 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
-//! A GC pass holds total operation exclusion, so it winds down early once an operation blocks
-//! behind it — but not before `gc_min_progress` has elapsed, so sustained edits can't starve GC.
-//!
-//! `snapshot_and_evict_for_testing` runs an interruptible pass; `gc_for_testing` forces an
-//! uninterruptible one.
+//! Test the interruption mechanisms for GC
 
 mod gc_fixture;
 mod util;
@@ -44,9 +40,6 @@ async fn build_generation(tt: &Arc<TurboTasks<TurboTasksBackend>>, gen_value: u3
 }
 
 /// A waiter blocked for the whole pass must not interrupt it while the floor is unmet.
-///
-/// The waiter is real rather than simulated: the spawned task takes an operation guard while the
-/// GC phase is held, so it parks in `begin_operation`'s cold path.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_min_progress_floor_beats_a_waiting_operation() {
     // A floor far longer than the pass: the interrupt must never be honoured.
@@ -86,9 +79,6 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
 ///
 /// A zero floor interrupts every pass deterministically, rather than a mid-range floor that might
 /// interrupt none of them and assert nothing.
-///
-/// Asserts on GC's own collected counts, not the resident count: eviction moves tasks to disk
-/// after every snapshot, so the resident count can't distinguish collected from skipped.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_interrupt_is_self_healing() {
     let (tt, _persistence_dir) =
