@@ -46,22 +46,13 @@ pub struct PathToOutputOperation(
 );
 
 /// The operations that produce the assets at one path.
-///
-/// A set of [`GcRoot`]s rather than of bare operations, so an operation is pinned against GC
-/// exactly as long as it is mentioned here: inserting takes a pin and removing drops it, with no
-/// separate bookkeeping to keep in sync. The same operation appears under many paths, and each
-/// occurrence carries its own pin, which is why [`GcRoot`] is reference counted via [`Clone`].
-///
-/// A guard hashes and compares as the operation it pins, and borrows to it, so the set behaves like
-/// the set of operations it replaced — including lookup and removal by a bare [`OperationVc`].
 #[derive(Clone, Default, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue)]
 struct ExpandedOutputAssetsOperationSet(FxIndexSet<GcRoot<ExpandedOutputAssets>>);
 
 // HACK: This is technically incorrect because the map's key contains a `ResolvedVc`...
 unsafe impl OperationValue for PathToOutputOperation {}
 
-/// The pinned assets operation and the compute entry derived from it. Both are held by
-/// [`GcRoot`]s, so both stay alive exactly as long as this map entry does.
+/// The pinned assets operation and the compute entry derived from it.
 #[derive(
     Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, OperationValue,
 )]
@@ -199,9 +190,7 @@ impl VersionedContentMap {
                 // No-op update.
                 return false;
             }
-            // Pin the operations so GC keeps their tasks alive while this map holds them — nothing
-            // in the persistent graph parents them. The replaced entry's guards are dropped by the
-            // `insert`, which releases its pins.
+
             let tt = turbo_tasks();
             map.insert(
                 assets_operation,
@@ -240,11 +229,6 @@ impl VersionedContentMap {
             let mut stale_assets = map.0.keys().cloned().collect::<FxHashSet<_>>();
 
             for (k, _) in entries.iter().flatten() {
-                // Each occurrence takes its own pin, so dropping one path's entry can't release
-                // another path's pin on the same operation. Check membership before pinning: a
-                // guard for an operation the path already lists would be discarded by `insert`
-                // (the set keeps the original), so pinning first would take a pin only to release
-                // it again on drop.
                 let set = &mut map.0.entry(k.clone()).or_default().0;
                 let inserted = !set.contains(&assets_operation);
                 if inserted {

@@ -433,10 +433,7 @@ impl TurboTasksBackend {
             .unwrap_or(0)
     }
 
-    /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]). Reads the
-    /// `GcRoots` infra key directly, so it reflects the last committed snapshot — not any in-flight
-    /// pass. Test-only hook for asserting that a root seeded for collection but *not* collected
-    /// stays tracked (see `gc_roots_refresh_and_age_out`'s monotonicity note).
+    /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]).
     #[doc(hidden)]
     pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
         self.backing_storage.roots().unwrap_or_default()
@@ -1625,24 +1622,13 @@ impl TurboTasksBackend {
     }
 
     fn stopping(&self) {
-        // Scoped: the write lock is only needed to flip the flag. Any context that acquired a read
-        // guard before this point keeps running; `stop()` re-takes the write lock and waits for
-        // them. After this returns, `try_execute_context` refuses to hand out new ones.
+        // modify via a write guard so we synchronize with top level calls into try_execute_context
         *self.stopping.write() = true;
         self.stopping_event.notify(usize::MAX);
     }
 
     #[allow(unused_variables)]
     fn stop(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
-        // Wait out any context handed out by `try_execute_context` before `stopping()` flipped the
-        // flag, and keep new ones from starting for the duration of the teardown below.
-        //
-        // This cannot deadlock against our own body: nothing reachable from here takes a read
-        // guard. `snapshot_and_persist` -> `gc_collect` builds contexts through
-        // `ExecuteContextImpl::new_for_gc`, which deliberately takes no shutdown guard (see its
-        // doc comment). Routing GC's context construction through `try_execute_context` would
-        // deadlock `stop()` against itself.
-        let _teardown = self.stopping.write();
         #[cfg(feature = "verify_aggregation_graph")]
         {
             self.is_idle.store(false, Ordering::Release);
