@@ -324,6 +324,12 @@ export interface RequestMeta {
    */
   fallbackParams?: OpaqueFallbackRouteParams
 
+  /** DEV only: the foreground outcome selected by an explicit matcher. */
+  devPrerenderMatcherOutcome?: 'render' | 'not-found'
+
+  /** DEV only: params made unknown while validating the selected shell. */
+  devPrerenderValidationFallbackParams?: OpaqueFallbackRouteParams | null
+
   /**
    * DEV only: Request timings in process.hrtime.bigint()
    */

@@ -231,7 +231,7 @@ describe('getDynamicParam', () => {
 
       expect(result).toEqual({
         param: 'slug',
-        value: '%%drp:slug:def456%%',
+        value: ['%%drp:slug:def456%%'],
         type: 'c',
         treeSegment: ['slug', '%%drp:slug:def456%%', 'c', null],
       })
@@ -247,7 +247,7 @@ describe('getDynamicParam', () => {
 
       expect(result).toEqual({
         param: 'slug',
-        value: '%%drp:slug:ghi789%%',
+        value: ['%%drp:slug:ghi789%%'],
         type: 'oc',
         treeSegment: ['slug', '%%drp:slug:ghi789%%', 'oc', null],
       })
