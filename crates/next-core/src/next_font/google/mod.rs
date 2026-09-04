@@ -69,7 +69,7 @@ pub const GOOGLE_FONTS_STYLESHEET_URL: &str = "https://fonts.googleapis.com/css2
 // Google Fonts will vary responses based on user agent, e.g. only returning
 // references to certain font types for certain browsers.
 pub const USER_AGENT_FOR_GOOGLE_FONTS: RcStr = rcstr!(
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) \
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) \
      Chrome/104.0.0.0 Safari/537.36"
 );
 
