@@ -637,6 +637,36 @@ impl Drop for InlineExecutionDepthGuard {
     }
 }
 
+/// TEMP INSTRUMENTATION (do not ship): the foreground jobs currently outstanding, so a shutdown
+/// that waits forever on `event_foreground_done` can name what never finished.
+///
+/// A description rather than a `TaskId`, because only one of the `begin_foreground_job` call sites
+/// has a task id at all.
+struct OutstandingForegroundJobs {
+    /// Keyed by `TaskId`, which is what the `schedule` call site has to identify a job.
+    jobs: Mutex<std::collections::BTreeMap<u64, String>>,
+}
+
+static OUTSTANDING_FOREGROUND_JOBS_CELL: std::sync::OnceLock<OutstandingForegroundJobs> =
+    std::sync::OnceLock::new();
+
+fn outstanding_foreground_jobs() -> &'static OutstandingForegroundJobs {
+    OUTSTANDING_FOREGROUND_JOBS_CELL.get_or_init(|| OutstandingForegroundJobs {
+        jobs: Mutex::new(std::collections::BTreeMap::new()),
+    })
+}
+
+/// A snapshot of the outstanding job descriptions, for the stuck-shutdown dump.
+fn outstanding_foreground_jobs_debug() -> Vec<String> {
+    outstanding_foreground_jobs()
+        .jobs
+        .lock()
+        .unwrap()
+        .values()
+        .cloned()
+        .collect()
+}
+
 /// Polls `future` once inline and then spawns it if it doesn't complete so tokio drives it. Returns
 /// whether it completed.
 fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool {
@@ -1123,6 +1153,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
     #[track_caller]
     pub fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
         self.begin_foreground_job();
+        // TEMP INSTRUMENTATION (do not ship): record the scheduled task so a stuck shutdown can
+        // name it. Keyed by task id: this site's decrement happens in the executor
+        // (`finish_foreground_job` after the task future completes), too far away for a guard to
+        // span without restructuring, so registration is paired manually there.
+        outstanding_foreground_jobs()
+            .jobs
+            .lock()
+            .unwrap()
+            .insert(*task_id as u64, format!("schedule(task {task_id})"));
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
         let task = ScheduledTask::Task {
@@ -1426,7 +1465,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                                         "[GC-HANG] stop_and_wait: waiting {:?} for \
                                          event_foreground_done; jobs_at_entry={} \
                                          foreground_now={} background_now={} queued={} \
-                                         active_workers={} target_workers={}",
+                                         active_workers={} target_workers={} outstanding={:?}",
                                         start.elapsed(),
                                         pending,
                                         self.currently_scheduled_foreground_jobs
@@ -1436,6 +1475,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                                         queued,
                                         workers,
                                         target,
+                                        outstanding_foreground_jobs_debug(),
                                     );
                                 }
                             }
@@ -1635,7 +1675,21 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                         {
                             // Task was stale; re-schedule at the correct invalidation priority so
                             // other tasks can run in the right priority order.
+                            // TEMP INSTRUMENTATION (do not ship): deregister before the
+                            // re-schedule below re-registers under the same key, so the entry
+                            // reflects the new scheduling rather than being dropped by it.
+                            outstanding_foreground_jobs()
+                                .jobs
+                                .lock()
+                                .unwrap()
+                                .remove(&(*task_id as u64));
                             this.schedule(task_id, stale_priority);
+                        } else {
+                            outstanding_foreground_jobs()
+                                .jobs
+                                .lock()
+                                .unwrap()
+                                .remove(&(*task_id as u64));
                         }
                         this.finish_foreground_job();
                     })
