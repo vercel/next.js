@@ -278,6 +278,14 @@ export const enum PrefetchHint {
   // fallbacks — simply never carry it.) Set on every node of the tree, but
   // does not propagate.
   ShouldAttemptStaticPrefetch = 0b100000000000000,
+  // On the root hint node: the build-time head prefetch completed without
+  // suspending on runtime data, so the client should attempt to fetch it
+  // statically even if the rest of the route requires a runtime prefetch.
+  // Like ShouldAttemptStaticPrefetch, this is advisory; the head response's
+  // own `isPartial` signal still determines whether a runtime follow-up is
+  // needed. Unlike that route-wide hint, this is measured independently by
+  // rendering the head pseudo-segment (`/_head`).
+  HeadShouldAttemptStaticPrefetch = 0b1000000000000000,
 }
 
 /**
