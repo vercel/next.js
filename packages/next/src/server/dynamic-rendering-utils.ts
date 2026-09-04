@@ -528,7 +528,20 @@ const logRuntimeDeopt = process.env.NEXT_PRIVATE_DEBUG_RUNTIME_DATA
     }
   : undefined
 
+/**
+ * Signals that we cannot recover both a runtime shell and a static (PPR) shell
+ * from the same render.
+ * */
 export function trackIncompatibleShellContent(workUnitStore: RequestStore) {
+  // NOTE REGARDING FUTURE OPTIMIZATIONS:
+  // If we optimize this to only track incompatible content during the actual
+  // shell stages (static shell or app shell) instead of the whole render,
+  // we need to make sure that we account for cache misses, which can change
+  // which stage something happens in.
+  // If a cache miss that happens in one of the stages we want to recover,
+  // we need to assume that it *might* have incompatible content --
+  // otherwise `prepareValidationInputs` might incorrectly reuse the same render for
+  // both even though it would not be compatible if rendered with warm caches.
   workUnitStore.hasIncompatibleShellContent = true
 }
 
