@@ -72,9 +72,11 @@ fn open_tt_at_with_gc(
 /// A persistence directory that outlives the backends opened on it, so a test can stop one backend
 /// and open another on the same path to simulate a restart.
 pub fn create_persistence_dir(name: &str) -> tempfile::TempDir {
+    let parent = Path::new(env!("CARGO_TARGET_TMPDIR")).join(".cache");
+    std::fs::create_dir_all(&parent).unwrap();
     tempfile::Builder::new()
         .prefix(&format!("{name}-"))
-        .tempdir()
+        .tempdir_in(&parent)
         .unwrap()
 }
 

@@ -122,26 +122,6 @@ pub(crate) struct GcStats {
     pub interrupted: bool,
 }
 
-/// Test-only snapshot of the most recent [`GcStats`]. Production reads these off the `gc` span; a
-/// unit test can't, so [`TurboTasksBackend`] stashes this after each pass. Kept as a small `Copy`
-/// struct so it can be cloned out from behind the mutex cheaply.
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct LastGcStats {
-    /// Tasks collected this pass (soft-deleted). See [`GcStats::collected`].
-    pub collected: usize,
-    /// Whether the pass was interrupted by a waiting operation. See [`GcStats::interrupted`].
-    pub interrupted: bool,
-}
-
-impl From<&GcStats> for LastGcStats {
-    fn from(stats: &GcStats) -> Self {
-        Self {
-            collected: stats.collected,
-            interrupted: stats.interrupted,
-        }
-    }
-}
-
 impl Display for GcStats {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -408,11 +388,6 @@ impl TurboTasksBackend {
         // Uninterruptible: the exact-count tests this hook exists for need a full pass, and an
         // interrupted one would silently collect less than they assert.
         let (stats, roots) = self.gc_collect(turbo_tasks, &phase, false);
-
-        // Record the pass stats so the test-only hook (`last_gc_stats_for_testing`) reflects this
-        // direct pass too — production records these in `snapshot_and_persist`, which this hook
-        // bypasses.
-        *self.last_gc_stats.lock() = Some((&stats).into());
 
         // Persist the roots map this pass produced. Some tests query the roots set and GC itself
         // does as well, this ensures it is available to the next cycle.
