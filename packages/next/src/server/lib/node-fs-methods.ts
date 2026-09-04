@@ -9,4 +9,5 @@ export const nodeFs: CacheFs = {
   writeFile: (f, d) => fs.promises.writeFile(f, d),
   mkdir: (dir) => fs.promises.mkdir(dir, { recursive: true }),
   stat: (f) => fs.promises.stat(f),
+  rename: (oldPath, newPath) => fs.promises.rename(oldPath, newPath),
 }
