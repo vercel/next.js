@@ -53,16 +53,18 @@ bun run build
 
 After a successful build, Next.js prints a route table with a symbol next to each route, showing how it is served:
 
-| Symbol | Name              | Behavior                                                                     |
-| ------ | ----------------- | ---------------------------------------------------------------------------- |
-| `○`    | Static            | Fully prerendered at build time. Served without server rendering.            |
-| `◐`    | Partial Prerender | Static shell served immediately. Dynamic content streams in at request time. |
-| `●`    | SSG               | Prerendered static HTML (from `generateStaticParams` or `getStaticProps`).   |
-| `ƒ`    | Dynamic           | Server-rendered on demand for each request.                                  |
+| Symbol | Name              | Behavior                                                                   |
+| ------ | ----------------- | -------------------------------------------------------------------------- |
+| `○`    | Static            | Fully prerendered at build time. Served without server rendering.          |
+| `◐`    | Partial Prerender | Prerenders what it can at build time. Remaining content renders on demand. |
+| `●`    | SSG               | Prerendered static HTML (from `generateStaticParams` or `getStaticProps`). |
+| `ƒ`    | Dynamic           | Cannot use PPR. Server-rendered on demand for each request.                |
 
 `○` Static, `●` SSG, and `ƒ` Dynamic are the modes Next.js applications have always rendered in, including on the Pages Router: each route is either prerendered to static HTML or server-rendered on demand for each request.
 
-[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) adds `◐` Partial Prerender and makes [Partial Prerendering](/docs/app/getting-started/caching#static-cached-and-streaming) the default rendering model. Each route is split into a static shell, prerendered at build time, and dynamic parts that stream in at request time. Routes sit on a spectrum from fully static (`○`) to partially prerendered (`◐`) and are no longer fully server-rendered: a route shows `ƒ` only when it has nothing to prerender, such as [Route Handlers](/docs/app/api-reference/file-conventions/route) that depend on the request, Proxy (Middleware), and dynamic [metadata](/docs/app/api-reference/functions/generate-metadata) like `icon` or `opengraph-image`.
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) uses [Partial Prerendering](/docs/app/getting-started/caching#static-cached-and-streaming) as the rendering model for every App Router page. At build time, a page can produce a complete, partial, or empty prerender. Even when the HTML file is empty, individual route segments can still contain static data in their [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server), so the page is not equivalent to a Dynamic route.
+
+The `◐` symbol means the page uses PPR and still has request-time work. It does not guarantee that the page produced visible HTML at build time. The `ƒ` symbol is reserved for outputs that cannot use PPR, such as [Route Handlers](/docs/app/api-reference/file-conventions/route) that depend on the request, Proxy (Middleware), and dynamic [metadata](/docs/app/api-reference/functions/generate-metadata) like `icon` or `opengraph-image`.
 
 The symbol reflects what the route does at prerender time, not which validation configs (such as [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant)) it exports. Without Cache Components, or on the Pages Router, prerendered pages can also show `●` (SSG).
 
@@ -332,7 +334,7 @@ The routes [revalidate](/docs/app/getting-started/revalidating) after 15 minutes
 
 ### A blocking route
 
-The error's last suggestion, `[block]`, is the alternative to the fixes above. Say we had removed them, and only set `instant = false` on the original page. This doesn't change how the route renders. It only opts out of validation to purposely allow a blocking route:
+The error's last suggestion, `[block]`, is the alternative to the fixes above. Say we had removed them, and only set `instant = false` on the original page. This opts the segment out of instant-navigation validation. Because it is the highest `instant` config in this route's tree, it also opts the route out of static-shell validation. It doesn't change the rendering model; it explicitly allows the route to block:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export const instant = false
