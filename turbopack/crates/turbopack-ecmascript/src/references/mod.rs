@@ -1939,7 +1939,7 @@ where
     // Compute error mode from in_try and attributes.optional
     let error_mode = if attributes.optional {
         ResolveErrorMode::Ignore
-    } else if in_try {
+    } else if in_try || skip_code_gen {
         ResolveErrorMode::Warn
     } else {
         ResolveErrorMode::Error
