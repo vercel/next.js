@@ -2388,6 +2388,16 @@ export default abstract class Server<
     const isAppPath = components.isAppPath === true
 
     const hasServerProps = !!components.getServerSideProps
+    // A Pages Router page that uses `getInitialProps` (either on the page
+    // itself or via a custom `_app`) runs on every request and may legitimately
+    // handle non-GET/HEAD methods, just like in production. Such pages are not
+    // statically optimized, so they must not be treated as GET/HEAD-only below.
+    const hasPageGetInitialProps =
+      !isAppPath && !!(components.Component as any)?.getInitialProps
+    const hasCustomAppGetInitialProps =
+      !isAppPath &&
+      (components.App as any)?.getInitialProps !==
+        (components.App as any)?.origGetInitialProps
     const isPossibleServerAction = getIsPossibleServerAction(req)
     let isSSG = !!components.getStaticProps
     // NOTE: Don't delete headers[RSC] yet, it still needs to be used in renderToHTML later
@@ -2649,7 +2659,12 @@ export default abstract class Server<
       pathname !== '/_error' &&
       req.method !== 'HEAD' &&
       req.method !== 'GET' &&
-      (typeof components.Component === 'string' || isSSG)
+      (typeof components.Component === 'string' ||
+        isSSG ||
+        (!isAppPath &&
+          !hasServerProps &&
+          !hasPageGetInitialProps &&
+          !hasCustomAppGetInitialProps))
     ) {
       res.statusCode = 405
       res.setHeader('Allow', ['GET', 'HEAD'])
