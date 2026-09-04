@@ -515,6 +515,47 @@ function VideoPlayer({ src }: { src: string }) {
 
 When the component becomes visible again, effects re-run and playback position is preserved since the DOM node was never removed.
 
+### Imperative DOM libraries
+
+Some libraries own DOM nodes outside React, such as map, canvas, and WebGL libraries. Their cleanup APIs may destroy internal DOM references. For example, a map library might call `map.remove()` and clear the container it uses to attach markers or controls.
+
+If a library instance cannot be reused after cleanup, don't keep it in a ref across Activity hide/show cycles. Remount the wrapper with a new `key` so the library creates a fresh instance when the content becomes visible again:
+
+```tsx filename="app/map-shell.tsx"
+'use client'
+
+import { useCallback, useLayoutEffect, useRef, useState } from 'react'
+
+export function MapShell() {
+  const [mapKey, setMapKey] = useState(0)
+  const resetMap = useCallback(() => {
+    setMapKey((key) => key + 1)
+  }, [])
+
+  return <MapCanvas key={mapKey} onCleanup={resetMap} />
+}
+
+function MapCanvas({ onCleanup }: { onCleanup: () => void }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  useLayoutEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
+    const map = new MapLibrary.Map({ container })
+
+    return () => {
+      map.remove()
+      onCleanup()
+    }
+  }, [onCleanup])
+
+  return <div ref={containerRef} />
+}
+```
+
+This pattern is useful for libraries like Mapbox GL, Leaflet, Three.js, or Google Maps that need to rebuild imperative state instead of resuming from a destroyed instance.
+
 ### Distinguishing first mount from re-show
 
 Effects run on every hide-to-visible transition, not just the initial mount. If you need to distinguish the first mount from subsequent visibility changes, use a ref:
