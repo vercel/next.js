@@ -2216,7 +2216,9 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if !skip_code_gen {
+                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        }
                         return Ok(());
                     }
                 }
@@ -2267,7 +2269,9 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if !skip_code_gen {
+                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        }
                         return Ok(());
                     }
                 }
@@ -2339,7 +2343,9 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if !skip_code_gen {
+                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        }
                         return Ok(());
                     }
                 }
