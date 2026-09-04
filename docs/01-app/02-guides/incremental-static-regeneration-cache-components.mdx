@@ -19,9 +19,14 @@ During build, Partial Prerendering splits each render into two parts:
 
 For a visit to a URL whose params were included in `generateStaticParams`, Next.js serves the fully prerendered page from the cache. For a visit to a URL whose params weren't, Next.js serves the App Shell instantly, then upgrades it in the background with the now-known params. Subsequent visits to that URL get the upgraded result from the cache, skipping the App Shell entirely.
 
-If you have used [ISR](/docs/app/guides/incremental-static-regeneration) or [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) in the Pages Router, this is the Cache Components equivalent.
+If you have used [ISR](/docs/app/guides/incremental-static-regeneration) or [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) in the Pages Router, combining Cache Components with Partial Prefetching provides the equivalent behavior.
 
-Enable both [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Cache Components produces the App Shell, while Partial Prefetching upgrades it to a full route once the params are known.
+Enable both [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Cache Components prerenders a static shell that can contain fallback UI. Partial Prefetching lets Next.js serve that fallback for an unlisted path, then render the route with the known params and store the result in the ISR cache.
+
+> **Good to know:** How you access `params` depends on whether Partial Prefetching is enabled:
+>
+> - With Partial Prefetching, you can await `params` inside `<Suspense>`. Next.js serves the fallback while it renders and stores the completed route.
+> - Without Partial Prefetching, await `params` outside any `<Suspense>` boundary, including one created by [`loading.tsx`](/docs/app/api-reference/file-conventions/loading). The request waits for the completed route, which Next.js can then store in the ISR cache. If you await `params` inside a boundary, Next.js keeps serving the shared fallback instead of creating a URL-specific ISR entry.
 
 ```ts filename="next.config.ts" highlight={4-5}
 import type { NextConfig } from 'next'
@@ -211,7 +216,7 @@ Instead, use [`generateStaticParams`](/docs/app/api-reference/functions/generate
 
 If you are migrating from the Pages Router:
 
-- `fallback: true` in `getStaticPaths` is now the default behavior with `cacheComponents`. Visitors get a `<Suspense>` fallback instantly and content streams in.
+- `fallback: true` in `getStaticPaths` maps to Cache Components with Partial Prefetching. Visitors get a `<Suspense>` fallback instantly and content streams in.
 - `router.isFallback` is not needed. The prerendering step generates a static shell, and you can grow it further with `'use cache'`.
 - `getStaticProps` with `revalidate` maps to `'use cache'` with [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
 - `getStaticPaths` maps to [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
