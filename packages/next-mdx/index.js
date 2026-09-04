@@ -35,9 +35,23 @@ module.exports =
           '@mdx-js/react',
           require.resolve('./mdx-components.js'),
         ]
+        // App Router `.mdx` pages are Server Components, so pin the SWC pass to
+        // the 'rsc' bundle layer. `defaultLoaders.babel` is layer-agnostic, which
+        // leaves SWC's `isReactServerLayer` false and trips the RSC metadata guard.
+        const babelLoader =
+          options.isServer && options.defaultLoaders.babel
+            ? {
+                ...options.defaultLoaders.babel,
+                options: {
+                  ...options.defaultLoaders.babel.options,
+                  // WEBPACK_LAYERS.reactServerComponents
+                  bundleLayer: 'rsc',
+                },
+              }
+            : options.defaultLoaders.babel
         config.module.rules.push({
           test: extension,
-          use: [options.defaultLoaders.babel, loader],
+          use: [babelLoader, loader],
         })
 
         if (typeof inputConfig.webpack === 'function') {
