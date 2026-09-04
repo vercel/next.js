@@ -23,12 +23,6 @@ const WIDTH: u32 = 24;
 /// evicts, and the resident count must return to a flat baseline.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn gc_re_rooting_stays_flat() {
-    // This test asserts on *how much* GC collects, so it must not race the interrupt heuristic.
-    // `gc_for_testing` already pins the floor for its own pass, but each round also runs
-    // `snapshot_and_evict_for_testing`, whose GC pass is fully interruptible: on a loaded machine
-    // it can wind down as soon as an operation blocks behind it, collecting less through no fault
-    // of GC. Pin the floor beyond any plausible pass so the counts are deterministic; the
-    // interrupt path has its own tests.
     let (tt, _persistence_dir) =
         create_tt_with_gc_min_progress("gc_re_rooting_stays_flat", Duration::from_secs(60 * 60));
     let tt2 = tt.clone();
@@ -64,10 +58,7 @@ async fn gc_re_rooting_stays_flat() {
         // first would drop the garbage to disk-only where the in-memory GC can't collect or
         // tombstone it.
         let collected = tt.backend().gc_for_testing(tt);
-        // This runs a *second*, interruptible GC pass inside `snapshot_and_persist` (unlike
-        // `gc_for_testing`, which pins `min_progress` so high it can never trip). On a loaded
-        // machine that pass can wind down early, which shows up as a collection shortfall rather
-        // than a bug — so report it instead of letting it look like GC failing to collect.
+
         let interrupted = tt
             .backend()
             .snapshot_and_evict_for_testing(tt)

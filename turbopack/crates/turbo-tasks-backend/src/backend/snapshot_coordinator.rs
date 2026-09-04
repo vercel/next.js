@@ -660,12 +660,6 @@ mod tests {
         );
     }
 
-    /// The waiter flag over its whole lifecycle: not set by merely holding the exclusion, set once
-    /// an operation parks behind it in `begin_operation`, and cleared when the phase ends so the
-    /// next exclusion starts clean. This is the signal GC polls to decide it is delaying real work.
-    ///
-    /// An operation that arrives when nothing is excluding takes the fast path and must *not* set
-    /// it — otherwise GC would see phantom waiters and interrupt itself immediately.
     #[test]
     fn operations_waiting_tracks_blocked_operations() {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
@@ -706,15 +700,6 @@ mod tests {
         );
     }
 
-    /// An operation parked at a `suspend_point` **does** count as a waiter. It is blocked on the
-    /// exclusion exactly like an operation that arrived after the exclusion started; that it is
-    /// also what *allowed* the exclusion to begin is a fact about causality, not about who is
-    /// being stalled.
-    ///
-    /// So a pass that starts while an operation is mid-flight sees a waiter from its first poll,
-    /// and yields as soon as its `gc_min_progress` floor is up. Keeping the pass alive for that
-    /// minimum is the floor's job, not this counter's — hiding the waiter here would instead make
-    /// the case where GC is *most* likely to be stalling an HMR edit the one case it cannot see.
     #[test]
     fn operations_waiting_counts_suspended_operation() {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
