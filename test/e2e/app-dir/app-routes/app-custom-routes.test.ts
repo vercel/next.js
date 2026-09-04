@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor, retry } from 'next-test-utils'
+import { METHODS } from 'node:http'
 import { Readable } from 'stream'
 
 import {
@@ -18,6 +19,17 @@ describe('app-custom-routes', () => {
       '@types/node-fetch': '2.6.1',
     },
   })
+
+  // Node.js added QUERY to its HTTP parser in v20.19.2, but that release leaves
+  // IncomingMessage.method undefined. Keep testing the minimum supported
+  // Node.js version while exercising QUERY when the parser fully supports it.
+  // Deployed Node.js routes support QUERY independently of the Node.js version
+  // running this test.
+  const queryRequestDescribe =
+    (METHODS.includes('QUERY') && process.versions.node !== '20.19.2') ||
+    isNextDeploy
+      ? describe
+      : describe.skip
 
   describe('works with api prefix correctly', () => {
     it('statically generates correctly with no dynamic usage', async () => {
@@ -547,6 +559,17 @@ describe('app-custom-routes', () => {
       expect(await res.text()).toBeEmpty()
     })
 
+    queryRequestDescribe('QUERY requests', () => {
+      it('recognizes QUERY as a valid but unimplemented method', async () => {
+        const res = await next.fetch(basePath + '/status/405', {
+          method: 'QUERY',
+        })
+
+        expect(res.status).toEqual(405)
+        expect(await res.text()).toBeEmpty()
+      })
+    })
+
     it('responds with 500 (Internal Server Error) when the handler throws an error', async () => {
       const res = await next.fetch(basePath + '/status/500')
 
@@ -596,6 +619,41 @@ describe('app-custom-routes', () => {
 
       expect(res.headers.get('allow')).toEqual('OPTIONS, POST')
     })
+  })
+
+  describe('QUERY method', () => {
+    queryRequestDescribe('requests', () => {
+      it.each(
+        isNextDeploy
+          ? ['/methods/query']
+          : ['/methods/query', '/methods/query/edge']
+      )('handles request content in %s', async (path) => {
+        const res = await next.fetch(basePath + path, {
+          method: 'QUERY',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ filter: 'active' }),
+        })
+
+        expect(res.status).toEqual(200)
+        expect(await res.json()).toEqual({
+          method: 'QUERY',
+          contentType: 'application/json',
+          body: { filter: 'active' },
+        })
+      })
+    })
+
+    it.each(['/methods/query', '/methods/query/edge'])(
+      'includes QUERY in the Allow header for %s',
+      async (path) => {
+        const res = await next.fetch(basePath + path, {
+          method: 'OPTIONS',
+        })
+
+        expect(res.status).toEqual(204)
+        expect(res.headers.get('allow')).toEqual('OPTIONS, QUERY')
+      }
+    )
   })
 
   describe('edge functions', () => {
