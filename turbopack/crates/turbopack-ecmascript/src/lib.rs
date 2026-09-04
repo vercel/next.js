@@ -2308,7 +2308,8 @@ async fn emit_content(
         let comments = comments.consumable();
 
         let mut emitter = Emitter {
-            cfg: swc_core::ecma::codegen::Config::default(),
+            cfg: swc_core::ecma::codegen::Config::default()
+                .with_minify(matches!(minify, MinifyType::Minify { .. })),
             cm: source_map.clone(),
             comments: Some(&comments as &dyn Comments),
             wr,
