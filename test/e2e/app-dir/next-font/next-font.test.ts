@@ -18,12 +18,11 @@ const getAttrs = (elems: Cheerio) =>
     .sort((a, b) => (a.href < b.href ? -1 : 1))
 
 describe('app dir - next/font', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely mutates files in the isolated local fixture after setup.
+  // @force-gate !deploy
   describe('app dir - next-font', () => {
-    const {
-      next,
-      isNextDev: isDev,
-      skipped,
-    } = nextTestSetup({
+    const { next, isNextDev: isDev } = nextTestSetup({
       files: {
         app: new FileRef(join(__dirname, 'app')),
         fonts: new FileRef(join(__dirname, 'fonts')),
@@ -33,12 +32,7 @@ describe('app dir - next/font', () => {
       dependencies: {
         '@next/font': 'canary',
       },
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     describe('import values', () => {
       it('should have correct values at /', async () => {

@@ -3,15 +3,13 @@ import { listClientChunks } from 'next-test-utils'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely reads files from the isolated local fixture.
+// @force-gate !deploy
 describe('css-server-chunks', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should not write CSS chunks for the server', async () => {
     // Fetch all routes to compile them in development

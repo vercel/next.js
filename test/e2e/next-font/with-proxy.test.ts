@@ -4,6 +4,7 @@ import { join } from 'path'
 import spawn from 'cross-spawn'
 
 describe('next/font/google with proxy', () => {
+  // Deploy mode exclusion: This suite spawns a local proxy process.
   if ((global as any).isNextDeploy) {
     it('should skip next deploy', () => {})
     return

@@ -1,16 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely controls the local Next.js build or server lifecycle.
+// @force-gate !deploy
 describe('turbopack-postcss-multiple-configs', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     // Per-directory PostCSS config resolution is a Turbopack-only feature
     // (turbopackLocalPostcssConfig). Webpack does not support this feature and
     // does not accept function-valued PostCSS plugins, so skip non-Turbopack runs.
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   if (!isTurbopack) {
     it('should only run with Turbopack', () => {})
