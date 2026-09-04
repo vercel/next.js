@@ -1,0 +1,11 @@
+warning - [analysis] /turbopack/crates/turbopack-tests/tests/execution/webpack/async-modules/modules_reexport-unknown/input/unknown.js  unexpected export *
+  
+  export * used with module [project]/turbopack/crates/turbopack-tests/tests/execution/webpack/async-modules/modules_reexport-unknown/input/unknown.js [test] (ecmascript) which is a CommonJS module with exports only available at runtime
+  List all export names manually (`export { a, b, c } from "...") or rewrite the module to ESM, to avoid the additional runtime code.`
+  
+  Import trace:
+    ./turbopack/crates/turbopack-tests/tests/execution/webpack/async-modules/modules_reexport-unknown/input/unknown.js
+    ./turbopack/crates/turbopack-tests/tests/execution/webpack/async-modules/modules_reexport-unknown/input/async-unknown.js
+    ./turbopack/crates/turbopack-tests/tests/execution/webpack/async-modules/modules_reexport-unknown/input/reexport-async-unknown.js
+    ./turbopack/crates/turbopack-tests/tests/execution/webpack/async-modules/modules_reexport-unknown/input/test.js
+    ./turbopack/crates/turbopack-tests/tests/execution/webpack/async-modules/modules_reexport-unknown/input/index.js
