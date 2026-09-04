@@ -1,12 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('File Dependencies', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // No deploy-specific incompatibility is documented.
+  // @force-gate !deploy
   describe('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should apply styles defined in global and module css files in a standard page.', async () => {
       const browser = await next.browser('/')

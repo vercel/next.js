@@ -2,13 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor, waitForNoErrorToast } from 'next-test-utils'
 
 describe('use-cache-size-zero', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('serves the stale cached value on a warm reload, then converges to a fresh one', async () => {
     const browser = await next.browser('/reload', {

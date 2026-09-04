@@ -8,13 +8,12 @@ import { nextTestSetup } from 'e2e-utils'
 // appears only inside that gated branch, and object keys survive minification.
 describe('instrumentation client router transition events - dead code elimination', () => {
   describe('when the experimental flag is enabled', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       nextConfig: {
         experimental: { instrumentationClientRouterTransitionEvents: true },
       },
     })
-    if (skipped) return
 
     it('keeps the transition event payload in the client bundle', async () => {
       const $ = await next.render$('/')
@@ -31,10 +30,9 @@ describe('instrumentation client router transition events - dead code eliminatio
   })
 
   describe('when the experimental flag is disabled', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
     })
-    if (skipped) return
 
     it('removes the transition event payload from the client bundle', async () => {
       const $ = await next.render$('/')

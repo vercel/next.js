@@ -1,11 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// This test directly emulates the platform's internal resume request using
+// locally generated postponed state and private runtime switches.
+// @force-gate !deploy
 describe('instant-navigation-resume', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    // This test directly emulates the platform's internal resume request using
-    // locally generated postponed state and private runtime switches.
-    skipDeployment: true,
     env: {
       NEXT_PRIVATE_TEST_HEADERS: '1',
       NEXT_PRIVATE_MINIMAL_MODE: '1',

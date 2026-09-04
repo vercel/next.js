@@ -144,13 +144,11 @@ async function execute(next: NextInstance, envKey: string, id: string) {
 describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
   'use-cache-cross-deployment with %s',
   (envKey) => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       disableAutoSkewProtection: true,
       skipStart: true,
     })
-
-    if (skipped) return
 
     // In the future, this assertion can be relaxed to only prevent sharing if the implementation
     // changed.
@@ -177,14 +175,12 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'use-cache-cross-deployment with durableUseCacheEntries',
   () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       disableAutoSkewProtection: true,
       skipStart: true,
       env: { DURABLE_USE_CACHE_ENTRIES: '1' },
     })
-
-    if (skipped) return
 
     beforeEach(async () => {
       await next.deleteFile('handler-remote-data.json')

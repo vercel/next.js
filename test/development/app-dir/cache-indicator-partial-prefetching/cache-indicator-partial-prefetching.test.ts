@@ -10,13 +10,9 @@ import { retry, waitFor } from 'next-test-utils'
 // the shell. (The static-shell behavior is covered in the `cache-indicator`
 // suite.)
 describe('cache-indicator-partial-prefetching', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('cache after session data triggers cold cache indicator', async () => {
     const browser = await next.browser('/')
