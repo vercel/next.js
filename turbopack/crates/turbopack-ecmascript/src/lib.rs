@@ -2322,7 +2322,7 @@ async fn emit_content(
     let source_map = if generate_source_map {
         let original_source_maps = original_source_map
             .iter()
-            .map(|map| map.generate_source_map())
+            .map(|map| map.generate_source_map().final_read_hint())
             .try_join()
             .await?;
         let original_source_maps = original_source_maps
