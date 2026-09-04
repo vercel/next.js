@@ -553,6 +553,13 @@ impl TurboTasksBackend {
             lock_task_and_optional_reader(&mut ctx, task_id, need_reader_task);
         task.assert_not_deleted("read_task_output");
 
+        // Cancellation is terminal for this session. Check it before the strongly-consistent
+        // dirty-subgraph path so a reader woken during shutdown reports the cancellation instead
+        // of subscribing to `all_clean_event` again.
+        if matches!(task.get_in_progress(), Some(InProgressState::Canceled)) {
+            bail!("{} was canceled", task.get_task_description());
+        }
+
         fn listen_to_done_event(
             reader_description: Option<EventDescription>,
             tracking: ReadTracking,
@@ -1997,6 +2004,15 @@ impl TurboTasksBackend {
         } else {
             None
         };
+
+        // Strongly-consistent reads wait for the whole subgraph to become clean rather than for
+        // this task's normal completion event. During shutdown no more work will make that
+        // subgraph clean, so wake those readers and let the cancellation check above terminate
+        // their reads.
+        if let Some(activeness_state) = task.get_activeness_mut() {
+            activeness_state.all_clean_event.notify(usize::MAX);
+            activeness_state.unset_active_until_clean();
+        }
 
         let old = task.set_in_progress(InProgressState::Canceled);
         debug_assert!(old.is_none(), "InProgress already exists");
