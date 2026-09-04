@@ -1,0 +1,98 @@
+{
+  "91d36ac35ac4260ecd66b227b196bf07907008380e29a91ca6accbba4b4f0d97": [
+    {
+      "type": "ol",
+      "props": {
+        "data-_gt": {
+          "id": 1
+        },
+        "children": [
+          {
+            "type": "li",
+            "props": {
+              "data-_gt": {
+                "id": 2
+              },
+              "children": [
+                "To jest wielojęzyczna aplikacja Next.js stworzona za pomocą ",
+                {
+                  "type": "code",
+                  "props": {
+                    "data-_gt": {
+                      "id": 3
+                    },
+                    "children": "create-next-app"
+                  }
+                },
+                " i ",
+                {
+                  "type": "code",
+                  "props": {
+                    "data-_gt": {
+                      "id": 4
+                    },
+                    "children": "gt-next"
+                  }
+                },
+                "."
+              ]
+            }
+          },
+          {
+            "type": "li",
+            "props": {
+              "data-_gt": {
+                "id": 5
+              },
+              "children": "Jest wdrożona w 20 różnych językach!"
+            }
+          },
+          {
+            "type": "li",
+            "props": {
+              "data-_gt": {
+                "id": 6
+              },
+              "children": "Wybierz język z listy rozwijanej poniżej."
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "div",
+      "props": {
+        "data-_gt": {
+          "id": 7
+        },
+        "children": [
+          {
+            "type": "div",
+            "props": {
+              "data-_gt": {
+                "id": 8
+              },
+              "children": {
+                "type": "LocaleSelector",
+                "props": {
+                  "data-_gt": {
+                    "id": 9
+                  }
+                }
+              }
+            }
+          },
+          {
+            "type": "a",
+            "props": {
+              "data-_gt": {
+                "id": 10
+              },
+              "children": "dokumentacja gt-next"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
