@@ -15,16 +15,14 @@ To fix it:
 
 Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('proxy-missing-export', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should error when proxy file has invalid export named middleware', async () => {
     await writeFile(

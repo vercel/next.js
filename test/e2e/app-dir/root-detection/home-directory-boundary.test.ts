@@ -41,10 +41,13 @@ const cases: Array<{
   },
 ]
 
+// This suite changes HOME for a locally managed Next.js process and inspects
+// its CLI output.
+// @force-gate !deploy
 describe.each(cases)(
   'root-detection - home directory boundary ($name)',
   ({ getHome, getRoot, getRootLockFile }) => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: {
         app: new FileRef(join(__dirname, 'app')),
         '../package.json': packageJson('project'),
@@ -54,7 +57,6 @@ describe.each(cases)(
       },
       // So that the files written above don't leave the isolated testDir
       subDir: 'project/app',
-      skipDeployment: true,
       // The workspace file would stop the search before the home directory
       // boundary does, so the test wouldn't be exercising the boundary.
       deleteWorkspaceFile: true,
@@ -63,10 +65,6 @@ describe.each(cases)(
       buildCommand: `${nextBin} build`,
       startCommand: `${nextBin} ${isNextDev ? 'dev' : 'start'}`,
     })
-
-    if (skipped) {
-      return
-    }
 
     beforeAll(async () => {
       const home = getHome(next.testDir)

@@ -1,5 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('next-config-ts-type-error-cjs', () => {
   // TODO: Remove this once we bump minimum Node.js version to v22
   if (!(process.features as any).typescript) {
@@ -7,15 +10,10 @@ describe('next-config-ts-type-error-cjs', () => {
     return
   }
 
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should throw with type error on build (CJS)', async () => {
     if (isNextDev) {

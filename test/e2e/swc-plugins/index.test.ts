@@ -1,15 +1,16 @@
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 
 describe('swcPlugins', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely expects a local build failure instead of a successful deployment.
+  // @force-gate !deploy
   describe('supports swcPlugins', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       dependencies: {
         '@swc/plugin-react-remove-properties': '13.0.0',
       },
     })
-    if (skipped) return
 
     it('basic case', async () => {
       const html = await next.render('/')
@@ -17,15 +18,17 @@ describe('swcPlugins', () => {
       expect(html).not.toContain('data-custom-attribute')
     })
   })
-  ;(isNextDev ? describe : describe.skip)('incompatible plugin version', () => {
-    const { next, skipped, isTurbopack } = nextTestSetup({
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely expects a local build failure instead of a successful deployment.
+  // @force-gate !deploy
+  // @force-gate dev
+  describe('incompatible plugin version', () => {
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       dependencies: {
         '@swc/plugin-react-remove-properties': '7.0.2',
       },
     })
-    if (skipped) return
 
     it('shows a redbox in dev', async () => {
       const browser = await next.browser('/')
@@ -55,10 +58,13 @@ describe('swcPlugins', () => {
       }
     })
   })
-  ;(isNextDev ? describe : describe.skip)('invalid plugin name', () => {
-    const { next, skipped, isTurbopack } = nextTestSetup({
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely expects a local build failure instead of a successful deployment.
+  // @force-gate !deploy
+  // @force-gate dev
+  describe('invalid plugin name', () => {
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       overrideFiles: {
         'next.config.js': `
 module.exports = {
@@ -68,9 +74,7 @@ module.exports = {
 }`,
       },
     })
-    if (skipped) return
 
-    // eslint-disable-next-line jest/no-identical-title
     it('shows a redbox in dev', async () => {
       const browser = await next.browser('/')
 

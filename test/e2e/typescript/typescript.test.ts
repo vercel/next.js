@@ -1,14 +1,15 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('TypeScript Features', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     dependencies: {
       sass: 'latest',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should render the page', async () => {
     const $ = await next.render$('/hello')
@@ -98,30 +99,30 @@ export default function EvilPage(): JSX.Element {
     })
   }
 })
-;(isNextStart ? describe : describe.skip)(
-  'TypeScript production compilation',
-  () => {
-    const { next, skipped } = nextTestSetup({
-      files: __dirname,
-      skipStart: true,
-      dependencies: {
-        sass: 'latest',
-      },
-      skipDeployment: true,
-    })
-    if (skipped) return
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
+// @force-gate start
+describe('TypeScript production compilation', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    skipStart: true,
+    dependencies: {
+      sass: 'latest',
+    },
+  })
 
-    it('should build the app', async () => {
-      const { cliOutput, exitCode } = await next.build()
-      expect(cliOutput).toMatch(/Compiled successfully/)
-      expect(exitCode).toBe(0)
-    })
+  it('should build the app', async () => {
+    const { cliOutput, exitCode } = await next.build()
+    expect(cliOutput).toMatch(/Compiled successfully/)
+    expect(exitCode).toBe(0)
+  })
 
-    it('should build the app with functions in next.config.js', async () => {
-      const originalConfig = await next.readFile('next.config.js')
-      await next.patchFile(
-        'next.config.js',
-        `
+  it('should build the app with functions in next.config.js', async () => {
+    const originalConfig = await next.readFile('next.config.js')
+    await next.patchFile(
+      'next.config.js',
+      `
     module.exports = {
       webpack(config) { return config },
       onDemandEntries: {
@@ -130,45 +131,44 @@ export default function EvilPage(): JSX.Element {
       },
     }
     `
-      )
+    )
 
+    try {
+      const { cliOutput, exitCode } = await next.build()
+      expect(cliOutput).toMatch(/Compiled successfully/)
+      expect(exitCode).toBe(0)
+    } finally {
+      await next.patchFile('next.config.js', originalConfig)
+    }
+  })
+
+  describe('should compile with different types', () => {
+    it('should compile async getInitialProps for _error', async () => {
+      const errorPage = await next.readFile('pages/_error.tsx')
+      await next.patchFile(
+        'pages/_error.tsx',
+        errorPage.replace('static ', 'static async ')
+      )
       try {
-        const { cliOutput, exitCode } = await next.build()
+        const { cliOutput } = await next.build()
         expect(cliOutput).toMatch(/Compiled successfully/)
-        expect(exitCode).toBe(0)
       } finally {
-        await next.patchFile('next.config.js', originalConfig)
+        await next.patchFile('pages/_error.tsx', errorPage)
       }
     })
 
-    describe('should compile with different types', () => {
-      it('should compile async getInitialProps for _error', async () => {
-        const errorPage = await next.readFile('pages/_error.tsx')
-        await next.patchFile(
-          'pages/_error.tsx',
-          errorPage.replace('static ', 'static async ')
-        )
-        try {
-          const { cliOutput } = await next.build()
-          expect(cliOutput).toMatch(/Compiled successfully/)
-        } finally {
-          await next.patchFile('pages/_error.tsx', errorPage)
-        }
-      })
-
-      it('should compile sync getStaticPaths & getStaticProps', async () => {
-        const page = await next.readFile('pages/ssg/[slug].tsx')
-        await next.patchFile(
-          'pages/ssg/[slug].tsx',
-          page.replace(/async \(/g, '(')
-        )
-        try {
-          const { cliOutput } = await next.build()
-          expect(cliOutput).toMatch(/Compiled successfully/)
-        } finally {
-          await next.patchFile('pages/ssg/[slug].tsx', page)
-        }
-      })
+    it('should compile sync getStaticPaths & getStaticProps', async () => {
+      const page = await next.readFile('pages/ssg/[slug].tsx')
+      await next.patchFile(
+        'pages/ssg/[slug].tsx',
+        page.replace(/async \(/g, '(')
+      )
+      try {
+        const { cliOutput } = await next.build()
+        expect(cliOutput).toMatch(/Compiled successfully/)
+      } finally {
+        await next.patchFile('pages/ssg/[slug].tsx', page)
+      }
     })
-  }
-)
+  })
+})

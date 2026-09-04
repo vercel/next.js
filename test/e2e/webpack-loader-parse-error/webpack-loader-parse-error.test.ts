@@ -75,13 +75,14 @@ function extractErrorBlock(output: string, errorTitle: string): string {
   return block.trimEnd()
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('webpack-loader-parse-error (development)', () => {
-  const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-  if (skipped) return
 
   if (!isNextDev) {
     it('skipped in production mode', () => {})
@@ -198,10 +199,12 @@ describe('webpack-loader-parse-error (development)', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('webpack-loader-parse-error (production)', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
 

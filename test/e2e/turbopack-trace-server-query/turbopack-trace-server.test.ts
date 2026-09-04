@@ -111,19 +111,21 @@ function runQueryTraceCli(
 
 // ─── test suite ──────────────────────────────────────────────────────────────
 
+// Deploy mode exclusion: The trace server requires local trace files and
+// child processes.
+// @force-gate !deploy
 describe('turbopack-trace-server', () => {
+  // Deploy mode exclusion: This suite reads a local trace file and spawns
+  // local MCP and CLI processes.
   if (isNextDeploy) {
     it('skipped for deploy mode', () => {})
     return
   }
 
-  const { next, isTurbopack, isNextDev, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: __dirname,
     env: { NEXT_TURBOPACK_TRACING: '1' },
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   // Error-path test: does not need turbopack or a running trace server.
   it('CLI: should show an error when the trace server is not running', async () => {
