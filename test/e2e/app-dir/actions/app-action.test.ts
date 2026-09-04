@@ -1045,13 +1045,12 @@ describe('app-dir action handling', () => {
 
           await next.patchFile(
             filePath,
-            origContent.replace('return value + 1', 'return value + 1000')
+            origContent.replace('return value + 1', 'return 1000')
           )
 
           await retry(async () => {
             await browser.elementByCss('#inc').click()
-            const val = Number(await browser.elementById('count').text())
-            expect(val).toBeGreaterThan(1000)
+            expect(await browser.elementById('count').text()).toBe('1000')
           })
         } finally {
           await next.patchFile(filePath, origContent)
