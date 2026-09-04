@@ -8,7 +8,7 @@ import type { ImageConfigComplete } from '../shared/lib/image-config'
 import { hasLocalMatch } from '../shared/lib/match-local-pattern'
 import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
 import type { NextConfigComplete, NextConfigRuntime } from './config-shared'
-import { createRequestResponseMocks } from './lib/mock-request'
+import { MockedRequest, MockedResponse } from './lib/mock-request'
 import type { NextUrlWithParsedQuery } from './request-meta'
 import {
   CachedRouteKind,
@@ -644,12 +644,24 @@ export async function fetchInternalImage(
     // Coerce HEAD to GET to avoid issues with the image optimizer
     const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
 
-    const mocked = createRequestResponseMocks({
-      url: href,
-      method,
-      socket: _req.socket,
-      maximumResponseBody,
-    })
+    // The mocked request keeps the requester's socket so that protocol and
+    // remote address detection keep working, but the mocked response must not
+    // reference it. `send` (used by `serveStatic`) watches `res.socket` through
+    // `on-finished` and treats the response as finished as soon as that socket
+    // stops being writable. When the requester disconnected mid-transfer this
+    // tore down the file stream without ever ending the mocked response, and
+    // since `ResponseCache` coalesces every request for the same cache key onto
+    // this single fetch, the key stayed pending for every later requester until
+    // the server restarted.
+    const mocked = {
+      req: new MockedRequest({
+        url: href,
+        method,
+        headers: {},
+        socket: _req.socket,
+      }),
+      res: new MockedResponse({ maximumResponseBody }),
+    }
 
     await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
     await mocked.res.hasStreamed
