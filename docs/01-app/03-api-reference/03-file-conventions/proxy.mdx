@@ -256,7 +256,7 @@ Proxy defaults to using the Node.js runtime. The [`runtime`](/docs/app/api-refer
 
 ## Advanced Proxy flags
 
-In `v13.1` of Next.js two additional flags were introduced for proxy, `skipProxyUrlNormalize` (formerly `skipMiddlewareUrlNormalize`) and `skipTrailingSlashRedirect` to handle advanced use cases.
+In `v13.1` of Next.js two additional flags were introduced for proxy, [`skipProxyUrlNormalize`](/docs/app/api-reference/config/next-config-js/skipProxyUrlNormalize) (formerly `skipMiddlewareUrlNormalize`) and [`skipTrailingSlashRedirect`](/docs/app/api-reference/config/next-config-js/skipTrailingSlashRedirect) to handle advanced use cases.
 
 `skipTrailingSlashRedirect` disables Next.js redirects for adding or removing trailing slashes. This allows custom handling inside proxy to maintain the trailing slash for some paths but not others, which can make incremental migrations easier.
 
