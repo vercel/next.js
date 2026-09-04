@@ -1296,8 +1296,31 @@ export async function copyTracedFiles(
           const symlink = await fs.readlink(tracedFilePath).catch(() => null)
 
           if (symlink) {
+            // pnpm on Windows installs packages as junctions with absolute
+            // targets (e.g. <project>\node_modules\.pnpm\...). Remap absolute
+            // targets that resolve inside the tracing root to the equivalent
+            // path in the standalone output so the copied link doesn't
+            // resolve back into the original node_modules.
+            let symlinkTarget = symlink
+            if (path.isAbsolute(symlink)) {
+              const relativeTarget = path.relative(tracingRoot, symlink)
+              if (
+                !relativeTarget.startsWith('..') &&
+                !path.isAbsolute(relativeTarget)
+              ) {
+                symlinkTarget = path.join(outputPath, relativeTarget)
+              }
+            }
+            // A remapped target may not have been copied yet, so Windows
+            // can't infer the link type from it — stat the original target
+            // (readlink resolved through the link) instead.
+            const targetStat = await fs.stat(tracedFilePath).catch(() => null)
             try {
-              await fs.symlink(symlink, fileOutputPath)
+              await fs.symlink(
+                symlinkTarget,
+                fileOutputPath,
+                targetStat?.isDirectory() ? 'dir' : 'file'
+              )
             } catch (err: any) {
               // Windows doesn't support creating symlinks without elevated privileges, unless
               // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
@@ -1310,10 +1333,10 @@ export async function copyTracedFiles(
               if (
                 process.platform === 'win32' &&
                 err.code === 'EPERM' &&
-                path.isAbsolute(symlink)
+                path.isAbsolute(symlinkTarget)
               ) {
                 try {
-                  await fs.symlink(symlink, fileOutputPath, 'junction')
+                  await fs.symlink(symlinkTarget, fileOutputPath, 'junction')
                 } catch (junctionErr: any) {
                   if (junctionErr.code !== 'EEXIST') {
                     throw junctionErr
