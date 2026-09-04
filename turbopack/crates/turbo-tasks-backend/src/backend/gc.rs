@@ -88,10 +88,10 @@ impl GcBudget<'_> {
         if self.stopped.load(Ordering::Relaxed) {
             return true;
         }
-        if self.started.elapsed() < self.min_progress {
+        if !self.phase.operations_waiting() {
             return false;
         }
-        if !self.phase.operations_waiting() {
+        if self.started.elapsed() < self.min_progress {
             return false;
         }
         // If we get here then there is an operation waiting _and_ we have already executed for at
