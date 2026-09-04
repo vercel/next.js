@@ -267,6 +267,7 @@ import {
 
 import { HTML_CONTENT_TYPE_HEADER, INFINITE_CACHE } from '../../lib/constants'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
+import { getLinkAndScriptTags } from './get-css-inlined-link-tags'
 import { parseLoaderTree } from '../../shared/lib/router/utils/parse-loader-tree'
 import {
   createPrerenderResumeDataCache,
@@ -10444,7 +10445,8 @@ const getGlobalErrorStyles = async (
   GlobalError: GlobalErrorComponent
   styles: ReactNode | undefined
 }> => {
-  const globalErrorModule = parseLoaderTree(tree).modules['global-error']
+  const { layout: rootLayoutModule, 'global-error': globalErrorModule } =
+    parseLoaderTree(tree).modules
 
   if (!globalErrorModule) {
     throw new Error(
@@ -10456,12 +10458,22 @@ const getGlobalErrorStyles = async (
     componentMod: { createElement },
   } = ctx
 
+  // The root layout's CSS is already rendered as part of the tree, so it must
+  // not be sent again with the global-error styles. This matters for Turbopack,
+  // which also lists the root layout's CSS under the global-error entry of the
+  // client reference manifest; without excluding it, the stylesheet would be
+  // duplicated in the RSC payload (the entire content when using `inlineCss`).
+  const injectedCSS = new Set<string>()
+  if (rootLayoutModule) {
+    getLinkAndScriptTags(rootLayoutModule[1], injectedCSS, new Set(), true)
+  }
+
   // Get the GlobalError component and styles from the loader tree
   const [GlobalErrorComponent, styles] = await createComponentStylesAndScripts({
     ctx,
     filePath: globalErrorModule[1],
     getComponent: globalErrorModule[0],
-    injectedCSS: new Set(),
+    injectedCSS,
     injectedJS: new Set(),
   })
 
