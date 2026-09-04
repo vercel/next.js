@@ -3791,10 +3791,10 @@ function addSegmentPathToUrlInOutputExportMode(
  * - `StaticShell` provides the shell-stage variant extracted from a static response —
  *   param-dependent content reduced to pending fallbacks, and never any content that
  *   depends on session data (cookies, headers)
+ * - `PPR` can provide static shells for each segment, including prerendered param-dependent
+ *   content at concrete paths (excluding dynamic data)
  * - `RuntimeShell` provides the shell stage rendered by a runtime request, which can
  *   additionally include shell-stage content that depends on session data
- * - `PPR` can provide shells for each segment (even for segments that use dynamic data),
- *   including prerendered param-dependent content at concrete paths
  * - `PPRRuntime` can additionally include content that uses searchParams, params, or cookies
  * - `Full` includes all the content, even if it uses dynamic data
  *
