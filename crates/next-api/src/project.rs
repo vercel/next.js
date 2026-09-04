@@ -111,6 +111,17 @@ use crate::{
     versioned_content_map::VersionedContentMap,
 };
 
+async fn read_hmr_version_baseline(
+    version_op: OperationVc<Box<dyn Version>>,
+) -> Result<TraitRef<Box<dyn Version>>> {
+    // INVALIDATION: This is intentionally eventual and untracked. The baseline
+    // must remain the first version observed when the subscription starts. A
+    // strongly consistent read can restart after an invalidation and instead
+    // adopt the post-edit version. The following update then appears empty even
+    // though an already-loaded browser still has the pre-edit output.
+    version_op.connect().into_trait_ref().untracked().await
+}
+
 #[turbo_tasks::task_input]
 #[derive(
     Debug,
@@ -2558,12 +2569,7 @@ impl Project {
         }
         let version_op = hmr_version_operation(self, chunk_name.clone(), target);
 
-        // INVALIDATION: This is intentionally eventual and untracked. The baseline
-        // must remain the first version observed when the subscription starts. A
-        // strongly consistent read can restart after an invalidation and instead
-        // adopt the post-edit version. The following update then appears empty even
-        // though an already-loaded browser still has the pre-edit output.
-        let initial_version = version_op.connect().into_trait_ref().untracked().await?;
+        let initial_version = read_hmr_version_baseline(version_op).await?;
         if tracing::enabled!(target: "turbopack_hmr_diagnostics", tracing::Level::INFO) {
             let version_id = TraitRef::cell(initial_version.clone())
                 .id()
@@ -3049,4 +3055,111 @@ fn all_assets_from_entries_operation(
 ) -> Result<Vc<ExpandedOutputAssets>> {
     let assets = operation.connect();
     Ok(all_assets_from_entries(assets))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::Duration;
+
+    use anyhow::Result;
+    use turbo_rcstr::{RcStr, rcstr};
+    use turbo_tasks::{
+        OperationVc, ReadRef, ResolvedVc, State, TraitRef, Vc, mark_top_level_task,
+        unmark_top_level_task_may_leak_eventually_consistent_state,
+    };
+    use turbo_tasks_testing::{Registration, register, run_once};
+    use turbopack_core::version::Version;
+
+    use super::read_hmr_version_baseline;
+
+    static REGISTRATION: Registration = register!();
+
+    #[turbo_tasks::value]
+    struct ChangingVersion {
+        value: State<RcStr>,
+    }
+
+    #[turbo_tasks::value]
+    struct TestVersion {
+        value: RcStr,
+    }
+
+    #[turbo_tasks::value_impl]
+    impl Version for TestVersion {
+        #[turbo_tasks::function]
+        fn id(&self) -> Vc<RcStr> {
+            Vc::cell(self.value.clone())
+        }
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn slow_internal_operation(input: ResolvedVc<ChangingVersion>) -> Result<Vc<()>> {
+        let _ = input.await?.value.get();
+        tokio::time::sleep(Duration::from_millis(100)).await;
+        Ok(Vc::cell(()))
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn version_operation(input: ResolvedVc<ChangingVersion>) -> Result<Vc<Box<dyn Version>>> {
+        let value = input.await?.value.get().clone();
+        let _ = slow_internal_operation(input).connect();
+        Ok(Vc::upcast(TestVersion { value }.cell()))
+    }
+
+    async fn read_strongly_consistent_version_baseline(
+        version_op: OperationVc<Box<dyn Version>>,
+    ) -> Result<TraitRef<Box<dyn Version>>> {
+        version_op
+            .read_trait_strongly_consistent()
+            .untracked()
+            .await
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn hmr_version_baseline_keeps_the_first_observed_version() {
+        run_once(&REGISTRATION, || async {
+            let input = ReadRef::new_owned(ChangingVersion {
+                value: State::new(rcstr!("before")),
+            });
+            let input_vc = ReadRef::resolved_cell(input.clone());
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let (baseline, ()) = tokio::join!(
+                read_hmr_version_baseline(version_operation(input_vc)),
+                async {
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                    input.value.set(rcstr!("after"));
+                }
+            );
+            let baseline = baseline?;
+            let baseline_id = TraitRef::cell(baseline).id().untracked().owned().await?;
+
+            // The previous implementation used this strongly-consistent read.
+            // Under the same invalidation schedule it restarts and adopts the
+            // post-edit version, demonstrating the lost-update failure mode.
+            let strong_input = ReadRef::new_owned(ChangingVersion {
+                value: State::new(rcstr!("before")),
+            });
+            let strong_input_vc = ReadRef::resolved_cell(strong_input.clone());
+            let (strong_baseline, ()) = tokio::join!(
+                read_strongly_consistent_version_baseline(version_operation(strong_input_vc)),
+                async {
+                    tokio::time::sleep(Duration::from_millis(25)).await;
+                    strong_input.value.set(rcstr!("after"));
+                }
+            );
+            let strong_baseline = strong_baseline?;
+            let strong_baseline_id = TraitRef::cell(strong_baseline)
+                .id()
+                .untracked()
+                .owned()
+                .await?;
+
+            mark_top_level_task();
+            assert_eq!(baseline_id.as_str(), "before");
+            assert_eq!(strong_baseline_id.as_str(), "after");
+            Ok(())
+        })
+        .await
+        .unwrap()
+    }
 }
