@@ -792,10 +792,22 @@ async function exportAppImpl(
         `Exporting using ${options.numWorkers} worker${options.numWorkers > 1 ? 's' : ''}`
     )
 
+    // Wrap `progress.run` so that, in addition to the spinner, we can report
+    // completed/total to the build progress bar via `options.onProgress`.
+    let exportedPathCount = 0
+    const trackedProgress = {
+      run: () => {
+        exportedPathCount++
+        options.onProgress?.(exportedPathCount, totalExportPaths)
+        progress.run()
+      },
+      clear: progress.clear,
+    }
+
     if (staticWorker) {
       // TODO: progress shouldn't rely on "activity" event sent from `exportPage`.
-      staticWorker.setOnActivity(progress.run)
-      staticWorker.setOnActivityAbort(progress.clear)
+      staticWorker.setOnActivity(trackedProgress.run)
+      staticWorker.setOnActivityAbort(trackedProgress.clear)
       worker = staticWorker
     } else {
       worker = createStaticWorker(nextConfig, {
@@ -803,7 +815,7 @@ async function exportAppImpl(
           kind: 'export-page',
         }),
         numberOfWorkers: options.numWorkers,
-        progress,
+        progress: trackedProgress,
       })
     }
 
