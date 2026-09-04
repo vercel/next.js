@@ -15,6 +15,8 @@ mod merge_iter;
 pub mod meta_file;
 mod meta_file_builder;
 pub mod mmap_helper;
+#[doc(hidden)]
+pub mod offline;
 mod parallel_scheduler;
 mod rc_bytes;
 mod shared_bytes;

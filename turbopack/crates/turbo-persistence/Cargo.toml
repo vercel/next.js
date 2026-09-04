@@ -51,6 +51,10 @@ turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
 name = "sst_inspect"
 path = "src/bin/sst_inspect.rs"
 
+[[bin]]
+name = "taskdata_dictionary"
+path = "src/bin/taskdata_dictionary.rs"
+
 [lints]
 workspace = true
 
