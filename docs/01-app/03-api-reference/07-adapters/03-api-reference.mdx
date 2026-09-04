@@ -23,6 +23,7 @@ Called after the build process completes with detailed information about routes 
 **Parameters:**
 
 - `context.routing`: Object containing Next.js routing phases and metadata
+  - `routing.version`: Version of the routing contract. Version `2` keeps dynamic Pages API routes in the canonical `/api` namespace. Manifests without a version use the legacy version `1` semantics.
   - `routing.beforeMiddleware`: Routes executed before middleware (includes header and redirect handling)
   - `routing.middlewareMatchers`: Middleware matcher definitions for this build, used to decide whether middleware should be invoked for a given request
   - `routing.beforeFiles`: Rewrite routes checked before filesystem route matching
