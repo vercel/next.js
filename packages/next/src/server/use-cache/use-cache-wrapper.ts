@@ -91,6 +91,7 @@ import {
 } from '../web/spec-extension/adapters/headers'
 import {
   NestedDynamicUseCacheError,
+  UnexpectedCacheMissError,
   UseCacheDeadlockError,
   UseCacheTimeoutError,
 } from './use-cache-errors'
@@ -347,8 +348,6 @@ const crossRequestPendingCacheInvocations = new Map<
   string,
   Promise<SharedCacheResult>
 >()
-
-const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 // The first argument at each call site is the full directive that produced
 // the invocation, e.g. "'use cache'" or "'use cache: remote'".
@@ -2729,11 +2728,7 @@ export async function cache(
             // already handled by the early return above. We return a hanging
             // promise so this becomes a dynamic hole rather than generating a
             // broken cache entry that gets aborted.
-            console.warn(
-              new Error(
-                `Unexpected cache miss after cache warming phase during prerendering. This is likely caused by non-deterministic arguments that differ between the cache warming phase and the final prerender phase (e.g. unstable array order). Ensure that arguments passed to cached functions are deterministic.`
-              )
-            )
+            console.warn(new UnexpectedCacheMissError(workStore.route))
             // This is an anomaly (non-deterministic cache key), so we can't
             // know whether a runtime prerender would resolve it. Treat it as
             // runtime data, conservatively: the cost is at most a redundant
@@ -3576,9 +3571,7 @@ export async function cache(
     // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
     // which themselves will handle the preloading.
     moduleLoading: null,
-    moduleMap: isEdgeRuntime
-      ? clientReferenceManifest.edgeRscModuleMapping
-      : clientReferenceManifest.rscModuleMapping,
+    moduleMap: clientReferenceManifest.rscModuleMapping,
     serverModuleMap: getServerModuleMap(),
   }
 

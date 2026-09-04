@@ -69,7 +69,7 @@ fn get_fn_body(expr: &Expr) -> Option<&Vec<Stmt>> {
         return Some(&body.stmts);
     }
     if let Some(ArrowExpr { body, .. }) = expr.as_arrow()
-        && let Some(block) = body.as_block_stmt()
+        && let Some(block) = body.as_function_body()
     {
         return Some(&block.stmts);
     }

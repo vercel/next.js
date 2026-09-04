@@ -29,7 +29,7 @@ use tracing::span::EnteredSpan;
 
 pub use crate::compaction::selector::CompactConfig;
 use crate::{
-    DbConfig, FamilyKind, QueryKey,
+    Compression, DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
     compression::{checksum_block, decompress_into_arc},
@@ -324,7 +324,7 @@ pub struct TurboPersistence<S: ParallelScheduler, const FAMILIES: usize> {
     /// A cache for decompressed value blocks. Allocated lazily on first read via
     /// [`Self::value_block_cache`]; see [`Self::key_block_cache`].
     value_block_cache: OnceLock<BlockCache>,
-    /// Per-family configuration for file limits.
+    /// Per-family storage configuration.
     config: DbConfig<FAMILIES>,
     /// Statistics for the database.
     #[cfg(feature = "stats")]
@@ -634,7 +634,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut meta_files = self
             .parallel_scheduler
             .parallel_map_collect::<_, _, Result<Vec<MetaFile>>>(&meta_files, |&seq| {
-                let meta_file = MetaFile::open(&self.path, seq)?;
+                let meta_file = MetaFile::open(&self.path, seq, Some(&self.config.family_configs))?;
                 Ok(meta_file)
             })?;
 
@@ -653,7 +653,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
-    fn read_blob(&self, seq: u32) -> Result<ArcBytes> {
+    fn read_blob(&self, seq: u32, compression: Compression) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
         let file = File::open(&path)?;
         let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
@@ -686,7 +686,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             );
         }
 
-        let buffer = decompress_into_arc(uncompressed_length, reader)?;
+        let buffer = decompress_into_arc(compression, uncompressed_length, reader)?;
         Ok(ArcBytes::from(buffer))
     }
 
@@ -926,7 +926,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             .parallel_map_collect_owned::<_, _, Result<Vec<_>>>(sync_items, |item| match item {
                 SyncItem::Meta(seq, file) => {
                     file.sync_data()?;
-                    let meta_file = MetaFile::open(&self.path, seq)?;
+                    let meta_file =
+                        MetaFile::open(&self.path, seq, Some(&self.config.family_configs))?;
                     Ok(SyncResult::Meta(meta_file))
                 }
                 SyncItem::Sst(file) => {
@@ -1593,7 +1594,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     let meta_index = ssts_with_ranges[index].meta_index;
                                     let index_in_meta = ssts_with_ranges[index].index_in_meta;
                                     let entry = meta_files[meta_index].entry(index_in_meta);
-                                    StaticSortedFileIter::open(path, entry.sst_metadata())
+                                    StaticSortedFileIter::open(
+                                        path,
+                                        entry.sst_metadata(),
+                                        self.config.family_configs[family as usize].compression,
+                                    )
                                 })
                                 .collect::<Result<Vec<_>>>()?;
 
@@ -1610,6 +1615,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 /// used set).
                                 writer: Option<(u32, StreamingSstWriter<LookupEntry>)>,
                                 flags: MetaEntryFlags,
+                                compression: Compression,
                                 new_sst_files:
                                     Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
                                 /// Hash of the last key added. Used to ensure we only split
@@ -1617,10 +1623,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 last_hash: Option<u64>,
                             }
                             impl Collector {
-                                fn new(flags: MetaEntryFlags) -> Self {
+                                fn new(flags: MetaEntryFlags, compression: Compression) -> Self {
                                     Self {
                                         writer: None,
                                         flags,
+                                        compression,
                                         new_sst_files: Vec::new(),
                                         last_hash: None,
                                     }
@@ -1641,6 +1648,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                             &sst_path,
                                             self.flags,
                                             MAX_ENTRIES_PER_COMPACTED_FILE as u64,
+                                            self.compression,
                                         )?;
                                         self.writer = Some((seq, writer));
                                     }
@@ -1700,8 +1708,12 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     }
                                 }
                             }
-                            let mut used_collector = Collector::new(MetaEntryFlags::WARM);
-                            let mut unused_collector = Collector::new(MetaEntryFlags::COLD);
+                            let compression =
+                                self.config.family_configs[family as usize].compression;
+                            let mut used_collector =
+                                Collector::new(MetaEntryFlags::WARM, compression);
+                            let mut unused_collector =
+                                Collector::new(MetaEntryFlags::COLD, compression);
                             let mut current_key: Option<RcBytes> = None;
                             let mut keys_written = 0;
 
@@ -1834,7 +1846,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     let mut blob_seq_numbers_to_delete = Vec::with_capacity(blob_delete_len);
 
                     let meta_seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
-                    let mut meta_file_builder = MetaFileBuilder::new(family);
+                    let mut meta_file_builder = MetaFileBuilder::new(
+                        family,
+                        self.config.family_configs[family as usize].compression,
+                    );
 
                     let mut keys_written = 0;
                     self.parallel_scheduler.block_in_place(|| {
@@ -2091,7 +2106,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 LookupValue::Blob { sequence_number } => {
                                     #[cfg(feature = "stats")]
                                     self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
-                                    let blob = self.read_blob(sequence_number)?;
+                                    let blob = self.read_blob(
+                                        sequence_number,
+                                        self.config.family_configs[family].compression,
+                                    )?;
                                     if deleted_values.iter().any(|d| **d == *blob) {
                                         continue;
                                     }
@@ -2230,7 +2248,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     LookupValue::Blob { sequence_number } => {
                         #[cfg(feature = "stats")]
                         self.stats.hits_blob.fetch_add(1, Ordering::Relaxed);
-                        let blob = self.read_blob(sequence_number)?;
+                        let blob = self.read_blob(
+                            sequence_number,
+                            self.config.family_configs[family].compression,
+                        )?;
                         result_size += blob.len();
                         Some(blob)
                     }

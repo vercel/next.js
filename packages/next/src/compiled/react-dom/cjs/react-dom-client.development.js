@@ -6259,7 +6259,7 @@
       thenable = thenable.status;
       return "fulfilled" === thenable || "rejected" === thenable;
     }
-    function trackUsedThenable(thenableState, thenable, index) {
+    function trackUsedThenable(thenableState, thenable, index, fiber) {
       null !== ReactSharedInternals.actQueue &&
         (ReactSharedInternals.didUsePromise = !0);
       var trackedThenables = thenableState.thenables;
@@ -6296,13 +6296,13 @@
         case "fulfilled":
           return thenable.value;
         case "rejected":
-          thenableState = thenable.reason;
-          checkIfUseWrappedInAsyncCatch(thenableState);
-          if (void 0 === thenableState && !("reason" in thenable))
+          fiber = thenable.reason;
+          checkIfUseWrappedInAsyncCatch(fiber);
+          if (void 0 === fiber && !("reason" in thenable))
             throw Error(
               "A rejected Promise was passed to React without a `reason` property. React threw a generic error from where the Promise was used to assist in identifying the problematic Promise. Make sure that instrumented Promises correctly set the `reason` property when setting `status` to `'rejected'`."
             );
-          throw thenableState;
+          throw fiber;
         default:
           if ("string" === typeof thenable.status)
             thenable.then(noop$1, noop$1);
@@ -6339,13 +6339,20 @@
               return thenable.value;
             case "rejected":
               throw (
-                ((thenableState = thenable.reason),
-                checkIfUseWrappedInAsyncCatch(thenableState),
-                thenableState)
+                ((fiber = thenable.reason),
+                checkIfUseWrappedInAsyncCatch(fiber),
+                fiber)
               );
           }
           suspendedThenable = thenable;
           needsToResetSuspendedThenableDEV = !0;
+          didIssueUseWarning ||
+            null === fiber ||
+            null !== fiber.alternate ||
+            ((lastSuspendedFiber = fiber),
+            (lastSuspendedStack = Error(
+              "This library called use() to suspend in a previous render but did not call use() when it finished. This indicates an incorrect use of use(). Learn more: https://react.dev/warnings/conditional-use-of-use"
+            )));
           throw SuspenseException;
       }
     }
@@ -6380,6 +6387,19 @@
         throw Error(
           "Hooks are not supported inside an async component. This error is often caused by accidentally adding `'use client'` to a module that was originally written for the server."
         );
+    }
+    function areSameKeyPath(a, b) {
+      return a === b
+        ? !0
+        : a.tag !== b.tag ||
+            a.type !== b.type ||
+            a.key !== b.key ||
+            a.index !== b.index ||
+            (3 === a.tag && a.stateNode !== b.stateNode) ||
+            null === a.return ||
+            null === b.return
+          ? !1
+          : areSameKeyPath(a.return, b.return);
     }
     function pushDebugInfo(debugInfo) {
       var previousDebugInfo = currentDebugInfo;
@@ -6426,7 +6446,7 @@
       var index = thenableIndexCounter$1;
       thenableIndexCounter$1 += 1;
       null === thenableState$1 && (thenableState$1 = createThenableState());
-      return trackUsedThenable(thenableState$1, thenable, index);
+      return trackUsedThenable(thenableState$1, thenable, index, null);
     }
     function coerceRef(workInProgress, element) {
       element = element.props.ref;
@@ -8042,8 +8062,16 @@
             _debugThenableState: thenableState
           })
         : (workInProgress.dependencies._debugThenableState = thenableState);
+      var thenableState$jscomp$0 = thenableState;
+      null !== lastSuspendedFiber &&
+        areSameKeyPath(lastSuspendedFiber, workInProgress) &&
+        (null !== thenableState$jscomp$0 ||
+          null === lastSuspendedStack ||
+          didIssueUseWarning ||
+          ((didIssueUseWarning = !0), console.error(lastSuspendedStack)),
+        (lastSuspendedStack = lastSuspendedFiber = null));
       ReactSharedInternals.H = ContextOnlyDispatcher;
-      var didRenderTooFewHooks =
+      thenableState$jscomp$0 =
         null !== currentHook && null !== currentHook.next;
       renderLanes = 0;
       hookTypesDev =
@@ -8061,7 +8089,7 @@
       didScheduleRenderPhaseUpdate = !1;
       thenableIndexCounter = 0;
       thenableState = null;
-      if (didRenderTooFewHooks)
+      if (thenableState$jscomp$0)
         throw Error(
           "Rendered fewer hooks than expected. This may be caused by an accidental early return statement."
         );
@@ -8217,7 +8245,12 @@
       var index = thenableIndexCounter;
       thenableIndexCounter += 1;
       null === thenableState && (thenableState = createThenableState());
-      thenable = trackUsedThenable(thenableState, thenable, index);
+      thenable = trackUsedThenable(
+        thenableState,
+        thenable,
+        index,
+        currentlyRenderingFiber
+      );
       index = currentlyRenderingFiber;
       null ===
         (null === workInProgressHook
@@ -14085,23 +14118,8 @@
     }
     function commitFragmentInstanceDeletionEffects(fiber) {
       for (var parent = fiber.return; null !== parent; ) {
-        if (isFragmentInstanceParent(parent)) {
-          var childInstance = fiber.stateNode,
-            fragmentInstance = parent.stateNode,
-            eventListeners = fragmentInstance._eventListeners;
-          if (null !== eventListeners)
-            for (var i = 0; i < eventListeners.length; i++) {
-              var _eventListeners$i3 = eventListeners[i];
-              childInstance.removeEventListener(
-                _eventListeners$i3.type,
-                _eventListeners$i3.attachedListener,
-                getAttachOptions(_eventListeners$i3.optionsOrUseCapture)
-              );
-            }
-          3 !== childInstance.nodeType &&
-            null != childInstance.reactFragments &&
-            childInstance.reactFragments.delete(fragmentInstance);
-        }
+        isFragmentInstanceParent(parent) &&
+          deleteChildFromFragmentInstance(fiber.stateNode, parent.stateNode);
         if (isFragmentInstanceHostBoundary(parent)) break;
         parent = parent.return;
       }
@@ -17810,11 +17828,18 @@
       )
         return workInProgressRootRenderLanes & -workInProgressRootRenderLanes;
       var transition = ReactSharedInternals.T;
-      return null !== transition
-        ? (transition._updatedFibers || (transition._updatedFibers = new Set()),
+      if (null !== transition)
+        return (
+          transition._updatedFibers || (transition._updatedFibers = new Set()),
           transition._updatedFibers.add(fiber),
-          requestTransitionLane())
-        : resolveUpdatePriority();
+          null !== lastSuspendedFiber &&
+            resolveUpdatePriority() === DiscreteEventPriority &&
+            (lastSuspendedFiber = null),
+          requestTransitionLane()
+        );
+      fiber = resolveUpdatePriority();
+      fiber === DiscreteEventPriority && (lastSuspendedFiber = null);
+      return fiber;
     }
     function requestDeferredLane() {
       if (0 === workInProgressDeferredLane)
@@ -24494,9 +24519,11 @@
       return !1;
     }
     function getAttachOptions(opts) {
-      return null == opts || "boolean" === typeof opts || !0 !== opts.once
-        ? opts
-        : { capture: opts.capture, passive: opts.passive, signal: opts.signal };
+      return null != opts &&
+        "boolean" !== typeof opts &&
+        (!0 === opts.once || opts.signal instanceof AbortSignal)
+        ? { capture: opts.capture, passive: opts.passive }
+        : opts;
     }
     function normalizeListenerOptions(opts) {
       return null == opts
@@ -24552,6 +24579,28 @@
       child = getInstanceFromHostFiber(child);
       observer.unobserve(child);
       return !1;
+    }
+    function schedulePendingIntersectionUnobserve(
+      fragmentInstance,
+      observer,
+      instance
+    ) {
+      pendingIntersectionUnobserves.push({
+        fragmentInstance: fragmentInstance,
+        observer: observer,
+        instance: instance
+      });
+      intersectionUnobserveScheduled ||
+        ((intersectionUnobserveScheduled = !0),
+        requestPostPaintCallback(function () {
+          intersectionUnobserveScheduled = !1;
+          var pending = pendingIntersectionUnobserves;
+          pendingIntersectionUnobserves = [];
+          for (var i = 0; i < pending.length; i++) {
+            var item = pending[i];
+            item.observer.unobserve(item.instance);
+          }
+        }));
     }
     function collectClientRects(child, rects) {
       if (6 === child.tag) {
@@ -24691,8 +24740,12 @@
     function commitNewChildToFragmentInstance(childInstance, fragmentInstance) {
       var eventListeners = fragmentInstance._eventListeners;
       if (null !== eventListeners)
-        for (var i = 0; i < eventListeners.length; i++) {
-          var _eventListeners$i2 = eventListeners[i];
+        for (
+          var i$jscomp$0 = 0;
+          i$jscomp$0 < eventListeners.length;
+          i$jscomp$0++
+        ) {
+          var _eventListeners$i2 = eventListeners[i$jscomp$0];
           childInstance.addEventListener(
             _eventListeners$i2.type,
             _eventListeners$i2.attachedListener,
@@ -24700,11 +24753,52 @@
           );
         }
       3 !== childInstance.nodeType &&
-        (null !== fragmentInstance._observers &&
-          fragmentInstance._observers.forEach(function (observer) {
+        ((eventListeners = fragmentInstance._observers),
+        null !== eventListeners &&
+          eventListeners.forEach(function (observer) {
+            for (
+              var writeIdx = 0, i = 0;
+              i < pendingIntersectionUnobserves.length;
+              i++
+            ) {
+              var pending = pendingIntersectionUnobserves[i];
+              if (
+                pending.fragmentInstance !== fragmentInstance ||
+                pending.observer !== observer ||
+                pending.instance !== childInstance
+              )
+                pendingIntersectionUnobserves[writeIdx++] = pending;
+            }
+            pendingIntersectionUnobserves.length = writeIdx;
             observer.observe(childInstance);
           }),
         addFragmentHandleToInstance(childInstance, fragmentInstance));
+    }
+    function deleteChildFromFragmentInstance(childInstance, fragmentInstance) {
+      var eventListeners = fragmentInstance._eventListeners;
+      if (null !== eventListeners)
+        for (var i = 0; i < eventListeners.length; i++) {
+          var _eventListeners$i3 = eventListeners[i];
+          childInstance.removeEventListener(
+            _eventListeners$i3.type,
+            _eventListeners$i3.attachedListener,
+            getAttachOptions(_eventListeners$i3.optionsOrUseCapture)
+          );
+        }
+      3 !== childInstance.nodeType &&
+        ((eventListeners = fragmentInstance._observers),
+        null !== eventListeners &&
+          eventListeners.forEach(function (observer) {
+            "string" === typeof observer.rootMargin
+              ? schedulePendingIntersectionUnobserve(
+                  fragmentInstance,
+                  observer,
+                  childInstance
+                )
+              : observer.unobserve(childInstance);
+          }),
+        null != childInstance.reactFragments &&
+          childInstance.reactFragments.delete(fragmentInstance));
     }
     function clearContainerSparingly(container) {
       var nextNode = container.firstChild;
@@ -24988,6 +25082,13 @@
         node.ownerDocument.removeEventListener("focus", handleFocus, !0);
       }
       return didFocus;
+    }
+    function requestPostPaintCallback(callback) {
+      localRequestAnimationFrame(function () {
+        localRequestAnimationFrame(function (time) {
+          return callback(time);
+        });
+      });
     }
     function resolveSingletonInstance(
       type,
@@ -28595,6 +28696,9 @@
           );
         }
       },
+      lastSuspendedFiber = null,
+      lastSuspendedStack = null,
+      didIssueUseWarning = !1,
       suspendedThenable = null,
       needsToResetSuspendedThenableDEV = !1,
       thenableState$1 = null,
@@ -30082,6 +30186,10 @@
         "function" === typeof clearTimeout ? clearTimeout : void 0,
       noTimeout = -1,
       localPromise = "function" === typeof Promise ? Promise : void 0,
+      localRequestAnimationFrame =
+        "function" === typeof requestAnimationFrame
+          ? requestAnimationFrame
+          : scheduleTimeout,
       scheduleMicrotask =
         "function" === typeof queueMicrotask
           ? queueMicrotask
@@ -30131,6 +30239,15 @@
       listener,
       optionsOrUseCapture
     ) {
+      var signal = null,
+        cleanup = null;
+      if (
+        null != optionsOrUseCapture &&
+        "boolean" !== typeof optionsOrUseCapture &&
+        ((signal = optionsOrUseCapture.signal || null),
+        null !== signal && signal.aborted)
+      )
+        return;
       null === this._eventListeners && (this._eventListeners = []);
       var listeners = this._eventListeners;
       if (
@@ -30152,19 +30269,33 @@
               ? listener.call(this, event)
               : listener.handleEvent(event);
           });
-        var attachOptions = getAttachOptions(optionsOrUseCapture);
+        null !== signal &&
+          ((cleanup = fragmentInstance.removeEventListener.bind(
+            fragmentInstance,
+            type,
+            listener,
+            optionsOrUseCapture
+          )),
+          signal.addEventListener("abort", cleanup, { once: !0 }),
+          (cleanup = signal.removeEventListener.bind(
+            signal,
+            "abort",
+            cleanup
+          )));
+        signal = getAttachOptions(optionsOrUseCapture);
         listeners.push({
           type: type,
           listener: listener,
           optionsOrUseCapture: optionsOrUseCapture,
-          attachedListener: attachedListener
+          attachedListener: attachedListener,
+          cleanup: cleanup
         });
         traverseFragmentInstancesAndTextInstances(
           this._fragmentFiber,
           addEventListenerToChild,
           type,
           attachedListener,
-          attachOptions
+          signal
         );
       }
       this._eventListeners = listeners;
@@ -30187,6 +30318,7 @@
       ) {
         var _listeners$index = listeners[listener];
         optionsOrUseCapture = _listeners$index.attachedListener;
+        var cleanup = _listeners$index.cleanup;
         _listeners$index = getAttachOptions(
           _listeners$index.optionsOrUseCapture
         );
@@ -30198,6 +30330,7 @@
           _listeners$index
         );
         listeners.splice(listener, 1);
+        null !== cleanup && cleanup();
       }
     };
     FragmentInstance.prototype.dispatchEvent = function (event) {
@@ -30306,17 +30439,31 @@
     };
     FragmentInstance.prototype.unobserveUsing = function (observer) {
       var observers = this._observers;
-      null !== observers && observers.has(observer)
-        ? (observers.delete(observer),
-          traverseFragmentInstancesAndTextInstances(
-            this._fragmentFiber,
-            unobserveChild,
-            observer
-          ))
-        : console.error(
-            "You are calling unobserveUsing() with an observer that is not being observed with this fragment instance. First attach the observer with observeUsing()"
-          );
+      if (null !== observers && observers.has(observer)) {
+        observers.delete(observer);
+        traverseFragmentInstancesAndTextInstances(
+          this._fragmentFiber,
+          unobserveChild,
+          observer
+        );
+        for (
+          var i = (observers = 0);
+          i < pendingIntersectionUnobserves.length;
+          i++
+        ) {
+          var pending = pendingIntersectionUnobserves[i];
+          pending.fragmentInstance === this && pending.observer === observer
+            ? observer.unobserve(pending.instance)
+            : (pendingIntersectionUnobserves[observers++] = pending);
+        }
+        pendingIntersectionUnobserves.length = observers;
+      } else
+        console.error(
+          "You are calling unobserveUsing() with an observer that is not being observed with this fragment instance. First attach the observer with observeUsing()"
+        );
     };
+    var pendingIntersectionUnobserves = [],
+      intersectionUnobserveScheduled = !1;
     FragmentInstance.prototype.getClientRects = function () {
       var rects = [];
       traverseFragmentInstancesAndTextInstances(
@@ -30928,11 +31075,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-ff7445e6-20260831" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-f4e439e1-20260902" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-ff7445e6-20260831\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-f4e439e1-20260902\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -30969,10 +31116,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-canary-ff7445e6-20260831",
+          version: "19.3.0-canary-f4e439e1-20260902",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-canary-ff7445e6-20260831"
+          reconcilerVersion: "19.3.0-canary-f4e439e1-20260902"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -31110,7 +31257,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.3.0-canary-ff7445e6-20260831";
+    exports.version = "19.3.0-canary-f4e439e1-20260902";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
