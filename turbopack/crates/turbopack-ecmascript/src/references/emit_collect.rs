@@ -1,8 +1,8 @@
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use swc_core::{
-    ecma::ast::{Expr, Invalid},
-    quote,
+    common::DUMMY_SP,
+    ecma::ast::{Expr, IdentName, Invalid, MemberExpr, MemberProp},
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
@@ -28,10 +28,11 @@ use turbopack_resolve::ecmascript::esm_resolve;
 use crate::{
     analyzer::imports::ImportAnnotations,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
-    collect_module::EcmascriptCollectModule,
+    collect_module::{COLLECT_LIST_EXPORT, EcmascriptCollectModule},
     create_visitor,
     references::{
         AstPath,
+        esm::{base::ReferencedAsset, mangle::generated_export_key},
         pattern_mapping::{PatternMapping, ResolveType},
         removal::RemovalCodeGen,
     },
@@ -253,14 +254,27 @@ impl CollectReferenceCodeGen {
         .await?;
         let mut visitors = Vec::new();
 
+        // The collect module's own `getList` export is mangled like any other, so resolve the key
+        // it is actually emitted under rather than hard-coding the source name. Both sides ask the
+        // same module, so they always agree; when that module keeps its original names this is
+        // just `getList` again.
+        let export =
+            match ReferencedAsset::from_resolve_result(self.reference.resolve_reference()).await? {
+                ReferencedAsset::Some(module) => {
+                    generated_export_key(module, chunking_context, &COLLECT_LIST_EXPORT).await?
+                }
+                _ => COLLECT_LIST_EXPORT,
+            };
+
         visitors.push(create_visitor!(
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {
-                *expr = quote!(
-                    "$v.getList" as Expr,
-                    v: Expr = pm.create_require(Expr::Invalid(Invalid::default()))
-                );
+                *expr = Expr::Member(MemberExpr {
+                    span: DUMMY_SP,
+                    obj: Box::new(pm.create_require(Expr::Invalid(Invalid::default()))),
+                    prop: MemberProp::Ident(IdentName::new(export.as_str().into(), DUMMY_SP)),
+                });
             }
         ));
 

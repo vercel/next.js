@@ -5,14 +5,17 @@ use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
 use serde_json::json;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
-    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath, glob::Glob,
+    DirectoryContent, DirectoryEntry, File, FileContent, FileSystemPath,
+    glob::{Glob, GlobOptions},
 };
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    context::AssetContext,
     module::{Module, Modules},
     module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
@@ -34,11 +37,10 @@ use crate::{nft::traced_modules_for_entries, project::Project};
 /// Used by the server NFTs below and, so that they are part of every endpoint's trace regardless
 /// of how the output is assembled, by [`Project::additional_traced_modules`].
 #[turbo_tasks::function]
-pub(crate) async fn require_hook_modules(project_path: FileSystemPath) -> Result<Vc<Modules>> {
-    let asset_context = Vc::upcast(externals_tracing_module_context(
-        get_tracing_compile_time_info(),
-        false,
-    ));
+pub(crate) async fn require_hook_modules(
+    project_path: FileSystemPath,
+    asset_context: Vc<Box<dyn AssetContext>>,
+) -> Result<Vc<Modules>> {
     let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
         asset_context,
         get_next_package(project_path).await?.join("_")?,
@@ -75,6 +77,7 @@ pub(crate) async fn pages_renderer_modules(project_path: FileSystemPath) -> Resu
     let asset_context = Vc::upcast(externals_tracing_module_context(
         get_tracing_compile_time_info(),
         false,
+        None,
     ));
     let next_resolve_origin = Vc::upcast(PlainResolveOrigin::new(
         asset_context,
@@ -282,15 +285,97 @@ impl Asset for ServerNftJsonAsset {
     }
 }
 
+/// These globs are used to prune the module graph for the server NFT JSON assets. They are always
+/// ignored for every page, so we can completely skip even parsing/walking these modules.
+fn next_owned_ignores(
+    ty: &ServerNftType,
+    has_next_support: bool,
+    is_standalone: bool,
+) -> Vec<RcStr> {
+    let mut globs = vec![
+        rcstr!("**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js"),
+        rcstr!("**/*.d.ts"),
+        rcstr!("**/*.map"),
+        rcstr!("**/next/dist/pages/**/*"),
+        rcstr!("**/next/dist/compiled/next-server/**/*.dev.js"),
+        rcstr!("**/next/dist/compiled/webpack/*"),
+        rcstr!("**/node_modules/webpack5/**/*"),
+        rcstr!("**/next/dist/server/lib/route-resolver*"),
+        // The testmode interceptors bundle reads its HTTP parser WASM with a
+        // dynamic path, making the tracer include the bundle's whole
+        // directory. Test proxying is not supported in standalone output, so
+        // keep the parser asset (and the license file picked up by the
+        // directory glob) out of production traces.
+        rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE"),
+        rcstr!("**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**"),
+        rcstr!("**/next/dist/compiled/semver/semver/**/*.js"),
+        rcstr!("**/next/dist/compiled/jest-worker/**/*"),
+        // -- The following were added for Turbopack specifically --
+        // client/components/use-action-queue.ts has a process.env.NODE_ENV guard, but we can't set that due to React: https://github.com/vercel/next.js/pull/75254
+        rcstr!("**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js"),
+        // client/components/app-router.js has a process.env.NODE_ENV guard, but we
+        // can't set that.
+        rcstr!("**/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js"),
+        // server/lib/router-server.js doesn't guard this require:
+        rcstr!("**/next/dist/server/lib/router-utils/setup-dev-bundler.js"),
+        // server/next.js doesn't guard this require
+        rcstr!("**/next/dist/server/dev/next-dev-server.js"),
+        // next/dist/compiled/babel* pulls in this, but we never actually transpile at
+        // deploy-time
+        rcstr!("**/next/dist/compiled/browserslist/**"),
+    ];
+
+    // only ignore image-optimizer code when
+    // this is being handled outside of next-server
+    if has_next_support {
+        globs.extend([
+            rcstr!("**/node_modules/sharp/**/*"),
+            rcstr!("**/@img/sharp-libvips*/**/*"),
+            rcstr!("**/next/dist/server/image-optimizer.js"),
+        ]);
+    }
+
+    if !is_standalone {
+        globs.extend([
+            rcstr!("**/*/next/dist/server/next.js"),
+            rcstr!("**/*/next/dist/bin/next"),
+        ]);
+    }
+
+    if matches!(ty, ServerNftType::Minimal) {
+        globs.extend([
+            rcstr!("**/next/dist/compiled/edge-runtime/**/*"),
+            rcstr!("**/next/dist/server/web/sandbox/**/*"),
+            rcstr!("**/next/dist/server/post-process.js"),
+        ]);
+    }
+
+    globs
+}
+
 #[turbo_tasks::value_impl]
 impl ServerNftJsonAsset {
     #[turbo_tasks::function]
     async fn entries(&self) -> Result<Vc<Modules>> {
         let is_standalone = *self.project.next_config().is_standalone().await?;
 
+        let prune = Glob::alternatives(
+            next_owned_ignores(
+                &self.ty,
+                *self.project.ci_has_next_support().await?,
+                is_standalone,
+            )
+            .into_iter()
+            .map(|g| Glob::new(g, GlobOptions::default()))
+            .collect(),
+        )
+        .to_resolved()
+        .await?;
+
         let asset_context = Vc::upcast(externals_tracing_module_context(
             get_tracing_compile_time_info(),
             false,
+            Some((self.project.project_root_path().owned().await?, prune)),
         ));
 
         let project_path = self.project.project_path().owned().await?;
@@ -324,7 +409,9 @@ impl ServerNftJsonAsset {
         // The modules the require hook needs are part of every endpoint's trace (see
         // `Project::additional_traced_modules`), but `next-server.js` / `next-minimal-server.js`
         // are traced on their own for `output: 'standalone'`, so they have to be added here too.
-        let hook_modules = require_hook_modules(project_path).owned().await?;
+        let hook_modules = require_hook_modules(project_path, asset_context)
+            .owned()
+            .await?;
 
         Ok(Vc::cell(
             hook_modules
@@ -369,86 +456,25 @@ impl ServerNftJsonAsset {
             if route_glob.await?.matches("next-server") {
                 for (glob, root) in exclude_patterns {
                     additional_ignores.insert(if root.path.is_empty() {
-                        glob.to_string()
+                        glob.clone()
                     } else {
-                        format!("{root}/{glob}")
+                        format!("{root}/{glob}").into()
                     });
                 }
             }
         }
 
-        let server_ignores_glob = [
-            "**/node_modules/react{,-dom,-server-dom-turbopack}/**/*.development.js",
-            "**/*.d.ts",
-            "**/*.map",
-            "**/next/dist/pages/**/*",
-            "**/next/dist/compiled/next-server/**/*.dev.js",
-            "**/next/dist/compiled/webpack/*",
-            "**/node_modules/webpack5/**/*",
-            "**/next/dist/server/lib/route-resolver*",
-            // The testmode interceptors bundle reads its HTTP parser WASM with a
-            // dynamic path, making the tracer include the bundle's whole
-            // directory. Test proxying is not supported in standalone output, so
-            // keep the parser asset (and the license file picked up by the
-            // directory glob) out of production traces.
-            "**/next/dist/compiled/@mswjs/interceptors/ClientRequest/LICENSE",
-            "**/next/dist/compiled/@mswjs/interceptors/ClientRequest/llhttp/**",
-            "**/next/dist/compiled/semver/semver/**/*.js",
-            "**/next/dist/compiled/jest-worker/**/*",
-            // -- The following were added for Turbopack specifically --
-            // client/components/use-action-queue.ts has a process.env.NODE_ENV guard, but we can't set that due to React: https://github.com/vercel/next.js/pull/75254
-            "**/next/dist/next-devtools/userspace/use-app-dev-rendering-indicator.js",
-            // client/components/app-router.js has a process.env.NODE_ENV guard, but we
-            // can't set that.
-            "**/next/dist/client/dev/hot-reloader/app/hot-reloader-app.js",
-            // server/lib/router-server.js doesn't guard this require:
-            "**/next/dist/server/lib/router-utils/setup-dev-bundler.js",
-            // server/next.js doesn't guard this require
-            "**/next/dist/server/dev/next-dev-server.js",
-            // next/dist/compiled/babel* pulls in this, but we never actually transpile at
-            // deploy-time
-            "**/next/dist/compiled/browserslist/**",
-        ]
-        .into_iter()
-        .chain(additional_ignores.iter().map(|s| s.as_str()))
-        // only ignore image-optimizer code when
-        // this is being handled outside of next-server
-        .chain(if has_next_support {
-            Either::Left(
-                [
-                    "**/node_modules/sharp/**/*",
-                    "**/@img/sharp-libvips*/**/*",
-                    "**/next/dist/server/image-optimizer.js",
-                ]
-                .into_iter(),
-            )
-        } else {
-            Either::Right(std::iter::empty())
-        })
-        .chain(if is_standalone {
-            Either::Left(std::iter::empty())
-        } else {
-            Either::Right(["**/*/next/dist/server/next.js", "**/*/next/dist/bin/next"].into_iter())
-        })
-        .map(|g| Glob::new(g.into(), Default::default()))
-        .collect::<Vec<_>>();
+        // The project-provided ignores can match one of the entry requests `entries()` resolves,
+        // so they can only be applied to the finished graph:
+        // `traced_modules_for_entries` inserts entries without consulting the glob (the
+        // `parent == None` arm in `nft.rs`), whereas pruning one would delete it and everything
+        // reachable only through it.
+        let server_ignores_glob = next_owned_ignores(&self.ty, has_next_support, is_standalone)
+            .into_iter()
+            .chain(additional_ignores)
+            .map(|g| Glob::new(g, Default::default()))
+            .collect::<Vec<_>>();
 
-        Ok(match self.ty {
-            ServerNftType::Full => Glob::alternatives(server_ignores_glob),
-            ServerNftType::Minimal => Glob::alternatives(
-                server_ignores_glob
-                    .into_iter()
-                    .chain(
-                        [
-                            "**/next/dist/compiled/edge-runtime/**/*",
-                            "**/next/dist/server/web/sandbox/**/*",
-                            "**/next/dist/server/post-process.js",
-                        ]
-                        .into_iter()
-                        .map(|g| Glob::new(g.into(), Default::default())),
-                    )
-                    .collect(),
-            ),
-        })
+        Ok(Glob::alternatives(server_ignores_glob))
     }
 }

@@ -507,9 +507,7 @@ export interface ExperimentalConfig {
    * A collapsed entry resolves each request to the same output as the entries
    * that it replaces.
    *
-   * The default is `false`, so a build keeps one entry per route.
-   *
-   * @default false
+   * @default true
    */
   collapseAdapterRoutes?: boolean
   useSkewCookie?: boolean
@@ -1010,6 +1008,16 @@ export interface ExperimentalConfig {
    * Defaults to `false`
    */
   turbopackCjsTreeShaking?: boolean
+
+  /**
+   * Shorten ("mangle") the export names modules expose to each other in Turbopack, to reduce
+   * bundle size. Only affects the keys used to link modules together: a module whose export names
+   * can be observed by user code (a namespace object that escapes, a dynamic `import()`, a
+   * CommonJS `require()`) keeps its original names.
+   *
+   * Defaults to `false`
+   */
+  turbopackMangleExportNames?: boolean
 
   /**
    * Enable scope hoisting of static CommonJS modules.
@@ -2269,7 +2277,7 @@ export const defaultConfig = Object.freeze({
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
     coldCacheBadge: false,
-    collapseAdapterRoutes: false,
+    collapseAdapterRoutes: true,
     devValidationWorker: true,
     useSkewCookie: false,
     cssChunking: true,
@@ -2371,6 +2379,10 @@ export const defaultConfig = Object.freeze({
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
     turbopackSharedRuntime: !isStableBuild(),
+    // Pinned off for stable releases. Left unset on canary so the Turbopack side picks the
+    // default from the build mode (on for production builds, off in development) — see
+    // `NextConfig::turbopack_mangle_export_names`. An explicit value always wins either way.
+    turbopackMangleExportNames: isStableBuild() ? false : undefined,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,

@@ -460,14 +460,18 @@ impl ImportMetaGlobMap {
                     true
                 }
             })
-            .map(|(_base_relative, path)| {
+            .map(|(base_relative, _logical_path)| {
                 let origin_path = &origin_path;
+                let base_dir = &base_dir;
                 let query = &query;
                 let reference_sub_type = &reference_sub_type;
                 async move {
-                    // Compute the origin-relative path for import resolution and as the
-                    // user-visible key in the result object.
-                    let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
+                    // ReadGlobResult paths are logical too, but reconstruct from its keys here so
+                    // matching and user-visible specifiers have one explicit source of truth. The
+                    // module resolver resolves this logical request and tracks its symlink chain.
+                    let logical_path = base_dir.join(base_relative)?;
+                    let Some(origin_relative) = origin_path.get_relative_path_to(&logical_path)
+                    else {
                         bail!(
                             "import.meta.glob: failed to compute relative path from origin to \
                              matched file"

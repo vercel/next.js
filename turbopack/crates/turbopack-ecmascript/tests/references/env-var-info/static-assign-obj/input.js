@@ -38,7 +38,6 @@ if (foo) {
 } else {
   e = process.env
 }
-// TODO currently not tracked
 console.log(e.FOO7)
 
 // ---
@@ -50,5 +49,4 @@ if (foo) {
 } else {
   p2 = process
 }
-// TODO currently not tracked
 console.log(p2.env.FOO8)

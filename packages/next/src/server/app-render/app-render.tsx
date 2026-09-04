@@ -1598,17 +1598,6 @@ async function generateRuntimePrefetchResult(
   // but we're not going to persist this anywhere.
   const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
-  await prospectiveRuntimeServerPrerender(
-    ctx,
-    isShellPrefetch,
-    generateDynamicRSCPayload.bind(null, ctx),
-    prerenderResumeDataCache,
-    rootParams,
-    requestStore.headers,
-    requestStore.cookies,
-    requestStore.draftMode
-  )
-
   const mode: RuntimePrerenderMode = isShellPrefetch
     ? {
         type: 'session-shell-only',
@@ -1619,6 +1608,17 @@ async function generateRuntimePrefetchResult(
         shellUsedSessionDataDeferred: createPromiseWithResolvers(),
         shellByteLengthDeferred: createPromiseWithResolvers(),
       }
+
+  await prospectiveRuntimeServerPrerender(
+    ctx,
+    getFinalStageForRuntimePrerenderMode(mode),
+    generateDynamicRSCPayload.bind(null, ctx),
+    prerenderResumeDataCache,
+    rootParams,
+    requestStore.headers,
+    requestStore.cookies,
+    requestStore.draftMode
+  )
 
   const debugChannel = setReactDebugChannel
     ? createWebDebugChannel()
@@ -1656,7 +1656,7 @@ async function generateRuntimePrefetchResult(
 
 async function prospectiveRuntimeServerPrerender(
   ctx: AppRenderContext,
-  isShellPrefetch: boolean,
+  finalStage: AdvanceableRenderStage,
   getPayload: () => Promise<RSCPayload>,
   resumeDataCache: PrerenderResumeDataCache | null,
   rootParams: Params,
@@ -1705,9 +1705,10 @@ async function prospectiveRuntimeServerPrerender(
     hmrRefreshHash: undefined,
     // We don't track vary params during initial prerender, only the final one
     varyParamsAccumulator: null,
-    // No stage sequencing needed for prospective renders.
+    // We don't use sequencing needed for prospective renders, but we need to
+    // track where the final prerender is going to end to avoid warming too much.
     stagedRendering: null,
-    isSessionShell: isShellPrefetch,
+    finalStage,
     // These are not present in regular prerenders, but allowed in a runtime
     // prerender.
     // Any cache keyed on headers() or cookies() needs to be invalidated.
@@ -1854,19 +1855,8 @@ async function finalRuntimeServerPrerender(
     isDebugDynamicAccesses
   )
 
-  let finalStage: AdvanceableRenderStage
-  switch (mode.type) {
-    case 'session-shell-only':
-      finalStage = RenderStage.ShellRuntime
-      break
-    case 'rewindable-session-shell':
-      finalStage = RenderStage.Runtime
-      break
-    case 'navigation':
-      finalStage = RenderStage.NavigationRuntime
-      break
-  }
-  const finalStageController = new StagedRenderingController({
+  const finalStage = getFinalStageForRuntimePrerenderMode(mode)
+  const stageController = new StagedRenderingController({
     abortSignal: finalServerController.signal,
     abandonController: null,
     // In dynamic renders, we allow Sync IO in the Runtime stage
@@ -1898,8 +1888,8 @@ async function finalRuntimeServerPrerender(
     resumeDataCache,
     hmrRefreshHash: undefined,
     varyParamsAccumulator,
-    stagedRendering: finalStageController,
-    isSessionShell: mode.type === 'session-shell-only',
+    stagedRendering: stageController,
+    finalStage,
     // These are not present in regular prerenders, but allowed in a runtime
     // prerender.
     headers: HeadersAdapter.fresh(headers),
@@ -1923,7 +1913,7 @@ async function finalRuntimeServerPrerender(
     collectPrerenderChunk(collectedChunks, finalServerController.signal, chunk)
     increaseChunkByteLengths(
       stageByteLengths,
-      finalStageController.currentStage,
+      stageController.currentStage,
       chunk.byteLength
     )
   }
@@ -1963,7 +1953,7 @@ async function finalRuntimeServerPrerender(
 
   await runInSequentialTasks(
     async () => {
-      finalStageController.advanceStage(RenderStage.ShellStatic)
+      stageController.advanceStage(RenderStage.ShellStatic)
 
       let stream = workUnitAsyncStorage.run(
         finalServerPrerenderStore,
@@ -1989,19 +1979,19 @@ async function finalRuntimeServerPrerender(
     },
     () => {
       if (checkUnexpectedAbort()) return
-      finalStageController.advanceStage(RenderStage.PrefetchStatic)
+      stageController.advanceStage(RenderStage.PrefetchStatic)
     },
     () => {
       if (checkUnexpectedAbort()) return
-      finalStageController.advanceStage(RenderStage.NavigationStatic)
+      stageController.advanceStage(RenderStage.NavigationStatic)
     },
     () => {
       if (checkUnexpectedAbort()) return
-      finalStageController.advanceStage(RenderStage.Static)
+      stageController.advanceStage(RenderStage.Static)
     },
     () => {
       if (checkUnexpectedAbort()) return
-      finalStageController.advanceStage(RenderStage.ShellRuntime)
+      stageController.advanceStage(RenderStage.ShellRuntime)
     },
     () => {
       if (checkUnexpectedAbort()) return
@@ -2009,7 +1999,7 @@ async function finalRuntimeServerPrerender(
       // We may not reach this stage depending on the mode.
       if (finalStage < RenderStage.Runtime) return
 
-      finalStageController.advanceStage(RenderStage.Runtime)
+      stageController.advanceStage(RenderStage.Runtime)
     },
     () => {
       if (checkUnexpectedAbort()) return
@@ -2040,7 +2030,7 @@ async function finalRuntimeServerPrerender(
       // We may not reach this stage depending on the mode.
       if (finalStage < RenderStage.NavigationRuntime) return
 
-      finalStageController.advanceStage(RenderStage.NavigationRuntime)
+      stageController.advanceStage(RenderStage.NavigationRuntime)
     },
     () => {
       // Finish the accumulators. We need to wait for Flight to flush the result into the stream,
@@ -2087,6 +2077,19 @@ async function finalRuntimeServerPrerender(
     collectedExpire: finalServerPrerenderStore.expire,
     collectedStale: staleTimeIterable.currentValue,
     collectedTags: finalServerPrerenderStore.tags,
+  }
+}
+
+function getFinalStageForRuntimePrerenderMode(
+  mode: RuntimePrerenderMode
+): AdvanceableRenderStage {
+  switch (mode.type) {
+    case 'session-shell-only':
+      return RenderStage.ShellRuntime
+    case 'rewindable-session-shell':
+      return RenderStage.Runtime
+    case 'navigation':
+      return RenderStage.NavigationRuntime
   }
 }
 

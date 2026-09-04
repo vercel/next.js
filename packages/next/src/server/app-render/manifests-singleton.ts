@@ -261,7 +261,17 @@ function createServerModuleMap(): ServerModuleMap {
 
       const workStore = workAsyncStorage.getStore()
 
-      let workerEntry: { moduleId: string | number; async: boolean } | undefined
+      let workerEntry:
+        | {
+            moduleId: string | number
+            async: boolean
+            durability?: {
+              codeHash: string
+              runtimeEnvVars: readonly string[]
+              referencesClientComponent?: boolean
+            }
+          }
+        | undefined
 
       if (workStore) {
         workerEntry = workers[normalizeWorkerPageName(workStore.page)]
@@ -280,9 +290,15 @@ function createServerModuleMap(): ServerModuleMap {
         throw getActionNotFoundError(id)
       }
 
-      const { moduleId, async } = workerEntry
+      const { moduleId, async, durability } = workerEntry
 
-      return { id: moduleId, name: id, chunks: [], async }
+      return {
+        id: moduleId,
+        name: id,
+        chunks: [],
+        async,
+        durability,
+      }
     },
   })
 }
@@ -291,7 +307,7 @@ function createServerModuleMap(): ServerModuleMap {
  * The flight entry loader keys actions by bundlePath. bundlePath corresponds
  * with the relative path (including 'app') to the page entrypoint.
  */
-function normalizeWorkerPageName(pageName: string) {
+export function normalizeWorkerPageName(pageName: string) {
   if (pathHasPrefix(pageName, 'app')) {
     return pageName
   }

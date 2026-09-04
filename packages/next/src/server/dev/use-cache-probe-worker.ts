@@ -148,7 +148,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       )
     }
 
-    const args = decoded[2]
+    const args = decoded[1]
     const workStore: WorkStore = buildProbeWorkStore(msg)
 
     // The outer store is `'request'`-typed and built from the forwarded

@@ -18,7 +18,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.repository_owner == 'vercel'
     steps:
-      - uses: dessant/lock-threads@1bf7ec25051fe7c00bdd17e6a7cf3d7bfb7dc771 # v5.0.1
+      - uses: dessant/lock-threads@89ae32b08ed1a541efecbab17912962a5e38981c # v6.0.2
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           add-issue-labels: 'locked'
@@ -27,3 +27,6 @@ jobs:
           issue-comment: 'This closed issue has been automatically locked because it had no new activity for 2 weeks. If you are running into a similar issue, please create a new issue with the steps to reproduce. Thank you.'
           pr-inactive-days: 14
           log-output: true
+          # The token has no `discussions` permission and discussions are not
+          # meant to be locked, so skip them (they are processed by default).
+          process-only: 'issues, prs'

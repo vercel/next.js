@@ -284,6 +284,12 @@ pub struct EcmascriptOptionsContext {
 
     /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
     pub cjs_tree_shaking: bool,
+
+    /// Whether to shorten ("mangle") the export names a module exposes to other modules, to
+    /// reduce output size. Only affects the keys used to link modules together, never a name that
+    /// is observable from user code — modules whose export names can escape keep their original
+    /// names. Defaults to false.
+    pub mangle_export_names: bool,
     /// Whether to scope-hoist static CommonJS modules. Defaults to false.
     pub cjs_scope_hoisting: bool,
 

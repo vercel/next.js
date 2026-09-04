@@ -117,12 +117,6 @@ async function main() {
     .replace(`['canary']`, `['${branchName}']`)
     .replace(/[\s]{1,}('test-new-tests-.+',)/g, '')
 
-  buildAndTest = buildAndTest.replace(
-    /(^[ \t]*)# test-new-tests-if\n(^[ \t]*)if:.*\n(^[ \t]*)# test-new-tests-end-if/gm,
-    (_, indent1, indent2, indent3) =>
-      `${indent1}# test-new-tests-if\n${indent2}if: false\n${indent3}# test-new-tests-end-if`
-  )
-
   await fs.promises.writeFile(buildAndTestPath, buildAndTest)
 
   const commitMessage = 'setup release branch'

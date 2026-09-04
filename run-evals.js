@@ -3,7 +3,7 @@
 /**
  * Pack the locally-built `next` package and run agent evals against it.
  *
- *   pnpm eval <eval-name>             run one eval, both variants (baseline + AGENTS.md)
+ *   pnpm eval <eval-name>             run one eval and its configured variants
  *   pnpm eval <eval-name> --dry       preview without executing
  *   pnpm eval --all                   run every eval (slow — normally only CI does this)
  *   NEXT_SKIP_PACK=1 pnpm eval ...    reuse tarball from last run
@@ -16,8 +16,8 @@
  *   - @next/env etc: resolved from npm at the pinned canary version.
  *
  * The experiments/ dir is generated fresh on every run and gitignored. This
- * keeps the two variants (baseline vs. AGENTS.md) in one place instead of
- * maintaining N committed experiment files that only differ by one line.
+ * keeps the variants in one place instead of maintaining N committed
+ * experiment files that only differ by setup.
  */
 const path = require('path')
 const fs = require('fs')
@@ -27,14 +27,19 @@ const ROOT = __dirname
 
 const EVALS_DIR = path.join(ROOT, 'evals')
 const FIXTURES_DIR = path.join(EVALS_DIR, 'evals')
+const EVAL_CONFIG_PATH = path.join(EVALS_DIR, 'eval.config.json')
 const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
 const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
 
+/** @typedef {{ skills?: string[], timeout?: number }} EvalConfig */
+/** @type {Record<string, EvalConfig>} */
+const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
+
 // The two variants we always compare. Order matters for output readability:
 // baseline first so a contributor sees "does the agent fail without docs?"
 // before "does it pass with docs?".
-const VARIANTS = [
+const BASE_VARIANTS = [
   {
     suffix: 'baseline',
     imports: `import { installNextJs } from '../lib/setup.js'`,
@@ -62,12 +67,15 @@ function pack() {
 }
 
 /** @param {string | null} evalName  null means all evals */
-function writeExperiments(evalName) {
+function writeExperiments(evalName, variants, timeout) {
   fs.rmSync(EXPERIMENTS_DIR, { recursive: true, force: true })
   fs.mkdirSync(EXPERIMENTS_DIR, { recursive: true })
 
-  const evalsField = evalName ? `\n  evals: '${evalName}',` : ''
-  for (const v of VARIANTS) {
+  for (const v of variants) {
+    const selectedEvals = v.evals ?? (evalName ? [evalName] : null)
+    const evalsField = selectedEvals
+      ? `\n  evals: ${JSON.stringify(selectedEvals.length === 1 ? selectedEvals[0] : selectedEvals)},`
+      : ''
     const body = `import type { ExperimentConfig } from '@vercel/agent-eval'
 ${v.imports}
 
@@ -82,7 +90,7 @@ const config: ExperimentConfig = {
   scripts: ['build'],
   runs: 1,
   earlyExit: true,
-  timeout: 720,
+  timeout: ${timeout},
   sandbox: 'auto',
   setup: async (sandbox) => {
     ${v.setup}
@@ -100,6 +108,66 @@ function listEvals() {
     .readdirSync(FIXTURES_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory())
     .map((d) => d.name)
+}
+
+function readFixtureConfig(evalName) {
+  const config = EVAL_CONFIG[evalName] ?? {}
+  const skillNames = config.skills ?? []
+  if (
+    !Array.isArray(skillNames) ||
+    skillNames.some((name) => typeof name !== 'string')
+  ) {
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.skills must be an array of skill names`
+    )
+  }
+  if (
+    config.timeout !== undefined &&
+    (typeof config.timeout !== 'number' || config.timeout <= 0)
+  ) {
+    throw new Error(
+      `${EVAL_CONFIG_PATH}: ${evalName}.timeout must be a positive number`
+    )
+  }
+  return { skills: skillNames, timeout: config.timeout ?? 720 }
+}
+
+function getExperimentSettings(evalName) {
+  const skillEvals = (evalName ? [evalName] : listEvals()).map((name) => ({
+    name,
+    ...readFixtureConfig(name),
+  }))
+  const timeout = Math.max(...skillEvals.map((config) => config.timeout))
+  const configuredSkillEvals = skillEvals.filter(
+    ({ skills }) => skills.length > 0
+  )
+
+  if (configuredSkillEvals.length === 0) {
+    return { variants: BASE_VARIANTS, timeout }
+  }
+
+  /** @type {Map<string, { skills: string[], evals: string[] }>} */
+  const skillGroups = new Map()
+  for (const { name, skills } of configuredSkillEvals) {
+    const skillNames = [...new Set(skills)].sort()
+    const key = skillNames.join(',')
+    const group = skillGroups.get(key) ?? { skills: skillNames, evals: [] }
+    group.evals.push(name)
+    skillGroups.set(key, group)
+  }
+
+  const multipleSkillGroups = skillGroups.size > 1
+  const skillVariants = [...skillGroups.values()].map(({ skills, evals }) => ({
+    suffix: multipleSkillGroups ? `skills-${skills.join('-')}` : 'skills',
+    imports: `import { installLocalSkills, installNextJs } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
+    evals,
+  }))
+
+  return {
+    timeout,
+    variants: [...BASE_VARIANTS, ...skillVariants],
+  }
 }
 
 function main() {
@@ -141,11 +209,12 @@ function main() {
 
   /** @type {string | null} */
   const evalName = argv.all ? null : /** @type {string} */ (argv.evalName)
+  const { variants, timeout } = getExperimentSettings(evalName)
   // agent-eval 1.3 dropped run-all/--dry: `run` takes explicit experiment names,
   // and `status` is the read-only preview.
   const agentEvalArgs = argv.dry
     ? ['status']
-    : ['run', ...VARIANTS.map((v) => v.suffix), '--force']
+    : ['run', ...variants.map((v) => v.suffix), '--force']
 
   if (!fs.existsSync(path.join(ROOT, 'packages/next/dist'))) {
     console.error(
@@ -177,11 +246,11 @@ function main() {
     } catch {}
   }
 
-  writeExperiments(evalName)
+  writeExperiments(evalName, variants, timeout)
   console.log(
     evalName
-      ? `> Running ${evalName} (baseline + agents-md)`
-      : '> Running all evals (baseline + agents-md)'
+      ? `> Running ${evalName} (${variants.map((v) => v.suffix).join(' + ')})`
+      : `> Running all evals (${variants.map((v) => v.suffix).join(' + ')})`
   )
 
   // Same handoff pattern as run-tests.js with NEXT_TEST_PKG_PATHS. We invoke

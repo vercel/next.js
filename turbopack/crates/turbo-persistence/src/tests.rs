@@ -4,7 +4,7 @@ use anyhow::Result;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 
 use crate::{
-    DbConfig, FamilyConfig, FamilyKind,
+    Compression, DbConfig, FamilyConfig, FamilyKind,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence, read_current_version},
     lookup_entry::IterValue,
@@ -104,6 +104,13 @@ impl ParallelScheduler for RayonParallelScheduler {
             .flatten()
             .collect()
     }
+}
+
+fn tuple_key(prefix: u8, suffix: [u8; 4]) -> Box<[u8]> {
+    let mut key = Vec::with_capacity(1 + suffix.len());
+    key.push(prefix);
+    key.extend_from_slice(&suffix);
+    key.into_boxed_slice()
 }
 
 #[test]
@@ -514,13 +521,9 @@ fn persist_changes() -> Result<()> {
     let path = tempdir.path();
 
     const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
-    fn put(
-        b: &WriteBatch<(u8, [u8; 4]), RayonParallelScheduler, 1>,
-        key: u8,
-        value: u8,
-    ) -> Result<()> {
+    fn put(b: &WriteBatch<Box<[u8]>, RayonParallelScheduler, 1>, key: u8, value: u8) -> Result<()> {
         for i in 0..(READ_COUNT * 10) {
-            b.put(0, (key, i.to_be_bytes()), vec![value].into())?;
+            b.put(0, tuple_key(key, i.to_be_bytes()), vec![value].into())?;
         }
         Ok(())
     }
@@ -646,13 +649,9 @@ fn partial_compaction() -> Result<()> {
     let path = tempdir.path();
 
     const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
-    fn put(
-        b: &WriteBatch<(u8, [u8; 4]), RayonParallelScheduler, 1>,
-        key: u8,
-        value: u8,
-    ) -> Result<()> {
+    fn put(b: &WriteBatch<Box<[u8]>, RayonParallelScheduler, 1>, key: u8, value: u8) -> Result<()> {
         for i in 0..(READ_COUNT * 10) {
-            b.put(0, (key, i.to_be_bytes()), vec![value].into())?;
+            b.put(0, tuple_key(key, i.to_be_bytes()), vec![value].into())?;
         }
         Ok(())
     }
@@ -747,14 +746,14 @@ fn merge_file_removal() -> Result<()> {
 
     const READ_COUNT: u32 = 2_000; // we'll read every 10th value, so writes are 10x this value
     fn put(
-        b: &WriteBatch<(u8, [u8; 4]), RayonParallelScheduler, 1>,
+        b: &WriteBatch<Box<[u8]>, RayonParallelScheduler, 1>,
         key: u8,
         value: u32,
     ) -> Result<()> {
         for i in 0..(READ_COUNT * 10) {
             b.put(
                 0,
-                (key, i.to_be_bytes()),
+                tuple_key(key, i.to_be_bytes()),
                 value.to_be_bytes().to_vec().into(),
             )?;
         }
@@ -1055,8 +1054,11 @@ fn batch_get_different_sizes() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
+    let mut config = DbConfig::default();
+    config.family_configs[0].compression = Compression::Zstd3;
+    let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
         path.to_path_buf(),
+        config,
         RayonParallelScheduler,
     )?;
 
@@ -1109,16 +1111,22 @@ fn batch_get_across_families() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
+    let mut config = DbConfig::default();
+    // set zstd on an arbitrary family, lz4 is used by default
+    config.family_configs[2].compression = Compression::Zstd3;
+    let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
         path.to_path_buf(),
+        config.clone(),
         RayonParallelScheduler,
     )?;
 
-    // Write to multiple families
+    // Write compressible values to multiple families so every configured codec is exercised.
     let batch = db.write_batch()?;
     for family in 0..4u32 {
         for i in 0..20u8 {
-            batch.put(family, vec![i], vec![family as u8, i].into())?;
+            let mut value = vec![family as u8; 1024];
+            value[0] = i;
+            batch.put(family, vec![i], value.into())?;
         }
     }
     db.commit_write_batch(batch)?;
@@ -1132,7 +1140,13 @@ fn batch_get_across_families() -> Result<()> {
         for (i, result) in results.iter().enumerate() {
             assert_eq!(
                 result.as_deref(),
-                Some(&vec![family as u8, i as u8][..]),
+                Some(
+                    &{
+                        let mut value = vec![family as u8; 1024];
+                        value[0] = i as u8;
+                        value
+                    }[..]
+                ),
                 "Failed at family {family}, index {i}"
             );
         }
@@ -1147,6 +1161,29 @@ fn batch_get_across_families() -> Result<()> {
     assert_ne!(results_f0[0].as_deref(), results_f1[0].as_deref());
 
     db.shutdown()?;
+    drop(db);
+
+    // Reopen with the same family configuration recorded in the meta files.
+    let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
+        path.to_path_buf(),
+        config,
+        RayonParallelScheduler,
+    )?;
+    let value = db.get(2, &vec![7u8])?.expect("zstd family value exists");
+    assert_eq!(value[0], 7);
+    assert!(value[1..].iter().all(|byte| *byte == 2));
+    db.shutdown()?;
+    drop(db);
+
+    // Reopening with the wrong codec must fail while validating the meta files.
+    assert!(
+        TurboPersistence::<RayonParallelScheduler, 16>::open_with_config_and_parallel_scheduler(
+            path.to_path_buf(),
+            DbConfig::default(),
+            RayonParallelScheduler,
+        )
+        .is_err()
+    );
     Ok(())
 }
 
@@ -1155,8 +1192,11 @@ fn batch_get_after_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
     let path = tempdir.path();
 
-    let db = TurboPersistence::<_, 16>::open_with_parallel_scheduler(
+    let mut config = DbConfig::default();
+    config.family_configs[0].compression = Compression::Zstd3;
+    let db = TurboPersistence::<_, 16>::open_with_config_and_parallel_scheduler(
         path.to_path_buf(),
+        config,
         RayonParallelScheduler,
     )?;
 
@@ -1174,7 +1214,7 @@ fn batch_get_after_compaction() -> Result<()> {
     let keys_to_fetch: Vec<Vec<u8>> = (0..100u8).map(|i| vec![i]).collect();
     let results_before = db.batch_get(0, &keys_to_fetch)?;
 
-    // Compact database
+    // Compact database using zstd to cover recompression with a non-default codec.
     db.full_compact()?;
 
     // Fetch after compaction
@@ -1525,6 +1565,7 @@ fn multi_value_config() -> DbConfig<1> {
     config.family_configs[0] = FamilyConfig {
         name: "test",
         kind: FamilyKind::MultiValue,
+        compression: Compression::Lz4,
     };
     config
 }
@@ -2104,6 +2145,7 @@ fn compaction_deletes_blob_multi_value_tombstone() -> Result<()> {
         family_configs: [FamilyConfig {
             name: "test",
             kind: FamilyKind::MultiValue,
+            compression: Compression::Lz4,
         }],
     };
 
@@ -2468,7 +2510,7 @@ fn count_tombstones(
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
-            for item in StaticSortedFileIter::open(path, sst)? {
+            for item in StaticSortedFileIter::open(path, sst, Compression::Lz4)? {
                 if matches!(
                     item?.value,
                     IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }

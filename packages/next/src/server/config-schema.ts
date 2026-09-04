@@ -346,7 +346,6 @@ export const experimentalSchema = {
       z.union([
         z.literal('CLS'),
         z.literal('FCP'),
-        z.literal('FID'),
         z.literal('INP'),
         z.literal('LCP'),
         z.literal('TTFB'),
@@ -423,6 +422,7 @@ export const experimentalSchema = {
   turbopackModuleIds: z.enum(['named', 'deterministic']).optional(),
   turbopackInferModuleSideEffects: z.boolean().optional(),
   turbopackCjsTreeShaking: z.boolean().optional(),
+  turbopackMangleExportNames: z.boolean().optional(),
   turbopackCjsScopeHoisting: z.boolean().optional(),
   turbopackCrossModuleConstants: z.boolean().optional(),
   turbopackServerFastRefresh: z.boolean().optional(),
