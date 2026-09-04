@@ -24,32 +24,6 @@ import { searchParamsToUrlQuery } from '../../../shared/lib/router/utils/queryst
 import { isFullStringUrl, parseUrl } from '../../../lib/url'
 
 /**
- * The subset of the legacy `url.parse(url, true)` result that route matching
- * needs, built on top of the existing WHATWG `parseUrl` helper. Relative URLs
- * keep `protocol`/`host` as null, matching the legacy behavior.
- */
-interface ParsedRequestUrl {
-  pathname: string
-  query: ParsedUrlQuery
-  protocol: string | null
-  host: string | null
-}
-
-function parseRequestUrl(url: string): ParsedRequestUrl {
-  const isAbsolute = isFullStringUrl(url)
-  const parsed = parseUrl(url)
-  if (!parsed) {
-    throw new Error(`Invalid URL: ${url}`)
-  }
-  return {
-    pathname: parsed.pathname,
-    query: searchParamsToUrlQuery(parsed.searchParams),
-    protocol: isAbsolute ? parsed.protocol : null,
-    host: isAbsolute ? parsed.host : null,
-  }
-}
-
-/**
  * Tries to match the current request against the provided route. If there is
  * a match, it returns the params extracted from the path. If not, it returns
  * undefined.
@@ -57,13 +31,10 @@ function parseRequestUrl(url: string): ParsedRequestUrl {
 function matchRoute(
   route: ManifestHeaderRoute | ManifestRedirectRoute | ManifestRewriteRoute,
   request: BaseNextRequest,
-  parsedUrl: ParsedRequestUrl
+  pathname: string,
+  query: ParsedUrlQuery
 ): Params | undefined {
-  const pathname = parsedUrl.pathname
-  if (!pathname) {
-    return
-  }
-  const regexMatches = pathname?.match(route.regex)
+  const regexMatches = pathname.match(route.regex)
 
   if (regexMatches) {
     const pathMatch = match<Params>(route.source)(pathname)
@@ -73,7 +44,7 @@ function matchRoute(
       )
     }
     if (route.has || route.missing) {
-      if (!matchHas(request, parsedUrl.query, route.has, route.missing)) {
+      if (!matchHas(request, query, route.has, route.missing)) {
         return
       }
     }
@@ -116,7 +87,17 @@ export async function unstable_getResponseFromNextConfig({
   headers?: IncomingHttpHeaders
   cookies?: Record<string, string>
 }): Promise<NextResponse> {
-  const parsedUrl = parseRequestUrl(url)
+  const parsed = parseUrl(url)
+  if (!parsed) {
+    throw new Error(`Invalid URL: ${url}`)
+  }
+  const pathname = parsed.pathname
+  const query = searchParamsToUrlQuery(parsed.searchParams)
+  // The legacy `url.parse` gives relative URLs no origin, in which case route
+  // destinations resolve against a placeholder.
+  const origin = isFullStringUrl(url)
+    ? `${parsed.protocol}//${parsed.host}`
+    : 'https://example.com'
   const request = constructRequest({ url, headers, cookies })
   const resolvedConfig = await normalizeConfig(
     PHASE_PRODUCTION_BUILD,
@@ -138,7 +119,7 @@ export async function unstable_getResponseFromNextConfig({
 
   const respHeaders: Record<string, string> = {}
   for (const route of headerRoutes) {
-    const matched = matchRoute(route, request, parsedUrl)
+    const matched = matchRoute(route, request, pathname, query)
     if (matched) {
       for (const header of route.headers) {
         respHeaders[header.key] = header.value
@@ -148,7 +129,7 @@ export async function unstable_getResponseFromNextConfig({
   function matchRouteAndGetDestination(
     route: ManifestRedirectRoute | ManifestRewriteRoute
   ): URL | undefined {
-    const params = matchRoute(route, request, parsedUrl)
+    const params = matchRoute(route, request, pathname, query)
     if (!params) {
       return
     }
@@ -156,7 +137,7 @@ export async function unstable_getResponseFromNextConfig({
       appendParamsToQuery: false,
       destination: route.destination,
       params,
-      query: parsedUrl.query,
+      query,
     })
     const searchParams = new URLSearchParams(
       parsedUrlQueryToParams(parsedDestination.query) as Record<string, string>
@@ -165,9 +146,7 @@ export async function unstable_getResponseFromNextConfig({
       searchParams.size > 0 ? `${newUrl}?${searchParams.toString()}` : newUrl,
       parsedDestination.hostname
         ? `${parsedDestination.protocol}//${parsedDestination.hostname}`
-        : parsedUrl.host
-          ? `${parsedUrl.protocol}//${parsedUrl.host}`
-          : 'https://example.com'
+        : origin
     )
   }
   for (const route of redirectRoutes) {
