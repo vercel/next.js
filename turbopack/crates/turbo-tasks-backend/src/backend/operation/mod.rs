@@ -1183,7 +1183,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
     fn schedule_task(&self, task: &Self::TaskGuardImpl, parent_priority: TaskPriority) {
         let priority = schedule_priority(task, parent_priority);
-        self.turbo_tasks.schedule(task.id(), priority);
+        // TEMP INSTRUMENTATION (do not ship): pass the task's description while the guard is open,
+        // so a stuck shutdown names the function rather than a bare TaskId.
+        self.turbo_tasks
+            .schedule_described(task.id(), priority, task.get_task_desc_fn());
     }
 
     fn get_current_task_priority(&self) -> TaskPriority {

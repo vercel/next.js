@@ -955,7 +955,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
             })),
             self,
         );
-        self.schedule(id, TaskPriority::initial());
+        self.schedule_described(id, TaskPriority::initial(), || {
+            format!("{id:?} spawn_root_task")
+        });
         id
     }
 
@@ -992,7 +994,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
             })),
             self,
         );
-        self.schedule(id, TaskPriority::initial());
+        self.schedule_described(id, TaskPriority::initial(), || {
+            format!("{id:?} spawn_once_task")
+        });
     }
 
     pub async fn run_once<T: TraceRawVcs + Send + 'static>(
@@ -1152,16 +1156,32 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     #[track_caller]
     pub fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
+        self.schedule_described(task_id, priority, || {
+            format!("{task_id:?} <no description>")
+        })
+    }
+
+    /// [`Self::schedule`], plus a lazy description of the task for the stuck-shutdown dump.
+    ///
+    /// TEMP INSTRUMENTATION (do not ship). `describe` is only called to register the job, so
+    /// callers should pass `TaskGuard::get_task_desc_fn()`, which resolves the task's function
+    /// name while the guard is still open — a bare `TaskId` is not enough to identify what hung.
+    #[track_caller]
+    pub fn schedule_described(
+        &self,
+        task_id: TaskId,
+        priority: TaskPriority,
+        describe: impl Fn() -> String,
+    ) {
         self.begin_foreground_job();
-        // TEMP INSTRUMENTATION (do not ship): record the scheduled task so a stuck shutdown can
-        // name it. Keyed by task id: this site's decrement happens in the executor
+        // Keyed by task id: this site's decrement happens in the executor
         // (`finish_foreground_job` after the task future completes), too far away for a guard to
         // span without restructuring, so registration is paired manually there.
         outstanding_foreground_jobs()
             .jobs
             .lock()
             .unwrap()
-            .insert(*task_id as u64, format!("schedule(task {task_id})"));
+            .insert(*task_id as u64, describe());
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
         let task = ScheduledTask::Task {
@@ -1683,7 +1703,9 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 .lock()
                                 .unwrap()
                                 .remove(&(*task_id as u64));
-                            this.schedule(task_id, stale_priority);
+                            this.schedule_described(task_id, stale_priority, || {
+                                format!("{task_id:?} re-scheduled (was stale)")
+                            });
                         } else {
                             outstanding_foreground_jobs()
                                 .jobs
