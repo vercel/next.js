@@ -91,6 +91,221 @@ import { findAllTelemetryEvents } from 'next-test-utils'
     })
     expect(stdout).toMatch(/Status: Disabled/)
   })
+
+  it('can submit structured agent feedback', async () => {
+    const { exitCode, stdout, stderr } = await next.runCommand(
+      [
+        'telemetry',
+        'feedback',
+        '--feedback-type',
+        'missing_documentation',
+        '--outcome',
+        'recovered_with_workaround',
+        '--severity',
+        'warning',
+        '--model-provider',
+        'openai',
+        '--model',
+        'gpt-5.6-sol',
+        '--input-tokens',
+        '1000',
+        '--output-tokens',
+        '200',
+        '--duration-milliseconds',
+        '30000',
+        '--tool-call-count',
+        '12',
+      ],
+      {
+        env: {
+          NEXT_TELEMETRY_DEBUG: '1',
+        },
+      }
+    )
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('Thank you for your feedback.')
+    expect(findAllTelemetryEvents(stderr, 'NEXT_AGENT_FEEDBACK')).toEqual([
+      {
+        feedbackType: 'missing_documentation',
+        outcome: 'recovered_with_workaround',
+        severity: 'warning',
+        modelProvider: 'openai',
+        model: 'gpt-5.6-sol',
+        inputTokens: 1000,
+        outputTokens: 200,
+        durationMilliseconds: 30000,
+        toolCallCount: 12,
+      },
+    ])
+  })
+
+  it('can print agent feedback help', async () => {
+    const { exitCode, stdout } = await next.runCommand([
+      'telemetry',
+      'feedback',
+      '--help',
+    ])
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('Submit structured, anonymous feedback')
+    expect(stdout).toContain('--feedback-type <type>')
+    expect(stdout).toContain('--model-provider <provider>')
+    expect(stdout).not.toContain('--message')
+  })
+
+  it('uses anonymous defaults for unknown agent run details', async () => {
+    const { exitCode, stderr } = await next.runCommand(
+      [
+        'telemetry',
+        'feedback',
+        '--feedback-type',
+        'other',
+        '--outcome',
+        'blocked',
+        '--severity',
+        'info',
+      ],
+      {
+        env: {
+          NEXT_TELEMETRY_DEBUG: '1',
+        },
+      }
+    )
+
+    expect(exitCode).toBe(0)
+    expect(findAllTelemetryEvents(stderr, 'NEXT_AGENT_FEEDBACK')).toEqual([
+      {
+        feedbackType: 'other',
+        outcome: 'blocked',
+        severity: 'info',
+        modelProvider: 'unknown',
+        model: 'unknown',
+        inputTokens: -1,
+        outputTokens: -1,
+        durationMilliseconds: -1,
+        toolCallCount: -1,
+      },
+    ])
+  })
+
+  it('rejects a model that does not belong to its provider', async () => {
+    const { exitCode, stderr } = await next.runCommand([
+      'telemetry',
+      'feedback',
+      '--feedback-type',
+      'build_failure',
+      '--outcome',
+      'blocked',
+      '--severity',
+      'critical',
+      '--model-provider',
+      'anthropic',
+      '--model',
+      'gpt-5.5',
+    ])
+
+    expect(exitCode).toBe(1)
+    expect(stderr).toContain(
+      'The model "gpt-5.5" is not valid for provider "anthropic".'
+    )
+  })
+
+  it('requires model and provider together', async () => {
+    const { exitCode, stderr } = await next.runCommand([
+      'telemetry',
+      'feedback',
+      '--feedback-type',
+      'other',
+      '--outcome',
+      'blocked',
+      '--severity',
+      'info',
+      '--model-provider',
+      'openai',
+    ])
+
+    expect(exitCode).toBe(1)
+    expect(stderr).toContain(
+      'The --model-provider and --model options must be provided together.'
+    )
+  })
+
+  it.each(['12junk', '1.5', '1e3', '9007199254740992'])(
+    'rejects an invalid numeric field: %s',
+    async (inputTokens) => {
+      const { exitCode, stderr } = await next.runCommand([
+        'telemetry',
+        'feedback',
+        '--feedback-type',
+        'build_failure',
+        '--outcome',
+        'blocked',
+        '--severity',
+        'critical',
+        '--input-tokens',
+        inputTokens,
+      ])
+
+      expect(exitCode).toBe(1)
+      expect(stderr).toContain(
+        `'${inputTokens}' is not -1 or a non-negative safe integer.`
+      )
+    }
+  )
+
+  it('accepts the explicit unknown numeric sentinel', async () => {
+    const { exitCode, stderr } = await next.runCommand(
+      [
+        'telemetry',
+        'feedback',
+        '--feedback-type',
+        'other',
+        '--outcome',
+        'blocked',
+        '--severity',
+        'info',
+        '--input-tokens',
+        '-1',
+      ],
+      {
+        env: {
+          NEXT_TELEMETRY_DEBUG: '1',
+        },
+      }
+    )
+
+    expect(exitCode).toBe(0)
+    expect(findAllTelemetryEvents(stderr, 'NEXT_AGENT_FEEDBACK')[0]).toEqual(
+      expect.objectContaining({ inputTokens: -1 })
+    )
+  })
+
+  it('does not submit agent feedback when telemetry is disabled', async () => {
+    const { exitCode, stdout, stderr } = await next.runCommand(
+      [
+        'telemetry',
+        'feedback',
+        '--feedback-type',
+        'timeout',
+        '--outcome',
+        'abandoned',
+        '--severity',
+        'warning',
+      ],
+      {
+        env: {
+          NEXT_TELEMETRY_DISABLED: '1',
+        },
+      }
+    )
+
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain(
+      'Agent feedback was not sent because Next.js telemetry is disabled.'
+    )
+    expect(stderr).not.toContain('NEXT_AGENT_FEEDBACK')
+  })
   ;(isNextStart ? describe : describe.skip)('production mode', () => {
     // Tests in this block run a full `next build` per test. With a custom
     // `.babelrc` webpack switches off SWC and the build can take 60s+,

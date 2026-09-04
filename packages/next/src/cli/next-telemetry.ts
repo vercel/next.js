@@ -1,11 +1,33 @@
 #!/usr/bin/env node
 
 import { bold, cyan, green, red, yellow } from '../lib/picocolors'
+import { printAndExit } from '../server/lib/utils'
+import {
+  agentFeedbackModels,
+  eventAgentFeedback,
+  type AgentFeedbackModel,
+  type AgentFeedbackModelProvider,
+  type AgentFeedbackOutcome,
+  type AgentFeedbackSeverity,
+  type AgentFeedbackType,
+} from '../telemetry/events/agent-feedback'
 import { Telemetry } from '../telemetry/storage'
 
 export type NextTelemetryOptions = {
   enable?: boolean
   disable?: boolean
+}
+
+export type NextTelemetryFeedbackOptions = {
+  feedbackType: AgentFeedbackType
+  outcome: AgentFeedbackOutcome
+  severity: AgentFeedbackSeverity
+  modelProvider: AgentFeedbackModelProvider
+  model: AgentFeedbackModel
+  inputTokens: number
+  outputTokens: number
+  durationMilliseconds: number
+  toolCallCount: number
 }
 
 const telemetry = new Telemetry({ distDir: process.cwd() })
@@ -50,4 +72,53 @@ const nextTelemetry = (options: NextTelemetryOptions, arg: string) => {
   console.log(`\nLearn more: ${cyan('https://nextjs.org/telemetry')}`)
 }
 
-export { nextTelemetry }
+const nextTelemetryFeedback = async (options: NextTelemetryFeedbackOptions) => {
+  if ((options.modelProvider === 'unknown') !== (options.model === 'unknown')) {
+    printAndExit(
+      'The --model-provider and --model options must be provided together.'
+    )
+  }
+
+  const models = agentFeedbackModels[options.modelProvider]
+  if (!(models as readonly string[]).includes(options.model)) {
+    printAndExit(
+      `The model "${options.model}" is not valid for provider "${options.modelProvider}".`
+    )
+  }
+
+  for (const [name, value] of Object.entries({
+    inputTokens: options.inputTokens,
+    outputTokens: options.outputTokens,
+    durationMilliseconds: options.durationMilliseconds,
+    toolCallCount: options.toolCallCount,
+  })) {
+    if (!Number.isSafeInteger(value) || value < -1) {
+      printAndExit(`${name} must be -1 or a non-negative safe integer.`)
+    }
+  }
+
+  if (!telemetry.isEnabled && !process.env.NEXT_TELEMETRY_DEBUG) {
+    console.log(
+      `Agent feedback was not sent because Next.js telemetry is disabled.`
+    )
+    return
+  }
+
+  await telemetry.record(
+    eventAgentFeedback({
+      feedbackType: options.feedbackType,
+      outcome: options.outcome,
+      severity: options.severity,
+      modelProvider: options.modelProvider,
+      model: options.model,
+      inputTokens: options.inputTokens,
+      outputTokens: options.outputTokens,
+      durationMilliseconds: options.durationMilliseconds,
+      toolCallCount: options.toolCallCount,
+    })
+  )
+
+  console.log('Thank you for your feedback.')
+}
+
+export { nextTelemetry, nextTelemetryFeedback }
