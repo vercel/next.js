@@ -64,7 +64,7 @@ With `skipTrailingSlashRedirect` enabled, none of these redirects are generated 
 ## Good to know
 
 - Keep setting [`trailingSlash`](/docs/app/api-reference/config/next-config-js/trailingSlash) as you did before. It still controls the URLs Next.js generates and the output filenames for [`output: 'export'`](/docs/app/guides/static-exports).
-- With `output: 'export'`, this preserves the `href` you wrote instead of resolving `/me` to `/me/`. See [Static Exports](/docs/app/guides/static-exports).
+- With `output: 'export'`, this preserves the `href` instead of resolving `/me` to `/me/`. See [Static Exports](/docs/app/guides/static-exports).
 - Serving one page at both `/about` and `/about/` gives search engines two URLs for it. Set a [canonical URL](/docs/app/api-reference/functions/generate-metadata#alternates) in your metadata, or redirect in [Proxy](/docs/app/api-reference/file-conventions/proxy).
 
 ## Examples

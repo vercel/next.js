@@ -34,7 +34,7 @@ During client-side navigation, Next.js uses an internal request rather than requ
 
 Next.js also normalizes what Proxy returns, so any URL you rewrite or redirect to is rewritten to match.
 
-Enabling the option turns off both, and Proxy sees and sends the original request:
+With `skipProxyUrlNormalize: true`, neither normalization runs. Proxy receives the request as sent, and the destinations it rewrites or redirects to are sent as written:
 
 | Default                                                                                                                                                                              | With `skipProxyUrlNormalize: true`        |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
