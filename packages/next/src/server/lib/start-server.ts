@@ -600,6 +600,8 @@ export async function startServer(
       if (dirWatchPaths.includes(removedPath)) {
         Log.error(
           `The directory at "${removedPath}" was deleted.\n\n` +
+            'Deleting this directory removes caches and will cause slower ' +
+            'performance.\n\n' +
             'Deleting this directory while Next.js is running can lead to ' +
             'undefined behavior. Restarting the server to recover...'
         )
