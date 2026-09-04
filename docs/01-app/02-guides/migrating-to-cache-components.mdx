@@ -46,7 +46,7 @@ Migrating an existing app by hand follows a few steps, in order:
 2. Decide your approach: convert every route now, or [adopt incrementally](#adopting-incrementally) by [opting routes out of validation](#opting-out-of-validation) first and converting one at a time.
 3. [Follow the validation errors and insights](#following-validation) it surfaces, replacing each route segment config with its Cache Components equivalent and caching uncached data with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrapping runtime data in [`<Suspense>`](https://react.dev/reference/react/Suspense). The per-key sections below cover each config and API.
 
-Your existing `fetch` and `unstable_cache` caching keeps working as a separate layer, so let the insights and errors guide what to change.
+Your existing `fetch` and `unstable_cache` caching keeps working. Migrating `unstable_cache` is optional and can happen later.
 
 Some surfaces have their own steps:
 
@@ -89,7 +89,9 @@ export const instant = false
 
 You don't have to migrate every route at once. `instant = false` lets you get the whole app building and running first, then convert routes one at a time:
 
-1. **Enable the flag and migrate each route segment config.** Follow the relevant sections below for [`dynamic = "force-dynamic"`](#dynamic--force-dynamic), [`dynamic = "force-static"`](#dynamic--force-static), [`revalidate`](#revalidate), and [`fetchCache`](#fetchcache). For routes with dynamic params, also follow the [`generateStaticParams`](#generatestaticparams-and-dynamicparams) guidance. Routes that still render instantly need no further work.
+Routes that used `dynamic = 'force-static'` or `dynamic = 'error'` should remain prerendered. Replacing either config with `instant = false` can move rendering to request time and reduce how much UI a link can prefetch, even when the route's data remains cached.
+
+1. **Enable the flag and migrate each route segment config.** Follow the relevant sections below for [`dynamic = "force-dynamic"`](#dynamic--force-dynamic), [`dynamic = "force-static"`](#dynamic--force-static), [`dynamic = "error"`](#dynamic--error), [`revalidate`](#revalidate), and [`fetchCache`](#fetchcache). For routes with dynamic params, also follow the [`generateStaticParams`](#generatestaticparams-and-dynamicparams) guidance. Routes that still render instantly need no further work.
 2. **Opt out the routes that aren't ready.** Where an insight or error appears, set `instant = false` on the segment that raised it. To do this in one pass across the whole app, run the [`cache-components-instant-false`](/docs/app/guides/upgrading/codemods#cache-components-instant-false) codemod, which adds the opt-out to every `page`, `layout`, and `default` that doesn't already declare `instant`:
 
    ```bash filename="Terminal"
@@ -222,6 +224,10 @@ export default async function Page() {
   return <div>...</div>
 }
 ```
+
+## `dynamic = "error"`
+
+**Replace with `use cache`.** Remove the config, then add `use cache` and `cacheLife` where needed to keep the route prerendered. Replacing it with `instant = false` allows the route to block instead.
 
 ## `revalidate`
 
@@ -375,11 +381,11 @@ Note the persistence difference. The `fetch` Data Cache persists cached response
 
 ## `unstable_cache`
 
-**Replace with `use cache`.**
+**No change required.**
 
-`unstable_cache` is replaced by the [`use cache`](/docs/app/api-reference/directives/use-cache) directive.
+`unstable_cache` continues to work with Cache Components. You can leave it in place and migrate it later.
 
-Turn the wrapped function into a function with the `'use cache'` directive. The cache key is derived automatically from the arguments, so the key-parts array is no longer needed, and the `options` object maps to [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag).
+If you choose to migrate it, turn the wrapped function into a function with the `'use cache'` directive. The cache key is derived automatically from the arguments, so the key-parts array is no longer needed, and the `options` object maps to [`cacheLife`](/docs/app/api-reference/functions/cacheLife) and [`cacheTag`](/docs/app/api-reference/functions/cacheTag).
 
 ```tsx filename="app/lib/data.ts" switcher
 // Before

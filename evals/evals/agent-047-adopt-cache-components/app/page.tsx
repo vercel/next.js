@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { getProducts } from '@/lib/catalog'
 
+export const dynamic = 'force-static'
 export const revalidate = 3600
 
 export default async function CatalogPage() {

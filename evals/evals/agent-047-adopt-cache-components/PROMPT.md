@@ -1,1 +1,1 @@
-Move this storefront to Cache Components in one branch. The catalog, product pages, account greeting, and timestamps should keep their current behavior. Finish with a production build and do not leave routes opted out.
+Migrate this storefront to Cache Components incrementally. Prepare the first migration PR so that it is safe to ship without changing the app's existing rendering, caching, or navigation behavior. Stop once that first PR is ready.
