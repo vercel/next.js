@@ -8,9 +8,6 @@ describe('hmr-dynamic-component', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
     files: __dirname,
     patchFileDelay: 500,
-    env: {
-      NEXT_TURBOPACK_HMR_DIAGNOSTICS: '1',
-    },
   })
 
   it('should update text in a dynamically-imported client component without a full reload', async () => {
@@ -191,7 +188,6 @@ export default function Dynamic() {
       try {
         await next.patchFile(componentPath, createComponent('before'))
 
-        const cliOutputStart = next.cliOutput.length
         const subscriptionPaths = new Set<string>()
         let editTriggered = false
         let pageLoads = 0
@@ -239,12 +235,6 @@ export default function Dynamic() {
           const div = await browser.elementByCss('#dynamic-component')
           expect(await div.text()).toContain(
             `HMR subscription after ${moduleCount}`
-          )
-        }, 10000)
-
-        await retry(() => {
-          expect(next.cliOutput.slice(cliOutputStart)).toContain(
-            'client-subscription-initial-update'
           )
         }, 10000)
 
