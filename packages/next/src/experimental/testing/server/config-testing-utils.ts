@@ -21,12 +21,12 @@ import type { Params } from '../../../server/request/params'
 import { constructRequest } from './utils'
 import { parsedUrlQueryToParams } from '../../../server/route-modules/app-route/helpers/parsed-url-query-to-params'
 import { searchParamsToUrlQuery } from '../../../shared/lib/router/utils/querystring'
+import { isFullStringUrl, parseUrl } from '../../../lib/url'
 
 /**
  * The subset of the legacy `url.parse(url, true)` result that route matching
- * needs. Constructing it from the WHATWG `URL` API avoids the deprecated
- * `url.parse()` (DEP0169). Relative URLs keep `protocol`/`host` as null,
- * matching the legacy behavior.
+ * needs, built on top of the existing WHATWG `parseUrl` helper. Relative URLs
+ * keep `protocol`/`host` as null, matching the legacy behavior.
  */
 interface ParsedRequestUrl {
   pathname: string
@@ -36,8 +36,11 @@ interface ParsedRequestUrl {
 }
 
 function parseRequestUrl(url: string): ParsedRequestUrl {
-  const isAbsolute = /^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(url)
-  const parsed = new URL(url, 'https://example.com')
+  const isAbsolute = isFullStringUrl(url)
+  const parsed = parseUrl(url)
+  if (!parsed) {
+    throw new Error(`Invalid URL: ${url}`)
+  }
   return {
     pathname: parsed.pathname,
     query: searchParamsToUrlQuery(parsed.searchParams),
