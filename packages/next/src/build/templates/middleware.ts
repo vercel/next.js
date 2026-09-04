@@ -2,7 +2,10 @@ import type { AdapterOptions, EdgeHandler } from '../../server/web/adapter'
 import '../adapter/setup-node-env.external'
 import '../../server/web/globals'
 
+import type { VariantsManifest } from '../../server/variants/manifest'
+
 import { adapter } from '../../server/web/adapter'
+import { SERVER_DIRECTORY, VARIANTS_MANIFEST } from '../../shared/lib/constants'
 import { IncrementalCache } from '../../server/lib/incremental-cache'
 declare const incrementalCacheHandler: any
 // OPTIONAL_IMPORT:incrementalCacheHandler
@@ -75,6 +78,8 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
 }
 
 const internalHandler: EdgeHandler = async (opts) => {
+  let variantsManifest: VariantsManifest | undefined
+
   if (process.env.NEXT_RUNTIME !== 'edge') {
     // This mirrors what `RouteModule#prepare` does for routes
     // edge runtime handles loading instrumentation at the edge adapter level
@@ -93,6 +98,11 @@ const internalHandler: EdgeHandler = async (opts) => {
       : '.next'
 
     await ensureInstrumentationRegistered(absoluteProjectDir, distDir)
+
+    if (process.env.__NEXT_VARIANTS) {
+      variantsManifest =
+        loadVariantsManifest(join(absoluteProjectDir, distDir)) ?? undefined
+    }
   }
 
   return adapter({
@@ -100,8 +110,57 @@ const internalHandler: EdgeHandler = async (opts) => {
     IncrementalCache,
     incrementalCacheHandler,
     page,
+    variantsManifest,
     handler: errorHandledHandler(handlerUserland),
   })
+}
+
+// Keyed by `distDir`, because one process can serve more than one application
+// and this module is read once per process.
+const cachedVariantsManifests = new Map<string, VariantsManifest | null>()
+
+/**
+ * Reads the variants manifest from disk, and returns null when there is none.
+ *
+ * This branches on a compile-time condition with `if`/`else` rather than
+ * returning early, so that an edge build removes the branch and with it a
+ * `node:fs` require it could not resolve. An early return leaves the require in
+ * the bundle.
+ *
+ * An absent file is the ordinary case, not an error: the build writes one
+ * whenever the flag is on, so a missing file means the feature is off.
+ *
+ * The edge branch returns null rather than reading anything, and a variants
+ * project never takes it. Variants need a Proxy file, which `build/entries.ts`
+ * always compiles for Node, and `experimental.variants` together with a
+ * `middleware.ts` is rejected by `getPagesPageStaticInfo`.
+ */
+function loadVariantsManifest(distDir: string): VariantsManifest | null {
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    const cached = cachedVariantsManifests.get(distDir)
+
+    if (cached !== undefined) {
+      return cached
+    }
+
+    const { readFileSync } = require('node:fs') as typeof import('node:fs')
+    const { join } = require('node:path') as typeof import('node:path')
+    let manifest: VariantsManifest | null
+
+    try {
+      manifest = JSON.parse(
+        readFileSync(join(distDir, SERVER_DIRECTORY, VARIANTS_MANIFEST), 'utf8')
+      )
+    } catch {
+      manifest = null
+    }
+
+    cachedVariantsManifests.set(distDir, manifest)
+
+    return manifest
+  } else {
+    return null
+  }
 }
 
 export async function handler(

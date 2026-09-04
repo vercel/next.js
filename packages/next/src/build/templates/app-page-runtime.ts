@@ -23,7 +23,12 @@ import {
   setRequestMeta,
 } from '../../server/request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
-import { NEXT_VARIANTS_HEADER } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  NEXT_VARIANTS_HEADER,
+  NEXT_VARIANTS_QUERY_PARAM,
+} from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
+import { findVariantCombinationByHash } from '../../server/variants/combinations' with { 'turbopack-transition': 'next-server-utility' }
+import { insertVariantsPrefix } from '../../server/variants/prefix' with { 'turbopack-transition': 'next-server-utility' }
 import { decodeVariants } from '../../server/variants/encoding' with { 'turbopack-transition': 'next-server-utility' }
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -272,9 +277,70 @@ export function createAppPageEntrypoint({
       resolvedPathname,
       prerenderManifest
     )
-    const prerenderInfo = prerenderMatch?.route ?? null
 
-    const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
+    // The static variant combinations this page declared. A request is matched
+    // against them to find the prerender it belongs to.
+    const variantCombinationGroups = process.env.__NEXT_VARIANTS
+      ? prerenderManifest.variantCombinationGroups[normalizedSrcPage]
+      : undefined
+
+    // The hash of the combination, which routing took out of the path and put
+    // here. It is removed again, so that it reaches neither the render nor a
+    // cache key by any other route.
+    const variantsHash = process.env.__NEXT_VARIANTS
+      ? query[NEXT_VARIANTS_QUERY_PARAM]
+      : undefined
+
+    if (typeof variantsHash === 'string') {
+      delete query[NEXT_VARIANTS_QUERY_PARAM]
+    }
+
+    // The combination comes from the hash rather than from matching the
+    // resolved values, because a request does not always carry them. A platform
+    // filling or revalidating a prerender rebuilds the request from the
+    // artifact, where the hash is all that survives.
+    const matchedVariants =
+      variantCombinationGroups?.length && typeof variantsHash === 'string'
+        ? findVariantCombinationByHash(variantCombinationGroups, variantsHash)
+        : null
+
+    // Builds the path of the matched variant combination's artifact. Every
+    // lookup keyed by a path goes through this, so that a request reads the
+    // prerender of its own combination and not of another.
+    //
+    // No base path is passed, because every path handed to this is a route
+    // pattern with params interpolated, and a route pattern carries none.
+    const toOutputPathname = (routePathname: string): string =>
+      matchedVariants
+        ? insertVariantsPrefix(routePathname, matchedVariants.hash, undefined)
+        : routePathname
+
+    const outputPathname = toOutputPathname(resolvedPathname)
+
+    const matchedVariantsPrerenderInfo = matchedVariants
+      ? prerenderManifest.dynamicRoutes[toOutputPathname(normalizedSrcPage)]
+      : undefined
+
+    // This reads the entry directly by key. Route matching here runs on the
+    // pathname with the prefix already removed, while this entry's key and
+    // `routeRegex` describe the prefixed path, so matching would not find it.
+    const prerenderInfo =
+      matchedVariantsPrerenderInfo ?? prerenderMatch?.route ?? null
+
+    // The proxy sends on only the values no combination assigned, so this
+    // header carries the runtime tier. The static tier comes from the hash
+    // instead. This header is the only channel a self-hosted request and a
+    // deployed request are certain to share.
+    const encodedRuntimeVariants = process.env.__NEXT_VARIANTS
+      ? req.headers[NEXT_VARIANTS_HEADER]
+      : undefined
+
+    const runtimeVariants =
+      typeof encodedRuntimeVariants === 'string'
+        ? (decodeVariants(encodedRuntimeVariants) ?? undefined)
+        : undefined
+
+    const isPrerendered = !!prerenderManifest.routes[outputPathname]
 
     const userAgent = req.headers['user-agent'] || ''
     const botType = getBotType(userAgent)
@@ -488,7 +554,7 @@ export function createAppPageEntrypoint({
     // we can use this fact to only generate the flight data for the request
     // because we can't cache the HTML (as it's also dynamic).
     const staticPrefetchDataRoute =
-      prerenderManifest.routes[resolvedPathname]?.prefetchDataRoute
+      prerenderManifest.routes[outputPathname]?.prefetchDataRoute
 
     let isDynamicRSCRequest =
       isRoutePPREnabled &&
@@ -547,11 +613,20 @@ export function createAppPageEntrypoint({
     const supportsRDCForNavigations =
       isRoutePPREnabled && nextConfig.cacheComponents === true
 
+    // A non-PPR prerender cannot leave runtime-tier variant values as holes. A
+    // request that carries any must use a request render, even when it matched
+    // a static combination. Otherwise a legacy prerender finds no static value
+    // for the variant and interrupts the render.
+    const requiresDynamicResponseForVariants = Boolean(
+      !isRoutePPREnabled && runtimeVariants !== undefined
+    )
+
     // In development, we always want to generate dynamic HTML.
     const supportsDynamicResponse: boolean =
       // If we're in development, we always support dynamic HTML, unless it's
       // a data request, in which case we only produce static HTML.
       routeModule.isDev === true ||
+      requiresDynamicResponseForVariants ||
       // If this is a draft mode request, it supports dynamic HTML.
       isDraftMode ||
       // If this is not SSG or does not have static paths, then it supports
@@ -641,6 +716,10 @@ export function createAppPageEntrypoint({
         }
       } else {
         ssgCacheKey = resolvedPathname
+      }
+
+      if (ssgCacheKey !== null) {
+        ssgCacheKey = toOutputPathname(ssgCacheKey)
       }
     }
 
@@ -815,23 +894,6 @@ export function createAppPageEntrypoint({
       incrementalCache?.resetRequestCache()
       ;(globalThis as any).__incrementalCache = incrementalCache
 
-      // The variants that a proxy resolved for this request.
-      //
-      // The route module reads the header, and not the router server. The
-      // router server sees the header when self-hosting. A deployed request
-      // reaches no Next.js code before the route module runs.
-      //
-      // The flag gates the read, so that a project without variants compiles
-      // none of it.
-      const encodedVariants = process.env.__NEXT_VARIANTS
-        ? req.headers[NEXT_VARIANTS_HEADER]
-        : undefined
-
-      const resolvedVariants =
-        typeof encodedVariants === 'string'
-          ? decodeVariants(encodedVariants)
-          : null
-
       const doRender = async ({
         span,
         postponed,
@@ -870,7 +932,8 @@ export function createAppPageEntrypoint({
           ),
           fallbackRouteParams,
           renderOpts: {
-            variants: resolvedVariants,
+            staticVariants: matchedVariants?.values,
+            runtimeVariants,
             App: () => null,
             Document: () => null,
             pageConfig: {},
@@ -1198,10 +1261,11 @@ export function createAppPageEntrypoint({
                 ? !isDynamicRSCRequest
                 : !isRSCRequest)
             ) {
-              const cacheKey =
+              const cacheKey = toOutputPathname(
                 isProduction && typeof prerenderInfo?.fallback === 'string'
                   ? prerenderInfo.fallback
                   : normalizedSrcPage
+              )
 
               let fallbackRouteParams: OpaqueFallbackRouteParams | null
               if (isProduction) {
@@ -1395,7 +1459,7 @@ export function createAppPageEntrypoint({
             !forceStaticRender
           ) {
             const incrementalCacheEntry = await incrementalCache.get(
-              resolvedPathname,
+              outputPathname,
               {
                 kind: IncrementalCacheKind.APP_PAGE,
                 isRoutePPREnabled: true,

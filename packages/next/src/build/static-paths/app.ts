@@ -39,6 +39,7 @@ import {
 } from '../../server/app-render/work-unit-async-storage.external'
 import type { ImplicitTags } from '../../server/lib/implicit-tags'
 import { getImplicitTags } from '../../server/lib/implicit-tags'
+import { expandPrerenderedRoutesByVariants } from '../variants/combinations'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -839,6 +840,7 @@ export async function buildAppStaticPaths({
   buildId,
   deploymentId,
   rootParamKeys,
+  variantCombinations,
 }: {
   dir: string
   page: string
@@ -863,6 +865,12 @@ export async function buildAppStaticPaths({
   buildId: string
   deploymentId: string
   rootParamKeys: readonly string[]
+  /**
+   * The static variant combinations the page declared. The caller collects
+   * them, because a page with no dynamic segments never reaches this function
+   * and still needs them applied.
+   */
+  variantCombinations: ReadonlyArray<Record<string, string>>
 }): Promise<StaticPathsResult> {
   if (
     segments.some((generate) => generate.config?.dynamicParams === true) &&
@@ -1167,6 +1175,12 @@ export async function buildAppStaticPaths({
       })
     })
   }
+
+  expandPrerenderedRoutesByVariants(
+    prerenderedRoutesByPathname,
+    variantCombinations,
+    isRoutePPREnabled
+  )
 
   const prerenderedRoutes =
     prerenderedRoutesByPathname.size > 0 ||

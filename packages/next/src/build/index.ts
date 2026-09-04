@@ -67,6 +67,7 @@ import {
   PREFETCH_HINTS,
   PRERENDER_MANIFEST,
   REACT_LOADABLE_MANIFEST,
+  VARIANTS_MANIFEST,
   ROUTES_MANIFEST,
   SERVER_DIRECTORY,
   SERVER_FILES_MANIFEST,
@@ -216,6 +217,9 @@ import { traceGlobals } from '../trace/shared'
 import { runAfterProductionCompile } from './after-production-compile'
 import { generatePreviewKeys } from './preview-key-utils'
 import { handleBuildComplete } from './adapter/build-complete'
+import type { VariantCombinationGroups } from '../server/variants/combinations'
+import { buildVariantsManifest, recordVariantOutput } from './variants/manifest'
+import { getVariantOutputPath } from '../server/variants/prefix'
 import {
   sortPageObjects,
   sortPages,
@@ -416,6 +420,16 @@ export type PrerenderManifest = {
   notFoundRoutes: string[]
   /** @deprecated only kept for the builder, use PreviewPropsManifest within Next.js itself */
   preview: __ApiPreviewProps
+  /**
+   * The static variant combinations that produced a prefixed prerender output,
+   * grouped by which variants they assign, and keyed by page. A request uses
+   * these groups to recover the combination it was prerendered against.
+   *
+   * This is keyed by page rather than carried on a route entry, because a page
+   * that declares combinations and has no fallback shell has no `dynamicRoutes`
+   * entry to hold them.
+   */
+  variantCombinationGroups: { [page: string]: VariantCombinationGroups }
 }
 
 function getPprAppPageClassification(
@@ -2170,6 +2184,14 @@ export default async function build(
       const serverPropsPages = new Set<string>()
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
+      // Static generation needs every declaration to produce its candidate
+      // outputs. The final manifests receive only the combinations whose
+      // candidates succeeded.
+      const variantCombinationGroupsByPage = new Map<
+        string,
+        VariantCombinationGroups
+      >()
+      const variantOutputHashesByPage = new Map<string, Set<string>>()
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
@@ -2563,6 +2585,13 @@ export default async function build(
                         } else {
                           const isDynamic = isDynamicRoute(page)
 
+                          if (workerResult.variantCombinationGroups) {
+                            variantCombinationGroupsByPage.set(
+                              page,
+                              workerResult.variantCombinationGroups
+                            )
+                          }
+
                           if (
                             typeof workerResult.isRoutePPREnabled === 'boolean'
                           ) {
@@ -2584,8 +2613,18 @@ export default async function build(
                               originalAppPath,
                               workerResult.prerenderedRoutes
                             )
-                            ssgPageRoutes = workerResult.prerenderedRoutes.map(
-                              (route) => route.pathname
+                            // Deduplicated because the combinations of one
+                            // route share a pathname. This drives the build
+                            // output, which names paths rather than the
+                            // artifacts written for them.
+                            // TODO(variants): List variants separately in the
+                            // build output.
+                            ssgPageRoutes = Array.from(
+                              new Set(
+                                workerResult.prerenderedRoutes.map(
+                                  (route) => route.pathname
+                                )
+                              )
                             )
                             isSSG = true
                           }
@@ -2618,18 +2657,27 @@ export default async function build(
                             // - It doesn't have generateStaticParams but `dynamic` is set to
                             //   `error` or `force-static`
                             if (!isDynamic) {
-                              staticPaths.set(originalAppPath, [
-                                {
-                                  params: {},
-                                  pathname: page,
-                                  encodedPathname: page,
-                                  fallbackRouteParams: [],
-                                  fallbackMode:
-                                    workerResult.prerenderFallbackMode,
-                                  fallbackRootParams: [],
-                                  throwOnEmptyStaticShell: true,
-                                },
-                              ])
+                              // A page that declared static variant
+                              // combinations was already expanded into one
+                              // route per combination, and replacing those with
+                              // a single route would drop every combination it
+                              // declared. It is static either way, so only the
+                              // synthesis is skipped.
+                              if (!workerResult.prerenderedRoutes) {
+                                staticPaths.set(originalAppPath, [
+                                  {
+                                    params: {},
+                                    pathname: page,
+                                    encodedPathname: page,
+                                    fallbackRouteParams: [],
+                                    fallbackMode:
+                                      workerResult.prerenderFallbackMode,
+                                    fallbackRootParams: [],
+                                    throwOnEmptyStaticShell: true,
+                                  },
+                                ])
+                              }
+
                               isStatic = true
                             } else if (
                               !hasGenerateStaticParams &&
@@ -3010,6 +3058,7 @@ export default async function build(
         dynamicRoutes: {},
         notFoundRoutes: [],
         preview: previewProps,
+        variantCombinationGroups: {},
       }
 
       // Accumulate per-route segment inlining decisions for
@@ -3178,9 +3227,17 @@ export default async function build(
                     return
                   }
 
-                  defaultMap[route.pathname] = {
+                  // The export map is keyed by the path the artifact is written
+                  // to, and `_ssgPath` carries the path that is rendered. A
+                  // static variant combination uses that split: it renders the
+                  // same route as every other combination, so only the written
+                  // path separates them, by the hash of the combination.
+                  defaultMap[
+                    getVariantOutputPath(route.pathname, route.variantValues)
+                  ] = {
                     page: originalAppPath,
                     _ssgPath: route.encodedPathname,
+                    _variantValues: route.variantValues,
                     _fallbackRouteParams: route.fallbackRouteParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
@@ -3488,7 +3545,13 @@ export default async function build(
               if (isDynamicRoute(page) && route.pathname === page) continue
 
               const pageInfo = pageInfos.get(page) as PageInfo
-              const routeResult = exportResult.byPath.get(route.pathname)
+              // The artifact of this route. Static variant combinations of one
+              // route share a pathname, so only this path separates them.
+              const outputPathname = getVariantOutputPath(
+                route.pathname,
+                route.variantValues
+              )
+              const routeResult = exportResult.byPath.get(outputPathname)
               const {
                 metadata = {},
                 hasEmptyStaticShell,
@@ -3497,7 +3560,7 @@ export default async function build(
               } = routeResult ?? {}
 
               const cacheControl = getCacheControl(
-                route.pathname,
+                outputPathname,
                 appConfig.revalidate
               )
 
@@ -3532,7 +3595,7 @@ export default async function build(
               }
 
               if (cacheControl.revalidate !== 0) {
-                const normalizedRoute = normalizePagePath(route.pathname)
+                const normalizedRoute = normalizePagePath(outputPathname)
 
                 let dataRoute: string | null
                 if (isAppRouteHandler) {
@@ -3576,7 +3639,7 @@ export default async function build(
                   }
                 }
 
-                prerenderManifest.routes[route.pathname] = {
+                prerenderManifest.routes[outputPathname] = {
                   initialStatus: status,
                   initialHeaders: meta.headers,
                   renderingMode: isAppPPREnabled
@@ -3594,6 +3657,12 @@ export default async function build(
                   prefetchDataRoute,
                   allowHeader: ALLOWED_HEADERS,
                 }
+
+                recordVariantOutput(
+                  variantOutputHashesByPage,
+                  page,
+                  route.variantValues
+                )
               } else {
                 hasRevalidateZero = true
 
@@ -3703,8 +3772,10 @@ export default async function build(
                 // currently has the same pathname as the logical matcher, but
                 // that is not an invariant: variants can write several
                 // artifacts for one matcher under distinct output paths.
-                const prerenderOutputPathname =
-                  prerenderCandidate?.pathname ?? route.pathname
+                const prerenderOutputPathname = getVariantOutputPath(
+                  prerenderCandidate?.pathname ?? route.pathname,
+                  prerenderCandidate?.variantValues
+                )
 
                 const normalizedRoute = normalizePagePath(
                   prerenderOutputPathname
@@ -3935,6 +4006,12 @@ export default async function build(
                       ),
                   allowHeader: ALLOWED_HEADERS,
                 }
+
+                recordVariantOutput(
+                  variantOutputHashesByPage,
+                  page,
+                  prerenderCandidate?.variantValues
+                )
               }
             }
           })
@@ -4415,7 +4492,6 @@ export default async function build(
           }
         }
 
-        await writePrerenderManifest(distDir, prerenderManifest)
         await writeManifest(
           path.join(distDir, SERVER_DIRECTORY, PREFETCH_HINTS),
           prefetchHints
@@ -4425,15 +4501,27 @@ export default async function build(
           buildId,
           locales: config.i18n?.locales,
         })
-      } else {
-        await writePrerenderManifest(distDir, {
-          version: 4,
-          routes: {},
-          dynamicRoutes: {},
-          notFoundRoutes: [],
-          preview: previewProps,
-        })
       }
+
+      // Build the variant groups and manifest after the prerender outputs are
+      // known. A declared static variant combination that produced no prerender
+      // output is omitted from both manifests.
+      if (config.experimental.variants) {
+        const { variantCombinationGroups, variantsManifest } =
+          buildVariantsManifest(
+            variantCombinationGroupsByPage,
+            variantOutputHashesByPage
+          )
+
+        prerenderManifest.variantCombinationGroups = variantCombinationGroups
+
+        await writeManifest(
+          path.join(distDir, SERVER_DIRECTORY, VARIANTS_MANIFEST),
+          variantsManifest
+        )
+      }
+
+      await writePrerenderManifest(distDir, prerenderManifest)
 
       await writeManifest(
         path.join(distDir, 'server', PREVIEW_PROPS_MANIFEST),

@@ -1686,6 +1686,8 @@ async function prospectiveRuntimeServerPrerender(
     type: 'prerender-runtime',
     phase: 'render',
     rootParams,
+    staticVariants: renderOpts.staticVariants ?? null,
+    runtimeVariants: renderOpts.runtimeVariants ?? null,
     implicitTags,
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
@@ -1873,6 +1875,8 @@ async function finalRuntimeServerPrerender(
     type: 'prerender-runtime',
     phase: 'render',
     rootParams,
+    staticVariants: renderOpts.staticVariants ?? null,
+    runtimeVariants: renderOpts.runtimeVariants ?? null,
     implicitTags,
     renderSignal: finalServerController.signal,
     controller: finalServerController,
@@ -3015,7 +3019,8 @@ async function renderAppPage(
     res,
     url,
     rootParams,
-    renderOpts.variants ?? null,
+    renderOpts.staticVariants ?? null,
+    renderOpts.runtimeVariants ?? null,
     implicitTags,
     renderOpts.onUpdateCookies,
     renderOpts.previewProps,
@@ -6689,7 +6694,8 @@ export async function runValidationInDevFromSnapshot(
       search: message.request.urlSearch,
     },
     rootParams: message.request.rootParams,
-    variants: message.request.variants,
+    staticVariants: message.request.staticVariants,
+    runtimeVariants: message.request.runtimeVariants,
     implicitTags,
     resumeDataCache: null,
     previewProps: undefined,
@@ -8341,7 +8347,8 @@ async function validateInstantConfigInBuildWithSample(
         draftMode,
         rootParams: sampleRootParams,
         // TODO(variants): Define variants for instant validation.
-        variants: null,
+        staticVariants: null,
+        runtimeVariants: null,
         validationSamples,
         validationSampleTracking: createValidationSampleTracking(),
         // This will be set when rendering
@@ -8791,6 +8798,7 @@ async function prerenderToStream(
 
       const initialServerPayloadPrerenderStore: PrerenderStore = {
         type: 'prerender',
+        staticVariants: renderOpts.staticVariants ?? null,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -8833,6 +8841,7 @@ async function prerenderToStream(
 
       const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender',
+        staticVariants: renderOpts.staticVariants ?? null,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -9102,6 +9111,7 @@ async function prerenderToStream(
 
       const finalServerPayloadPrerenderStore: PrerenderStoreModernServer = {
         type: 'prerender',
+        staticVariants: renderOpts.staticVariants ?? null,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -9165,6 +9175,7 @@ async function prerenderToStream(
 
       const finalServerPrerenderStore: PrerenderStore = (prerenderStore = {
         type: 'prerender',
+        staticVariants: renderOpts.staticVariants ?? null,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -9642,6 +9653,7 @@ async function prerenderToStream(
     } else {
       const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-legacy',
+        staticVariants: renderOpts.staticVariants ?? null,
         phase: 'render',
         rootParams,
         implicitTags,
@@ -9876,6 +9888,7 @@ async function prerenderToStream(
       )
       const errorPrerenderStore: PrerenderStore = {
         type: 'prerender',
+        staticVariants: renderOpts.staticVariants ?? null,
         phase: 'render',
         rootParams,
         fallbackRouteParams,
@@ -10197,6 +10210,7 @@ async function prerenderToStream(
 
     const prerenderLegacyStore: PrerenderStore = {
       type: 'prerender-legacy',
+      staticVariants: renderOpts.staticVariants ?? null,
       phase: 'render',
       rootParams,
       implicitTags: implicitTags,

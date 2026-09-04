@@ -14,6 +14,7 @@ function createCache() {
       routes: {},
       dynamicRoutes: {},
       notFoundRoutes: [],
+      variantCombinationGroups: {},
       preview: {
         previewModeId: 'id',
         previewModeSigningKey: 'key',

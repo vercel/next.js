@@ -1,3 +1,5 @@
+import { djb2Hash } from '../../shared/lib/hash'
+
 /**
  * Serializes the variants resolved for a request to a canonical form. The
  * entries are sorted by variant identity and written as JSON.
@@ -18,6 +20,20 @@ export function canonicalizeVariants(variants: Record<string, string>): string {
       .sort()
       .map((key) => [key, variants[key]])
   )
+}
+
+/**
+ * Hashes a variant combination.
+ *
+ * The result holds only `[0-9a-z]`, because `djb2Hash` returns an unsigned
+ * 32-bit integer and base 36 of one carries no sign. Code that recognizes the
+ * hash inside a pathname relies on that shape.
+ *
+ * It uses `djb2Hash` and not `node:crypto`, because a proxy can run on the edge
+ * runtime, where `node:crypto` is unavailable.
+ */
+export function hashVariants(variants: Record<string, string>): string {
+  return djb2Hash(canonicalizeVariants(variants)).toString(36)
 }
 
 /**

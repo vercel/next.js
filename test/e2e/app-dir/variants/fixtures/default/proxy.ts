@@ -1,25 +1,26 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { wrapProxy } from 'next/dist/server/variants/wrap-proxy'
-import { country, locale, theme } from './variants'
+import { banner, locale, theme } from './variants'
 
-// This table names the variants of each route by hand.
+// The variants transform will wrap the proxy automatically, synthesize one when
+// the project has none, and derive each route's variants from its module graph,
+// layouts included. Wired by hand until then.
 //
-// TODO(variants): the variants transform wraps the proxy, synthesizes one for a
-// project that has none, and derives each route's variants from its module
-// graph, layouts included.
-//
-// A route reads only some of the variants that a project declares. Resolution
-// of the rest would send the origin values that no code reads. The table lists
-// `/rewrite-target` and not `/rewrite-source`, because the rewrite below decides
-// which route renders.
+// A route reads only some of the variants a project declares, and resolving the
+// rest would send the origin values nothing consumes. `/rewrite-target` is
+// listed rather than `/rewrite-source`, because the rewrite below decides which
+// route renders.
 const variantsByRoute = {
-  '/': [locale, theme],
-  '/rewrite-target': [locale, theme],
-  // This route declares static combinations that assign `country`, so a request
-  // to it resolves that variant as well, even though the route reads only the
-  // other two.
-  '/declared': [country, locale, theme],
-  // The `config.matcher` below omits this route on purpose. See the route.
+  '/': [banner, locale, theme],
+  '/conditional-runtime/[slug]': [banner, theme],
+  '/enumerated/[slug]': [locale, theme],
+  '/on-demand/[slug]': [banner, theme],
+  '/paramless': [locale, theme],
+  '/rewrite-target': [banner, locale, theme],
+  '/search-params': [theme],
+  '/specificity': [locale, theme],
+  '/shell/[slug]': [banner, locale, theme],
+  // Deliberately absent from `config.matcher` below. See the route itself.
   '/unmatched-by-proxy': [locale, theme],
 }
 
@@ -50,5 +51,16 @@ export const proxy = wrapProxy(variantsByRoute, (request: NextRequest) => {
 })
 
 export const config = {
-  matcher: ['/', '/declared', '/rewrite-source', '/external'],
+  matcher: [
+    '/',
+    '/rewrite-source',
+    '/external',
+    '/conditional-runtime/:slug',
+    '/enumerated/:slug',
+    '/shell/:slug',
+    '/on-demand/:slug',
+    '/paramless',
+    '/search-params',
+    '/specificity',
+  ],
 }

@@ -121,13 +121,16 @@ export async function loadStaticPaths({
     )
 
     // The dev server reads the static variant combinations of a route here, and
-    // rejects what it cannot use. Nothing prerenders against them yet, so the
-    // result is discarded.
+    // rejects what it cannot use.
     //
-    // The dev server builds static paths only for a dynamic route. A route
-    // without dynamic segments is therefore checked by a production build
-    // alone.
-    await collectStaticVariantCombinations(segments, pathname)
+    // It builds static paths only for a dynamic route. A route without dynamic
+    // segments is therefore checked by a production build alone.
+    // TODO(variants): Check static variant combinations in dev also for static
+    // routes.
+    const variantCombinations = await collectStaticVariantCombinations(
+      segments,
+      pathname
+    )
 
     const route = parseNormalizedAppRoute(pathname)
     if (route.dynamicSegments.length === 0) {
@@ -147,6 +150,7 @@ export async function loadStaticPaths({
       route,
       cacheComponents: config.cacheComponents,
       segments,
+      variantCombinations,
       distDir,
       requestHeaders,
       cacheHandler,
