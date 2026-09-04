@@ -1,76 +1,33 @@
 /**
- * Adopt Cache Components
+ * Adopt Cache Components incrementally
  *
- * Verifies a complete adoption rather than a single directive. The agent must
- * enable the feature, use targeted caches for reusable data, preserve
- * request-specific behavior, and create meaningful static shells instead of
- * silencing blocking routes with opt-outs.
+ * Verifies that the first migration PR protects routes with explicit static
+ * contracts before allowing request-specific routes to remain opted out.
  */
 
 import { expect, test } from 'vitest'
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs'
-import { join } from 'path'
 import { environment, transcript } from '@vercel/agent-eval/eval'
 
-const IGNORE_DIRS = new Set([
-  '.git',
-  '.next',
-  'node_modules',
-  'dist',
-  'build',
-  'coverage',
-])
-
-function readSourceFiles(dir: string): string[] {
-  if (!existsSync(dir)) return []
-
-  return readdirSync(dir).flatMap((entry) => {
-    if (IGNORE_DIRS.has(entry)) return []
-    const path = join(dir, entry)
-    if (statSync(path).isDirectory()) return readSourceFiles(path)
-    if (entry === 'EVAL.ts' || !/\.(ts|tsx|js|jsx)$/.test(entry)) return []
-    return readFileSync(path, 'utf-8')
-  })
-}
-
-const source = readSourceFiles(process.cwd()).join('\n')
-
-test('enables Cache Components without route opt-outs', () => {
-  const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf-8')
-
-  expect(config).toMatch(/cacheComponents\s*:\s*true/)
-  expect(source).not.toMatch(/export\s+(?:const|var|let)\s+instant\s*=\s*false/)
-})
-
-test('removes incompatible route revalidation config', () => {
-  expect(source).not.toMatch(/export\s+(?:const|var|let)\s+revalidate\s*=/)
-})
-
-test('uses explicit cache lifetime for reusable work', () => {
-  expect(source).toMatch(/['"]use cache(?:: private)?['"]/)
-  expect(source).toMatch(/\bcacheLife\s*\(/)
-})
-
-test('preserves request-specific account behavior and a meaningful shell', async () => {
+test('preserves routes that were explicitly static', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The account route still reads the display-name cookie at request time and renders it in the greeting. Cookie access is not placed inside a public use-cache function or otherwise shared between users. Request-time account content is isolated behind meaningful Suspense or loading UI while the Account heading or another useful stable frame remains in the static shell.`
+    `Cache Components is enabled. Both routes that began with an explicit static contract are fully migrated in the first PR: the catalog route that used dynamic = 'force-static' remains prerendered and eligible for full-route prefetching, and the privacy route that used dynamic = 'error' remains fully static. Neither route, nor a parent segment covering it, is left under instant = false.`
   )
 })
 
-test('preserves the catalog cache and timestamp cadence', async () => {
+test('preserves the catalog route and data cache lifetimes', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The catalog keeps the starter route's hourly revalidation behavior after the incompatible revalidate export is removed. A page-level or data-level use-cache boundary with an equivalent cache lifetime is valid. The catalog check timestamp belongs to that same hourly result and refreshes when the cached result refreshes; it is not incorrectly required to change on every request.`
+    `The catalog preserves its two independent cache behaviors: the rendered route, including its catalog-check timestamp, can refresh about once per hour, while the product-list lookup can remain cached for about one day. The existing unstable_cache implementation may remain unchanged and is not needlessly migrated merely to enable Cache Components.`
   )
 })
 
-test('keeps URL-specific product work below a Suspense boundary', async () => {
+test('stops at a safe incremental boundary', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The /products/[slug] page retains useful route-independent shell content and does not await params at the top of the page before returning its frame. URL-specific params and product rendering happen in a child below a meaningful Suspense boundary.`
+    `The first PR is incremental rather than a forced full-app migration. The request-specific account and product routes may remain explicitly opted out for later follow-up work, with the cookie greeting and URL-specific product behavior intact, but the explicitly static catalog and privacy routes are not deferred with them. The final app is safe to ship at this boundary.`
   )
 })
 
-test('diagnosed blocking routes and completed the production migration', async () => {
+test('prioritizes protected routes and verifies the result', async () => {
   await expect(transcript).toSatisfyCriterion(
-    `The agent enabled cacheComponents, used a production build or Next.js runtime diagnostics to discover the resulting blocking routes, fixed each route according to whether its content was reusable or request-specific, and finished with a successful production build. It did not merely add route-wide opt-outs or stop after the first green type check.`
+    `Before declaring the first migration PR ready, the agent identifies routes with pre-existing force-static or dynamic-error behavior as high-priority compatibility contracts, completes their migration rather than leaving blanket opt-outs in place, and verifies with a successful production build. Its verification distinguishes preserved route prerendering and navigation prefetch behavior from merely preserving an inner data cache or obtaining a green build through opt-outs.`
   )
 })
