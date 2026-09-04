@@ -613,14 +613,12 @@ export function createAppPageEntrypoint({
     const supportsRDCForNavigations =
       isRoutePPREnabled && nextConfig.cacheComponents === true
 
-    // A static variant combination no page declared is served from the
-    // prerender that omits the variants, and a route that is not partially
-    // prerendered has none: omitting a variant leaves a hole only a resume can
-    // fill. Such a request is rendered dynamically instead. Without this it
-    // would take the static path, where a variant read finds no value and
-    // interrupts the render.
+    // A non-PPR prerender cannot leave runtime-tier variant values as holes. A
+    // request that carries any must use a request render, even when it matched
+    // a static combination. Otherwise a legacy prerender finds no static value
+    // for the variant and interrupts the render.
     const requiresDynamicResponseForVariants = Boolean(
-      !isRoutePPREnabled && variantCombinationGroups?.length && !matchedVariants
+      !isRoutePPREnabled && runtimeVariants !== undefined
     )
 
     // In development, we always want to generate dynamic HTML.
