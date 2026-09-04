@@ -310,6 +310,7 @@ nohash-hasher = "0.2.0"
 notify = "8.1.0"
 owo-colors = "4.2.2"
 parcel_selectors = "0.28.2"
+papaya = "0.2.5"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
 phf = { version = "0.11", features = ["macros"] }

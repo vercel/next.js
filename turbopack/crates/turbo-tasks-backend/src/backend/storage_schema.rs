@@ -97,16 +97,20 @@ impl fmt::Debug for IntrusiveTaskLock {
 ///
 /// - An unlocked slot never exposes a `TaskStorage` reference.
 /// - `lock` acquires the embedded task lock through the raw slot pointer before references exist.
-/// - Only a lock-owning storage guard may call `get` or materialize a mutable reference from
-///   `as_ptr`.
-/// - A structural map write guard may call `get_mut_exclusive` because it excludes all map readers.
+/// - After locking, a reader checks `present`; a stale Papaya reader retries when removal cleared
+///   it.
+/// - Only a lock-owning storage guard that observed `present` may call `get` or materialize a
+///   mutable reference from `as_ptr`.
+/// - Structural removal detaches the exact entry and clears `present` before unlocking.
 /// - The task lock is released before the map guard that keeps this allocation alive.
 #[repr(transparent)]
 pub(crate) struct TaskSlot(UnsafeCell<TaskStorage>);
 
 impl TaskSlot {
     pub(crate) fn new() -> Self {
-        Self(UnsafeCell::new(TaskStorage::new()))
+        let mut task = TaskStorage::new();
+        task.present = true;
+        Self(UnsafeCell::new(task))
     }
 
     pub(crate) fn as_ptr(&self) -> *mut TaskStorage {
@@ -126,19 +130,29 @@ impl TaskSlot {
         unsafe { (&*std::ptr::addr_of!((*self.as_ptr()).lock)).unlock() };
     }
 
+    /// Whether this slot is still published as the resident value for its TaskId.
+    ///
     /// # Safety
     /// The caller must own this slot's task lock.
+    pub(crate) unsafe fn is_present(&self) -> bool {
+        // SAFETY: Forwarded from the caller; projection does not materialize TaskStorage.
+        unsafe { std::ptr::addr_of!((*self.as_ptr()).present).read() }
+    }
+
+    /// Marks a detached resident-map value so stale protected readers retry their lookup.
+    ///
+    /// # Safety
+    /// The caller must own this slot's task lock and must have detached this exact map value.
+    pub(crate) unsafe fn mark_removed(&self) {
+        // SAFETY: Forwarded from the caller; projection does not materialize TaskStorage.
+        unsafe { std::ptr::addr_of_mut!((*self.as_ptr()).present).write(false) };
+    }
+
+    /// # Safety
+    /// The caller must own this slot's task lock and have observed `is_present()`.
     pub(crate) unsafe fn get(&self) -> &TaskStorage {
         // SAFETY: Forwarded from the caller.
         unsafe { &*self.as_ptr() }
-    }
-
-    pub(crate) fn get_mut_exclusive(&mut self) -> &mut TaskStorage {
-        self.0.get_mut()
-    }
-
-    pub(crate) fn into_inner(self) -> TaskStorage {
-        self.0.into_inner()
     }
 
     #[cfg(test)]
@@ -146,24 +160,10 @@ impl TaskSlot {
         // SAFETY: Reading the raw lock state does not expose the task payload.
         unsafe { (&*std::ptr::addr_of!((*self.as_ptr()).lock)).is_locked() }
     }
-
-    pub(crate) fn with_lock<R>(&self, f: impl FnOnce(&TaskStorage) -> R) -> R {
-        self.lock();
-        struct Unlock<'a>(&'a TaskSlot);
-        impl Drop for Unlock<'_> {
-            fn drop(&mut self) {
-                // SAFETY: `with_lock` acquired this lock and the closure has returned/unwound.
-                unsafe { self.0.unlock() };
-            }
-        }
-        let _unlock = Unlock(self);
-        // SAFETY: The lock-owning lexical guard remains alive through the closure.
-        f(unsafe { self.get() })
-    }
 }
 
-// SAFETY: all shared payload access is governed by the protocol above. Structural mutation uses
-// `&mut TaskSlot`, while ordinary mutation owns the embedded task lock.
+// SAFETY: all shared payload access is governed by the protocol above and owns the embedded task
+// lock.
 unsafe impl Sync for TaskSlot {}
 
 /// The complete task storage schema.
@@ -1914,9 +1914,14 @@ mod tests {
         slot.lock();
         assert!(slot.is_locked());
         // SAFETY: This test holds the slot lock until after cloning.
+        assert!(unsafe { slot.is_present() });
         let snapshot = unsafe { slot.get() }.clone_snapshot();
         assert!(slot.is_locked());
         assert!(!snapshot.lock.is_locked());
+        assert!(
+            !snapshot.present,
+            "snapshot copies are not resident map slots"
+        );
         // SAFETY: This test acquired the source lock above and accesses it no further.
         unsafe { slot.unlock() };
     }
