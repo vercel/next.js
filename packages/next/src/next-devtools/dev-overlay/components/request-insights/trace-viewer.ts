@@ -54,14 +54,17 @@ export function getTraceNavigationIndex(
 type UnnestedTraceItem = Omit<TraceItem, 'depth'>
 
 const FETCH_SPAN_TYPE = 'AppRender.fetch'
+const LOAD_COMPONENTS_SPAN_TYPE = 'LoadComponents.loadComponents'
 const MIDDLEWARE_SPAN_TYPE = 'Middleware.execute'
 const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'BaseServer.handleRequest',
   MIDDLEWARE_SPAN_TYPE,
-  'NextNodeServer.matchRoute',
   'DevBundlerService.ensurePage',
   'BaseServer.render',
-  'LoadComponents.loadComponents',
+  LOAD_COMPONENTS_SPAN_TYPE,
+  'LoadComponents.loadRouteModule',
+  'RouteModule.prepare',
+  'AppRouteRouteModule.loadUserland',
   'AppRender.prepareAppPageResponse',
   'AppRender.initializeRender',
   'AppRender.getBodyResult',
@@ -384,6 +387,10 @@ function getSpanLabel(span: RequestInsightSpan): string {
   const displayName = name
     .replace(FIZZ_WORD, 'HTML')
     .replace(FLIGHT_WORD, 'RSC')
+
+  if (span.attributes?.['next.span_type'] === LOAD_COMPONENTS_SPAN_TYPE) {
+    return 'load code'
+  }
 
   if (span.attributes?.['next.span_type'] === MIDDLEWARE_SPAN_TYPE) {
     const method = span.attributes['http.method']
