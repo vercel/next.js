@@ -638,17 +638,15 @@ export async function fetchInternalImage(
   href: string,
   _req: IncomingMessage,
   _res: ServerResponse,
-  maximumResponseBody: number,
+
   handleRequest: (
     newReq: IncomingMessage,
     newRes: ServerResponse,
     newParsedUrl?: NextUrlWithParsedQuery
   ) => Promise<void>,
-  imagesConfig?: Pick<
-    ImageConfigComplete,
-    'dangerouslyAllowLocalIP' | 'maximumRedirects'
-  >,
-  count = imagesConfig?.maximumRedirects ?? 0
+  dangerouslyAllowLocalIP: boolean,
+  maximumResponseBody: number,
+  count: number
 ): Promise<ImageUpstream> {
   try {
     // Coerce HEAD to GET to avoid issues with the image optimizer
@@ -666,7 +664,6 @@ export async function fetchInternalImage(
 
     const locationHeader = mocked.res.getHeader('Location')
     if (
-      imagesConfig &&
       mocked.res.statusCode &&
       isRedirect(mocked.res.statusCode) &&
       locationHeader &&
@@ -679,45 +676,33 @@ export async function fetchInternalImage(
           '"url" parameter is valid but internal response is invalid'
         )
       }
+      validateRedirectUrl(locationHeader)
 
       const redirect = new URL(
         locationHeader,
         new URL(href, INTERNAL_IMAGE_BASE_URL)
       )
-      const isInternalRedirect =
-        redirect.origin === INTERNAL_IMAGE_BASE_URL &&
-        !locationHeader.startsWith('//')
+      const isInternalRedirect = redirect.origin === INTERNAL_IMAGE_BASE_URL
 
       if (isInternalRedirect) {
-        const internalHref = `${redirect.pathname}${redirect.search}`
-        if (
-          /\/_next\/image($|\/)/.test(decodeURIComponent(redirect.pathname))
-        ) {
-          Log.error(
-            'internal image response redirected to the image optimizer for',
-            href
-          )
-          throw new ImageError(
-            400,
-            '"url" parameter is valid but internal response is invalid'
-          )
-        }
         return fetchInternalImage(
-          internalHref,
+          locationHeader,
           _req,
           _res,
-          maximumResponseBody,
           handleRequest,
-          imagesConfig,
+          dangerouslyAllowLocalIP,
+          maximumResponseBody,
           count - 1
         )
       }
 
-      // Like a redirect from a remote image, the redirect location does not
-      // need to satisfy `images.remotePatterns`.
+      // Intentionally skip validation for remotePatterns on
+      // redirect so that we don't break a src img redirect to
+      // a new domain (e.g. github.com => githubusercontent.com).
+
       return fetchExternalImage(
         redirect.href,
-        imagesConfig.dangerouslyAllowLocalIP,
+        dangerouslyAllowLocalIP,
         maximumResponseBody,
         count - 1
       )
