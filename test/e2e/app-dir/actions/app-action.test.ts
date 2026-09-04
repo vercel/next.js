@@ -1043,15 +1043,27 @@ describe('app-dir action handling', () => {
             expect(await browser.elementById('count').text()).toBe('1')
           })
 
+          await browser.eval(() => {
+            ;(window as any).__HMR_STATE = 'pending'
+            window.__NEXT_HMR_CB = (message) => {
+              ;(window as any).__HMR_STATE = message ?? 'success'
+            }
+          })
+
           await next.patchFile(
             filePath,
             origContent.replace('return value + 1', 'return value + 1000')
           )
 
           await retry(async () => {
-            await browser.elementByCss('#inc').click()
-            const val = Number(await browser.elementById('count').text())
-            expect(val).toBeGreaterThan(1000)
+            expect(await browser.eval(() => (window as any).__HMR_STATE)).toBe(
+              'success'
+            )
+          }, 30_000)
+
+          await browser.elementByCss('#inc').click()
+          await retry(async () => {
+            expect(await browser.elementById('count').text()).toBe('1001')
           })
         } finally {
           await next.patchFile(filePath, origContent)
