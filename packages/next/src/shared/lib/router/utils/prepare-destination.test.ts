@@ -1,4 +1,4 @@
-import { parseDestination } from './prepare-destination'
+import { parseDestination, prepareDestination } from './prepare-destination'
 
 describe('parseDestination', () => {
   it('should parse the destination', () => {
@@ -86,5 +86,20 @@ describe('parseDestination', () => {
        "slashes": true,
      }
     `)
+  })
+})
+
+describe('prepareDestination interception repeating params', () => {
+  it('should not concatenate array catchall segments without slashes', () => {
+    const { parsedDestination } = prepareDestination({
+      appendParamsToQuery: false,
+      destination: '/photos/(.):nxtIslug+',
+      params: {
+        nxtIslug: ['a', 'b'],
+      },
+      query: {},
+    })
+
+    expect(parsedDestination.pathname).toBe('/photos/(.)a/b')
   })
 })
