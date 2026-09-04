@@ -50,6 +50,22 @@ describe('cache-components', () => {
     expect(json.search).toEqual('?foo=bar')
   })
 
+  it('should stop the prospective render when a dynamic API error is caught', async () => {
+    if (!isNextDev) {
+      const prospectiveRenderLogs = next.cliOutput
+        .split('\n')
+        .filter((line) => line.includes('caught dynamic URL access'))
+
+      expect(prospectiveRenderLogs).toHaveLength(1)
+    }
+
+    const str = await next.render('/routes/caught-dynamic-url?foo=bar', {})
+    const json = JSON.parse(str)
+
+    expect(json.value).toEqual('at runtime')
+    expect(json.search).toEqual('?foo=bar')
+  })
+
   it('should prerender GET route handlers that have entirely cached io (fetches)', async () => {
     let str = await next.render('/routes/fetch-cached', {})
     let json = JSON.parse(str)

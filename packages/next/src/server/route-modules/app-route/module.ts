@@ -654,7 +654,15 @@ export class AppRouteRouteModule extends RouteModule<
         trackPendingModules(cacheSignal)
         await cacheSignal.cacheReady()
 
-        if (prospectiveRenderIsDynamic) {
+        // The handler may catch the prerender interruption and resolve
+        // normally, but dynamic tracking still records the request access.
+        const hasDynamicRequestAccess = dynamicTracking.dynamicAccesses.some(
+          ({ expression }) =>
+            expression.startsWith('nextUrl.') ||
+            expression.startsWith('request.')
+        )
+
+        if (prospectiveRenderIsDynamic || hasDynamicRequestAccess) {
           // the route handler called an API which is always dynamic
           // there is no need to try again
           const dynamicReason = getFirstDynamicReason(dynamicTracking)
