@@ -1400,22 +1400,69 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 let listener = self
                     .event_foreground_done
                     .listen_with_note(|| || "wait for stop".to_string());
-                if self
+                let pending = self
                     .currently_scheduled_foreground_jobs
-                    .load(Ordering::Acquire)
-                    != 0
-                {
-                    listener.await;
+                    .load(Ordering::Acquire);
+                if pending != 0 {
+                    // TEMP INSTRUMENTATION (do not ship): report a wait that never wakes, which
+                    // is what a missed `event_foreground_done` notification looks like.
+                    let start = std::time::Instant::now();
+                    let mut listener = std::pin::pin!(listener);
+                    let mut reports = 0u32;
+                    loop {
+                        tokio::select! {
+                            () = listener.as_mut() => break,
+                            () = tokio::time::sleep(std::time::Duration::from_secs(2)) => {
+                                reports += 1;
+                                // Cap the output: a 60s hang should leave a readable trail, not
+                                // hundreds of duplicate lines in the CI log.
+                                if reports <= 8 || reports % 10 == 0 {
+                                    eprintln!(
+                                        "[GC-HANG] stop_and_wait: waiting {:?} for \
+                                         event_foreground_done; jobs_at_entry={} \
+                                         foreground_now={} background_now={}",
+                                        start.elapsed(),
+                                        pending,
+                                        self.currently_scheduled_foreground_jobs
+                                            .load(Ordering::Acquire),
+                                        self.currently_scheduled_background_jobs
+                                            .load(Ordering::Acquire),
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
             }
             {
                 let listener = self.event_background_done.listen();
-                if self
+                let pending = self
                     .currently_scheduled_background_jobs
-                    .load(Ordering::Acquire)
-                    != 0
-                {
-                    listener.await;
+                    .load(Ordering::Acquire);
+                if pending != 0 {
+                    // TEMP INSTRUMENTATION (do not ship): same for background jobs.
+                    let start = std::time::Instant::now();
+                    let mut listener = std::pin::pin!(listener);
+                    let mut reports = 0u32;
+                    loop {
+                        tokio::select! {
+                            () = listener.as_mut() => break,
+                            () = tokio::time::sleep(std::time::Duration::from_secs(2)) => {
+                                reports += 1;
+                                if reports <= 8 || reports % 10 == 0 {
+                                    eprintln!(
+                                        "[GC-HANG] stop_and_wait: waiting {:?} for \
+                                         event_background_done; jobs_at_entry={} \
+                                         background_now={}",
+                                        start.elapsed(),
+                                        pending,
+                                        self.currently_scheduled_background_jobs
+                                            .load(Ordering::Acquire),
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
             }
             self.backend.stop(self);

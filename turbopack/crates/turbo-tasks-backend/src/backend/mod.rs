@@ -1623,8 +1623,31 @@ impl TurboTasksBackend {
 
     fn stopping(&self) {
         // modify via a write guard so we synchronize with top level calls into try_execute_context
-        *self.stopping.write() = true;
+        // TEMP INSTRUMENTATION (do not ship): a slow write here means readers (finalizers) are
+        // holding `stopping` and shutdown is blocked behind them.
+        {
+            let start = std::time::Instant::now();
+            let mut guard = loop {
+                match self
+                    .stopping
+                    .try_write_for(std::time::Duration::from_secs(1))
+                {
+                    Some(g) => break g,
+                    None => {
+                        eprintln!(
+                            "[GC-HANG] stopping(): waiting {:?} for stopping.write() on thread \
+                             {:?}\n{}",
+                            start.elapsed(),
+                            std::thread::current().id(),
+                            std::backtrace::Backtrace::force_capture()
+                        );
+                    }
+                }
+            };
+            *guard = true;
+        }
         self.stopping_event.notify(usize::MAX);
+        eprintln!("[GC-HANG] stopping(): set + notified");
     }
 
     #[allow(unused_variables)]
@@ -1634,18 +1657,39 @@ impl TurboTasksBackend {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
+        // TEMP INSTRUMENTATION (do not ship): time each shutdown stage so a stall is attributable
+        // to a specific step rather than to "stop() hung".
+        macro_rules! stage {
+            ($name:literal, $body:block) => {{
+                let __start = std::time::Instant::now();
+                eprintln!("[GC-HANG] stop(): begin {}", $name);
+                $body
+                eprintln!("[GC-HANG] stop(): end {} in {:?}", $name, __start.elapsed());
+            }};
+        }
         // eagerly drop the task cache before persisting
-        self.storage.drop_task_cache();
-        if self.should_persist()
-            && let Err(err) =
-                self.snapshot_and_persist(Span::current().into(), SnapshotReason::Stop, turbo_tasks)
-        {
-            eprintln!("Persisting failed during shutdown: {err:?}");
-        }
-        self.storage.drop_contents();
-        if let Err(err) = self.backing_storage.shutdown() {
-            println!("Shutting down failed: {err}");
-        }
+        stage!("drop_task_cache", {
+            self.storage.drop_task_cache();
+        });
+        stage!("snapshot_and_persist", {
+            if self.should_persist()
+                && let Err(err) = self.snapshot_and_persist(
+                    Span::current().into(),
+                    SnapshotReason::Stop,
+                    turbo_tasks,
+                )
+            {
+                eprintln!("Persisting failed during shutdown: {err:?}");
+            }
+        });
+        stage!("drop_contents", {
+            self.storage.drop_contents();
+        });
+        stage!("backing_storage.shutdown", {
+            if let Err(err) = self.backing_storage.shutdown() {
+                println!("Shutting down failed: {err}");
+            }
+        });
     }
 
     #[allow(unused_variables)]

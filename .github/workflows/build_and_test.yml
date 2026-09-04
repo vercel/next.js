@@ -316,7 +316,8 @@ jobs:
   test-bench:
     name: test cargo benches
     needs: ['optimize-ci', 'changes', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -375,7 +376,8 @@ jobs:
   devlow-bench:
     name: Run devlow benchmarks
     needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && github.event_name != 'pull_request' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && github.event_name != 'pull_request' }}
 
     strategy:
       fail-fast: false
@@ -425,7 +427,8 @@ jobs:
         'build-native',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -477,9 +480,11 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+        # TEMP (do not merge): one group only — the loop below runs a single test, so the
+        # remaining shards would be 13 identical repeats.
+        group: [1/7]
         # Empty value uses default
-        react: ['', '18.3.1']
+        react: ['']
     permissions:
       contents: read
       id-token: write
@@ -494,7 +499,15 @@ jobs:
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
         export RUST_BACKTRACE=1
 
-        node run-tests.js --timings --require-timings -g ${{ matrix.group }} --type production
+        # TEMP (do not merge): repeat only the hanging test to capture [GC-HANG] instrumentation.
+        # An explicit test path short-circuits group sharding and the type filter in
+        # run-tests.js, so this runs exactly one test on one job.
+        for i in 1 2 3 4 5 6 7 8 9 10; do
+          echo "===== GC-HANG attempt $i ====="
+          node run-tests.js --retries=0 -c 1 \
+            test/production/app-dir/app-fetch-build-cache/app-fetch-build-cache.test.ts \
+            || echo "===== GC-HANG attempt $i FAILED ====="
+        done
       testTimingsArtifact: 'test-timings'
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
       runs_on_labels: '["ubuntu-latest-16-core-arm-oss"]'
@@ -510,7 +523,8 @@ jobs:
         'build-native',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -559,7 +573,8 @@ jobs:
         'build-native',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -597,7 +612,8 @@ jobs:
   test-next-swc-wasm:
     name: test next-swc wasm
     needs: ['optimize-ci', 'changes', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -724,7 +740,8 @@ jobs:
   test-unit-windows:
     name: test unit windows
     needs: ['changes', 'build-native-windows', 'build-next']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -747,7 +764,8 @@ jobs:
   test-new-tests-dev:
     name: Test new and changed tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -774,7 +792,8 @@ jobs:
   test-new-tests-start:
     name: Test new and changed tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -844,7 +863,8 @@ jobs:
   test-new-tests-deploy:
     name: Test new and changed tests when deployed
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -875,7 +895,8 @@ jobs:
   test-new-tests-deploy-cache-components:
     name: Test new and changed tests when deployed (cache components)
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -914,7 +935,8 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -949,7 +971,8 @@ jobs:
   test-dev-windows:
     name: test dev windows
     needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -974,7 +997,8 @@ jobs:
   test-integration-windows:
     name: test integration windows
     needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -1002,7 +1026,8 @@ jobs:
   test-prod-windows:
     name: test prod windows
     needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -1036,7 +1061,8 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -1067,7 +1093,8 @@ jobs:
   test-firefox-safari:
     name: test firefox and safari
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -1112,7 +1139,8 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -1151,7 +1179,8 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    # TEMP (do not merge): disabled to isolate the GC-HANG repro job.
+    if: ${{ false && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
