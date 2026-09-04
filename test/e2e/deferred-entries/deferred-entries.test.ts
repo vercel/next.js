@@ -110,15 +110,15 @@ async function waitForCallbackTimestampToStabilize(
   )
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('deferred-entries', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
     dependencies: {},
   })
-
-  if (skipped) return
 
   beforeAll(async () => {
     // Clear log files before starting

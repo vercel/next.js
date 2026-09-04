@@ -1,10 +1,12 @@
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('Document and App - Client side', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should share module state with pages', async () => {

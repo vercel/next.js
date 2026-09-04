@@ -1,11 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Pages-router `/index` route resolution differs in Vercel's deploy
+// infrastructure; these assertions are local-only.
+// @force-gate !deploy
 describe('Route index handling', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    // Pages-router `/index` route resolution differs in Vercel's deploy
-    // infrastructure; these assertions are local-only.
-    skipDeployment: true,
   })
 
   it('should handle / correctly', async () => {
