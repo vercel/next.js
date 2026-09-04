@@ -477,7 +477,7 @@ When you use `NextResponse.rewrite()`, Next.js automatically propagates the requ
 
 If you implement custom rewrite logic with `fetch()` instead of `NextResponse.rewrite()`, you can run into missing RSC headers unless you forward them manually.
 
-For custom `fetch` rewrite setups, you can also enable `skipProxyUrlNormalize` in `next.config.js` so your rewrite logic can receive the necessary URL shape and RSC headers from the provided request object:
+For custom `fetch` rewrite setups, you can also enable [`skipProxyUrlNormalize`](/docs/app/api-reference/config/next-config-js/skipProxyUrlNormalize) in `next.config.js` so your rewrite logic can receive the necessary URL shape and RSC headers from the provided request object:
 
 ```js filename="next.config.js"
 module.exports = {
