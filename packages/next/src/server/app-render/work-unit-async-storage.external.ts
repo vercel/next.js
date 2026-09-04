@@ -65,6 +65,12 @@ export interface RequestStore extends CommonWorkUnitStore {
   readonly rootParams: Params
 
   /**
+   * The variants that this request resolved, keyed by variant identity, for
+   * example `theme@variants.ts`. It is null when the request resolved none.
+   */
+  readonly variants: Record<string, string> | null
+
+  /**
    * The resume data cache for this request. Either a mutable
    * `PrerenderResumeDataCache` (e.g. during a dev warmup that fills caches) or
    * an immutable `RenderResumeDataCache` (e.g. when resuming from a postponed

@@ -23,6 +23,8 @@ import {
   setRequestMeta,
 } from '../../server/request-meta' with { 'turbopack-transition': 'next-server-utility' }
 import { BaseServerSpan } from '../../server/lib/trace/constants' with { 'turbopack-transition': 'next-server-utility' }
+import { NEXT_VARIANTS_HEADER } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
+import { decodeVariants } from '../../server/variants/encoding' with { 'turbopack-transition': 'next-server-utility' }
 import { stripFlightHeaders } from '../../server/app-render/strip-flight-headers' with { 'turbopack-transition': 'next-server-utility' }
 import {
   NodeNextRequest,
@@ -813,6 +815,23 @@ export function createAppPageEntrypoint({
       incrementalCache?.resetRequestCache()
       ;(globalThis as any).__incrementalCache = incrementalCache
 
+      // The variants that a proxy resolved for this request.
+      //
+      // The route module reads the header, and not the router server. The
+      // router server sees the header when self-hosting. A deployed request
+      // reaches no Next.js code before the route module runs.
+      //
+      // The flag gates the read, so that a project without variants compiles
+      // none of it.
+      const encodedVariants = process.env.__NEXT_VARIANTS
+        ? req.headers[NEXT_VARIANTS_HEADER]
+        : undefined
+
+      const resolvedVariants =
+        typeof encodedVariants === 'string'
+          ? decodeVariants(encodedVariants)
+          : null
+
       const doRender = async ({
         span,
         postponed,
@@ -851,6 +870,7 @@ export function createAppPageEntrypoint({
           ),
           fallbackRouteParams,
           renderOpts: {
+            variants: resolvedVariants,
             App: () => null,
             Document: () => null,
             pageConfig: {},
