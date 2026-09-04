@@ -123,6 +123,10 @@ manual rather than from memory.
 
 ## gotchas
 
+- **Preserve the development loop.** The running server and incremental
+  compilation state provide the fastest feedback across edits. Resetting `.next`
+  discards both, so treat it as recovery for corrupt or incompatible output
+  rather than routine troubleshooting.
 - **Every `agent-browser` command must know your session and restore
   key, or it may use an empty default browser or fail to save login
   state.** Easiest: export both `AGENT_BROWSER_SESSION="$SESSION"` and
