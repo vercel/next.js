@@ -10,35 +10,37 @@ use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
-#[turbo_tasks::function(operation, root)]
-fn create_counter_operation(nonce: u32) -> Vc<Counter> {
-    let _ = nonce;
-    Counter::cell(Counter {
-        value: Mutex::new((0, Default::default())),
-    })
-}
-
-#[turbo_tasks::function(operation, root)]
-fn read_counter_operation(counter: ResolvedVc<Counter>) -> Vc<Counter> {
-    *counter
-}
-
-#[turbo_tasks::function(operation, root)]
-fn counter_trait_operation(counter: ResolvedVc<Counter>) -> Vc<Box<dyn CounterTrait>> {
-    Vc::upcast(*counter)
-}
-
-#[turbo_tasks::function(operation, root)]
-fn counter_value_trait_operation(counter: ResolvedVc<Counter>) -> Vc<Box<dyn CounterValueTrait>> {
-    Vc::upcast(counter.get_value())
-}
-
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trait_ref() {
     let mut nonce = 0;
     run_once(&REGISTRATION, move || {
         nonce += 1;
         async move {
+            #[turbo_tasks::function(operation, root)]
+            fn create_counter_operation(nonce: u32) -> Vc<Counter> {
+                let _ = nonce;
+                Counter::cell(Counter {
+                    value: Mutex::new((0, Default::default())),
+                })
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            fn read_counter_operation(counter: ResolvedVc<Counter>) -> Vc<Counter> {
+                *counter
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            fn counter_trait_operation(counter: ResolvedVc<Counter>) -> Vc<Box<dyn CounterTrait>> {
+                Vc::upcast(*counter)
+            }
+
+            #[turbo_tasks::function(operation, root)]
+            fn counter_value_trait_operation(
+                counter: ResolvedVc<Counter>,
+            ) -> Vc<Box<dyn CounterValueTrait>> {
+                Vc::upcast(counter.get_value())
+            }
+
             let counter = create_counter_operation(nonce)
                 .resolve()
                 .strongly_consistent()
