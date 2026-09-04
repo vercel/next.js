@@ -26,8 +26,8 @@ use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     CapturedEffect, Effect, EffectExt, EffectStateStorage, InvalidationReason, NonLocalValue,
-    ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat, parallel,
-    trace::TraceRawVcs, turbo_tasks_weak, turbobail,
+    OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat,
+    parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail,
 };
 use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash128};
 use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
@@ -35,9 +35,9 @@ use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
 #[cfg(windows)]
 use crate::windows::{is_link_junction_point, to_verbatim_with_case_folded_disk};
 use crate::{
-    AnyhowWrapper, File, FileComparison, FileContent, FileMeta, FileSystem, FileSystemPath,
-    LinkContent, LinkTarget, PersistedFileContent, RawDirectoryContent, RawDirectoryEntry,
-    WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
+    AnyhowWrapper, DiskFileSystemMap, File, FileComparison, FileContent, FileMeta, FileSystem,
+    FileSystemPath, LinkContent, LinkTarget, PersistedFileContent, RawDirectoryContent,
+    RawDirectoryEntry, WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
     mutex_map::MutexMap,
@@ -253,6 +253,7 @@ pub(crate) struct DiskFileSystemInner {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[bincode(skip)]
     effect_state_storage: EffectStateStorage,
+    map: OperationVc<DiskFileSystemMap>,
 }
 
 impl DiskFileSystemInner {
@@ -348,7 +349,7 @@ impl DiskFileSystemInner {
 
     /// Invalidates every tracked file in the filesystem.
     ///
-    /// Calls the given
+    /// Calls the given `reason` closure to find the [`InvalidationReason`].
     pub(crate) fn invalidate_with_reason<R: InvalidationReason + Clone>(
         &self,
         reason: impl Fn(&Path) -> R + Sync,
@@ -444,21 +445,6 @@ impl DiskFileSystemInner {
             invalidator.invalidate_with_reason(&*turbo_tasks, reason)
         });
     }
-
-    #[tracing::instrument(level = "info", name = "start filesystem watching", skip_all, fields(path = %self.root))]
-    async fn start_watching_internal(self: &Arc<Self>) -> Result<()> {
-        let root_path = self.root_path().to_path_buf();
-
-        // create the directory for the filesystem on disk, if it doesn't exist
-        retry_blocking(|| std::fs::create_dir_all(&root_path))
-            .instrument(tracing::info_span!("create root directory", name = ?root_path))
-            .concurrency_limited(&self.write_semaphore)
-            .await?;
-
-        DiskWatcher::start_watching(self.clone()).await?;
-
-        Ok(())
-    }
 }
 
 /// `DiskFileSystem` carries serializable fields (`name`, `root`,
@@ -519,7 +505,7 @@ impl DiskFileSystem {
     }
 
     pub async fn start_watching(&self) -> Result<()> {
-        self.inner.start_watching_internal().await
+        DiskWatcher::start_watching(self.inner.clone()).await
     }
 
     pub async fn stop_watching(&self) {
@@ -696,6 +682,48 @@ impl DiskFileSystem {
         // The whole path was consumed without reaching the filesystem root.
         Ok(None)
     }
+
+    async fn lookup_in_file_system_map(
+        &self,
+        target_sys_path: &Path,
+    ) -> Result<Option<FileSystemPath>> {
+        let map = self.inner.map.connect().await?;
+        if let Some(path) = map.lookup(target_sys_path) {
+            return Ok(Some(path));
+        }
+
+        #[turbo_tasks::value(transparent)]
+        struct OptionRcStr(Option<RcStr>);
+
+        #[turbo_tasks::function(fs, session_dependent)]
+        async fn canonicalize_untracked(sys_path: RcStr) -> Vc<OptionRcStr> {
+            Vc::cell(
+                retry_blocking(|| canonicalize_to_rcstr(Path::new(&*sys_path)))
+                    .await
+                    .ok(),
+            )
+        }
+
+        let ancestors: SmallVec<[&Path; 8]> = target_sys_path.ancestors().collect();
+        for prefix in ancestors.into_iter().rev().skip(1) {
+            let Some(prefix_str) = prefix.to_str() else {
+                return Ok(None);
+            };
+            let Some(canonical) = canonicalize_untracked(RcStr::from(prefix_str))
+                .owned()
+                .await?
+            else {
+                break;
+            };
+            let rest = target_sys_path
+                .strip_prefix(prefix)
+                .expect("ancestors yields prefixes of the target");
+            if let Some(path) = map.lookup(&Path::new(&*canonical).join(rest)) {
+                return Ok(Some(path));
+            }
+        }
+        Ok(None)
+    }
 }
 
 #[allow(dead_code, reason = "we need to hold onto the locks")]
@@ -721,30 +749,41 @@ pub(crate) fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path)
 impl DiskFileSystem {
     /// Create a new instance of `DiskFileSystem`.
     ///
-    /// `name` is a display name for the filesystem. This should be unique. `root` is the
-    /// [canonicalized][std::fs::canonicalize] root of the filesystem.
+    /// `name` is a display name for the filesystem. This should be unique.
+    ///
+    /// `root` is the [canonicalized][std::fs::canonicalize] root of the filesystem. It should have
+    /// a stable [cell identity][`ResolvedVc`] to avoid invalidating every path if the root changes.
     ///
     /// This API does not canonicalize itself, as that requires IO operations (e.g. symlink
     /// resolution) which should (ideally) not be cached.
     pub fn new(name: RcStr, root: Vc<RcStr>) -> Vc<Self> {
-        Self::new_internal(name, root, Vec::new(), DiskWatcherConfig::default())
+        Self::new_internal(
+            name,
+            root,
+            Vec::new(),
+            DiskWatcherConfig::default(),
+            DiskFileSystemMap::empty(),
+        )
     }
 
-    /// Create a new instance of `DiskFileSystem`.
+    /// An extended version of [`DiskFileSystem::new`].
     ///
-    /// `name` is a display name for the filesystem. This should be unique. `root` is the
-    /// [canonicalized][std::fs::canonicalize] root of the filesystem.
+    /// `denied_paths` contains normalized Unix-style paths relative to `root` that
+    /// [`DiskFileSystem`] will treat as nonexistent, disallowing reads of files in those
+    /// directories.
     ///
-    /// This API does not canonicalize itself, as that requires IO operations (e.g. symlink
-    /// resolution) which should (ideally) not be cached.
+    /// `watcher_config` controls how filesystem changes are detected and reported. See
+    /// [`DiskWatcherConfig`].
     ///
-    /// `denied_paths` is a list of paths that are not allowed to be accessed or navigated to. These
-    /// must be normalized unix-style paths, non-empty and relative to the fs root.
+    /// `map` provides other configured filesystems used to resolve symlink targets that leave
+    /// this filesystem's root. If you do not wish to allow cross-filesystem traversal, use
+    /// [`DiskFileSystemMap::empty`].
     pub fn new_with_options(
         name: RcStr,
         root: Vc<RcStr>,
         denied_paths: Vec<RcStr>,
         watcher_config: DiskWatcherConfig,
+        map: OperationVc<DiskFileSystemMap>,
     ) -> Vc<Self> {
         for denied_path in &denied_paths {
             debug_assert!(!denied_path.is_empty(), "denied_path must not be empty");
@@ -753,7 +792,7 @@ impl DiskFileSystem {
                 "denied_path must be normalized: {denied_path:?}"
             );
         }
-        Self::new_internal(name, root, denied_paths, watcher_config)
+        Self::new_internal(name, root, denied_paths, watcher_config, map)
     }
 }
 
@@ -765,6 +804,7 @@ impl DiskFileSystem {
         root: Vc<RcStr>,
         denied_paths: Vec<RcStr>,
         watcher_config: DiskWatcherConfig,
+        map: OperationVc<DiskFileSystemMap>,
     ) -> Result<Vc<Self>> {
         let root = root.owned().await?;
         let instance = DiskFileSystem {
@@ -782,6 +822,7 @@ impl DiskFileSystem {
                 turbo_tasks: turbo_tasks_weak(),
                 tokio_handle: Handle::current(),
                 effect_state_storage: EffectStateStorage::default(),
+                map,
             }),
         };
 
@@ -961,6 +1002,7 @@ impl FileSystem for DiskFileSystem {
         }
 
         let target = if target_sys_path.is_absolute() {
+            let raw = RcStr::from(sys_to_unix(target_sys_path.to_string_lossy().as_ref()));
             // First try a cheap, purely lexical conversion of the raw target. `relative_to` is
             // ignored for absolute targets.
             let mut target_fs_path = this.try_from_sys_path(self, &target_sys_path, None);
@@ -973,6 +1015,9 @@ impl FileSystem for DiskFileSystem {
                 target_fs_path = this
                     .resolve_link_target_ancestry_slow_path(self, &target_sys_path)
                     .await?;
+            }
+            if target_fs_path.is_none() {
+                target_fs_path = this.lookup_in_file_system_map(&target_sys_path).await?;
             }
 
             let Some(target_fs_path) = target_fs_path else {
@@ -988,6 +1033,7 @@ impl FileSystem for DiskFileSystem {
             };
             // Rewrite from the sys root to the DiskFileSystem root.
             LinkTarget::Absolute {
+                raw,
                 resolved: target_fs_path,
             }
         } else {
@@ -1040,11 +1086,24 @@ impl FileSystem for DiskFileSystem {
             // in; resolving that needs the names of the root's own ancestors, which a
             // root-relative `FileSystemPath` doesn't carry. Rejecting it here is what lets
             // `LinkTarget` carry a resolved path at all.
-            let Some(resolved) = fs_path.parent().try_join(&raw) else {
-                return Ok(LinkContent::Invalid {
-                    reason: rcstr!("the symlink target leaves the filesystem root"),
-                }
-                .cell());
+            let resolved = if let Some(resolved) = fs_path.parent().try_join(&raw) {
+                resolved
+            } else {
+                let absolute_target = this
+                    .to_sys_path_raw(&fs_path.parent())
+                    .join(&target_sys_path)
+                    .normalize_lexically()
+                    .ok();
+                let Some(resolved) = (match absolute_target {
+                    Some(path) => this.lookup_in_file_system_map(&path).await?,
+                    None => None,
+                }) else {
+                    return Ok(LinkContent::Invalid {
+                        reason: rcstr!("the symlink target leaves the configured filesystem roots"),
+                    }
+                    .cell());
+                };
+                resolved
             };
             LinkTarget::Relative { raw, resolved }
         };
@@ -2131,8 +2190,8 @@ mod tests {
 
         /// A relative target must stay inside the filesystem root at every step, not just at the
         /// end. Both of these step above the root; one comes back into it and one doesn't, but
-        /// neither can be resolved against a root-relative [`FileSystemPath`], so `read_link`
-        /// rejects both and every [`LinkContent::Link`] stays resolvable by construction.
+        /// neither resolves into a configured filesystem, so `read_link` rejects both and every
+        /// [`LinkContent::Link`] stays resolvable by construction.
         #[cfg(unix)]
         #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
         async fn test_read_escaping_relative_symlink() {
@@ -2172,13 +2231,13 @@ mod tests {
                 root_path: FileSystemPath,
             ) -> anyhow::Result<()> {
                 // sub/link-reentrant -> ../../<root dir name>/root.txt, which steps above the root
-                // and back down into it. Resolving this would need the names of the root's own
-                // ancestors, which a root-relative path doesn't carry.
+                // and back down into it. It cannot be resolved through the configured filesystem
+                // map because no filesystem owns the path while it is outside the root.
                 let reentrant = fs.read_link(root_path.join("sub/link-reentrant")?).await?;
                 assert!(matches!(
                     &*reentrant,
                     LinkContent::Invalid { reason }
-                        if reason == "the symlink target leaves the filesystem root"
+                        if reason == "the symlink target leaves the configured filesystem roots"
                 ));
 
                 // sub/link-sideways -> ../../sibling/root.txt, which steps above the root and down
@@ -2187,7 +2246,7 @@ mod tests {
                 assert!(matches!(
                     &*sideways,
                     LinkContent::Invalid{reason}
-                        if reason == "the symlink target leaves the filesystem root"
+                        if reason == "the symlink target leaves the configured filesystem roots"
                 ));
 
                 // `\` is a legal filename character on unix, so a raw target may contain one. It
@@ -2342,14 +2401,12 @@ mod tests {
             ) -> anyhow::Result<()> {
                 // link-via-alias -> <scratch>/alias/foo.txt  (resolves to <fs root>/foo.txt)
                 let via_alias = fs.read_link(root_path.join("link-via-alias")?).await?;
-                assert_eq!(
-                    *via_alias,
+                assert!(matches!(
+                    &*via_alias,
                     LinkContent::Link {
-                        target: LinkTarget::Absolute {
-                            resolved: root_path.join("foo.txt")?,
-                        },
-                    }
-                );
+                        target: LinkTarget::Absolute { resolved, .. },
+                    } if resolved == &root_path.join("foo.txt")?
+                ));
 
                 // link-outside -> <scratch>/outside.txt  (outside of the fs root)
                 let outside = fs.read_link(root_path.join("link-outside")?).await?;
@@ -2509,8 +2566,8 @@ mod tests {
         use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
 
         use crate::{
-            DirectoryContent, DiskFileSystem, DiskWatcherConfig, File as TurboFile, FileContent,
-            FileSystem, FileSystemPath,
+            DirectoryContent, DiskFileSystem, DiskFileSystemMap, DiskWatcherConfig,
+            File as TurboFile, FileContent, FileSystem, FileSystemPath,
             glob::{Glob, GlobOptions},
         };
 
@@ -2568,6 +2625,7 @@ mod tests {
                     Vc::cell(root),
                     vec![denied_path],
                     DiskWatcherConfig::default(),
+                    DiskFileSystemMap::empty(),
                 );
                 let root_path = fs.root().await?;
 
@@ -2632,6 +2690,7 @@ mod tests {
                     Vc::cell(root),
                     vec![denied_path],
                     DiskWatcherConfig::default(),
+                    DiskFileSystemMap::empty(),
                 );
                 let root_path = fs.root().await?;
 
@@ -2695,6 +2754,7 @@ mod tests {
                     Vc::cell(root),
                     vec![denied_path],
                     DiskWatcherConfig::default(),
+                    DiskFileSystemMap::empty(),
                 );
                 let root_path = fs.root().await?;
 
@@ -2782,6 +2842,7 @@ mod tests {
                     Vc::cell(root),
                     vec![denied_path],
                     DiskWatcherConfig::default(),
+                    DiskFileSystemMap::empty(),
                 );
                 let root_path = fs.root().await?;
                 let allowed_file = root_path.join(&file_path)?;
@@ -2802,6 +2863,7 @@ mod tests {
                     Vc::cell(root),
                     vec![denied_path],
                     DiskWatcherConfig::default(),
+                    DiskFileSystemMap::empty(),
                 );
                 let root_path = fs.root().await?;
 

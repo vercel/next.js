@@ -1168,6 +1168,20 @@ function assignDefaultsAndValidate(
     }
   }
 
+  if (result?.experimental?.turbopackAdditionalRoots) {
+    result.experimental.turbopackAdditionalRoots = Object.fromEntries(
+      Object.entries(result.experimental.turbopackAdditionalRoots).map(
+        ([key, root]) => [
+          key,
+          {
+            ...root,
+            path: isAbsolute(root.path) ? root.path : resolve(root.path),
+          },
+        ]
+      )
+    )
+  }
+
   if (result?.turbopack?.chunkLoadingGlobal) {
     const g = result.turbopack.chunkLoadingGlobal
     if (!g.startsWith('TURBOPACK_')) {

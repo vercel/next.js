@@ -635,7 +635,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathWithLink
     let original_path = path.clone();
     let mut current_path = path;
     let mut symlinks: IndexSet<FileSystemPath> = IndexSet::new();
-    let mut visited: AutoSet<RcStr> = AutoSet::new();
+    let mut visited: AutoSet<FileSystemPath> = AutoSet::new();
     // Pick some arbitrary symlink depth limit... similar to the ELOOP logic for realpath(3).
     // SYMLOOP_MAX is 40 for Linux: https://unix.stackexchange.com/q/721724
     for _i in 0..40 {
@@ -648,7 +648,7 @@ async fn realpath_with_links(path: FileSystemPath) -> Result<Vc<RealPathWithLink
             .cell());
         }
 
-        if !visited.insert(current_path.path.clone()) {
+        if !visited.insert(current_path.clone()) {
             let symlinks: Box<[_]> = symlinks.into_iter().collect();
             return Ok(error_result(
                 original_path,

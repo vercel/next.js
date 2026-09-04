@@ -70,13 +70,25 @@ impl Asset for FileSource {
         match file_type {
             FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
                 LinkContent::Link { target } => {
+                    let target_fs_path = target.file_system_path();
+                    if target_fs_path.fs != self.path.fs {
+                        return match *target_fs_path.get_type().await? {
+                            FileSystemEntryType::File => Ok(AssetContent::File(
+                                target_fs_path.read().to_resolved().await?,
+                            )
+                            .cell()),
+                            FileSystemEntryType::Directory => {
+                                bail!("Cannot read directory as file content: {target_fs_path}")
+                            }
+                            _ => bail!("Invalid cross-filesystem symlink target"),
+                        };
+                    }
                     let write_target = match target {
-                        LinkTarget::Absolute { resolved } => {
+                        LinkTarget::Absolute { resolved, .. } => {
                             WriteLinkTarget::Absolute(resolved.path.clone())
                         }
                         LinkTarget::Relative { raw, .. } => WriteLinkTarget::Relative(raw.clone()),
                     };
-                    let target_fs_path = target.file_system_path();
                     let write_target_type = match *target_fs_path.get_type().await? {
                         FileSystemEntryType::Directory => {
                             WriteLinkTargetType::DirectoryOrJunctionPoint

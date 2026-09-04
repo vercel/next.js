@@ -487,6 +487,15 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
+   * Additional filesystem roots that symlinked dependencies may resolve into.
+   * Relative paths are resolved from the current working directory.
+   */
+  turbopackAdditionalRoots?: Record<
+    string,
+    { path: string; ignoreIfMissing?: boolean }
+  >
+
+  /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string

@@ -165,6 +165,8 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
   }
 
   try {
+    printBuildErrors(project, dev)
+
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 

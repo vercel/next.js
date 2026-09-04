@@ -1,4 +1,5 @@
 import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
+import { resolve } from 'path'
 
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
@@ -306,6 +307,28 @@ describe('loadConfig', () => {
       })
 
       expect(result.experimental.durableUseCacheEntries).toBe(true)
+    })
+  })
+
+  describe('experimental.turbopackAdditionalRoots', () => {
+    it('resolves relative paths and preserves property order', async () => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: {
+            turbopackAdditionalRoots: {
+              second: { path: './second', ignoreIfMissing: true },
+              first: { path: '../first' },
+            },
+          },
+        },
+      })
+
+      expect(
+        Object.entries(result.experimental.turbopackAdditionalRoots ?? {})
+      ).toEqual([
+        ['second', { path: resolve('./second'), ignoreIfMissing: true }],
+        ['first', { path: resolve('../first') }],
+      ])
     })
   })
 })

@@ -7,6 +7,7 @@ use std::{
 use auto_hash_map::AutoSet;
 use bincode::{Decode, Encode};
 use parking_lot::{Mutex, MutexGuard};
+use tokio::sync::Mutex as TokioMutex;
 use tracing::trace_span;
 
 use crate::{
@@ -220,6 +221,8 @@ pub struct State<T> {
     serialization_invalidator: SerializationInvalidator,
     #[bincode(with = "parking_lot_mutex_bincode")]
     inner: Mutex<StateInner<T>>,
+    #[bincode(skip)]
+    advisory_mutex: TokioMutex<()>,
 }
 
 impl<T: Debug> Debug for State<T> {
@@ -258,7 +261,23 @@ impl<T> State<T> {
         Self {
             serialization_invalidator: get_serialization_invalidator(),
             inner: Mutex::new(StateInner::new(value)),
+            advisory_mutex: TokioMutex::new(()),
         }
+    }
+
+    /// Acquires an extended advisory lock for coordinating access to this state across await
+    /// points.
+    ///
+    /// This lock is advisory: [`State::get`], [`State::get_untracked`], and mutation methods do not
+    /// acquire it automatically. Every participant in the coordinated operation must explicitly
+    /// acquire it. Callers must also ensure that work awaited while holding this guard cannot
+    /// depend on another participant acquiring the same lock, or they will deadlock.
+    ///
+    /// Normal state access should use the synchronous lock built into those methods. This API is
+    /// intended only for exceptional initialization sequences that must prevent tasks from
+    /// observing partially initialized state.
+    pub async fn advisory_lock(&self) -> tokio::sync::MutexGuard<'_, ()> {
+        self.advisory_mutex.lock().await
     }
 
     /// Gets the current value of the state. The current task will be registered

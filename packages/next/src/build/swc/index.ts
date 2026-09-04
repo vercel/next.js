@@ -27,6 +27,7 @@ import type {
   DefineEnv,
   Endpoint,
   HmrChunkNames,
+  Issue,
   Lockfile,
   PartialProjectOptions,
   Project,
@@ -653,8 +654,12 @@ function bindingToApi(
   async function rustifyProjectOptions(
     options: ProjectOptions
   ): Promise<NapiProjectOptions> {
+    const additionalRoots = Object.entries(
+      options.nextConfig.experimental.turbopackAdditionalRoots ?? {}
+    ).map(([key, root]) => ({ key, ...root }))
     return {
       ...options,
+      additionalRoots,
       nextConfig: await serializeNextConfig(
         options.nextConfig,
         path.join(options.rootPath, options.projectPath)
@@ -664,25 +669,30 @@ function bindingToApi(
   }
 
   async function rustifyPartialProjectOptions(
-    options: PartialProjectOptions
+    options: PartialProjectOptions,
+    projectPath: string
   ): Promise<NapiPartialProjectOptions> {
     return {
       ...options,
       nextConfig:
         options.nextConfig &&
-        (await serializeNextConfig(
-          options.nextConfig,
-          path.join(options.rootPath, options.projectPath)
-        )),
+        (await serializeNextConfig(options.nextConfig, projectPath)),
       env: options.env && rustifyEnv(options.env),
     }
   }
 
   class ProjectImpl implements Project {
     private readonly _nativeProject: { __napiType: 'Project' }
+    readonly issues: Issue[]
 
-    constructor(nativeProject: { __napiType: 'Project' }) {
-      this._nativeProject = nativeProject
+    constructor(
+      nativeProject: TurbopackResult<{
+        project: { __napiType: 'Project' }
+      }>,
+      private readonly projectPath: string
+    ) {
+      this._nativeProject = nativeProject.project
+      this.issues = nativeProject.issues
 
       if (typeof binding.registerWorkerScheduler === 'function') {
         runLoaderWorkerPool(binding, bindingPath)
@@ -692,7 +702,7 @@ function bindingToApi(
     async update(options: PartialProjectOptions) {
       await binding.projectUpdate(
         this._nativeProject,
-        await rustifyPartialProjectOptions(options)
+        await rustifyPartialProjectOptions(options, this.projectPath)
       )
     }
 
@@ -1277,7 +1287,8 @@ function bindingToApi(
           ).throwTurbopackInternalError,
           onBeforeDeferredEntries: callbacks?.onBeforeDeferredEntries,
         }
-      )
+      ),
+      path.join(options.rootPath, options.projectPath)
     )
   }
 }
@@ -1410,7 +1421,7 @@ async function loadWasm(importPath = '') {
         _options: ProjectOptions,
         _turboEngineOptions: TurboEngineOptions,
         _callbacks?: import('./types').TurbopackProjectCallbacks | undefined
-      ): Promise<Project> {
+      ): Promise<TurbopackResult<Project>> {
         throw new Error(
           `Turbopack is not supported on this platform (${PlatformName}/${ArchName}) because native bindings are not available. ` +
             `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings. ` +

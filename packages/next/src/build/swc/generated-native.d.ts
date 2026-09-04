@@ -203,6 +203,12 @@ export interface NapiAdditionalIssueSource {
   codeFrame?: string
 }
 
+export interface NapiAdditionalRoot {
+  key: RcStr
+  path: RcStr
+  ignoreIfMissing?: boolean
+}
+
 export interface NapiAssetPath {
   path: RcStr
   contentHash: RcStr
@@ -354,49 +360,27 @@ export interface NapiOptionEnvVar {
   value?: RcStr
 }
 
-/** [NapiProjectOptions] with all fields optional. */
+/**
+ * The subset of [`NapiProjectOptions`] that may change without restarting the process. Used by
+ * [`project_update`].
+ *
+ * Refer to [`NapiProjectOptions`] for documentation on this struct's fields.
+ */
 export interface NapiPartialProjectOptions {
-  /**
-   * An absolute root path  (Unix or Windows path) from which all files must be nested under.
-   * Trying to access a file outside this root will fail, so think of this as a chroot.
-   * E.g. `/home/user/projects/my-repo`.
-   */
-  rootPath?: RcStr
-  /**
-   * A path which contains the app/pages directories, relative to [`Project::root_path`], always
-   * a Unix path.
-   * E.g. `apps/my-app`
-   */
-  projectPath?: RcStr
-  /** Filesystem watcher options. */
-  watch?: NapiWatchOptions
-  /** The contents of next.config.js, serialized to JSON. */
   nextConfig?: RcStr
-  /** A map of environment variables to use when compiling code. */
   env?: Array<NapiEnvVar>
-  /**
-   * A map of environment variables which should get injected at compile
-   * time.
-   */
   defineEnv?: NapiDefineEnv
-  /** The mode in which Next.js is running. */
   dev?: boolean
-  /** The server actions encryption key. */
   encryptionKey?: RcStr
-  /** The build id. */
   buildId?: RcStr
-  /** Options for draft mode. */
   previewProps?: NapiDraftModeOptions
-  /** The browserslist query to use for targeting browsers. */
   browserslistQuery?: RcStr
-  /** Whether to write the route hashes manifest. */
   writeRoutesHashesManifest?: boolean
-  /**
-   * When the code is minified, this opts out of the default mangling of
-   * local names for variables, functions etc., which can be useful for
-   * debugging/profiling purposes.
-   */
   noMangling?: boolean
+}
+
+export interface NapiProject {
+  project: { __napiType: 'Project' }
 }
 
 export interface NapiProjectOptions {
@@ -421,6 +405,8 @@ export interface NapiProjectOptions {
   watch: NapiWatchOptions
   /** The contents of next.config.js, serialized to JSON. */
   nextConfig: RcStr
+  /** Additional filesystem roots from next.config.js. */
+  additionalRoots: Array<NapiAdditionalRoot>
   /** A map of environment variables to use when compiling code. */
   env: Array<NapiEnvVar>
   /**
@@ -666,7 +652,7 @@ export declare function projectNew(
   options: NapiProjectOptions,
   turboEngineOptions: NapiTurboEngineOptions,
   napiCallbacks: NapiNextTurbopackCallbacksJsObject
-): Promise<{ __napiType: 'Project' }>
+): Promise<TurbopackResult<{ project: { __napiType: 'Project' } }>>
 
 /**
  * Runs exit handlers for the project registered using the [`ExitHandler`] API.
