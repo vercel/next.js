@@ -660,12 +660,23 @@ mod tests {
         );
     }
 
-    /// An operation blocked in `begin_operation` because an exclusive phase holds the exclusion
-    /// registers as a waiter, and stops being one once it is let through. This is the signal GC
-    /// polls to decide it is delaying real work.
+    /// The waiter flag over its whole lifecycle: not set by merely holding the exclusion, set once
+    /// an operation parks behind it in `begin_operation`, and cleared when the phase ends so the
+    /// next exclusion starts clean. This is the signal GC polls to decide it is delaying real work.
+    ///
+    /// An operation that arrives when nothing is excluding takes the fast path and must *not* set
+    /// it — otherwise GC would see phantom waiters and interrupt itself immediately.
     #[test]
-    fn operations_waiting_counts_blocked_operation() {
+    fn operations_waiting_tracks_blocked_operations() {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
+
+        // Fast path: no exclusion in flight, so these never blocked and are not waiters.
+        let unblocked = coord.begin_operation();
+        assert!(
+            !coord.operations_waiting.load(Ordering::Relaxed),
+            "operations that never blocked are not waiters"
+        );
+        drop(unblocked);
 
         let phase = coord.begin_snapshot();
         assert!(
@@ -673,14 +684,9 @@ mod tests {
             "holding the exclusion alone is not a waiter"
         );
 
-        let arrived = Arc::new(AtomicUsize::new(0));
         let coord2 = coord.clone();
-        let op_thread = thread::spawn({
-            let arrived = arrived.clone();
-            move || {
-                arrived.store(1, Ordering::Release);
-                let _guard = coord2.begin_operation();
-            }
+        let op_thread = thread::spawn(move || {
+            let _guard = coord2.begin_operation();
         });
 
         // Wait until the operation is actually parked, not merely spawned: the flag is set under
@@ -688,14 +694,12 @@ mod tests {
         while !phase.operations_waiting() {
             thread::yield_now();
         }
-        assert_eq!(arrived.load(Ordering::Acquire), 1);
 
         drop(phase);
         op_thread.join().unwrap();
 
-        // The flag must be cleared once the exclusion ends, ready for the next one. There is no
-        // phase to ask any more — that is the point of hanging the query off the guard — so assert
-        // on the mirrored flag directly.
+        // Cleared once the exclusion ends, ready for the next one. There is no phase to ask any
+        // more — that is the point of hanging the query off the guard — so read the flag directly.
         assert!(
             !coord.operations_waiting.load(Ordering::Relaxed),
             "the sticky waiter flag must be cleared when the phase is dropped"
@@ -717,20 +721,15 @@ mod tests {
         let guard = coord.begin_operation();
 
         // Start an exclusive phase; it blocks until our operation drains or suspends.
-        let observed_waiter = Arc::new(AtomicUsize::new(0));
-        let gc_running = Arc::new(AtomicUsize::new(0));
+        let observed_waiter = Arc::new(AtomicBool::new(false));
         let coord2 = coord.clone();
         let gc_thread = thread::spawn({
             let observed_waiter = observed_waiter.clone();
-            let gc_running = gc_running.clone();
             move || {
                 let phase = coord2.begin_snapshot();
                 // We are past the drain, so the main thread has suspended and must be visible as
                 // a waiter to the holder of the exclusion.
-                if phase.operations_waiting() {
-                    observed_waiter.store(1, Ordering::Release);
-                }
-                gc_running.store(1, Ordering::Release);
+                observed_waiter.store(phase.operations_waiting(), Ordering::Release);
             }
         });
 
@@ -740,33 +739,9 @@ mod tests {
         drop(guard);
 
         gc_thread.join().unwrap();
-        assert_eq!(
-            gc_running.load(Ordering::Acquire),
-            1,
-            "the exclusive phase should have run"
-        );
-        assert_eq!(
+        assert!(
             observed_waiter.load(Ordering::Acquire),
-            1,
             "a suspended operation is parked behind the exclusion and must register as a waiter"
-        );
-        assert!(
-            !coord.operations_waiting.load(Ordering::Relaxed),
-            "the sticky waiter flag must be cleared when the phase is dropped"
-        );
-    }
-
-    /// An operation that arrives when no exclusion is in flight takes the fast path and must not be
-    /// counted — otherwise GC would see phantom waiters and interrupt itself immediately.
-    #[test]
-    fn operations_waiting_ignores_unblocked_operation() {
-        let coord = Arc::new(SnapshotCoordinator::<Op>::new());
-        let _g1 = coord.begin_operation();
-        let _g2 = coord.begin_operation();
-        // No exclusion is held, so there is no phase to ask; read the mirrored flag directly.
-        assert!(
-            !coord.operations_waiting.load(Ordering::Relaxed),
-            "operations that never blocked are not waiters"
         );
     }
 

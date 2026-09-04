@@ -2,51 +2,20 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
+mod gc_fixture;
 mod util;
 
 use std::{sync::Arc, time::Duration};
 
-use anyhow::Result;
-use turbo_tasks::{ResolvedVc, State, TurboTasks, Vc};
+use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::TurboTasksBackend;
 
-use crate::util::create_tt_with_gc_min_progress;
-
-#[turbo_tasks::value(transparent)]
-struct Generation(State<u32>);
-
-#[turbo_tasks::function(operation, root)]
-fn create_generation() -> Vc<Generation> {
-    Generation(State::new(0)).cell()
-}
-
-/// A leaf keyed by (generation, index). Bumping the generation makes `wide_root` read an entirely
-/// fresh set of these, disconnecting the whole previous generation.
-#[turbo_tasks::function]
-fn leaf(generation: u32, index: u32) -> Vc<u32> {
-    Vc::cell(generation.wrapping_mul(1000).wrapping_add(index))
-}
-
-/// A shared-dependency layer, so the disconnected garbage is a subtree (intermediate + leaf) and
-/// the test exercises the cascade rather than single-node collection.
-#[turbo_tasks::function]
-async fn intermediate(generation: u32, index: u32) -> Result<Vc<u32>> {
-    Ok(Vc::cell(1 + *leaf(generation, index).await?))
-}
+use crate::{
+    gc_fixture::{create_generation, wide_root},
+    util::create_tt_with_gc_min_progress,
+};
 
 const WIDTH: u32 = 24;
-
-/// Bumping the generation re-executes this and connects a fresh generation's worth of tasks,
-/// disconnecting the entire previous generation (2*WIDTH tasks) as garbage.
-#[turbo_tasks::function(operation, root)]
-async fn wide_root(generation: ResolvedVc<Generation>) -> Result<Vc<u32>> {
-    let generation = *generation.await?.get();
-    let mut sum = 0u32;
-    for index in 0..WIDTH {
-        sum = sum.wrapping_add(*intermediate(generation, index).await?);
-    }
-    Ok(Vc::cell(sum))
-}
 
 /// Repeatedly swapping a wide set of common dependencies (as happens when a project is re-rooted or
 /// its dependencies churn) must NOT grow the resident task set monotonically. Each round bumps the
@@ -82,7 +51,7 @@ async fn gc_re_rooting_stays_flat() {
                 let generation = generation_op.read_strongly_consistent().await?;
                 generation.set(gen_value);
             }
-            let output = wide_root(generation_vc);
+            let output = wide_root(generation_vc, WIDTH);
             output.read_strongly_consistent().await?;
             let _ = &tt_inner;
             anyhow::Ok(())
@@ -99,11 +68,10 @@ async fn gc_re_rooting_stays_flat() {
         // `gc_for_testing`, which pins `min_progress` so high it can never trip). On a loaded
         // machine that pass can wind down early, which shows up as a collection shortfall rather
         // than a bug — so report it instead of letting it look like GC failing to collect.
-        tt.backend().snapshot_and_evict_for_testing(tt);
         let interrupted = tt
             .backend()
-            .last_gc_stats_for_testing()
-            .is_some_and(|(_, interrupted)| interrupted);
+            .snapshot_and_evict_for_testing(tt)
+            .gc_interrupted();
         // Measure the *persistent* resident count: GC only collects persistent tasks. Transient
         // roots (each round's `run_once`/Once task) are never collected and accumulate
         // independently of GC — including them would mask the real signal.
@@ -164,7 +132,7 @@ async fn gc_re_rooting_stays_flat() {
     let result = turbo_tasks::run_once(tt.clone(), async move {
         let generation_op = create_generation();
         let generation_vc = generation_op.resolve().strongly_consistent().await?;
-        let output = wide_root(generation_vc);
+        let output = wide_root(generation_vc, WIDTH);
         // generation is ROUNDS; sum = WIDTH intermediates each = 1 + leaf(ROUNDS, i).
         let expected: u32 = (0..WIDTH)
             .map(|i| 1 + (ROUNDS.wrapping_mul(1000).wrapping_add(i)))
