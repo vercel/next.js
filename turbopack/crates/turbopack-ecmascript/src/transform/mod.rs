@@ -28,7 +28,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -68,6 +68,7 @@ pub struct PresetEnvConfig {
 }
 
 /// The kind of ECMAScript class decorators transform to use.
+#[turbo_tasks::task_input]
 #[derive(
     Copy,
     Clone,
@@ -75,7 +76,6 @@ pub struct PresetEnvConfig {
     Eq,
     Debug,
     TraceRawVcs,
-    NonLocalValue,
     Encode,
     Decode,
     Hash,

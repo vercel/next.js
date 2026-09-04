@@ -93,7 +93,7 @@ pub async fn get_typescript_transform_options(
 #[turbo_tasks::function]
 pub async fn get_decorators_transform_options(
     project_path: FileSystemPath,
-    next_config: Vc<NextConfig>,
+    decorator_version: Option<DecoratorsVersion>,
     tsconfig_path: Option<FileSystemPath>,
 ) -> Result<Vc<DecoratorsOptions>> {
     let tsconfig = get_typescript_options(project_path, tsconfig_path).await?;
@@ -110,7 +110,6 @@ pub async fn get_decorators_transform_options(
         false
     };
 
-    let decorator_version = next_config.compiler().await?.decorator_version;
     let decorators_version = match decorator_version {
         Some(v) => Some(v),
         None if experimental_decorators => Some(DecoratorsVersion::Legacy),
