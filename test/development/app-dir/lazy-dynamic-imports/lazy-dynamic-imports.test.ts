@@ -322,5 +322,48 @@ export const invalid = ;`
         )
       ).toHaveLength(0)
     })
+
+    it('supports direct dynamic CSS imports', async () => {
+      const cssPath = path.join('app', 'direct.css')
+      const originalCss = await next.readFile(cssPath)
+
+      try {
+        const browser = await next.browser('/direct-css')
+        await browser.elementByCss('#load-direct-css').click()
+        await retry(async () => {
+          expect(await browser.elementByCss('#direct-css-result').text()).toBe(
+            'rgb(12, 34, 56)'
+          )
+        })
+        expect(
+          await assetsContaining('direct-css-marker-f6a1')
+        ).not.toHaveLength(0)
+
+        await browser.elementByCss('#load-direct-css-module').click()
+        await retry(async () => {
+          expect(
+            await browser.eval(
+              `getComputedStyle(document.querySelector('#direct-css-module-result')).color`
+            )
+          ).toBe('rgb(70, 80, 90)')
+        })
+
+        const timeOrigin = await browser.eval('performance.timeOrigin')
+        await next.patchFile(
+          cssPath,
+          originalCss.replace('rgb(12, 34, 56)', 'rgb(65, 43, 21)')
+        )
+        await retry(async () => {
+          expect(
+            await browser.eval(
+              `getComputedStyle(document.querySelector('#direct-css-result')).color`
+            )
+          ).toBe('rgb(65, 43, 21)')
+        })
+        expect(await browser.eval('performance.timeOrigin')).toBe(timeOrigin)
+      } finally {
+        await next.patchFile(cssPath, originalCss)
+      }
+    })
   }
 )
