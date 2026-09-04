@@ -23,10 +23,10 @@ use smallvec::SmallVec;
 use tracing::Span;
 use turbo_bincode::{
     TurboBincodeDecode, TurboBincodeDecoder, TurboBincodeEncode, TurboBincodeEncoder,
-    impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode, new_hash_encoder,
+    impl_decode_for_turbo_bincode_decode, impl_encode_for_turbo_bincode_encode,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks_hash::DeterministicHasher;
+use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use crate::{
     CellId, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ReadRef, SharedReference,
@@ -89,12 +89,9 @@ impl CachedTaskType {
         self.native_fn.ty.name
     }
 
-    /// Encodes this task type directly to a hasher, avoiding buffer allocation.
-    ///
-    /// This uses the same encoding logic as [`TurboBincodeEncode`] but writes
-    /// directly to a [`DeterministicHasher`] instead of a buffer.
-    pub fn hash_encode<H: DeterministicHasher>(&self, hasher: &mut H) {
-        Self::hash_encode_components(self.native_fn, self.this, &*self.arg, hasher);
+    /// Hashes this task type for persistent task-cache lookup.
+    pub fn persistence_hash(&self, hasher: &mut Xxh3Hash64Hasher) {
+        Self::persistence_hash_components(self.native_fn, self.this, &*self.arg, hasher);
     }
 }
 
@@ -242,23 +239,20 @@ impl CachedTaskType {
         state.finish()
     }
 
-    /// Compute the deterministic hash for backing storage from components.
+    /// Hash this task type for backing storage from borrowed components.
     ///
-    /// This mirrors the logic in [`CachedTaskType::hash_encode`] but works with
-    /// borrowed components, avoiding the need to construct a full [`CachedTaskType`].
-    pub fn hash_encode_components<H: DeterministicHasher>(
+    /// The stable function ID is used instead of the process-local function pointer. `DynHash`
+    /// also includes the concrete argument `TypeId`; the cache version pins the engine/toolchain,
+    /// and full task-type equality is checked after hash-bucket lookup.
+    pub fn persistence_hash_components(
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
         arg: &dyn DynTaskInputs,
-        hasher: &mut H,
+        hasher: &mut Xxh3Hash64Hasher,
     ) {
-        let fn_id = registry::get_function_id(native_fn);
-        {
-            let mut encoder = new_hash_encoder(hasher);
-            Encode::encode(&fn_id, &mut encoder).expect("fn_id encoding should not fail");
-            Encode::encode(&this, &mut encoder).expect("this encoding should not fail");
-        }
-        (native_fn.arg_meta.hash_encode)(arg, hasher);
+        registry::get_function_id(native_fn).hash(hasher);
+        this.hash(hasher);
+        arg.hash(hasher);
     }
 
     /// Check equality of components against this CachedTaskType.

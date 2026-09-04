@@ -69,8 +69,10 @@ impl<'a, T> Unpin for CloneReady<'a, T> {}
 ///
 /// ## Hash and Eq
 ///
-/// Arguments are used as part of keys in a `HashMap`, so they must implement of [`PartialEq`],
-/// [`Eq`], and [`Hash`] traits.
+/// Arguments are used as part of keys in both the in-memory and persistent task caches, so they
+/// must implement the [`PartialEq`], [`Eq`], and [`Hash`] traits. Hashing must be deterministic
+/// across process runs: implementations must not depend on randomized state, addresses, or unstable
+/// iteration order. This matches the deterministic serialization requirement above.
 ///
 /// ## [`Vc<T>`][Vc]
 ///
