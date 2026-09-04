@@ -346,7 +346,6 @@ async function createNext(
 
 export function nextTestSetup(
   options: Parameters<typeof createNext>[0] & {
-    skipDeployment?: boolean
     dir?: string
   }
 ): {
@@ -356,20 +355,7 @@ export function nextTestSetup(
   isTurbopack: boolean
   isRspack: boolean
   next: NextInstance
-  skipped: boolean
 } {
-  let skipped = false
-
-  if (options.skipDeployment) {
-    // When the environment is running for deployment tests.
-    if (isNextDeploy) {
-      // eslint-disable-next-line jest/no-focused-tests
-      it.only('should skip next deploy', () => {})
-      // No tests are run.
-      skipped = true
-    }
-  }
-
   // A lazy `@force-gate` on the enclosing `describe` (e.g. `!cacheComponents`)
   // gates the *build*, not just the test bodies: some fixtures can't build
   // under the condition at all. Snapshot the describe's gates now, while the
@@ -382,86 +368,84 @@ export function nextTestSetup(
     !options.skipStart && !isNextDeploy && hasLazyForceGate(describeGates)
 
   let next: NextInstance | undefined
-  if (!skipped) {
-    // `ungatedHook`: this hook makes the lazy `@force-gate` skip decision, so
-    // it must run even (especially) when that decision is "skip".
-    beforeAll(
-      ungatedHook(async () => {
-        if (!buildForceGated) {
-          next = await createNext(options)
-          return
-        }
-        // Try to decide the force-gate against the *source* fixture first,
-        // before paying for the fixture setup (which includes a dependency
-        // install when the run is isolated). The config resolver falls back to
-        // the repo's own `next` when the directory has no install, and the env
-        // mirrors what `getSpawnOpts` hands every fixture child process. An
-        // inline `files` object has no directory to resolve against, and any
-        // resolution failure (e.g. a config that imports from the fixture's
-        // own node_modules) falls through to the instance-based decision below.
-        if (typeof options.files === 'string') {
-          const config = await loadResolvedConfig({
-            dir: options.files,
-            phase: isNextDev
-              ? PHASE_DEVELOPMENT_SERVER
-              : PHASE_PRODUCTION_BUILD,
-            env: {
-              ...process.env,
-              ...options.env,
-              NODE_ENV: (options.env?.NODE_ENV ||
-                '') as NodeJS.ProcessEnv['NODE_ENV'],
-              PORT: '0',
-              __NEXT_TEST_MODE: 'e2e',
-            },
-          }).catch(() => null)
-          const earlySkip = config && findLazyForceSkip(describeGates, config)
-          if (earlySkip) {
-            // No instance ever exists on this path, so register the resolved
-            // config directly for the per-test force-pass decisions.
-            registerFixture({ getResolvedConfig: async () => config })
-            require('console').warn(
-              `  ⚠ suite build skipped by \`@force-gate ${earlySkip.source}\` ` +
-                `(decided from the source fixture; setup skipped)`
-            )
-            return
-          }
-        }
-        // Set the fixture up (so its config is resolvable) without building, then
-        // resolve the force-gate. If it's false, skip the build entirely — the
-        // inherited gate makes every test force-pass, so nothing touches `next`.
-        const instance = await createNext({ ...options, skipStart: true })
-        next = instance
-        const config = await instance.getResolvedConfig()
-        const forceSkip = findLazyForceSkip(describeGates, config)
-        if (forceSkip) {
+  // `ungatedHook`: this hook makes the lazy `@force-gate` skip decision, so
+  // it must run even (especially) when that decision is "skip".
+  beforeAll(
+    ungatedHook(async () => {
+      if (!buildForceGated) {
+        next = await createNext(options)
+        return
+      }
+      // Try to decide the force-gate against the *source* fixture first,
+      // before paying for the fixture setup (which includes a dependency
+      // install when the run is isolated). The config resolver falls back to
+      // the repo's own `next` when the directory has no install, and the env
+      // mirrors what `getSpawnOpts` hands every fixture child process. An
+      // inline `files` object has no directory to resolve against, and any
+      // resolution failure (e.g. a config that imports from the fixture's
+      // own node_modules) falls through to the instance-based decision below.
+      if (typeof options.files === 'string') {
+        const config = await loadResolvedConfig({
+          dir: options.files,
+          phase: isNextDev
+            ? PHASE_DEVELOPMENT_SERVER
+            : PHASE_PRODUCTION_BUILD,
+          env: {
+            ...process.env,
+            ...options.env,
+            NODE_ENV: (options.env?.NODE_ENV ||
+              '') as NodeJS.ProcessEnv['NODE_ENV'],
+            PORT: '0',
+            __NEXT_TEST_MODE: 'e2e',
+          },
+        }).catch(() => null)
+        const earlySkip = config && findLazyForceSkip(describeGates, config)
+        if (earlySkip) {
+          // No instance ever exists on this path, so register the resolved
+          // config directly for the per-test force-pass decisions.
+          registerFixture({ getResolvedConfig: async () => config })
           require('console').warn(
-            `  ⚠ suite build skipped by \`@force-gate ${forceSkip.source}\``
+            `  ⚠ suite build skipped by \`@force-gate ${earlySkip.source}\` ` +
+              `(decided from the source fixture; setup skipped)`
           )
           return
         }
-        try {
-          await instance.start()
-        } catch (err) {
-          await instance.destroy().catch(() => {})
-          next = undefined
-          throw err
-        }
-      })
-    )
-    // `ungatedHook`: teardown must run even when the suite was force-skipped,
-    // otherwise the fixture leaks into the next describe's gate decisions.
-    afterAll(
-      ungatedHook(async () => {
-        // Gracefully destroy the instance if `createNext` success.
-        // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
-        // by attempting to destroy on undefined.
-        await next?.destroy()
-        // The early force-skip path registers a config source without an
-        // instance (an instance clears itself on destroy).
-        if (!next) clearFixture()
-      })
-    )
-  }
+      }
+      // Set the fixture up (so its config is resolvable) without building, then
+      // resolve the force-gate. If it's false, skip the build entirely — the
+      // inherited gate makes every test force-pass, so nothing touches `next`.
+      const instance = await createNext({ ...options, skipStart: true })
+      next = instance
+      const config = await instance.getResolvedConfig()
+      const forceSkip = findLazyForceSkip(describeGates, config)
+      if (forceSkip) {
+        require('console').warn(
+          `  ⚠ suite build skipped by \`@force-gate ${forceSkip.source}\``
+        )
+        return
+      }
+      try {
+        await instance.start()
+      } catch (err) {
+        await instance.destroy().catch(() => {})
+        next = undefined
+        throw err
+      }
+    })
+  )
+  // `ungatedHook`: teardown must run even when the suite was force-skipped,
+  // otherwise the fixture leaks into the next describe's gate decisions.
+  afterAll(
+    ungatedHook(async () => {
+      // Gracefully destroy the instance if `createNext` success.
+      // If next instance is not available, it's likely beforeAll hook failed and unnecessarily throws another error
+      // by attempting to destroy on undefined.
+      await next?.destroy()
+      // The early force-skip path registers a config source without an
+      // instance (an instance clears itself on destroy).
+      if (!next) clearFixture()
+    })
+  )
 
   const nextProxy = new Proxy<NextInstance>({} as NextInstance, {
     get: function (_target, property) {
@@ -503,6 +487,5 @@ export function nextTestSetup(
     get next() {
       return nextProxy
     },
-    skipped,
   }
 }
