@@ -29,7 +29,6 @@ describe('unmatched-app-pages', () => {
          - app/disagreeing-slots/@first/foo/page.tsx
          - app/disagreeing-slots/@second/bar/page.tsx
          - app/disagreeing-slots/[...slug]/page.tsx
-         - app/interception-host/@canonical/intercepted/[...slug]/page.tsx
          - app/nested-parallel/@outer/[...slug]/page.tsx
          - app/nested-parallel/[...slug]/page.tsx
          - app/optional-catchall/[[...slug]]/page.tsx
@@ -49,7 +48,6 @@ describe('unmatched-app-pages', () => {
          - app/disagreeing-slots/@first/foo/page.tsx
          - app/disagreeing-slots/@second/bar/page.tsx
          - app/disagreeing-slots/[...slug]/page.tsx
-         - app/interception-host/@canonical/intercepted/[...slug]/page.tsx
          - app/nested-parallel/@outer/[...slug]/page.tsx
          - app/nested-parallel/[...slug]/page.tsx
          - app/optional-catchall/[[...slug]]/page.tsx
@@ -69,7 +67,6 @@ describe('unmatched-app-pages', () => {
        - app/disagreeing-slots/@first/foo/page.tsx
        - app/disagreeing-slots/@second/bar/page.tsx
        - app/disagreeing-slots/[...slug]/page.tsx
-       - app/interception-host/@canonical/intercepted/[...slug]/page.tsx
        - app/nested-parallel/@outer/[...slug]/page.tsx
        - app/nested-parallel/[...slug]/page.tsx
        - app/optional-catchall/[[...slug]]/page.tsx

@@ -1,5 +1,6 @@
 import {
   extractInterceptionRouteInformation,
+  findMissingCanonicalInterceptionRoutes,
   isInterceptionRouteAppPath,
 } from './interception-routes'
 
@@ -75,5 +76,76 @@ describe('Interception Route helper', () => {
         `"Invalid interception route: /(..)(..)bar. Cannot use (..)(..) marker at the root level or one level up."`
       )
     })
+  })
+
+  describe('findMissingCanonicalInterceptionRoutes', () => {
+    function isCovered(
+      interceptionRoute: string,
+      ordinaryRoutes: string[]
+    ): boolean {
+      return (
+        findMissingCanonicalInterceptionRoutes(
+          Object.fromEntries(
+            [interceptionRoute, ...ordinaryRoutes].map((route) => [
+              route,
+              [`${route}/page`],
+            ])
+          )
+        ).length === 0
+      )
+    }
+
+    it.each([
+      {
+        name: 'an equivalent dynamic matcher',
+        interception: '/(.)photo/[id]',
+        ordinary: ['/photo/[slug]'],
+      },
+      {
+        name: 'a broader root catchall',
+        interception: '/(.)showcase/[...parts]',
+        ordinary: ['/[...slug]'],
+      },
+      {
+        name: 'a fixed matcher followed by a deeper catchall',
+        interception: '/(.)items/[...parts]',
+        ordinary: ['/items/[id]', '/items/[id]/[...rest]'],
+      },
+      {
+        name: 'a fixed matcher and required catchall for an optional catchall',
+        interception: '/(.)items/[[...parts]]',
+        ordinary: ['/items', '/items/[...rest]'],
+      },
+    ])('accepts coverage from $name', ({ interception, ordinary }) => {
+      expect(isCovered(interception, ordinary)).toBe(true)
+    })
+
+    it.each([
+      {
+        name: 'no ordinary matcher',
+        interception: '/(.)photo/[id]',
+        ordinary: [],
+      },
+      {
+        name: 'a single dynamic segment for a required catchall',
+        interception: '/(.)items/[...parts]',
+        ordinary: ['/items/[id]'],
+      },
+      {
+        name: 'a required catchall for an optional catchall',
+        interception: '/(.)items/[[...parts]]',
+        ordinary: ['/items/[...rest]'],
+      },
+      {
+        name: 'a finite set of static values for a dynamic segment',
+        interception: '/(.)items/[id]',
+        ordinary: ['/items/one', '/items/two'],
+      },
+    ])(
+      'rejects incomplete coverage from $name',
+      ({ interception, ordinary }) => {
+        expect(isCovered(interception, ordinary)).toBe(false)
+      }
+    )
   })
 })
