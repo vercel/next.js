@@ -887,10 +887,13 @@ export async function retry<T>(
   }
 }
 
-export async function waitForRedbox(browser: Playwright) {
+export async function waitForRedbox(
+  browser: Playwright,
+  { waitInMs = 5000 } = {}
+) {
   const redbox = browser.locateRedbox()
   try {
-    await redbox.waitFor({ timeout: 5000 })
+    await redbox.waitFor({ timeout: waitInMs })
   } catch (errorCause) {
     const error = new Error('Expected Redbox but found no visible one.')
     Error.captureStackTrace(error, waitForRedbox)

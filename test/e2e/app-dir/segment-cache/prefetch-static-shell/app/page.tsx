@@ -120,6 +120,43 @@ export default function Page() {
           </LinkAccordion>
         </li>
       </ul>
+
+      <h2>requireStatic</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/require-static/false/uses-cookies">
+            Page with <code>requireStatic = false</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/require-static/shell/uses-cookies">
+            Page with <code>requireStatic = "shell"</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/require-static/shell/uses-cookies-speculative"
+            prefetch={true}
+          >
+            Page with <code>requireStatic = "shell"</code> that uses cookies
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/require-static/prefetch/uses-cookies-speculative"
+            prefetch={true}
+          >
+            Page with <code>requireStatic = "prefetch"</code> that uses cookies
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/require-static/prefetch/uses-cookies">
+            Page with <code>requireStatic = "prefetch"</code> that uses cookies
+          </LinkAccordion>
+        </li>
+      </ul>
     </main>
   )
 }

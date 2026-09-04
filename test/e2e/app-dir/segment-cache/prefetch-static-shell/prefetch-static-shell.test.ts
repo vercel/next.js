@@ -799,4 +799,217 @@ describe('static App Shell prefetch attempt', () => {
       },
     ])
   })
+
+  describe('unstable_requireStatic', () => {
+    describe('unstable_requireStatic = false', () => {
+      it('uses a runtime shell for a page that uses cookies', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Reveal the link to the page.
+        // The page has `unstable_requireStatic = false`, and uses cookies (with no other dynamic holes).
+        // It should use a runtime shell.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/require-static/false/uses-cookies"]'
+            )
+            .click()
+        }, [
+          // Cookies are included in the runtime shell.
+          { includes: 'cookie-content', kind: 'runtime' },
+          // No static request.
+          {
+            includes: 'Cookies page shell text',
+            kind: 'static',
+            block: 'reject',
+          },
+        ])
+
+        // The shell is complete, so navigating should not require any extra requests.
+        await act(
+          () =>
+            browser
+              .elementByCss('a[href="/require-static/false/uses-cookies"]')
+              .click(),
+          'no-requests'
+        )
+      })
+    })
+
+    describe('unstable_requireStatic = "shell"', () => {
+      it('uses a static request for a page that uses cookies`', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Reveal the link to the page.
+        // The page has `unstable_requireStatic = "shell"`, and uses cookies.
+        // It should use a static prefetch.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/require-static/shell/uses-cookies"]'
+            )
+            .click()
+        }, [
+          // Static prefetch (for the shell)
+          {
+            includes: 'Cookies page shell text',
+            kind: 'static',
+          },
+          // No runtime requests
+          {
+            includes: 'Cookies page shell text',
+            kind: 'runtime',
+            block: 'reject',
+          },
+        ])
+
+        // The shell has a dynamic hole from `cookies()`, so navigating should spawn an
+        // extra request to fill it in.
+        await act(
+          () =>
+            browser
+              .elementByCss('a[href="/require-static/shell/uses-cookies"]')
+              .click(),
+          [{ includes: 'cookie-content' }]
+        )
+      })
+
+      it('uses a static shell and a runtime prefetch for a `prefetch={true}` link to a page that uses cookies`', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Reveal the link to the page (with `prefetch={true}`)
+        // The page has `unstable_requireStatic = "shell"`, and uses cookies.
+        // It should use a static prefetch, and a runtime shell.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/require-static/shell/uses-cookies-speculative"]'
+            )
+            .click()
+        }, [
+          // Static prefetch (for the shell)
+          {
+            includes: 'Cookies page shell text',
+            kind: 'static',
+          },
+          // Runtime prefetch
+          {
+            includes: 'cookie-content',
+            kind: 'runtime',
+          },
+        ])
+
+        // The shell was partial, but the prefetch is complete, so we should not need any requests to navigate.
+        await act(
+          () =>
+            browser
+              .elementByCss(
+                'a[href="/require-static/shell/uses-cookies-speculative"]'
+              )
+              .click(),
+          'no-requests'
+        )
+      })
+    })
+
+    describe('unstable_requireStatic = "prefetch"', () => {
+      it('uses a static request for a link to a page that uses cookies', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Reveal the link to the page (with `prefetch={true}`)
+        // The page has `unstable_requireStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
+        // It should use a static prefetch.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/require-static/prefetch/uses-cookies"]'
+            )
+            .click()
+        }, [
+          // Static prefetch
+          {
+            includes: 'Cookies page shell text',
+            kind: 'static',
+          },
+          // No runtime requests.
+          { includes: 'cookie-content', kind: 'runtime', block: 'reject' },
+        ])
+
+        // The prefetch has a dynamic hole from `cookies()`, so navigating should spawn an
+        // extra request to fill it in.
+        await act(
+          () =>
+            browser
+              .elementByCss('a[href="/require-static/prefetch/uses-cookies"]')
+              .click(),
+          [{ includes: 'cookie-content' }]
+        )
+      })
+
+      it('uses a static request for a `prefetch={true}` link to a page that uses cookies', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Reveal the link to the page (with `prefetch={true}`)
+        // The page has `unstable_requireStatic = "prefetch"`, and uses cookies (with no other dynamic holes).
+        // It should use a static prefetch
+        await act(async () => {
+          await browser
+            .elementByCss(
+              'input[data-link-accordion="/require-static/prefetch/uses-cookies-speculative"]'
+            )
+            .click()
+        }, [
+          // Static prefetch
+          {
+            includes: 'Cookies page shell text',
+            kind: 'static',
+          },
+          // No runtime requests.
+          { includes: 'cookie-content', kind: 'runtime', block: 'reject' },
+        ])
+
+        // The prefetch has a dynamic hole from `cookies()`, so navigating should spawn an
+        // extra request to fill it in.
+        await act(
+          () =>
+            browser
+              .elementByCss(
+                'a[href="/require-static/prefetch/uses-cookies-speculative"]'
+              )
+              .click(),
+          [{ includes: 'cookie-content' }]
+        )
+      })
+    })
+  })
 })
