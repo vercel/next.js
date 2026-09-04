@@ -15,6 +15,23 @@ interface Payload {
   }>
 }
 
+type MaybePatchedFetch = typeof fetch & {
+  readonly __nextPatched?: true
+  readonly _nextOriginalFetch?: typeof fetch
+}
+
+function getTelemetryFetch(): typeof fetch {
+  const currentFetch = globalThis.fetch as MaybePatchedFetch
+
+  // Framework telemetry is process activity, not application request work.
+  // Avoid inheriting an active render's patched-fetch context while preserving
+  // any user-provided fetch implementation when Next has not patched it.
+  return currentFetch.__nextPatched === true &&
+    typeof currentFetch._nextOriginalFetch === 'function'
+    ? currentFetch._nextOriginalFetch
+    : currentFetch
+}
+
 export function postNextTelemetryPayload(payload: Payload, signal?: any) {
   if (!signal && 'timeout' in AbortSignal) {
     signal = AbortSignal.timeout(5000)
@@ -22,7 +39,7 @@ export function postNextTelemetryPayload(payload: Payload, signal?: any) {
   return (
     retry(
       () =>
-        fetch('https://telemetry.nextjs.org/api/v1/record', {
+        getTelemetryFetch()('https://telemetry.nextjs.org/api/v1/record', {
           method: 'POST',
           body: JSON.stringify(payload),
           headers: { 'content-type': 'application/json' },
