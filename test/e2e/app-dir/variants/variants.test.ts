@@ -619,10 +619,10 @@ import { startExternalServer } from './external-server.mjs'
   // tests belong together.
 
   it('should not expose the internal combination query parameter to the page', async () => {
-    // The combination travels to the origin as a query parameter, because that
-    // is the one channel both a routed request and one a platform rebuilt from
-    // an artifact arrive on. It names no param and is not the page's to see, so
-    // it must not reach `searchParams` the way a real query value does.
+    // A combination with an output reaches the origin as a query parameter. A
+    // route without one receives every value at runtime and needs no internal
+    // query. In either case the internal parameter must not reach
+    // `searchParams` the way a real query value does.
     const browser = await next.browser(url('/search-params?q=1'), {
       async beforePageLoad(page: Playwright.Page) {
         await page

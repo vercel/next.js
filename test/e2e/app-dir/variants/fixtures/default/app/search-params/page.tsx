@@ -2,10 +2,9 @@ import { Suspense } from 'react'
 
 import { theme } from '../../variants'
 
-// Declared so that a request to this route is prefixed with its combination,
-// which is what puts the internal query parameter carrying the combination on
-// the path the origin sees. The page reads `searchParams` so that anything left
-// in that query becomes visible to user code.
+// Cache Components can place the `searchParams` read behind the boundary and
+// produce an output for each combination. A legacy prerender cannot, so the
+// route renders dynamically without a variants prefix in that mode.
 export async function unstable_generateStaticVariants() {
   return [[[theme, 'dark']], [[theme, 'light']]]
 }
