@@ -1,0 +1,8 @@
+# The workspace root. `apps/web` must keep resolving `@fixture/ui` from here.
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+allowBuilds:
+  sharp: false
+  unrs-resolver: false
