@@ -487,4 +487,12 @@ describe('App Shell revalidation', () => {
       })
     })
   })
+
+  it.todo(
+    'partial page that read cookies in the prefetch at build but starts to also read them in the shell after a revalidation'
+  )
+
+  it.todo(
+    'partial page that read cookies in the shell at build but starts to only read them in the prefetch after a revalidation'
+  )
 })
