@@ -138,7 +138,7 @@ type ResolveOptions = {
   conditionNames?: string[]
   descriptionFiles?: string[]
   enforceExtension?: boolean
-  extensionAlias: Record<string, string[]>
+  extensionAlias?: Record<string, string[]>
   extensions?: string[]
   fallback?: Record<string, string[]>
   mainFields?: string[]
@@ -215,7 +215,7 @@ const transform = (
                 )
             },
           },
-          getResolve: (options: ResolveOptions) => {
+          getResolve: (options: ResolveOptions = {}) => {
             const rustOptions = {
               aliasFields: undefined as undefined | string[],
               conditionNames: undefined as undefined | string[],
