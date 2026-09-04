@@ -4,14 +4,14 @@ import { waitForNoRedbox, check, getDistDir, retry } from 'next-test-utils'
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
   onData = onData || (() => {})
-  await new Promise((resolve) => {
-    response.body.on('data', (chunk) => {
-      result += chunk.toString()
-      onData(chunk.toString(), result)
-    })
 
-    response.body.on('end', resolve)
-  })
+  const decoder = new TextDecoder()
+  for await (const chunk of response.body) {
+    const text = decoder.decode(chunk, { stream: true })
+    result += text
+    onData(text, result)
+  }
+  result += decoder.decode()
   return result
 }
 

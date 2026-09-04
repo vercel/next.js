@@ -8,6 +8,7 @@ import {
 } from 'fs'
 import { inspect, promisify } from 'util'
 import http from 'http'
+import https from 'https'
 import path from 'path'
 
 import type cheerio from 'cheerio'
@@ -15,7 +16,6 @@ import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import { getRandomPort } from 'get-port-please'
-import fetch from 'node-fetch'
 import { nanoid } from 'nanoid'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
@@ -25,7 +25,6 @@ import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 
 import type { SpawnOptions, ChildProcess } from 'child_process'
-import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
 import type { Playwright } from './browsers/playwright'
 import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
@@ -208,6 +207,76 @@ export function fetchViaHTTP(
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)
+}
+
+/**
+ * Sends a request without any URL parsing or normalization and with full
+ * control over the Host header. Global fetch cannot be used for this: its
+ * WHATWG URL parser normalizes backslashes, dot-segments, and repeated
+ * slashes, and it derives the Host header from the URL authority. The
+ * response is returned verbatim, including a raw relative Location header.
+ */
+export function fetchViaRawHttp(
+  appPortOrUrl: string | number,
+  rawPath: string,
+  opts?: {
+    method?: string
+    headers?: Record<string, string>
+    /** Accepted for drop-in compatibility; raw requests never follow redirects. */
+    redirect?: 'manual'
+    /** Passed to the TLS connection for https URLs (e.g. self-signed servers). */
+    rejectUnauthorized?: boolean
+  }
+): Promise<Response> {
+  const baseUrl =
+    typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
+      ? new URL(appPortOrUrl)
+      : null
+  return new Promise((resolve, reject) => {
+    const req = (baseUrl?.protocol === 'https:' ? https : http).request(
+      {
+        hostname: baseUrl ? baseUrl.hostname : '127.0.0.1',
+        port: baseUrl ? baseUrl.port : appPortOrUrl,
+        path: rawPath,
+        method: opts?.method ?? 'GET',
+        headers: opts?.headers,
+        rejectUnauthorized: opts?.rejectUnauthorized,
+      },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk) => chunks.push(chunk))
+        res.on('end', () => {
+          const status = res.statusCode ?? 200
+          const headers = new Headers()
+          for (const [key, value] of Object.entries(res.headers)) {
+            for (const item of Array.isArray(value) ? value : [value]) {
+              if (item !== undefined) {
+                headers.append(key, item)
+              }
+            }
+          }
+          const body = Buffer.concat(chunks)
+          resolve(
+            new Response(status === 204 || status === 304 ? null : body, {
+              status,
+              statusText: res.statusMessage,
+              headers,
+            })
+          )
+        })
+      }
+    )
+    req.on('error', reject)
+    req.end()
+  })
+}
+
+export function renderViaRawHTTP(
+  appPortOrUrl: string | number,
+  rawPath: string,
+  opts?: Parameters<typeof fetchViaRawHttp>[2]
+) {
+  return fetchViaRawHttp(appPortOrUrl, rawPath, opts).then((res) => res.text())
 }
 
 export function expectVaryHeaderToContain(

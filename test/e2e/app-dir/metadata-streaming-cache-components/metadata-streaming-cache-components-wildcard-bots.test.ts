@@ -20,7 +20,7 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
         const abortController = new AbortController()
         let body:
           | (AsyncIterable<Uint8Array> & {
-              destroy: () => void
+              cancel: () => void
             })
           | undefined
 
@@ -39,7 +39,7 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
           expect(res.body).not.toBeNull()
 
           body = res.body! as unknown as AsyncIterable<Uint8Array> & {
-            destroy: () => void
+            cancel: () => void
           }
           let initialHtml = ''
 
@@ -55,7 +55,7 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
           expect(initialHtml).not.toContain('dynamic-content')
         } finally {
           abortController.abort()
-          body?.destroy()
+          body?.cancel()
         }
       }
     )

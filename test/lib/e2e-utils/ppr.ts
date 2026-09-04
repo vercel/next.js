@@ -17,23 +17,23 @@
  * console.log(dynamicPart) // Content after the boundary
  */
 export async function splitResponseWithPPRSentinel(
-  fn: () => Promise<NodeJS.ReadableStream>
+  fn: () => Promise<ReadableStream<Uint8Array> | null>
 ): Promise<[staticPart: string, dynamicPart: string]> {
   const stream = await fn()
+  if (stream === null) {
+    throw new Error('Expected a response body')
+  }
   const chunks: string[] = []
 
-  await new Promise<void>((resolve, reject) => {
-    stream.on('data', (chunk: Buffer | string) => {
-      if (typeof chunk !== 'string') {
-        chunk = chunk.toString('utf8')
-      }
-
-      chunks.push(chunk)
-    })
-
-    stream.on('end', resolve)
-    stream.on('error', reject)
-  })
+  const decoder = new TextDecoder()
+  for await (const chunk of stream) {
+    chunks.push(
+      typeof chunk === 'string'
+        ? chunk
+        : decoder.decode(chunk, { stream: true })
+    )
+  }
+  chunks.push(decoder.decode())
 
   // Combine all chunks and split on the PPR boundary sentinel
   // The sentinel marks the boundary between static and dynamic content

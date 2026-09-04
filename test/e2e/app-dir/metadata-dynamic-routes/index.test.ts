@@ -319,8 +319,12 @@ describe('app dir - metadata dynamic routes', () => {
       const smallOgUrl = new URL(
         small$('meta[property="og:image"]').attr('content')
       )
-      const bufferBig = await (await next.fetch(bigOgUrl.pathname)).buffer()
-      const bufferSmall = await (await next.fetch(smallOgUrl.pathname)).buffer()
+      const bufferBig = Buffer.from(
+        await (await next.fetch(bigOgUrl.pathname)).arrayBuffer()
+      )
+      const bufferSmall = Buffer.from(
+        await (await next.fetch(smallOgUrl.pathname)).arrayBuffer()
+      )
 
       const sizeBig = imageSize(bufferBig)
       const sizeSmall = imageSize(bufferSmall)
