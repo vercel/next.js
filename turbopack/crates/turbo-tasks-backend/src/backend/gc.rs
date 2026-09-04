@@ -30,12 +30,8 @@ use crate::backend::{
     storage_schema::TaskStorageAccessors,
 };
 
-/// One unit of GC work.
 enum GcJob {
-    /// Scan one shard of the resident map (by index) and enqueue its candidates as
-    /// [`GcJob::Collect`].
-    ScanShard(usize),
-    /// Collect a single task
+    ScanBatch(Vec<TaskId>),
     Collect(TaskId),
 }
 
@@ -80,27 +76,38 @@ impl TurboTasksBackend {
         phase: &SnapshotPhase<'_, AnyOperation>,
     ) -> GcStats {
         // TODO(perf): recycle the task ids of collected tasks.
+        // Seeding one queue item per task made the GC benchmark about 13× slower. Batches retain
+        // scope work-stealing with far fewer shared-queue operations; 256 was the most consistent
+        // choice across 10k/50k/200k garbage-task measurements.
+        const GC_SCAN_BATCH_SIZE: usize = 256;
+        let task_ids = self.storage.gc_task_ids();
+        let batches = task_ids
+            .chunks(GC_SCAN_BATCH_SIZE)
+            .map(|ids| GcJob::ScanBatch(ids.to_vec()))
+            .collect::<Vec<_>>();
         scope_unbounded_with(
-            (0..self.storage.shard_count()).map(GcJob::ScanShard),
+            batches,
             GcStats::default,
             |spawner, job, stats| {
                 let collector = |task_id| spawner.spawn(GcJob::Collect(task_id));
                 let task_id = match job {
-                    GcJob::ScanShard(index) => {
-                        self.storage.gc_scan_shard(index, collector);
+                    GcJob::ScanBatch(task_ids) => {
+                        self.storage.gc_scan_batch(&task_ids, collector);
                         return ControlFlow::Continue(());
                     }
                     GcJob::Collect(task_id) => task_id,
                 };
+
                 let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &collector);
                 // `All` restores Data so the edge capture below can read the Data-category dep
                 // sets.
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
                 // Recheck under the guard, and note that this is the **authoritative** check:
-                // the shard scan that produced this candidate only had Meta, so it could not see
-                // dependency edges (see `TaskStorage::gc_maybe_collectible`). With `All` open the
-                // same predicate is exact. A racing teardown can also add uppers/followers that
-                // temporarily remove collectibility; such a task is re-enqueued by a later pass.
+                // the initial Papaya key scan only used resident Meta, so it could not see
+                // dependency edges (see `TaskStorage::gc_maybe_collectible`). With
+                // `All` open the same predicate is exact. A racing teardown can
+                // also add uppers/followers that temporarily remove collectibility;
+                // such a task is re-enqueued by a later pass.
                 if !task.is_gc_collectible() {
                     return ControlFlow::Continue(());
                 }

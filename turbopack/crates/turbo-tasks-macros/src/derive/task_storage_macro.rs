@@ -1408,6 +1408,8 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
             #lazy_field
             #[doc = "Per-task lock used with a shared resident-map guard."]
             lock: IntrusiveTaskLock,
+            #[doc = "Whether this allocation is still the resident-map value for its TaskId."]
+            present: bool,
         }
 
         #[automatically_derived]
