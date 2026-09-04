@@ -707,7 +707,14 @@ async function startWatcher(
             continue
           }
 
-          const normalizedPageName = normalizePathSep(pageName)
+          // Normalize URL-encoded underscores (Turbopack encodes '_' as '%5F' in
+          // directory names). This ensures private folders (directories starting
+          // with '_') are correctly excluded from routing, matching the behavior
+          // of the production build (which uses ignorePartFilter: part.startsWith('_')).
+          const normalizedPageName = normalizePathSep(pageName).replace(
+            /%5F/g,
+            '_'
+          )
 
           // Skip files/directories starting with `_` in the app directory
           if (normalizedPageName.includes('/_')) continue
