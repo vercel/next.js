@@ -67,6 +67,15 @@ import { startExternalServer } from './external-server.mjs'
     expect(response.headers.get('x-next-internal-variants')).toBeNull()
   })
 
+  it('should not expose the resolved values through `headers()`', async () => {
+    const $ = await next.render$(url('/'), undefined, {
+      headers: { cookie: 'theme=dark' },
+    })
+
+    expect($('#theme').text()).toBe('dark')
+    expect($('#internal-variants-header').text()).toBe('absent')
+  })
+
   it('should resolve a variant on the route the proxy rewrote to', async () => {
     const $ = await next.render$(url('/rewrite-source'), undefined, {
       headers: { cookie: 'theme=dark' },

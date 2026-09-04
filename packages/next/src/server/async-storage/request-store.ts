@@ -10,6 +10,7 @@ import {
   NEXT_HTML_REQUEST_ID_HEADER,
   NEXT_REQUEST_ID_HEADER,
 } from '../../client/components/app-router-headers'
+import { NEXT_VARIANTS_HEADER } from '../../lib/constants'
 import {
   HeadersAdapter,
   type ReadonlyHeaders,
@@ -44,6 +45,7 @@ import type { OpaqueFallbackRouteParams } from '../request/fallback-params'
 const HIDDEN_REQUEST_HEADERS: ReadonlySet<string> = new Set(
   [
     ...FLIGHT_HEADERS,
+    NEXT_VARIANTS_HEADER,
     // The client sends these dev-only request IDs so the server can route debug
     // information back to the originating request. Like the flight headers,
     // they are internal plumbing.
