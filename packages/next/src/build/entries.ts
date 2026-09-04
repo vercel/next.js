@@ -8,7 +8,7 @@ import type { ProxyConfig, ProxyMatcher } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { dirname, posix, join, normalize } from 'path'
+import { dirname, posix, join, normalize, relative } from 'path'
 import { stringify } from 'querystring'
 import {
   PAGES_DIR_ALIAS,
@@ -58,6 +58,7 @@ import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
+import { UnmatchedAppPagesError } from '../shared/lib/errors/unmatched-app-pages-error'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
@@ -409,23 +410,45 @@ export async function createEntrypoints(
 
   let appPathsPerRoute: Record<string, string[]> = {}
   if (appDir && appPaths) {
+    const appPageFiles = new Map<string, string>()
     for (const pathname in appPaths) {
       const normalizedPath = normalizeAppPath(pathname)
       const actualPath = appPaths[pathname]
       if (!appPathsPerRoute[normalizedPath]) {
         appPathsPerRoute[normalizedPath] = []
       }
-      appPathsPerRoute[normalizedPath].push(
-        // TODO-APP: refactor to pass the page path from createPagesMapping instead.
-        getPageFromPath(actualPath, pageExtensions).replace(APP_DIR_ALIAS, '')
+      // TODO-APP: refactor to pass the page path from createPagesMapping instead.
+      const appPath = getPageFromPath(actualPath, pageExtensions).replace(
+        APP_DIR_ALIAS,
+        ''
       )
+      appPathsPerRoute[normalizedPath].push(appPath)
+      appPageFiles.set(appPath, actualPath)
     }
 
     // TODO: find a better place to do this
-    normalizeCatchAllRoutes(appPathsPerRoute, {
+    const unmatchedAppPages = normalizeCatchAllRoutes(appPathsPerRoute, {
       strictRouteMatching: config.experimental.strictRouteMatching,
       defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
     })
+    if (unmatchedAppPages.length > 0) {
+      throw new UnmatchedAppPagesError(
+        unmatchedAppPages.map((appPath) => {
+          const absolutePagePath = appPageFiles.get(appPath)
+          if (!absolutePagePath) return appPath
+
+          return relative(
+            rootDir,
+            getPageFilePath({
+              absolutePagePath,
+              pagesDir,
+              appDir,
+              rootDir,
+            })
+          )
+        })
+      )
+    }
 
     // Make sure to sort parallel routes to make the result deterministic.
     appPathsPerRoute = Object.fromEntries(

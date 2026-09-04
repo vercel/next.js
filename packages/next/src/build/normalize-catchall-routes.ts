@@ -6,6 +6,6 @@ import {
 export function normalizeCatchAllRoutes(
   appPaths: Record<string, string[]>,
   options: NormalizeCatchAllRoutesOptions = {}
-) {
+): string[] {
   return normalizeCatchAllRoutesInternal(appPaths, undefined, options)
 }
