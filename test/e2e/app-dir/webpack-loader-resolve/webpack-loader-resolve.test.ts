@@ -16,4 +16,9 @@ describe('webpack-loader-resolve', () => {
     expect($('#absolute').text()).toBe('abc')
     expect($('#relative').text()).toBe('xyz')
   })
+
+  it('should support loader getResolve without options', async () => {
+    const $ = await next.render$('/no-options')
+    expect($('#no-options').text()).toBe('xyz')
+  })
 })
