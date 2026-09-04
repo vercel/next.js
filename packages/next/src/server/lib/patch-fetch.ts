@@ -909,15 +909,27 @@ export function createPatchedFetcher(
 
           if (isRequestInput) {
             const reqInput: Request = input as any
-            const reqOptions: RequestInit = {
-              body: (reqInput as any)._ogBody || reqInput.body,
-            }
+            const reqOptions: RequestInit = {}
 
             for (const field of requestInputFields) {
               // @ts-expect-error custom fields
               reqOptions[field] = reqInput[field]
             }
-            input = new Request(reqInput.url, reqOptions)
+
+            const ogBody = (reqInput as any)._ogBody
+            if (ogBody !== undefined) {
+              reqOptions.body = ogBody
+              input = new Request(reqInput.url, reqOptions)
+            } else {
+              // When _ogBody is absent, the body stream hasn't been consumed.
+              // Pass the original Request object instead of reqInput.url to
+              // preserve the internal body source, which Node 24.14+ (undici)
+              // requires to be non-null for requests with a body.
+              if (isStale) {
+                reqOptions.signal = null
+              }
+              input = new Request(reqInput, reqOptions)
+            }
           } else if (init) {
             const { _ogBody, body, signal, ...otherInput } =
               init as RequestInit & { _ogBody?: any }
