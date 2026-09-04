@@ -76,46 +76,46 @@ async fn reused_root_survives_sessions_that_abandon_its_sibling() {
 
     // Session 1: build both subtrees and pin each root, the way an embedder holds a live handle to
     // a route. The pin makes it a durable root, recorded in the persisted roots map on shutdown.
-    let kept_root = {
+    {
         let tt = reopen_tt_with_gc(&dir);
-        let ids = turbo_tasks::run_once(tt.clone(), async move {
+        let ops = turbo_tasks::run_once(tt.clone(), async move {
             let kept = root_with_child(1);
             let dropped = root_with_child(2);
             assert_eq!(*kept.read_strongly_consistent().await?, 2);
             assert_eq!(*dropped.read_strongly_consistent().await?, 3);
-            anyhow::Ok((kept.task_id(), dropped.task_id()))
+            anyhow::Ok((kept, dropped))
         })
         .await
         .unwrap();
 
-        let kept_pin = GcRoot::pin(tt.clone(), ids.0);
-        let dropped_pin = GcRoot::pin(tt.clone(), ids.1);
+        let kept_pin = GcRoot::pin(tt.clone(), ops.0);
+        let dropped_pin = GcRoot::pin(tt.clone(), ops.1);
         tt.backend().snapshot_and_evict_for_testing(&tt);
         drop(kept_pin);
         drop(dropped_pin);
 
         tt.stop_and_wait().await;
-        ids.0
-    };
+    }
 
     // Sessions 2 and 3: only root 1 is ever requested again. Session 2's first pass demotes root 2
     // and a later pass ages it out; session 3 proves the collection stuck.
     let mut total_collected = 0usize;
     for session in 2..=3 {
         let tt = reopen_tt_with_gc_ttl(&dir, Duration::ZERO);
-        turbo_tasks::run_once(tt.clone(), async move {
+        let kept_op = turbo_tasks::run_once(tt.clone(), async move {
             // Re-request root 1 only, so it has a resident entry to pin.
+            let kept = root_with_child(1);
             assert_eq!(
-                *root_with_child(1).read_strongly_consistent().await?,
+                *kept.read_strongly_consistent().await?,
                 2,
                 "the reused root must still compute in session {session}"
             );
-            anyhow::Ok(())
+            anyhow::Ok(kept)
         })
         .await
         .unwrap();
 
-        let kept_pin = GcRoot::pin(tt.clone(), kept_root);
+        let kept_pin = GcRoot::pin(tt.clone(), kept_op);
         total_collected += gc_until_collected(&tt, 2).await;
         drop(kept_pin);
 
@@ -164,17 +164,17 @@ async fn gc_collect_scrubs_disk_only_forward_dep_target() {
     // root, so nothing is collected and the cascade under test never runs.
     {
         let tt = reopen_tt_with_gc(&dir);
-        let root_id = turbo_tasks::run_once(tt.clone(), async move {
+        let root_op = turbo_tasks::run_once(tt.clone(), async move {
             let constant_op = create_constant();
             let constant_vc = constant_op.resolve().strongly_consistent().await?;
             let root_op = diamond_root_op(constant_vc, DIAMOND_FANOUT);
             root_op.read_strongly_consistent().await?;
-            anyhow::Ok(root_op.task_id())
+            anyhow::Ok(root_op)
         })
         .await
         .unwrap();
 
-        let root_pin = GcRoot::pin(tt.clone(), root_id);
+        let root_pin = GcRoot::pin(tt.clone(), root_op);
         // A GC pass is what admits a live root to the persisted map; the snapshot alone leaves
         // nothing for session 2 to age out.
         tt.backend().gc_for_testing(&tt);

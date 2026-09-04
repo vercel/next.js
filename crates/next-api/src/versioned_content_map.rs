@@ -4,8 +4,9 @@ use next_core::emit_assets;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs, turbo_tasks, turbobail,
+    FxIndexSet, GcRoot, NonLocalValue, OperationValue, OperationVc, ResolvedVc, State,
+    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    turbo_tasks, turbobail,
 };
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{
@@ -44,15 +45,33 @@ pub struct PathToOutputOperation(
     FxHashMap<FileSystemPath, ExpandedOutputAssetsOperationSet>,
 );
 
+/// The operations that produce the assets at one path.
+///
+/// A set of [`GcRoot`]s rather than of bare operations, so an operation is pinned against GC
+/// exactly as long as it is mentioned here: inserting takes a pin and removing drops it, with no
+/// separate bookkeeping to keep in sync. The same operation appears under many paths, and each
+/// occurrence carries its own pin, which is why [`GcRoot`] is reference counted via [`Clone`].
+///
+/// A guard hashes and compares as the operation it pins, and borrows to it, so the set behaves like
+/// the set of operations it replaced — including lookup and removal by a bare [`OperationVc`].
 #[derive(Clone, Default, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue)]
-struct ExpandedOutputAssetsOperationSet(FxIndexSet<OperationVc<ExpandedOutputAssets>>);
+struct ExpandedOutputAssetsOperationSet(FxIndexSet<GcRoot<ExpandedOutputAssets>>);
 
 // HACK: This is technically incorrect because the map's key contains a `ResolvedVc`...
 unsafe impl OperationValue for PathToOutputOperation {}
 
+/// The pinned assets operation and the compute entry derived from it. Both are held by
+/// [`GcRoot`]s, so both stay alive exactly as long as this map entry does.
+#[derive(
+    Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Debug, NonLocalValue, OperationValue,
+)]
+struct ComputeEntry {
+    assets_operation: GcRoot<ExpandedOutputAssets>,
+    compute_entry: GcRoot<OptionMapEntry>,
+}
+
 // A precomputed map for quick access to output asset by filepath
-type OutputOperationToComputeEntry =
-    FxHashMap<OperationVc<ExpandedOutputAssets>, OperationVc<OptionMapEntry>>;
+type OutputOperationToComputeEntry = FxHashMap<OperationVc<ExpandedOutputAssets>, ComputeEntry>;
 
 /// Tracks all the output assets produced in a session. This allows us to compute fine grained
 /// change information which drives HMR sessions.
@@ -174,24 +193,23 @@ impl VersionedContentMap {
             client_output_path,
         );
         this.map_op_to_compute_entry.update_conditionally(|map| {
-            let previous = map.insert(assets_operation, compute_entry);
-            if previous == Some(compute_entry) {
+            if let Some(existing) = map.get(&assets_operation)
+                && *existing.compute_entry == compute_entry
+            {
                 // No-op update.
                 return false;
             }
             // Pin the operations so GC keeps their tasks alive while this map holds them — nothing
-            // in the persistent graph parents them.
+            // in the persistent graph parents them. The replaced entry's guards are dropped by the
+            // `insert`, which releases its pins.
             let tt = turbo_tasks();
-            match previous {
-                None => {
-                    tt.pin_task_for_gc(assets_operation.task_id());
-                    tt.pin_task_for_gc(compute_entry.task_id());
-                }
-                Some(old_compute_entry) => {
-                    tt.unpin_task_for_gc(old_compute_entry.task_id());
-                    tt.pin_task_for_gc(compute_entry.task_id());
-                }
-            }
+            map.insert(
+                assets_operation,
+                ComputeEntry {
+                    assets_operation: GcRoot::pin(tt.clone(), assets_operation),
+                    compute_entry: GcRoot::pin(tt, compute_entry),
+                },
+            );
             true
         });
         Ok(())
@@ -222,20 +240,21 @@ impl VersionedContentMap {
             let mut stale_assets = map.0.keys().cloned().collect::<FxHashSet<_>>();
 
             for (k, _) in entries.iter().flatten() {
-                let inserted = map
-                    .0
-                    .entry(k.clone())
-                    .or_default()
-                    .0
-                    .insert(assets_operation);
+                // Each occurrence takes its own pin, so dropping one path's entry can't release
+                // another path's pin on the same operation. Check membership before pinning: a
+                // guard for an operation the path already lists would be discarded by `insert`
+                // (the set keeps the original), so pinning first would take a pin only to release
+                // it again on drop.
+                let set = &mut map.0.entry(k.clone()).or_default().0;
+                let inserted = !set.contains(&assets_operation);
                 if inserted {
-                    tt.pin_task_for_gc(assets_operation.task_id());
+                    set.insert(GcRoot::pin(tt.clone(), assets_operation));
                 }
                 stale_assets.remove(k);
                 changed = changed || inserted;
             }
 
-            // Make more efficient with reverse map
+            // Make more efficient with reverse map. Removing the entry drops its pin.
             for k in &stale_assets {
                 let removed = map
                     .0
@@ -244,9 +263,6 @@ impl VersionedContentMap {
                     .unwrap()
                     .0
                     .swap_remove(&assets_operation);
-                if removed {
-                    tt.unpin_task_for_gc(assets_operation.task_id());
-                }
                 changed = changed || removed
             }
             changed
@@ -331,7 +347,7 @@ impl VersionedContentMap {
     fn raw_get(&self, path: FileSystemPath) -> Vc<OptionMapEntry> {
         let assets = {
             let map = &self.map_path_to_op.get().0;
-            map.get(&path).and_then(|m| m.0.iter().next().copied())
+            map.get(&path).and_then(|m| m.0.first().map(|pin| **pin))
         };
         let Some(assets) = assets else {
             return Vc::cell(None);
@@ -341,7 +357,7 @@ impl VersionedContentMap {
 
         let compute_entry = {
             let map = self.map_op_to_compute_entry.get();
-            map.get(&assets).copied()
+            map.get(&assets).map(|entry| *entry.compute_entry)
         };
         let Some(compute_entry) = compute_entry else {
             return Vc::cell(None);

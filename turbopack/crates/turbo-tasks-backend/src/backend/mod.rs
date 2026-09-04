@@ -7,6 +7,10 @@ mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
 
+// Only the `verify_aggregation_graph` feature still uses atomics here; `stopping` is an
+// `RwLock<bool>` so that checking it and acting on it cannot be split (see the field's docs).
+#[cfg(feature = "verify_aggregation_graph")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     borrow::Cow,
     fmt::{self, Write},
@@ -14,10 +18,7 @@ use std::{
     hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
-    sync::{
-        Arc, LazyLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, LazyLock},
     time::SystemTime,
 };
 
@@ -27,7 +28,7 @@ use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::TtlCounter;
 use hashbrown::hash_table::Entry;
 use indexmap::IndexSet;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
@@ -231,7 +232,7 @@ pub struct TurboTasksBackend {
     /// Experimental feature to enable dead tasks to be deleted from storage and ram.
     gc_enabled: bool,
 
-    stopping: AtomicBool,
+    stopping: RwLock<bool>,
     stopping_event: Event,
     idle_start_event: Event,
     idle_end_event: Event,
@@ -315,7 +316,7 @@ impl TurboTasksBackend {
             storage: Storage::new(shard_amount, small_preallocation),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
-            stopping: AtomicBool::new(false),
+            stopping: RwLock::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
             idle_end_event: Event::new(|| || "TurboTasksBackend::idle_end_event".to_string()),
@@ -334,6 +335,28 @@ impl TurboTasksBackend {
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
     ) -> impl ExecuteContext<'a> {
         ExecuteContextImpl::new(self, turbo_tasks)
+    }
+
+    /// Like [`TurboTasksBackend::execute_context`], but refuses to hand out a context once
+    /// shutdown has begun, and blocks shutdown for as long as the returned context is alive.
+    ///
+    /// Use this for entry points reachable from threads that `stop_and_wait` does **not** drain.
+    ///
+    /// Returns `None` once [`TurboTasksBackend::stopping`] has run, in which case the caller must
+    /// do nothing: storage teardown is imminent or already underway.
+    fn try_execute_context<'a>(
+        &'a self,
+        turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
+    ) -> Option<impl ExecuteContext<'a>> {
+        let stopping = self.stopping.read();
+        if *stopping {
+            return None;
+        }
+        Some(ExecuteContextImpl::new_with_shutdown_guard(
+            self,
+            turbo_tasks,
+            stopping,
+        ))
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
@@ -418,7 +441,6 @@ impl TurboTasksBackend {
     pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
         self.backing_storage.roots().unwrap_or_default()
     }
-
     /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
     /// hook to exercise the non-fabricating existence guarantee: this panics if `task` exists in
     /// neither memory nor persistent storage (rather than fabricating a blank).
@@ -1603,12 +1625,24 @@ impl TurboTasksBackend {
     }
 
     fn stopping(&self) {
-        self.stopping.store(true, Ordering::Release);
+        // Scoped: the write lock is only needed to flip the flag. Any context that acquired a read
+        // guard before this point keeps running; `stop()` re-takes the write lock and waits for
+        // them. After this returns, `try_execute_context` refuses to hand out new ones.
+        *self.stopping.write() = true;
         self.stopping_event.notify(usize::MAX);
     }
 
     #[allow(unused_variables)]
     fn stop(&self, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
+        // Wait out any context handed out by `try_execute_context` before `stopping()` flipped the
+        // flag, and keep new ones from starting for the duration of the teardown below.
+        //
+        // This cannot deadlock against our own body: nothing reachable from here takes a read
+        // guard. `snapshot_and_persist` -> `gc_collect` builds contexts through
+        // `ExecuteContextImpl::new_for_gc`, which deliberately takes no shutdown guard (see its
+        // doc comment). Routing GC's context construction through `try_execute_context` would
+        // deadlock `stop()` against itself.
+        let _teardown = self.stopping.write();
         #[cfg(feature = "verify_aggregation_graph")]
         {
             self.is_idle.store(false, Ordering::Release);
@@ -3053,7 +3087,7 @@ impl TurboTasksBackend {
                         let until = last_snapshot + time;
                         if until > Instant::now() {
                             let mut stop_listener = self.stopping_event.listen();
-                            if self.stopping.load(Ordering::Acquire) {
+                            if *self.stopping.read() {
                                 return;
                             }
                             let mut idle_time = if turbo_tasks.is_idle() && fresh_idle {
@@ -3431,15 +3465,17 @@ impl TurboTasksBackend {
     }
 
     fn dispose_root_task(&self, task_id: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
-        // Once stopping, it is too late to tear down tasks safely
-        if self.stopping.load(Ordering::Acquire) {
+        // Once stopping, it is too late to tear down tasks safely. Holding the context returned
+        // here also blocks `stop()` from tearing storage down while this runs -- this is called
+        // from JS (`root_task_dispose`, or `SubscriptionTask::drop`) on a thread that
+        // `stop_and_wait` does not drain.
+        let Some(mut ctx) = self.try_execute_context(turbo_tasks) else {
             return;
-        }
+        };
 
         #[cfg(feature = "verify_aggregation_graph")]
         self.root_tasks.lock().remove(&task_id);
 
-        let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_dirty = task.is_dirty();
         let has_dirty_containers = task.has_dirty_containers();
