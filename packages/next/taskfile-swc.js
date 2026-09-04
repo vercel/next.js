@@ -39,6 +39,11 @@ module.exports = function (task) {
             },
         env: {
           targets: MODERN_BROWSERSLIST_TARGET,
+          // Support Safari 15 on a best-effort basis: it cannot parse static
+          // class initialization blocks (added in Safari 16.4), so always
+          // downlevel them (`static #_ = this.x = ...`) even though the
+          // browserslist targets support them.
+          include: ['transform-class-static-block'],
         },
         jsc: {
           loose: true,
