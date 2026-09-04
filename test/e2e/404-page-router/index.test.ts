@@ -35,26 +35,25 @@ module.exports = {
 `
 
 describe('404-page-router', () => {
-  const { next } = nextTestSetup({
+  const { next, skipped } = nextTestSetup({
     files: {
       pages: new FileRef(path.join(__dirname, 'app/pages')),
       components: new FileRef(path.join(__dirname, 'app/components')),
     },
     skipStart: true,
+    // TODO: investigate condensing these tests to avoid 5 separate deploys for this one test
+    skipDeployment: true,
     patchFileDelay: 500,
   })
+
+  if (skipped) {
+    return
+  }
 
   describe.each(table)(
     '404-page-router with basePath of $basePath and i18n of $i18n and middleware $middleware',
     (options) => {
       const isDev = (global as any).isNextDev
-
-      if ((global as any).isNextDeploy) {
-        // TODO: investigate condensing these tests to avoid
-        // 5 separate deploys for this one test
-        it('should skip for deploy', () => {})
-        return
-      }
 
       beforeAll(async () => {
         // Only add in the middleware if we're testing with middleware enabled.
