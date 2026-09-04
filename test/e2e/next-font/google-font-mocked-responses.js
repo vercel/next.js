@@ -1,4 +1,17 @@
 module.exports = {
+  // Stylesheet points at a URL that is not a real gstatic file. Used by
+  // google-font-file-fetch-error.test.ts to pin the Turbopack error path.
+  'https://fonts.googleapis.com/css2?family=Bitter:wght@400&display=swap': `
+@font-face {
+  font-family: 'Bitter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/bitter/v42/this-file-does-not-exist.woff2) format('woff2');
+  unicode-range: U+0000-00FF;
+}
+  `,
+  'https://fonts.gstatic.com/s/bitter/v42/this-file-does-not-exist.woff2': null,
   'https://fonts.googleapis.com/css2?family=Open+Sans:wght@300..800&display=swap': `
 /* cyrillic-ext */
 @font-face {
