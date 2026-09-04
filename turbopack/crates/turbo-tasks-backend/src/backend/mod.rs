@@ -97,26 +97,8 @@ use crate::{
 const DEPENDENT_TASKS_DIRTY_PARALLELIZATION_THRESHOLD: usize = 10000;
 
 /// The minimum useful quantum of GC work: how much a pass always does before it will honour an
-/// interrupt.
-///
-/// A GC pass holds total operation exclusion, so a waiting invalidation (an HMR edit) is stalled
-/// for its whole duration. An interruptible pass therefore watches
-/// [`SnapshotPhase::operations_waiting`](snapshot_coordinator::SnapshotPhase::operations_waiting)
-/// and winds down early when it is standing in someone's way — but not before this floor has
-/// elapsed. Without a floor, a dev server under sustained edits could interrupt every pass at its
-/// first job and never reclaim anything.
-///
-/// The floor is unconditional, so it also applies when a waiter is already present as the pass
-/// begins — an operation that suspended to let the exclusion start, or one that arrived in the
-/// race between deciding to run and acquiring it. Such a pass does exactly this much work and then
-/// yields. That is the intended trade: the alternative, bailing at zero cost when the race is
-/// lost, buys a little HMR latency at the price of passes that can accomplish nothing at all under
-/// steady contention.
-///
-/// A *time* floor rather than a task count because the property we want is a bound on the stall
-/// itself: whatever the graph looks like, the worst case an edit can wait behind GC is roughly this
-/// plus the longest single task teardown. Overridable in tests/debugging via
-/// `TURBO_ENGINE_GC_MIN_PROGRESS_MS`.
+/// interrupt.  GC holds an operation lock and so we can block concurrent operations.  Interruption
+/// ensures we are responsive and this ensures a minimum amount of progress.
 const GC_MIN_PROGRESS: Duration = Duration::from_millis(100);
 
 /// Priority used to re-schedule a task that became stale during execution.
@@ -184,14 +166,7 @@ pub struct BackendOptions {
     /// [`DEFAULT_GC_ROOT_TTL`].
     pub gc_root_ttl: Option<Duration>,
 
-    /// Overrides how long a GC pass runs before it will honour an interrupt. `None` (default)
-    /// derives it from the `TURBO_ENGINE_GC_MIN_PROGRESS_MS` env var, falling back to
-    /// [`GC_MIN_PROGRESS`].
-    ///
-    /// Tests that assert on exact collected counts pin this beyond any plausible pass length so a
-    /// blocked operation can't shorten the pass under them; tests of the interrupt path itself pin
-    /// it to zero. Per-backend rather than relying on the env var, which every test in a binary
-    /// would share.
+    /// Overrides how long a GC pass runs before it will honour an interrupt.
     pub gc_min_progress: Option<Duration>,
 }
 
@@ -237,26 +212,6 @@ impl SnapshotReason {
     }
 
     /// Whether a GC pass run for this reason may wind down early when an operation is waiting.
-    ///
-    /// True for `IdleTimeout`, because it is the only *opportunistic* schedule: it fires on a bet
-    /// that the system is idle and the exclusion is therefore free. A waiter falsifies the bet —
-    /// either we lost a race (an operation arrived between the decision to run and
-    /// `begin_exclusion`) or one was already mid-flight and suspended to let us in — so the pass
-    /// should take its minimum quantum and yield. There is no deadline to miss; the next idle
-    /// window retries.
-    ///
-    /// The periodic reasons are not claiming the system is idle, only that a snapshot is due, so
-    /// a waiter is not evidence they should stand down — and interrupting them is expensive rather
-    /// than merely late. An interrupted pass leaves tasks unexamined, so its whole cycle is
-    /// skipped (see `snapshot_and_persist`), discarding the accumulated compilation time that the
-    /// `MIN_SNAPSHOT_ACTIVE_TIME` threshold had just judged worth persisting. `Stop` has no later
-    /// cycle at all.
-    ///
-    /// `Test` is not a schedule but a stand-in for one, so it follows whatever the caller is
-    /// exercising: it stays interruptible, which is what lets `gc_interrupt.rs` drive a
-    /// production-shaped interruptible pass. Tests needing a guaranteed full pass pin
-    /// `BackendOptions::gc_min_progress` high (or use `gc_for_testing`, which forces
-    /// `interruptible = false` outright).
     fn gc_is_interruptible(self) -> bool {
         matches!(self, SnapshotReason::IdleTimeout | SnapshotReason::Test)
     }
@@ -304,9 +259,7 @@ pub struct TurboTasksBackend {
     /// How long a GC root may go un-anchored before it ages out.
     gc_root_ttl: Duration,
 
-    /// How long a GC pass runs before it will honour an interrupt, resolved once at construction
-    /// from [`BackendOptions::gc_min_progress`] / the `TURBO_ENGINE_GC_MIN_PROGRESS_MS` env /
-    /// [`GC_MIN_PROGRESS`].
+    /// How long a GC pass runs before it will honour an interrupt
     gc_min_progress: Duration,
 
     /// Test-only record of the most recent GC pass. The production signal for these fields is the
@@ -1231,8 +1184,6 @@ impl TurboTasksBackend {
                 stats = tracing::field::Empty,
             )
             .entered();
-            // Only the opportunistic idle pass yields to waiters; a due snapshot and shutdown run
-            // to completion. See `SnapshotReason::gc_is_interruptible`.
             let (stats, roots) =
                 self.gc_collect(turbo_tasks, &snapshot_phase, reason.gc_is_interruptible());
             let interrupted = stats.interrupted;
@@ -1248,15 +1199,7 @@ impl TurboTasksBackend {
                 reason.as_str()
             );
             if interrupted {
-                // Persisting now would write the tasks this pass never examined as live, and the
-                // eviction that follows would drop them from the resident map. `evictability` does
-                // not consult `parent_count`, so an unexamined orphan evicts like any other clean
-                // task — and once it is gone from memory, neither the resident shard scan nor
-                // `note_gc_collectible` can ever reach it again. It would leak for the lifetime of
-                // the cache. Skip the whole cycle instead; the next one retries from a clean slate.
-                // Release the exclusion without handing it to a snapshot: dropping the phase is
-                // what lets the operations parked behind this pass (the waiter that interrupted
-                // it) through.
+                // IF we were interrupted also abandon the persistence loop.
                 drop(snapshot_phase);
                 drop(gc_span);
                 return Ok((start, false));

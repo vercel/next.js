@@ -118,10 +118,7 @@ pub(crate) struct GcStats {
     pub aged_out_roots: usize,
     /// Persisted roots that this pass collected, to be dropped from the roots map.
     pub deleted_roots: Vec<TaskId>,
-    /// Whether the pass wound down early because an operation was waiting on the exclusion (see
-    /// [`GcBudget`]). An interrupted pass is not an error — the work it skipped is re-derived by
-    /// the next pass — but a dev session where this is always true means GC is never finishing and
-    /// the floor may need raising.
+    /// The gc loop was interrupted by competing work.
     pub interrupted: bool,
 }
 
