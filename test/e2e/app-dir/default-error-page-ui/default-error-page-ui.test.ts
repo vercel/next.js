@@ -105,6 +105,29 @@ describe('app dir - default error page UI', () => {
     expect(buttonBg).toContain('23')
   })
 
+  it('should keep the warning icon at 32px when app CSS targets svg elements', async () => {
+    const browser = await next.browser('/trigger-error')
+
+    await browser.elementByCss('#trigger-error').click()
+
+    if (isNextDev) {
+      return
+    }
+
+    await browser.eval(`(() => {
+      const style = document.createElement('style')
+      style.textContent = 'svg { width: 18px; height: 18px; }'
+      document.head.appendChild(style)
+    })()`)
+
+    const svgIcon = await browser.elementByCss('svg')
+    expect(await svgIcon.getComputedCss('width')).toBe('32px')
+    expect(await svgIcon.getComputedCss('height')).toBe('32px')
+
+    const button = await browser.elementByCss('button')
+    expect(await button.getComputedCss('height')).toBe('32px')
+  })
+
   it('should display server error page with Error reference', async () => {
     const browser = await next.browser('/server-error')
 
