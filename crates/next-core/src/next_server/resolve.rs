@@ -251,6 +251,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             break result_from_original_location;
         };
 
+        let mut result_from_original_location = result_from_original_location;
         let ident = result_from_original_location.ident().await?;
         let path = &ident.path;
         let file_type = get_file_type(path, path).await?;
@@ -282,7 +283,8 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request,
                     node_resolve_options,
                 );
-                let resolves_equal = if let Some(result) = node_resolved.await?.first_source() {
+                let cjs_target = node_resolved.await?.first_source();
+                let resolves_equal = if let Some(ref result) = cjs_target {
                     let ident = result.ident().await?;
                     let cjs_path = &ident.path;
                     cjs_path == path
@@ -296,11 +298,15 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                 // packages, where `type: module` or `.mjs` is missing and would fail in
                 // Node.js. So when this wasn't an explicit opt-in we avoid making it external
                 // to be safe.
-                match (must_be_external, resolves_equal) {
-                    // bundle it to be safe. No error since `must_be_external` is not set.
-                    (false, false) => return Ok(ResolveResultOption::none()),
-                    (_, true) => ExternalType::CommonJs,
-                    (_, false) => ExternalType::EcmaScriptModule,
+                match (must_be_external, resolves_equal, cjs_target) {
+                    (false, false, _) => return Ok(ResolveResultOption::none()),
+                    (_, true, _) => ExternalType::CommonJs,
+                    (_, false, Some(cjs_target)) => {
+                        // Use the CommonJS target to avoid duplicate package instances (CJS/ESM)
+                        result_from_original_location = cjs_target;
+                        ExternalType::CommonJs
+                    }
+                    (_, false, None) => ExternalType::EcmaScriptModule,
                 }
             }
             // ecmascript with esm is always external
