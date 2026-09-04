@@ -595,6 +595,13 @@ function assignDefaultsAndValidate(
       )
     }
 
+    if (result.experimental.variants && !process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.variants\` is only supported with Turbopack. ` +
+          `Please remove the option from ${configFileName} or run Next.js with Turbopack.`
+      )
+    }
+
     if (
       result.experimental.turbopackRustReactCompiler &&
       !result.reactCompiler
