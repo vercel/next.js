@@ -1038,6 +1038,268 @@ describe('request insights', () => {
       ).toBe(true)
       expect(details.text).not.toContain('Q2_SECRET_SENTINEL')
     })
+
+    const requestHeader = await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      const copyButton = root?.querySelector<HTMLButtonElement>(
+        '.request-insights-summary button'
+      )
+      return {
+        copyButtonCount:
+          root?.querySelectorAll('.request-insights-summary button').length ??
+          0,
+        copyButtonLabel: copyButton?.getAttribute('aria-label') ?? '',
+        text:
+          root?.querySelector('.request-insights-summary')?.textContent ?? '',
+      }
+    })
+    expect(requestHeader.copyButtonCount).toBe(1)
+    expect(requestHeader.copyButtonLabel).toBe('Copy request path')
+    expect(requestHeader.text).not.toContain('Request ID')
+
+    await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      const row = Array.from(
+        root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ?? []
+      ).find((candidate) =>
+        candidate.textContent?.includes('/products/blue?query=redacted')
+      )
+      const rect = row?.getBoundingClientRect()
+      row?.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: rect?.left ?? 0,
+          clientY: rect?.top ?? 0,
+        })
+      )
+    })
+
+    await retry(async () => {
+      const menu = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const popup = root?.querySelector<HTMLElement>(
+          '.request-insights-context-menu'
+        )
+        const requestIdPreview = popup?.querySelector<HTMLElement>(
+          '.request-insights-context-preview code'
+        )
+        const requestIdStyle = requestIdPreview
+          ? getComputedStyle(requestIdPreview)
+          : null
+        return {
+          label: popup?.getAttribute('aria-label') ?? '',
+          requestId: requestIdPreview?.textContent?.trim() ?? '',
+          requestIdOverflowWrap: requestIdStyle?.overflowWrap ?? '',
+          requestIdTitle: requestIdPreview?.title ?? '',
+          text: popup?.textContent ?? '',
+          width: popup?.getBoundingClientRect().width ?? 0,
+        }
+      })
+
+      expect(menu.requestId).not.toBe('')
+      expect(menu.label).toBe(`Actions for request ${menu.requestId}`)
+      expect(menu.requestIdTitle).toBe(menu.requestId)
+      expect(menu.requestIdOverflowWrap).toBe('anywhere')
+      expect(menu.text).toContain('/products/blue?query=redacted')
+      expect(menu.text).toContain('Copy request ID')
+      expect(menu.text).toContain('Copy agent prompt')
+      expect(menu.text).not.toContain('Copy page-load ID')
+      expect(menu.text).not.toContain('Copy request URL')
+      expect(menu.text).not.toContain('Copy request JSON')
+      expect(menu.width).toBeLessThanOrEqual(260)
+    })
+
+    const openedSecondMenu = await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      const rows = Array.from(
+        root?.querySelectorAll<HTMLButtonElement>('.request-insights-row') ?? []
+      )
+      const row = rows.find(
+        (candidate) =>
+          !candidate.textContent?.includes('/products/blue?query=redacted')
+      )
+      const rect = row?.getBoundingClientRect()
+      row?.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: rect?.left ?? 0,
+          clientY: rect?.top ?? 0,
+        })
+      )
+      return row !== undefined
+    })
+    expect(openedSecondMenu).toBe(true)
+
+    const selectedRequestMenu = await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const popups = root?.querySelectorAll<HTMLElement>(
+          '.request-insights-context-menu'
+        )
+        return {
+          popupCount: popups?.length ?? 0,
+          popupLabel: popups?.[0]?.getAttribute('aria-label') ?? '',
+          selectedRequestId:
+            popups?.[0]
+              ?.querySelector('.request-insights-context-preview code')
+              ?.textContent?.trim() ?? '',
+        }
+      })
+
+      expect(state.popupCount).toBe(1)
+      expect(state.selectedRequestId).not.toBe('')
+      expect(state.popupLabel).toBe(
+        `Actions for request ${state.selectedRequestId}`
+      )
+      return state
+    })
+    const selectedRequestId = selectedRequestMenu.selectedRequestId
+
+    const clickedOutsideMenu = await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      const backdrop = root?.querySelector<HTMLElement>(
+        '.request-insights-context-backdrop'
+      )
+      backdrop?.dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+          pointerType: 'mouse',
+        })
+      )
+      backdrop?.dispatchEvent(
+        new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        })
+      )
+      return Boolean(backdrop)
+    })
+    expect(clickedOutsideMenu).toBe(true)
+
+    await retry(async () => {
+      expect(
+        await browser.eval(() => {
+          const root = document.querySelector('nextjs-portal')?.shadowRoot
+          return root?.querySelectorAll('.request-insights-context-menu').length
+        })
+      ).toBe(0)
+    })
+
+    const openedSpanMenu = await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      const testWindow = window as typeof window & {
+        __requestInsightsCopiedValue?: string
+      }
+      Object.defineProperty(navigator, 'clipboard', {
+        configurable: true,
+        value: {
+          writeText: async (value: string) => {
+            testWindow.__requestInsightsCopiedValue = value
+          },
+        },
+      })
+      const row = root?.querySelector<HTMLElement>('.request-insights-span-row')
+      const rect = row?.getBoundingClientRect()
+      row?.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: rect?.left ?? 0,
+          clientY: rect?.top ?? 0,
+        })
+      )
+      return Boolean(row)
+    })
+    expect(openedSpanMenu).toBe(true)
+
+    const spanMenu = await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const popup = root?.querySelector<HTMLElement>(
+          '.request-insights-context-menu'
+        )
+        return {
+          label: popup?.getAttribute('aria-label') ?? '',
+          text: popup?.textContent ?? '',
+        }
+      })
+
+      expect(state.label).toMatch(/^Actions for span .+/)
+      expect(state.text).toContain('Copy span ID')
+      expect(state.text).toContain('Copy agent prompt')
+      return state
+    })
+    const spanId = spanMenu.label.slice('Actions for span '.length)
+
+    await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      const copySpanId = Array.from(
+        root?.querySelectorAll<HTMLElement>('.request-insights-context-item') ??
+          []
+      ).find((item) => item.textContent === 'Copy span ID')
+      copySpanId?.click()
+    })
+
+    await retry(async () => {
+      const state = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const testWindow = window as typeof window & {
+          __requestInsightsCopiedValue?: string
+        }
+        return {
+          copied: testWindow.__requestInsightsCopiedValue,
+          popupCount:
+            root?.querySelectorAll('.request-insights-context-menu').length ??
+            0,
+        }
+      })
+      expect(state.copied).toBe(spanId)
+      expect(state.popupCount).toBe(0)
+    })
+
+    await browser.eval(() => {
+      const root = document.querySelector('nextjs-portal')?.shadowRoot
+      const row = root?.querySelector<HTMLElement>('.request-insights-span-row')
+      const rect = row?.getBoundingClientRect()
+      row?.dispatchEvent(
+        new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          clientX: rect?.left ?? 0,
+          clientY: rect?.top ?? 0,
+        })
+      )
+    })
+
+    await retry(async () => {
+      const clicked = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        const copyPrompt = Array.from(
+          root?.querySelectorAll<HTMLElement>(
+            '.request-insights-context-item'
+          ) ?? []
+        ).find((item) => item.textContent === 'Copy agent prompt')
+        copyPrompt?.click()
+        return copyPrompt !== undefined
+      })
+      expect(clicked).toBe(true)
+    })
+
+    await retry(async () => {
+      const copied = await browser.eval(() => {
+        const testWindow = window as typeof window & {
+          __requestInsightsCopiedValue?: string
+        }
+        return testWindow.__requestInsightsCopiedValue ?? ''
+      })
+      expect(copied).toContain(selectedRequestId)
+      expect(copied).toContain(spanId)
+    })
   })
 
   it('keeps trace inspection anchored while the panel is resized', async () => {
