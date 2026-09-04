@@ -1,0 +1,12 @@
+{
+  "title": "next-i18next mit dem Next.js App Router",
+  "intro": "Diese Seite ist eine <strong>Server Component</strong>. Ihr Text wird auf dem Server mit getT übersetzt.",
+  "clicked_one": "Du hast {{count}} Mal geklickt",
+  "clicked_other": "Du hast {{count}} Mal geklickt",
+  "reset": "Zurücksetzen",
+  "about_link": "Zur About-Seite",
+  "about_title": "Über",
+  "about_text": "Beim Sprachwechsel bleibst du auf dieser Seite — nur das Locale-Segment der URL ändert sich.",
+  "back_home": "Zurück zur Startseite",
+  "switch_language": "Sprache wechseln:"
+}
