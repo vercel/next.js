@@ -1363,7 +1363,6 @@ export default async function build(
         const errorMessage =
           'The "exportPathMap" configuration cannot be used with the "app" directory. Please use generateStaticParams() instead.'
         Log.error(errorMessage)
-        await telemetry.flush()
         throw new Error(errorMessage)
       }
 
@@ -1597,7 +1596,6 @@ export default async function build(
           for (const [pagePath, appPath] of conflictingAppPagePaths) {
             Log.error(`  "${pagePath}" - "${appPath}"`)
           }
-          await telemetry.flush()
           throw new Error(errorMessage)
         }
       }
@@ -4645,9 +4643,9 @@ export default async function build(
           )
       }
 
-      await nextBuildSpan
+      nextBuildSpan
         .traceChild('telemetry-flush')
-        .traceAsyncFn(() => telemetry.flush())
+        .traceFn(() => telemetry.flushDetached('build', dir))
 
       await shutdownPromise
 
@@ -4701,7 +4699,7 @@ export default async function build(
     // Flush telemetry before finishing (waits for async operations like setTimeout in debug mode)
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
     if (telemetry) {
-      await telemetry.flush()
+      telemetry.flushDetached('build', dir)
     }
 
     // Ensure all buffered spans are on disk before `uploadTrace` reads the file.

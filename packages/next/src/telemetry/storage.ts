@@ -175,6 +175,7 @@ export class Telemetry {
     _events: TelemetryEvent | TelemetryEvent[],
     deferred?: boolean
   ): Promise<RecordObject> => {
+    const controller = new AbortController()
     const prom = (
       deferred
         ? // if we know we are going to immediately call
@@ -187,7 +188,7 @@ export class Telemetry {
               value: _events,
             })
           )
-        : this.submitRecord(_events)
+        : this.submitRecord(_events, controller.signal)
     )
       .then((value) => ({
         isFulfilled: true,
@@ -209,7 +210,7 @@ export class Telemetry {
       })
 
     ;(prom as any)._events = Array.isArray(_events) ? _events : [_events]
-    ;(prom as any)._controller = (prom as any)._controller
+    ;(prom as any)._controller = controller
     // Track this `Promise` so we can flush pending events
     this.queue.add(prom)
 
@@ -223,7 +224,7 @@ export class Telemetry {
   // writes current events to disk and spawns separate
   // detached process to submit the records without blocking
   // the main process from exiting
-  flushDetached = (mode: 'dev', dir: string) => {
+  flushDetached = (mode: 'dev' | 'build', dir: string) => {
     const allEvents: TelemetryEvent[] = []
 
     this.queue.forEach((item: any) => {
@@ -235,14 +236,17 @@ export class Telemetry {
       }
     })
 
+    this.queue.clear()
+
     if (allEvents.length === 0) {
       // No events to flush
       return
     }
 
     fs.mkdirSync(this.distDir, { recursive: true })
-    // Use unique filename per process to avoid race conditions between parent/child
-    const eventsFile = `_events_${process.pid}.json`
+    // Use unique filename per flush to avoid race conditions between parent/child
+    // and prevent collisions between multiple flushes in the same process
+    const eventsFile = `_events_${process.pid}_${randomBytes(6).toString('hex')}.json`
     fs.writeFileSync(
       path.join(this.distDir, eventsFile),
       JSON.stringify(allEvents)
@@ -276,7 +280,8 @@ export class Telemetry {
   }
 
   private submitRecord = async (
-    _events: TelemetryEvent | TelemetryEvent[]
+    _events: TelemetryEvent | TelemetryEvent[],
+    signal?: any
   ): Promise<any> => {
     let events: TelemetryEvent[]
     if (Array.isArray(_events)) {
@@ -314,8 +319,7 @@ export class Telemetry {
       return Promise.resolve()
     }
 
-    const postController = new AbortController()
-    const res = postNextTelemetryPayload(
+    return postNextTelemetryPayload(
       {
         context: {
           anonymousId: this.anonymousId,
@@ -328,9 +332,7 @@ export class Telemetry {
           fields: payload,
         })),
       },
-      postController.signal
+      signal
     )
-    res._controller = postController
-    return res
   }
 }
