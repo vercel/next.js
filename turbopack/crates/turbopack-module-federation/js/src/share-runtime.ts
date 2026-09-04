@@ -14,6 +14,8 @@
  * Selection by version lives in `consume-shared.ts`; this file only owns safe dictionaries,
  * registration, and scope merging.
  */
+import reservedContainerNames from './reserved-container-names.json'
+
 export type SharedModuleFactory = () => unknown | Promise<unknown>
 export type SharedModuleGetter = () =>
   | SharedModuleFactory
@@ -35,29 +37,7 @@ const dangerousPropertyNames = new Set([
   'prototype',
   'constructor',
 ])
-const reservedContainerNames = new Set([
-  'window',
-  'self',
-  'globalThis',
-  'document',
-  'location',
-  'top',
-  'parent',
-  'frames',
-  'history',
-  'navigator',
-  'name',
-  'alert',
-  'TURBOPACK',
-  'TURBOPACK_ASSET_SUFFIX',
-  'TURBOPACK_CHUNK_LISTS',
-  'TURBOPACK_CHUNK_UPDATE_LISTENERS',
-  '__webpack_share_scopes__',
-  '__webpack_init_sharing__',
-  '__turbopack_share_scopes__',
-  '__turbopack_init_sharing__',
-  '__TURBOPACK_MF_CONTAINERS__',
-])
+const reservedContainerNameSet = new Set(reservedContainerNames)
 
 export function createDictionary<T>(): Record<string, T> {
   // Share keys come from configuration and from external containers. A null prototype prevents
@@ -86,7 +66,7 @@ export function isSafeModuleFederationContainerName(name: string): boolean {
   return (
     /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(name) &&
     isSafeModuleFederationPropertyName(name) &&
-    !reservedContainerNames.has(name)
+    !reservedContainerNameSet.has(name)
   )
 }
 
