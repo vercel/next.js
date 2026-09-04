@@ -1,0 +1,16 @@
+:focus-visible {
+  outline-color: red;
+}
+
+@keyframes highlight {
+  from {
+    background-color: green;
+  }
+  to {
+    background-color: white;
+  }
+}
+
+legend {
+  animation: highlight 1s ease-in-out 1;
+}
