@@ -1849,18 +1849,19 @@ export function createAppPageEntrypoint({
             delete headers[NEXT_CACHE_TAGS_HEADER]
           }
 
+          const nextRes = new NodeNextResponse(res)
           for (let [key, value] of Object.entries(headers)) {
             if (typeof value === 'undefined') continue
 
             if (Array.isArray(value)) {
               for (const v of value) {
-                res.appendHeader(key, v)
+                nextRes.appendHeader(key, v)
               }
             } else if (typeof value === 'number') {
               value = value.toString()
-              res.appendHeader(key, value)
+              nextRes.appendHeader(key, value)
             } else {
-              res.appendHeader(key, value)
+              nextRes.appendHeader(key, value)
             }
           }
         }
