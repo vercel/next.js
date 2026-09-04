@@ -1,5 +1,7 @@
 import { PAGE_SEGMENT_KEY } from '../segment'
 import type { Segment as FlightRouterStateSegment } from '../app-router-types'
+import { sep } from 'path'
+import { escapeStringRegexp } from '../escape-regexp'
 
 // TypeScript trick to simulate opaque types, like in Flow.
 type Opaque<K, T> = T & { __brand: K }
@@ -90,5 +92,5 @@ function encodeToFilesystemAndURLSafeString(value: string) {
 export function convertSegmentPathToStaticExportFilename(
   segmentPath: string
 ): string {
-  return `__next${segmentPath.replace(/\//g, '.')}.txt`
+  return `__next${segmentPath.replace(new RegExp(escapeStringRegexp(sep), 'g'), '.')}.txt`
 }
