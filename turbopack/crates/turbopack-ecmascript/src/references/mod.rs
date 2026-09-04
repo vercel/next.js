@@ -1707,7 +1707,7 @@ async fn handle_call<'a>(
                     handle_well_known_function_call(
                         wkf,
                         new,
-                        /* replace_require_call */ false,
+                        /* skip_code_gen */ true,
                         &linked_args,
                         handler,
                         span,
@@ -1734,7 +1734,7 @@ async fn handle_call<'a>(
             handle_well_known_function_call(
                 wkf,
                 new,
-                /* replace_require_call */ true,
+                /* skip_code_gen */ false,
                 &linked_args,
                 handler,
                 span,
@@ -1891,6 +1891,7 @@ async fn handle_dynamic_import_with_linked_args(
             )
             .await?,
             ast_path.to_vec().into(),
+            /* skip_code_gen */ false,
         );
         return Ok(());
     }
@@ -2050,6 +2051,7 @@ where
                                 is_shared,
                             ),
                             ast_path.to_vec().into(),
+                            skip_code_gen,
                         );
                     }
 
@@ -2154,6 +2156,7 @@ where
                             tracing_only,
                         ),
                         ast_path.to_vec().into(),
+                        skip_code_gen,
                     );
 
                     return Ok(());
@@ -2360,6 +2363,7 @@ where
                         resolve_override,
                     ),
                     ast_path.to_vec().into(),
+                    skip_code_gen,
                 );
                 return Ok(());
             }
@@ -2399,6 +2403,7 @@ where
                     error_mode,
                 ),
                 ast_path.to_vec().into(),
+                skip_code_gen,
             );
         }
 
@@ -2434,6 +2439,7 @@ where
                 )
                 .await?,
                 ast_path.to_vec().into(),
+                skip_code_gen,
             );
         }
 
@@ -3230,6 +3236,7 @@ where
                             error_mode,
                         ),
                         ast_path.to_vec().into(),
+                        skip_code_gen,
                     );
                 }
             }
@@ -3359,6 +3366,7 @@ where
                         emit_to_all_entries,
                     ),
                     ast_path.to_vec().into(),
+                    skip_code_gen,
                 );
                 return Ok(());
             }
@@ -3411,6 +3419,7 @@ where
                 analysis.add_reference_code_gen(
                     CollectReference::new(origin, parent_module, namespace.as_rcstr()),
                     ast_path.to_vec().into(),
+                    skip_code_gen,
                 );
                 return Ok(());
             }
