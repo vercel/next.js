@@ -89,6 +89,27 @@ describe('@gate pragma transform', () => {
     )
   })
 
+  it('supports describe.each without changing the table or line count', () => {
+    const input = src(
+      '// @force-gate !deploy',
+      'describe.each([',
+      "  { name: 'one' },",
+      "  { name: 'two' },",
+      '])("suite: $name", ({ name }) => {})'
+    )
+    const out = rewrite(input, 'x.ts')
+    expect(out.split('\n')).toHaveLength(input.split('\n').length)
+    expect(out).toBe(
+      src(
+        '// @force-gate !deploy',
+        `_test_gate_describe_each([{"force":true,"source":"!deploy"}],[`,
+        "  { name: 'one' },",
+        "  { name: 'two' },",
+        '])("suite: $name", ({ name }) => {})'
+      )
+    )
+  })
+
   it('keeps the condition source verbatim, including quotes', () => {
     const out = rewrite(
       src("// @gate mode === 'start' && !turbopack", "it('a', () => {})"),
