@@ -1,4 +1,4 @@
-error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/maybe-require/input/index.js:3:17  Module not found: Can't resolve 'missing'
+warning - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/basic/maybe-require/input/index.js:3:17  Module not found: Can't resolve 'missing'
   
        1 | globalThis.foobar = (v) => `this is ${v}`
        2 | const load = globalThis.foobar || require
