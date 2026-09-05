@@ -90,9 +90,10 @@ import path from 'path'
 import { transform } from '../../swc'
 import { installBindings } from '../../swc/install-bindings'
 
-// This is a in-memory cache for the mapping of barrel exports. This only applies
-// to the packages that we optimize. It will never change (e.g. upgrading packages)
-// during the lifetime of the server so we can safely cache it.
+// This is an in-memory cache for the mapping of barrel exports in installed
+// packages. They will never change (e.g. upgrading packages) during the lifetime
+// of the server so we can safely cache them. Local and workspace packages can
+// change during development and must rely on Webpack's dependency tracking.
 // There is also no need to collect the cache for the same reason.
 const barrelTransformMappingCache = new Map<
   string,
@@ -112,9 +113,10 @@ async function getBarrelMapping(
       path: string,
       callback: (err: any, data: string | Buffer | undefined) => void
     ) => void
-  }
+  },
+  cacheMapping: boolean
 ) {
-  if (barrelTransformMappingCache.has(resourcePath)) {
+  if (cacheMapping && barrelTransformMappingCache.has(resourcePath)) {
     return barrelTransformMappingCache.get(resourcePath)!
   }
 
@@ -239,7 +241,9 @@ async function getBarrelMapping(
   }
 
   const res = await getMatches(resourcePath, false, false)
-  barrelTransformMappingCache.set(resourcePath, res)
+  if (cacheMapping) {
+    barrelTransformMappingCache.set(resourcePath, res)
+  }
 
   return res
 }
@@ -264,19 +268,23 @@ const NextBarrelLoader = async function (
   const resolve = this.getResolve({
     mainFields: ['module', 'main'],
   })
+  const cacheMapping = /[\\/]node_modules[\\/]/.test(this.resourcePath)
 
   const mapping = await getBarrelMapping(
     this.resourcePath,
     swcCacheDir,
     resolve,
-    this.fs
+    this.fs,
+    cacheMapping
   )
 
-  // `resolve` adds all sub-paths to the dependency graph. However, we already
-  // cached the mapping and we assume them to not change. So, we can safely
-  // clear the dependencies here to avoid unnecessary watchers which turned out
-  // to be very expensive.
-  this.clearDependencies()
+  if (cacheMapping) {
+    // `resolve` adds all sub-paths to the dependency graph. However, installed
+    // packages are already cached and assumed not to change. So, we can safely
+    // clear their dependencies to avoid unnecessary watchers which turned out
+    // to be very expensive.
+    this.clearDependencies()
+  }
 
   if (!mapping) {
     // This file isn't a barrel and we can't apply any optimizations. Let's re-export everything.
