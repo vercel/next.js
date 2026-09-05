@@ -1,11 +1,11 @@
 'use client'
 
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import useSWR from 'swr'
 import { CompareLayout } from '@/components/compare-layout'
 import { ErrorState } from '@/components/error-state'
 import { Sidebar } from '@/components/sidebar'
-import { TopBar, Environment } from '@/components/top-bar'
+import { TopBar, Environment, CompareView } from '@/components/top-bar'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
 import { Badge } from '@/components/ui/badge'
@@ -58,6 +58,22 @@ export default function Home() {
   const comparisonBaseDir = comparisonSnapshot
     ? `history/${comparisonSnapshot.id}`
     : 'data'
+  // Default view depends on mode: compare mode opens to the diff table
+  // (the change list is the headline), single-build mode opens to the
+  // treemap (size-by-area is the headline). Whenever the user toggles
+  // between modes we reset to that mode's default; explicit user choices
+  // within a mode are preserved until the mode changes again.
+  const [compareView, setCompareView] = useState<CompareView>(
+    CompareView.Treemap
+  )
+  const wasCompareModeRef = useRef(baselineSnapshot != null)
+  useEffect(() => {
+    const isNowCompare = baselineSnapshot != null
+    if (wasCompareModeRef.current !== isNowCompare) {
+      wasCompareModeRef.current = isNowCompare
+      setCompareView(isNowCompare ? CompareView.Table : CompareView.Treemap)
+    }
+  }, [baselineSnapshot])
 
   const {
     data: modulesData,
@@ -101,10 +117,8 @@ export default function Home() {
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   )
 
-  // Whether the selected route exists on comparison side B. We only fetch
-  // its analyze.data when this is true because an output directory can contain
-  // stale per-route subdirectories from previous builds. routes.json is the
-  // source of truth for either a live or historical comparison build.
+  // Whether the selected route exists on comparison side B. routes.json is
+  // the source of truth because output directories can retain stale routes.
   const currentAnalyzeRouteExists =
     currentRoutes != null &&
     selectedRoute != null &&
@@ -336,6 +350,8 @@ export default function Home() {
       <CompareLayout
         baselineSnapshot={baselineSnapshot}
         comparisonSnapshot={comparisonSnapshot}
+        compareView={compareView}
+        searchQuery={searchQuery}
         selectedRoute={selectedRoute}
         comparisonRouteCount={currentRoutes?.length ?? null}
         routeDiff={routeDiff}
@@ -424,6 +440,9 @@ export default function Home() {
     <main className="h-screen flex flex-col bg-background">
       <TopBar
         hasSourceData={analyzeData != null}
+        showViewToggle={isCompareMode}
+        compareView={compareView}
+        onCompareViewChange={setCompareView}
         selectedRoute={selectedRoute}
         setSelectedRoute={setSelectedRoute}
         environmentFilter={environmentFilter}

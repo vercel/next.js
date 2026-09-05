@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { MultiSelect } from '@/components/ui/multi-select'
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { diffRoutesWithSizes } from '@/lib/diff'
 import { type SnapshotMetadata } from '@/lib/snapshot'
 import {
@@ -20,11 +21,18 @@ import {
   FileJson,
   Palette,
   Package,
+  Table as TableIcon,
+  LayoutGrid,
 } from 'lucide-react'
 
 export enum Environment {
   Client = 'client',
   Server = 'server',
+}
+
+export enum CompareView {
+  Treemap = 'treemap',
+  Table = 'table',
 }
 
 const typeFilterOptions = [
@@ -65,10 +73,14 @@ export function TopBar({
   onBaselineChange,
   comparisonSnapshot,
   onComparisonChange,
+  compareView,
+  onCompareViewChange,
   routeDiff,
   hasSourceData,
+  showViewToggle,
 }: {
   hasSourceData: boolean
+  showViewToggle: boolean
   selectedRoute: string | null
   setSelectedRoute: (route: string | null) => void
   environmentFilter: Environment
@@ -83,6 +95,8 @@ export function TopBar({
   onBaselineChange: (snapshot: SnapshotMetadata | null) => void
   comparisonSnapshot: SnapshotMetadata | null
   onComparisonChange: (snapshot: SnapshotMetadata | null) => void
+  compareView: CompareView
+  onCompareViewChange: (view: CompareView) => void
   routeDiff: ReturnType<typeof diffRoutesWithSizes> | null
 }) {
   const isCompareMode = baselineSnapshot != null
@@ -119,6 +133,37 @@ export function TopBar({
             clearLabel="Compare with latest"
           />
         ) : null}
+
+        {showViewToggle && (
+          <ToggleGroup
+            type="single"
+            size="sm"
+            value={compareView}
+            onValueChange={(value) => {
+              if (value) onCompareViewChange(value as CompareView)
+            }}
+            aria-label="View"
+          >
+            <ToggleGroupItem
+              value={CompareView.Table}
+              aria-label="Table view"
+              title="Table view"
+              className="gap-1.5"
+            >
+              <TableIcon className="h-3.5 w-3.5" />
+              <span className="text-xs">Table</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem
+              value={CompareView.Treemap}
+              aria-label="Treemap view"
+              title="Treemap view"
+              className="gap-1.5"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              <span className="text-xs">Treemap</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+        )}
 
         {hasSourceData && (
           <>
