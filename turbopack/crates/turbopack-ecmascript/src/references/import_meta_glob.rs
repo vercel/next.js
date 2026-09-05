@@ -356,7 +356,7 @@ async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSy
         prefix: &str,
         files: &mut Vec<(RcStr, FileSystemPath)>,
     ) {
-        for (segment, entry) in &node.results {
+        for (segment, (entry, _realpath)) in &node.results {
             let full_path = if prefix.is_empty() {
                 segment.to_string()
             } else {

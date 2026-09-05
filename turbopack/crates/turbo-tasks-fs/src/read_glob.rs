@@ -6,13 +6,16 @@ use turbo_tasks::{Completion, ResolvedVc, TryJoinIterExt, Vc, turbobail};
 
 use crate::{
     DirectoryContent, DirectoryEntry, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
-    glob::Glob,
+    RealPathWithLinksResult, glob::Glob,
 };
 
 #[turbo_tasks::value]
 #[derive(Default, Debug)]
 pub struct ReadGlobResult {
-    pub results: FxHashMap<RcStr, DirectoryEntry>,
+    /// Matched entries keyed by their logical path segment. Each logical entry is paired with its
+    /// resolved path and complete symlink chain.
+    pub results: FxHashMap<RcStr, (DirectoryEntry, ResolvedVc<RealPathWithLinksResult>)>,
+    /// Recursively traversed directories keyed by their logical path segment.
     pub inner: FxHashMap<RcStr, ResolvedVc<ReadGlobResult>>,
 }
 
@@ -58,13 +61,24 @@ async fn read_glob_internal(
     let dir = directory.read_dir().await?;
     let mut result = ReadGlobResult::default();
     let glob_value = glob.await?;
-    let handle_file = |result: &mut ReadGlobResult,
-                       entry_path: &RcStr,
-                       segment: &RcStr,
-                       entry: &DirectoryEntry| {
+    let handle_file = async |result: &mut ReadGlobResult,
+                             entry_path: &RcStr,
+                             segment: &RcStr,
+                             entry: &DirectoryEntry| {
         if glob_value.matches(entry_path) {
-            result.results.insert(segment.clone(), entry.clone());
+            let path = entry
+                .clone()
+                .path()
+                .expect("matched directory entries always have a path");
+            result.results.insert(
+                segment.clone(),
+                (
+                    entry.clone(),
+                    path.realpath_with_links().to_resolved().await?,
+                ),
+            );
         }
+        anyhow::Ok(())
     };
     let handle_dir = async |result: &mut ReadGlobResult,
                             entry_path: RcStr,
@@ -101,11 +115,11 @@ async fn read_glob_internal(
 
                 match entry {
                     DirectoryEntry::File(_) => {
-                        handle_file(&mut result, &entry_path, segment, &output_entry);
+                        handle_file(&mut result, &entry_path, segment, &output_entry).await?;
                     }
                     DirectoryEntry::Directory(path) => {
                         // Add the directory to `results` if it is a whole match of the glob
-                        handle_file(&mut result, &entry_path, segment, &output_entry);
+                        handle_file(&mut result, &entry_path, segment, &output_entry).await?;
                         // Recursively handle the directory
                         handle_dir(&mut result, entry_path, segment, path).await?;
                     }
@@ -115,7 +129,8 @@ async fn read_glob_internal(
                         if let LinkContent::Link { target } = &*link_content {
                             let Ok(realpath) = target.file_system_path().realpath().await? else {
                                 // Preserve unresolvable symlinks that match the glob.
-                                handle_file(&mut result, &entry_path, segment, &output_entry);
+                                handle_file(&mut result, &entry_path, segment, &output_entry)
+                                    .await?;
                                 continue;
                             };
                             if matches!(*realpath.get_type().await?, FileSystemEntryType::Directory)
@@ -124,12 +139,14 @@ async fn read_glob_internal(
                                 check_symlink_directory_recursion(path, &realpath)?;
 
                                 // Add the directory to `results` if it is a whole match of the glob
-                                handle_file(&mut result, &entry_path, segment, &output_entry);
+                                handle_file(&mut result, &entry_path, segment, &output_entry)
+                                    .await?;
                                 // Enumerate the resolved target while preserving logical paths in
                                 // the glob result.
                                 handle_dir(&mut result, entry_path, segment, &realpath).await?;
                             } else {
-                                handle_file(&mut result, &entry_path, segment, &output_entry);
+                                handle_file(&mut result, &entry_path, segment, &output_entry)
+                                    .await?;
                             }
                         }
                     }
@@ -297,6 +314,41 @@ pub mod tests {
         glob::{Glob, GlobOptions},
     };
 
+    fn entries(result: &ReadGlobResult) -> HashMap<RcStr, DirectoryEntry> {
+        result
+            .results
+            .iter()
+            .map(|(segment, (entry, _))| (segment.clone(), entry.clone()))
+            .collect()
+    }
+
+    fn entry<'a>(result: &'a ReadGlobResult, segment: &str) -> Option<&'a DirectoryEntry> {
+        result.results.get(segment).map(|(entry, _)| entry)
+    }
+
+    async fn assert_realpath(
+        result: &ReadGlobResult,
+        segment: &str,
+        path: &FileSystemPath,
+        symlinks: &[FileSystemPath],
+    ) -> anyhow::Result<()> {
+        let realpath = result.results.get(segment).unwrap().1.await?;
+        assert_eq!(realpath.path_result.as_ref().unwrap(), path);
+        assert_eq!(realpath.symlinks.as_ref(), symlinks);
+        Ok(())
+    }
+
+    async fn assert_realpath_error(
+        result: &ReadGlobResult,
+        segment: &str,
+        symlinks: &[FileSystemPath],
+    ) -> anyhow::Result<()> {
+        let realpath = result.results.get(segment).unwrap().1.await?;
+        assert!(realpath.path_result.is_err());
+        assert_eq!(realpath.symlinks.as_ref(), symlinks);
+        Ok(())
+    }
+
     fn symlink<P: AsRef<std::path::Path>, Q: AsRef<std::path::Path>>(
         target: Q,
         path: P,
@@ -330,20 +382,23 @@ pub mod tests {
             .unwrap();
         assert_eq!(read_dir.results.len(), 2);
         assert_eq!(
-            read_dir.results.get("foo"),
+            entry(&read_dir, "foo"),
             Some(&DirectoryEntry::File(fs.root().await?.join("foo")?))
         );
         assert_eq!(
-            read_dir.results.get("sub"),
+            entry(&read_dir, "sub"),
             Some(&DirectoryEntry::Directory(fs.root().await?.join("sub")?))
         );
+        assert_realpath(&read_dir, "foo", &root.join("foo")?, &[]).await?;
+        assert_realpath(&read_dir, "sub", &root.join("sub")?, &[]).await?;
         assert_eq!(read_dir.inner.len(), 1);
         let inner = &*read_dir.inner.get("sub").unwrap().await?;
         assert_eq!(inner.results.len(), 1);
         assert_eq!(
-            inner.results.get("bar"),
+            entry(inner, "bar"),
             Some(&DirectoryEntry::File(fs.root().await?.join("sub/bar")?))
         );
+        assert_realpath(inner, "bar", &root.join("sub/bar")?, &[]).await?;
         assert_eq!(inner.inner.len(), 0);
 
         let read_dir = root
@@ -355,9 +410,10 @@ pub mod tests {
         let inner = &*read_dir.inner.get("sub").unwrap().await?;
         assert_eq!(inner.results.len(), 1);
         assert_eq!(
-            inner.results.get("bar"),
+            entry(inner, "bar"),
             Some(&DirectoryEntry::File(fs.root().await?.join("sub/bar")?))
         );
+        assert_realpath(inner, "bar", &root.join("sub/bar")?, &[]).await?;
         assert_eq!(inner.inner.len(), 0);
 
         Ok(())
@@ -375,7 +431,7 @@ pub mod tests {
         assert_eq!(read_dir.results.len(), 0);
         let inner = &*read_dir.inner.get("sub").unwrap().await?;
         assert_eq!(
-            inner.results,
+            entries(inner),
             HashMap::from_iter([
                 (
                     "link-foo.js".into(),
@@ -391,6 +447,21 @@ pub mod tests {
                 ),
             ])
         );
+        assert_realpath(inner, "foo.js", &root.join("sub/foo.js")?, &[]).await?;
+        assert_realpath(
+            inner,
+            "link-foo.js",
+            &root.join("sub/foo.js")?,
+            &[root.join("sub/link-foo.js")?],
+        )
+        .await?;
+        assert_realpath(
+            inner,
+            "link-root.js",
+            &root.join("root.js")?,
+            &[root.join("sub/link-root.js")?],
+        )
+        .await?;
         assert_eq!(inner.inner.len(), 0);
 
         // A symlinked folder
@@ -403,7 +474,7 @@ pub mod tests {
         assert_eq!(inner_sub.results.len(), 0);
         let inner_sub_dir = &*inner_sub.inner.get("dir").unwrap().await?;
         assert_eq!(
-            inner_sub_dir.results,
+            entries(inner_sub_dir),
             HashMap::from_iter([
                 (
                     "index.js".into(),
@@ -415,6 +486,19 @@ pub mod tests {
                 ),
             ])
         );
+        assert_realpath(
+            inner_sub_dir,
+            "index.js",
+            &root.join("dir/index.js")?,
+            &[root.join("sub/dir")?],
+        )
+        .await?;
+        assert_realpath_error(
+            inner_sub_dir,
+            "dead.js",
+            &[root.join("sub/dir")?, root.join("dir/dead.js")?],
+        )
+        .await?;
         assert_eq!(inner_sub_dir.inner.len(), 0);
 
         // A folder behind a symlink-to-symlink chain
@@ -427,7 +511,7 @@ pub mod tests {
         assert_eq!(inner_sub.results.len(), 0);
         let inner_sub_dir = &*inner_sub.inner.get("dir-chain").unwrap().await?;
         assert_eq!(
-            inner_sub_dir.results,
+            entries(inner_sub_dir),
             HashMap::from_iter([
                 (
                     "index.js".into(),
@@ -439,6 +523,23 @@ pub mod tests {
                 ),
             ])
         );
+        assert_realpath(
+            inner_sub_dir,
+            "index.js",
+            &root.join("dir/index.js")?,
+            &[root.join("sub/dir-chain")?, root.join("dir-link")?],
+        )
+        .await?;
+        assert_realpath_error(
+            inner_sub_dir,
+            "dead.js",
+            &[
+                root.join("sub/dir-chain")?,
+                root.join("dir-link")?,
+                root.join("dir/dead.js")?,
+            ],
+        )
+        .await?;
         assert_eq!(inner_sub_dir.inner.len(), 0);
 
         Ok(())
@@ -457,7 +558,7 @@ pub mod tests {
         let inner_sub = &*read_dir.inner.get("sub").unwrap().await?;
         assert_eq!(inner_sub.inner.len(), 0);
         assert_eq!(
-            inner_sub.results,
+            entries(inner_sub),
             HashMap::from_iter([
                 (
                     "foo.js".into(),
@@ -664,9 +765,16 @@ pub mod tests {
             .read_strongly_consistent()
             .await?;
             assert_eq!(
-                initial.results.get("file.txt"),
+                entry(&initial, "file.txt"),
                 Some(&DirectoryEntry::File(logical_base.join("file.txt")?))
             );
+            assert_realpath(
+                &initial,
+                "file.txt",
+                &root.join("target/inner/path/file.txt")?,
+                &[root.join("path/to/symlink")?],
+            )
+            .await?;
 
             let wildcard = read_glob_from_operation(
                 disk_root.clone(),
@@ -681,9 +789,16 @@ pub mod tests {
             let inner_result = symlink_result.inner.get("inner").unwrap().await?;
             let final_result = inner_result.inner.get("path").unwrap().await?;
             assert_eq!(
-                final_result.results.get("file.txt"),
+                entry(&final_result, "file.txt"),
                 Some(&DirectoryEntry::File(logical_base.join("file.txt")?))
             );
+            assert_realpath(
+                &final_result,
+                "file.txt",
+                &root.join("target/inner/path/file.txt")?,
+                &[root.join("path/to/symlink")?],
+            )
+            .await?;
 
             let initial_tracking = track_glob_from_operation(
                 disk_root.clone(),

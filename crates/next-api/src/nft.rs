@@ -200,15 +200,12 @@ async fn get_glob_includes(
     stack.push_back(glob_result);
     while let Some(glob_result) = stack.pop_back() {
         // Process direct results (files and directories at this level).
-        for entry in glob_result.results.values() {
-            let (DirectoryEntry::File(file_path) | DirectoryEntry::Symlink(file_path)) = entry
-            else {
+        for (entry, realpath) in glob_result.results.values() {
+            let (DirectoryEntry::File(_) | DirectoryEntry::Symlink(_)) = entry else {
                 continue;
             };
 
-            // ReadGlobResult paths are logical by contract. Resolve each match here so the NFT
-            // includes both the physical file and every symlink needed to reach it.
-            let realpath = file_path.realpath_with_links().await?;
+            let realpath = realpath.await?;
             result.extend(realpath.symlinks.iter().cloned());
             if let Ok(resolved_path) = &realpath.path_result
                 && matches!(*resolved_path.get_type().await?, FileSystemEntryType::File)
