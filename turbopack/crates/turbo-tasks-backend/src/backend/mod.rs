@@ -731,7 +731,7 @@ impl TurboTasksBackend {
                 let description = task.get_task_description();
                 drop(task);
                 drop(reader_task);
-                return Err(anyhow::anyhow!("{description} was canceled"));
+                anyhow::bail!("{description} was canceled");
             }
 
             let is_dirty = task.is_dirty();
