@@ -123,11 +123,8 @@ describe('static App Shell prefetch attempt', () => {
         .elementByCss('input[data-link-accordion="/uses-cookies"]')
         .click()
     }, [
-      // The page (the new part) arrives in the runtime shell response.
-      // (The bare cookies() read itself isn't resolved by the runtime
-      // prerender — it stays a hole for the navigation-time dynamic
-      // request — so we only assert on the shell text.)
-      { includes: 'Cookies page shell text', kind: 'runtime' },
+      // Cookies are included in the runtime shell.
+      { includes: 'cookie-content', kind: 'runtime' },
       // No static attempt for the new part: the page content must not
       // arrive in a static per-segment response. (The route tree prefetch
       // is also `kind: 'static'`, but its response doesn't contain rendered
@@ -382,29 +379,15 @@ describe('static App Shell prefetch attempt', () => {
         .elementByCss('input[data-link-accordion="/speculative-cookies"]')
         .click()
     }, [
-      // Two runtime responses arrive, in order, and each resolves the
-      // cookies() read (a runtime prefetch renders with the request's
-      // cookies):
-      //
-      // 1. The Shell phase's runtime shell request — the same direct
-      //    runtime shell behavior the hint-unset tests above exercise,
-      //    except that here the session content resolves instead of
-      //    remaining a hole.
-      { includes: 'Speculative-cookies page shell text', kind: 'runtime' },
+      // 1. Runtime shell (includes cookies)
       { includes: 'Speculative-cookies cookie: none', kind: 'runtime' },
-      // 2. The Speculative phase's runtime prefetch of the page segment,
-      //    which re-delivers the page content. (It fires on top of the
-      //    runtime shell entry because a per-URL runtime prefetch can
-      //    provide content a URL-independent shell response cannot.)
-      { includes: 'Speculative-cookies page shell text', kind: 'runtime' },
-      { includes: 'Speculative-cookies cookie: none', kind: 'runtime' },
+      // 2. Runtime prefetch (includes cookies and search params)
+      { includes: 'Search params count: 0', kind: 'runtime' },
+
       // No static attempt in either phase: the page content must not
       // arrive in ANY static per-segment response. (The server does emit
       // static data for the segment — the shell text is in it — but with
-      // the hint unset nothing fetches it: this blanket rejection
-      // was verified empirically against the full request log. The route
-      // tree prefetch is also kind: 'static', but its response doesn't
-      // contain rendered page content, so it can't match this.)
+      // the hint unset nothing fetches it.
       {
         includes: 'Speculative-cookies page shell text',
         kind: 'static',
