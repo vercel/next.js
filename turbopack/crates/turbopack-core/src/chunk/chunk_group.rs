@@ -73,6 +73,7 @@ pub async fn make_chunk_group(
         batch_groups,
         async_modules,
         collecting_modules,
+        worker_modules,
         available_modules: _,
     } = &*inner;
 
@@ -179,6 +180,41 @@ pub async fn make_chunk_group(
 
     chunk_items.extend(async_loader_chunk_items);
 
+    // Insert worker loaders for every worker module, passing the current
+    // chunk group's new_availability_info so self-referencing workers unroll.
+    let worker_loaders = worker_modules
+        .iter()
+        .copied()
+        .map(async |module| {
+            chunking_context
+                .worker_loader_chunk_item(*module, *module_graph, new_availability_info)
+                .to_resolved()
+                .await
+        })
+        .try_join()
+        .await?;
+    let worker_loader_chunk_items = worker_loaders
+        .iter()
+        .map(async |&chunk_item| {
+            let chunk_type = chunk_item
+                .into_trait_ref()
+                .await?
+                .ty()
+                .to_resolved()
+                .await?;
+            Ok(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                ChunkItemWithAsyncModuleInfo {
+                    chunk_item,
+                    chunk_type,
+                    module: None,
+                    async_info: None,
+                },
+            ))
+        })
+        .try_join()
+        .await?;
+    chunk_items.extend(worker_loader_chunk_items);
+
     // Pass chunk items to chunking algorithm
     let chunks = make_chunks(
         *module_graph,
@@ -190,9 +226,12 @@ pub async fn make_chunk_group(
     .to_resolved()
     .await?;
 
+    let mut all_references: Vec<ResolvedVc<Box<dyn OutputAssetsReference>>> =
+        ResolvedVc::upcast_vec(async_loaders);
+    all_references.extend(ResolvedVc::upcast_vec(worker_loaders));
     Ok(MakeChunkGroupResult {
         chunks,
-        references: ResolvedVc::upcast_vec(async_loaders),
+        references: all_references,
         availability_info: new_availability_info,
     })
 }
@@ -269,6 +308,7 @@ async fn chunk_group_content_operation(
         chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
         async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
         collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
+        worker_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
     }
 
     let mut state = TraverseState {
@@ -276,6 +316,7 @@ async fn chunk_group_content_operation(
         chunkable_items: FxIndexSet::default(),
         async_modules: FxIndexSet::default(),
         collecting_modules: FxIndexSet::default(),
+        worker_modules: FxIndexSet::default(),
     };
 
     let available_modules = match availability_info.available_modules() {
@@ -305,6 +346,37 @@ async fn chunk_group_content_operation(
             active_page_entries.as_ref(),
             &mut state,
             |parent_info, &node, state| {
+                // A worker edge points at a `WorkerEntryModule` marker. Record it so
+                // `make_chunk_group` can create the real `WorkerLoaderModule` from it with this
+                // chunk group's availability info.
+                //
+                // This runs before the `ModuleOrBatch::None` check and the chunkable downcast
+                // below because the marker is deliberately not chunkable: it is read off the
+                // edge, not the node. The node here is whatever the marker's pre-batch reduced
+                // to — typically the `createWorker` runtime helper the marker references,
+                // since the marker itself is dropped from the batch as non-chunkable.
+                //
+                // Traversal then falls through to the normal parallel handling rather than
+                // excluding, so those referenced modules are chunked into *this* group,
+                // alongside the loader that `make_chunk_group` adds. The loader's generated
+                // code embeds their chunk item ids, and the loader is not part of the module
+                // graph, so the marker is the only thing that can put them here. The marker's
+                // reference to the worker's own entry module is `ChunkingType::Isolated` and is
+                // still excluded further down, so the worker's modules do not leak in.
+                if let Some((
+                    _,
+                    ModuleBatchesGraphEdge {
+                        ty: ChunkingType::Worker { .. },
+                        module,
+                        ..
+                    },
+                )) = parent_info
+                {
+                    let worker_entry =
+                        module.context("Module in worker chunking edge is missing")?;
+                    state.worker_modules.insert(worker_entry);
+                }
+
                 if matches!(node, ModuleOrBatch::None(_)) {
                     return Ok(GraphTraversalAction::Continue);
                 }
@@ -353,9 +425,14 @@ async fn chunk_group_content_operation(
                 };
 
                 Ok(match edge.ty {
+                    // `Worker` behaves like `Parallel` for the *node*: the marker was recorded
+                    // above for late loader creation, and what remains here are the modules it
+                    // references (e.g. the `createWorker` helper), which must be chunked into
+                    // this group next to that loader.
                     ChunkingType::Parallel { .. }
                     | ChunkingType::Shared { .. }
-                    | ChunkingType::Collected { .. } => {
+                    | ChunkingType::Collected { .. }
+                    | ChunkingType::Worker { .. } => {
                         if is_available {
                             GraphTraversalAction::Exclude
                         } else if state
@@ -505,6 +582,7 @@ async fn chunk_group_content_operation(
         batch_groups,
         async_modules: state.async_modules,
         collecting_modules: state.collecting_modules,
+        worker_modules: state.worker_modules,
         available_modules,
     }
     .cell())

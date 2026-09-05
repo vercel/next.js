@@ -34,6 +34,7 @@ use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
     chunk::{EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkType},
     manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
+    worker_chunk::{entry_module::WorkerEntryModule, module::WorkerLoaderModule},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
@@ -1201,6 +1202,30 @@ impl ChunkingContext for BrowserChunkingContext {
         *self
             .module_id_strategy
             .unwrap_or_else(|| ModuleIdStrategy::default().resolved_cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn worker_loader_chunk_item(
+        self: Vc<Self>,
+        module: Vc<Box<dyn Module>>,
+        module_graph: Vc<ModuleGraph>,
+        availability_info: AvailabilityInfo,
+    ) -> Result<Vc<Box<dyn ChunkItem>>> {
+        let chunking_context =
+            ResolvedVc::upcast::<Box<dyn ChunkingContext>>(self.to_resolved().await?);
+        let Some(entry) =
+            ResolvedVc::try_downcast_type::<WorkerEntryModule>(module.to_resolved().await?)
+        else {
+            bail!("worker_loader_chunk_item expects a WorkerEntryModule");
+        };
+        let entry_ref = entry.await?;
+        Ok(WorkerLoaderModule::new(
+            *entry_ref.inner,
+            entry_ref.worker_type,
+            *entry_ref.asset_context,
+            availability_info,
+        )
+        .as_chunk_item(module_graph, *chunking_context))
     }
 
     #[turbo_tasks::function]
