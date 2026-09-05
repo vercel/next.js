@@ -18,11 +18,13 @@
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
 use std::{
+    cell::UnsafeCell,
+    fmt,
     hash::{BuildHasherDefault, Hash},
     sync::Arc,
 };
 
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RawMutex, lock_api::RawMutex as RawMutexTrait};
 use rustc_hash::FxHasher;
 use turbo_tasks::{
     CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
@@ -46,6 +48,123 @@ type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<F
 ///
 /// See [`AutoSet`] for the meaning of `I`.
 type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDefault<FxHasher>, I>;
+
+/// One-byte parking_lot lock embedded in each task's storage.
+///
+/// The lock is synchronization metadata: snapshots create a fresh lock rather than copying its
+/// state. This wrapper supplies the generated storage type's trait requirements.
+pub(crate) struct IntrusiveTaskLock(RawMutex);
+
+impl IntrusiveTaskLock {
+    const fn new() -> Self {
+        Self(<RawMutex as RawMutexTrait>::INIT)
+    }
+
+    fn lock(&self) {
+        self.0.lock();
+    }
+
+    /// # Safety
+    ///
+    /// The current thread must own this lock and perform no protected access after this call.
+    unsafe fn unlock(&self) {
+        // SAFETY: Forwarded from the caller.
+        unsafe { self.0.unlock() };
+    }
+
+    #[cfg(test)]
+    fn is_locked(&self) -> bool {
+        self.0.is_locked()
+    }
+}
+
+impl Default for IntrusiveTaskLock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl fmt::Debug for IntrusiveTaskLock {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("IntrusiveTaskLock").finish_non_exhaustive()
+    }
+}
+
+/// Opaque interior-mutable task slot used when a resident map guard provides lifetime but not
+/// payload exclusion.
+///
+/// # Unsafe access protocol
+///
+/// - An unlocked slot never exposes a `TaskStorage` reference.
+/// - `lock` acquires the embedded task lock through the raw slot pointer before references exist.
+/// - Only a lock-owning storage guard may call `get` or materialize a mutable reference from
+///   `as_ptr`.
+/// - A structural map write guard may call `get_mut_exclusive` because it excludes all map readers.
+/// - The task lock is released before the map guard that keeps this allocation alive.
+#[repr(transparent)]
+pub(crate) struct TaskSlot(UnsafeCell<TaskStorage>);
+
+impl TaskSlot {
+    pub(crate) fn new() -> Self {
+        Self(UnsafeCell::new(TaskStorage::new()))
+    }
+
+    pub(crate) fn as_ptr(&self) -> *mut TaskStorage {
+        self.0.get()
+    }
+
+    pub(crate) fn lock(&self) {
+        // SAFETY: Project only the embedded lock from the opaque cell. No TaskStorage reference is
+        // materialized before exclusion is acquired.
+        unsafe { (&*std::ptr::addr_of!((*self.as_ptr()).lock)).lock() };
+    }
+
+    /// # Safety
+    /// The caller must own this slot's task lock and perform no protected access after unlocking.
+    pub(crate) unsafe fn unlock(&self) {
+        // SAFETY: Forwarded from the caller; projection does not materialize TaskStorage.
+        unsafe { (&*std::ptr::addr_of!((*self.as_ptr()).lock)).unlock() };
+    }
+
+    /// # Safety
+    /// The caller must own this slot's task lock.
+    pub(crate) unsafe fn get(&self) -> &TaskStorage {
+        // SAFETY: Forwarded from the caller.
+        unsafe { &*self.as_ptr() }
+    }
+
+    pub(crate) fn get_mut_exclusive(&mut self) -> &mut TaskStorage {
+        self.0.get_mut()
+    }
+
+    pub(crate) fn into_inner(self) -> TaskStorage {
+        self.0.into_inner()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_locked(&self) -> bool {
+        // SAFETY: Reading the raw lock state does not expose the task payload.
+        unsafe { (&*std::ptr::addr_of!((*self.as_ptr()).lock)).is_locked() }
+    }
+
+    pub(crate) fn with_lock<R>(&self, f: impl FnOnce(&TaskStorage) -> R) -> R {
+        self.lock();
+        struct Unlock<'a>(&'a TaskSlot);
+        impl Drop for Unlock<'_> {
+            fn drop(&mut self) {
+                // SAFETY: `with_lock` acquired this lock and the closure has returned/unwound.
+                unsafe { self.0.unlock() };
+            }
+        }
+        let _unlock = Unlock(self);
+        // SAFETY: The lock-owning lexical guard remains alive through the closure.
+        f(unsafe { self.get() })
+    }
+}
+
+// SAFETY: all shared payload access is governed by the protocol above. Structural mutation uses
+// `&mut TaskSlot`, while ordinary mutation owns the embedded task lock.
+unsafe impl Sync for TaskSlot {}
 
 /// The complete task storage schema.
 ///
@@ -1790,12 +1909,30 @@ mod tests {
     // ==========================================================================
 
     #[test]
+    fn snapshot_clone_has_an_independent_unlocked_task_lock() {
+        let slot = TaskSlot::new();
+        slot.lock();
+        assert!(slot.is_locked());
+        // SAFETY: This test holds the slot lock until after cloning.
+        let snapshot = unsafe { slot.get() }.clone_snapshot();
+        assert!(slot.is_locked());
+        assert!(!snapshot.lock.is_locked());
+        // SAFETY: This test acquired the source lock above and accesses it no further.
+        unsafe { slot.unlock() };
+    }
+
+    #[test]
     #[cfg(target_pointer_width = "64")]
     fn test_schema_size() {
         assert_eq!(
             size_of::<TaskStorage>(),
             128,
             "TaskStorage size changed! Update this test."
+        );
+        assert_eq!(
+            size_of::<TaskSlot>(),
+            size_of::<TaskStorage>(),
+            "the transparent resident slot must add no per-task size"
         );
         // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
         assert_eq!(
