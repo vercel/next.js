@@ -279,7 +279,7 @@
     "is-wsl": "2.2.0",
     "jest-worker": "27.5.1",
     "json5": "2.2.3",
-    "jsonwebtoken": "9.0.0",
+    "jsonwebtoken": "9.0.3",
     "loader-runner": "4.3.0",
     "loader-utils2": "npm:loader-utils@2.0.4",
     "loader-utils3": "npm:loader-utils@3.1.3",
