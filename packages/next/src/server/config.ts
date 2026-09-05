@@ -1761,6 +1761,68 @@ function finalizeConfig(
   return config
 }
 
+function assertWebSocketRouteHandlerConfigShape(config: {
+  experimental?: Pick<ExperimentalConfig, 'webSocketRouteHandlers'>
+}): void {
+  const invalidShape = () =>
+    new Error(
+      '`experimental.webSocketRouteHandlers` must be a boolean or an object containing only `allowedOrigins?: string[]`.'
+    )
+
+  let webSocketConfig: unknown
+  try {
+    webSocketConfig = config.experimental?.webSocketRouteHandlers
+  } catch {
+    throw invalidShape()
+  }
+
+  if (webSocketConfig === undefined || typeof webSocketConfig === 'boolean') {
+    return
+  }
+
+  let result: ReturnType<
+    typeof import('./config-schema').webSocketRouteHandlerOptionsSchema.safeParse
+  >
+  try {
+    const { webSocketRouteHandlerOptionsSchema } =
+      require('./config-schema') as typeof import('./config-schema')
+    result = webSocketRouteHandlerOptionsSchema.safeParse(webSocketConfig)
+  } catch {
+    throw invalidShape()
+  }
+
+  if (result.success) return
+  if (result.error.issues.some((issue) => issue.path[0] === 'allowedOrigins')) {
+    throw new Error(
+      '`experimental.webSocketRouteHandlers.allowedOrigins` must be an array of exact HTTP(S) origins, for example `https://app.example.com`.'
+    )
+  }
+  throw invalidShape()
+}
+
+function assertWebSocketRouteHandlerConfig(
+  config: {
+    experimental: Pick<ExperimentalConfig, 'webSocketRouteHandlers'>
+    output?: NextConfig['output']
+  },
+  configuredAdapterPath?: NextConfig['adapterPath']
+): void {
+  assertWebSocketRouteHandlerConfigShape(config)
+  if (
+    config.output === 'export' &&
+    config.experimental.webSocketRouteHandlers
+  ) {
+    throw new Error(
+      'NextResponse.upgrade() cannot be used with output: "export". Disable `experimental.webSocketRouteHandlers` or use a server deployment.'
+    )
+  }
+  if (configuredAdapterPath && config.experimental.webSocketRouteHandlers) {
+    throw new Error(
+      '`experimental.webSocketRouteHandlers` cannot be used with `adapterPath` until the adapter declares Node.js upgrade support.'
+    )
+  }
+}
+
 async function applyModifyConfig(
   config: NextConfigComplete,
   phase: PHASE_TYPE,
@@ -1769,9 +1831,10 @@ async function applyModifyConfig(
 ): Promise<NextConfigComplete> {
   // we always call modify config  and phase can be used to only
   // modify for specific times
-  if (config.adapterPath) {
+  const configuredAdapterPath = config.adapterPath
+  if (configuredAdapterPath) {
     const adapterMod = interopDefault(
-      await import(pathToFileURL(require.resolve(config.adapterPath)).href)
+      await import(pathToFileURL(require.resolve(configuredAdapterPath)).href)
     ) as NextAdapter
 
     if (typeof adapterMod.modifyConfig === 'function') {
@@ -1786,6 +1849,7 @@ async function applyModifyConfig(
       })
     }
   }
+  assertWebSocketRouteHandlerConfig(config, configuredAdapterPath)
   return config
 }
 
@@ -1968,6 +2032,7 @@ async function loadConfigImpl(
   const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
 
   if (customConfig) {
+    assertWebSocketRouteHandlerConfigShape(customConfig as NextConfig)
     // Check deprecation warnings on the custom config before merging with defaults
     checkDeprecations(customConfig as NextConfig, configFileName, silent, dir)
 
@@ -2063,6 +2128,7 @@ async function loadConfigImpl(
           interopDefault(userConfigModule)
         )) as NextConfig
       )
+      assertWebSocketRouteHandlerConfigShape(loadedConfig)
     } catch (err) {
       // Capture the error for MCP tool reporting
       NextInstanceErrorState.nextConfig.push(err)

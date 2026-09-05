@@ -967,6 +967,43 @@ describe('WebSocket transport lifecycle', () => {
     socket.destroy()
   })
 
+  it.each(['close', 'error'] as const)(
+    'contains trackTask failures from the %s event',
+    async (event) => {
+      const trackingFailure = new Error('task tracking failed')
+      const hookFinished = createDeferred()
+      const reported = createDeferred()
+      const close = jest.fn(() => hookFinished.resolve())
+      const error = jest.fn(() => hookFinished.resolve())
+      const { websocket, socket } = await openConnection({
+        hooks: { close, error },
+        context: {
+          onHookError(received) {
+            expect(received).toBe(trackingFailure)
+            reported.resolve()
+          },
+          trackTask() {
+            throw trackingFailure
+          },
+        },
+      })
+
+      if (event === 'close') {
+        expect(() =>
+          websocket.emit('close', 1000, Buffer.alloc(0))
+        ).not.toThrow()
+      } else {
+        expect(() =>
+          websocket.emit('error', new Error('transport failed'))
+        ).not.toThrow()
+      }
+
+      await Promise.all([hookFinished.promise, reported.promise])
+      expect(event === 'close' ? close : error).toHaveBeenCalledTimes(1)
+      socket.destroy()
+    }
+  )
+
   it('installs all transport listeners before admission and suppresses refused hooks', async () => {
     const open = jest.fn()
     const message = jest.fn()

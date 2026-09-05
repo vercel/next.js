@@ -10,6 +10,12 @@ import type {
 } from 'ws'
 
 import type { NextRequest } from './web/spec-extension/request'
+import type {
+  WebSocketHooks as WebSocketTransportHooks,
+  WebSocketMessage as WebSocketTransportMessage,
+  WebSocketMessageData as WebSocketTransportMessageData,
+  WebSocketPeer as WebSocketTransportPeer,
+} from './web/spec-extension/response'
 import type { WebSocketUpgradeMetadata } from './web/spec-extension/websocket-upgrade-response'
 import { getWebSocketUpgradeMetadata } from './web/spec-extension/websocket-upgrade-response'
 import {
@@ -100,41 +106,11 @@ const sharedArrayBufferByteLengthGetter =
       )!.get!
 const EMPTY_OUTBOUND_PAYLOAD = Buffer.alloc(0)
 
-export type WebSocketTransportMessageData =
-  | string
-  | ArrayBuffer
-  | SharedArrayBuffer
-  | ArrayBufferView
-
-export interface WebSocketTransportPeer {
-  readonly id: string
-  readonly remoteAddress: string | undefined
-  readonly request: NextRequest
-  readonly bufferedAmount: number
-  close(code?: number, reason?: string): void
-  terminate(): void
-  send(data: WebSocketTransportMessageData): number
-}
-
-export interface WebSocketTransportMessage {
-  readonly rawData: string | Uint8Array
-  uint8Array(): Uint8Array
-  arrayBuffer(): ArrayBuffer
-  text(): string
-  json<T = unknown>(): T
-}
-
-export interface WebSocketTransportHooks {
-  open?: (peer: WebSocketTransportPeer) => void | Promise<void>
-  message?: (
-    peer: WebSocketTransportPeer,
-    message: WebSocketTransportMessage
-  ) => void | Promise<void>
-  close?: (
-    peer: WebSocketTransportPeer,
-    details: { code: number; reason: string }
-  ) => void | Promise<void>
-  error?: (peer: WebSocketTransportPeer, error: Error) => void | Promise<void>
+export type {
+  WebSocketTransportMessageData,
+  WebSocketTransportPeer,
+  WebSocketTransportMessage,
+  WebSocketTransportHooks,
 }
 
 interface WebSocketTransportUpgradeMetadata extends WebSocketUpgradeMetadata {
@@ -156,6 +132,7 @@ export interface WebSocketUpgradeTransportContext {
 }
 
 export interface WebSocketUpgradeTransportOptions {
+  runInHookContext?: <T>(fn: () => T) => T
   registerPeer?: (
     peer: WebSocketTransportPeer,
     connection: WebSocketTransportConnection,
@@ -193,6 +170,7 @@ interface ConnectionContext {
   closed: boolean
   hookFailed: boolean
   applicationHooksEnabled: boolean
+  runInHookContext: <T>(fn: () => T) => T
 }
 
 interface PendingUpgrade {
@@ -472,10 +450,35 @@ function queueHook(
   invoke: () => void | Promise<void>,
   closeOnError: boolean
 ): Promise<void> {
-  connection.hookQueue = connection.hookQueue.then(() =>
-    invokeHook(owned, connection, invoke, closeOnError)
+  connection.hookQueue = connection.runInHookContext(() =>
+    connection.hookQueue.then(() =>
+      invokeHook(owned, connection, invoke, closeOnError)
+    )
   )
   return connection.hookQueue
+}
+
+function trackHookTask(
+  connection: ConnectionContext,
+  task: Promise<void>
+): void {
+  try {
+    connection.transportContext.trackTask?.(task)
+  } catch (error) {
+    // Lifecycle tracking is framework-owned in Next.js, but an embedding
+    // transport may supply it. Do not let a faulty capability escape from a
+    // ws EventEmitter callback or suppress the already-queued application hook.
+    try {
+      connection.runInHookContext(() => {
+        void reportHookError(connection, error)
+      })
+    } catch (reportError) {
+      console.error(
+        'Failed to report WebSocket task tracking error',
+        reportError
+      )
+    }
+  }
 }
 
 function getMessageByteLength(message: WebSocketTransportMessage): number {
@@ -610,34 +613,36 @@ function handleMessageEvent(
   connection.pendingMessages++
   connection.pendingMessageBytes += messageBytes
   pauseConnection(owned)
-  connection.hookQueue = connection.hookQueue
-    .then(() => {
-      if (
-        connection.closed ||
-        connection.hookFailed ||
-        !isWebSocketOpen(owned.websocket)
-      ) {
-        return
-      }
-      return invokeHook(
-        owned,
-        connection,
-        () => hook(owned.peer, message),
-        true
-      )
-    })
-    .finally(() => {
-      connection.pendingMessages--
-      connection.pendingMessageBytes -= messageBytes
-      if (
-        connection.pendingMessages === 0 &&
-        !connection.closed &&
-        !connection.hookFailed &&
-        isWebSocketOpen(owned.websocket)
-      ) {
-        resumeConnection(owned)
-      }
-    })
+  connection.hookQueue = connection.runInHookContext(() =>
+    connection.hookQueue
+      .then(() => {
+        if (
+          connection.closed ||
+          connection.hookFailed ||
+          !isWebSocketOpen(owned.websocket)
+        ) {
+          return
+        }
+        return invokeHook(
+          owned,
+          connection,
+          () => hook(owned.peer, message),
+          true
+        )
+      })
+      .finally(() => {
+        connection.pendingMessages--
+        connection.pendingMessageBytes -= messageBytes
+        if (
+          connection.pendingMessages === 0 &&
+          !connection.closed &&
+          !connection.hookFailed &&
+          isWebSocketOpen(owned.websocket)
+        ) {
+          resumeConnection(owned)
+        }
+      })
+  )
 }
 
 function handleCloseEvent(
@@ -675,7 +680,7 @@ function handleCloseEvent(
   const pending = hook
     ? queueHook(owned, connection, () => hook(owned.peer, details), false)
     : connection.hookQueue
-  connection.transportContext.trackTask?.(pending)
+  trackHookTask(connection, pending)
 }
 
 function handleErrorEvent(
@@ -697,7 +702,7 @@ function handleErrorEvent(
   const pending = hook
     ? queueHook(owned, connection, () => hook(owned.peer, error), true)
     : connection.hookQueue
-  connection.transportContext.trackTask?.(pending)
+  trackHookTask(connection, pending)
 }
 
 function handlePingEvent(owned: WebSocketConnection, data: Buffer): void {
@@ -907,6 +912,7 @@ export function createWebSocketUpgradeTransport(
         }
       }
 
+      const runInHookContext = options.runInHookContext ?? ((fn) => fn())
       const pending: PendingUpgrade = {
         socket,
         protocol: metadata.protocol,
@@ -915,12 +921,13 @@ export function createWebSocketUpgradeTransport(
         connection: {
           metadata,
           transportContext: context,
-          hookQueue: Promise.resolve(),
+          hookQueue: runInHookContext(() => Promise.resolve()),
           pendingMessages: 0,
           pendingMessageBytes: 0,
           closed: false,
           hookFailed: false,
           applicationHooksEnabled: false,
+          runInHookContext,
         },
       }
       pendingUpgrades.set(req, pending)

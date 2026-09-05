@@ -1,4 +1,5 @@
 import { once } from 'node:events'
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { createServer, type IncomingMessage } from 'node:http'
 import { connect, type Socket } from 'node:net'
 
@@ -432,6 +433,45 @@ describe('Next-owned WebSocket upgrade transport', () => {
     harnesses.push(instance)
     return instance
   }
+
+  it('runs every application hook through the injected detached context', async () => {
+    const hookContext = new AsyncLocalStorage<string>()
+    const opened = deferred<void>()
+    const messaged = deferred<void>()
+    const errored = deferred<void>()
+    const closed = deferred<void>()
+    const observations: string[] = []
+    const observe = (name: string, done: Deferred<void>) => {
+      expect(hookContext.getStore()).toBe('detached')
+      observations.push(name)
+      done.resolve()
+    }
+    const instance = await harness({
+      transportOptions: {
+        runInHookContext: (fn) => hookContext.run('detached', fn),
+      },
+      hooks: {
+        open: () => observe('open', opened),
+        message: () => observe('message', messaged),
+        error: () => observe('error', errored),
+        close: () => observe('close', closed),
+      },
+    })
+    const { socket, bytes } = await openRaw(instance)
+    await opened.promise
+
+    socket.write(clientFrame(0x01, 'hello'))
+    await messaged.promise
+    // Reserved data opcode: ws emits an error, sends a protocol close, and
+    // subsequently delivers the terminal close hook after the peer replies.
+    socket.write(clientFrame(0x03))
+    const close = readClose(await bytes.readFrame())
+    await errored.promise
+    socket.write(clientFrame(0x08, closePayload(close.code)))
+    await closed.promise
+
+    expect(observations).toEqual(['open', 'message', 'error', 'close'])
+  })
 
   it('writes the complete 101 and preserves request, protocol, and peer identity', async () => {
     const peers: WebSocketTransportPeer[] = []

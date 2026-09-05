@@ -22,6 +22,7 @@ import type {
   Redirect,
 } from '../lib/load-custom-routes'
 import { SUPPORTED_TEST_RUNNERS_LIST } from '../cli/next-test'
+import { isExactWebSocketOrigin } from './websocket-origin'
 
 // A custom zod schema for the SizeLimit type
 const zSizeLimit = z.custom<SizeLimit>((val) => {
@@ -30,6 +31,19 @@ const zSizeLimit = z.custom<SizeLimit>((val) => {
   }
   return false
 })
+
+const zWebSocketOrigin = z.string().refine(isExactWebSocketOrigin, {
+  message: 'Expected an exact HTTP(S) origin',
+})
+
+export const webSocketRouteHandlerOptionsSchema = z.strictObject({
+  allowedOrigins: z.array(zWebSocketOrigin).optional(),
+})
+
+export const webSocketRouteHandlersSchema = z.union([
+  z.boolean(),
+  webSocketRouteHandlerOptionsSchema,
+])
 
 const zExportMap: zod.ZodType<ExportPathMap> = z.record(
   z.string(),
@@ -433,6 +447,7 @@ export const experimentalSchema = {
   clientTraceMetadata: z.array(z.string()).optional(),
   serverMinification: z.boolean().optional(),
   serverSourceMaps: z.boolean().optional(),
+  webSocketRouteHandlers: webSocketRouteHandlersSchema.optional(),
   useWasmBinary: z.boolean().optional(),
   useLightningcss: z.boolean().optional(),
   lightningCssFeatures: z

@@ -73,6 +73,70 @@ let response = NextResponse.next()
 response.cookies.delete('experiments')
 ```
 
+<AppOnly>
+
+## `upgrade()`
+
+`upgrade()` is experimental. It upgrades a request to a WebSocket from a dynamic App Route Handler. Enable [`experimental.webSocketRouteHandlers`](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers) before using this method.
+
+```ts filename="app/ws/route.ts" switcher
+import { NextResponse } from 'next/server'
+
+export const dynamic = 'force-dynamic'
+
+export function GET() {
+  return NextResponse.upgrade({
+    open(peer) {
+      peer.send('connected')
+    },
+    message(peer, message) {
+      peer.send(message.rawData)
+    },
+  })
+}
+```
+
+```js filename="app/ws/route.js" switcher
+import { NextResponse } from 'next/server'
+
+export const dynamic = 'force-dynamic'
+
+export function GET() {
+  return NextResponse.upgrade({
+    open(peer) {
+      peer.send('connected')
+    },
+    message(peer, message) {
+      peer.send(message.rawData)
+    },
+  })
+}
+```
+
+`upgrade(hooks, options)` accepts the following hooks:
+
+- `open(peer)`: Runs after the connection is accepted.
+- `message(peer, message)`: Runs for each incoming text or binary message.
+- `close(peer, details)`: Runs when the connection closes. `details` contains `code` and `reason`.
+- `error(peer, error)`: Runs when the WebSocket transport emits an error.
+
+Hook callbacks can return a promise and run serially for each connection. The `peer` object exposes `id`, `remoteAddress`, the opening `request`, and `bufferedAmount`. Use `peer.send(data)`, `peer.close(code, reason)`, or `peer.terminate()` to control the connection. `send()` returns the current queued byte count.
+
+The `message` object exposes `rawData` and the `text()`, `json()`, `uint8Array()`, and `arrayBuffer()` conversion methods. The optional `protocol` option selects one WebSocket subprotocol that the client offered:
+
+```ts
+return NextResponse.upgrade(hooks, { protocol: 'chat.v1' })
+```
+
+Validate authentication and authorization before returning `NextResponse.upgrade()`. You can return an ordinary `Response`, such as a `401`, to decline the upgrade.
+
+> **Good to know**:
+>
+> - This API is available only in dynamic App Route Handlers using the Node.js runtime. It is not supported in Proxy, the Edge Runtime, static exports, or prerendered and ISR-cached routes.
+> - Next.js closes accepted connections with code `1001` during graceful shutdown and `1012` when their route is replaced during development.
+
+</AppOnly>
+
 ## `json()`
 
 Produce a response with the given JSON body.
