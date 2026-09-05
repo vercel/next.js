@@ -2,26 +2,26 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
+mod gc_fixture;
 mod util;
 
-use anyhow::Result;
-use turbo_tasks::{ResolvedVc, State, TaskId, Vc, prevent_gc};
+use std::sync::Arc;
 
-use crate::util::create_tt;
+use anyhow::Result;
+use turbo_tasks::{
+    ResolvedVc, TaskId, Vc, prevent_gc, unmark_top_level_task_may_leak_eventually_consistent_state,
+};
+
+use crate::{
+    gc_fixture::{Selector, create_selector},
+    util::create_tt,
+};
 
 /// The `TaskId` backing a resolved `Vc` (its `TaskOutput` node).
 fn task_id_of<T>(vc: Vc<T>) -> TaskId {
     Vc::into_raw(vc)
         .try_get_task_id()
         .expect("a resolved Vc should be backed by a task")
-}
-
-#[turbo_tasks::value(transparent)]
-struct Selector(State<bool>);
-
-#[turbo_tasks::function(operation, root)]
-fn create_selector(initial: bool) -> Vc<Selector> {
-    Selector(State::new(initial)).cell()
 }
 
 #[turbo_tasks::function]
@@ -178,6 +178,61 @@ async fn gc_does_not_collect_pinned_task() {
     );
 
     tt.stop_and_wait().await;
+}
+
+/// Disposing a root task (as `RootTask::Drop` does when JS stops listening to a subscription) must
+/// release the anchor its child edges placed on the tasks it read. Disposal is also idempotent and
+/// safe after the backend has stopped, which `RootTask::Drop` relies on.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dispose_root_task_releases_anchored_subgraph() {
+    let (tt, _persistence_dir) = create_tt("dispose_root_task_releases_anchored_subgraph");
+
+    // The root sends the leaf's id out via a oneshot rather than a `run_once` probe: a probe is its
+    // own transient `Once` task that would also connect the leaf, and `Once` tasks are never
+    // disposed, so the leaf's count would never drop to 0.
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let tx = Arc::new(std::sync::Mutex::new(Some(tx)));
+    let root_id = tt.spawn_root_task(move || {
+        let tx = tx.lock().unwrap().take();
+        Box::pin(async move {
+            // The root body runs as a top-level task, as `subscribe`'s HMR handler does.
+            unmark_top_level_task_may_leak_eventually_consistent_state();
+            let leaf_vc = leaf(88);
+            let value = *leaf_vc.await?;
+            if let Some(tx) = tx {
+                let _ = tx.send(task_id_of(leaf_vc.resolve().await?));
+            }
+            anyhow::Ok(Vc::<u32>::cell(value))
+        })
+    });
+
+    let leaf_id = rx.await.unwrap();
+    for _ in 0..100 {
+        if tt.backend().transient_ref_count_for_testing(leaf_id) > 0 {
+            break;
+        }
+        tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+    }
+    assert_eq!(tt.backend().parent_count_for_testing(leaf_id), 0);
+    assert_eq!(tt.backend().transient_ref_count_for_testing(leaf_id), 1);
+    assert_eq!(tt.backend().gc_for_testing(&tt), 0);
+
+    // Disposing twice must not panic or underflow the child's count: JS could dispose explicitly
+    // multiple times
+    tt.dispose_root_task(root_id);
+    tt.dispose_root_task(root_id);
+    assert_eq!(tt.backend().transient_ref_count_for_testing(leaf_id), 0);
+
+    // A `run_once` keeps touched tasks active until it returns, so GC has to run after it.
+    turbo_tasks::run_once(tt.clone(), async move { anyhow::Ok(()) })
+        .await
+        .unwrap();
+    assert_eq!(tt.backend().gc_for_testing(&tt), 1);
+
+    // Disposal after the backend has stopped (the whole task map is dropped by `stop`), as a
+    // `RootTask` finalized during Node worker teardown would be.
+    tt.stop_and_wait().await;
+    tt.dispose_root_task(root_id);
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

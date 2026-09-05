@@ -21,7 +21,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Effects, OperationVc, ReadRef, TaskId, Vc, VcValueType, take_effects};
+use turbo_tasks::{Effects, GcRoot, OperationVc, ReadRef, TaskId, Vc, VcValueType, take_effects};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     issue::{
@@ -43,17 +43,23 @@ use crate::next_api::turbopack_ctx::NextTurbopackContext;
 /// [`turbo_tasks::OperationValue`] and should be dereferenced to an [`OperationVc`] before being
 /// passed to a [`turbo_tasks::function`].
 //
-// TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
-#[derive(Clone)]
+/// A `DetachedVc` holds its operation's task alive against garbage collection for as long as the
+/// handle exists.
 pub struct DetachedVc<T> {
     turbopack_ctx: NextTurbopackContext,
-    /// The Vc. Must be unresolved, otherwise you are referencing an inactive operation.
-    vc: OperationVc<T>,
+    /// Pins the operation to prevent GC, and holds the `Vc` itself. Must be unresolved, otherwise
+    /// you are referencing an inactive operation.
+    gc_root: GcRoot<T>,
 }
 
 impl<T> DetachedVc<T> {
     pub fn new(turbopack_ctx: NextTurbopackContext, vc: OperationVc<T>) -> Self {
-        Self { turbopack_ctx, vc }
+        // Pin the operation's task so GC treats this out-of-graph handle as a root.
+        let gc_root = GcRoot::pin(turbopack_ctx.turbo_tasks().clone(), vc);
+        Self {
+            turbopack_ctx,
+            gc_root,
+        }
     }
 
     pub fn turbopack_ctx(&self) -> &NextTurbopackContext {
@@ -65,7 +71,7 @@ impl<T> Deref for DetachedVc<T> {
     type Target = OperationVc<T>;
 
     fn deref(&self) -> &Self::Target {
-        &self.vc
+        &self.gc_root
     }
 }
 
@@ -73,33 +79,36 @@ impl<T> Deref for DetachedVc<T> {
 /// [`turbo_tasks::TurboTasks::spawn_root_task`] that can be passed back and forth to JS across the
 /// [`napi`][mod@napi] boundary via [`External`].
 ///
-/// JavaScript code receiving this value **must** call [`root_task_dispose`] in a `try...finally`
-/// block to avoid leaking root tasks.
+/// JavaScript code should call [`root_task_dispose`] in a `try...finally` block to dispose the root
+/// task promptly. If it doesn't, [`Drop`] disposes it as a backstop.
 ///
 /// This is used by [`subscribe`] to create a computation that re-executes when dependencies change.
-//
-// TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
-pub struct RootTask {
+pub struct SubscriptionTask {
     turbopack_ctx: NextTurbopackContext,
     task_id: Option<TaskId>,
 }
 
-impl Drop for RootTask {
+impl SubscriptionTask {
+    fn dispose(&mut self) {
+        if let Some(task) = self.task_id.take() {
+            self.turbopack_ctx.turbo_tasks().dispose_root_task(task);
+        }
+    }
+}
+
+impl Drop for SubscriptionTask {
     fn drop(&mut self) {
-        // TODO stop the root task
+        self.dispose();
     }
 }
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: ExternalRef<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: ExternalRef<
+        SubscriptionTask,
+    >,
 ) -> napi::Result<()> {
-    if let Some(task) = root_task.task_id.take() {
-        root_task
-            .turbopack_ctx
-            .turbo_tasks()
-            .dispose_root_task(task);
-    }
+    root_task.dispose();
     Ok(())
 }
 
@@ -435,7 +444,7 @@ pub fn subscribe<
     func: &FunctionRef<V, ()>,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
     mapper: impl 'static + Sync + Send + FnMut(ThreadsafeCallContext<T>) -> napi::Result<V>,
-) -> napi::Result<External<RootTask>> {
+) -> napi::Result<External<SubscriptionTask>> {
     let js_func = func.borrow_back(env)?;
     let func: ThreadsafeFunction<T, (), V, Status, true> = js_func
         .build_threadsafe_function::<T>()
@@ -463,7 +472,7 @@ pub fn subscribe<
             }
         }
     });
-    Ok(External::new(RootTask {
+    Ok(External::new(SubscriptionTask {
         turbopack_ctx: ctx,
         task_id: Some(task_id),
     }))

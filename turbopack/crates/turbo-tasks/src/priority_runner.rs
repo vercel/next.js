@@ -240,6 +240,20 @@ impl<
         self.queue.lock().pushes
     }
 
+    /// TEMP INSTRUMENTATION (do not ship): `(queued_entries, active_workers, target_workers)`.
+    ///
+    /// Exists to test whether a stuck shutdown is queued work with no worker to drain it, which
+    /// would violate the invariant documented on [`Self::schedule`]. Note the heap length counts
+    /// tombstones of claimed entries, so it is an upper bound rather than an exact backlog.
+    pub fn debug_queue_state(&self) -> (usize, usize, usize) {
+        let queued = self.queue.lock().heap.len();
+        (
+            queued,
+            self.active_workers.load(Ordering::Relaxed),
+            self.target_workers,
+        )
+    }
+
     pub fn schedule(self: &Arc<Self>, execute_context: &Arc<C>, task: T, priority: P) {
         let mut queue = self.queue.lock();
         if !queue.is_empty() {

@@ -25,6 +25,14 @@ __internal_dhat-ad-hoc = ["dhat"]
 # Enable support for the tokio console: https://github.com/tokio-rs/console
 tokio-console = ["dep:console-subscriber"]
 
+# TEMP (do not merge): turbo-tasks hang reporting. An EventListener that is not notified within
+# its timeout prints its description and note, which is exactly what the `done_event` and
+# `all_clean_event` listeners already carry.
+hanging_detection = [
+  "turbo-tasks/hanging_detection",
+  "turbo-tasks-backend/hanging_detection",
+]
+
 [lints]
 workspace = true
 

@@ -117,6 +117,9 @@ impl Event {
     }
 
     /// See [`event_listener::Event::listen`].
+    // TEMP (do not merge): the initial hang-report timeout is lowered from 30s to 3s here and in
+    // `listen_with_note`. The test that reproduces the NFT hang fails at 60s, so a 30s first
+    // report (doubling thereafter) yields at most one line; 3s gives several before the deadline.
     pub fn listen(&self) -> EventListener {
         #[cfg(not(feature = "hanging_detection"))]
         return EventListener {
@@ -127,10 +130,10 @@ impl Event {
             description: self.description.clone(),
             note: Arc::new(String::new),
             future: Some(Box::pin(timeout(
-                Duration::from_secs(30),
+                Duration::from_secs(3),
                 self.event.listen(),
             ))),
-            duration: Duration::from_secs(30),
+            duration: Duration::from_secs(3),
         };
     }
 
@@ -156,10 +159,10 @@ impl Event {
             description: self.description.clone(),
             note: _note.get_description(),
             future: Some(Box::pin(timeout(
-                Duration::from_secs(30),
+                Duration::from_secs(3),
                 self.event.listen(),
             ))),
-            duration: Duration::from_secs(30),
+            duration: Duration::from_secs(3),
         };
     }
 

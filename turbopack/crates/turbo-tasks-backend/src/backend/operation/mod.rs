@@ -14,6 +14,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use parking_lot::RwLockReadGuard;
 use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
@@ -231,6 +232,9 @@ pub struct ExecuteContextImpl<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     phase: ExecutePhase<'e>,
+    /// Held by contexts built through `TurboTasksBackend::try_execute_context`, so that storage
+    /// teardown in `stop()` waits for this context to be dropped.
+    _shutdown_guard: Option<RwLockReadGuard<'e, bool>>,
     task_lock_counter: TaskLockCounter,
 }
 
@@ -245,6 +249,26 @@ impl<'e> ExecuteContextImpl<'e> {
             phase: ExecutePhase::Normal {
                 _guard: backend.start_operation(),
             },
+            _shutdown_guard: None,
+            task_lock_counter: TaskLockCounter::new(),
+        }
+    }
+
+    /// Like [`ExecuteContextImpl::new`], but owns the shutdown read guard that
+    /// [`TurboTasksBackend::try_execute_context`] acquired, keeping `stop()` out until this
+    /// context is dropped.
+    pub(super) fn new_with_shutdown_guard(
+        backend: &'e TurboTasksBackend,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+        shutdown_guard: RwLockReadGuard<'e, bool>,
+    ) -> Self {
+        Self {
+            backend,
+            turbo_tasks,
+            phase: ExecutePhase::Normal {
+                _guard: backend.start_operation(),
+            },
+            _shutdown_guard: Some(shutdown_guard),
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -265,6 +289,7 @@ impl<'e> ExecuteContextImpl<'e> {
             backend,
             turbo_tasks,
             phase: ExecutePhase::Gc(gc_collectible),
+            _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -1158,7 +1183,21 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
     fn schedule_task(&self, task: &Self::TaskGuardImpl, parent_priority: TaskPriority) {
         let priority = schedule_priority(task, parent_priority);
-        self.turbo_tasks.schedule(task.id(), priority);
+        // TEMP INSTRUMENTATION (do not ship): describe the task for the stuck-shutdown dump.
+        //
+        // Deliberately NOT `get_task_desc_fn()`: that reads the task type, which lives in the
+        // `Data` category, while this guard is opened with `Meta` only — calling it here panics
+        // ("To read data of Data the task need to be accessed with this category"). The existing
+        // `EventDescription::new(|| task.get_task_desc_fn())` in connect_child gets away with it
+        // because `EventDescription` compiles the closure out unless `hanging_detection` is on.
+        //
+        // The in-progress state recorded by `add_scheduled` already carries the real description,
+        // so the reason is logged here and the type is recovered from that side.
+        let task_id = task.id();
+        self.turbo_tasks
+            .schedule_described(task_id, priority, move || {
+                format!("{task_id:?} scheduled by backend operation")
+            });
     }
 
     fn get_current_task_priority(&self) -> TaskPriority {
@@ -1243,6 +1282,9 @@ impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
             phase: ExecutePhase::Child,
+            // A child context runs inside its parent's execution, which the foreground drain
+            // already waits for, so it needs no shutdown guard of its own.
+            _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -1628,6 +1670,17 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let task_type = self.get_task_type().to_owned();
         let task_id = self.id();
         move || format!("{task_id:?} {task_type}")
+    }
+
+    /// Like [`Self::get_task_desc_fn`], but reads only the task id.
+    ///
+    /// The task type is a `Data`-category field, so `get_task_desc_fn` panics when called on a
+    /// guard opened with `Meta` only. That is normally invisible because
+    /// [`EventDescription::new`] compiles its closure out unless the `hanging_detection` feature
+    /// is on — enabling that feature turns those calls into panics. Use this at `Meta` call sites.
+    fn get_task_id_desc_fn(&self) -> impl Fn() -> String + Send + Sync + 'static {
+        let task_id = self.id();
+        move || format!("{task_id:?}")
     }
     fn get_task_description(&self) -> String {
         let task_type = self.get_task_type().to_owned();

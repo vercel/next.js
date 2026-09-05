@@ -7,6 +7,10 @@ mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
 
+// Only the `verify_aggregation_graph` feature still uses atomics here; `stopping` is an
+// `RwLock<bool>` so that checking it and acting on it cannot be split (see the field's docs).
+#[cfg(feature = "verify_aggregation_graph")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     borrow::Cow,
     fmt::{self, Write},
@@ -14,18 +18,17 @@ use std::{
     hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
-    sync::{
-        Arc, LazyLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, LazyLock},
     time::SystemTime,
 };
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
+use gc::DEFAULT_GC_ROOT_TTL;
+pub use gc::TtlCounter;
 use hashbrown::hash_table::Entry;
 use indexmap::IndexSet;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
@@ -67,8 +70,8 @@ use crate::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
-            connect_children, get_aggregation_number, get_uppers, make_task_dirty_internal,
-            prepare_new_children,
+            capture_all_outgoing_edges, connect_children, get_aggregation_number, get_uppers,
+            make_task_dirty_internal, prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -147,12 +150,16 @@ pub struct BackendOptions {
 
     /// Strategy for evicting evictable tasks from in-memory storage after a snapshot.
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
-    /// This is an EXPERIMENTAL FEATURE under development
     pub eviction_mode: EvictionMode,
 
     /// Overrides whether the reference-counting GC runs for this backend. `None` (default) derives
     /// it from the `TURBO_ENGINE_GC` env var;
     pub gc: Option<bool>,
+
+    /// Overrides how long a GC root may go un-anchored before it ages out. `None` (default)
+    /// derives it from the `TURBO_ENGINE_GC_ROOT_TTL_MS` env var, falling back to
+    /// [`DEFAULT_GC_ROOT_TTL`].
+    pub gc_root_ttl: Option<Duration>,
 }
 
 impl Default for BackendOptions {
@@ -165,6 +172,7 @@ impl Default for BackendOptions {
             small_preallocation: false,
             eviction_mode: EvictionMode::Off,
             gc: None,
+            gc_root_ttl: None,
         }
     }
 }
@@ -224,7 +232,7 @@ pub struct TurboTasksBackend {
     /// Experimental feature to enable dead tasks to be deleted from storage and ram.
     gc_enabled: bool,
 
-    stopping: AtomicBool,
+    stopping: RwLock<bool>,
     stopping_event: Event,
     idle_start_event: Event,
     idle_end_event: Event,
@@ -234,6 +242,8 @@ pub struct TurboTasksBackend {
     task_statistics: TaskStatisticsApi,
 
     backing_storage: TurboBackingStorage,
+    /// How long a GC root may go un-anchored before it ages out.
+    gc_root_ttl: Duration,
 
     #[cfg(feature = "verify_aggregation_graph")]
     root_tasks: Mutex<FxHashSet<TaskId>>,
@@ -275,6 +285,22 @@ impl TurboTasksBackend {
             gc_enabled = false;
         }
 
+        let gc_root_ttl = options.gc_root_ttl.unwrap_or_else(|| {
+            match std::env::var("TURBO_ENGINE_GC_ROOT_TTL_MS") {
+                Ok(v) => match v.parse::<u64>() {
+                    Ok(ms) => Duration::from_millis(ms),
+                    Err(e) => {
+                        eprintln!(
+                            "warning: TURBO_ENGINE_GC_ROOT_TTL_MS set but is not parsable: {e}. \
+                             Using the default instead."
+                        );
+                        DEFAULT_GC_ROOT_TTL
+                    }
+                },
+                Err(_) => DEFAULT_GC_ROOT_TTL,
+            }
+        });
+
         Self {
             options,
             gc_enabled,
@@ -290,7 +316,7 @@ impl TurboTasksBackend {
             storage: Storage::new(shard_amount, small_preallocation),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
-            stopping: AtomicBool::new(false),
+            stopping: RwLock::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
             idle_end_event: Event::new(|| || "TurboTasksBackend::idle_end_event".to_string()),
@@ -298,6 +324,7 @@ impl TurboTasksBackend {
             is_idle: AtomicBool::new(false),
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
+            gc_root_ttl,
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
         }
@@ -308,6 +335,61 @@ impl TurboTasksBackend {
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
     ) -> impl ExecuteContext<'a> {
         ExecuteContextImpl::new(self, turbo_tasks)
+    }
+
+    /// Like [`TurboTasksBackend::execute_context`], but refuses to hand out a context once
+    /// shutdown has begun, and blocks shutdown for as long as the returned context is alive.
+    ///
+    /// Use this for entry points reachable from threads that `stop_and_wait` does **not** drain.
+    ///
+    /// Returns `None` once [`TurboTasksBackend::stopping`] has run, in which case the caller must
+    /// do nothing: storage teardown is imminent or already underway.
+    fn try_execute_context<'a>(
+        &'a self,
+        turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
+    ) -> Option<impl ExecuteContext<'a>> {
+        // TEMP INSTRUMENTATION (do not ship): this PR changed `stopping` from an AtomicBool to an
+        // RwLock, and this read guard is held for the whole life of the returned ExecuteContext.
+        // `parking_lot::RwLock` is not reader-preferring: a waiting writer blocks *subsequent*
+        // readers. So a long-lived context + `stopping()` calling `.write()` can block every new
+        // `try_execute_context`, which the AtomicBool could never do.
+        //
+        // The writer probe already added never fires, but nothing has watched the reader side.
+        // `try_read` first so the fast path stays a single atomic op when uncontended.
+        let stopping = match self.stopping.try_read() {
+            Some(guard) => guard,
+            None => {
+                let start = std::time::Instant::now();
+                let guard = loop {
+                    match self
+                        .stopping
+                        .try_read_for(std::time::Duration::from_secs(1))
+                    {
+                        Some(guard) => break guard,
+                        None => eprintln!(
+                            "[GC-HANG] try_execute_context: blocked {:?} on stopping.read() (a \
+                             writer is queued ahead of us)",
+                            start.elapsed()
+                        ),
+                    }
+                };
+                if start.elapsed() > std::time::Duration::from_millis(50) {
+                    eprintln!(
+                        "[GC-HANG] try_execute_context: acquired stopping.read() after {:?}",
+                        start.elapsed()
+                    );
+                }
+                guard
+            }
+        };
+        if *stopping {
+            return None;
+        }
+        Some(ExecuteContextImpl::new_with_shutdown_guard(
+            self,
+            turbo_tasks,
+            stopping,
+        ))
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
@@ -384,6 +466,11 @@ impl TurboTasksBackend {
             .unwrap_or(0)
     }
 
+    /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]).
+    #[doc(hidden)]
+    pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
+        self.backing_storage.roots().unwrap_or_default()
+    }
     /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
     /// hook to exercise the non-fabricating existence guarantee: this panics if `task` exists in
     /// neither memory nor persistent storage (rather than fabricating a blank).
@@ -603,6 +690,15 @@ impl TurboTasksBackend {
             }
         }
 
+        let reader_description = reader_task
+            .as_ref()
+            .map(|r| EventDescription::new(|| r.get_task_desc_fn()))
+            .or_else(|| {
+                need_reader_task.map(|reader_id| {
+                    EventDescription::new(move || move || format!("{reader_id:?}"))
+                })
+            });
+
         if matches!(options.consistency, ReadConsistency::Strong) {
             if task
                 .get_persistent_task_type()
@@ -619,6 +715,23 @@ impl TurboTasksBackend {
                         |r| self.debug_get_task_description(r)
                     )
                 );
+            }
+
+            // A canceled task will never run again, so it can never become clean and nothing
+            // will ever fire its `all_clean_event`: `task_execution_canceled` notifies the
+            // waiters that already exist, but a reader arriving *after* the cancel re-creates
+            // the activeness and parks on an event with no remaining notifier. That is what
+            // stranded the NFT chain.
+            //
+            // Only the `Canceled` arm is taken from `check_in_progress`, deliberately. Its
+            // `Scheduled`/`InProgress` arms return as soon as the task itself is running, which
+            // is right for a weakly consistent read but would short-circuit the dirty-container
+            // wait below that makes this read strongly consistent.
+            if matches!(task.get_in_progress(), Some(InProgressState::Canceled)) {
+                let description = task.get_task_description();
+                drop(task);
+                drop(reader_task);
+                anyhow::bail!("{description} was canceled");
             }
 
             let is_dirty = task.is_dirty();
@@ -768,14 +881,6 @@ impl TurboTasksBackend {
             }
         }
 
-        let reader_description = reader_task
-            .as_ref()
-            .map(|r| EventDescription::new(|| r.get_task_desc_fn()))
-            .or_else(|| {
-                need_reader_task.map(|reader_id| {
-                    EventDescription::new(move || move || format!("{reader_id:?}"))
-                })
-            });
         if let Some(value) = check_in_progress(&task, reader_description.clone(), options.tracking)
         {
             return value;
@@ -1070,19 +1175,18 @@ impl TurboTasksBackend {
         // can't be used for cross-process trace correlation.
         let wall_start = SystemTime::now();
         let mut snapshot_phase = self.snapshot_coord.begin_snapshot();
-        let gc_elapsed = if self.gc_enabled {
+        let (gc_elapsed, gc_roots_to_persist) = if self.gc_enabled {
             let gc_span = tracing::info_span!(
                 parent: parent_span.clone(),
                 "gc",
                 stats = tracing::field::Empty,
-                edges_deleted = tracing::field::Empty,
             )
             .entered();
-            let stats = self.gc_collect(turbo_tasks, &snapshot_phase);
+            let (stats, roots) = self.gc_collect(turbo_tasks, &snapshot_phase);
             gc_span.record("stats", display(stats));
-            Some(start.elapsed())
+            (Some(start.elapsed()), roots)
         } else {
-            None
+            (None, None)
         };
 
         debug_assert!(self.should_persist());
@@ -1095,7 +1199,7 @@ impl TurboTasksBackend {
         let snapshot_time = Instant::now();
         drop(snapshot_phase);
 
-        if !has_modifications {
+        if !has_modifications && gc_roots_to_persist.is_none() {
             // No tasks modified since the last snapshot — drop the guard (which
             // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
@@ -1389,9 +1493,10 @@ impl TurboTasksBackend {
         let snapshot_duration = start.elapsed();
         let task_count = task_snapshots.len();
 
-        if task_snapshots.is_empty() {
-            // This should be impossible — if we got here, modified_count was nonzero, and every
-            // modification that increments the count also failed during encoding.
+        if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
+            // This should be impossible — if we got here, modified_count was nonzero or gc_roots
+            // was present, and every modification that increments the count also failed
+            // during encoding.
             std::hint::cold_path();
             return Ok((snapshot_time, false));
         }
@@ -1407,9 +1512,11 @@ impl TurboTasksBackend {
         // Tasks were already consumed by take_snapshot, so a future snapshot
         // would not re-persist them — returning an error signals to the caller
         // that further persist attempts would corrupt the task graph in storage.
-        let snapshot_meta = self
-            .backing_storage
-            .save_snapshot(suspended_operations, task_snapshots)?;
+        let snapshot_meta = self.backing_storage.save_snapshot(
+            suspended_operations,
+            gc_roots_to_persist,
+            task_snapshots,
+        )?;
         span.record("snapshot_meta", display(snapshot_meta));
 
         #[cfg(feature = "print_cache_item_size")]
@@ -1566,8 +1673,32 @@ impl TurboTasksBackend {
     }
 
     fn stopping(&self) {
-        self.stopping.store(true, Ordering::Release);
+        // modify via a write guard so we synchronize with top level calls into try_execute_context
+        // TEMP INSTRUMENTATION (do not ship): a slow write here means readers (finalizers) are
+        // holding `stopping` and shutdown is blocked behind them.
+        {
+            let start = std::time::Instant::now();
+            let mut guard = loop {
+                match self
+                    .stopping
+                    .try_write_for(std::time::Duration::from_secs(1))
+                {
+                    Some(g) => break g,
+                    None => {
+                        eprintln!(
+                            "[GC-HANG] stopping(): waiting {:?} for stopping.write() on thread \
+                             {:?}\n{}",
+                            start.elapsed(),
+                            std::thread::current().id(),
+                            std::backtrace::Backtrace::force_capture()
+                        );
+                    }
+                }
+            };
+            *guard = true;
+        }
         self.stopping_event.notify(usize::MAX);
+        eprintln!("[GC-HANG] stopping(): set + notified");
     }
 
     #[allow(unused_variables)]
@@ -1577,18 +1708,39 @@ impl TurboTasksBackend {
             self.is_idle.store(false, Ordering::Release);
             self.verify_aggregation_graph(turbo_tasks, false);
         }
+        // TEMP INSTRUMENTATION (do not ship): time each shutdown stage so a stall is attributable
+        // to a specific step rather than to "stop() hung".
+        macro_rules! stage {
+            ($name:literal, $body:block) => {{
+                let __start = std::time::Instant::now();
+                eprintln!("[GC-HANG] stop(): begin {}", $name);
+                $body
+                eprintln!("[GC-HANG] stop(): end {} in {:?}", $name, __start.elapsed());
+            }};
+        }
         // eagerly drop the task cache before persisting
-        self.storage.drop_task_cache();
-        if self.should_persist()
-            && let Err(err) =
-                self.snapshot_and_persist(Span::current().into(), SnapshotReason::Stop, turbo_tasks)
-        {
-            eprintln!("Persisting failed during shutdown: {err:?}");
-        }
-        self.storage.drop_contents();
-        if let Err(err) = self.backing_storage.shutdown() {
-            println!("Shutting down failed: {err}");
-        }
+        stage!("drop_task_cache", {
+            self.storage.drop_task_cache();
+        });
+        stage!("snapshot_and_persist", {
+            if self.should_persist()
+                && let Err(err) = self.snapshot_and_persist(
+                    Span::current().into(),
+                    SnapshotReason::Stop,
+                    turbo_tasks,
+                )
+            {
+                eprintln!("Persisting failed during shutdown: {err:?}");
+            }
+        });
+        stage!("drop_contents", {
+            self.storage.drop_contents();
+        });
+        stage!("backing_storage.shutdown", {
+            if let Err(err) = self.backing_storage.shutdown() {
+                println!("Shutting down failed: {err}");
+            }
+        });
     }
 
     #[allow(unused_variables)]
@@ -1928,9 +2080,9 @@ impl TurboTasksBackend {
     fn debug_get_task_description(&self, task_id: TaskId) -> String {
         let task = self.storage.access_mut(task_id);
         if let Some(value) = task.get_persistent_task_type() {
-            format!("{task_id:?} {}", value)
+            format!("{task_id:?} {value}")
         } else if let Some(value) = task.get_transient_task_type() {
-            format!("{task_id:?} {}", value)
+            format!("{task_id:?} {value}")
         } else {
             format!("{task_id:?} unknown")
         }
@@ -1987,6 +2139,27 @@ impl TurboTasksBackend {
             }
         }
 
+        // Same for a strongly consistent reader waiting on this task's activeness. It subscribed
+        // to `all_clean_event` because the task was dirty or had dirty containers, and the only
+        // other notifier fires on a transition *to* clean. A canceled task never becomes clean —
+        // the `update_dirty_state` below in fact marks it dirty — so without this the reader waits
+        // forever and its whole `read_strongly_consistent` chain stays suspended, holding
+        // foreground jobs that `stop_and_wait` then blocks on.
+        if let Some(activeness_state) = task.get_activeness_mut() {
+            // TEMP INSTRUMENTATION (do not ship): confirm this path runs for the stranded roots.
+            eprintln!("[GC-HANG] task_execution_canceled({task_id:?}): notifying all_clean_event");
+            activeness_state.all_clean_event.notify(usize::MAX);
+            activeness_state.unset_active_until_clean();
+            if activeness_state.is_empty() {
+                task.take_activeness();
+            }
+        } else {
+            eprintln!(
+                "[GC-HANG] task_execution_canceled({task_id:?}): NO activeness state — a reader \
+                 that subscribes after this point will never be notified"
+            );
+        }
+
         // Mark the cancelled task as session-dependent dirty so it will be re-executed
         // in the next session. Without this, any reader that encounters the cancelled task
         // records an error in its output. That error is persisted and would poison
@@ -2030,8 +2203,22 @@ impl TurboTasksBackend {
                 ctx.prepare_tasks(tasks, "prefetch");
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
-            let in_progress = task.take_in_progress()?;
+            // TEMP INSTRUMENTATION (do not ship): both early returns below leave the foreground
+            // job counter incremented (`schedule` bumped it; only the executor's
+            // `finish_foreground_job` decrements, and that runs after this returns Some). If a
+            // stuck task takes either path, that is the leak.
+            let Some(in_progress) = task.take_in_progress() else {
+                eprintln!(
+                    "[GC-HANG] try_start_task_execution({task_id:?}): no in-progress state — \
+                     returning None"
+                );
+                return None;
+            };
             let InProgressState::Scheduled { done_event, reason } = in_progress else {
+                eprintln!(
+                    "[GC-HANG] try_start_task_execution({task_id:?}): in-progress but not \
+                     Scheduled — returning None"
+                );
                 let old = task.set_in_progress(in_progress);
                 debug_assert!(old.is_none(), "InProgress already exists");
                 return None;
@@ -3016,7 +3203,7 @@ impl TurboTasksBackend {
                         let until = last_snapshot + time;
                         if until > Instant::now() {
                             let mut stop_listener = self.stopping_event.listen();
-                            if self.stopping.load(Ordering::Acquire) {
+                            if *self.stopping.read() {
                                 return;
                             }
                             let mut idle_time = if turbo_tasks.is_idle() && fresh_idle {
@@ -3394,23 +3581,75 @@ impl TurboTasksBackend {
     }
 
     fn dispose_root_task(&self, task_id: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
+        // Once stopping, it is too late to tear down tasks safely. Holding the context returned
+        // here also blocks `stop()` from tearing storage down while this runs -- this is called
+        // from JS (`root_task_dispose`, or `SubscriptionTask::drop`) on a thread that
+        // `stop_and_wait` does not drain.
+        let Some(mut ctx) = self.try_execute_context(turbo_tasks) else {
+            // TEMP INSTRUMENTATION (do not ship): this bail-out is the suspected cause of the
+            // app-fetch-build-cache hang. It skips the `all_clean_event.notify` below, and that
+            // event is the only thing waking a `try_read_task_output` waiter that subscribed
+            // because the root had dirty containers. On canary this function used
+            // `execute_context` unconditionally and always reached the notify.
+            //
+            // If this line appears on hanging runs and not on passing ones, the bail-out is the
+            // cause rather than a coincidence.
+            eprintln!(
+                "[GC-HANG] dispose_root_task({task_id:?}): bailed out during shutdown, skipping \
+                 teardown and all_clean_event notify"
+            );
+            return;
+        };
+
         #[cfg(feature = "verify_aggregation_graph")]
         self.root_tasks.lock().remove(&task_id);
 
-        let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_dirty = task.is_dirty();
         let has_dirty_containers = task.has_dirty_containers();
         if is_dirty.is_some() || has_dirty_containers {
+            // TEMP INSTRUMENTATION (do not ship)
+            eprintln!(
+                "[GC-HANG] dispose_root_task({task_id:?}): dirty branch (dirty={:?} \
+                 dirty_containers={has_dirty_containers}) — leaving edges intact",
+                is_dirty.is_some()
+            );
             if let Some(activeness_state) = task.get_activeness_mut() {
                 // We will finish the task, but it would be removed after the task is done
                 activeness_state.unset_root_type();
                 activeness_state.set_active_until_clean();
             };
-        } else if let Some(activeness_state) = task.take_activeness() {
-            // Technically nobody should be listening to this event, but just in case
-            // we notify it anyway
-            activeness_state.all_clean_event.notify(usize::MAX);
+        } else {
+            if let Some(activeness_state) = task.take_activeness() {
+                // Technically nobody should be listening to this event, but just in case
+                // we notify it anyway
+                activeness_state.all_clean_event.notify(usize::MAX);
+            }
+            // Remove all the outgoing edges of this task.
+            let old_edges = capture_all_outgoing_edges(&task);
+            drop(task);
+
+            // TEMP INSTRUMENTATION (do not ship): this whole edge teardown is new in this PR —
+            // canary only notified and stopped here. Tearing a disposed root's edges down can
+            // drop the aggregation/activeness that keeps still-executing children scheduled, so
+            // log which task is torn down and how many edges go with it.
+            eprintln!(
+                "[GC-HANG] dispose_root_task({task_id:?}): clean branch — cleaning up {} outgoing \
+                 edges",
+                old_edges.len()
+            );
+
+            if !old_edges.is_empty() {
+                CleanupOldEdgesOperation::run(
+                    task_id,
+                    old_edges,
+                    AggregationUpdateQueue::new(),
+                    &mut ctx,
+                );
+                eprintln!(
+                    "[GC-HANG] dispose_root_task({task_id:?}): CleanupOldEdgesOperation done"
+                );
+            }
         }
     }
 
@@ -3727,6 +3966,10 @@ impl Backend for TurboTasksBackend {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) {
         self.task_execution_canceled(task, turbo_tasks)
+    }
+
+    fn debug_describe_task(&self, task: TaskId) -> String {
+        self.debug_get_task_description(task)
     }
 
     fn try_start_task_execution(

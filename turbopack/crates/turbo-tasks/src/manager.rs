@@ -1,9 +1,10 @@
 use std::{
+    borrow::Borrow,
     cell::Cell,
     cmp::Reverse,
     fmt::{Debug, Display},
     future::Future,
-    hash::{BuildHasher, BuildHasherDefault},
+    hash::{BuildHasher, BuildHasherDefault, Hash},
     mem::take,
     ops::Deref,
     panic::AssertUnwindSafe,
@@ -30,9 +31,9 @@ use tracing::{Instrument, Span, instrument};
 use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash128};
 
 use crate::{
-    CellId, Completion, InvalidationReason, InvalidationReasonSet, OutputContent, RawVc,
-    ReadCellOptions, ReadOutcome, ReadOutputOptions, ResolvedVc, SharedReference, TaskId,
-    TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    CellId, Completion, InvalidationReason, InvalidationReasonSet, NonLocalValue, OperationValue,
+    OperationVc, OutputContent, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ResolvedVc,
+    SharedReference, TaskId, TraitMethod, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
     backend::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
@@ -636,6 +637,45 @@ impl Drop for InlineExecutionDepthGuard {
     }
 }
 
+/// TEMP INSTRUMENTATION (do not ship): the foreground jobs currently outstanding, so a shutdown
+/// that waits forever on `event_foreground_done` can name what never finished.
+///
+/// A description rather than a `TaskId`, because only one of the `begin_foreground_job` call sites
+/// has a task id at all.
+struct OutstandingForegroundJobs {
+    /// Keyed by `TaskId`, which is what the `schedule` call site has to identify a job.
+    jobs: Mutex<std::collections::BTreeMap<u64, String>>,
+}
+
+static OUTSTANDING_FOREGROUND_JOBS_CELL: std::sync::OnceLock<OutstandingForegroundJobs> =
+    std::sync::OnceLock::new();
+
+fn outstanding_foreground_jobs() -> &'static OutstandingForegroundJobs {
+    OUTSTANDING_FOREGROUND_JOBS_CELL.get_or_init(|| OutstandingForegroundJobs {
+        jobs: Mutex::new(std::collections::BTreeMap::new()),
+    })
+}
+
+/// A snapshot of the outstanding job descriptions, for the stuck-shutdown dump.
+fn outstanding_foreground_jobs_debug<B: Backend + 'static>(backend: &B) -> Vec<String> {
+    let entries: Vec<(u64, String)> = outstanding_foreground_jobs()
+        .jobs
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|(k, v)| (*k, v.clone()))
+        .collect();
+    entries
+        .into_iter()
+        .map(|(id, label)| match TaskId::try_from(id as u32) {
+            // Resolve the task type here rather than at schedule time: it lives in the `Data`
+            // category and the scheduling guard only holds `Meta`.
+            Ok(task_id) => format!("{} [{}]", backend.debug_describe_task(task_id), label),
+            Err(_) => label,
+        })
+        .collect()
+}
+
 /// Polls `future` once inline and then spawns it if it doesn't complete so tokio drives it. Returns
 /// whether it completed.
 fn poll_once_or_spawn(future: impl Future<Output = ()> + Send + 'static) -> bool {
@@ -924,7 +964,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
             })),
             self,
         );
-        self.schedule(id, TaskPriority::initial());
+        self.schedule_described(id, TaskPriority::initial(), || {
+            format!("{id:?} spawn_root_task")
+        });
         id
     }
 
@@ -961,7 +1003,9 @@ impl<B: Backend + 'static> TurboTasks<B> {
             })),
             self,
         );
-        self.schedule(id, TaskPriority::initial());
+        self.schedule_described(id, TaskPriority::initial(), || {
+            format!("{id:?} spawn_once_task")
+        });
     }
 
     pub async fn run_once<T: TraceRawVcs + Send + 'static>(
@@ -1121,7 +1165,32 @@ impl<B: Backend + 'static> TurboTasks<B> {
 
     #[track_caller]
     pub fn schedule(&self, task_id: TaskId, priority: TaskPriority) {
+        self.schedule_described(task_id, priority, || {
+            format!("{task_id:?} <no description>")
+        })
+    }
+
+    /// [`Self::schedule`], plus a lazy description of the task for the stuck-shutdown dump.
+    ///
+    /// TEMP INSTRUMENTATION (do not ship). `describe` is only called to register the job, so
+    /// callers should pass `TaskGuard::get_task_desc_fn()`, which resolves the task's function
+    /// name while the guard is still open — a bare `TaskId` is not enough to identify what hung.
+    #[track_caller]
+    pub fn schedule_described(
+        &self,
+        task_id: TaskId,
+        priority: TaskPriority,
+        describe: impl Fn() -> String,
+    ) {
         self.begin_foreground_job();
+        // Keyed by task id: this site's decrement happens in the executor
+        // (`finish_foreground_job` after the task future completes), too far away for a guard to
+        // span without restructuring, so registration is paired manually there.
+        outstanding_foreground_jobs()
+            .jobs
+            .lock()
+            .unwrap()
+            .insert(*task_id as u64, describe());
         self.scheduled_tasks.fetch_add(1, Ordering::AcqRel);
 
         let task = ScheduledTask::Task {
@@ -1399,22 +1468,79 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 let listener = self
                     .event_foreground_done
                     .listen_with_note(|| || "wait for stop".to_string());
-                if self
+                let pending = self
                     .currently_scheduled_foreground_jobs
-                    .load(Ordering::Acquire)
-                    != 0
-                {
-                    listener.await;
+                    .load(Ordering::Acquire);
+                if pending != 0 {
+                    // TEMP INSTRUMENTATION (do not ship): report a wait that never wakes, which
+                    // is what a missed `event_foreground_done` notification looks like.
+                    let start = std::time::Instant::now();
+                    let mut listener = std::pin::pin!(listener);
+                    let mut reports = 0u32;
+                    loop {
+                        tokio::select! {
+                            () = listener.as_mut() => break,
+                            () = tokio::time::sleep(std::time::Duration::from_secs(2)) => {
+                                reports += 1;
+                                // Cap the output: a 60s hang should leave a readable trail, not
+                                // hundreds of duplicate lines in the CI log.
+                                if reports <= 8 || reports.is_multiple_of(10) {
+                                    // `queued` with `workers == 0` means work is sitting in the
+                                    // priority queue with nobody to drain it — the invariant
+                                    // documented on `PriorityRunner::schedule`.
+                                    let (queued, workers, target) =
+                                        self.priority_runner.debug_queue_state();
+                                    eprintln!(
+                                        "[GC-HANG] stop_and_wait: waiting {:?} for \
+                                         event_foreground_done; jobs_at_entry={} \
+                                         foreground_now={} background_now={} queued={} \
+                                         active_workers={} target_workers={} outstanding={:?}",
+                                        start.elapsed(),
+                                        pending,
+                                        self.currently_scheduled_foreground_jobs
+                                            .load(Ordering::Acquire),
+                                        self.currently_scheduled_background_jobs
+                                            .load(Ordering::Acquire),
+                                        queued,
+                                        workers,
+                                        target,
+                                        outstanding_foreground_jobs_debug(&self.backend),
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
             }
             {
                 let listener = self.event_background_done.listen();
-                if self
+                let pending = self
                     .currently_scheduled_background_jobs
-                    .load(Ordering::Acquire)
-                    != 0
-                {
-                    listener.await;
+                    .load(Ordering::Acquire);
+                if pending != 0 {
+                    // TEMP INSTRUMENTATION (do not ship): same for background jobs.
+                    let start = std::time::Instant::now();
+                    let mut listener = std::pin::pin!(listener);
+                    let mut reports = 0u32;
+                    loop {
+                        tokio::select! {
+                            () = listener.as_mut() => break,
+                            () = tokio::time::sleep(std::time::Duration::from_secs(2)) => {
+                                reports += 1;
+                                if reports <= 8 || reports.is_multiple_of(10) {
+                                    eprintln!(
+                                        "[GC-HANG] stop_and_wait: waiting {:?} for \
+                                         event_background_done; jobs_at_entry={} \
+                                         background_now={}",
+                                        start.elapsed(),
+                                        pending,
+                                        self.currently_scheduled_background_jobs
+                                            .load(Ordering::Acquire),
+                                    );
+                                }
+                            }
+                        }
+                    }
                 }
             }
             self.backend.stop(self);
@@ -1525,7 +1651,15 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 false, // in_top_level_task
                             ));
                         let single_execution_future = async {
-                            if this.stopped.load(Ordering::Acquire) {
+                            let stopped = this.stopped.load(Ordering::Acquire);
+                            if stopped {
+                                // TEMP INSTRUMENTATION (do not ship): name the task, not just
+                                // the id. In `next build` nothing should still be executing at
+                                // shutdown, so what these are is the question.
+                                eprintln!(
+                                    "[GC-HANG] canceled because stopped: {}",
+                                    this.backend.debug_describe_task(task_id)
+                                );
                                 this.backend.task_execution_canceled(task_id, &*this);
                                 return None;
                             }
@@ -1578,7 +1712,23 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                         {
                             // Task was stale; re-schedule at the correct invalidation priority so
                             // other tasks can run in the right priority order.
-                            this.schedule(task_id, stale_priority);
+                            // TEMP INSTRUMENTATION (do not ship): deregister before the
+                            // re-schedule below re-registers under the same key, so the entry
+                            // reflects the new scheduling rather than being dropped by it.
+                            outstanding_foreground_jobs()
+                                .jobs
+                                .lock()
+                                .unwrap()
+                                .remove(&(*task_id as u64));
+                            this.schedule_described(task_id, stale_priority, || {
+                                format!("{task_id:?} re-scheduled (was stale)")
+                            });
+                        } else {
+                            outstanding_foreground_jobs()
+                                .jobs
+                                .lock()
+                                .unwrap()
+                                .remove(&(*task_id as u64));
                         }
                         this.finish_foreground_job();
                     })
@@ -2261,6 +2411,89 @@ pub fn prevent_gc() {
         with_turbo_tasks(|tt| tt.pin_task_for_gc(task));
     }
 }
+
+/// An RAII guard that pins an [`OperationVc`]'s task against garbage collection.
+pub struct GcRoot<T: ?Sized> {
+    tt: Arc<dyn TurboTasksApi>,
+    vc: OperationVc<T>,
+}
+
+impl<T: ?Sized> GcRoot<T> {
+    /// Pins `vc`'s task, returning a guard that unpins it on drop.
+    pub fn pin(tt: Arc<dyn TurboTasksApi>, vc: OperationVc<T>) -> Self {
+        tt.pin_task_for_gc(vc.task_id());
+        Self { tt, vc }
+    }
+}
+
+/// A guard derefs to the operation it pins, so [`OperationVc`]'s own methods can be called on it
+/// directly and `*guard` recovers the operation itself.
+impl<T: ?Sized> Deref for GcRoot<T> {
+    type Target = OperationVc<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.vc
+    }
+}
+
+impl<T: ?Sized> Clone for GcRoot<T> {
+    fn clone(&self) -> Self {
+        Self::pin(self.tt.clone(), self.vc)
+    }
+}
+
+impl<T: ?Sized> Drop for GcRoot<T> {
+    fn drop(&mut self) {
+        self.tt.unpin_task_for_gc(self.vc.task_id());
+    }
+}
+
+impl<T: ?Sized> Debug for GcRoot<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GcRoot").field("vc", &self.vc).finish()
+    }
+}
+
+impl<T: ?Sized> PartialEq for GcRoot<T> {
+    /// Compares the pinned operation only. Two guards for the same operation are interchangeable
+    /// as far as reachability is concerned, even though each holds its own pin.
+    fn eq(&self, other: &Self) -> bool {
+        self.vc == other.vc
+    }
+}
+
+impl<T: ?Sized> Eq for GcRoot<T> {}
+
+impl<T: ?Sized> Hash for GcRoot<T> {
+    /// Hashes the pinned operation, consistently with [`PartialEq`], so a guard can be looked up
+    /// in a set by the [`OperationVc`] it pins (see the [`Borrow`] impl).
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.vc.hash(state);
+    }
+}
+
+/// Lets a collection keyed on guards be queried with the bare operation: `Borrow` plus the
+/// matching [`Hash`]/[`Eq`] impls give `OperationVc<T>: Equivalent<GcRoot<T>>`, so e.g.
+/// `IndexSet<GcRoot<T>>::swap_remove` accepts an `&OperationVc<T>`.
+impl<T: ?Sized> Borrow<OperationVc<T>> for GcRoot<T> {
+    fn borrow(&self) -> &OperationVc<T> {
+        &self.vc
+    }
+}
+
+impl<T: ?Sized> TraceRawVcs for GcRoot<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut crate::trace::TraceRawVcsContext) {
+        self.vc.trace_raw_vcs(trace_context);
+    }
+}
+
+/// Safety: a `GcRoot` contains exactly one [`OperationVc`] and no [`Vc`] or [`ResolvedVc`], which
+/// is what [`OperationValue`] asserts.
+unsafe impl<T: ?Sized + Send> OperationValue for GcRoot<T> {}
+
+/// Safety: mirrors the [`OperationVc`] impl — a `GcRoot` holds no task-local data beyond the
+/// operation it pins.
+unsafe impl<T: NonLocalValue + ?Sized> NonLocalValue for GcRoot<T> {}
 
 pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
     with_turbo_tasks(|tt| {

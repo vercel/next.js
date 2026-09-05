@@ -211,10 +211,34 @@ impl<O> SnapshotCoordinator<O> {
             // liveness: this runs as a `tokio::spawn` background job, so parking here without
             // handing the worker back would starve the very operations we are waiting on.
             tokio::task::block_in_place(|| {
-                self.operations_drained.wait_while(&mut state, |_| {
-                    (self.in_progress_operations.load(Ordering::Acquire) & !SNAPSHOT_REQUESTED_BIT)
-                        != 0
-                });
+                // TEMP INSTRUMENTATION (do not ship): report a drain that never completes,
+                // which is what an operation guard leaked by a finalizer looks like.
+                let start = std::time::Instant::now();
+                let mut reports = 0u32;
+                loop {
+                    let res = self.operations_drained.wait_while_for(
+                        &mut state,
+                        |_| {
+                            (self.in_progress_operations.load(Ordering::Acquire)
+                                & !SNAPSHOT_REQUESTED_BIT)
+                                != 0
+                        },
+                        std::time::Duration::from_secs(1),
+                    );
+                    if !res.timed_out() {
+                        break;
+                    }
+                    reports += 1;
+                    if reports <= 4 || reports.is_multiple_of(10) {
+                        eprintln!(
+                            "[GC-HANG] begin_snapshot: waiting {:?} for operations to drain \
+                             (in_progress={:#x}) on thread {:?}",
+                            start.elapsed(),
+                            self.in_progress_operations.load(Ordering::Acquire),
+                            std::thread::current().id(),
+                        );
+                    }
+                }
             });
         }
         // Snapshot ranges that follow can read the suspended_operations

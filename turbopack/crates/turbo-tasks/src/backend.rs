@@ -622,6 +622,15 @@ pub trait Backend: Sized + Sync + Send {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
 
+    /// TEMP INSTRUMENTATION (do not ship): a human-readable description of `task` for diagnostics.
+    ///
+    /// Resolved on demand rather than at schedule time: the task type lives in the `Data`
+    /// category, so reading it from a `Meta`-only guard panics. Implementations should read
+    /// storage directly instead of going through a categorized guard.
+    fn debug_describe_task(&self, task: TaskId) -> String {
+        format!("{task:?}")
+    }
+
     /// Called when a task's execution finishes.
     ///
     /// Returns `Some(priority)` if the task was invalidated again while executing and must be
