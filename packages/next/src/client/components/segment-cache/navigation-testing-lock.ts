@@ -25,10 +25,10 @@ import {
 } from '../../../shared/lib/app-router-types'
 import { NEXT_INSTANT_TEST_COOKIE } from '../app-router-headers'
 import { refreshOnInstantNavigationUnlock } from '../use-action-queue'
-import { subtreeHasSpeculativePrefetch } from './scheduler'
+import { needsSpeculativePrefetch } from './scheduler'
 import type { SegmentCacheEntry } from './cache'
 import { createCacheMap, type CacheMap } from './cache-map'
-import type { FetchStrategy } from './types'
+import type { PrefetchTaskFetchStrategy } from './types'
 
 type InstantNavCookieState = 'empty' | 'pending' | 'mpa' | 'spa'
 
@@ -535,19 +535,19 @@ export function getCurrentNavigationGate(): Promise<void> | null {
  * enabled for the target route, and no whole-route ("speculative") prefetch
  * would have been made, only the shell is prefetched — so that's all a
  * navigation should be allowed to match. A speculative prefetch happens for a
- * `<Link prefetch={true}>` or an eagerly-prefetched subtree, in which case the
- * concrete-param entry is genuinely warm and may be matched.
+ * `<Link prefetch={true}>`, in which case the concrete-param entry is genuinely
+ * warm and may be matched.
  *
  * Always returns false outside the testing API, via the aliased
  * `navigation-testing-lock.disabled` module.
  */
 export function shouldRestrictNavigationToShell(
   rootPrefetchHints: number,
-  linkFetchStrategy: FetchStrategy
+  linkFetchStrategy: PrefetchTaskFetchStrategy
 ): boolean {
   return (
     isNavigationLocked() &&
     (rootPrefetchHints & PrefetchHint.SubtreeHasPartialPrefetching) !== 0 &&
-    !subtreeHasSpeculativePrefetch(linkFetchStrategy, rootPrefetchHints)
+    !needsSpeculativePrefetch(linkFetchStrategy, rootPrefetchHints)
   )
 }
