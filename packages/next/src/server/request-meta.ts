@@ -232,6 +232,9 @@ export interface RequestMeta {
   /** Framework-owned lifecycle scope for a routed WebSocket upgrade. */
   webSocketRegistryScope?: object
 
+  /** Framework-owned generation lease for the resolved WebSocket App Route. */
+  webSocketRouteLease?: import('./websocket-connection-registry').WebSocketRouteLease
+
   /** How the embedding server dispatched this WebSocket upgrade. */
   webSocketUpgradeOwnership?: import('./websocket-upgrade-listener').WebSocketUpgradeOwnership
   /**

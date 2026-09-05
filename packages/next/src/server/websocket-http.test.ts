@@ -734,6 +734,37 @@ describe('raw WebSocket upgrade responses', () => {
     socket.destroy()
   })
 
+  it('settles a backpressured write once the socket drains', async () => {
+    // The write() -> drain happy path: the socket reports backpressure once,
+    // then drains, and the write resolves without involving the error path.
+    class BackpressuredSocket extends PassThrough {
+      override write(
+        chunk: any,
+        encodingOrCallback?: any,
+        callback?: any
+      ): boolean {
+        super.write(chunk, encodingOrCallback, callback)
+        return false
+      }
+    }
+
+    const socket = new BackpressuredSocket()
+    socket.resume()
+    const chunks: Buffer[] = []
+    socket.on('data', (chunk) => chunks.push(Buffer.from(chunk)))
+
+    const response = writeRawHttpResponse(
+      { method: 'GET', httpVersion: '1.1' } as IncomingMessage,
+      socket,
+      new Response('slow body', { status: 200 })
+    )
+
+    await expect(response).resolves.toBeUndefined()
+    expect(Buffer.concat(chunks).toString()).toContain('slow body')
+    expect(getRawHttpResponseStatus(socket)).toBe(200)
+    socket.destroy()
+  })
+
   it('cleans up the socket error owner when close-listener removal throws', async () => {
     const request = new PassThrough() as unknown as IncomingMessage
     const socket = new PassThrough()

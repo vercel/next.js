@@ -168,7 +168,12 @@ function getWebSocketRequestAuthority(req: IncomingMessage): URL | undefined {
   }
 }
 
-function isSocketDisconnected(socket: Duplex): boolean {
+/** True once the socket is done in both directions (or destroyed). */
+export function isSocketDisconnected(socket: {
+  destroyed: boolean
+  readableEnded: boolean
+  writableEnded: boolean
+}): boolean {
   return socket.destroyed || socket.writableEnded || socket.readableEnded
 }
 
