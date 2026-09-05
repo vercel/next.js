@@ -262,23 +262,18 @@ for (const cacheEnabled of [false, true]) {
         checkChanged: makeTextCheck('/add-me', 'hello world'),
         largeCacheIncrease: true,
       },
-      // TODO fix this case with Turbopack
-      ...(isTurbopack
-        ? {}
-        : {
-            'loader change': {
-              async checkInitial() {
-                await textCheck('/loader', 'hello world')
-                await textCheck('/loader/client', 'hello world')
-              },
-              withChange: makeFileEdit('my-loader.js'),
-              async checkChanged() {
-                await textCheck('/loader', 'hello filesystem cache')
-                await textCheck('/loader/client', 'hello filesystem cache')
-              },
-              fullInvalidation: !isTurbopack,
-            },
-          }),
+      'loader change': {
+        async checkInitial() {
+          await textCheck('/loader', 'hello world')
+          await textCheck('/loader/client', 'hello world')
+        },
+        withChange: makeFileEdit('my-loader.js'),
+        async checkChanged() {
+          await textCheck('/loader', 'hello filesystem cache')
+          await textCheck('/loader/client', 'hello filesystem cache')
+        },
+        fullInvalidation: !isTurbopack,
+      },
       'next config change': {
         async checkInitial() {
           await textCheck('/next-config', 'hello world')
