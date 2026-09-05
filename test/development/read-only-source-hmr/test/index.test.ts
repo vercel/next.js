@@ -6,6 +6,39 @@ import path from 'path'
 const READ_ONLY_PERMISSIONS = 0o444
 const READ_WRITE_PERMISSIONS = 0o644
 
+// Polling watchers (see `next.config.js` / `WATCHPACK_POLLING`) detect changes
+// on the next poll tick rather than immediately, so give change-detection
+// assertions a more generous window than `retry()`'s 3s default.
+const POLL_RETRY_MS = 10000
+
+// notify's `PollWatcher` -- which Turbopack uses when
+// `watchOptions.pollIntervalMs` is set -- keeps mtimes at whole-second
+// resolution and only reports a change when the mtime strictly increases. Two
+// writes to the same file within one second are therefore indistinguishable,
+// and the second one is dropped for good rather than merely reported late.
+// These tests rewrite the same page in quick succession (edit, assert, restore),
+// so make sure each write is observable by giving it a strictly increasing
+// whole-second mtime.
+//
+// The mtime is only rewritten when the natural one isn't already newer than the
+// previous write, so the common case leaves the file alone -- an extra `utimes`
+// is itself a watch event, and emitting one on every write would double the
+// number of rebuilds the dev server does.
+let lastWriteSeconds = 0
+async function writeFileWithIncreasingMtime(filePath: string, content: string) {
+  await fs.writeFile(filePath, content)
+
+  const naturalSeconds = Math.floor((await fs.stat(filePath)).mtimeMs / 1000)
+  if (naturalSeconds > lastWriteSeconds) {
+    lastWriteSeconds = naturalSeconds
+    return
+  }
+
+  lastWriteSeconds += 1
+  const mtime = new Date(lastWriteSeconds * 1000)
+  await fs.utimes(filePath, mtime, mtime)
+}
+
 let pageHello = 'pages/hello.js'
 
 describe('Read-only source HMR', () => {
@@ -14,10 +47,13 @@ describe('Read-only source HMR', () => {
     skipStart: true,
     env: {
       __NEXT_TEST_WITH_DEVTOOL: '1',
-      // Events can be finicky in CI. This switches to a more reliable
-      // polling method.
-      CHOKIDAR_USEPOLLING: 'true',
-      CHOKIDAR_INTERVAL: '500',
+      // Events can be finicky in CI. This switches the dev server's file
+      // watcher (Watchpack, used by both webpack and Turbopack to detect
+      // added/removed route files) to a more reliable polling method. The
+      // bundler-level polling (webpack compiler / Turbopack's PollWatcher) is
+      // enabled via `watchOptions.pollIntervalMs` in this fixture's
+      // `next.config.js`.
+      WATCHPACK_POLLING: '500',
     },
   })
 
@@ -49,7 +85,7 @@ describe('Read-only source HMR', () => {
         await fs.remove(filePath)
       }
     } else {
-      await fs.writeFile(filePath, newContent)
+      await writeFileWithIncreasingMtime(filePath, newContent)
     }
 
     try {
@@ -64,7 +100,7 @@ describe('Read-only source HMR', () => {
       if (previousContent === undefined) {
         await fs.remove(filePath)
       } else {
-        await fs.writeFile(filePath, previousContent)
+        await writeFileWithIncreasingMtime(filePath, previousContent)
         await fs.chmod(filePath, READ_ONLY_PERMISSIONS)
       }
     }
@@ -83,14 +119,18 @@ describe('Read-only source HMR', () => {
         pageHello,
         (content) => content.replace('Hello World', 'COOL page'),
         async () => {
-          await retry(async () =>
-            expect(await getBrowserBodyText(browser)).toContain('COOL page')
+          await retry(
+            async () =>
+              expect(await getBrowserBodyText(browser)).toContain('COOL page'),
+            POLL_RETRY_MS
           )
         }
       )
 
-      await retry(async () =>
-        expect(await getBrowserBodyText(browser)).toContain('Hello World')
+      await retry(
+        async () =>
+          expect(await getBrowserBodyText(browser)).toContain('Hello World'),
+        POLL_RETRY_MS
       )
     } finally {
       await browser?.close()
@@ -110,10 +150,12 @@ describe('Read-only source HMR', () => {
         pageHello,
         () => undefined,
         async () => {
-          await retry(async () =>
-            expect(await getBrowserBodyText(browser)).toContain(
-              'This page could not be found'
-            )
+          await retry(
+            async () =>
+              expect(await getBrowserBodyText(browser)).toContain(
+                'This page could not be found'
+              ),
+            POLL_RETRY_MS
           )
         }
       )
@@ -128,7 +170,7 @@ describe('Read-only source HMR', () => {
             .catch(() => {})
         }
         expect(await getBrowserBodyText(browser)).toContain('Hello World')
-      })
+      }, POLL_RETRY_MS)
     } finally {
       await browser?.close()
     }
@@ -147,9 +189,13 @@ describe('Read-only source HMR', () => {
       `,
         async () => {
           browser = await next.browser('/new')
-          await retry(async () =>
+          // In polling mode the newly added route isn't registered instantly,
+          // so the first navigation can 404. Re-request the page on each retry
+          // until the watcher picks up the new file and it compiles.
+          await retry(async () => {
+            await browser.refresh()
             expect(await getBrowserBodyText(browser)).toContain('New page')
-          )
+          }, POLL_RETRY_MS)
         }
       )
     } finally {

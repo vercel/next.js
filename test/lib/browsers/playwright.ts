@@ -36,6 +36,13 @@ const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
     // availability in GitHub Actions.
     60 * 1000
 
+// How long `eval` will wait for the page to reach a load state after evaluating,
+// before giving up and letting the caller continue. Deliberately far below
+// `defaultTimeout`: this wait is best-effort, and it runs on every `eval` call,
+// so it must stay small enough that a whole `retry` budget's worth of them
+// cannot approach Jest's per-test timeout.
+const EVAL_SETTLE_TIMEOUT = 2 * 1000
+
 // loose global to register teardown functions before quitting the browser instance.
 // This is due to `quit` can be called anytime outside of Playwright's lifecycle,
 // which can create corrupted state by terminating the context.
@@ -630,7 +637,18 @@ export class Playwright<TCurrent = undefined> {
           return null!
         })
         .finally(async () => {
-          await page.waitForLoadState()
+          // Settling the page before the next chained call is a courtesy, not a
+          // correctness requirement -- callers assert (usually via `retry`) on
+          // what they actually care about. Without a bound this inherits the
+          // page's 60s default timeout, so a page the dev server keeps
+          // re-navigating (e.g. while it rebuilds after a file change) stalls
+          // here for a full minute per `eval`. Two of those already exceed
+          // Jest's 120s per-test timeout, which turns a flaky page into an
+          // unexplained test timeout. A page that has already loaded returns
+          // immediately, so this only affects the pathological case.
+          await page
+            .waitForLoadState(undefined, { timeout: EVAL_SETTLE_TIMEOUT })
+            .catch(() => {})
         })
     )
   }
