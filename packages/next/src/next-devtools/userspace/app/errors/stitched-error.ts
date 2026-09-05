@@ -2,6 +2,17 @@ import React from 'react'
 import isError from '../../../../lib/is-error'
 
 const ownerStacks = new WeakMap<Error, string | null>()
+const fatalErrors = new WeakSet<Error>()
+
+export function markErrorAsFatal(error: unknown): void {
+  if (isError(error)) {
+    fatalErrors.add(error)
+  }
+}
+
+export function consumeErrorFatality(error: Error): boolean {
+  return fatalErrors.delete(error)
+}
 
 export function getOwnerStack(error: Error): string | null | undefined {
   return ownerStacks.get(error)

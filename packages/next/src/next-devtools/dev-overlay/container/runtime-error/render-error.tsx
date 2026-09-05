@@ -13,6 +13,8 @@ export type SupportedErrorEvent = {
   error: Error
   frames: readonly StackFrame[]
   type: 'runtime' | 'recoverable' | 'console'
+  /** Whether the error caused Next.js to replace the application UI. */
+  isFatal: boolean
 }
 
 type Props = {
@@ -41,7 +43,10 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
   const { errors } = state
 
   const [lookups, setLookups] = useState<{
-    [eventId: string]: ReadyRuntimeError
+    [eventId: string]: {
+      event: SupportedErrorEvent
+      resolved: ReadyRuntimeError
+    }
   }>({})
 
   const [runtimeErrors, nextError] = useMemo<
@@ -55,11 +60,22 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
       const e = errors[idx]
       const { id } = e
       if (id in lookups) {
-        ready.push(lookups[id])
+        const lookup = lookups[id]
+        const resolved = lookup.resolved
+        if (lookup.event !== e) {
+          // Dedupe promotion preserves the ID while replacing the event.
+          // Keep the overlay mounted while resolving the replacement frames.
+          if (next === null) next = e
+          ready.push(
+            resolved.type === e.type ? resolved : { ...resolved, type: e.type }
+          )
+          continue
+        }
+        ready.push(resolved)
         continue
       }
 
-      next = e
+      if (next === null) next = e
       break
     }
 
@@ -73,7 +89,10 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
 
     const resolved = getErrorByType(nextError, isAppDir)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO: fetch-while-rendering
-    setLookups((m) => ({ ...m, [resolved.id]: resolved }))
+    setLookups((m) => ({
+      ...m,
+      [resolved.id]: { event: nextError, resolved },
+    }))
   }, [nextError, isAppDir])
 
   const totalErrorCount = errors.length

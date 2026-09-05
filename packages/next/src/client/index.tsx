@@ -358,7 +358,7 @@ function renderError(renderErrorProps: RenderErrorProps): Promise<any> {
   if (process.env.NODE_ENV !== 'production') {
     // A Next.js rendering runtime error is always unrecoverable
     // FIXME: let's make this recoverable (error in GIP client-transition)
-    devClient.onUnrecoverableError()
+    devClient.onUnrecoverableError(err)
 
     // We need to render an empty <App> so that the `<ReactDevOverlay>` can
     // render itself.
@@ -907,6 +907,9 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
     const getServerError = (
       require('../server/dev/node-stack-frames') as typeof import('../server/dev/node-stack-frames')
     ).getServerError
+    const { markErrorAsFatal } =
+      require('../next-devtools/userspace/app/errors/stitched-error') as typeof import('../next-devtools/userspace/app/errors/stitched-error')
+
     // Server-side runtime errors need to be re-thrown on the client-side so
     // that the overlay is rendered.
     if (initialErr) {
@@ -933,13 +936,16 @@ export async function hydrate(opts?: { beforeRender?: () => Promise<void> }) {
               'Next.js navigation API is not allowed to be used in Pages Router.'
           }
 
-          throw getServerError(error, errSource)
+          const serverError = getServerError(error, errSource)
+          markErrorAsFatal(serverError)
+          throw serverError
         })
       }
       // We replaced the server-side error with a client-side error, and should
       // no longer rewrite the stack trace to a Node error.
       else {
         setTimeout(() => {
+          markErrorAsFatal(initialErr)
           throw initialErr
         })
       }
