@@ -5,57 +5,89 @@
 use std::{collections::HashSet, mem::take, sync::Mutex};
 
 use anyhow::Result;
-use turbo_tasks::{
-    Invalidator, TraitRef, Vc, get_invalidator,
-    unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
-};
+use turbo_tasks::{Invalidator, ResolvedVc, TraitRef, Vc, get_invalidator, with_turbo_tasks};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn trait_ref() {
-    run_once(&REGISTRATION, async || {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        let counter = Counter::cell(Counter {
-            value: Mutex::new((0, Default::default())),
-        });
+    let mut nonce = 0;
+    run_once(&REGISTRATION, move || {
+        nonce += 1;
+        async move {
+            #[turbo_tasks::function(operation, root)]
+            fn create_counter_operation(nonce: u32) -> Vc<Counter> {
+                let _ = nonce;
+                Counter::cell(Counter {
+                    value: Mutex::new((0, Default::default())),
+                })
+            }
 
-        let counter_value = counter.get_value();
+            #[turbo_tasks::function(operation, root)]
+            fn read_counter_operation(counter: ResolvedVc<Counter>) -> Vc<Counter> {
+                *counter
+            }
 
-        assert_eq!(*counter.get_value().strongly_consistent().await?, 0);
-        assert_eq!(*counter_value.strongly_consistent().await?, 0);
+            #[turbo_tasks::function(operation, root)]
+            fn counter_trait_operation(counter: ResolvedVc<Counter>) -> Vc<Box<dyn CounterTrait>> {
+                Vc::upcast(*counter)
+            }
 
-        counter.await?.incr();
+            #[turbo_tasks::function(operation, root)]
+            fn counter_value_trait_operation(
+                counter: ResolvedVc<Counter>,
+            ) -> Vc<Box<dyn CounterValueTrait>> {
+                Vc::upcast(counter.get_value())
+            }
 
-        assert_eq!(*counter.get_value().strongly_consistent().await?, 1);
-        assert_eq!(*counter_value.strongly_consistent().await?, 1);
+            let counter = create_counter_operation(nonce)
+                .resolve()
+                .strongly_consistent()
+                .await?;
 
-        // `ref_counter` will still point to the same `counter` instance as `counter`.
-        let trait_ref_counter = Vc::upcast::<Box<dyn CounterTrait>>(counter)
-            .into_trait_ref()
-            .await?;
-        let ref_counter = TraitRef::cell(trait_ref_counter.clone());
-        let ref_counter_value = ref_counter.get_value();
+            let counter_value = counter.get_value();
 
-        // However, `local_counter_value` will point to the value of `counter_value`
-        // at the time it was turned into a trait reference (just like a `ReadRef`
-        // would).
-        let local_counter_value = TraitRef::cell(
-            Vc::upcast::<Box<dyn CounterValueTrait>>(counter_value)
-                .into_trait_ref()
-                .await?,
-        )
-        .get_value();
+            assert_eq!(*counter.get_value().strongly_consistent().await?, 0);
+            assert_eq!(*counter_value.strongly_consistent().await?, 0);
 
-        counter.await?.incr();
-        assert_eq!(trait_ref_counter.get_value_sync().0, 2);
-        assert_eq!(*counter.get_value().strongly_consistent().await?, 2);
-        assert_eq!(*counter_value.strongly_consistent().await?, 2);
-        assert_eq!(*ref_counter_value.strongly_consistent().await?, 2);
-        assert_eq!(*local_counter_value.strongly_consistent().await?, 1);
+            read_counter_operation(counter)
+                .read_strongly_consistent()
+                .await?
+                .incr();
 
-        anyhow::Ok(())
+            assert_eq!(*counter.get_value().strongly_consistent().await?, 1);
+            assert_eq!(*counter_value.strongly_consistent().await?, 1);
+
+            // `ref_counter` will still point to the same `counter` instance as `counter`.
+            let trait_ref_counter = counter_trait_operation(counter)
+                .read_trait_strongly_consistent()
+                .await?;
+            let ref_counter = TraitRef::cell(trait_ref_counter.clone());
+            let ref_counter_value = ref_counter.get_value();
+
+            // However, `local_counter_value` will point to the value of `counter_value`
+            // at the time it was turned into a trait reference (just like a `ReadRef`
+            // would).
+            let local_counter_value = TraitRef::cell(
+                counter_value_trait_operation(counter)
+                    .read_trait_strongly_consistent()
+                    .await?,
+            )
+            .get_value();
+
+            read_counter_operation(counter)
+                .read_strongly_consistent()
+                .await?
+                .incr();
+            assert_eq!(trait_ref_counter.get_value_sync().0, 2);
+            assert_eq!(*counter.get_value().strongly_consistent().await?, 2);
+            assert_eq!(*counter_value.strongly_consistent().await?, 2);
+            assert_eq!(*ref_counter_value.strongly_consistent().await?, 2);
+            assert_eq!(*local_counter_value.strongly_consistent().await?, 1);
+
+            anyhow::Ok(())
+        }
     })
     .await
     .unwrap()

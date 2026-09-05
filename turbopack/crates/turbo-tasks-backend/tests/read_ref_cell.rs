@@ -5,49 +5,74 @@
 use std::{collections::HashSet, mem::take, sync::Mutex};
 
 use anyhow::Result;
-use turbo_tasks::{
-    Invalidator, ReadRef, Vc, get_invalidator,
-    unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
-};
+use turbo_tasks::{Invalidator, ReadRef, ResolvedVc, Vc, get_invalidator, with_turbo_tasks};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_read_ref() {
-    run_once(&REGISTRATION, async || {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        let counter = Counter::cell(Counter {
-            value: Mutex::new((0, Default::default())),
-        });
+    let mut nonce = 0;
+    run_once(&REGISTRATION, move || {
+        nonce += 1;
+        async move {
+            #[turbo_tasks::function(operation, root)]
+            fn create_counter_operation(nonce: u32) -> Vc<Counter> {
+                let _ = nonce;
+                Counter::cell(Counter {
+                    value: Mutex::new((0, Default::default())),
+                })
+            }
 
-        let counter_value = counter.get_value();
+            #[turbo_tasks::function(operation, root)]
+            fn read_counter_operation(counter: ResolvedVc<Counter>) -> Vc<Counter> {
+                *counter
+            }
 
-        assert_eq!(*counter.get_value().strongly_consistent().await?, 0);
-        assert_eq!(*counter_value.strongly_consistent().await?, 0);
+            let counter = create_counter_operation(nonce)
+                .resolve()
+                .strongly_consistent()
+                .await?;
 
-        counter.await?.incr();
+            let counter_value = counter.get_value();
 
-        assert_eq!(*counter.get_value().strongly_consistent().await?, 1);
-        assert_eq!(*counter_value.strongly_consistent().await?, 1);
+            assert_eq!(*counter.get_value().strongly_consistent().await?, 0);
+            assert_eq!(*counter_value.strongly_consistent().await?, 0);
 
-        // `ref_counter` will still point to the same `counter` instance as `counter`.
-        let ref_counter = ReadRef::cell(counter.await?);
-        let ref_counter_value = ref_counter.get_value();
+            read_counter_operation(counter)
+                .read_strongly_consistent()
+                .await?
+                .incr();
 
-        // However, `local_counter_value` will point to the value of `counter_value`
-        // at the time it was turned into a trait reference (just like a `ReadRef`
-        // would).
-        let local_counter_value = ReadRef::cell(counter_value.await?).get_value();
+            assert_eq!(*counter.get_value().strongly_consistent().await?, 1);
+            assert_eq!(*counter_value.strongly_consistent().await?, 1);
 
-        counter.await?.incr();
+            // `ref_counter` will still point to the same `counter` instance as `counter`.
+            let ref_counter = ReadRef::cell(
+                read_counter_operation(counter)
+                    .read_strongly_consistent()
+                    .await?,
+            );
+            let ref_counter_value = ref_counter.get_value();
 
-        assert_eq!(*counter.get_value().strongly_consistent().await?, 2);
-        assert_eq!(*counter_value.strongly_consistent().await?, 2);
-        assert_eq!(*ref_counter_value.strongly_consistent().await?, 2);
-        assert_eq!(*local_counter_value.strongly_consistent().await?, 1);
+            // However, `local_counter_value` will point to the value of `counter_value`
+            // at the time it was turned into a trait reference (just like a `ReadRef`
+            // would).
+            let local_counter_value =
+                ReadRef::cell(counter_value.strongly_consistent().await?).get_value();
 
-        anyhow::Ok(())
+            read_counter_operation(counter)
+                .read_strongly_consistent()
+                .await?
+                .incr();
+
+            assert_eq!(*counter.get_value().strongly_consistent().await?, 2);
+            assert_eq!(*counter_value.strongly_consistent().await?, 2);
+            assert_eq!(*ref_counter_value.strongly_consistent().await?, 2);
+            assert_eq!(*local_counter_value.strongly_consistent().await?, 1);
+
+            anyhow::Ok(())
+        }
     })
     .await
     .unwrap()
