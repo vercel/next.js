@@ -528,6 +528,19 @@ function assignDefaultsAndValidate(
     }
   }
 
+  // Ensure NEXT_DEPLOYMENT_ID prevents cache entries from being reused across deployments.
+  result.experimental.durableUseCacheEntriesConfig ??= {}
+  result.experimental.durableUseCacheEntriesConfig.unstableEnvVars ??= []
+  if (
+    !result.experimental.durableUseCacheEntriesConfig.unstableEnvVars.includes(
+      'NEXT_DEPLOYMENT_ID'
+    )
+  ) {
+    result.experimental.durableUseCacheEntriesConfig.unstableEnvVars.push(
+      'NEXT_DEPLOYMENT_ID'
+    )
+  }
+
   if (
     result.experimental?.allowDevelopmentBuild &&
     process.env.NODE_ENV !== 'development'

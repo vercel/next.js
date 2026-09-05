@@ -271,7 +271,7 @@ impl From<String> for DefinableNameSegment {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum DefinableNameSegmentRef<'a> {
     Name(&'a str),
     Call(&'a str),
@@ -310,7 +310,7 @@ impl Equivalent<DefinableNameSegment> for DefinableNameSegmentRef<'_> {
     }
 }
 
-#[derive(Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DefinableNameSegmentRefs<'a>(pub SmallVec<[DefinableNameSegmentRef<'a>; 4]>);
 
 // Hash can't be derived because it must match Vec<DefinableNameSegment>'s Hash.
