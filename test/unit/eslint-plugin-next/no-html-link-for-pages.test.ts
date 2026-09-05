@@ -495,4 +495,34 @@ describe('no-html-link-for-pages', function () {
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
+  it('invalid custom pageExtension route with pageExtensions in settings', function () {
+    const linterConfigWithPageExtensions = {
+      ...linterConfigWithCustomDirectory,
+      settings: {
+        next: {
+          pageExtensions: ['page.js', 'page.tsx', 'js', 'jsx'],
+        },
+      },
+    }
+    const invalidCustomExtCode = `
+      import Link from 'next/link';
+      export default function Test() {
+        return (
+          <div>
+            <a href='/custom-ext'>Custom Ext Page</a>
+          </div>
+        );
+      }
+    `
+    const [report] = linters.withCustomPages.verify(
+      invalidCustomExtCode,
+      linterConfigWithPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/custom-ext/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
 })
