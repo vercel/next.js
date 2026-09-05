@@ -4,6 +4,7 @@
 
 // Mock the React module first
 jest.mock('react', () => ({
+  cacheSignal: () => null,
   cache: <T extends (...args: any[]) => any>(fn: T): T => {
     const cache = new Map<string, ReturnType<T>>()
     return ((...args: Parameters<T>) => {
