@@ -690,6 +690,15 @@ impl TurboTasksBackend {
             }
         }
 
+        let reader_description = reader_task
+            .as_ref()
+            .map(|r| EventDescription::new(|| r.get_task_desc_fn()))
+            .or_else(|| {
+                need_reader_task.map(|reader_id| {
+                    EventDescription::new(move || move || format!("{reader_id:?}"))
+                })
+            });
+
         if matches!(options.consistency, ReadConsistency::Strong) {
             if task
                 .get_persistent_task_type()
@@ -709,16 +718,20 @@ impl TurboTasksBackend {
             }
 
             // A canceled task will never run again, so it can never become clean and nothing
-            // will ever fire its `all_clean_event`. Subscribing below would park this reader
-            // forever, which is what stranded the NFT chain: `task_execution_canceled` notifies
-            // existing waiters, but a reader arriving *after* the cancel re-creates the
-            // activeness and waits on an event with no remaining notifier. Report the
-            // cancellation instead, matching `check_in_progress`.
+            // will ever fire its `all_clean_event`: `task_execution_canceled` notifies the
+            // waiters that already exist, but a reader arriving *after* the cancel re-creates
+            // the activeness and parks on an event with no remaining notifier. That is what
+            // stranded the NFT chain.
+            //
+            // Only the `Canceled` arm is taken from `check_in_progress`, deliberately. Its
+            // `Scheduled`/`InProgress` arms return as soon as the task itself is running, which
+            // is right for a weakly consistent read but would short-circuit the dirty-container
+            // wait below that makes this read strongly consistent.
             if matches!(task.get_in_progress(), Some(InProgressState::Canceled)) {
                 let description = task.get_task_description();
                 drop(task);
                 drop(reader_task);
-                return Err(anyhow::anyhow!("{} was canceled", description));
+                return Err(anyhow::anyhow!("{description} was canceled"));
             }
 
             let is_dirty = task.is_dirty();
@@ -868,14 +881,6 @@ impl TurboTasksBackend {
             }
         }
 
-        let reader_description = reader_task
-            .as_ref()
-            .map(|r| EventDescription::new(|| r.get_task_desc_fn()))
-            .or_else(|| {
-                need_reader_task.map(|reader_id| {
-                    EventDescription::new(move || move || format!("{reader_id:?}"))
-                })
-            });
         if let Some(value) = check_in_progress(&task, reader_description.clone(), options.tracking)
         {
             return value;
