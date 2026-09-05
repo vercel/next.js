@@ -1,8 +1,11 @@
-import { FormEvent, useEffect, useState } from "react";
+"use client";
+
 import { useMutation, useQuery } from "convex/react";
+import { type FormEvent, useEffect, useState } from "react";
+
 import { api } from "../convex/_generated/api";
 
-export default function App() {
+export function Chat() {
   const messages = useQuery(api.messages.list);
   const sendMessage = useMutation(api.messages.send);
 
@@ -13,11 +16,12 @@ export default function App() {
     setName("User " + Math.floor(Math.random() * 10000));
   }, []);
 
-  async function handleSendMessage(event: FormEvent) {
+  async function handleSendMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setNewMessageText("");
     await sendMessage({ body: newMessageText, author: name });
   }
+
   return (
     <main>
       <h1>Convex Chat</h1>
@@ -26,7 +30,7 @@ export default function App() {
       </p>
       <ul>
         {messages?.map((message) => (
-          <li key={message._id.toString()}>
+          <li key={message._id}>
             <span>{message.author}:</span>
             <span>{message.body}</span>
             <span>{new Date(message._creationTime).toLocaleTimeString()}</span>
