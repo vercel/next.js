@@ -326,27 +326,32 @@ export function getResolveRoutes(
             curPathname || undefined
           )
 
+          if (
+            pageOutput?.type !== 'appFile' &&
+            pageOutput?.type !== 'pageFile'
+          ) {
+            continue
+          }
+
           // i18n locales aren't matched for app dir
           if (
-            pageOutput?.type === 'appFile' &&
+            pageOutput.type === 'appFile' &&
             initialLocaleResult?.detectedLocale
           ) {
             continue
           }
 
-          if (pageOutput && curPathname?.startsWith('/_next/data')) {
+          if (curPathname?.startsWith('/_next/data')) {
             setIsNextDataRequest()
           }
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
-            return pageOutput
-              ? {
-                  ...pageOutput,
-                  // The dynamic-route scan matched the concrete request path;
-                  // keep those params with the fsChecker route definition.
-                  params,
-                }
-              : null
+            return {
+              ...pageOutput,
+              // The dynamic-route scan matched the concrete request path;
+              // keep those params with the fsChecker route definition.
+              params,
+            }
           }
         }
       }
@@ -519,7 +524,7 @@ export function getResolveRoutes(
             ) {
               matchedOutput = output
 
-              if (output.locale) {
+              if ('locale' in output && output.locale) {
                 addRequestMeta(req, 'locale', output.locale)
               }
 
