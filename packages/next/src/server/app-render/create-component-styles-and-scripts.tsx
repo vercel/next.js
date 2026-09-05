@@ -24,7 +24,8 @@ export async function createComponentStylesAndScripts({
   const { styles: entryCssFiles, scripts: jsHrefs } = getLinkAndScriptTags(
     filePath,
     injectedCSS,
-    injectedJS
+    injectedJS,
+    true
   )
 
   const styles = renderCssResource(entryCssFiles, ctx)

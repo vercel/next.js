@@ -1,5 +1,7 @@
 p {
   color: yellow;
+  /* Unique token used to count inlined stylesheet copies in flight artifacts. */
+  --inline-css-marker-98079: 1;
 }
 
 body {
