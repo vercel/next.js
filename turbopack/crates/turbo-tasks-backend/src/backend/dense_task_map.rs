@@ -14,7 +14,7 @@ use std::{
     marker::PhantomData,
     ops::{Deref, DerefMut},
     rc::Rc,
-    sync::atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+    sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering},
 };
 
 use kovan::{AtomGuard, AtomOption};
@@ -28,6 +28,7 @@ pub(crate) const CHUNK_SIZE: usize = 1 << CHUNK_SHIFT;
 const CHUNK_MASK: usize = CHUNK_SIZE - 1;
 const BITMAP_WORD_BITS: usize = u64::BITS as usize;
 pub(crate) const BITMAP_WORDS: usize = CHUNK_SIZE / BITMAP_WORD_BITS;
+const _: () = assert!(CHUNK_SIZE <= u8::MAX as usize);
 
 /// Value stored in an always-initialized intrusive task slot.
 ///
@@ -118,8 +119,9 @@ impl<T: TaskSlotValue> Drop for TaskSlotGuard<'_, T> {
 }
 
 pub(crate) struct TaskChunk<T: TaskSlotValue> {
-    pub(crate) modified_count: AtomicU64,
-    occupied_count: AtomicUsize,
+    // Each occupied task contributes at most one to either counter, so 128 slots fit in u8.
+    pub(crate) modified_count: AtomicU8,
+    occupied_count: AtomicU8,
     probably_occupied: [AtomicU64; BITMAP_WORDS],
     slots: Box<[TaskSlot<T>; CHUNK_SIZE]>,
 }
@@ -127,8 +129,8 @@ pub(crate) struct TaskChunk<T: TaskSlotValue> {
 impl<T: TaskSlotValue> TaskChunk<T> {
     fn new() -> Self {
         Self {
-            modified_count: AtomicU64::new(0),
-            occupied_count: AtomicUsize::new(0),
+            modified_count: AtomicU8::new(0),
+            occupied_count: AtomicU8::new(0),
             // Start conservatively set so chunk construction and dense first insertion need no
             // atomic read-modify-write per slot. The first scan locks/rechecks vacant slots and
             // clears their stale hints; subsequent sparse scans skip them.
@@ -239,14 +241,12 @@ impl<T: TaskSlotValue + Send + 'static> ChunkDirectoryEntry<T> {
 
 struct ChunkedVec<T: TaskSlotValue + Send + 'static> {
     chunks: boxcar::Vec<ChunkDirectoryEntry<T>>,
-    len: AtomicUsize,
 }
 
 impl<T: TaskSlotValue + Send + 'static> ChunkedVec<T> {
     fn with_chunk_capacity(chunk_capacity: usize) -> Self {
         Self {
             chunks: boxcar::Vec::with_capacity(chunk_capacity),
-            len: AtomicUsize::new(0),
         }
     }
 
@@ -273,7 +273,14 @@ impl<T: TaskSlotValue + Send + 'static> ChunkedVec<T> {
     }
 
     fn len(&self) -> usize {
-        self.len.load(Ordering::Relaxed)
+        let len = self
+            .entries()
+            .filter_map(|(_, entry)| entry.chunk.load())
+            .map(|chunk| chunk.occupied_count.load(Ordering::Relaxed) as usize)
+            .sum();
+        // Empty and nonempty AtomOption loads both pin this thread.
+        kovan::flush();
+        len
     }
 
     fn entries(&self) -> impl Iterator<Item = (usize, &ChunkDirectoryEntry<T>)> {
@@ -300,7 +307,6 @@ impl<T: TaskSlotValue + Send + 'static> ChunkedVec<T> {
             // parallel clear worker parked with a stale reservation.
             kovan::flush();
         });
-        self.len.store(0, Ordering::Relaxed);
         self.retire_empty_chunks();
     }
 
@@ -363,7 +369,7 @@ impl<T: TaskSlotValue + Send + 'static> TaskMap<T> {
         if !protection.is_probably_occupied(offset) {
             return None;
         }
-        TaskMapGuard::new_owned(key, protection, entry, offset, &namespace.len, false)
+        TaskMapGuard::new_owned(key, protection, entry, offset, false)
     }
 
     pub(crate) fn get_or_insert(&self, key: TaskId) -> TaskMapGuard<'_, T> {
@@ -392,14 +398,7 @@ impl<T: TaskSlotValue + Send + 'static> TaskMap<T> {
             let value = unsafe { (&*chunk).lock_raw(offset) };
             // SAFETY: this thread owns the value's intrusive lock.
             if unsafe { &*value }.is_occupied() {
-                return TaskMapGuard::new_locked(
-                    key,
-                    value,
-                    Some(protection),
-                    entry,
-                    chunk,
-                    &namespace.len,
-                );
+                return TaskMapGuard::new_locked(key, value, Some(protection), entry, chunk);
             }
 
             // Lock order is task -> transition. Retirement never takes task locks, so this cannot
@@ -418,42 +417,23 @@ impl<T: TaskSlotValue + Send + 'static> TaskMap<T> {
             }
 
             // Publish the hint before authoritative occupancy. A clear hint can therefore never
-            // hide a modified task from a racing bulk scan.
-            unsafe { &*chunk }.mark_probably_occupied(offset);
+            // hide a modified task from a racing bulk scan. The all-true initial bitmap makes this
+            // branch read-only for dense first insertion.
+            if !unsafe { &*chunk }.is_probably_occupied(offset) {
+                unsafe { &*chunk }.mark_probably_occupied(offset);
+            }
             // SAFETY: this thread owns the value's intrusive lock.
             unsafe { &mut *value }.occupy();
-            unsafe { &*chunk }
+            let previous = unsafe { &*chunk }
                 .occupied_count
                 .fetch_add(1, Ordering::Release);
-            namespace.len.fetch_add(1, Ordering::Relaxed);
+            debug_assert!(previous < CHUNK_SIZE as u8);
             entry.retire_candidate.store(false, Ordering::Release);
             drop(current);
-            let task = TaskMapGuard::new_locked(
-                key,
-                value,
-                Some(protection),
-                entry,
-                chunk,
-                &namespace.len,
-            );
+            let task = TaskMapGuard::new_locked(key, value, Some(protection), entry, chunk);
             drop(transition);
             return task;
         }
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn remove(&self, key: TaskId) -> Option<T> {
-        let guard = self.get(key)?;
-        Some(guard.take_and_vacate())
-    }
-
-    #[allow(dead_code)]
-    pub(crate) fn remove_discard(&self, key: TaskId) -> bool {
-        let Some(guard) = self.get(key) else {
-            return false;
-        };
-        guard.vacate();
-        true
     }
 
     pub(crate) fn len(&self) -> usize {
@@ -508,13 +488,11 @@ impl<T: TaskSlotValue + Send + 'static> TaskMap<T> {
                 base_id: index << CHUNK_SHIFT,
                 transient: false,
                 entry,
-                len: &self.persistent.len,
             })
             .chain(self.transient.entries().map(|(index, entry)| TaskChunkRef {
                 base_id: index << CHUNK_SHIFT,
                 transient: true,
                 entry,
-                len: &self.transient.len,
             }))
             .collect()
     }
@@ -526,7 +504,6 @@ impl<T: TaskSlotValue + Send + 'static> TaskMap<T> {
                 base_id: index << CHUNK_SHIFT,
                 transient: false,
                 entry,
-                len: &self.persistent.len,
             })
             .collect()
     }
@@ -536,7 +513,6 @@ pub(crate) struct TaskChunkRef<'a, T: TaskSlotValue + Send + 'static> {
     pub(crate) base_id: usize,
     pub(crate) transient: bool,
     entry: &'a ChunkDirectoryEntry<T>,
-    len: &'a AtomicUsize,
 }
 
 impl<T: TaskSlotValue + Send + 'static> Copy for TaskChunkRef<'_, T> {}
@@ -566,26 +542,24 @@ impl<'a, T: TaskSlotValue + Send + 'static> TaskChunkRef<'a, T> {
     }
 
     #[allow(dead_code)]
-    pub(crate) fn get(&self, offset: usize) -> Option<TaskMapGuard<'a, T>> {
-        // Persistent TaskId zero is reserved and can only appear as a conservative bitmap hint.
-        if !self.transient && self.base_id + offset == 0 {
-            return None;
+    pub(crate) fn for_each_all_mut(&self, f: impl FnMut(TaskMapGuard<'_, T>)) {
+        if let Some(chunk) = self.load() {
+            chunk.for_each_all_mut(f);
+        } else {
+            kovan::flush();
         }
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn get(&self, offset: usize) -> Option<TaskMapGuard<'a, T>> {
         let protection = self.entry.chunk.load()?;
         if !protection.is_probably_occupied(offset) {
             return None;
         }
-        TaskMapGuard::new_owned(
-            self.task_id(offset),
-            protection,
-            self.entry,
-            offset,
-            self.len,
-            true,
-        )
+        TaskMapGuard::new_owned(self.task_id(offset), protection, self.entry, offset, true)
     }
 
-    pub(crate) fn swap_modified_count(&self) -> Option<u64> {
+    pub(crate) fn take_modified_count(&self) -> Option<u8> {
         Some(
             self.entry
                 .chunk
@@ -595,7 +569,7 @@ impl<'a, T: TaskSlotValue + Send + 'static> TaskChunkRef<'a, T> {
         )
     }
 
-    pub(crate) fn modified_count(&self) -> u64 {
+    pub(crate) fn modified_count(&self) -> u8 {
         self.entry
             .chunk
             .load()
@@ -644,14 +618,22 @@ impl<T: TaskSlotValue + Send + 'static> Drop for LoadedTaskChunk<'_, T> {
 impl<T: TaskSlotValue + Send + 'static> LoadedTaskChunk<'_, T> {
     fn for_each_mut(&self, mut f: impl FnMut(TaskMapGuard<'_, T>)) {
         for offset in self.chunk.probably_occupied_offsets() {
-            if let Some(task) = self.get(offset) {
+            if let Some(task) = self.get(offset, true) {
                 f(task);
             }
         }
     }
 
-    fn get(&self, offset: usize) -> Option<TaskMapGuard<'_, T>> {
-        if !self.chunk.is_probably_occupied(offset) {
+    fn for_each_all_mut(&self, mut f: impl FnMut(TaskMapGuard<'_, T>)) {
+        for offset in 0..CHUNK_SIZE {
+            if let Some(task) = self.get(offset, false) {
+                f(task);
+            }
+        }
+    }
+
+    fn get(&self, offset: usize, check_hint: bool) -> Option<TaskMapGuard<'_, T>> {
+        if check_hint && !self.chunk.is_probably_occupied(offset) {
             return None;
         }
         let value = self.chunk.lock_raw(offset);
@@ -669,7 +651,6 @@ impl<T: TaskSlotValue + Send + 'static> LoadedTaskChunk<'_, T> {
             modified_count: &self.chunk.modified_count,
             occupied_count: &self.chunk.occupied_count,
             entry: self.owner.entry,
-            len: self.owner.len,
             _lifetime: PhantomData,
             _not_send: PhantomData,
         })
@@ -682,10 +663,9 @@ pub(crate) struct TaskMapGuard<'a, T: TaskSlotValue + Send + 'static> {
     // Point access owns protection through unlock. Chunk scans borrow protection from their
     // LoadedTaskChunk, represented by `_lifetime`, and finish each callback before it drops.
     _protection: Option<AtomGuard<'a, TaskChunk<T>>>,
-    modified_count: *const AtomicU64,
-    occupied_count: *const AtomicUsize,
+    modified_count: *const AtomicU8,
+    occupied_count: *const AtomicU8,
     entry: &'a ChunkDirectoryEntry<T>,
-    len: &'a AtomicUsize,
     _lifetime: PhantomData<&'a TaskChunk<T>>,
     _not_send: PhantomData<Rc<()>>,
 }
@@ -696,7 +676,6 @@ impl<'a, T: TaskSlotValue + Send + 'static> TaskMapGuard<'a, T> {
         protection: AtomGuard<'a, TaskChunk<T>>,
         entry: &'a ChunkDirectoryEntry<T>,
         offset: usize,
-        len: &'a AtomicUsize,
         clear_stale_hint: bool,
     ) -> Option<Self> {
         let chunk = &*protection as *const TaskChunk<T>;
@@ -712,14 +691,7 @@ impl<'a, T: TaskSlotValue + Send + 'static> TaskMapGuard<'a, T> {
             unsafe { T::unlock_raw(value) };
             return None;
         }
-        Some(Self::new_locked(
-            key,
-            value,
-            Some(protection),
-            entry,
-            chunk,
-            len,
-        ))
+        Some(Self::new_locked(key, value, Some(protection), entry, chunk))
     }
 
     fn new_locked(
@@ -728,7 +700,6 @@ impl<'a, T: TaskSlotValue + Send + 'static> TaskMapGuard<'a, T> {
         protection: Option<AtomGuard<'a, TaskChunk<T>>>,
         entry: &'a ChunkDirectoryEntry<T>,
         chunk: *const TaskChunk<T>,
-        len: &'a AtomicUsize,
     ) -> Self {
         Self {
             key,
@@ -739,7 +710,6 @@ impl<'a, T: TaskSlotValue + Send + 'static> TaskMapGuard<'a, T> {
             modified_count: unsafe { std::ptr::addr_of!((*chunk).modified_count) },
             occupied_count: unsafe { std::ptr::addr_of!((*chunk).occupied_count) },
             entry,
-            len,
             _lifetime: PhantomData,
             _not_send: PhantomData,
         }
@@ -749,20 +719,21 @@ impl<'a, T: TaskSlotValue + Send + 'static> TaskMapGuard<'a, T> {
         &self.key
     }
 
-    pub(crate) fn modified_count(&self) -> &AtomicU64 {
+    pub(crate) fn modified_count(&self) -> &AtomicU8 {
         // SAFETY: owned point guards retain Kovan protection; borrowed scan guards cannot outlive
         // their LoadedTaskChunk protection.
         unsafe { &*self.modified_count }
     }
 
-    pub(crate) fn modified_count_ptr(&self) -> *const AtomicU64 {
+    pub(crate) fn modified_count_ptr(&self) -> *const AtomicU8 {
         self.modified_count
     }
 
     fn finish_vacate(&self) {
-        self.len.fetch_sub(1, Ordering::Relaxed);
         // SAFETY: Kovan protection remains live through this handoff.
-        if unsafe { &*self.occupied_count }.fetch_sub(1, Ordering::AcqRel) == 1 {
+        let previous = unsafe { &*self.occupied_count }.fetch_sub(1, Ordering::AcqRel);
+        debug_assert!(previous > 0);
+        if previous == 1 {
             self.entry.retire_candidate.store(true, Ordering::Release);
         }
     }
@@ -888,6 +859,18 @@ mod tests {
         TaskId::try_from(raw).unwrap()
     }
 
+    fn remove(map: &TaskMap<TestValue>, key: TaskId) -> Option<TestValue> {
+        map.get(key).map(TaskMapGuard::take_and_vacate)
+    }
+
+    fn remove_discard(map: &TaskMap<TestValue>, key: TaskId) -> bool {
+        let Some(task) = map.get(key) else {
+            return false;
+        };
+        task.vacate();
+        true
+    }
+
     #[test]
     #[cfg(target_pointer_width = "64")]
     fn directory_entry_is_compact() {
@@ -911,7 +894,7 @@ mod tests {
             CHUNK_SIZE
         );
         assert_eq!(
-            map.remove(task_id(CHUNK_SIZE as u32)).unwrap().value,
+            remove(&map, task_id(CHUNK_SIZE as u32)).unwrap().value,
             CHUNK_SIZE
         );
         assert!(map.get(task_id(CHUNK_SIZE as u32)).is_none());
@@ -1003,7 +986,7 @@ mod tests {
         map.get_or_insert(id);
         let chunk = map.chunks()[0];
         // Vacating deliberately leaves the advisory bit set to avoid remove/reinsert churn.
-        assert!(map.remove_discard(id));
+        assert!(remove_discard(&map, id));
         assert!(chunk.is_probably_occupied(1));
         assert!(map.get(id).is_none());
         assert!(
@@ -1021,7 +1004,7 @@ mod tests {
 
         map.get_or_insert(id).set(1);
         assert_eq!(map.loaded_chunk_count(), 1);
-        assert!(map.remove_discard(id));
+        assert!(remove_discard(&map, id));
         assert_eq!(map.retire_empty_chunks(), 1);
         assert_eq!(map.loaded_chunk_count(), 0);
 
@@ -1038,7 +1021,7 @@ mod tests {
         let entry = map.persistent.entry(1).unwrap();
         let protection = entry.chunk.load().unwrap();
         let chunk = &*protection as *const TaskChunk<TestValue>;
-        assert!(map.remove_discard(id));
+        assert!(remove_discard(&map, id));
         assert_eq!(map.retire_empty_chunks(), 1);
         assert_eq!(map.loaded_chunk_count(), 0);
         // SAFETY: the protection guard was acquired before detach and still pins the old chunk.
@@ -1060,7 +1043,7 @@ mod tests {
                 let remove_barrier = barrier.clone();
                 scope.spawn(move || {
                     remove_barrier.wait();
-                    if remove_map.remove_discard(id) {
+                    if remove_discard(&remove_map, id) {
                         remove_map.retire_empty_chunks();
                     }
                 });

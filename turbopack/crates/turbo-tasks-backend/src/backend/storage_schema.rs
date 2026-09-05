@@ -1926,9 +1926,9 @@ mod tests {
     }
 
     #[test]
-    fn const_empty_slots_have_independent_unlocked_mutexes() {
-        let empty_task = const { TaskStorage::empty_slot() };
-        let slots = [const { TaskStorage::empty_slot() }; 2];
+    fn const_new_slots_have_independent_unlocked_mutexes() {
+        let empty_task = const { TaskStorage::new() };
+        let slots = [const { TaskStorage::new() }; 2];
         assert!(!empty_task.is_occupied());
         assert!(!slots[0].is_occupied());
         assert!(!slots[1].is_occupied());
@@ -2010,7 +2010,7 @@ mod tests {
         );
         assert_eq!(
             size_of::<TaskChunk<TaskStorage>>(),
-            24 + CHUNK_SIZE / 8,
+            16 + CHUNK_SIZE / 8,
             "chunk counters and bitmap size changed"
         );
         assert_eq!(

@@ -1435,8 +1435,8 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         #[automatically_derived]
         impl TaskStorage {
             #[doc = "Constructs fresh task payload with unlocked, vacant slot metadata."]
-            pub fn new() -> Self {
-                Self::default()
+            pub const fn new() -> Self {
+                Self::empty_slot()
             }
 
             #[doc = "Moves payload into a fresh unlocked value and leaves this locked slot vacant."]

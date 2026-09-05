@@ -5,7 +5,7 @@ use std::{
     ops::{Deref, DerefMut},
     sync::{
         Arc,
-        atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
+        atomic::{AtomicBool, AtomicU8, AtomicUsize, Ordering},
     },
 };
 
@@ -16,7 +16,7 @@ use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskTypeArc, event::Event, p
 
 use crate::{
     backend::{
-        dense_task_map::{TaskMap, TaskMapGuard},
+        dense_task_map::{CHUNK_SIZE, TaskMap, TaskMapGuard},
         storage_schema::{
             DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
         },
@@ -223,7 +223,7 @@ impl Storage {
     /// This is used after persisting a snapshot: _during_snapshot flags represent changes
     /// that occurred concurrently and were not included in the persisted snapshot, so they
     /// must be carried forward as `modified` for the next snapshot cycle.
-    fn promote_during_snapshot_flags(&self, task: &mut TaskStorage, modified_count: &AtomicU64) {
+    fn promote_during_snapshot_flags(&self, task: &mut TaskStorage, modified_count: &AtomicU8) {
         let already_modified = task.flags.any_modified();
         let mut promoted = false;
         if task.flags.meta_modified_during_snapshot() {
@@ -237,7 +237,8 @@ impl Storage {
             promoted = true;
         }
         if !already_modified && promoted {
-            modified_count.fetch_add(1, Ordering::Relaxed);
+            let previous = modified_count.fetch_add(1, Ordering::Relaxed);
+            debug_assert!(previous < CHUNK_SIZE as u8);
         }
     }
 
@@ -290,7 +291,7 @@ impl Storage {
         let shards: Vec<Option<SnapshotShard<'l, P>>> = self.map.parallel_collect(|chunk| {
             // Once snapshot mode is active, new writes use the during-snapshot flags and do not
             // increment this counter. Each chunk can therefore be claimed independently.
-            let modified_count = chunk.swap_modified_count().unwrap_or(0);
+            let modified_count = chunk.take_modified_count().unwrap_or(0);
             if modified_count == 0 && !drain_entries {
                 return None;
             }
@@ -704,7 +705,8 @@ impl StorageWriteGuard<'_> {
                 // Not in snapshot mode and item is unmodified
                 let bumped = !flags.any_modified();
                 if bumped {
-                    self.inner.modified_count().fetch_add(1, Ordering::Relaxed);
+                    let previous = self.inner.modified_count().fetch_add(1, Ordering::Relaxed);
+                    debug_assert!(previous < CHUNK_SIZE as u8);
                 }
                 self.inner.flags.set_modified(category, true);
                 TrackOutcome::Tracked { category, bumped }
@@ -775,7 +777,8 @@ impl StorageWriteGuard<'_> {
             TrackOutcome::Tracked { category, bumped } => {
                 self.inner.flags.set_modified(category, false);
                 if bumped {
-                    self.inner.modified_count().fetch_sub(1, Ordering::Relaxed);
+                    let previous = self.inner.modified_count().fetch_sub(1, Ordering::Relaxed);
+                    debug_assert!(previous > 0);
                 }
             }
             TrackOutcome::TrackedDuringSnapshot {
@@ -804,7 +807,8 @@ impl StorageWriteGuard<'_> {
             "only a never-persisted (new_task) collected task may be discarded this way"
         );
         if self.inner.flags.any_modified() {
-            self.inner.modified_count().fetch_sub(1, Ordering::Relaxed);
+            let previous = self.inner.modified_count().fetch_sub(1, Ordering::Relaxed);
+            debug_assert!(previous > 0);
         }
         self.inner.flags.set_meta_modified(false);
         self.inner.flags.set_data_modified(false);
