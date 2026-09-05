@@ -246,17 +246,30 @@ export function getParamValueFromCacheKey(
 ) {
   // Turn the cache key string sent by the server (as part of FlightRouterState)
   // into a value that can be passed to `useParams` and client components.
-  const isCatchAll = paramType === 'c' || paramType === 'oc'
-  if (isCatchAll) {
-    // Catch-all param keys are a concatenation of the path segments.
-    // See equivalent logic in `getSelectedParams`.
-    // TODO: We should just pass the array directly, rather than concatenate
-    // it to a string and then split it back to an array. It needs to be an
-    // array in some places, like when passing a key React, but we can convert
-    // it at runtime in those places.
-    return paramCacheKey.split('/')
+  switch (paramType) {
+    case 'c':
+    case 'oc':
+    case 'ci(.)':
+    case 'ci(..)':
+    case 'ci(...)':
+    case 'ci(..)(..)':
+      // Catch-all param keys are a concatenation of the path segments.
+      // See equivalent logic in `getSelectedParams`.
+      // TODO: We should just pass the array directly, rather than concatenate
+      // it to a string and then split it back to an array. It needs to be an
+      // array in some places, like when passing a key React, but we can convert
+      // it at runtime in those places.
+      return paramCacheKey.split('/')
+    case 'd':
+    case 'di(.)':
+    case 'di(..)':
+    case 'di(...)':
+    case 'di(..)(..)':
+      return paramCacheKey
+    default:
+      paramType satisfies never
+      return paramCacheKey
   }
-  return paramCacheKey
 }
 
 export function urlSearchParamsToParsedUrlQuery(

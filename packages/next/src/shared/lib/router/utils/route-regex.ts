@@ -7,6 +7,8 @@ import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
 import { PARAMETER_PATTERN, parseMatchedParameter } from './get-dynamic-param'
 
+const INTERCEPTED_REPEAT_PARAM_PATTERN = '[^/]+?(?:/[^/]+?)*?'
+
 export interface Group {
   pos: number
   repeat: boolean
@@ -108,7 +110,17 @@ function getParametrizedRoute(
     if (markerMatch && paramMatches && paramMatches[2]) {
       const { key, optional, repeat } = parseMatchedParameter(paramMatches[2])
       groups[key] = { pos: groupIndex++, repeat, optional }
-      segments.push(`/${escapeStringRegexp(markerMatch)}([^/]+?)`)
+      // Must honor `repeat` here. Hardcoding `([^/]+?)` makes
+      // routes like `/(.)[...slug]` fail to match multi-segment paths.
+      // Each repeated segment must remain non-empty so that the route's
+      // optional trailing slash cannot satisfy a required catch-all.
+      // Optional intercepted catch-alls do not have a marker-aware dynamic
+      // param type, so keep their existing behavior unchanged.
+      const paramPattern =
+        repeat && !optional
+          ? `(${INTERCEPTED_REPEAT_PARAM_PATTERN})`
+          : '([^/]+?)'
+      segments.push(`/${escapeStringRegexp(markerMatch)}${paramPattern}`)
     } else if (paramMatches && paramMatches[2]) {
       const { key, repeat, optional } = parseMatchedParameter(paramMatches[2])
       groups[key] = { pos: groupIndex++, repeat, optional }
@@ -249,7 +261,11 @@ function getSafeKeyFromSegment({
     // in each of the placeholders.
     pattern = `\\k<${cleanedKey}>`
   } else if (repeat) {
-    pattern = `(?<${cleanedKey}>.+?)`
+    // Optional intercepted catch-alls do not have a marker-aware dynamic
+    // param type, so only required catch-alls use the marker-aware pattern.
+    pattern = `(?<${cleanedKey}>${
+      interceptionMarker && !optional ? INTERCEPTED_REPEAT_PARAM_PATTERN : '.+?'
+    })`
   } else {
     pattern = `(?<${cleanedKey}>[^/]+?)`
   }
