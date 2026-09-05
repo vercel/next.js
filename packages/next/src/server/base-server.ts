@@ -6,7 +6,6 @@ import type {
 import type { MiddlewareRouteMatch } from '../shared/lib/router/utils/middleware-route-matcher'
 import type { Params } from './request/params'
 import type { NextConfig, NextConfigRuntime } from './config-shared'
-import { parseMaxPostponedStateSize } from './config-shared'
 import type {
   NextParsedUrlQuery,
   NextUrlWithParsedQuery,
@@ -57,7 +56,6 @@ import { formatHostname } from './lib/format-hostname'
 import { isRSCRequestHeader } from './lib/is-rsc-request'
 import { isNonHtmlSecFetchDest } from './lib/is-non-html-sec-fetch-dest'
 import {
-  NEXT_BUILTIN_DOCUMENT,
   STATIC_STATUS_PAGES,
   UNDERSCORE_NOT_FOUND_ROUTE,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
@@ -65,7 +63,6 @@ import {
 import { getSortedRoutes, isDynamicRoute } from '../shared/lib/router/utils'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
-import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
@@ -152,7 +149,6 @@ import { NextRequestHint } from './web/adapter'
 import type { RouteModule } from './route-modules/route-module'
 import { type FallbackMode, parseFallbackField } from '../lib/fallback'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
-import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { fixMojibake } from './lib/fix-mojibake'
@@ -276,11 +272,19 @@ export type RequestLifecycleOpts = {
   onAfterTaskError: ((error: unknown) => void) | undefined
 }
 
-type BaseRenderOpts = RenderOpts & {
+type ServerRenderConfig = Readonly<{
   poweredByHeader: boolean
   generateEtags: boolean
   previewProps: __ApiPreviewProps
-}
+  optimizeCss: NextConfigRuntime['experimental']['optimizeCss']
+  nextScriptWorkers: NextConfigRuntime['experimental']['nextScriptWorkers']
+  isExperimentalCompile: boolean | undefined
+}>
+
+type RequestRenderState = Readonly<{
+  params?: Params
+  error?: Error | null
+}>
 
 /**
  * The public interface for rendering with the server programmatically. This
@@ -309,7 +313,7 @@ export type RequestContext<
   res: ServerResponse
   pathname: string
   query: NextParsedUrlQuery
-  renderOpts: RenderOpts
+  renderState: RequestRenderState
 }
 
 // Internal wrapper around build errors at development
@@ -353,7 +357,7 @@ export default abstract class Server<
   protected readonly deploymentId: string
   protected readonly dev: boolean
   protected readonly minimalMode: boolean
-  protected readonly renderOpts: BaseRenderOpts
+  protected readonly serverRenderConfig: ServerRenderConfig
   protected readonly serverOptions: Readonly<ServerOptions>
   protected appPathRoutes?: Record<string, string[]>
   protected readonly clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
@@ -575,78 +579,13 @@ export default abstract class Server<
 
     this.nextFontManifest = this.getNextFontManifest()
 
-    this.renderOpts = {
-      dir: this.dir,
-      supportsDynamicResponse: true,
-      trailingSlash: this.nextConfig.trailingSlash,
+    this.serverRenderConfig = {
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
       previewProps: this.getPreviewProps(),
-      basePath: this.nextConfig.basePath,
-      images: this.nextConfig.images,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
-      nextConfigOutput: this.nextConfig.output,
       nextScriptWorkers: this.nextConfig.experimental.nextScriptWorkers,
-      disableOptimizedLoading:
-        this.nextConfig.experimental.disableOptimizedLoading,
-      domainLocales: this.nextConfig.i18n?.domains,
-      distDir: this.distDir,
-      serverComponents: this.enabledDirectories.app,
-      cacheLifeProfiles: this.nextConfig.cacheLife,
-      staticPageGenerationTimeout: this.nextConfig.staticPageGenerationTimeout,
-      enableTainting: this.nextConfig.experimental.taint,
-      crossOrigin: this.nextConfig.crossOrigin
-        ? this.nextConfig.crossOrigin
-        : undefined,
-      largePageDataBytes: this.nextConfig.experimental.largePageDataBytes,
-
       isExperimentalCompile: this.nextConfig.experimental.isExperimentalCompile,
-      cacheComponents: this.nextConfig.cacheComponents ?? false,
-      partialPrefetching: this.nextConfig.partialPrefetching,
-      validationLevel:
-        this.nextConfig.experimental.instantInsights.validationLevel,
-      experimental: {
-        expireTime: this.nextConfig.expireTime,
-        staleTimes: this.nextConfig.experimental.staleTimes,
-        clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        clientParamParsingOrigins:
-          this.nextConfig.experimental.clientParamParsingOrigins,
-        dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
-        optimisticRouting:
-          this.nextConfig.experimental.optimisticRouting ?? false,
-        inlineCss: this.nextConfig.experimental.inlineCss ?? false,
-        prefetchInlining:
-          this.nextConfig.experimental.prefetchInlining ?? false,
-        authInterrupts: !!this.nextConfig.experimental.authInterrupts,
-        reactBrowserBailout:
-          this.nextConfig.experimental.reactBrowserBailout ?? false,
-        serverComponentsHmrCancellation:
-          this.nextConfig.experimental.serverComponentsHmrCancellation,
-        useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
-        durableUseCacheEntries: Boolean(
-          this.nextConfig.experimental.durableUseCacheEntries
-        ),
-        cachedNavigations:
-          this.nextConfig.experimental.cachedNavigations ?? false,
-        maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
-          this.nextConfig.experimental.maxPostponedStateSize
-        ),
-        disableResumeDataCacheCompression:
-          this.nextConfig.experimental.disableResumeDataCacheCompression ??
-          false,
-        exposeTestingApi:
-          this.nextConfig.cacheComponents === true &&
-          (this.dev === true ||
-            this.nextConfig.experimental.exposeTestingApiInProductionBuild ===
-              true),
-      },
-      onInstrumentationRequestError:
-        this.instrumentationOnRequestError.bind(this),
-      prefetchHints: {},
-      reactMaxHeadersLength: this.nextConfig.reactMaxHeadersLength,
-      logServerFunctions:
-        typeof this.nextConfig.logging === 'object' &&
-        Boolean(this.nextConfig.logging.serverFunctions),
     }
 
     this.pagesManifest = this.getPagesManifest()
@@ -2112,7 +2051,7 @@ export default abstract class Server<
     ) => Promise<ResponsePayload | null>,
     partialContext: Omit<
       RequestContext<ServerRequest, ServerResponse>,
-      'renderOpts'
+      'renderState'
     >
   ): Promise<void> {
     return getTracer().trace(BaseServerSpan.pipe, async () =>
@@ -2126,22 +2065,12 @@ export default abstract class Server<
     ) => Promise<ResponsePayload | null>,
     partialContext: Omit<
       RequestContext<ServerRequest, ServerResponse>,
-      'renderOpts'
+      'renderState'
     >
   ): Promise<void> {
-    const ua = partialContext.req.headers['user-agent'] || ''
-
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
-      renderOpts: {
-        ...this.renderOpts,
-        // `renderOpts.botType` is accumulated in `this.renderImpl()`
-        supportsDynamicResponse: !this.renderOpts.botType,
-        serveStreamingMetadata: shouldServeStreamingMetadata(
-          ua,
-          this.nextConfig.htmlLimitedBots
-        ),
-      },
+      renderState: {},
     }
 
     const payload = await fn(ctx)
@@ -2153,7 +2082,7 @@ export default abstract class Server<
     const { body } = payload
     let { cacheControl } = payload
     if (!res.sent) {
-      const { generateEtags, poweredByHeader } = this.renderOpts
+      const { generateEtags, poweredByHeader } = this.serverRenderConfig
 
       // Documents and data responses must not be stored in development.
       // Browsers reuse a stored response for a history navigation without
@@ -2186,15 +2115,12 @@ export default abstract class Server<
     ) => Promise<ResponsePayload | null>,
     partialContext: Omit<
       RequestContext<ServerRequest, ServerResponse>,
-      'renderOpts'
+      'renderState'
     >
   ): Promise<string | null> {
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
-      renderOpts: {
-        ...this.renderOpts,
-        supportsDynamicResponse: false,
-      },
+      renderState: {},
     }
     const payload = await fn(ctx)
     if (payload === null) {
@@ -2270,9 +2196,6 @@ export default abstract class Server<
       // (see custom-server integration tests)
       pathname = '/'
     }
-
-    const ua = req.headers['user-agent'] || ''
-    this.renderOpts.botType = getBotType(ua)
 
     // we allow custom servers to call render for all URLs
     // so check if we need to serve a static _next file or not.
@@ -2382,7 +2305,7 @@ export default abstract class Server<
       req,
       res,
       pathname,
-      renderOpts: opts,
+      renderState,
     }: RequestContext<ServerRequest, ServerResponse>,
     { components, query }: FindComponentsResult
   ): Promise<ResponsePayload | null> {
@@ -2676,28 +2599,6 @@ export default abstract class Server<
       }
     }
 
-    if (opts.supportsDynamicResponse === true) {
-      const ua = req.headers['user-agent'] || ''
-      const isBotRequest = isBot(ua)
-      const isSupportedDocument =
-        typeof components.Document?.getInitialProps !== 'function' ||
-        // The built-in `Document` component also supports dynamic HTML for concurrent mode.
-        NEXT_BUILTIN_DOCUMENT in components.Document
-
-      // Disable dynamic HTML in cases that we know it won't be generated,
-      // so that we can continue generating a cache key when possible.
-      // TODO-APP: should the first render for a dynamic app path
-      // be static so we can collect revalidate and populate the
-      // cache if there are no dynamic data requirements
-      opts.supportsDynamicResponse =
-        !isSSG && !isBotRequest && isSupportedDocument
-    }
-
-    // In development, we always want to generate dynamic HTML.
-    if (!isNextDataRequest && isAppPath && this.dev) {
-      opts.supportsDynamicResponse = true
-    }
-
     if (isSSG && this.minimalMode && req.headers[MATCHED_PATH_HEADER]) {
       // the url value is already correct when the matched-path header is set
       resolvedUrlPathname = urlPathname
@@ -2833,11 +2734,11 @@ export default abstract class Server<
     setRequestMeta(request, getRequestMeta(req))
     addRequestMeta(request, 'distDir', this.distDir)
     addRequestMeta(request, 'query', query)
-    addRequestMeta(request, 'params', opts.params)
+    addRequestMeta(request, 'params', renderState.params)
     addRequestMeta(request, 'minimalMode', this.minimalMode)
 
-    if (opts.err) {
-      addRequestMeta(request, 'invokeError', opts.err)
+    if (renderState.error) {
+      addRequestMeta(request, 'invokeError', renderState.error)
     }
 
     const maybeDevRequest: ServerRequest | IncomingMessage =
@@ -2935,7 +2836,7 @@ export default abstract class Server<
       locale: getRequestMeta(ctx.req, 'locale'),
       page,
       query,
-      params: ctx.renderOpts.params || {},
+      params: ctx.renderState.params || {},
       isAppPath,
       sriEnabled: !!this.nextConfig.experimental.sri?.algorithm,
       appPaths,
@@ -3031,8 +2932,8 @@ export default abstract class Server<
             {
               ...ctx,
               pathname: existingMatch.definition.pathname,
-              renderOpts: {
-                ...ctx.renderOpts,
+              renderState: {
+                ...ctx.renderState,
                 params: existingMatch.params,
               },
             },
@@ -3374,9 +3275,9 @@ export default abstract class Server<
           {
             ...ctx,
             pathname: statusPage,
-            renderOpts: {
-              ...ctx.renderOpts,
-              err,
+            renderState: {
+              ...ctx.renderState,
+              error: err,
             },
           },
           result
@@ -3410,11 +3311,11 @@ export default abstract class Server<
           {
             ...ctx,
             pathname: '/_error',
-            renderOpts: {
-              ...ctx.renderOpts,
+            renderState: {
+              ...ctx.renderState,
               // We render `renderToHtmlError` here because `err` is
               // already captured in the stacktrace.
-              err: isWrappedError
+              error: isWrappedError
                 ? renderToHtmlError.innerError
                 : renderToHtmlError,
             },
