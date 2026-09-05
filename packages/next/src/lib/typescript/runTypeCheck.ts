@@ -1,3 +1,4 @@
+import { wait } from '../wait'
 import path from 'path'
 import { getFormattedDiagnostic } from './diagnosticFormatter'
 import { getTypeScriptConfiguration } from './getTypeScriptConfiguration'
@@ -198,7 +199,7 @@ export async function runTypeCheck(
       )
 
       // Make sure all stdout is flushed before we exit.
-      await new Promise((resolve) => setTimeout(resolve, 100))
+      await wait(100)
     }
   }
 
