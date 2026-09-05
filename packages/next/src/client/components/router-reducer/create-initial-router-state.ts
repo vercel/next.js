@@ -24,7 +24,7 @@ export interface InitialRouterStateParameters {
   navigatedAt: number
   initialRSCPayload: InitialRSCPayload
   initialFlightStreamForCache?: ReadableStream<Uint8Array> | null
-  location: Location | null
+  location: URL | null
 }
 
 export function createInitialRouterState({
@@ -61,10 +61,7 @@ export function createInitialRouterState({
   const canonicalUrl =
     // location.href is read as the initial value for canonicalUrl in the browser
     // This is safe to do as canonicalUrl can't be rendered, it's only used to control the history updates in the useEffect further down in this file.
-    location
-      ? // window.location does not have the same type as URL but has all the fields createHrefFromUrl needs.
-        createHrefFromUrl(location)
-      : initialCanonicalUrl
+    location ? createHrefFromUrl(location) : initialCanonicalUrl
 
   // Decode the initial transport tree into the RouteTree type, with the
   // payload's render output embedded on each node. (discoverKnownRoute below

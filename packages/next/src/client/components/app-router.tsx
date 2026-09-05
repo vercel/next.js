@@ -54,30 +54,18 @@ const globalMutable: {
   pendingMpaPath?: string
 } = {}
 
-// A Back/Forward press before the router's popstate listener exists moves the
-// browser to a different history entry than the one the document was activated
-// on, and the resulting popstate fires with nobody listening. The activation
-// entry is fixed for the document's lifetime and entry keys are stable across
-// replaceState, so until the listener is installed a key mismatch means a
-// traversal went unobserved.
-function hasMissedTraversal(): boolean {
-  if (typeof window.navigation === 'undefined') {
-    return false
-  }
-  const activationEntry = window.navigation.activation?.entry
-  const currentEntry = window.navigation.currentEntry
-  return (
-    activationEntry != null &&
-    currentEntry != null &&
-    activationEntry.key !== currentEntry.key &&
-    // Only entries written by the app router can be restored; on any other
-    // entry the traversal is left unhandled, as before.
-    window.history.state?.__NA === true
-  )
+let initialHref: string | null = null
+
+export function setInitialUrl(url: URL): void {
+  initialHref = createHrefFromUrl(url)
 }
 
-let checkedMissedTraversalBeforeHistoryWrite = false
-let checkedMissedTraversalBeforeReplay = false
+function hasUnhandledHistoryChange(): boolean {
+  return (
+    initialHref !== null &&
+    createHrefFromUrl(new URL(window.location.href)) !== initialHref
+  )
+}
 
 /**
  * Handles a popstate event (or one that was missed before hydration).
@@ -114,14 +102,10 @@ function HistoryUpdater({
 
     const { tree, pushRef, canonicalUrl, renderedSearch } = appRouterState
 
-    if (!checkedMissedTraversalBeforeHistoryWrite) {
-      checkedMissedTraversalBeforeHistoryWrite = true
-      if (hasMissedTraversal()) {
-        // Skip the write: it would overwrite the traversed-to entry's state.
-        // The tree was rendered even though the history write is skipped.
-        setLastCommittedTree(tree)
-        return
-      }
+    if (hasUnhandledHistoryChange()) {
+      // The popstate handler will restore this entry.
+      setLastCommittedTree(tree)
+      return
     }
 
     const appHistoryState: AppHistoryState = {
@@ -422,12 +406,14 @@ function Router({
 
     window.addEventListener('popstate', onPopState)
 
-    if (!checkedMissedTraversalBeforeReplay) {
-      checkedMissedTraversalBeforeReplay = true
-      if (hasMissedTraversal()) {
+    if (hasUnhandledHistoryChange()) {
+      if (window.history.state?.__NA) {
         handlePopState(window.history.state)
+      } else {
+        restore(new URL(window.location.href), undefined)
       }
     }
+    initialHref = null
 
     return () => {
       window.history.pushState = originalPushState
