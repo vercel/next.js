@@ -917,11 +917,23 @@ export abstract class RouteModule<
     serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
 
     if (pageIsDynamic) {
-      const queryResult = serverUtils.normalizeDynamicRouteParams(query, true)
+      const routeParamsInQuery = new Set(
+        Object.keys(serverUtils.defaultRouteMatches || {}).filter(
+          (key) => query[key] !== undefined
+        )
+      )
+      const queryResult = serverUtils.normalizeDynamicRouteParams(
+        query,
+        true,
+        routeParamKeys
+      )
 
       const paramsResult = serverUtils.normalizeDynamicRouteParams(
         params || {},
         true
+      )
+      const omittedRouteParamFromQuery = Array.from(routeParamsInQuery).some(
+        (key) => query[key] === undefined
       )
 
       let paramsToInterpolate: ParsedUrlQuery
@@ -934,9 +946,14 @@ export abstract class RouteModule<
         params &&
         paramsResult.hasValidParams &&
         queryResult.hasValidParams &&
-        routeParamKeys.size > 0 &&
-        Object.keys(paramsResult.params).length <=
-          Object.keys(queryResult.params).length
+        ((routeParamKeys.size > 0 &&
+          Object.keys(paramsResult.params).length <=
+            Object.keys(queryResult.params).length) ||
+          // The adapter can supply an encoded optional catch-all placeholder
+          // in the query while matching the same value from the pathname.
+          // If normalization removed that query sentinel, prefer the omission
+          // over the independently matched pathname placeholder.
+          omittedRouteParamFromQuery)
       ) {
         paramsToInterpolate = queryResult.params
         params = Object.assign(queryResult.params)
