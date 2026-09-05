@@ -10,6 +10,7 @@ import {
 } from './trace/request-insights'
 import { getRequestInsightsIdentity } from './trace/request-insights-identity'
 import { getTracer, SpanKind } from './trace/tracer'
+import { SpanStatusCode } from '@opentelemetry/api'
 import {
   CACHE_ONE_YEAR_SECONDS,
   INFINITE_CACHE,
@@ -399,6 +400,7 @@ export function createPatchedFetcher(
         },
       },
       async (span) => {
+        const response = await (async (): Promise<Response> => {
         // If this is an internal fetch, we should not do any special treatment.
         if (isInternal) {
           return originFetch(input, init)
@@ -1354,6 +1356,18 @@ export function createPatchedFetcher(
         } else {
           return doOriginalFetch(false, cacheReasonOverride)
         }
+        })()
+
+        if (span && response.status >= 400) {
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: `HTTP ${response.status}${
+              response.statusText ? ` ${response.statusText}` : ''
+            }`,
+          })
+        }
+
+        return response
       }
     )
 
