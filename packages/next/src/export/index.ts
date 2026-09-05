@@ -70,6 +70,7 @@ import { isInterceptionRouteRewrite } from '../lib/is-interception-route-rewrite
 import type { ActionManifest } from '../build/webpack/plugins/flight-client-entry-plugin'
 import { extractInfoFromServerReferenceId } from '../shared/lib/server-reference-info'
 import { convertSegmentPathToStaticExportFilename } from '../shared/lib/segment-cache/segment-value-encoding'
+import { getStaticExportRscFileSuffix } from '../shared/lib/static-export-rsc'
 import { getNextBuildDebuggerPortOffset } from '../lib/worker'
 import { getParams } from './helpers/get-params'
 import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
@@ -257,6 +258,7 @@ async function exportAppImpl(
   }
 
   const buildId = await fs.readFile(buildIdFile, 'utf8')
+  const navigationBuildId = nextConfig.deploymentId || buildId
 
   const pagesManifest =
     !options.pages &&
@@ -1003,7 +1005,7 @@ async function exportAppImpl(
               outDir,
               `${route}${
                 subFolders && route !== '/index' ? `${sep}index` : ''
-              }.txt`
+              }${getStaticExportRscFileSuffix(navigationBuildId)}`
             )
           : join(pagesDataDir, `${route}.json`)
 
@@ -1034,8 +1036,10 @@ async function exportAppImpl(
             segmentPaths.map(async (segmentFileSrc) => {
               const segmentPath =
                 '/' + segmentFileSrc.slice(0, -RSC_SEGMENT_SUFFIX.length)
-              const segmentFilename =
-                convertSegmentPathToStaticExportFilename(segmentPath)
+              const segmentFilename = convertSegmentPathToStaticExportFilename(
+                segmentPath,
+                navigationBuildId
+              )
               const segmentFileDest = join(segmentsDirDest, segmentFilename)
               await fs.mkdir(dirname(segmentFileDest), { recursive: true })
               await fs.copyFile(

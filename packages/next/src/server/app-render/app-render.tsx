@@ -420,10 +420,14 @@ function maybeAppendBuildIdToRSCPayload<T extends RSCPayload>(
   ctx: AppRenderContext,
   payload: T
 ): T {
-  if (!ctx.sharedContext.deploymentId) {
-    // When using the build id, we need to initialize the id on initial page load, so a build id
-    // header wouldn't be enough.
-    payload.b = ctx.sharedContext.buildId
+  if (
+    !ctx.sharedContext.deploymentId ||
+    ctx.renderOpts.nextConfigOutput === 'export'
+  ) {
+    // Static exports cannot attach a deployment id response header when their
+    // RSC payloads are served as files, so include the navigation id in the
+    // payload instead. This also initializes the id on the initial page load.
+    payload.b = ctx.sharedContext.deploymentId || ctx.sharedContext.buildId
   }
   return payload
 }
