@@ -54,6 +54,12 @@ pub struct AvailableModulesSet(
     #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<AvailableModuleItem>,
 );
 
+impl AvailableModulesSet {
+    pub fn new(modules: FxIndexSet<AvailableModuleItem>) -> Self {
+        Self(modules)
+    }
+}
+
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching
 /// `include` queries.
