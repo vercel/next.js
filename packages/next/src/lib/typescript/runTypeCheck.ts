@@ -106,6 +106,18 @@ export async function runTypeCheck(
     })
   }
 
+  const ignoreRegex = [
+    // matches **/__(tests|mocks)__/**
+    /[\\/]__(?:tests|mocks)__[\\/]/,
+    // matches **/*.(spec|test).*
+    /(?<=[\\/.])(?:spec|test)\.[^\\/]+$/,
+  ]
+  const regexIgnoredFile = new RegExp(
+    ignoreRegex.map((r) => r.source).join('|')
+  )
+
+  fileNames = fileNames.filter((fileName) => !regexIgnoredFile.test(fileName))
+
   if (fileNames.length < 1) {
     return {
       hasWarnings: false,
@@ -150,20 +162,9 @@ export async function runTypeCheck(
 
   const result = program.emit()
 
-  const ignoreRegex = [
-    // matches **/__(tests|mocks)__/**
-    /[\\/]__(?:tests|mocks)__[\\/]/,
-    // matches **/*.(spec|test).*
-    /(?<=[\\/.])(?:spec|test)\.[^\\/]+$/,
-  ]
-  const regexIgnoredFile = new RegExp(
-    ignoreRegex.map((r) => r.source).join('|')
-  )
-
   const allDiagnostics = typescript
     .getPreEmitDiagnostics(program as import('typescript').Program)
     .concat(result.diagnostics)
-    .filter((d) => !(d.file && regexIgnoredFile.test(d.file.fileName)))
 
   const firstError =
     allDiagnostics.find(
