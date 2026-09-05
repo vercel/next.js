@@ -70,7 +70,7 @@ export function decryptWithSecret(
     `sha512`
   )
 
-  const decipher = crypto.createDecipheriv(CIPHER_ALGORITHM, key, iv)
+  const decipher = crypto.createDecipheriv(CIPHER_ALGORITHM, key, iv, { authTagLength: 16 })
   decipher.setAuthTag(tag)
 
   return decipher.update(encrypted) + decipher.final(`utf8`)
