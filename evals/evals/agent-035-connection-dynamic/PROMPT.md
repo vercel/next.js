@@ -1,1 +1,1 @@
-Create a server component that displays the current server timestamp on each request. The timestamp should be different on every page load (not prerendered at build time). Use Next.js's recommended approach for opting out of static prerendering when you need dynamic data without using cookies/headers.
+Enable Cache Components for this operations console. The navigation must stay immediately useful, while the request identifier, current time, and sampling value must still be generated per request. Finish with a production build and do not leave routes opted out.
