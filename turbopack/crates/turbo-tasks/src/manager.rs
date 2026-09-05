@@ -657,13 +657,22 @@ fn outstanding_foreground_jobs() -> &'static OutstandingForegroundJobs {
 }
 
 /// A snapshot of the outstanding job descriptions, for the stuck-shutdown dump.
-fn outstanding_foreground_jobs_debug() -> Vec<String> {
-    outstanding_foreground_jobs()
+fn outstanding_foreground_jobs_debug<B: Backend + 'static>(backend: &B) -> Vec<String> {
+    let entries: Vec<(u64, String)> = outstanding_foreground_jobs()
         .jobs
         .lock()
         .unwrap()
-        .values()
-        .cloned()
+        .iter()
+        .map(|(k, v)| (*k, v.clone()))
+        .collect();
+    entries
+        .into_iter()
+        .map(|(id, label)| match TaskId::try_from(id as u32) {
+            // Resolve the task type here rather than at schedule time: it lives in the `Data`
+            // category and the scheduling guard only holds `Meta`.
+            Ok(task_id) => format!("{} [{}]", backend.debug_describe_task(task_id), label),
+            Err(_) => label,
+        })
         .collect()
 }
 
@@ -1495,7 +1504,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                                         queued,
                                         workers,
                                         target,
-                                        outstanding_foreground_jobs_debug(),
+                                        outstanding_foreground_jobs_debug(&self.backend),
                                     );
                                 }
                             }

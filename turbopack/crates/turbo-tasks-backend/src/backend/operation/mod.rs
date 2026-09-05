@@ -1183,10 +1183,21 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
 
     fn schedule_task(&self, task: &Self::TaskGuardImpl, parent_priority: TaskPriority) {
         let priority = schedule_priority(task, parent_priority);
-        // TEMP INSTRUMENTATION (do not ship): pass the task's description while the guard is open,
-        // so a stuck shutdown names the function rather than a bare TaskId.
+        // TEMP INSTRUMENTATION (do not ship): describe the task for the stuck-shutdown dump.
+        //
+        // Deliberately NOT `get_task_desc_fn()`: that reads the task type, which lives in the
+        // `Data` category, while this guard is opened with `Meta` only — calling it here panics
+        // ("To read data of Data the task need to be accessed with this category"). The existing
+        // `EventDescription::new(|| task.get_task_desc_fn())` in connect_child gets away with it
+        // because `EventDescription` compiles the closure out unless `hanging_detection` is on.
+        //
+        // The in-progress state recorded by `add_scheduled` already carries the real description,
+        // so the reason is logged here and the type is recovered from that side.
+        let task_id = task.id();
         self.turbo_tasks
-            .schedule_described(task.id(), priority, task.get_task_desc_fn());
+            .schedule_described(task_id, priority, move || {
+                format!("{task_id:?} scheduled by backend operation")
+            });
     }
 
     fn get_current_task_priority(&self) -> TaskPriority {

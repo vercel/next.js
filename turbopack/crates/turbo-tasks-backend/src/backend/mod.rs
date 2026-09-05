@@ -3851,6 +3851,10 @@ impl Backend for TurboTasksBackend {
         self.task_execution_canceled(task, turbo_tasks)
     }
 
+    fn debug_describe_task(&self, task: TaskId) -> String {
+        self.debug_get_task_description(task)
+    }
+
     fn try_start_task_execution(
         &self,
         task_id: TaskId,
