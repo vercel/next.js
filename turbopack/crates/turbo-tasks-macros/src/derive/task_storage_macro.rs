@@ -1102,6 +1102,11 @@ fn generate_task_flags_bitfield(grouped_fields: &GroupedFields) -> TokenStream {
             #[doc = "Mask for all persisted flags (meta + data)"]
             pub const PERSISTED_MASK: u16 = #persisted_mask;
 
+            #[doc = "Construct empty task flags in a const context"]
+            pub const fn empty() -> Self {
+                Self(0)
+            }
+
             #[doc = "Get the raw bits value"]
             pub fn bits(&self) -> u16 {
                 self.0
@@ -1359,12 +1364,14 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
 
     // Collect all field definitions from both categories
     let mut field_defs = Vec::new();
+    let mut field_names = Vec::new();
 
     // Add inline fields directly on TaskStorage (private - use accessor methods)
     // Note: No bincode attributes since we don't derive Encode/Decode (manual serialization)
     for field in grouped_fields.all_inline() {
         let field_name = &field.field_name;
         let field_type = &field.field_type;
+        field_names.push(field_name.clone());
         field_defs.push(quote! {
             #field_name: #field_type
         });
@@ -1390,6 +1397,19 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
         quote! {}
     };
 
+    let swap_flags = has_flags.then(|| {
+        quote! { std::mem::swap(&mut self.flags, &mut detached.flags); }
+    });
+    let swap_lazy = has_lazy.then(|| {
+        quote! { std::mem::swap(&mut self.lazy, &mut detached.lazy); }
+    });
+    let reset_flags = has_flags.then(|| {
+        quote! { self.flags = Default::default(); }
+    });
+    let reset_lazy = has_lazy.then(|| {
+        quote! { self.lazy = Default::default(); }
+    });
+
     // Note: Helper methods like find_lazy, find_lazy_mut, get_or_create_lazy, and
     // remove_if_empty are defined in storage_schema.rs rather than generated here.
     // This provides better IDE support (autocomplete, go-to-definition, etc.).
@@ -1406,14 +1426,39 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
             #(#field_defs,)*
             #flags_field
             #lazy_field
-            #[doc = "Per-task lock used with a shared resident-map guard."]
-            lock: IntrusiveTaskLock,
+            #[doc = "Intrusive lock protecting this stable task slot"]
+            pub(crate) lock: IntrusiveTaskLock,
+            #[doc = "Authoritative slot presence, accessed only while `lock` is held"]
+            pub(crate) occupied: bool,
         }
 
         #[automatically_derived]
         impl TaskStorage {
+            #[doc = "Constructs fresh task payload with unlocked, vacant slot metadata."]
             pub fn new() -> Self {
                 Self::default()
+            }
+
+            #[doc = "Moves payload into a fresh unlocked value and leaves this locked slot vacant."]
+            #[doc = "The caller must hold this task's intrusive lock."]
+            pub(crate) fn take_and_vacate(&mut self) -> Self {
+                debug_assert!(self.occupied);
+                let mut detached = Self::default();
+                #(std::mem::swap(&mut self.#field_names, &mut detached.#field_names);)*
+                #swap_flags
+                #swap_lazy
+                self.occupied = false;
+                detached
+            }
+
+            #[doc = "Drops and resets payload in place while preserving the held mutex."]
+            #[doc = "The caller must hold this task's intrusive lock."]
+            pub(crate) fn vacate_in_place(&mut self) {
+                debug_assert!(self.occupied);
+                #(self.#field_names = Default::default();)*
+                #reset_flags
+                #reset_lazy
+                self.occupied = false;
             }
         }
     }
