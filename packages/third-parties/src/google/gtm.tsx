@@ -21,7 +21,7 @@ export function GoogleTagManager(props: GTMParams) {
   currDataLayerName = dataLayerName
 
   const scriptUrl = new URL(
-    gtmScriptUrl || 'https://www.googletagmanager.com/gtm.js'
+    gtmScriptUrl || 'https://www.googletagmanager.com/gtag/js'
   )
   if (gtmId) {
     scriptUrl.searchParams.set('id', gtmId)
