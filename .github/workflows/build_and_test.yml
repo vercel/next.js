@@ -695,6 +695,16 @@ jobs:
         # next-napi-bindings), so nothing needs patching here: the wasm32 plugin path that does not
         # compile is simply never built.
         cargo check -p next-napi-bindings --target wasm32-wasip1-threads
+
+        # Run the crates whose tests can execute on wasm. This needs a host that supplies the
+        # `env.read_custom_section` import turbo-tasks' link-time registries depend on; no stock
+        # runtime provides it. See scripts/wasi-test-host/README.md, which also lists the platform
+        # limitations behind the tests that are `ignore`d on wasm.
+        export CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER="node $PWD/scripts/wasi-test-host/run.mjs"
+        node --test scripts/wasi-test-host/lib.test.mjs
+        cargo test -p turbo-rcstr --lib --target wasm32-wasip1-threads
+        cargo test -p turbo-tasks --lib --target wasm32-wasip1-threads
+        cargo test -p turbo-tasks-backend --lib --target wasm32-wasip1-threads
       stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 

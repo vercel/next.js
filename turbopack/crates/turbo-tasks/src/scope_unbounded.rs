@@ -508,6 +508,7 @@ mod tests {
 
     /// A single `run` call enqueues a large batch of leaves; every one must be processed.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_wide_burst_of_leaves() {
         const CHILDREN: usize = 1000;
         let processed = Arc::new(AtomicUsize::new(0));
@@ -532,6 +533,7 @@ mod tests {
 
     /// A slow seeding iterator must not let the scope finish early.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_slow_seeding_iterator_completes() {
         const SEEDS: usize = 16;
         let processed = Arc::new(AtomicUsize::new(0));
@@ -566,6 +568,7 @@ mod tests {
 
     /// Aborting in the middle of a deep, still-growing cascade must terminate rather than hang:
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_abort_during_cascade() {
         // Each item spawns two children until the id exceeds the bound, so the queue is still
         // growing when the abort lands.
@@ -602,6 +605,7 @@ mod tests {
     /// `remaining_tasks` without queueing it would never reach zero, so this hangs rather than
     /// fails.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_spawn_after_abort_is_dropped() {
         let processed = Arc::new(AtomicUsize::new(0));
         let processed_clone = processed.clone();
@@ -630,6 +634,7 @@ mod tests {
 
     /// Abort on a `current_thread` runtime, where the calling thread is the only drainer.
     #[tokio::test(flavor = "current_thread")]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_abort_current_thread_runtime() {
         let processed = Arc::new(AtomicUsize::new(0));
         let processed_clone = processed.clone();
@@ -650,6 +655,7 @@ mod tests {
     /// swallowed by the wind-down: the abort's queue-clear races the panic's unwind through
     /// `catch_unwind` -> `on_item_finished`.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_abort_then_panic() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             scope_unbounded(0..1000usize, |_spawner, item| {
@@ -671,6 +677,7 @@ mod tests {
     /// Items already picked up by another drainer still complete, so the bound is "far fewer than
     /// seeded" rather than exactly one.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_panic_propagates_and_abandons_queue() {
         const ITEMS: usize = 10_000;
         let processed = Arc::new(AtomicUsize::new(0));
@@ -701,6 +708,7 @@ mod tests {
     /// The accumulator must be per-drainer, not shared: collecting into a `Vec` and merging by
     /// concatenation must preserve every element even with several drainers running.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_with_collects_all_values() {
         const ITEMS: usize = 500;
         let mut collected = tokio::task::spawn_blocking(|| {
@@ -726,6 +734,7 @@ mod tests {
     /// With no items, no drainer builds an accumulator, so the result is exactly one `init()` —
     /// not a fold of one per drainer that happened to start.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_with_empty_returns_init() {
         let total = tokio::task::spawn_blocking(|| {
             scope_unbounded_with(
@@ -759,6 +768,7 @@ mod tests {
     /// Aborting returns the results accumulated up to that point rather than discarding them —
     /// only the abandoned items are missing. The run must still terminate cleanly.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_with_abort_returns_partial_results() {
         let processed = tokio::task::spawn_blocking(|| {
             scope_unbounded_with(
@@ -787,6 +797,7 @@ mod tests {
     /// A panic must propagate through the fold path without deadlocking the join, which drainers
     /// reach only after their merge.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_with_panic_propagates() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             scope_unbounded_with(
@@ -809,6 +820,7 @@ mod tests {
 
     /// The accumulator may borrow `'env` data (it is not `'static`), mirroring how `run` may.
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     fn test_unbounded_with_borrowed_accumulator() {
         let label = String::from("item");
         let count = with_runtime(4, move || {
@@ -845,6 +857,7 @@ mod tests {
     /// worker has certainly timed out — so reaching the second item at all exercises the respawn
     /// path rather than a still-live worker.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_worker_respawns_after_going_idle() {
         let inits = Arc::new(AtomicUsize::new(0));
         let counted = inits.clone();
@@ -888,6 +901,7 @@ mod tests {
 
     /// A scope that never has queued work must not occupy a worker at all.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_empty_spawns_no_workers() {
         let inits = Arc::new(AtomicUsize::new(0));
         let counted = inits.clone();
@@ -910,6 +924,7 @@ mod tests {
 
     /// Sustained work keeps workers alive rather than churning them:
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_unbounded_busy_queue_does_not_churn_workers() {
         const ITEMS: usize = 20_000;
         let inits = Arc::new(AtomicUsize::new(0));
@@ -945,6 +960,7 @@ mod tests {
     /// The join must not depend on tokio scheduling, even when every runtime thread is contended
     /// and workers are still mid-drain.
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     fn test_unbounded_join_under_thread_starvation() {
         let runtime = tokio::runtime::Builder::new_multi_thread()
             .worker_threads(2)
