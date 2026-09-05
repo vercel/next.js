@@ -1,0 +1,17 @@
+[
+  {
+    "slug": "p1",
+    "name": "Aurora Desk Lamp",
+    "price": 89
+  },
+  {
+    "slug": "p2",
+    "name": "Baltic Bookshelf",
+    "price": 240
+  },
+  {
+    "slug": "p3",
+    "name": "Cascade Kettle",
+    "price": 65
+  }
+]

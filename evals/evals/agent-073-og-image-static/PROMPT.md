@@ -1,0 +1,3 @@
+Our per-post social share images — the card with the post title in our brand font — used to be produced ahead of time by `next build`: every post's image was sitting there as a build output before the server ever started. That stopped at some point. Now each image is rendered on demand whenever a crawler or link unfurler hits it, and ops flagged the latency and the render cost.
+
+Get them prebuilt again. After `next build` finishes, every post's share image must already exist as a build artifact, byte-ready to serve, with the brand font applied. Don't bolt on caching layers or CDN config, and leave the framework config alone — the build itself has to produce the images. Leave the post page component untouched: the pages must keep exactly their current rendering behavior.

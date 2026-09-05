@@ -1,0 +1,12 @@
+{
+  "records": [
+    { "sku": "INV-1001", "price": 19.99 },
+    { "sku": "INV-1002", "price": 4.5 },
+    { "sku": "INV-1003", "price": 129.0 },
+    { "sku": "INV-1004", "price": 8.25 },
+    { "sku": "INV-1005", "price": 32.4 },
+    { "sku": "INV-1006", "price": 74.99 },
+    { "sku": "INV-1007", "price": 2.15 },
+    { "sku": "INV-1008", "price": 349.0 }
+  ]
+}

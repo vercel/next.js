@@ -1,0 +1,22 @@
+{
+  "invoices": [
+    {
+      "id": "inv-1042",
+      "customer": "Acme Corp",
+      "total": 1250.0,
+      "issuedOn": "2026-08-03"
+    },
+    {
+      "id": "inv-1043",
+      "customer": "Globex",
+      "total": 480.5,
+      "issuedOn": "2026-08-11"
+    },
+    {
+      "id": "inv-1044",
+      "customer": "Initech",
+      "total": 99.99,
+      "issuedOn": "2026-08-19"
+    }
+  ]
+}

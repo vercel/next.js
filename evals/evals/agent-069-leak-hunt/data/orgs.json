@@ -1,0 +1,5 @@
+{
+  "acme": { "events30d": 111111, "activeSeats": 111 },
+  "globex": { "events30d": 222222, "activeSeats": 222 },
+  "demo": { "events30d": 0, "activeSeats": 0 }
+}

@@ -1,0 +1,20 @@
+{
+  "1": [
+    { "sku": "TL-0101", "name": "Cast Iron Anvil", "price": 189 },
+    { "sku": "TL-0102", "name": "Forge Bellows", "price": 74 },
+    { "sku": "TL-0103", "name": "Ball-Peen Hammer", "price": 32 },
+    { "sku": "TL-0104", "name": "Bench Vise", "price": 121 }
+  ],
+  "2": [
+    { "sku": "GD-0201", "name": "Garden Trowel", "price": 18 },
+    { "sku": "GD-0202", "name": "Pruning Shears", "price": 27 },
+    { "sku": "GD-0203", "name": "Soaker Hose", "price": 41 },
+    { "sku": "GD-0204", "name": "Compost Tumbler", "price": 139 }
+  ],
+  "3": [
+    { "sku": "EL-0301", "name": "Soldering Iron", "price": 45 },
+    { "sku": "EL-0302", "name": "Digital Multimeter", "price": 89 },
+    { "sku": "EL-0303", "name": "Wire Stripper", "price": 22 },
+    { "sku": "EL-0304", "name": "Bench Power Supply", "price": 210 }
+  ]
+}

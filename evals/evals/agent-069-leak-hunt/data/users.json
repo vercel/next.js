@@ -1,0 +1,5 @@
+{
+  "alice": { "plan": "acme-scale", "billingEmail": "billing-alice@acme.test" },
+  "bob": { "plan": "globex-scale", "billingEmail": "billing-bob@globex.test" },
+  "guest": { "plan": "free", "billingEmail": "unknown@example.test" }
+}
