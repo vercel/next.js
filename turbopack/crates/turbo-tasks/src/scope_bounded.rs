@@ -281,6 +281,59 @@ mod tests {
 
     use super::*;
 
+    /// A contended `parking_lot::Mutex` must actually block the waiter and hand the lock over.
+    ///
+    /// This exists because the rest of the suite passing is not proof: `parking_lot_core` selects
+    /// its thread parker in `thread_parker/mod.rs`, and the working wasm parker
+    /// (`wasm_atomic.rs`, built on `memory_atomic_wait32` / `memory_atomic_notify`) is chosen
+    /// only under `all(feature = "nightly", target_family = "wasm", target_feature =
+    /// "atomics")`. Without that feature it silently falls back to `wasm.rs`, whose `park()` is
+    /// `panic!("Parking not supported on this platform")` — so this test is the negative control
+    /// for the feature being enabled, and it fails loudly if the stub is ever selected again.
+    ///
+    /// Timing-based on purpose: a lock that returned immediately without blocking would satisfy a
+    /// pure handover assertion, so real elapsed time is what distinguishes blocking from spinning
+    /// past the guard.
+    #[test]
+    fn contended_mutex_blocks_and_hands_over() {
+        const HELD_FOR: Duration = Duration::from_millis(300);
+        // Comfortably below HELD_FOR so a slow machine can't make this flaky, and comfortably above
+        // zero so a non-blocking lock can't pass.
+        const MIN_BLOCKED: Duration = Duration::from_millis(200);
+
+        let lock = Arc::new(Mutex::new(0usize));
+        let guard_taken = Arc::new(std::sync::Barrier::new(2));
+
+        let holder = {
+            let lock = Arc::clone(&lock);
+            let guard_taken = Arc::clone(&guard_taken);
+            thread::spawn(move || {
+                let mut guard = lock.lock();
+                // Only release the waiter once the lock is definitely held, so the waiter is
+                // guaranteed to contend rather than racing to acquire it first.
+                guard_taken.wait();
+                thread::sleep(HELD_FOR);
+                *guard = 1;
+            })
+        };
+
+        guard_taken.wait();
+        let started = Instant::now();
+        let value = *lock.lock();
+        let blocked_for = started.elapsed();
+
+        holder.join().expect("holder thread panicked");
+
+        // The holder writes 1 while holding the lock, so seeing 1 proves the waiter observed the
+        // handover rather than acquiring the lock before the holder did.
+        assert_eq!(value, 1, "waiter did not observe the holder's write");
+        assert!(
+            blocked_for >= MIN_BLOCKED,
+            "waiter blocked for only {blocked_for:?}; expected at least {MIN_BLOCKED:?}, so the \
+             lock was not actually contended"
+        );
+    }
+
     /// A scope must make progress even when every runtime worker thread is busy, since the calling
     /// thread can always drain the shared queue itself.
     ///
@@ -288,7 +341,6 @@ mod tests {
     /// no helper can be scheduled; we assert the scope still finishes well before that deadline.
     /// The deadline also guarantees the test fails cleanly instead of hanging.
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_scope_worker_threads_occupied() {
         const WORKER_THREADS: usize = 2;
         const JOBS: usize = 64;
@@ -341,7 +393,6 @@ mod tests {
     /// On a `current_thread` runtime no helpers can be spawned and `block_in_place` is not allowed,
     /// so the calling thread must drain the queue inline rather than panicking or hanging.
     #[tokio::test(flavor = "current_thread")]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_scope_current_thread_runtime() {
         let results = tokio::task::spawn_blocking(|| {
             scope_bounded(16, |scope| {
@@ -362,7 +413,13 @@ mod tests {
     /// Helpers must actually add parallelism when threads are available: jobs that each block
     /// briefly should complete in far less than their serial sum.
     #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
+    // The work itself is genuinely parallel on wasm — it finishes in ~500ms of an 800ms serial sum.
+    // What hangs is teardown: dropping the runtime while these blocking helpers are still alive
+    // deadlocks there. Removed once the wasm runtime owns its lifetime.
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "tokio runtime shutdown hangs on wasm while blocking threads are live"
+    )]
     async fn test_scope_runs_in_parallel() {
         const JOBS: usize = 16;
         const PER_JOB: Duration = Duration::from_millis(50);
@@ -391,7 +448,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_scope() {
         let results = scope_bounded(1000, |scope| {
             for i in 0..1000 {
@@ -406,7 +462,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_empty_scope() {
         let results = scope_bounded(0, |scope| {
             if false {
@@ -417,7 +472,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_single_task() {
         let results = scope_bounded(1, |scope| {
             scope.spawn(|| 42);
@@ -427,7 +481,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_task_finish_before_scope() {
         let results = scope_bounded(1, |scope| {
             scope.spawn(|| 42);
@@ -438,7 +491,6 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_task_finish_after_scope() {
         let results = scope_bounded(1, |scope| {
             scope.spawn(|| {
