@@ -81,17 +81,48 @@ impl EcmascriptModuleFacadeModule {
             );
         };
         let result = module.analyze().await?;
+
+        // One reference per export that comes from the locals module, so the module graph carries
+        // *which* names this facade needs from it. Without these the only facade -> locals edge is
+        // the structural one below, which then has to claim `all()` and widens the locals module's
+        // usage to `All` unconditionally.
+        let mut part_references = Vec::new();
+        if let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? {
+            for (name, export) in &esm_exports.await?.exports {
+                if matches!(export, EsmExport::LocalBinding(..)) {
+                    part_references.push(
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            ModulePart::locals(),
+                            ExportUsage::named(name.clone()),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                }
+            }
+        }
+
         Ok((
             vec![
+                // This reference exists so the locals module is *evaluated* (side effects and
+                // ordering). Declaring `all()` here would also claim every export is used, which
+                // widens the locals module's usage to `All` unconditionally — defeating both
+                // export mangling and tree shaking of its unused exports. `evaluation()` keeps the
+                // ordering guarantee and lets the per-export references below describe what is
+                // actually used.
                 // TODO skip if side effect free and no local exports
                 EcmascriptModulePartReference::new_part(
                     *self.module,
                     ModulePart::locals(),
-                    ExportUsage::all(),
+                    ExportUsage::evaluation(),
                 )
                 .to_resolved()
                 .await?,
-            ],
+            ]
+            .into_iter()
+            .chain(part_references)
+            .collect(),
             result.esm_reexport_references,
         ))
     }
@@ -139,6 +170,15 @@ impl Module for EcmascriptModuleFacadeModule {
         Ok(*is_self_async)
     }
 
+    /// A facade only ever re-exposes another module's bindings; evaluating the facade itself runs
+    /// none of the original module's top-level code, so it is unconditionally side-effect free.
+    ///
+    /// This is load-bearing for whoever decides to *create* a facade: the original module's real
+    /// side effects live in the locals module, and are only still reachable because the locals
+    /// module is part of the split. Splitting a module that has no exports would leave its side
+    /// effects behind a facade claiming to have none, and tree shaking would drop them — which is
+    /// exactly why `EcmascriptExports::split_locals_and_reexports` refuses to split an
+    /// export-less module.
     #[turbo_tasks::function]
     fn side_effects(&self) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
