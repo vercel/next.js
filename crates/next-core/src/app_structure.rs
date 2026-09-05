@@ -1290,7 +1290,8 @@ async fn directory_tree_to_loader_tree(
 
 /// Checks the current module if it needs to be updated with the default page.
 /// If the module is already set, update the parent module to the same value.
-/// If the parent module is set and module is not set, set the module to the parent module.
+/// If the module is not set and the parent module is set, only first layer group routes are
+/// updated, and only when the parent module is the built-in default page.
 /// If the module and the parent module are not set, set them to the default value.
 ///
 /// # Arguments
@@ -1300,8 +1301,8 @@ async fn directory_tree_to_loader_tree(
 ///   set.
 /// * `file_path` - The file path to the default page if neither the current module nor the parent
 ///   module is set.
-/// * `is_first_layer_group_route` - If true, the module will be overridden with the parent module
-///   if it is not set.
+/// * `is_first_layer_group_route` - If true and the module is not set, the module will be
+///   overridden with the parent module, but only when the parent module is the built-in default.
 async fn check_and_update_module_references(
     app_dir: FileSystemPath,
     module: &mut Option<FileSystemPath>,
@@ -1312,10 +1313,18 @@ async fn check_and_update_module_references(
     match (module.as_mut(), parent_module.as_mut()) {
         // If the module is set, update the parent module to the same value
         (Some(module), _) => *parent_module = Some(module.clone()),
-        // If we are in a first layer group route and we have a parent module, we want to override
-        // a nonexistent module with the parent module
+        // If we are in a first layer group route and we have a parent module, we only want to
+        // override a nonexistent module with the built-in default module. When the parent
+        // (i.e. the root) defines its own convention file, e.g. `app/not-found.js`, we must not
+        // duplicate that boundary inside the group route, otherwise `notFound()` thrown below the
+        // group route would render the root boundary nested in the group route's layout instead of
+        // bubbling up to the root layout. This mirrors the webpack implementation in
+        // `next-app-loader`.
         (None, Some(parent_module)) if is_first_layer_group_route => {
-            *module = Some(parent_module.clone())
+            let default_page = get_next_package(app_dir).await?.join(file_path)?;
+            if *parent_module == default_page {
+                *module = Some(default_page);
+            }
         }
         // If we are not in a first layer group route, and the module is not set, and the parent
         // module is set, we do nothing
