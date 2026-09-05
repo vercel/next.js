@@ -1,0 +1,1 @@
+The dashboard and `/reports/acme` still work in development, but the production build stopped passing after a route cleanup. Fix it without changing the UI or route behavior, verify both routes in development, and run a production build.

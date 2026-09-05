@@ -1,0 +1,22 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "eval:setup": "node eval-setup.mjs",
+    "dev": "next dev --port 3100",
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "^16",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "typescript": "^5",
+    "vitest": "^3.1.3"
+  }
+}

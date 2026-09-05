@@ -66,6 +66,30 @@ export async function installNextJs(sandbox: Sandbox): Promise<void> {
 }
 
 /**
+ * Run optional fixture-specific setup after dependencies are installed but
+ * before the coding agent starts.
+ */
+export async function prepareFixture(sandbox: Sandbox): Promise<void> {
+  let pkg: { scripts?: Record<string, string> }
+  try {
+    pkg = JSON.parse(await sandbox.readFile('package.json'))
+  } catch {
+    return
+  }
+
+  if (!pkg.scripts?.['eval:setup']) return
+
+  const { exitCode, stderr } = await sandbox.runCommand('npm', [
+    'run',
+    'eval:setup',
+  ])
+  if (exitCode !== 0) {
+    throw new Error(`npm run eval:setup failed (exit ${exitCode}):\n${stderr}`)
+  }
+  console.log('  Prepared fixture state')
+}
+
+/**
  * Write AGENTS.md (and aliases) to the sandbox root, directing agents to read
  * bundled docs from node_modules/next/dist/docs/.
  *

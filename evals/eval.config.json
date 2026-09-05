@@ -10,5 +10,9 @@
   "agent-054-cache-components-empty-static-params": {
     "skills": ["next-cache-components-adoption"],
     "timeout": 1800
+  },
+  "agent-055-stale-build-error": {
+    "skills": ["next-dev-loop"],
+    "timeout": 900
   }
 }

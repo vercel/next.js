@@ -116,7 +116,9 @@ Run `next dev` and let the agent work against the running server. Runtime errors
 
 First, `next dev` forwards browser console errors and warnings to the terminal (the [`logging.browserToTerminal`](/docs/app/api-reference/config/next-config-js/logging) config), so the output agents already read carries the client-side failures they're asked to fix.
 
-`next dev` also writes its PID, port, and URL to `.next/dev/lock`. A second `next dev` in the same project prints the running server's URL and the PID to kill, so an agent connects to the existing server instead of starting a duplicate.
+`next dev` also writes its PID, port, and URL to `.next/dev/lock`. This metadata lives alongside the incremental compilation caches in `.next`.
+
+Resetting `.next` discards the running server metadata and incremental compilation caches used across edits and reloads, so it is a recovery step for corrupt or incompatible generated output rather than routine troubleshooting.
 
 The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`, which exposes the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
 
