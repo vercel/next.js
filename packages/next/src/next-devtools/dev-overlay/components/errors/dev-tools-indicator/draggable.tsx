@@ -43,6 +43,7 @@ export function Draggable({
     threshold: 5,
     onDragStart,
     onDragEnd,
+    onDragCancel,
     onAnimationEnd,
     dragHandleSelector,
   })
@@ -62,6 +63,18 @@ export function Draggable({
     }
     const nearestCorner = getNearestCorner(projectedPosition)
     animate(nearestCorner)
+  }
+
+  function onDragCancel(translation: Point) {
+    const distance = Math.sqrt(
+      translation.x * translation.x + translation.y * translation.y
+    )
+    if (distance === 0) {
+      ref.current?.style.removeProperty('translate')
+      return
+    }
+
+    animate({ corner: currentCorner, translation: { x: 0, y: 0 } })
   }
 
   function onAnimationEnd({ corner }: Corner) {
@@ -147,6 +160,11 @@ export function Draggable({
       {...props}
       {...drag}
       ref={ref}
+      style={{
+        ...props.style,
+        // prevent touch gestures from being treated as viewport panning, which would cancel drag
+        touchAction: 'none',
+      }}
       style={{ touchAction: 'none', ...props.style }}
     >
       {children}
@@ -159,6 +177,7 @@ interface UseDragOptions {
   onDragStart?: () => void
   onDrag?: (translation: Point) => void
   onDragEnd?: (translation: Point, velocity: Point) => void
+  onDragCancel?: (translation: Point) => void
   onAnimationEnd?: (corner: Corner) => void
   threshold: number // Minimum movement before drag starts
   dragHandleSelector?: string
@@ -179,6 +198,7 @@ function useDrag(options: UseDragOptions) {
     state: 'idle',
   })
   const cleanup = useRef<() => void>(null)
+  const postDragCooldown = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const origin = useRef<Point>({ x: 0, y: 0 })
   const translation = useRef<Point>({ x: 0, y: 0 })
@@ -186,14 +206,46 @@ function useDrag(options: UseDragOptions) {
   const velocities = useRef<Velocity[]>([])
 
   const cancel = useCallback(() => {
-    if (machine.current.state === 'drag') {
-      ref.current?.releasePointerCapture(machine.current.pointerId)
+    if (
+      machine.current.state === 'drag' &&
+      ref.current?.hasPointerCapture(machine.current.pointerId)
+    ) {
+      ref.current.releasePointerCapture(machine.current.pointerId)
     }
 
     machine.current =
       machine.current.state === 'drag'
         ? { state: 'drag-end' }
         : { state: 'idle' }
+
+    if (cleanup.current !== null) {
+      cleanup.current()
+      cleanup.current = null
+    }
+
+    velocities.current = []
+
+    ref.current?.classList.remove('dev-tools-grabbing')
+    ref.current?.style.removeProperty('-webkit-user-select')
+    document.body.style.removeProperty('user-select')
+    document.body.style.removeProperty('-webkit-user-select')
+  }, [])
+
+  // For touch cancellation (pointercancel/touchcancel), fully reset to idle
+  // so the indicator doesn't freeze in a non-interactive state.
+  const hardReset = useCallback(() => {
+    if (
+      machine.current.state === 'drag' &&
+      ref.current?.hasPointerCapture(machine.current.pointerId)
+    ) {
+      try {
+        ref.current.releasePointerCapture(machine.current.pointerId)
+      } catch {
+        // pointer capture may already be released
+      }
+    }
+
+    machine.current = { state: 'idle' }
 
     if (cleanup.current !== null) {
       cleanup.current()
@@ -241,11 +293,9 @@ function useDrag(options: UseDragOptions) {
   }
 
   function onClick(e: MouseEvent) {
-    if (machine.current.state === 'drag-end') {
+    if (postDragCooldown.current !== null) {
       e.preventDefault()
       e.stopPropagation()
-      machine.current = { state: 'idle' }
-      ref.current?.removeEventListener('click', onClick)
     }
   }
 
@@ -269,6 +319,27 @@ function useDrag(options: UseDragOptions) {
     return true
   }
 
+  function onTouchMove(e: TouchEvent) {
+    // Prevent viewport scrolling while dragging on touch devices.
+    // This is the critical fix: without this, the browser can hijack the
+    // gesture for scrolling, fire pointercancel, and leave the indicator stuck.
+    if (machine.current.state === 'drag' || machine.current.state === 'press') {
+      e.preventDefault()
+    }
+  }
+
+  function onTouchEnd() {
+    // Safety net: if pointerup/pointercancel never fires (possible on some
+    // touch implementations), clean up via the touch lifecycle instead.
+    if (machine.current.state !== 'idle') {
+      const wasDragging = machine.current.state === 'drag'
+      hardReset()
+      if (wasDragging) {
+        options.onDragCancel?.(translation.current)
+      }
+    }
+  }
+
   function onPointerDown(e: React.PointerEvent) {
     if (e.button !== 0) {
       return // ignore right click
@@ -279,10 +350,22 @@ function useDrag(options: UseDragOptions) {
       return
     }
 
+    // Clear any pending post-drag cooldown
+    if (postDragCooldown.current !== null) {
+      clearTimeout(postDragCooldown.current)
+      postDragCooldown.current = null
+    }
+
     origin.current = { x: e.clientX, y: e.clientY }
     machine.current = { state: 'press' }
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointercancel', onPointerCancel)
+    // Touch listeners as a safety net for browsers where pointer events
+    // may be cancelled or dropped during touch gestures.
+    window.addEventListener('touchmove', onTouchMove, { passive: false })
+    window.addEventListener('touchend', onTouchEnd)
+    window.addEventListener('touchcancel', onTouchEnd)
 
     if (cleanup.current !== null) {
       cleanup.current()
@@ -291,6 +374,10 @@ function useDrag(options: UseDragOptions) {
     cleanup.current = () => {
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerCancel)
+      window.removeEventListener('touchmove', onTouchMove)
+      window.removeEventListener('touchend', onTouchEnd)
+      window.removeEventListener('touchcancel', onTouchEnd)
     }
 
     ref.current?.addEventListener('click', onClick)
@@ -346,10 +433,33 @@ function useDrag(options: UseDragOptions) {
   function onPointerUp() {
     const velocity = calculateVelocity(velocities.current)
 
+    const wasDragging = machine.current.state === 'drag'
+
     cancel()
+
+    // Suppress the synthetic click that follows a drag to prevent accidental
+    // activation of the indicator's toggle. Only do this when an actual drag
+    // occurred, otherwise a plain click/tap would be swallowed by `onClick`.
+    if (wasDragging) {
+      if (postDragCooldown.current !== null) {
+        clearTimeout(postDragCooldown.current)
+      }
+      postDragCooldown.current = setTimeout(() => {
+        postDragCooldown.current = null
+      }, 300)
+    }
 
     // TODO: This is the onDragEnd when the pointerdown event was fired not the onDragEnd when the pointerup event was fired
     options.onDragEnd?.(translation.current, velocity)
+  }
+
+  function onPointerCancel() {
+    const wasDragging = machine.current.state === 'drag'
+    hardReset()
+
+    if (wasDragging) {
+      options.onDragCancel?.(translation.current)
+    }
   }
 
   if (options.disabled) {
