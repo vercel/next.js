@@ -17,6 +17,7 @@ anyhow = { workspace = true }
 auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
 byteorder = { workspace = true }
+clap = { workspace = true }
 crc32fast = { workspace = true }
 dashmap = { workspace = true}
 either = { workspace = true }
@@ -50,6 +51,10 @@ turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
 [[bin]]
 name = "sst_inspect"
 path = "src/bin/sst_inspect.rs"
+
+[[bin]]
+name = "zstd_dictionary"
+path = "src/bin/zstd_dictionary.rs"
 
 [lints]
 workspace = true

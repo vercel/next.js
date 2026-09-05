@@ -362,6 +362,34 @@ Configuration options for compactions are:
 - max number of SST files that are merged at once
 - coverage when compaction is triggered (otherwise calling compact is a noop)
 
+## Training and evaluating zstd dictionaries offline
+
+`zstd_dictionary` trains and compares zstd dictionaries from logical values in existing database
+copies without modifying them or running the application that created them:
+
+```sh
+cargo run -p turbo-persistence --bin zstd_dictionary -- train \
+  --family <id> --output candidate.zdict \
+  path/to/database-a path/to/database-b
+
+cargo run -p turbo-persistence --bin zstd_dictionary -- evaluate \
+  --family <id> --dictionary candidate.zdict --json report.json \
+  path/to/database-a path/to/database-b
+```
+
+Training produces a 64 KiB dictionary from up to approximately 64 MiB of samples. It takes one
+hash-ordered logical value from each cache in turn, so one large cache cannot monopolize the sample.
+The output path is replaced atomically.
+
+The no-dictionary zstd level 3 baseline is always included during evaluation. The tool follows
+`CURRENT`, deletion files, and meta-file supersession, and uses `StaticSortedFileIter` to read slice,
+medium, and blob values. Checksums and decompressed lengths are verified.
+
+Small values are grouped into physical blocks in production, so the report's per-value 12.5%
+minimum-savings calculation is a comparative estimate, not exact SST-size modeling. Blob estimates
+include their fixed 8-byte headers. Timing fields are single-pass diagnostics; use byte/count fields
+for repeatable comparisons of one copied cache snapshot.
+
 ## Opening
 
 - Read the `CURRENT` file

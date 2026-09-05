@@ -30,7 +30,7 @@ use crate::{
 };
 
 /// The block header for an index block.
-pub const BLOCK_TYPE_INDEX: u8 = 0;
+pub(crate) const BLOCK_TYPE_INDEX: u8 = 0;
 /// The block header for a key block with 8-byte hash per entry.
 pub const BLOCK_TYPE_KEY_WITH_HASH: u8 = 1;
 /// The block header for a key block without hash. Entries are ordered by key.

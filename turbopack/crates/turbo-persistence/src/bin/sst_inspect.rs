@@ -16,15 +16,13 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
-use fs_err::{self as fs, File};
+use fs_err::File;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
     BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
-    meta_file::MetaFile,
     mmap_helper::advise_mmap_for_persistence,
-    read_current_version,
-    sst_filter::SstFilter,
+    offline::{SstInfo, collect_sst_info},
     static_sorted_file::{
         BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
         BLOCK_TYPE_KEY_WITH_HASH, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, KEY_BLOCK_ENTRY_TYPE_BLOB,
@@ -129,13 +127,6 @@ impl SstStats {
     }
 }
 
-/// Information about an SST file from the meta file
-struct SstInfo {
-    sequence_number: u32,
-    block_count: u16,
-    compression: Compression,
-}
-
 /// Accumulates statistics for a single entry of the given type.
 fn track_entry_type(stats: &mut SstStats, entry_type: u8) {
     *stats.entry_type_counts.entry(entry_type).or_insert(0) += 1;
@@ -218,79 +209,6 @@ fn format_bytes(bytes: u64) -> String {
     } else {
         format!("{} B", bytes)
     }
-}
-
-/// Collect SST info from all active meta files in the database directory,
-/// mirroring the DB's own open logic: read CURRENT, filter by .del files,
-/// and apply SstFilter to skip superseded entries.
-fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
-    // Read the CURRENT sequence number — only files with seq <= current are valid.
-    let current = read_current_version(db_path)?
-        .context("CURRENT file is missing")?
-        .max_sequence_number;
-
-    // Read .del files to find sequences that were deleted but not yet cleaned up.
-    let mut deleted_seqs: HashSet<u32> = HashSet::new();
-    for entry in fs::read_dir(db_path)? {
-        let path = entry?.path();
-        if path.extension().and_then(|s| s.to_str()) == Some("del") {
-            let content = fs::read(&path)?;
-            let mut cursor: &[u8] = &content;
-            while !cursor.is_empty() {
-                deleted_seqs.insert(cursor.read_u32::<BE>()?);
-            }
-        }
-    }
-
-    // Collect valid meta sequence numbers.
-    let mut meta_seqs: Vec<u32> = fs::read_dir(db_path)?
-        .filter_map(|e| e.ok())
-        .filter_map(|e| {
-            let path = e.path();
-            if path.extension().and_then(|s| s.to_str()) != Some("meta") {
-                return None;
-            }
-            let seq: u32 = path.file_stem()?.to_str()?.parse().ok()?;
-            if seq > current || deleted_seqs.contains(&seq) {
-                return None;
-            }
-            Some(seq)
-        })
-        .collect();
-
-    if meta_seqs.is_empty() {
-        bail!("No active .meta files found in {}", db_path.display());
-    }
-
-    meta_seqs.sort_unstable();
-
-    let mut meta_files: Vec<MetaFile> = meta_seqs
-        .iter()
-        .map(|&seq| {
-            MetaFile::open(db_path, seq, None)
-                .with_context(|| format!("Failed to open {seq:08}.meta"))
-        })
-        .collect::<Result<_>>()?;
-
-    // Apply SstFilter (newest first) to drop entries superseded by a newer meta file.
-    let mut sst_filter = SstFilter::new();
-    for meta in meta_files.iter_mut().rev() {
-        sst_filter.apply_filter(meta);
-    }
-
-    let mut family_sst_info: BTreeMap<u32, Vec<SstInfo>> = BTreeMap::new();
-    for meta in &meta_files {
-        let family = meta.family();
-        for entry in meta.entries() {
-            family_sst_info.entry(family).or_default().push(SstInfo {
-                sequence_number: entry.sequence_number(),
-                block_count: entry.block_count(),
-                compression: meta.compression(),
-            });
-        }
-    }
-
-    Ok(family_sst_info)
 }
 
 /// Information about a raw block read from disk.
