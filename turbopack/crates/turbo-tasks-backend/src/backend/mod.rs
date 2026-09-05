@@ -348,7 +348,40 @@ impl TurboTasksBackend {
         &'a self,
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
     ) -> Option<impl ExecuteContext<'a>> {
-        let stopping = self.stopping.read();
+        // TEMP INSTRUMENTATION (do not ship): this PR changed `stopping` from an AtomicBool to an
+        // RwLock, and this read guard is held for the whole life of the returned ExecuteContext.
+        // `parking_lot::RwLock` is not reader-preferring: a waiting writer blocks *subsequent*
+        // readers. So a long-lived context + `stopping()` calling `.write()` can block every new
+        // `try_execute_context`, which the AtomicBool could never do.
+        //
+        // The writer probe already added never fires, but nothing has watched the reader side.
+        // `try_read` first so the fast path stays a single atomic op when uncontended.
+        let stopping = match self.stopping.try_read() {
+            Some(guard) => guard,
+            None => {
+                let start = std::time::Instant::now();
+                let guard = loop {
+                    match self
+                        .stopping
+                        .try_read_for(std::time::Duration::from_secs(1))
+                    {
+                        Some(guard) => break guard,
+                        None => eprintln!(
+                            "[GC-HANG] try_execute_context: blocked {:?} on stopping.read() (a \
+                             writer is queued ahead of us)",
+                            start.elapsed()
+                        ),
+                    }
+                };
+                if start.elapsed() > std::time::Duration::from_millis(50) {
+                    eprintln!(
+                        "[GC-HANG] try_execute_context: acquired stopping.read() after {:?}",
+                        start.elapsed()
+                    );
+                }
+                guard
+            }
+        };
         if *stopping {
             return None;
         }
@@ -703,14 +736,6 @@ impl TurboTasksBackend {
                     activeness.set_active_until_clean();
                     activeness
                 };
-                // TEMP INSTRUMENTATION (do not ship): pairs with the bail-out log in
-                // `dispose_root_task`. A bail-out only matters if somebody was waiting on this
-                // event, so record the subscription too.
-                eprintln!(
-                    "[GC-HANG] try_read_task_output({task_id:?}): subscribing to all_clean_event \
-                     (dirty={:?} dirty_containers={has_dirty_containers})",
-                    is_dirty.is_some()
-                );
                 let listener = activeness.all_clean_event.listen_with_note(move || {
                     // Reach the backend through the pinned `turbo_tasks` handle rather than
                     // cloning `self`: pinning keeps the backend alive for the closure's lifetime.
@@ -2037,9 +2062,9 @@ impl TurboTasksBackend {
     fn debug_get_task_description(&self, task_id: TaskId) -> String {
         let task = self.storage.access_mut(task_id);
         if let Some(value) = task.get_persistent_task_type() {
-            format!("{task_id:?} {}", value)
+            format!("{task_id:?} {value}")
         } else if let Some(value) = task.get_transient_task_type() {
-            format!("{task_id:?} {}", value)
+            format!("{task_id:?} {value}")
         } else {
             format!("{task_id:?} unknown")
         }
