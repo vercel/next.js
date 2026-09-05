@@ -40,8 +40,6 @@ export class AfterContext {
       onClose(() => {
         this.isRequestClosed = true
 
-        // TODO(after): it's not ideal that we'll only switch the `phase` of a WorkUnitStore
-        // if `after()` was called inside it. We should probably track this whenever a store is created
         for (const workUnitStore of this.workUnitStores) {
           workUnitStore.phase = 'after'
         }
@@ -49,6 +47,14 @@ export class AfterContext {
     } catch (err) {
       // If onClose is broken, report errors lazily, when after() is called.
       this.initialOnCloseError = { error: err }
+    }
+  }
+
+  public trackWorkUnitStore(workUnitStore: WorkUnitStore): void {
+    this.workUnitStores.add(workUnitStore)
+
+    if (this.isRequestClosed) {
+      workUnitStore.phase = 'after'
     }
   }
 
@@ -60,8 +66,7 @@ export class AfterContext {
       )
     }
 
-    // Save the workUnitStore so we can switch its phase later.
-    this.workUnitStores.add(workUnitStore)
+    this.trackWorkUnitStore(workUnitStore)
 
     if (isThenable(task)) {
       this.addThenable(task)

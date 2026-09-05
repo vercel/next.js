@@ -194,6 +194,30 @@ describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
         })
       })
     })
+    if (runtimeValue === 'nodejs') {
+      it('updates the request phase on disconnect without an after() call', async () => {
+        const abortController = new AbortController()
+        const res = await next.fetch(
+          pathPrefix + '/interrupted/request-api-after-close',
+          { signal: abortController.signal }
+        )
+        expect(res.status).toBe(200)
+
+        await retry(() => {
+          expect(getLogs()).toContainEqual({
+            source: '[page] /interrupted/request-api-after-close (waiting)',
+          })
+        })
+
+        abortController.abort()
+
+        await retry(() => {
+          expect(next.cliOutput.slice(currentCliOutputIndex)).toContain(
+            `Route ${pathPrefix}/interrupted/request-api-after-close used \`headers()\` inside \`after()\` while rendering.`
+          )
+        })
+      })
+    }
   })
 
   it('runs in middleware', async () => {

@@ -3009,21 +3009,24 @@ async function renderAppPage(
   const fallbackParams = getRequestMeta(req, 'fallbackParams') || null
   const hmrRefreshHash = getRequestMeta(req, 'hmrRefreshHash')
 
-  const createRequestStore = createRequestStoreForRender.bind(
-    null,
-    req,
-    res,
-    url,
-    rootParams,
-    implicitTags,
-    renderOpts.onUpdateCookies,
-    renderOpts.previewProps,
-    isHmrRefresh,
-    serverComponentsHmrCache,
-    renderResumeDataCache,
-    fallbackParams,
-    hmrRefreshHash
-  )
+  const createRequestStore = () => {
+    const requestStore = createRequestStoreForRender(
+      req,
+      res,
+      url,
+      rootParams,
+      implicitTags,
+      renderOpts.onUpdateCookies,
+      renderOpts.previewProps,
+      isHmrRefresh,
+      serverComponentsHmrCache,
+      renderResumeDataCache,
+      fallbackParams,
+      hmrRefreshHash
+    )
+    workStore.afterContext.trackWorkUnitStore(requestStore)
+    return requestStore
+  }
   const requestStore = createRequestStore()
 
   if (
