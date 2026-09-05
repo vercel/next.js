@@ -940,6 +940,15 @@ export async function setupFsCheck(opts: {
               continue
             }
 
+            // The route table is rebuilt by the file watcher some time after
+            // the filesystem changes, so it can still list a route whose file
+            // has just been deleted. That route no longer exists.
+            try {
+              await fs.access(route.filename)
+            } catch {
+              continue
+            }
+
             const isAppFile = type === 'appFile'
 
             // Attempt to ensure the page/app file is compiled and ready.
