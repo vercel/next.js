@@ -1,6 +1,6 @@
 use std::{borrow::Cow, sync::Arc};
 
-use anyhow::{Result, bail};
+use anyhow::{Context as _, Result, bail};
 use bincode::{Decode, Encode};
 use swc_core::{
     common::{
@@ -23,7 +23,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{
     DirectoryEntry, FileSystemPath, ReadGlobResult,
-    glob::{Glob, GlobOptions},
+    glob::{Glob, GlobOptions, relativize_glob},
 };
 use turbopack_core::{
     chunk::{
@@ -330,15 +330,69 @@ pub fn parse_import_meta_glob(
 }
 
 // ---------------------------------------------------------------------------
-// Helpers for collecting files from ReadGlobResult
+// Pattern normalization
 // ---------------------------------------------------------------------------
 
-/// Strip the `./` prefix from a Vite-style glob pattern to produce a pattern
-/// compatible with Turbopack's `Glob` (which operates relative to the scan
-/// directory, without a leading `./`).
-fn strip_relative_prefix(pattern: &str) -> &str {
-    pattern.strip_prefix("./").unwrap_or(pattern)
+/// Where a single Vite-style glob pattern is rooted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum PatternRoot {
+    /// The pattern is absolute from the project root (it started with `/`).
+    ProjectRoot,
+    /// The pattern is relative to the importing file.
+    Relative,
 }
+
+/// Split a Vite-style glob pattern into the directory it is rooted in and the
+/// remaining glob, which only traverses down from there.
+///
+/// Vite's rule: a pattern is either relative to the importing file (`./`, `../`)
+/// or absolute from the project root (`/`).
+/// <https://vite.dev/guide/features.html#glob-import-caveats>
+///
+/// The leading `/` is the part specific to `import.meta.glob`; resolving `./` and
+/// `../` against a directory is the general filesystem operation shared with
+/// other glob options, so that part is delegated to [`relativize_glob`].
+///
+/// `root` is the directory a `/`-rooted pattern resolves from, the same one a
+/// `/`-rooted request resolves from. It is [`None`] when such requests aren't
+/// supported, in which case callers must have rejected `/`-rooted patterns
+/// before getting here.
+///
+/// Returns [`None`] if the pattern walks above `root`.
+fn split_pattern<'a>(
+    pattern: &'a str,
+    base_dir: &FileSystemPath,
+    root: Option<&FileSystemPath>,
+) -> Option<(PatternRoot, &'a str, FileSystemPath)> {
+    if let Some(rest) = pattern.strip_prefix('/') {
+        return Some((PatternRoot::ProjectRoot, rest, root?.clone()));
+    }
+    let (rest, dir) = relativize_glob(pattern, base_dir)?;
+    Some((PatternRoot::Relative, rest, dir))
+}
+
+/// Strip the `!` prefix that marks a negative (exclusion) pattern.
+fn strip_negation(pattern: &str) -> &str {
+    pattern.strip_prefix('!').unwrap_or(pattern)
+}
+
+/// A pattern of an `import.meta.glob()` call, split into where it is rooted and
+/// the glob relative to that root. Splitting happens once per pattern, up front,
+/// so the rest of the code can work from the result.
+struct SplitPattern<'a> {
+    /// Negative (exclusion) patterns start with `!` and only remove matches.
+    negative: bool,
+    /// Where the pattern is rooted.
+    root: PatternRoot,
+    /// The pattern, relative to `root_dir`.
+    rest: &'a str,
+    /// The directory the pattern is rooted in.
+    root_dir: FileSystemPath,
+}
+
+// ---------------------------------------------------------------------------
+// Helpers for collecting files from ReadGlobResult
+// ---------------------------------------------------------------------------
 
 /// Flatten a nested `ReadGlobResult` into a sorted list of
 /// `(base_relative_path, FileSystemPath)` pairs.
@@ -400,7 +454,7 @@ async fn flatten_read_glob(result: &ReadGlobResult) -> Result<Vec<(RcStr, FileSy
 #[derive(Debug)]
 pub struct ImportMetaGlobMapEntry {
     /// Path relative to origin (the calling file's directory), used for import
-    /// resolution and as the key in the generated JS object.
+    /// resolution.
     pub origin_relative: RcStr,
     pub request: ResolvedVc<Request>,
     pub result: ResolvedVc<ModuleResolveResult>,
@@ -415,16 +469,28 @@ pub struct ImportMetaGlobMap(
 impl ImportMetaGlobMap {
     /// Discover files matching glob patterns and resolve them as ESM imports.
     ///
-    /// `base_dir` is the directory to scan (origin dir, or origin + base).
-    /// `positive_glob` is a `Glob` matching the wanted files (relative to
-    /// base_dir). `negative_glob` optionally excludes files. Both globs
-    /// operate on paths *relative to base_dir*.
+    /// `scan_dir` is the directory to scan. `positive_glob` is a `Glob` matching
+    /// the wanted files (relative to `scan_dir`). `negative_glob` optionally
+    /// excludes files. Both globs operate on paths *relative to `scan_dir`*.
+    ///
+    /// The keys of the returned map are the user-visible keys of the generated
+    /// object:
+    /// - relative to `key_base` (with a `./` or `../` prefix) when the `base` option was used,
+    /// - absolute from the project root (with a `/` prefix) for files matched by a
+    ///   project-root-absolute pattern (`root_absolute_glob`),
+    /// - relative to the importing file otherwise.
+    ///
+    /// `root` is the directory a `/`-rooted pattern resolves from, and that its keys are relative
+    /// to. It is always set when `root_absolute_glob` is.
     #[turbo_tasks::function]
     pub(crate) async fn generate(
         origin: Vc<Box<dyn ResolveOrigin>>,
-        base_dir: FileSystemPath,
+        scan_dir: FileSystemPath,
         positive_glob: Vc<Glob>,
         negative_glob: Option<Vc<Glob>>,
+        root_absolute_glob: Option<Vc<Glob>>,
+        root: Option<FileSystemPath>,
+        key_base: Option<FileSystemPath>,
         query: Option<RcStr>,
         eager: bool,
         issue_source: Option<IssueSource>,
@@ -433,12 +499,17 @@ impl ImportMetaGlobMap {
         let origin_path = origin.into_trait_ref().await?.origin_path().parent();
 
         // Use read_glob for efficient directory-pruning file discovery.
-        let glob_result = base_dir.read_glob(positive_glob).await?;
+        let glob_result = scan_dir.read_glob(positive_glob).await?;
         let files = flatten_read_glob(&glob_result).await?;
 
-        // Pre-resolve the negative glob (if any) once, outside the loop.
+        // Pre-resolve the globs that are matched per file (if any) once, outside the loop.
         let negative = if let Some(neg) = negative_glob {
             Some(neg.await?)
+        } else {
+            None
+        };
+        let root_absolute = if let Some(glob) = root_absolute_glob {
+            Some(glob.await?)
         } else {
             None
         };
@@ -452,30 +523,64 @@ impl ImportMetaGlobMap {
         // Resolve all matched files in parallel.
         let entries: Vec<_> = files
             .iter()
-            .filter(|(base_relative, _)| {
-                // Apply negative pattern filtering on the base-relative path.
+            .filter(|(scan_relative, _)| {
+                // Apply negative pattern filtering on the scan-dir-relative path.
                 if let Some(ref neg) = negative {
-                    !neg.matches(base_relative)
+                    !neg.matches(scan_relative)
                 } else {
                     true
                 }
             })
-            .map(|(base_relative, _logical_path)| {
+            .map(|(scan_relative, _logical_path)| {
                 let origin_path = &origin_path;
-                let base_dir = &base_dir;
+                let scan_dir = &scan_dir;
                 let query = &query;
                 let reference_sub_type = &reference_sub_type;
+                let key_base = &key_base;
+                let root_absolute = &root_absolute;
+                let root = &root;
                 async move {
                     // ReadGlobResult paths are logical too, but reconstruct from its keys here so
                     // matching and user-visible specifiers have one explicit source of truth. The
                     // module resolver resolves this logical request and tracks its symlink chain.
-                    let logical_path = base_dir.join(base_relative)?;
+                    let logical_path = scan_dir.join(scan_relative)?;
                     let Some(origin_relative) = origin_path.get_relative_path_to(&logical_path)
                     else {
                         bail!(
                             "import.meta.glob: failed to compute relative path from origin to \
                              matched file"
                         );
+                    };
+
+                    // Compute the user-visible key of this entry.
+                    let key: RcStr = if let Some(key_base) = key_base {
+                        // Vite keys the result relative to `base` when it is provided.
+                        // https://vite.dev/guide/features.html#base-path
+                        let Some(key) = key_base.get_relative_path_to(&logical_path) else {
+                            bail!(
+                                "import.meta.glob: failed to compute relative path from base to \
+                                 matched file"
+                            );
+                        };
+                        key
+                    } else if root_absolute
+                        .as_ref()
+                        .is_some_and(|glob| glob.matches(scan_relative))
+                    {
+                        // Matched by a pattern that is absolute from the root of the project, so
+                        // the key is absolute from that same root.
+                        let root = root
+                            .as_ref()
+                            .context("a project-root-absolute pattern requires a root")?;
+                        let Some(relative) = root.get_relative_path_to(&logical_path) else {
+                            bail!(
+                                "import.meta.glob: failed to compute relative path from the root \
+                                 of the project to matched file"
+                            );
+                        };
+                        format!("/{}", relative.strip_prefix("./").unwrap_or(&relative)).into()
+                    } else {
+                        origin_relative.clone()
                     };
 
                     // Append query string if specified (e.g., `?raw`).
@@ -499,7 +604,7 @@ impl ImportMetaGlobMap {
                     .await?;
 
                     Ok((
-                        origin_relative.clone(),
+                        key,
                         ImportMetaGlobMapEntry {
                             origin_relative,
                             request,
@@ -622,30 +727,117 @@ impl ImportMetaGlobAsset {
         let origin = *self.origin;
         let origin_dir = origin.into_trait_ref().await?.origin_path().parent();
 
-        // Compute the base directory for glob scanning.
+        // Compute the base directory patterns are resolved against.
         // With `base`, patterns are resolved relative to origin + base.
         let base_dir = if let Some(ref b) = self.base {
-            origin_dir.join(b)?
+            match origin_dir.try_join(b) {
+                Some(base_dir) => base_dir,
+                None => {
+                    emit_escapes_root_issue(self, &origin_dir, &format!("the 'base' option {b:?}"))
+                        .await?;
+                    return Ok(Vc::cell(Default::default()));
+                }
+            }
         } else {
-            origin_dir
+            origin_dir.clone()
         };
+        // A `/`-rooted pattern resolves from the same directory a `/`-rooted request
+        // resolves from, so that a pattern and a plain import agree on what `/`
+        // means. That directory is not necessarily the root of the filesystem.
+        let root = self
+            .origin
+            .into_trait_ref()
+            .await?
+            .resolve_options()
+            .await?
+            .server_relative_root
+            .clone();
 
-        // Separate positive (matching) and negative (exclusion) patterns.
-        // Negative patterns start with `!`; the `!` prefix is stripped.
-        let (positive_raw, negative_raw): (Vec<_>, Vec<_>) =
-            self.patterns.iter().partition(|p| !p.starts_with('!'));
+        // Split every pattern once: this both validates it and produces everything
+        // the globs below are built from.
+        //
+        // No pattern may point outside of the project, not even a negative one:
+        // silently ignoring it would include files the user asked to exclude. A
+        // `/`-rooted pattern with no directory to resolve it from is reported
+        // separately from one that walks above that directory.
+        let mut patterns = Vec::with_capacity(self.patterns.len());
+        for written in &self.patterns {
+            let negative = written.starts_with('!');
+            let stripped = strip_negation(written);
+            let Some((pattern_root, rest, root_dir)) =
+                split_pattern(stripped, &base_dir, root.as_ref())
+            else {
+                if root.is_none() && stripped.starts_with('/') {
+                    emit_absolute_unsupported_issue(self, &format!("the pattern {written:?}"))
+                        .await?;
+                } else {
+                    emit_escapes_root_issue(self, &origin_dir, &format!("the pattern {written:?}"))
+                        .await?;
+                }
+                return Ok(Vc::cell(Default::default()));
+            };
+            patterns.push(SplitPattern {
+                negative,
+                root: pattern_root,
+                rest,
+                root_dir,
+            });
+        }
+
+        // Pick a single directory to scan that contains every pattern root, so
+        // that one `read_glob` call covers all of them and each pattern can be
+        // rewritten relative to it. A negative pattern can't add files, but it
+        // can be rooted above the positive patterns (e.g. `['../dir/*.js',
+        // '!/dir/skip.js']`) and still has to be expressible relative to
+        // `scan_dir`, so both are considered here.
+        let mut scan_dir = base_dir.clone();
+        for pattern in &patterns {
+            // Every root is an ancestor of `base_dir` (or of the root a `/`-rooted
+            // pattern resolves from), so the shortest path is an ancestor of all.
+            if pattern.root_dir.path.len() < scan_dir.path.len() {
+                scan_dir = pattern.root_dir.clone();
+            }
+        }
+
         let glob_options = GlobOptions {
             case_insensitive: !self.case_sensitive,
             ..Default::default()
         };
 
-        // Build the positive Glob. Turbopack's Glob operates on paths relative
-        // to the scan directory (no leading `./`), so strip that prefix. For
-        // multiple patterns, use `Glob::alternatives` to combine them.
-        let positive_globs: Vec<Vc<Glob>> = positive_raw
-            .iter()
-            .map(|p| Glob::new(strip_relative_prefix(p).into(), glob_options))
-            .collect();
+        // Rewrite a pattern to be relative to `scan_dir`.
+        let relative_to_scan_dir = |pattern: &SplitPattern<'_>| -> Result<RcStr> {
+            let prefix = if pattern.root_dir == scan_dir {
+                ""
+            } else {
+                scan_dir
+                    .get_path_to(&pattern.root_dir)
+                    .context("the scanned directory must contain every pattern root")?
+            };
+            Ok(if prefix.is_empty() {
+                pattern.rest.into()
+            } else {
+                format!("{prefix}/{}", pattern.rest).into()
+            })
+        };
+
+        let mut positive_globs: Vec<Vc<Glob>> = Vec::new();
+        let mut negative_globs: Vec<Vc<Glob>> = Vec::new();
+        // The patterns that are absolute from the root of the project, so that the
+        // files they match can be keyed the same way. Only positive patterns are
+        // collected: a negative pattern removes matches instead of producing them,
+        // so it never determines how a key is spelled.
+        let mut root_absolute_globs: Vec<Vc<Glob>> = Vec::new();
+        for pattern in &patterns {
+            let glob = Glob::new(relative_to_scan_dir(pattern)?, glob_options);
+            if pattern.negative {
+                negative_globs.push(glob);
+            } else {
+                if pattern.root == PatternRoot::ProjectRoot {
+                    root_absolute_globs.push(glob);
+                }
+                positive_globs.push(glob);
+            }
+        }
 
         let positive_glob = if positive_globs.len() == 1 {
             positive_globs.into_iter().next().unwrap()
@@ -653,39 +845,106 @@ impl ImportMetaGlobAsset {
             Glob::alternatives(positive_globs)
         };
 
-        // Build the negative Glob (if any). Negative patterns also need `./`
-        // stripped and are combined into a single alternation glob.
-        let negative_glob = if !negative_raw.is_empty() {
-            let neg_globs: Vec<Vc<Glob>> = negative_raw
-                .iter()
-                .map(|p| {
-                    let stripped = p.strip_prefix('!').unwrap_or(p);
-                    let stripped = strip_relative_prefix(stripped);
-                    Glob::new(stripped.into(), glob_options)
-                })
-                .collect();
-
-            let neg = if neg_globs.len() == 1 {
-                neg_globs.into_iter().next().unwrap()
-            } else {
-                Glob::alternatives(neg_globs)
-            };
-            Some(neg)
-        } else {
+        // Negative patterns are combined into a single alternation glob.
+        let negative_glob = if negative_globs.is_empty() {
             None
+        } else if negative_globs.len() == 1 {
+            Some(negative_globs.into_iter().next().unwrap())
+        } else {
+            Some(Glob::alternatives(negative_globs))
+        };
+
+        let root_absolute_glob = if root_absolute_globs.is_empty() {
+            None
+        } else if root_absolute_globs.len() == 1 {
+            Some(root_absolute_globs.into_iter().next().unwrap())
+        } else {
+            Some(Glob::alternatives(root_absolute_globs))
         };
 
         Ok(ImportMetaGlobMap::generate(
             origin,
-            base_dir,
+            scan_dir,
             positive_glob,
             negative_glob,
+            root_absolute_glob,
+            root,
+            // Vite keys the result relative to `base` when it is provided.
+            self.base.is_some().then_some(base_dir),
             self.query.clone(),
             self.eager,
             self.issue_source,
             self.error_mode,
         ))
     }
+}
+
+/// A `/`-rooted pattern needs a directory to resolve from, and there is none.
+async fn emit_absolute_unsupported_issue(asset: &ImportMetaGlobAsset, what: &str) -> Result<()> {
+    CodeGenerationIssue {
+        severity: IssueSeverity::Error,
+        title: StyledString::Text(rcstr!(
+            "import.meta.glob() does not support patterns absolute from the root of the project \
+             here"
+        ))
+        .resolved_cell(),
+        message: StyledString::Text(
+            format!(
+                "{what} of import.meta.glob({}) starts with `/`, but there is no directory to \
+                 resolve it from. Use a pattern relative to the importing file instead.",
+                asset
+                    .patterns
+                    .iter()
+                    .map(|p| format!("{p:?}"))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+            )
+            .into(),
+        )
+        .resolved_cell(),
+        path: asset.origin.into_trait_ref().await?.origin_path(),
+        source: asset.issue_source,
+    }
+    .resolved_cell()
+    .emit();
+    Ok(())
+}
+
+/// Report a `base` or pattern of an `import.meta.glob()` call that walks above
+/// the project root.
+async fn emit_escapes_root_issue(
+    asset: &ImportMetaGlobAsset,
+    origin_dir: &FileSystemPath,
+    what: &str,
+) -> Result<()> {
+    CodeGenerationIssue {
+        severity: IssueSeverity::Error,
+        title: StyledString::Text(rcstr!(
+            "import.meta.glob() cannot look outside of the project root"
+        ))
+        .resolved_cell(),
+        message: StyledString::Text(
+            format!(
+                "{what} of import.meta.glob({}) resolves to a directory above the project root, \
+                 relative to {}. Patterns are relative to the importing file, or absolute from \
+                 the project root when they start with `/`.",
+                asset
+                    .patterns
+                    .iter()
+                    .map(|p| format!("{p:?}"))
+                    .collect::<Vec<_>>()
+                    .join(", "),
+                origin_dir.path
+            )
+            .into(),
+        )
+        .resolved_cell(),
+        path: asset.origin.into_trait_ref().await?.origin_path(),
+        source: asset.issue_source,
+    }
+    .resolved_cell()
+    .emit();
+    Ok(())
 }
 
 #[turbo_tasks::value_impl]
