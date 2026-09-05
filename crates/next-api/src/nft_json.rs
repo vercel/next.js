@@ -40,7 +40,6 @@ pub struct NftJsonAsset {
     additional_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,
     // The page name, e.g. `pages/index` or `app/route1`
     page_name: Option<RcStr>,
-
     traced_files: ResolvedVc<EndpointTraceResult>,
 }
 
@@ -255,18 +254,45 @@ impl Asset for NftJsonAsset {
             result.sort_unstable();
             result.dedup();
 
-            let (files, file_hashes): (Vec<_>, Vec<_>) = result
+            let (mut files, mut file_hashes): (Vec<_>, Vec<_>) = result
                 .iter()
                 .map(|(name, hash)| {
                     (
-                        name,
-                        match hash {
+                        &**name,
+                        Some(match hash {
                             Either::Left(v) => &**v,
                             Either::Right(v) => &**v,
-                        },
+                        }),
                     )
                 })
                 .unzip();
+
+            // The prerender manifests are written after Turbopack runs, so it is not part of the
+            // module graph and can't be discovered by tracing. It is also written after the build
+            // has finished tracing, so there is no content to hash yet.
+            //
+            let prerender_manifest = if let Some(page_name) = this.page_name.as_deref() {
+                if page_name.starts_with("app") {
+                    let last_segment = page_name.rsplit('/').next().unwrap();
+                    // This is /page or /route
+                    Some(format!("./{last_segment}/prerender-manifest.json"))
+                } else if matches!(page_name, "pages/_app" | "pages/_document") {
+                    None
+                } else if page_name.starts_with("pages/") {
+                    let last_segment = page_name.rsplit('/').next().unwrap();
+                    // This is /{name of last segment}
+                    Some(format!("./{last_segment}/prerender-manifest.json"))
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            if let Some(prerender_manifest) = &prerender_manifest {
+                files.push(prerender_manifest);
+                file_hashes.push(None);
+            }
+
             // We can't just add this into "files" because Next.js sometimes decides to delete
             // output files such as `.next/server/pages/index.js` if that page was prerendered and
             // is fully static. An alternative would be to postprocess the nft file so that

@@ -1,5 +1,8 @@
 import type { CacheFs } from '../../../shared/lib/utils'
-import type { PrerenderManifest } from '../../../build'
+import type {
+  PrerenderManifest,
+  PrerenderManifestRuntime,
+} from '../../../build'
 import {
   type IncrementalCacheValue,
   type IncrementalCacheEntry,
@@ -146,7 +149,7 @@ export class IncrementalCache implements IncrementalCacheType {
   readonly cacheHandler?: CacheHandler
   readonly hasCustomCacheHandler: boolean
   readonly previewProps: DeepReadonly<__ApiPreviewProps>
-  readonly prerenderManifest: DeepReadonly<PrerenderManifest>
+  readonly prerenderManifest: DeepReadonly<PrerenderManifestRuntime>
   readonly requestHeaders: Record<string, undefined | string | string[]>
   readonly allowedRevalidateHeaderKeys?: string[]
   readonly minimalMode?: boolean
@@ -187,7 +190,7 @@ export class IncrementalCache implements IncrementalCacheType {
     requestHeaders: IncrementalCache['requestHeaders']
     maxMemoryCacheSize?: number
     previewProps: DeepReadonly<__ApiPreviewProps>
-    prerenderManifest: DeepReadonly<PrerenderManifest>
+    prerenderManifest: DeepReadonly<PrerenderManifestRuntime>
     fetchCacheKeyPrefix?: string
     CurCacheHandler?: typeof CacheHandler
   }) {

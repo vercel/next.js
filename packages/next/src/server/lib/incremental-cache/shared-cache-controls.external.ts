@@ -1,4 +1,4 @@
-import type { PrerenderManifest } from '../../../build'
+import type { PrerenderManifestRuntime } from '../../../build'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 import type { CacheControl } from '../cache-control'
 
@@ -20,7 +20,7 @@ export class SharedCacheControls {
      * routes.
      */
     private readonly prerenderManifest: DeepReadonly<
-      Pick<PrerenderManifest, 'routes' | 'dynamicRoutes'>
+      Pick<PrerenderManifestRuntime, 'routes' | 'dynamicRoutes'>
     >
   ) {}
 
