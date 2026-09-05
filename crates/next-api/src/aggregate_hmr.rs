@@ -99,6 +99,7 @@ impl ServerHmrChunkListVersion {
 pub struct ChunkListUpdateBuilder {
     chunks: FxIndexMap<RcStr, ChunkUpdate>,
     merged: FxIndexSet<EcmascriptMergedUpdate>,
+    affected_entries: Vec<RcStr>,
 }
 
 impl ChunkListUpdateBuilder {
@@ -124,6 +125,17 @@ impl ChunkListUpdateBuilder {
         self.merged.insert(update.clone());
     }
 
+    /// Entry points whose runtime work this update carries. Each pull is
+    /// scoped to the requested entries, so a non-empty partial invalidates
+    /// exactly those entries' consumers (e.g. WebSocket routes). Sorted for
+    /// deterministic serialization.
+    pub fn set_affected_entries(&mut self, entries: &[RcStr]) {
+        let mut entries = entries.to_vec();
+        entries.sort_unstable();
+        entries.dedup();
+        self.affected_entries = entries;
+    }
+
     pub fn is_empty(&self) -> bool {
         self.chunks.is_empty() && self.merged.is_empty()
     }
@@ -132,6 +144,7 @@ impl ChunkListUpdateBuilder {
         ChunkListUpdate {
             chunks: self.chunks,
             merged: self.merged.into_iter().collect(),
+            affected_entries: self.affected_entries,
         }
         .into_instruction()
     }
@@ -275,6 +288,7 @@ fn classify_server_hmr_update<'a>(
     chunk_updates: impl IntoIterator<Item = ServerHmrChunkUpdate<'a>>,
     membership: ChunkListMembershipChange,
     to: ReadRef<ServerHmrChunkListVersion>,
+    affected_entries: &[RcStr],
 ) -> ServerHmrUpdate {
     if membership.has_removed {
         return ServerHmrUpdate::FullReevaluation { to };
@@ -298,6 +312,7 @@ fn classify_server_hmr_update<'a>(
         };
     }
 
+    builder.set_affected_entries(affected_entries);
     ServerHmrUpdate::Partial {
         to,
         instruction: builder.build(),
@@ -305,13 +320,31 @@ fn classify_server_hmr_update<'a>(
 }
 
 /// Kept outside Turbo Tasks so old pull baselines cannot reactivate.
+/// `affected_entries` are the entry paths this pull covers; a partial update
+/// with runtime work marks them for scoped invalidation.
 pub async fn compute_server_hmr_update(
     chunk_lists: &[ServerHmrChunkList],
     from: Option<&ServerHmrChunkListVersion>,
     to: ReadRef<ServerHmrChunkListVersion>,
+    affected_entries: &[RcStr],
 ) -> Result<ServerHmrUpdate> {
     if chunk_lists.is_empty() {
-        return Ok(ServerHmrUpdate::NoRuntimeUpdate { to: None });
+        return Ok(match from {
+            // Entries that previously produced server chunks no longer do
+            // (the route was deleted or moved to another runtime). There is
+            // nothing to apply, but consumers of these entries (e.g.
+            // WebSocket routes with live connections) must still be
+            // invalidated, so emit an affected-only partial.
+            Some(_) => {
+                let mut builder = ChunkListUpdateBuilder::default();
+                builder.set_affected_entries(affected_entries);
+                ServerHmrUpdate::Partial {
+                    to,
+                    instruction: builder.build(),
+                }
+            }
+            None => ServerHmrUpdate::NoRuntimeUpdate { to: None },
+        });
     }
 
     let Some(from) = from else {
@@ -329,11 +362,13 @@ pub async fn compute_server_hmr_update(
             .map(|update| ServerHmrChunkUpdate::from(&**update)),
         membership,
         to,
+        affected_entries,
     ))
 }
 
 #[cfg(test)]
 mod tests {
+    use turbo_rcstr::RcStr;
     use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef};
     use turbopack_core::update_instruction::UpdateInstruction;
     use turbopack_ecmascript::chunk_list::{
@@ -346,6 +381,7 @@ mod tests {
     use super::{
         ChunkListMembershipChange, ChunkListUpdateBuilder, ServerHmrChunkListVersion,
         ServerHmrChunkUpdate, ServerHmrUpdate, classify_server_hmr_update,
+        compute_server_hmr_update,
     };
 
     fn version() -> ReadRef<ServerHmrChunkListVersion> {
@@ -392,7 +428,8 @@ mod tests {
             classify_server_hmr_update(
                 [ServerHmrChunkUpdate::None],
                 unchanged_membership(),
-                version()
+                version(),
+                &[]
             ),
             ServerHmrUpdate::NoRuntimeUpdate { to: None }
         ));
@@ -404,7 +441,8 @@ mod tests {
             classify_server_hmr_update(
                 [ServerHmrChunkUpdate::Missing],
                 unchanged_membership(),
-                version()
+                version(),
+                &[]
             ),
             ServerHmrUpdate::FullReevaluation { .. }
         ));
@@ -416,7 +454,8 @@ mod tests {
             classify_server_hmr_update(
                 [ServerHmrChunkUpdate::Total],
                 unchanged_membership(),
-                version()
+                version(),
+                &[]
             ),
             ServerHmrUpdate::FullReevaluation { .. }
         ));
@@ -427,6 +466,7 @@ mod tests {
         let chunk_list = ChunkListUpdate {
             chunks: FxIndexMap::from_iter([("a.js".into(), ChunkUpdate::Added)]),
             merged: vec![],
+            affected_entries: vec![],
         }
         .into_instruction();
         let merged_instruction =
@@ -439,6 +479,7 @@ mod tests {
             ],
             unchanged_membership(),
             version(),
+            &["app/chat/route".into()],
         ) else {
             panic!("partial instructions should produce a partial aggregate update");
         };
@@ -450,12 +491,15 @@ mod tests {
         };
         assert_eq!(update.chunks["a.js"], ChunkUpdate::Added);
         assert_eq!(update.merged, [merged("b.js")]);
+        // A non-empty partial marks the entries this pull covered so consumers
+        // can scope invalidation (e.g. WebSocket route reloads).
+        assert_eq!(update.affected_entries, [RcStr::from("app/chat/route")]);
     }
 
     #[test]
     fn new_chunk_lists_advance_baseline_without_runtime_update() {
         assert!(matches!(
-            classify_server_hmr_update([], added_chunk_lists(), version()),
+            classify_server_hmr_update([], added_chunk_lists(), version(), &[]),
             ServerHmrUpdate::NoRuntimeUpdate { to: Some(_) }
         ));
     }
@@ -463,8 +507,46 @@ mod tests {
     #[test]
     fn removed_chunk_lists_produce_full_reevaluation() {
         assert!(matches!(
-            classify_server_hmr_update([], removed_chunk_lists(), version()),
+            classify_server_hmr_update([], removed_chunk_lists(), version(), &[]),
             ServerHmrUpdate::FullReevaluation { .. }
+        ));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn vanished_entries_produce_affected_only_partial() {
+        // A pull whose entries previously produced server chunks but no
+        // longer have any (route deleted or moved to another runtime) cannot
+        // be diffed, but consumers of those entries must still be scoped out
+        // — e.g. WebSocket routes hold connections that never trigger another
+        // request-driven pull.
+        let ServerHmrUpdate::Partial { instruction, .. } = compute_server_hmr_update(
+            &[],
+            Some(&version()),
+            version(),
+            &[RcStr::from("app/chat/route")],
+        )
+        .await
+        .unwrap() else {
+            panic!("vanished entries with a baseline must produce a partial update");
+        };
+        let instruction = instruction
+            .downcast_ref::<EcmascriptUpdateInstruction>()
+            .expect("aggregate instruction is ECMAScript");
+        let EcmascriptUpdateInstruction::ChunkList(update) = instruction else {
+            panic!("aggregate instruction should be a chunk-list update");
+        };
+        assert!(update.chunks.is_empty());
+        assert!(update.merged.is_empty());
+        assert_eq!(update.affected_entries, [RcStr::from("app/chat/route")]);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn vanished_entries_without_baseline_produce_no_runtime_update() {
+        assert!(matches!(
+            compute_server_hmr_update(&[], None, version(), &[RcStr::from("app/chat/route")])
+                .await
+                .unwrap(),
+            ServerHmrUpdate::NoRuntimeUpdate { to: None }
         ));
     }
 
@@ -496,6 +578,7 @@ mod tests {
                 ("b.js".into(), ChunkUpdate::Added),
             ]),
             merged: vec![],
+            affected_entries: vec![],
         };
         let second = ChunkListUpdate {
             chunks: FxIndexMap::from_iter([
@@ -503,6 +586,7 @@ mod tests {
                 ("c.js".into(), ChunkUpdate::Total),
             ]),
             merged: vec![],
+            affected_entries: vec![],
         };
 
         builder.add_instruction(&first.into_instruction());

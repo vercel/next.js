@@ -54,6 +54,7 @@ const ABANDONED_TASKS_SYMBOL = Symbol.for(
 const TASK_ADMISSION_CLOSED_SCOPES_SYMBOL = Symbol.for(
   'next.websocket.connection-registry-task-admission-closed-scopes'
 )
+
 type WebSocketRouteState = {
   readonly peers: Set<WebSocketRegistryConnection>
   leases: number
@@ -647,6 +648,13 @@ export function isWebSocketRouteActive(
   return Boolean(route && (route.leases !== 0 || route.peers.size !== 0))
 }
 
+export function getActiveWebSocketRouteBundlePaths(
+  scope: object
+): ReadonlySet<string> {
+  const routes = getScopeRegistry(scope, false)?.routes
+  return routes ? new Set(routes.keys()) : new Set()
+}
+
 function takeWebSocketRouteConnections(
   scope: object,
   bundlePath: string
@@ -713,6 +721,32 @@ export function reloadWebSocketScope(
     takeWebSocketScopeConnections(scope),
     code
   )
+}
+
+/**
+ * Invalidates WebSocket routes after a development update: closes the given
+ * routes with 1012, or reloads the whole scope when the bundler could not
+ * prove the affected set (compile errors, unknown graph shape, full reload).
+ * Over-closing is the designed safe direction; never silently keep a route
+ * executing code from a generation which may have changed. Both bundlers
+ * supply their bundler-specific affected-set computation to this one policy.
+ */
+export function invalidateWebSocketRoutes(
+  scope: object | undefined,
+  affected: ReadonlySet<string> | 'unknown'
+): void {
+  if (!scope) return
+  if (affected !== 'unknown' && affected.size === 0) return
+  if (affected === 'unknown') {
+    void reloadWebSocketScope(scope)
+    return
+  }
+  const activeBundlePaths = getActiveWebSocketRouteBundlePaths(scope)
+  for (const bundlePath of affected) {
+    if (activeBundlePaths.has(bundlePath)) {
+      void closeWebSocketRoute(scope, bundlePath)
+    }
+  }
 }
 
 export function closeWebSocketScope(

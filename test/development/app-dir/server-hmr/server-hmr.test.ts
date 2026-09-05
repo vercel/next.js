@@ -1,5 +1,6 @@
 import type { Response } from 'node-fetch'
 import { join } from 'path'
+import WebSocket from 'ws'
 import { nextTestSetup, FileRef } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
 
@@ -744,6 +745,204 @@ describe('server-hmr', () => {
           // The unmodified dependency should NOT have been re-evaluated
           expect(updated.depEvaluatedAt).toBe(initialDepEvaluatedAt)
         })
+      }
+    )
+  })
+
+  describe('WebSocket route HMR', () => {
+    const itDev = isNextDev ? it : it.skip
+    // Edge runtime is not supported with Cache Components.
+    const itDevWithoutCacheComponents =
+      process.env.__NEXT_CACHE_COMPONENTS === 'true' ? it.skip : itDev
+    const sockets = new Set<WebSocket>()
+
+    function connect(pathname: string) {
+      return new Promise<{ socket: WebSocket; firstMessage: string }>(
+        (resolve, reject) => {
+          const socket = new WebSocket(
+            `ws://localhost:${next.appPort}${pathname}`
+          )
+          let settled = false
+          sockets.add(socket)
+
+          socket.once('message', (message) => {
+            settled = true
+            resolve({ socket, firstMessage: message.toString() })
+          })
+          socket.once('unexpected-response', (_request, response) => {
+            response.resume()
+            if (!settled) {
+              settled = true
+              reject(
+                new Error(`WebSocket upgrade failed (${response.statusCode})`)
+              )
+            }
+          })
+          socket.once('error', (error) => {
+            if (!settled) {
+              settled = true
+              reject(error)
+            }
+          })
+          socket.once('close', (code) => {
+            sockets.delete(socket)
+            if (!settled) {
+              settled = true
+              reject(new Error(`WebSocket closed before opening (${code})`))
+            }
+          })
+        }
+      )
+    }
+
+    async function connectWithMessage(pathname: string, expected: string) {
+      return retry(async () => {
+        const connection = await connect(pathname)
+        try {
+          expect(connection.firstMessage).toBe(expected)
+          return connection
+        } catch (error) {
+          connection.socket.terminate()
+          throw error
+        }
+      }, 15_000)
+    }
+
+    function observeRestartClose(socket: WebSocket) {
+      let closeCode: number | undefined
+      socket.once('close', (code) => {
+        closeCode = code
+      })
+      return () =>
+        retry(() => {
+          expect(closeCode).toBe(1012)
+        }, 15_000)
+    }
+
+    async function expectEcho(
+      socket: WebSocket,
+      message: string,
+      expected: string
+    ) {
+      let received: string | undefined
+      socket.once('message', (data) => {
+        received = data.toString()
+      })
+      expect(socket.readyState).toBe(WebSocket.OPEN)
+      socket.send(message)
+      await retry(() => {
+        expect(received).toBe(expected)
+      }, 15_000)
+    }
+
+    afterEach(() => {
+      for (const socket of sockets) socket.terminate()
+      sockets.clear()
+    })
+
+    itDev(
+      'closes only an edited route and serves its new generation',
+      async () => {
+        const alpha = await connectWithMessage('/ws-hmr/alpha', 'alpha-v0')
+        const beta = await connectWithMessage('/ws-hmr/beta', 'beta-v0')
+        const waitForAlphaClose = observeRestartClose(alpha.socket)
+
+        await next.patchFile(
+          'app/ws-hmr/alpha/route.ts',
+          (content) => content.replace('alpha-v0', 'alpha-v1'),
+          async () => {
+            await waitForAlphaClose()
+            await expectEcho(beta.socket, 'still-open', 'beta-v0:still-open')
+
+            const updated = await connectWithMessage(
+              '/ws-hmr/alpha',
+              'alpha-v1'
+            )
+            await expectEcho(updated.socket, 'new-code', 'alpha-v1:new-code')
+          }
+        )
+      }
+    )
+
+    itDev(
+      'closes every route that owns a changed shared dependency',
+      async () => {
+        const sharedA = await connectWithMessage(
+          '/ws-hmr/shared-a',
+          'shared-a:shared-v0'
+        )
+        const sharedB = await connectWithMessage(
+          '/ws-hmr/shared-b',
+          'shared-b:shared-v0'
+        )
+        const beta = await connectWithMessage('/ws-hmr/beta', 'beta-v0')
+        const waitForSharedA = observeRestartClose(sharedA.socket)
+        const waitForSharedB = observeRestartClose(sharedB.socket)
+
+        await next.patchFile(
+          'app/ws-hmr/shared.ts',
+          (content) => content.replace('shared-v0', 'shared-v1'),
+          async () => {
+            await Promise.all([waitForSharedA(), waitForSharedB()])
+            await expectEcho(beta.socket, 'still-open', 'beta-v0:still-open')
+
+            await Promise.all([
+              connectWithMessage('/ws-hmr/shared-a', 'shared-a:shared-v1'),
+              connectWithMessage('/ws-hmr/shared-b', 'shared-b:shared-v1'),
+            ])
+          }
+        )
+      }
+    )
+
+    itDev(
+      'closes a deleted route and serves it after restoration',
+      async () => {
+        const filename = 'app/ws-hmr/alpha/route.ts'
+        const source = await next.readFile(filename)
+        const alpha = await connectWithMessage('/ws-hmr/alpha', 'alpha-v0')
+        const waitForAlphaClose = observeRestartClose(alpha.socket)
+        let deleted = false
+
+        try {
+          await next.deleteFile(filename)
+          deleted = true
+          await waitForAlphaClose()
+          await retry(async () => {
+            expect((await next.fetch('/ws-hmr/alpha')).status).toBe(404)
+          }, 15_000)
+
+          await next.patchFile(filename, source)
+          deleted = false
+          const restored = await connectWithMessage('/ws-hmr/alpha', 'alpha-v0')
+          await expectEcho(restored.socket, 'restored', 'alpha-v0:restored')
+        } finally {
+          if (deleted) await next.patchFile(filename, source)
+        }
+      }
+    )
+
+    itDevWithoutCacheComponents(
+      'closes a Node route that moves to the Edge runtime',
+      async () => {
+        const alpha = await connectWithMessage('/ws-hmr/alpha', 'alpha-v0')
+        const beta = await connectWithMessage('/ws-hmr/beta', 'beta-v0')
+        const waitForAlphaClose = observeRestartClose(alpha.socket)
+
+        await next.patchFile(
+          'app/ws-hmr/alpha/route.ts',
+          (content) =>
+            content.replace(
+              "const version = 'alpha-v0'",
+              "export const runtime = 'edge'\n\nconst version = 'alpha-v0'"
+            ),
+          async () => {
+            await waitForAlphaClose()
+            await expectEcho(beta.socket, 'still-open', 'beta-v0:still-open')
+          }
+        )
+
+        await connectWithMessage('/ws-hmr/alpha', 'alpha-v0')
       }
     )
   })
