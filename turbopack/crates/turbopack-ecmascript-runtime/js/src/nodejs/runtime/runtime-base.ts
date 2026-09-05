@@ -142,6 +142,21 @@ function loadChunkAsyncByUrl<TModule extends Module>(
 }
 contextPrototype.L = loadChunkAsyncByUrl
 
+function loadScriptByUrl(url: string): Promise<void> {
+  const loader = (
+    globalThis as typeof globalThis & {
+      __turbopack_test_load_script__?: (url: string) => Promise<void>
+    }
+  ).__turbopack_test_load_script__
+  if (loader !== undefined) return loader(url)
+  return Promise.reject(
+    new Error(
+      `External script loading is only supported in browser runtimes: ${url}`
+    )
+  )
+}
+contextPrototype.o = loadScriptByUrl
+
 // Shared runtime primitive: the root that on-disk chunk paths are resolved
 // against. Used by the bundled wasm helper (exposed as `__turbopack_runtime_root__`).
 contextPrototype.w = RUNTIME_ROOT

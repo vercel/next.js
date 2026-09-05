@@ -6,6 +6,7 @@
 
 pub mod evaluate_context;
 pub mod global_module_ids;
+pub mod module_federation;
 pub mod module_options;
 pub mod runtime_asset_context;
 pub mod transition;
