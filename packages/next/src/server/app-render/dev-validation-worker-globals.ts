@@ -135,9 +135,27 @@ export type DevValidationWorkerMessage = DevValidationSnapshot &
   DevValidationInstallFields
 
 /**
+ * The unsourcemapped stack of one validation error. Webpack validation runs
+ * on a worker, but its development source maps live on the parent thread, so
+ * the parent reconstructs these errors and logs them there.
+ */
+export interface SerializedDevValidationError {
+  name: string
+  message: string
+  stack: string | undefined
+}
+
+/**
+ * The worker-thread response before the pool performs parent-thread logging.
+ */
+export interface DevValidationWorkerThreadResult {
+  chunks: Uint8Array[]
+  errorsForMainThread: SerializedDevValidationError[]
+}
+
+/**
  * The RSC-encoded `{ errors }` Flight chunks for the dev overlay,
- * or null when validation produced no errors or was aborted. The worker also
- * logs the errors to its own stderr (piped to the parent) with code frames.
+ * or null when validation produced no errors or was aborted.
  */
 export type DevValidationWorkerResult = Uint8Array[] | null
 
