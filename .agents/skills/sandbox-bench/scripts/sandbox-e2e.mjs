@@ -34,7 +34,6 @@ import {
   writeStatus,
   sb,
   sbCpToVm,
-  sbExec,
   rmVm,
   runDetached,
   resolvePrArms,
@@ -466,15 +465,16 @@ ${a.treeCached ? ':' : `echo "PHASE pack-${a.name} $(date +%s)" && tar -czf /ver
 echo "tree ${a.name} ready"`
       )
       .join('\n')
-    await sbExec(
+    await runDetached(
       vm,
-      '55m',
-      `set -e\nnpm i -g pnpm@10.33.0 >/dev/null 2>&1\n` +
+      'expsnap',
+      `npm i -g pnpm@10.33.0 >/dev/null 2>&1\n` +
         `(while true; do echo "hb mem=$(free -m | awk '/^Mem/{print $3}')MB"; sleep 30; done) & HB=$!\n` +
         `${extractCached}\n${installs}\n${builds}\n${waits}\n${verifies}\nkill $HB\n` +
         `echo "PHASE done $(date +%s)"\n` +
         `find /vercel/sandbox -maxdepth 1 -name '*.tgz' ! -name 'tree-*-out.tgz' -delete\necho experiment ready`,
-      'expsnap'
+      null,
+      58
     )
     // Pull freshly built trees into the cache before snapshotting (the
     // snapshot must not contain the multi-GB tarballs).
@@ -498,11 +498,12 @@ echo "tree ${a.name} ready"`
         }
       }
     }
-    await sbExec(
+    await runDetached(
       vm,
-      '5m',
+      'expsnap',
       `rm -f /vercel/sandbox/tree-*.tgz /vercel/sandbox/tree-*-out.tgz; echo cleaned`,
-      'expsnap'
+      null,
+      5
     )
     return await takeSnapshot(vm, CACHE, key)
   } finally {
@@ -705,7 +706,7 @@ cd /vercel/sandbox && tar -czf profiles.tgz prof-*`
       // already on disk at this point). Each VM extracts into its own
       // subdirectory so VMs don't overwrite each other's prof-<arm> dirs.
       try {
-        await sbExec(vm, '30m', prof, `${tag}:prof`)
+        await runDetached(vm, `${tag}:prof`, prof, null, 35)
         const profTgz = path.join(outDir, `profiles-vm${index}.tgz`)
         await sb(['cp', `${vm}:/vercel/sandbox/profiles.tgz`, profTgz])
         if (!fs.existsSync(profTgz) || fs.statSync(profTgz).size === 0) {
