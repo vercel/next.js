@@ -892,6 +892,12 @@ impl AppProject {
             let next_mode_ref = next_mode.await?;
             let should_trace = *self.project.should_write_nft_manifests().await?;
             let should_read_binding_usage = next_mode_ref.is_production();
+            let remove_unused_imports = *self
+                .project
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?;
+            let graph_options = self.project.module_graph_options().await?;
 
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
@@ -937,8 +943,7 @@ impl AppProject {
                             ),
                         ]),
                         visited_modules,
-                        should_trace,
-                        should_read_binding_usage,
+                        graph_options,
                     );
                     graphs.push(graph);
                     visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -956,8 +961,7 @@ impl AppProject {
                                 ResolvedVc::upcast(*module),
                             )]),
                             visited_modules,
-                            should_trace,
-                            should_read_binding_usage,
+                            graph_options,
                         );
                         graphs.push(graph);
                         let is_layout = module.server_path().await?.file_stem() == Some("layout");
@@ -979,8 +983,7 @@ impl AppProject {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     GraphEntries::from_chunk_groups(vec![rsc_entry_chunk_group]),
                     visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
+                    graph_options,
                 );
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -990,8 +993,7 @@ impl AppProject {
                 let additional_module_graph = SingleModuleGraph::new_with_entries_visited_intern(
                     additional_entries.owned().await?,
                     visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
+                    graph_options,
                 );
                 graphs.push(additional_module_graph);
 
@@ -1002,12 +1004,6 @@ impl AppProject {
                     }
                     span.record("modules", module_count);
                 }
-
-                let remove_unused_imports = *self
-                    .project
-                    .next_config()
-                    .turbopack_remove_unused_imports(next_mode)
-                    .await?;
 
                 let (full, binding_usage_info) = if remove_unused_imports {
                     let full_with_unused_references =

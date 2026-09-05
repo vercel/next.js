@@ -12,7 +12,8 @@ use crate::{
     },
     module::Module,
     module_graph::{
-        GraphTraversalAction, ModuleGraph, RefData, chunk_group_info::RoaringBitmapWrapper,
+        GraphTraversalAction, ModuleGraph, RefData, SingleModuleGraphNode,
+        chunk_group_info::RoaringBitmapWrapper,
     },
     resolve::ExportUsage,
 };
@@ -132,15 +133,27 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
 
         let inner_span = tracing::info_span!("collect mergeable modules");
         let mergeable = module_graph
-            .iter_reachable_modules()?
-            .map(async |module| {
-                if let Some(mergeable) =
-                    ResolvedVc::try_downcast::<Box<dyn MergeableModule>>(module)
-                    && *mergeable.is_mergeable().await?
-                {
-                    return Ok(Some(module));
+            .iter_reachable_nodes()?
+            .map(async |node| {
+                match node {
+                    SingleModuleGraphNode::Module { module, .. } => {
+                        // Read the eagerly-resolved `is_mergeable` from the node. The graph must be
+                        // built with `ModuleGraphOptions::include_mergeable` (we enable it wherever
+                        // the chunking context merges modules), so a missing value is a
+                        // misconfigured graph; bail rather than silently
+                        // treating everything as non-mergeable.
+                        // Tracked read: the producing task was resolved at graph construction, so
+                        // this is cheap while still depending on the value correctly.
+                        let is_mergeable = node.is_mergeable_resolved().context(
+                            "compute_merged_modules requires the module graph to be built with \
+                             `ModuleGraphOptions::include_mergeable`",
+                        )?;
+                        Ok(is_mergeable.await?.then_some(*module))
+                    }
+                    // VisitedModule nodes belong to a parent graph; their mergeability was already
+                    // accounted for there.
+                    SingleModuleGraphNode::VisitedModule { .. } => Ok(None),
                 }
-                Ok(None)
             })
             .try_flat_join()
             .instrument(inner_span)

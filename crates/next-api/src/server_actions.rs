@@ -40,7 +40,8 @@ use turbopack_core::{
     ident::AssetIdent,
     module::{Module, Modules},
     module_graph::{
-        GraphTraversalAction, ModuleGraph, ModuleGraphLayer, async_module_info::AsyncModulesInfo,
+        GraphTraversalAction, ModuleGraph, ModuleGraphLayer, SingleModuleGraphNode,
+        async_module_info::AsyncModulesInfo,
     },
     output::{OutputAsset, OutputAssetsReference},
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -911,10 +912,15 @@ pub async fn map_server_actions(
     let graph = graph.connect();
     let actions = graph
         .await?
-        .iter_reachable_modules()?
-        .map(async |module| {
+        .iter_reachable_nodes()?
+        .map(async |node| {
+            let SingleModuleGraphNode::Module { module, ident, .. } = node else {
+                // VisitedModule nodes were handled in their owning graph.
+                return Ok(None);
+            };
             // TODO: compare module contexts instead?
-            let layer = match module.ident().await?.layer.as_ref() {
+            let ident = ident.await?;
+            let layer = match ident.layer.as_ref() {
                 Some(layer)
                     if layer.name() == "app-rsc"
                         || layer.name() == "app-edge-rsc"
@@ -929,9 +935,9 @@ pub async fn map_server_actions(
             };
             // TODO the old implementation did parse_actions(to_rsc_context(module))
             // is that really necessary?
-            Ok(parse_actions(*module)
+            Ok(parse_actions(**module)
                 .await?
-                .map(|action_map| (module, (layer, action_map))))
+                .map(|action_map| (*module, (layer, action_map))))
         })
         .try_flat_join()
         .await?;

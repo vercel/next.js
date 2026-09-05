@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -60,11 +60,13 @@ impl NextServerComponentModule {
     }
 }
 
+const NEXT_JS_SERVER_COMPONENT: RcStr = rcstr!("Next.js Server Component");
+
 impl NextServerComponentModule {
     fn module_reference(&self) -> Vc<Box<dyn ModuleReference>> {
         Vc::upcast(SingleChunkableModuleReference::new(
             Vc::upcast(*self.module),
-            rcstr!("Next.js Server Component"),
+            NEXT_JS_SERVER_COMPONENT,
             ExportUsage::all(),
         ))
     }
@@ -79,7 +81,7 @@ impl Module for NextServerComponentModule {
             .ident()
             .owned()
             .await?
-            .with_modifier(rcstr!("Next.js Server Component"))
+            .with_modifier(NEXT_JS_SERVER_COMPONENT)
             .into_vc())
     }
 
