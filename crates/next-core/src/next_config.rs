@@ -32,7 +32,8 @@ use turbopack_core::{
     resolve::ResolveAliasMap,
 };
 use turbopack_ecmascript::transform::{
-    OptionReactCompilerCompilationMode, ReactCompilerCompilationMode, ReactCompilerTarget,
+    DecoratorsVersion, OptionReactCompilerCompilationMode, ReactCompilerCompilationMode,
+    ReactCompilerTarget,
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::EmotionTransformConfig, relay::RelayConfig,
@@ -1641,6 +1642,7 @@ pub struct CompilerConfig {
     pub emotion: Option<EmotionTransformOptionsOrBoolean>,
     pub remove_console: Option<RemoveConsoleConfig>,
     pub styled_components: Option<StyledComponentsTransformOptionsOrBoolean>,
+    pub decorator_version: Option<DecoratorsVersion>,
 }
 
 #[derive(

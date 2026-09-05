@@ -16,7 +16,9 @@ use turbopack_core::{
 use turbopack_ecmascript::{
     AnalyzeMode, TypeofWindow,
     references::esm::UrlRewriteBehavior,
-    transform::{PresetEnvConfig, ReactCompilerCompilationMode, ReactCompilerTarget},
+    transform::{
+        DecoratorsVersion, PresetEnvConfig, ReactCompilerCompilationMode, ReactCompilerTarget,
+    },
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
@@ -123,43 +125,18 @@ impl WebpackLoaderBuiltinConditionSet for EmptyWebpackLoaderBuiltinConditionSet 
     }
 }
 
-/// The kind of ECMAScript class decorators transform to use.
-///
-/// TODO: might need bikeshed for the name (Ecma)
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
-pub enum DecoratorsKind {
-    /// Enables the syntax and behavior of the modern [stage 3 proposal]. This is the recommended
-    /// transform with JavaScript or [TypeScript 5.0][ts5] or later.
-    ///
-    /// [stage 3 proposal]: https://github.com/tc39/proposal-decorators
-    /// [ts5]: https://devblogs.microsoft.com/typescript/announcing-typescript-5-0/#differences-with-experimental-legacy-decorators
-    Ecma,
-
-    /// Enables the legacy class decorator syntax and behavior, as it was defined during the [stage
-    /// 1 proposal].
-    ///
-    /// This is the same as setting [`jsx.transform.legacyDecorator` in SWC][swc].
-    ///
-    /// This option exists for compatibility with the TypeScript compiler's legacy
-    /// `--experimentalDecorators` feature.
-    ///
-    /// [stage 1 proposal]: https://github.com/wycats/javascript-decorators/blob/e1bf8d41bfa2591d9/README.md
-    /// [swc]: https://swc.rs/docs/configuration/compilation#jsctransformlegacydecorator
-    Legacy,
-}
-
 /// Configuration for the ECMAScript class decorators transform.
 ///
 /// This is not part of TypeScript transform. It can be used with or without TypeScript.
 ///
-/// There is a [legacy TypeScript-specific transform][DecoratorsKind::Legacy] available for when
+/// There is a [legacy TypeScript-specific transform][DecoratorsVersion::Legacy] available for when
 /// decorators are used with TypeScript.
 #[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 pub struct DecoratorsOptions {
-    pub decorators_kind: Option<DecoratorsKind>,
+    pub decorators_version: Option<DecoratorsVersion>,
     /// Option to control whether to [emit decorator metadata]. This will be applied only when
-    /// using [`DecoratorsKind::Legacy`].
+    /// using [`DecoratorsVersion::Legacy`].
     ///
     /// [emit decorator metadata]: https://www.typescriptlang.org/tsconfig#emitDecoratorMetadata
     pub emit_decorators_metadata: bool,
