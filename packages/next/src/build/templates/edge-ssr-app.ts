@@ -131,6 +131,7 @@ async function requestHandler(
       params,
       page: srcPage,
       postponed: undefined,
+      renderOperation: 'render',
       serveStreamingMetadata: true,
       supportsDynamicResponse: true,
       buildManifest,

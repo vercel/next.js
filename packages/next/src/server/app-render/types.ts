@@ -91,6 +91,8 @@ export type ServerOnInstrumentationRequestError = (
   silenceLog: boolean
 ) => void | Promise<void>
 
+export type AppPageRenderOperation = 'render' | 'prerender' | 'resume'
+
 export interface RenderOptsPartial {
   dir?: string
   previewProps: __ApiPreviewProps | undefined
@@ -102,6 +104,12 @@ export interface RenderOptsPartial {
   trailingSlash: boolean
   images: ImageConfigComplete
   supportsDynamicResponse: boolean
+  /**
+   * Describes how the outer runtime will compose this render's HTML. A resume
+   * render is appended to an existing shell; render and prerender operations
+   * must produce standalone output.
+   */
+  renderOperation?: AppPageRenderOperation
   runtime?: ServerRuntime
   serverComponents?: boolean
   enableTainting?: boolean
