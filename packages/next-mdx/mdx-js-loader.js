@@ -58,21 +58,22 @@ module.exports = function nextMdxLoader(...args) {
   const callback = this.async().bind(this)
   const loaderContext = this
 
-  getOptions(options, this.context).then((userProvidedMdxOptions) => {
-    const proxy = new Proxy(loaderContext, {
-      get(target, prop, receiver) {
-        if (prop === 'getOptions') {
-          return () => userProvidedMdxOptions
-        }
-
-        if (prop === 'async') {
-          return () => callback
-        }
-
-        return Reflect.get(target, prop, receiver)
-      },
+  getOptions(options, this.context)
+    .then((userProvidedMdxOptions) => {
+      const proxy = new Proxy(loaderContext, {
+        get(target, prop, receiver) {
+          if (prop === 'getOptions') {
+            return () => userProvidedMdxOptions
+          }
+          if (prop === 'async') {
+            return () => callback
+          }
+          return Reflect.get(target, prop, receiver)
+        },
+      })
+      mdxLoader.call(proxy, ...args)
     })
-
-    mdxLoader.call(proxy, ...args)
-  })
+    .catch((error) => {
+      callback(error)
+    })
 }
