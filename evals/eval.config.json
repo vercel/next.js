@@ -7,6 +7,10 @@
     "skills": ["next-cache-components-adoption"],
     "timeout": 1800
   },
+  "agent-050-optimize-static-shell": {
+    "skills": ["next-cache-components-optimizer"],
+    "timeout": 1800
+  },
   "agent-054-cache-components-empty-static-params": {
     "skills": ["next-cache-components-adoption"],
     "timeout": 1800
