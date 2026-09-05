@@ -1,6 +1,7 @@
 'use client'
 
 import type React from 'react'
+import { useState, useMemo } from 'react'
 import { CircleHelp } from 'lucide-react'
 import {
   Tooltip,
@@ -12,8 +13,10 @@ import { ImportChain } from '@/components/import-chain'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import { SpecialModule } from '@/lib/types'
-import { getSpecialModuleType } from '@/lib/utils'
+import { cn, getSpecialModuleType } from '@/lib/utils'
 import { Badge } from './ui/badge'
+import type { DiffSummary, SourceDiffRow } from '@/lib/diff'
+import { formatDelta } from '@/lib/diff'
 
 interface SidebarProps {
   sidebarWidth: number
@@ -213,6 +216,181 @@ function SelectionDetails({
             ) : null}
           </>
         )}
+    </div>
+  )
+}
+
+export function CompareSidebar({
+  selectedKey,
+  sourceDiff,
+  analyzeData,
+  baselineAnalyzeData,
+  modulesData,
+  baselineModulesData,
+  moduleDepthMap,
+  baselineModuleDepthMap,
+  environmentFilter,
+  sidebarWidth,
+  aLabel,
+  bLabel,
+}: {
+  selectedKey: string | null
+  sourceDiff: DiffSummary<SourceDiffRow> | null
+  analyzeData: AnalyzeData | null
+  baselineAnalyzeData: AnalyzeData | null
+  modulesData: ModulesData | null
+  baselineModulesData: ModulesData | null
+  moduleDepthMap: Map<number, number>
+  baselineModuleDepthMap: Map<number, number>
+  environmentFilter: 'client' | 'server'
+  sidebarWidth: number
+  aLabel: string
+  bLabel: string
+}) {
+  const selectedRow = useMemo(() => {
+    if (!selectedKey || !sourceDiff) return null
+    return sourceDiff.rows.find((r) => r.key === selectedKey) ?? null
+  }, [selectedKey, sourceDiff])
+
+  return (
+    <div
+      className="flex-none bg-muted border-l border-border overflow-y-auto"
+      style={{ width: `${sidebarWidth}%` }}
+    >
+      {selectedRow ? (
+        <CompareSidebarContent
+          key={selectedRow.key}
+          row={selectedRow}
+          analyzeData={analyzeData}
+          baselineAnalyzeData={baselineAnalyzeData}
+          modulesData={modulesData}
+          baselineModulesData={baselineModulesData}
+          moduleDepthMap={moduleDepthMap}
+          baselineModuleDepthMap={baselineModuleDepthMap}
+          environmentFilter={environmentFilter}
+          aLabel={aLabel}
+          bLabel={bLabel}
+        />
+      ) : (
+        <div className="p-3 text-xs text-muted-foreground">
+          Click a row or treemap tile to see import details.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CompareSidebarContent({
+  row,
+  analyzeData,
+  baselineAnalyzeData,
+  modulesData,
+  baselineModulesData,
+  moduleDepthMap,
+  baselineModuleDepthMap,
+  environmentFilter,
+  aLabel,
+  bLabel,
+}: {
+  row: SourceDiffRow
+  analyzeData: AnalyzeData | null
+  baselineAnalyzeData: AnalyzeData | null
+  modulesData: ModulesData | null
+  baselineModulesData: ModulesData | null
+  moduleDepthMap: Map<number, number>
+  baselineModuleDepthMap: Map<number, number>
+  environmentFilter: 'client' | 'server'
+  aLabel: string
+  bLabel: string
+}) {
+  const hasBoth = row.sourceIndexA != null && row.sourceIndexB != null
+  const [activeTab, setActiveTab] = useState<'A' | 'B'>(
+    row.status === 'removed' ? 'A' : 'B'
+  )
+
+  const activeSourceIndex =
+    activeTab === 'A' ? row.sourceIndexA : row.sourceIndexB
+  const activeAnalyzeData =
+    activeTab === 'A' ? baselineAnalyzeData : analyzeData
+  const activeModulesData =
+    activeTab === 'A' ? baselineModulesData : modulesData
+  const activeDepthMap =
+    activeTab === 'A' ? baselineModuleDepthMap : moduleDepthMap
+
+  const compressedDelta = row.compressedB - row.compressedA
+
+  return (
+    <div className="flex-1 p-3 space-y-4 overflow-y-auto">
+      <div className="space-y-1">
+        <h2 className="text-s font-semibold text-foreground break-all">
+          {row.name}
+        </h2>
+        <div className="text-xs space-y-0.5">
+          <div className="flex items-baseline gap-1 flex-wrap">
+            <span className="text-muted-foreground font-mono">
+              {formatBytes(row.compressedA)}
+            </span>
+            <span className="text-muted-foreground">→</span>
+            <span className="font-mono">{formatBytes(row.compressedB)}</span>
+            <span className="text-muted-foreground">compressed</span>
+            {row.status !== 'identical' && (
+              <span
+                className={cn(
+                  'font-mono',
+                  compressedDelta > 0 && 'text-red-600 dark:text-red-400',
+                  compressedDelta < 0 && 'text-green-600 dark:text-green-400',
+                  compressedDelta === 0 && 'text-muted-foreground'
+                )}
+              >
+                {formatDelta(compressedDelta)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {hasBoth && (
+        <div className="flex gap-1">
+          <button
+            type="button"
+            onClick={() => setActiveTab('A')}
+            className={cn(
+              'px-2 py-0.5 text-xs rounded transition-colors',
+              activeTab === 'A'
+                ? 'bg-secondary text-secondary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {aLabel}
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('B')}
+            className={cn(
+              'px-2 py-0.5 text-xs rounded transition-colors',
+              activeTab === 'B'
+                ? 'bg-secondary text-secondary-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {bLabel}
+          </button>
+        </div>
+      )}
+
+      {activeSourceIndex != null && activeAnalyzeData && activeModulesData ? (
+        <ImportChain
+          startFileId={activeSourceIndex}
+          analyzeData={activeAnalyzeData}
+          modulesData={activeModulesData}
+          depthMap={activeDepthMap}
+          environmentFilter={environmentFilter}
+        />
+      ) : (
+        <p className="text-xs text-muted-foreground italic">
+          Import chain not available.
+        </p>
+      )}
     </div>
   )
 }
