@@ -18,27 +18,125 @@ import {
   writeRawHttpError,
   writeRawHttpResponse,
 } from './websocket-http'
-import { createWebSocketUpgradeListenerOwnershipTracker } from './websocket-upgrade-listener'
+import {
+  claimWebSocketHMRRequestOnce,
+  classifyWebSocketUpgradeOwnership,
+  createWebSocketUpgradeListenerOwnershipTracker,
+  hasMatchingNextOwnedWebSocketHMRListener,
+  isNextHMRUpgradeRequest,
+  markNextOwnedWebSocketUpgradeListener,
+} from './websocket-upgrade-listener'
+import { PendingWebSocketUpgradeTracker } from './websocket-lifecycle'
 
 describe('WebSocket upgrade listener ownership', () => {
+  it.each([
+    ['/_next/hmr', true],
+    ['/guest/_next/hmr?session=1', true],
+    ['/socket', false],
+    ['/socket?next=/_next/hmr', false],
+    ['/_next/hmr-other', false],
+    [undefined, false],
+  ] as const)('classifies HMR upgrade paths %#', (url, expected) => {
+    expect(isNextHMRUpgradeRequest(url)).toBe(expected)
+  })
+
+  it.each([
+    [undefined, 'shared'],
+    [[], 'shared'],
+  ] as const)(
+    'fails closed for opaque listener state %#',
+    (listeners, owner) => {
+      expect(classifyWebSocketUpgradeOwnership(listeners, jest.fn())).toBe(
+        owner
+      )
+    }
+  )
+
+  it('classifies exclusive, coordinated, sibling, duplicate-own, and shared dispatch', () => {
+    const own = jest.fn()
+    const automatic = jest.fn()
+    const outer = jest.fn()
+    const sibling = markNextOwnedWebSocketUpgradeListener(jest.fn())
+
+    expect(classifyWebSocketUpgradeOwnership([own], own)).toBe('exclusive')
+    expect(classifyWebSocketUpgradeOwnership([outer], own)).toBe('coordinated')
+    expect(classifyWebSocketUpgradeOwnership([own, own], own)).toBe('exclusive')
+    expect(classifyWebSocketUpgradeOwnership([own, outer], own)).toBe('shared')
+    expect(classifyWebSocketUpgradeOwnership([own, sibling], own)).toBe(
+      'sibling'
+    )
+    expect(
+      classifyWebSocketUpgradeOwnership([automatic, sibling, outer], own, [
+        automatic,
+      ])
+    ).toBe('coordinated')
+    expect(classifyWebSocketUpgradeOwnership([outer, jest.fn()], own)).toBe(
+      'shared'
+    )
+    expect(
+      classifyWebSocketUpgradeOwnership([automatic, outer], own, [automatic])
+    ).toBe('coordinated')
+    expect(
+      classifyWebSocketUpgradeOwnership([automatic, own], own, [automatic])
+    ).toBe('exclusive')
+  })
+
+  it('matches only development HMR paths owned by registered listeners', () => {
+    const host = markNextOwnedWebSocketUpgradeListener(
+      jest.fn(),
+      () => true,
+      (url) => Boolean(url?.startsWith('/_next/hmr'))
+    )
+    const guest = markNextOwnedWebSocketUpgradeListener(
+      jest.fn(),
+      () => true,
+      (url) => Boolean(url?.startsWith('/guest/_next/hmr'))
+    )
+
+    expect(
+      hasMatchingNextOwnedWebSocketHMRListener(
+        [host, guest],
+        '/guest/_next/hmr?session=1'
+      )
+    ).toBe(true)
+    expect(
+      hasMatchingNextOwnedWebSocketHMRListener(
+        [host, guest],
+        '/bogus/_next/hmr'
+      )
+    ).toBe(false)
+  })
+
+  it('claims an HMR upgrade exactly once for overlapping sibling prefixes', () => {
+    const request = { url: '/assets/_next/hmr' }
+
+    // Two apps share one HMR path (e.g. one basePath overlapping another's
+    // assetPrefix). The first app to reach the claim owns the connection;
+    // the sibling defers instead of both answering.
+    expect(claimWebSocketHMRRequestOnce(request)).toBe(true)
+    expect(claimWebSocketHMRRequestOnce(request)).toBe(false)
+  })
+
   it.each(['on', 'once', 'prependListener', 'prependOnceListener'] as const)(
     'permanently delegates after an external %s listener is registered',
     (method) => {
       const server = new EventEmitter()
       const ownListener = jest.fn()
       const externalListener = jest.fn()
-      const { isExclusiveOwner } =
-        createWebSocketUpgradeListenerOwnershipTracker(server, ownListener)
+      const { getOwnership } = createWebSocketUpgradeListenerOwnershipTracker(
+        server,
+        ownListener
+      )
 
       server.on('upgrade', ownListener)
-      expect(isExclusiveOwner()).toBe(true)
+      expect(getOwnership()).toBe('exclusive')
 
       server[method]('upgrade', externalListener)
       server.emit('upgrade')
       server.removeListener('upgrade', externalListener)
 
       expect(server.listeners('upgrade')).toEqual([ownListener])
-      expect(isExclusiveOwner()).toBe(false)
+      expect(getOwnership()).toBe('shared')
     }
   )
 
@@ -48,47 +146,81 @@ describe('WebSocket upgrade listener ownership', () => {
     const ownListener = jest.fn()
 
     server.on('upgrade', externalListener)
-    const { isExclusiveOwner } = createWebSocketUpgradeListenerOwnershipTracker(
+    const { getOwnership } = createWebSocketUpgradeListenerOwnershipTracker(
       server,
       ownListener
     )
     server.on('upgrade', ownListener)
     server.removeListener('upgrade', externalListener)
 
-    expect(isExclusiveOwner()).toBe(false)
+    expect(getOwnership()).toBe('shared')
   })
 
-  it('rejects duplicate and multiple Next listener registrations', () => {
+  it('accepts duplicate copies of one Next listener but rejects distinct listeners', () => {
     const duplicateServer = new EventEmitter()
     const duplicateListener = jest.fn()
-    const { isExclusiveOwner: isDuplicateExclusiveOwner } =
+    const { getOwnership: getDuplicateOwnership } =
       createWebSocketUpgradeListenerOwnershipTracker(
         duplicateServer,
         duplicateListener
       )
     duplicateServer.on('upgrade', duplicateListener)
-    expect(isDuplicateExclusiveOwner()).toBe(true)
+    expect(getDuplicateOwnership()).toBe('exclusive')
     duplicateServer.on('upgrade', duplicateListener)
-    expect(isDuplicateExclusiveOwner()).toBe(false)
+    expect(getDuplicateOwnership()).toBe('exclusive')
 
     const sharedServer = new EventEmitter()
     const firstOwnListener = jest.fn()
     const secondOwnListener = jest.fn()
-    const { isExclusiveOwner: isFirstExclusiveOwner } =
+    const { getOwnership: getFirstOwnership } =
       createWebSocketUpgradeListenerOwnershipTracker(
         sharedServer,
         firstOwnListener
       )
     sharedServer.on('upgrade', firstOwnListener)
-    const { isExclusiveOwner: isSecondExclusiveOwner } =
+    const { getOwnership: getSecondOwnership } =
       createWebSocketUpgradeListenerOwnershipTracker(
         sharedServer,
         secondOwnListener
       )
     sharedServer.on('upgrade', secondOwnListener)
 
-    expect(isFirstExclusiveOwner()).toBe(false)
-    expect(isSecondExclusiveOwner()).toBe(false)
+    expect(getFirstOwnership()).toBe('shared')
+    expect(getSecondOwnership()).toBe('shared')
+  })
+
+  it('distinguishes listeners owned by sibling Next.js instances', () => {
+    const server = new EventEmitter()
+    const firstListener = markNextOwnedWebSocketUpgradeListener(jest.fn())
+    const secondListener = markNextOwnedWebSocketUpgradeListener(jest.fn())
+    const { getOwnership: getFirstOwnership } =
+      createWebSocketUpgradeListenerOwnershipTracker(server, firstListener)
+    server.on('upgrade', firstListener)
+    const { getOwnership: getSecondOwnership } =
+      createWebSocketUpgradeListenerOwnershipTracker(server, secondListener)
+    server.on('upgrade', secondListener)
+
+    expect(getFirstOwnership()).toBe('sibling')
+    expect(getSecondOwnership()).toBe('sibling')
+  })
+
+  it('recognizes distinct automatic and public Next listeners as one owner', () => {
+    const server = new EventEmitter()
+    const automaticListener = jest.fn()
+    const publicListener = jest.fn()
+    const externalListener = jest.fn()
+    const { getOwnership } = createWebSocketUpgradeListenerOwnershipTracker(
+      server,
+      automaticListener,
+      [publicListener]
+    )
+
+    server.on('upgrade', automaticListener)
+    server.on('upgrade', publicListener)
+    expect(getOwnership()).toBe('exclusive')
+
+    server.on('upgrade', externalListener)
+    expect(getOwnership()).toBe('shared')
   })
 
   it('disposes its new-listener observer', () => {
@@ -105,7 +237,87 @@ describe('WebSocket upgrade listener ownership', () => {
     tracker.dispose()
 
     expect(server.listenerCount('newListener')).toBe(baseline)
-    expect(tracker.isExclusiveOwner()).toBe(false)
+    expect(tracker.getOwnership()).toBe('shared')
+  })
+})
+
+describe('pending WebSocket upgrade lifecycle', () => {
+  afterEach(() => {
+    jest.useRealTimers()
+  })
+
+  it('memoizes close and synchronously rejects later admission', async () => {
+    const tracker = new PendingWebSocketUpgradeTracker()
+    const firstClose = tracker.closePending()
+    const lateSocket = new PassThrough()
+
+    expect(tracker.closePending()).toBe(firstClose)
+    tracker.track(lateSocket)
+    expect(lateSocket.destroyed).toBe(true)
+    await expect(firstClose).resolves.toBeUndefined()
+  })
+
+  it('lets an admitted handler finish during the bounded grace period', async () => {
+    jest.useFakeTimers()
+    const tracker = new PendingWebSocketUpgradeTracker()
+    const socket = new PassThrough()
+    const finish = tracker.track(socket)
+
+    const close = tracker.closePending()
+    jest.advanceTimersByTime(4_999)
+    await Promise.resolve()
+    expect(socket.destroyed).toBe(false)
+
+    finish()
+    await expect(close).resolves.toBeUndefined()
+    expect(socket.destroyed).toBe(false)
+    socket.destroy()
+  })
+
+  it('gives a committed response bounded grace before forcing close', async () => {
+    jest.useFakeTimers()
+    const tracker = new PendingWebSocketUpgradeTracker()
+    const socket = new PassThrough()
+    markRawHttpResponseCommitted(socket, 101)
+    tracker.track(socket)
+
+    const close = tracker.closePending()
+    jest.advanceTimersByTime(4_999)
+    await Promise.resolve()
+    expect(socket.destroyed).toBe(false)
+
+    jest.advanceTimersByTime(1)
+    await expect(close).resolves.toBeUndefined()
+    expect(socket.destroyed).toBe(true)
+  })
+
+  it('does not truncate a response ending before its commit marker', async () => {
+    const tracker = new PendingWebSocketUpgradeTracker()
+    const socket = new PassThrough()
+    tracker.track(socket)
+    socket.end('upstream response')
+
+    const close = tracker.closePending()
+
+    expect(socket.writableEnded).toBe(true)
+    expect(socket.destroyed).toBe(false)
+    socket.destroy()
+    await expect(close).resolves.toBeUndefined()
+  })
+
+  it('removes listeners inserted after a reentrant terminal event', async () => {
+    const tracker = new PendingWebSocketUpgradeTracker()
+    const socket = new PassThrough()
+    socket.on('newListener', (event) => {
+      if (event === 'close') socket.emit('end')
+    })
+
+    tracker.track(socket)
+
+    expect(socket.destroyed).toBe(true)
+    expect(socket.listenerCount('end')).toBe(0)
+    expect(socket.listenerCount('close')).toBe(0)
+    await expect(tracker.closePending()).resolves.toBeUndefined()
   })
 })
 
@@ -540,6 +752,30 @@ describe('raw WebSocket upgrade responses', () => {
       'Failed to remove a WebSocket upgrade socket error owner',
       failure
     )
+  })
+
+  it('releases only Next.js error listeners before coordinated delegation', () => {
+    const request = new PassThrough() as unknown as IncomingMessage
+    const socket = new PassThrough()
+    const requestOwner = jest.fn()
+    const socketOwner = jest.fn()
+    request.on('error', requestOwner)
+    socket.on('error', socketOwner)
+    const requestBaseline = request.listenerCount('error')
+    const socketErrorBaseline = socket.listenerCount('error')
+    const socketCloseBaseline = socket.listenerCount('close')
+
+    const release = ownWebSocketUpgradeSocketErrors(request, socket)
+    expect(ownWebSocketUpgradeSocketErrors(request, socket)).toBe(release)
+    expect(release()).toEqual([])
+
+    expect(request.listenerCount('error')).toBe(requestBaseline)
+    expect(socket.listenerCount('error')).toBe(socketErrorBaseline)
+    expect(socket.listenerCount('close')).toBe(socketCloseBaseline)
+    expect(request.listeners('error')).toContain(requestOwner)
+    expect(socket.listeners('error')).toContain(socketOwner)
+    expect(socket.destroyed).toBe(false)
+    socket.destroy()
   })
 
   it('settles final socket teardown when close-listener removal throws', async () => {

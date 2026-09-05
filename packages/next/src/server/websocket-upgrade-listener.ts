@@ -1,22 +1,169 @@
 import type { EventEmitter } from 'node:events'
+import type { Duplex } from 'node:stream'
+import { PENDING_UPGRADE_IDLE_TIMEOUT_MS } from './websocket-shutdown-budget'
 
 type UpgradeListenerOwnershipState = {
-  ownListenerRegistered: boolean
   externalListenerSeen: boolean
   onNewListener?: (eventName: string | symbol, listener: unknown) => void
 }
 
 export interface WebSocketUpgradeListenerOwnershipTracker {
-  isExclusiveOwner(): boolean
+  getOwnership(): WebSocketUpgradeOwnership
   dispose(): void
+}
+
+export type WebSocketUpgradeOwnership =
+  | 'exclusive'
+  | 'coordinated'
+  | 'sibling'
+  | 'shared'
+
+/** Shared guidance emitted by both dispatch layers when an upgrade is delegated. */
+export const UPGRADE_DELEGATION_MESSAGE =
+  'Next.js delegated an upgrade event because another custom-server upgrade listener may own the socket. Use app.getUpgradeHandler() from one outer dispatcher to coordinate WebSocket Route Handlers with another protocol.'
+
+type NextOwnedUpgradeListener = {
+  isWebSocketRouteHandlersEnabled: () => boolean
+  isHMRRequest: (url: string | undefined) => boolean
+}
+
+const nextOwnedUpgradeListeners = new WeakMap<
+  object,
+  NextOwnedUpgradeListener
+>()
+
+/** Marks a listener so sibling Next.js custom-server instances can be detected. */
+export function markNextOwnedWebSocketUpgradeListener<T extends object>(
+  listener: T,
+  isWebSocketRouteHandlersEnabled: () => boolean = () => false,
+  isHMRRequest: (url: string | undefined) => boolean = () => false
+): T {
+  nextOwnedUpgradeListeners.set(listener, {
+    isWebSocketRouteHandlersEnabled,
+    isHMRRequest,
+  })
+  return listener
+}
+
+export function hasEnabledNextOwnedWebSocketUpgradeListener(
+  listeners: readonly unknown[] | undefined
+): boolean {
+  return Boolean(
+    listeners?.some(
+      (listener) =>
+        (typeof listener === 'object' || typeof listener === 'function') &&
+        listener !== null &&
+        nextOwnedUpgradeListeners
+          .get(listener as object)
+          ?.isWebSocketRouteHandlersEnabled()
+    )
+  )
+}
+
+const claimedHMRUpgradeRequests = new WeakSet<object>()
+
+/**
+ * Claims an HMR upgrade request for the first app to reach it. Two apps can
+ * share one live HMR path (e.g. one app's basePath overlapping another's
+ * assetPrefix); only the earliest-reaching app may run its HMR handler on the
+ * socket. Requests are single-use, so the claim never needs releasing.
+ */
+export function claimWebSocketHMRRequestOnce(req: object): boolean {
+  if (claimedHMRUpgradeRequests.has(req)) return false
+  claimedHMRUpgradeRequests.add(req)
+  return true
+}
+
+export function hasMatchingNextOwnedWebSocketHMRListener(
+  listeners: readonly unknown[] | undefined,
+  url: string | undefined
+): boolean {
+  return Boolean(
+    listeners?.some(
+      (listener) =>
+        (typeof listener === 'object' || typeof listener === 'function') &&
+        listener !== null &&
+        nextOwnedUpgradeListeners.get(listener as object)?.isHMRRequest(url)
+    )
+  )
+}
+
+export function isNextHMRUpgradeRequest(
+  url: string | undefined,
+  hmrPath?: string
+): boolean {
+  const pathname = url?.split(/[?#]/, 1)[0] ?? ''
+  if (hmrPath) {
+    return pathname === hmrPath || pathname.startsWith(`${hmrPath}/`)
+  }
+  return /(?:^|\/)_next\/hmr(?:\/|$)/.test(pathname)
+}
+
+function isNextOwnedUpgradeListener(listener: unknown): boolean {
+  return (
+    (typeof listener === 'object' || typeof listener === 'function') &&
+    listener !== null &&
+    nextOwnedUpgradeListeners.has(listener as object)
+  )
+}
+
+function isOwnedUpgradeListener(
+  listener: unknown,
+  ownListener: object,
+  additionalOwnListeners: readonly object[]
+): boolean {
+  return (
+    listener === ownListener ||
+    additionalOwnListeners.includes(listener as object)
+  )
+}
+
+export function classifyWebSocketUpgradeOwnership(
+  listeners: readonly unknown[] | undefined,
+  ownListener: object,
+  additionalOwnListeners: readonly object[] = []
+): WebSocketUpgradeOwnership {
+  if (!listeners || listeners.length === 0) return 'shared'
+  const ownRegistered = listeners.includes(ownListener)
+  if (ownRegistered) {
+    if (
+      listeners.every((listener) =>
+        isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners)
+      )
+    ) {
+      return 'exclusive'
+    }
+    return listeners.every(
+      (listener) =>
+        isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners) ||
+        isNextOwnedUpgradeListener(listener)
+    )
+      ? 'sibling'
+      : 'shared'
+  }
+  let externalListenerCount = 0
+  for (const listener of listeners) {
+    if (
+      !isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners) &&
+      !isNextOwnedUpgradeListener(listener)
+    ) {
+      externalListenerCount++
+    }
+  }
+  return externalListenerCount === 1 ? 'coordinated' : 'shared'
 }
 
 function hasExternalUpgradeListener(
   server: EventEmitter,
-  ownListener: object
+  ownListener: object,
+  additionalOwnListeners: readonly object[]
 ): boolean {
   const listeners = server.listeners('upgrade')
-  return listeners.length !== 1 || listeners[0] !== ownListener
+  return listeners.some(
+    (listener) =>
+      !isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners) &&
+      !isNextOwnedUpgradeListener(listener)
+  )
 }
 
 function markExternalUpgradeListener(
@@ -40,18 +187,24 @@ function markExternalUpgradeListener(
  */
 export function createWebSocketUpgradeListenerOwnershipTracker(
   server: EventEmitter,
-  ownListener: object
+  ownListener: object,
+  additionalOwnListeners: readonly object[] = []
 ): WebSocketUpgradeListenerOwnershipTracker {
   const state: UpgradeListenerOwnershipState = {
-    ownListenerRegistered: false,
-    externalListenerSeen: server.listenerCount('upgrade') !== 0,
+    externalListenerSeen: hasExternalUpgradeListener(
+      server,
+      ownListener,
+      additionalOwnListeners
+    ),
   }
 
   if (!state.externalListenerSeen) {
     state.onNewListener = (eventName, listener) => {
       if (eventName !== 'upgrade') return
-      if (listener === ownListener && !state.ownListenerRegistered) {
-        state.ownListenerRegistered = true
+      if (
+        isOwnedUpgradeListener(listener, ownListener, additionalOwnListeners) ||
+        isNextOwnedUpgradeListener(listener)
+      ) {
         return
       }
       markExternalUpgradeListener(server, state)
@@ -64,24 +217,30 @@ export function createWebSocketUpgradeListenerOwnershipTracker(
   // upgrade listener in that gap.
   if (
     server.listenerCount('upgrade') !== 0 &&
-    hasExternalUpgradeListener(server, ownListener)
+    hasExternalUpgradeListener(server, ownListener, additionalOwnListeners)
   ) {
     markExternalUpgradeListener(server, state)
   }
 
   let disposed = false
   return {
-    isExclusiveOwner() {
-      if (disposed) return false
+    getOwnership() {
+      if (disposed) return 'shared'
       // Retain a live scan as a fallback if embedding code removed the
       // observer.
       if (
         !state.externalListenerSeen &&
-        hasExternalUpgradeListener(server, ownListener)
+        hasExternalUpgradeListener(server, ownListener, additionalOwnListeners)
       ) {
         markExternalUpgradeListener(server, state)
       }
-      return !state.externalListenerSeen
+      return state.externalListenerSeen
+        ? 'shared'
+        : classifyWebSocketUpgradeOwnership(
+            server.listeners('upgrade'),
+            ownListener,
+            additionalOwnListeners
+          )
     },
     dispose() {
       if (disposed) return
@@ -92,4 +251,35 @@ export function createWebSocketUpgradeListenerOwnershipTracker(
       }
     },
   }
+}
+
+/**
+ * Arms a bounded idle reap on an upgrade socket that no route, rewrite, or
+ * proxy target claimed. Once Node emits 'upgrade', its HTTP request timeouts
+ * no longer govern the socket, so returning without a claim would leak the
+ * descriptor forever. Another listener (e.g. a custom server's own WS server)
+ * may still own the socket: a claim is an attached data reader, re-checked
+ * when the budget lapses so asynchronous claimers are spared.
+ */
+export function armUnclaimedUpgradeSocketTimeout(socket: Duplex): void {
+  const withTimeout = (
+    socket as { setTimeout?: (ms: number) => void }
+  ).setTimeout?.bind(socket)
+  if (!withTimeout) return
+
+  const isClaimed = () =>
+    socket.destroyed ||
+    socket.writableEnded ||
+    socket.listenerCount('data') > 0 ||
+    socket.listenerCount('readable') > 0
+
+  if (isClaimed()) return
+  withTimeout(PENDING_UPGRADE_IDLE_TIMEOUT_MS)
+  socket.once('timeout', () => {
+    if (isClaimed()) {
+      withTimeout(0)
+      return
+    }
+    socket.destroy()
+  })
 }
