@@ -48,7 +48,7 @@ import {
 import {
   clearAllModuleContexts,
   clearModuleContext,
-} from '../lib/render-server'
+} from '../web/sandbox/context'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { trace } from '../../trace'
 import {
