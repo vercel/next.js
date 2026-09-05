@@ -1727,6 +1727,9 @@ impl Project {
             hash_salt: self.next_config().output_hash_salt().to_resolved().await?,
             style_groups_algorithm: self.next_config().css_chunking().owned().await?,
             per_page_module_graph: self.per_page_module_graph(),
+            lazy_dynamic_imports: self
+                .next_config()
+                .turbopack_lazy_dynamic_imports(*self.next_mode().await?),
         };
         Ok(if client_assets {
             get_server_chunking_context_with_client_assets(options)

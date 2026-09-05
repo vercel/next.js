@@ -10,8 +10,11 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
       patchFileDelay: 500,
     })
 
-    async function assetsContaining(marker: string): Promise<string[]> {
-      const root = path.join(next.testDir, next.distDir, 'static')
+    async function assetsContaining(
+      marker: string,
+      dir: 'static' | 'server' = 'static'
+    ): Promise<string[]> {
+      const root = path.join(next.testDir, next.distDir, dir)
       const matches: string[] = []
 
       async function walk(dir: string) {
@@ -99,6 +102,11 @@ import { getRedboxSource, retry, waitForRedbox } from 'next-test-utils'
       expect(await assetsContaining('lazy-marker-9a4e')).toHaveLength(0)
       expect(await assetsContaining('color: green')).toHaveLength(0)
       expect(await assetsContaining('untouched-marker-2d8c')).toHaveLength(0)
+      // Rendering the page does not compile its unrendered dynamic import.
+      expect(await assetsContaining('lazy-marker-9a4e', 'server')).toHaveLength(
+        0
+      )
+
       // A valid-looking activation path that no lazy proxy owns falls through to the static handler.
       expect(
         await next
@@ -321,6 +329,50 @@ export const invalid = ;`
           (pathname) => !manifestsAfterFirst.includes(pathname)
         )
       ).toHaveLength(0)
+    })
+
+    it('activates a dynamic import that is reached while rendering on the server', async () => {
+      const hostPath = path.join('app', 'ssr-dynamic', 'host.tsx')
+      const targetPath = path.join('app', 'ssr-dynamic', 'ssr-target.tsx')
+      const originalHost = await next.readFile(hostPath)
+      const originalTarget = await next.readFile(targetPath)
+
+      try {
+        await next.patchFile(
+          targetPath,
+          `${originalTarget}\nexport const invalid = ;`
+        )
+        // The target is not parsed until the component renders.
+        expect(await next.render('/ssr-dynamic')).toContain(
+          'SSR target not rendered'
+        )
+      } finally {
+        await next.patchFile(targetPath, originalTarget)
+      }
+
+      // Server rendering activates the import without a browser request.
+      expect(await next.render('/ssr-dynamic?show=1')).toContain(
+        'ssr-lazy-marker-4f31'
+      )
+      expect(
+        await assetsContaining('ssr-lazy-marker-4f31', 'server')
+      ).not.toHaveLength(0)
+      expect(await assetsContaining('ssr-lazy-marker-4f31')).toHaveLength(0)
+
+      // Recompiling the importer preserves the activation.
+      try {
+        await next.patchFile(
+          hostPath,
+          originalHost.replace('<SsrTarget />', '<SsrTarget key="edited" />')
+        )
+        await retry(async () => {
+          expect(await next.render('/ssr-dynamic?show=1')).toContain(
+            'ssr-lazy-marker-4f31'
+          )
+        })
+      } finally {
+        await next.patchFile(hostPath, originalHost)
+      }
     })
   }
 )
