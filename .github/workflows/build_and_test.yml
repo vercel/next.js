@@ -644,6 +644,27 @@ jobs:
       stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 
+  test-turbopack-trace-server-wasm:
+    name: test turbopack trace server wasm
+    needs: ['optimize-ci', 'changes', 'build-next']
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipNativeBuild: 'yes'
+      skipNativeInstall: 'yes'
+      afterBuild: |
+        set -euo pipefail
+        rustup target add wasm32-wasip1-threads
+        cargo check -p turbopack-trace-server-wasm --target wasm32-wasip1-threads --locked
+        pnpm --filter @vercel/turbopack-trace-server-wasm build
+        cargo test -p turbopack-trace-server
+      stepName: 'test-turbopack-trace-server-wasm'
+    secrets: inherit
+
   test-unit:
     name: test unit
     needs: ['changes', 'build-next', 'build-native']

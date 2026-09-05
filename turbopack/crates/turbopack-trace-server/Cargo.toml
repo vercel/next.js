@@ -31,6 +31,8 @@ serde_json = { workspace = true }
 smallvec = { workspace = true }
 turbo-rcstr = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
-tungstenite = { version = "0.21.0" }
 turbopack-trace-utils = { workspace = true }
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+tungstenite = { version = "0.21.0" }
 zstd = { version = "0.13.0" }
