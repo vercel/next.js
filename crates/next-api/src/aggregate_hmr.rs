@@ -1,20 +1,24 @@
 use std::{
     fmt::Display,
-    sync::{Arc, LazyLock},
+    sync::{Arc, LazyLock, RwLock},
 };
 
-use anyhow::Result;
+use anyhow::{Context, Result};
+use bincode::{Decode, Encode};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
     debug::ValueDebugFormat,
     message_queue::{CompilationEvent, Severity},
     trace::TraceRawVcs,
     turbo_tasks,
 };
+use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{Xxh3Hash64Hasher, encode_base64};
 use turbopack_core::{
+    asset::Asset,
+    output::OutputAsset,
     update_instruction::UpdateInstruction,
     version::{PartialUpdate, Update, Version},
 };
@@ -27,10 +31,51 @@ use turbopack_nodejs::ecmascript::node::entry::chunk_list_content::{
     EcmascriptBuildNodeChunkListContent, compute_update_from_version_operation,
 };
 
+/// Canonical JSON key identifying a Next.js entrypoint by router, side, and page.
+#[derive(Clone, Debug, Decode, Encode, Eq, Hash, NonLocalValue, PartialEq, TraceRawVcs)]
+pub struct ServerHmrEntryKey(RcStr);
+
+impl TaskInput for ServerHmrEntryKey {
+    fn is_transient(&self) -> bool {
+        false
+    }
+}
+
+impl ServerHmrEntryKey {
+    pub fn new(value: RcStr) -> Self {
+        Self(value)
+    }
+}
+
 #[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct ServerHmrChunkList {
     pub relative_path: RcStr,
     pub versioned_content: ResolvedVc<EcmascriptBuildNodeChunkListContent>,
+}
+
+impl ServerHmrChunkList {
+    /// `chunk_list` must be an `EcmascriptBuildNodeChunkList`; only its content type carries the
+    /// per-chunk versions the aggregate diff needs.
+    pub async fn from_chunk_list(
+        root: &FileSystemPath,
+        chunk_list: ResolvedVc<Box<dyn OutputAsset>>,
+    ) -> Result<Self> {
+        let path = chunk_list.path().await?;
+        let relative_path: RcStr = root
+            .get_path_to(&path)
+            .context("server HMR entry must be inside the app server root")?
+            .into();
+        let content = chunk_list.versioned_content().to_resolved().await?;
+        let versioned_content =
+            ResolvedVc::try_downcast_type::<EcmascriptBuildNodeChunkListContent>(content)
+                .with_context(|| {
+                    format!("server HMR entry {relative_path} is not a Node.js chunk list")
+                })?;
+        Ok(Self {
+            relative_path,
+            versioned_content,
+        })
+    }
 }
 
 #[turbo_tasks::value(transparent, serialization = "skip")]
@@ -45,10 +90,35 @@ impl ServerHmrChunkLists {
     pub fn as_slice(&self) -> &[ServerHmrChunkList] {
         &self.0
     }
+}
 
-    pub fn retain_entry_paths(&mut self, entry_paths: &FxIndexSet<RcStr>) {
-        self.0
-            .retain(|chunk_list| entry_paths.contains(&chunk_list.relative_path));
+#[derive(Debug, Default)]
+pub struct ServerHmrEntryMap {
+    entries: RwLock<FxIndexMap<ServerHmrEntryKey, ResolvedVc<ServerHmrChunkLists>>>,
+}
+
+impl PartialEq for ServerHmrEntryMap {
+    fn eq(&self, other: &Self) -> bool {
+        std::ptr::eq(self, other)
+    }
+}
+
+impl Eq for ServerHmrEntryMap {}
+
+impl ServerHmrEntryMap {
+    pub fn set(&self, entry_key: ServerHmrEntryKey, chunk_lists: ResolvedVc<ServerHmrChunkLists>) {
+        self.entries
+            .write()
+            .expect("server HMR entry map lock poisoned")
+            .insert(entry_key, chunk_lists);
+    }
+
+    pub fn get(&self, entry_key: &ServerHmrEntryKey) -> Option<ResolvedVc<ServerHmrChunkLists>> {
+        self.entries
+            .read()
+            .expect("server HMR entry map lock poisoned")
+            .get(entry_key)
+            .copied()
     }
 }
 

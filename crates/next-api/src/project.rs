@@ -1,4 +1,4 @@
-use std::{path::Path, time::Duration};
+use std::{path::Path, sync::Arc, time::Duration};
 
 use anyhow::{Context, Result, bail};
 use async_trait::async_trait;
@@ -95,7 +95,7 @@ use turbopack_node::worker_threads_backend;
 use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 use crate::{
-    aggregate_hmr::ServerHmrChunkLists,
+    aggregate_hmr::{ServerHmrChunkLists, ServerHmrEntryKey, ServerHmrEntryMap},
     app::{AppProject, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
@@ -838,6 +838,7 @@ impl ProjectContainer {
                 NextMode::Build.resolved_cell()
             },
             versioned_content_map: self.versioned_content_map,
+            server_hmr_entry_map: dev.then(|| Arc::new(ServerHmrEntryMap::default())),
             build_id,
             encryption_key,
             preview_props,
@@ -881,7 +882,7 @@ impl ProjectContainer {
 }
 
 #[derive(Clone)]
-#[turbo_tasks::value]
+#[turbo_tasks::value(serialization = "skip", evict = "never")]
 pub struct Project {
     /// An absolute root path (Windows or Unix path) from which all files must be nested under.
     /// Trying to access a file outside this root will fail, so think of this as a chroot.
@@ -892,6 +893,9 @@ pub struct Project {
     /// a Unix path.
     /// E.g. `apps/my-app`
     project_path: RcStr,
+
+    #[turbo_tasks(trace_ignore)]
+    server_hmr_entry_map: Option<Arc<ServerHmrEntryMap>>,
 
     /// A path where to emit the build outputs, relative to [`Project::project_path`], always a
     /// Unix path. Corresponds to next.config.js's `distDir`.
@@ -951,6 +955,31 @@ pub struct Project {
 
     /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
     server_hmr: bool,
+}
+
+impl Project {
+    pub fn register_server_hmr_entry(
+        &self,
+        entry_key: ServerHmrEntryKey,
+        chunk_lists: Option<ResolvedVc<ServerHmrChunkLists>>,
+    ) {
+        if let Some(server_hmr_entry_map) = &self.server_hmr_entry_map {
+            server_hmr_entry_map.set(
+                entry_key,
+                chunk_lists.unwrap_or_else(|| ServerHmrChunkLists::new(vec![]).resolved_cell()),
+            );
+        }
+    }
+
+    pub fn server_hmr_chunk_lists(
+        &self,
+        entry_key: &ServerHmrEntryKey,
+    ) -> ResolvedVc<ServerHmrChunkLists> {
+        self.server_hmr_entry_map
+            .as_ref()
+            .and_then(|server_hmr_entry_map| server_hmr_entry_map.get(entry_key))
+            .unwrap_or_else(|| ServerHmrChunkLists::new(vec![]).resolved_cell())
+    }
 }
 
 #[turbo_tasks::value]
@@ -2458,11 +2487,6 @@ impl Project {
         .await
     }
 
-    #[turbo_tasks::function]
-    async fn server_hmr_root_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
-        Ok(self.node_root().await?.join("server/app")?.cell())
-    }
-
     /// Get client HMR content by chunk_name.
     #[turbo_tasks::function]
     async fn hmr_content(self: Vc<Self>, chunk_name: RcStr) -> Result<Vc<OptionVersionedContent>> {
@@ -2535,27 +2559,6 @@ impl Project {
         } else {
             Ok(Update::Missing.cell())
         }
-    }
-
-    /// Server entry chunks shared by all pull baselines.
-    #[turbo_tasks::function]
-    pub async fn server_hmr_chunks(self: Vc<Self>) -> Result<Vc<ServerHmrChunkLists>> {
-        let Some(map) = self.await?.versioned_content_map else {
-            bail!("must be in dev mode to hmr")
-        };
-        let root = self.server_hmr_root_path().owned().await?;
-        Ok(map.server_hmr_chunks_in_path(root))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn server_hmr_chunks_for_entries(
-        self: Vc<Self>,
-        entry_paths: Vec<RcStr>,
-    ) -> Result<Vc<ServerHmrChunkLists>> {
-        let mut chunk_lists =
-            ServerHmrChunkLists::new(self.server_hmr_chunks().await?.as_slice().to_vec());
-        chunk_lists.retain_entry_paths(&entry_paths.into_iter().collect());
-        Ok(chunk_lists.cell())
     }
 
     /// Gets a list of all client HMR chunk names that can be subscribed to.
