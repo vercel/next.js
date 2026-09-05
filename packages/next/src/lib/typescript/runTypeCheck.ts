@@ -8,8 +8,6 @@ import { CompileError } from '../compile-error'
 import { warn } from '../../build/output/log'
 
 export interface TypeCheckResult {
-  hasWarnings: boolean
-  warnings?: string[]
   inputFilesCount?: number
   totalFilesCount?: number
   incremental: boolean
@@ -108,7 +106,6 @@ export async function runTypeCheck(
 
   if (fileNames.length < 1) {
     return {
-      hasWarnings: false,
       inputFilesCount: 0,
       totalFilesCount: 0,
       incremental: false,
@@ -214,15 +211,7 @@ export async function runTypeCheck(
     )
   }
 
-  const warnings = allDiagnostics
-    .filter((d) => d.category === typescript.DiagnosticCategory.Warning)
-    .map((d) =>
-      getFormattedDiagnostic(typescript, baseDir, distDir, d, isAppDirEnabled)
-    )
-
   return {
-    hasWarnings: true,
-    warnings,
     inputFilesCount: fileNames.length,
     totalFilesCount: program.getSourceFiles().length,
     incremental,
