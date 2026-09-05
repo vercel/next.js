@@ -2330,3 +2330,15 @@ export function resetNavigationLockToPending(): void {
     reset()
   }
 }
+
+/**
+ * Ends a captured lock scope and re-arms a fresh pending one after a history
+ * restore. No-op when the testing API is disabled or no capture is active.
+ */
+export function rearmNavigationLockAfterTraversal(): void {
+  if (process.env.__NEXT_EXPOSE_TESTING_API) {
+    const { rearmNavigationLockAfterTraversal: rearm } =
+      require('../segment-cache/navigation-testing-lock') as typeof import('../segment-cache/navigation-testing-lock')
+    rearm()
+  }
+}

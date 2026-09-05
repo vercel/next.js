@@ -526,6 +526,38 @@ export function getCurrentNavigationGate(): Promise<void> | null {
 }
 
 /**
+ * Called when the router applies a history restore (back/forward traversal,
+ * external pushState/replaceState, bfcache document restore) while a capture
+ * is active. The captured navigation is no longer what's on screen, so end
+ * its scope and immediately start a fresh pending one: dynamic writes gated
+ * on the old scope flush, and the next navigation is captured. Pending
+ * scopes are left alone.
+ *
+ * The cookie transitions from captured back to pending without ever being
+ * absent. Deleting it would disarm shell rendering for any document request
+ * that races the re-arm, and would trigger the unlock refresh, which the
+ * restored page doesn't need.
+ */
+export function rearmNavigationLockAfterTraversal(): void {
+  if (lockState === null || typeof document === 'undefined') {
+    return
+  }
+  const target = NEXT_INSTANT_TEST_COOKIE + '='
+  for (const segment of document.cookie.split(';')) {
+    const trimmed = segment.trim()
+    if (trimmed.startsWith(target)) {
+      const state = parseCookieValue(trimmed.slice(target.length))
+      if (state === 'mpa' || state === 'spa') {
+        releaseLock()
+        acquireLock()
+        writeCookieValue([0, `c${Math.random()}`])
+      }
+      return
+    }
+  }
+}
+
+/**
  * Decides whether segment reads during a navigation should be restricted to
  * shell entries (every param substituted with Fallback) rather than matching
  * entries that vary on concrete route params.
