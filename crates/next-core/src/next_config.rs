@@ -1416,6 +1416,9 @@ pub struct ExperimentalConfig {
     turbopack_worker_asset_prefix: Option<RcStr>,
     turbopack_client_side_nested_async_chunking: Option<bool>,
     turbopack_server_side_nested_async_chunking: Option<bool>,
+    /// Compile client dynamic import targets when their runtime proxy is first activated.
+    /// Development only.
+    turbopack_lazy_dynamic_imports: Option<bool>,
     turbopack_import_type_bytes: Option<bool>,
     /// Disable automatic configuration of the sass loader.
     #[serde(default)]
@@ -2739,6 +2742,17 @@ impl NextConfig {
                 NextMode::Build => client_side,
             }
         }))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbopack_lazy_dynamic_imports(&self, next_mode: NextMode) -> Vc<bool> {
+        Vc::cell(
+            next_mode.is_development()
+                && self
+                    .experimental
+                    .turbopack_lazy_dynamic_imports
+                    .unwrap_or(false),
+        )
     }
 
     #[turbo_tasks::function]

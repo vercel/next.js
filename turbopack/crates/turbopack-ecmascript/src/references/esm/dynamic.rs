@@ -5,17 +5,19 @@ use swc_core::{
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
+    ident::AssetIdent,
     issue::IssueSource,
     module::Module,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
-        BindingUsage, ExportUsage, ModuleResolveResult, ResolveErrorMode,
+        BindingUsage, ExportUsage, ModuleResolveResult, ModuleResolveResultItem, ResolveErrorMode,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
     },
@@ -24,6 +26,8 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
+    async_chunk::proxy::{LazyCompilationProxyModule, activation_key},
+    chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -46,6 +50,9 @@ pub struct EsmAsyncAssetReference {
     /// callback destructuring, or webpackExports/turbopackExports comments.
     pub export_usage: ExportUsage,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    pub request_string: Option<RcStr>,
+    /// Whether the target is compiled only after its runtime proxy is activated.
+    pub lazy_compilation: bool,
 }
 
 impl EsmAsyncAssetReference {
@@ -59,6 +66,8 @@ impl EsmAsyncAssetReference {
         import_externals: bool,
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        request_string: Option<RcStr>,
+        lazy_compilation: bool,
     ) -> Result<Self> {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
@@ -79,26 +88,127 @@ impl EsmAsyncAssetReference {
             import_externals,
             export_usage,
             resolve_override,
+            request_string,
+            lazy_compilation,
         })
     }
+}
+
+#[turbo_tasks::function]
+fn lazy_compilation_target_reference(
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: IssueSource,
+    error_mode: ResolveErrorMode,
+    import_externals: bool,
+) -> Vc<EsmAsyncAssetReference> {
+    EsmAsyncAssetReference {
+        origin,
+        request,
+        issue_source,
+        error_mode,
+        import_externals,
+        export_usage: ExportUsage::All,
+        resolve_override: None,
+        request_string: None,
+        lazy_compilation: false,
+    }
+    .cell()
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        if let Some(resolved) = &self.resolve_override {
-            return Ok(*ModuleResolveResult::module(*resolved));
+        if self.lazy_compilation && self.resolve_override.is_none() {
+            let request = self.request.await?;
+            // Pattern requests need their resolved result map for runtime dispatch. A constant
+            // request can use one proxy and defer resolution and processing until activation.
+            if let Some(request_string) = &self.request_string {
+                let origin = self.origin.into_trait_ref().await?;
+                let ident = AssetIdent::from_path(origin.origin_path())
+                    .with_layer(origin.asset_context().into_trait_ref().await?.layer())
+                    .with_modifier(format!("lazy compilation proxy {request:?}").into())
+                    .into_vc()
+                    .to_resolved()
+                    .await?;
+                let key = activation_key(&ident.to_string().await?);
+                let target = lazy_compilation_target_reference(
+                    *self.origin,
+                    *self.request,
+                    self.issue_source.without_range(),
+                    self.error_mode,
+                    self.import_externals,
+                )
+                .to_resolved()
+                .await?;
+                let proxy = LazyCompilationProxyModule::new_unresolved(
+                    *ResolvedVc::upcast(target),
+                    *self.request,
+                    request_string.clone(),
+                    *self.origin,
+                    self.import_externals,
+                    *ident,
+                    key,
+                )
+                .to_resolved()
+                .await?;
+                return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(proxy)));
+            }
         }
 
-        esm_resolve(
-            *self.origin,
-            *self.request,
-            EcmaScriptModulesReferenceSubType::DynamicImport,
-            self.error_mode,
-            Some(self.issue_source),
-        )
-        .await
+        let result = if let Some(resolved) = &self.resolve_override {
+            *ModuleResolveResult::module(*resolved)
+        } else {
+            esm_resolve(
+                *self.origin,
+                *self.request,
+                EcmaScriptModulesReferenceSubType::DynamicImport,
+                self.error_mode,
+                Some(self.issue_source),
+            )
+            .await?
+        };
+
+        if !self.lazy_compilation {
+            return Ok(result);
+        }
+
+        let result = result.await?;
+        let mut primary = Vec::with_capacity(result.primary.len());
+        for (key, item) in result.primary.iter() {
+            let item = if let ModuleResolveResultItem::Module(module) = item
+                && let Some(target) =
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*module)
+            {
+                let proxy_ident = target
+                    .ident()
+                    .owned()
+                    .await?
+                    .with_modifier(rcstr!("lazy compilation proxy"))
+                    .into_vc()
+                    .to_resolved()
+                    .await?;
+                let ident = proxy_ident.to_string().await?;
+                let proxy = LazyCompilationProxyModule::new_resolved(
+                    *target,
+                    *proxy_ident,
+                    activation_key(&ident),
+                )
+                .to_resolved()
+                .await?;
+                ModuleResolveResultItem::Module(ResolvedVc::upcast(proxy))
+            } else {
+                item.clone()
+            };
+            primary.push((key.clone(), item));
+        }
+
+        Ok(ModuleResolveResult {
+            primary: primary.into_boxed_slice(),
+            affecting_sources: result.affecting_sources.clone(),
+        }
+        .cell())
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {

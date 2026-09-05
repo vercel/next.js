@@ -454,6 +454,14 @@ impl IssueSource {
         }
     }
 
+    /// Drops the precise range while preserving the source file.
+    pub fn without_range(self) -> Self {
+        IssueSource {
+            range: None,
+            ..self
+        }
+    }
+
     pub fn from_line_col(
         source: ResolvedVc<Box<dyn Source>>,
         start: SourcePos,

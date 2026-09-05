@@ -404,6 +404,7 @@ export async function createHotReloaderTurbopack(
   const dev = true
   const buildId = 'development'
   const { nextConfig, dir: projectPath } = opts
+  const lazyDynamicImports = nextConfig.experimental.turbopackLazyDynamicImports
 
   const bindings = getBindingsSync()
 
@@ -1429,6 +1430,30 @@ export async function createHotReloaderTurbopack(
               url: req.url,
             })
             .catch(console.error)
+        }
+      }
+
+      // Requesting the manifest chunk of a lazily compiled dynamic import is what activates it,
+      // so the owning entrypoints have to be rebuilt before the static handler reads it off disk.
+      if (lazyDynamicImports && req.url?.startsWith('/_next/static/chunks/')) {
+        // Turbopack names chunks relative to `/_next`, and so does `AssetMapper`.
+        const chunkPath = decodeURIComponent(
+          req.url.split('?')[0].slice('/_next/'.length)
+        )
+        const keys = assetMapper.getKeysByAsset(chunkPath)
+        try {
+          if (keys.length > 0 && (await project.activateLazyChunk(chunkPath))) {
+            for (const key of keys) {
+              await hotReloader.ensurePage({
+                page: splitEntryKey(key).page,
+                clientOnly: false,
+                definition: undefined,
+                url: req.url,
+              })
+            }
+          }
+        } catch (err) {
+          console.error(err)
         }
       }
 
