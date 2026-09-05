@@ -708,6 +708,19 @@ impl TurboTasksBackend {
                 );
             }
 
+            // A canceled task will never run again, so it can never become clean and nothing
+            // will ever fire its `all_clean_event`. Subscribing below would park this reader
+            // forever, which is what stranded the NFT chain: `task_execution_canceled` notifies
+            // existing waiters, but a reader arriving *after* the cancel re-creates the
+            // activeness and waits on an event with no remaining notifier. Report the
+            // cancellation instead, matching `check_in_progress`.
+            if matches!(task.get_in_progress(), Some(InProgressState::Canceled)) {
+                let description = task.get_task_description();
+                drop(task);
+                drop(reader_task);
+                return Err(anyhow::anyhow!("{} was canceled", description));
+            }
+
             let is_dirty = task.is_dirty();
 
             // Check the dirty count of the root node
@@ -2128,11 +2141,18 @@ impl TurboTasksBackend {
         // forever and its whole `read_strongly_consistent` chain stays suspended, holding
         // foreground jobs that `stop_and_wait` then blocks on.
         if let Some(activeness_state) = task.get_activeness_mut() {
+            // TEMP INSTRUMENTATION (do not ship): confirm this path runs for the stranded roots.
+            eprintln!("[GC-HANG] task_execution_canceled({task_id:?}): notifying all_clean_event");
             activeness_state.all_clean_event.notify(usize::MAX);
             activeness_state.unset_active_until_clean();
             if activeness_state.is_empty() {
                 task.take_activeness();
             }
+        } else {
+            eprintln!(
+                "[GC-HANG] task_execution_canceled({task_id:?}): NO activeness state — a reader \
+                 that subscribes after this point will never be notified"
+            );
         }
 
         // Mark the cancelled task as session-dependent dirty so it will be re-executed
