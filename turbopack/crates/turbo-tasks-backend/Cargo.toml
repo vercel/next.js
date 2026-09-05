@@ -23,6 +23,9 @@ verify_aggregation_graph = []
 verify_immutable = []
 verify_determinism = ["turbo-tasks/verify_determinism"]
 task_dirty_cause = ["turbo-tasks/task_dirty_cause"]
+# TEMP (do not merge): lets the napi build turn on turbo-tasks' hang reporting, which prints an
+# unfulfilled EventListener's description and note after a timeout.
+hanging_detection = ["turbo-tasks/hanging_detection"]
 trace_aggregation_update_stats = []
 trace_aggregation_update_queue = []
 trace_aggregation_update = ["trace_aggregation_update_queue"]

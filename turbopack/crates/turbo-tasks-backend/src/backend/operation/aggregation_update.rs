@@ -1877,7 +1877,7 @@ impl AggregationUpdateQueue {
             }
         }
         if let Some((reason, parent_priority)) = should_schedule {
-            let description = EventDescription::new(|| task.get_task_desc_fn());
+            let description = EventDescription::new(|| task.get_task_id_desc_fn());
             if task.add_scheduled(reason, description) {
                 drop(task);
                 self.scheduled_tasks.insert(task_id, parent_priority);

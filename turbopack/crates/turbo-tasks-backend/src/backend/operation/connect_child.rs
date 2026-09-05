@@ -147,7 +147,7 @@ impl ConnectChildOperation {
             if !has_output
                 && child_task.add_scheduled(
                     TaskExecutionReason::Connect,
-                    EventDescription::new(|| child_task.get_task_desc_fn()),
+                    EventDescription::new(|| child_task.get_task_id_desc_fn()),
                 )
             {
                 ctx.schedule_task(&child_task, ctx.get_current_task_priority());

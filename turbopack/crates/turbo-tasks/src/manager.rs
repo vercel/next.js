@@ -1651,31 +1651,11 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 false, // in_top_level_task
                             ));
                         let single_execution_future = async {
-                            // TEMP INSTRUMENTATION (do not ship): separates "never dispatched"
-                            // from "dispatched then bailed" for the stuck NFT chain. Restricted
-                            // to those task ids: a build schedules hundreds of tasks and logging
-                            // all of them would add ~10k lines per run.
-                            //
-                            // 89080/89081 (traced_modules_for_entries and
-                            // traced_module_idents_for_graph) are stable across every run; the
-                            // other two shift a little, so match the 55900-57000 band that
-                            // ServerNftJsonAsset::content and ModuleGraph::from_graphs land in.
                             let stopped = this.stopped.load(Ordering::Acquire);
-                            let id = *task_id;
-                            let watched =
-                                id == 89080 || id == 89081 || (55900..=57000).contains(&id);
-                            if watched {
-                                eprintln!(
-                                    "[GC-HANG] execute({task_id:?}): reached executor, \
-                                     stopped={stopped}"
-                                );
-                            }
                             if stopped {
-                                if watched {
-                                    eprintln!(
-                                        "[GC-HANG] execute({task_id:?}): canceled because stopped"
-                                    );
-                                }
+                                eprintln!(
+                                    "[GC-HANG] execute({task_id:?}): canceled because stopped"
+                                );
                                 this.backend.task_execution_canceled(task_id, &*this);
                                 return None;
                             }

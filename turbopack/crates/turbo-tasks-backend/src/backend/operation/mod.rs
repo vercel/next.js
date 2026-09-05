@@ -1671,6 +1671,17 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         let task_id = self.id();
         move || format!("{task_id:?} {task_type}")
     }
+
+    /// Like [`Self::get_task_desc_fn`], but reads only the task id.
+    ///
+    /// The task type is a `Data`-category field, so `get_task_desc_fn` panics when called on a
+    /// guard opened with `Meta` only. That is normally invisible because
+    /// [`EventDescription::new`] compiles its closure out unless the `hanging_detection` feature
+    /// is on — enabling that feature turns those calls into panics. Use this at `Meta` call sites.
+    fn get_task_id_desc_fn(&self) -> impl Fn() -> String + Send + Sync + 'static {
+        let task_id = self.id();
+        move || format!("{task_id:?}")
+    }
     fn get_task_description(&self) -> String {
         let task_type = self.get_task_type().to_owned();
         let task_id = self.id();
