@@ -1,5 +1,6 @@
 mod cell_data;
 mod counter_map;
+mod dense_task_map;
 mod eviction;
 mod gc;
 mod operation;

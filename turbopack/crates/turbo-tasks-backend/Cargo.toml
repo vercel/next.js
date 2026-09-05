@@ -40,12 +40,14 @@ anyhow = { workspace = true }
 bincode = { workspace = true }
 auto-hash-map = { workspace = true }
 bitfield = { workspace = true }
+boxcar = { workspace = true }
 crossbeam-utils = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
 fs-err = { workspace = true }
 hashbrown = { workspace = true }
 indexmap = { workspace = true }
 jiff = "0.2.10"
+kovan = { workspace = true }
 lzzzz = { workspace = true, optional = true }
 parking_lot = { workspace = true }
 rand = { workspace = true }
