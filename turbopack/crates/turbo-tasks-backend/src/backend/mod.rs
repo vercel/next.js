@@ -703,6 +703,14 @@ impl TurboTasksBackend {
                     activeness.set_active_until_clean();
                     activeness
                 };
+                // TEMP INSTRUMENTATION (do not ship): pairs with the bail-out log in
+                // `dispose_root_task`. A bail-out only matters if somebody was waiting on this
+                // event, so record the subscription too.
+                eprintln!(
+                    "[GC-HANG] try_read_task_output({task_id:?}): subscribing to all_clean_event \
+                     (dirty={:?} dirty_containers={has_dirty_containers})",
+                    is_dirty.is_some()
+                );
                 let listener = activeness.all_clean_event.listen_with_note(move || {
                     // Reach the backend through the pinned `turbo_tasks` handle rather than
                     // cloning `self`: pinning keeps the backend alive for the closure's lifetime.
@@ -3500,6 +3508,18 @@ impl TurboTasksBackend {
         // from JS (`root_task_dispose`, or `SubscriptionTask::drop`) on a thread that
         // `stop_and_wait` does not drain.
         let Some(mut ctx) = self.try_execute_context(turbo_tasks) else {
+            // TEMP INSTRUMENTATION (do not ship): this bail-out is the suspected cause of the
+            // app-fetch-build-cache hang. It skips the `all_clean_event.notify` below, and that
+            // event is the only thing waking a `try_read_task_output` waiter that subscribed
+            // because the root had dirty containers. On canary this function used
+            // `execute_context` unconditionally and always reached the notify.
+            //
+            // If this line appears on hanging runs and not on passing ones, the bail-out is the
+            // cause rather than a coincidence.
+            eprintln!(
+                "[GC-HANG] dispose_root_task({task_id:?}): bailed out during shutdown, skipping \
+                 teardown and all_clean_event notify"
+            );
             return;
         };
 
