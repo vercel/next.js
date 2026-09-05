@@ -217,9 +217,20 @@ function navigateImpl(
     navigateType,
     navigationLock,
     map
-  ).catch(() => {
-    // If the navigation fails, return the current state
-    return state
+  ).catch((error) => {
+    // If the navigation was intentionally aborted (e.g. superseded by another navigation), return the current state
+    if (
+      error &&
+      (error.name === 'AbortError' ||
+        error.name === 'TimeoutError' ||
+        (typeof DOMException !== 'undefined' &&
+          error instanceof DOMException &&
+          error.name === 'AbortError'))
+    ) {
+      return state
+    }
+    // If the navigation fails because of a network error or rejected server response, fall back to a full-page (MPA) navigation
+    return completeHardNavigation(state, url, navigateType)
   })
 }
 
