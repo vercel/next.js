@@ -1,6 +1,9 @@
 /* eslint-env jest */
 import { join } from 'path'
-import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+import {
+  PHASE_DEVELOPMENT_SERVER,
+  PHASE_PRODUCTION_SERVER,
+} from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -336,6 +339,47 @@ describe('config', () => {
         }
       )
       expect(config.experimental.useCache).toBe(true)
+    })
+  })
+
+  describe('serverActions.allowedOrigins inheriting allowedDevOrigins', () => {
+    it('inherits allowedDevOrigins into serverActions.allowedOrigins in development', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          allowedDevOrigins: ['example.vercel.sh', '127.0.0.1'],
+        },
+      })
+      expect(config.experimental.serverActions?.allowedOrigins).toEqual([
+        'example.vercel.sh',
+        '127.0.0.1',
+      ])
+    })
+
+    it('merges allowedDevOrigins with existing serverActions.allowedOrigins without duplicates', async () => {
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, '<rootDir>', {
+        customConfig: {
+          allowedDevOrigins: ['example.vercel.sh', 'shared.vercel.sh'],
+          experimental: {
+            serverActions: {
+              allowedOrigins: ['my-app.com', 'shared.vercel.sh'],
+            },
+          },
+        },
+      })
+      expect(config.experimental.serverActions?.allowedOrigins).toEqual([
+        'my-app.com',
+        'shared.vercel.sh',
+        'example.vercel.sh',
+      ])
+    })
+
+    it('does not inherit allowedDevOrigins in production', async () => {
+      const config = await loadConfig(PHASE_PRODUCTION_SERVER, '<rootDir>', {
+        customConfig: {
+          allowedDevOrigins: ['example.vercel.sh'],
+        },
+      })
+      expect(config.experimental.serverActions?.allowedOrigins).toBeUndefined()
     })
   })
 })

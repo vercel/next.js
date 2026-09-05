@@ -1215,6 +1215,9 @@ export interface ExperimentalConfig {
     /**
      * Allowed origins that can bypass Server Action's CSRF check. This is helpful
      * when you have reverse proxy in front of your app.
+     *
+     * In development, this inherits any hosts configured via `allowedDevOrigins`,
+     * so trusted dev origins only need to be configured in a single place.
      * @example
      * ["my-app.com", "*.my-app.com"]
      */
