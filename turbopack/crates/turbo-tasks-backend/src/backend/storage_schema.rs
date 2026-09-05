@@ -18,23 +18,22 @@
 //! - `meta` - Rarely changed metadata (output, aggregation, flags)
 //! - `transient` - Not serialized, only exists in memory
 use std::{
-    cell::UnsafeCell,
     fmt,
     hash::{BuildHasherDefault, Hash},
     sync::Arc,
 };
 
-use parking_lot::{Mutex, RawMutex, lock_api::RawMutex as RawMutexTrait};
+use parking_lot::{Mutex, lock_api::RawMutex as _};
 use rustc_hash::FxHasher;
 use turbo_tasks::{
-    CellId, SharedReference, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
+    CellId, SharedReference, ShrinkToFit, TaskExecutionReason, TaskId, TraitTypeId, ValueTypeId,
     backend::{CachedTaskTypeArc, CellHash, TransientTaskType},
     event::Event,
     task_storage,
 };
 
 use crate::{
-    backend::{cell_data::CellData, counter_map::CounterMap},
+    backend::{cell_data::CellData, counter_map::CounterMap, dense_task_map::TaskSlotValue},
     data::{
         ActivenessState, AggregationNumber, CellRef, CollectibleRef, CollectiblesRef, Dirtyness,
         InProgressCellState, InProgressState, LeafDistance, OutputValue, RootType, TransientTask,
@@ -49,31 +48,42 @@ type AutoSet<K, const I: usize> = auto_hash_map::AutoSet<K, BuildHasherDefault<F
 /// See [`AutoSet`] for the meaning of `I`.
 type AutoMap<K, V, const I: usize> = auto_hash_map::AutoMap<K, V, BuildHasherDefault<FxHasher>, I>;
 
-/// One-byte parking_lot lock embedded in each task's storage.
+/// Intrusive parking_lot lock embedded in each always-initialized task slot.
 ///
-/// The lock is synchronization metadata: snapshots create a fresh lock rather than copying its
-/// state. This wrapper supplies the generated storage type's trait requirements.
-pub(crate) struct IntrusiveTaskLock(RawMutex);
+/// The newtype supplies the generated `Debug`, `Default`, and `ShrinkToFit` requirements while
+/// retaining parking_lot's standard RAII guard and one-byte mutex layout.
+pub(crate) struct IntrusiveTaskLock(Mutex<()>);
 
 impl IntrusiveTaskLock {
-    const fn new() -> Self {
-        Self(<RawMutex as RawMutexTrait>::INIT)
-    }
-
-    fn lock(&self) {
-        self.0.lock();
-    }
-
-    /// # Safety
-    ///
-    /// The current thread must own this lock and perform no protected access after this call.
-    unsafe fn unlock(&self) {
-        // SAFETY: Forwarded from the caller.
-        unsafe { self.0.unlock() };
+    pub(crate) const fn new() -> Self {
+        Self(Mutex::new(()))
     }
 
     #[cfg(test)]
-    fn is_locked(&self) -> bool {
+    pub(crate) fn lock(&self) -> parking_lot::MutexGuard<'_, ()> {
+        self.0.lock()
+    }
+
+    /// # Safety
+    /// `lock` must point to a live, stably-addressed lock.
+    unsafe fn lock_raw(lock: *const Self) {
+        // SAFETY: guaranteed by the caller; projecting `.0` does not form a reference to payload.
+        let mutex = unsafe { &*std::ptr::addr_of!((*lock).0) };
+        // SAFETY: the mutex remains live and stable until the matching unlock.
+        unsafe { mutex.raw() }.lock();
+    }
+
+    /// # Safety
+    /// The current thread must own the lock at `lock`.
+    unsafe fn unlock_raw(lock: *const Self) {
+        // SAFETY: guaranteed by the caller; this is the lock acquired by `lock_raw`.
+        let mutex = unsafe { &*std::ptr::addr_of!((*lock).0) };
+        let raw = unsafe { mutex.raw() };
+        unsafe { raw.unlock() };
+    }
+
+    #[cfg(test)]
+    pub(crate) fn is_locked(&self) -> bool {
         self.0.is_locked()
     }
 }
@@ -90,81 +100,9 @@ impl fmt::Debug for IntrusiveTaskLock {
     }
 }
 
-/// Opaque interior-mutable task slot used when a resident map guard provides lifetime but not
-/// payload exclusion.
-///
-/// # Unsafe access protocol
-///
-/// - An unlocked slot never exposes a `TaskStorage` reference.
-/// - `lock` acquires the embedded task lock through the raw slot pointer before references exist.
-/// - Only a lock-owning storage guard may call `get` or materialize a mutable reference from
-///   `as_ptr`.
-/// - A structural map write guard may call `get_mut_exclusive` because it excludes all map readers.
-/// - The task lock is released before the map guard that keeps this allocation alive.
-#[repr(transparent)]
-pub(crate) struct TaskSlot(UnsafeCell<TaskStorage>);
-
-impl TaskSlot {
-    pub(crate) fn new() -> Self {
-        Self(UnsafeCell::new(TaskStorage::new()))
-    }
-
-    pub(crate) fn as_ptr(&self) -> *mut TaskStorage {
-        self.0.get()
-    }
-
-    pub(crate) fn lock(&self) {
-        // SAFETY: Project only the embedded lock from the opaque cell. No TaskStorage reference is
-        // materialized before exclusion is acquired.
-        unsafe { (&*std::ptr::addr_of!((*self.as_ptr()).lock)).lock() };
-    }
-
-    /// # Safety
-    /// The caller must own this slot's task lock and perform no protected access after unlocking.
-    pub(crate) unsafe fn unlock(&self) {
-        // SAFETY: Forwarded from the caller; projection does not materialize TaskStorage.
-        unsafe { (&*std::ptr::addr_of!((*self.as_ptr()).lock)).unlock() };
-    }
-
-    /// # Safety
-    /// The caller must own this slot's task lock.
-    pub(crate) unsafe fn get(&self) -> &TaskStorage {
-        // SAFETY: Forwarded from the caller.
-        unsafe { &*self.as_ptr() }
-    }
-
-    pub(crate) fn get_mut_exclusive(&mut self) -> &mut TaskStorage {
-        self.0.get_mut()
-    }
-
-    pub(crate) fn into_inner(self) -> TaskStorage {
-        self.0.into_inner()
-    }
-
-    #[cfg(test)]
-    pub(crate) fn is_locked(&self) -> bool {
-        // SAFETY: Reading the raw lock state does not expose the task payload.
-        unsafe { (&*std::ptr::addr_of!((*self.as_ptr()).lock)).is_locked() }
-    }
-
-    pub(crate) fn with_lock<R>(&self, f: impl FnOnce(&TaskStorage) -> R) -> R {
-        self.lock();
-        struct Unlock<'a>(&'a TaskSlot);
-        impl Drop for Unlock<'_> {
-            fn drop(&mut self) {
-                // SAFETY: `with_lock` acquired this lock and the closure has returned/unwound.
-                unsafe { self.0.unlock() };
-            }
-        }
-        let _unlock = Unlock(self);
-        // SAFETY: The lock-owning lexical guard remains alive through the closure.
-        f(unsafe { self.get() })
-    }
+impl ShrinkToFit for IntrusiveTaskLock {
+    fn shrink_to_fit(&mut self) {}
 }
-
-// SAFETY: all shared payload access is governed by the protocol above. Structural mutation uses
-// `&mut TaskSlot`, while ordinary mutation owns the embedded task lock.
-unsafe impl Sync for TaskSlot {}
 
 /// The complete task storage schema.
 ///
@@ -677,7 +615,72 @@ pub enum KeyEvictability {
     Unevictable,
 }
 
+// SAFETY: `TaskStorage::empty_slot` always initializes the mutex. Dense chunks pin every slot
+// after publication, and `take_and_vacate` moves only payload fields while preserving that mutex.
+unsafe impl TaskSlotValue for TaskStorage {
+    const EMPTY: Self = Self::empty_slot();
+    unsafe fn lock_raw(value: *const Self) {
+        // SAFETY: TaskSlotValue guarantees a live, stably-addressed TaskStorage.
+        unsafe { IntrusiveTaskLock::lock_raw(std::ptr::addr_of!((*value).lock)) };
+    }
+
+    unsafe fn unlock_raw(value: *const Self) {
+        // SAFETY: TaskSlotGuard owns the lock acquired through the same raw value pointer.
+        unsafe { IntrusiveTaskLock::unlock_raw(std::ptr::addr_of!((*value).lock)) };
+    }
+
+    fn is_occupied(&self) -> bool {
+        self.is_occupied()
+    }
+
+    fn occupy(&mut self) {
+        self.occupy();
+    }
+
+    fn take_and_vacate(&mut self) -> Self {
+        self.take_and_vacate()
+    }
+
+    fn vacate_in_place(&mut self) {
+        self.vacate_in_place();
+    }
+}
+
 impl TaskStorage {
+    pub(crate) fn is_occupied(&self) -> bool {
+        self.occupied
+    }
+
+    pub(crate) fn occupy(&mut self) {
+        debug_assert!(!self.occupied);
+        self.occupied = true;
+    }
+
+    /// Canonical const representation of a vacant, always-initialized dense task slot.
+    pub const fn empty_slot() -> Self {
+        Self {
+            leaf_distance: LeafDistance {
+                distance: 0,
+                max_distance_in_buffer: 0,
+            },
+            aggregation_number: AggregationNumber {
+                base: 0,
+                distance: 0,
+                effective: 0,
+            },
+            output_dependent: AutoSet::with_hasher(),
+            output: None,
+            upper: CounterMap::new(),
+            parent_count: 0,
+            transient_ref_count: 0,
+            persistent_task_type: None,
+            flags: TaskFlags::empty(),
+            lazy: TinyVec::new(),
+            lock: IntrusiveTaskLock::new(),
+            occupied: false,
+        }
+    }
+
     /// Determine the evictability level of this task based on its flags.
     ///
     /// This checks only the flags on the TaskStorage itself. The caller
@@ -1171,12 +1174,15 @@ impl<K: IsTransient + Hash + Eq, V: IsTransient, const I: usize> DropPartial for
 }
 #[cfg(test)]
 mod tests {
-    use std::mem::size_of;
+    use std::{mem::size_of, sync::atomic::AtomicU64};
 
     use turbo_tasks::{CellId, TaskId};
 
     use super::*;
-    use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
+    use crate::{
+        backend::dense_task_map::{BITMAP_WORDS, CHUNK_SIZE, TaskChunk, TaskSlot},
+        data::{AggregationNumber, CellRef, Dirtyness, OutputValue},
+    };
 
     #[test]
     fn test_accessors() {
@@ -1908,17 +1914,75 @@ mod tests {
     // Schema Size Tests
     // ==========================================================================
 
+    fn with_task_locked<R>(task: &mut TaskStorage, f: impl FnOnce(&mut TaskStorage) -> R) -> R {
+        let task = task as *mut TaskStorage;
+        // SAFETY: The exclusive reference proves no other thread can access this test value. The
+        // guard remains live while the closure receives the sole mutable reference.
+        let guard = unsafe { (&*task).lock.lock() };
+        // SAFETY: The guard owns the embedded mutex and the original `&mut` was exclusive.
+        let result = f(unsafe { &mut *task });
+        drop(guard);
+        result
+    }
+
     #[test]
-    fn snapshot_clone_has_an_independent_unlocked_task_lock() {
-        let slot = TaskSlot::new();
-        slot.lock();
-        assert!(slot.is_locked());
-        // SAFETY: This test holds the slot lock until after cloning.
-        let snapshot = unsafe { slot.get() }.clone_snapshot();
-        assert!(slot.is_locked());
+    fn const_empty_slots_have_independent_unlocked_mutexes() {
+        let empty_task = const { TaskStorage::empty_slot() };
+        let slots = [const { TaskStorage::empty_slot() }; 2];
+        assert!(!empty_task.is_occupied());
+        assert!(!slots[0].is_occupied());
+        assert!(!slots[1].is_occupied());
+        assert!(!slots[0].lock.is_locked());
+        assert!(!slots[1].lock.is_locked());
+        let guard = slots[0].lock.lock();
+        assert!(slots[0].lock.is_locked());
+        assert!(!slots[1].lock.is_locked());
+        drop(guard);
+    }
+
+    #[test]
+    fn vacate_preserves_lock_and_resets_payload() {
+        let mut task = TaskStorage::empty_slot();
+        let lock_address = std::ptr::addr_of!(task.lock);
+        let detached = with_task_locked(&mut task, |task| {
+            task.occupy();
+            task.set_output(OutputValue::Output(TaskId::new(1).unwrap()));
+            task.take_and_vacate()
+        });
+        assert_eq!(std::ptr::addr_of!(task.lock), lock_address);
+        assert!(!task.lock.is_locked());
+        assert!(!task.is_occupied());
+        assert_eq!(task.get_output(), None);
+        assert_eq!(
+            detached.get_output(),
+            Some(&OutputValue::Output(TaskId::new(1).unwrap()))
+        );
+        assert!(!detached.lock.is_locked());
+        assert!(!detached.is_occupied());
+        with_task_locked(&mut task, |task| {
+            task.occupy();
+            task.set_output(OutputValue::Output(TaskId::new(2).unwrap()));
+            assert!(task.is_occupied());
+            task.vacate_in_place();
+            assert!(task.lock.is_locked());
+            assert!(!task.is_occupied());
+            assert_eq!(task.get_output(), None);
+        });
+    }
+
+    #[test]
+    fn snapshot_clone_has_fresh_synchronization_state() {
+        let mut task = TaskStorage::empty_slot();
+        let snapshot = with_task_locked(&mut task, |task| {
+            task.occupy();
+            task.set_output(OutputValue::Output(TaskId::new(1).unwrap()));
+            let snapshot = task.clone_snapshot();
+            assert!(task.lock.is_locked());
+            assert_eq!(snapshot.get_output(), task.get_output());
+            snapshot
+        });
         assert!(!snapshot.lock.is_locked());
-        // SAFETY: This test acquired the source lock above and accesses it no further.
-        unsafe { slot.unlock() };
+        assert!(!snapshot.is_occupied());
     }
 
     #[test]
@@ -1930,9 +1994,29 @@ mod tests {
             "TaskStorage size changed! Update this test."
         );
         assert_eq!(
-            size_of::<TaskSlot>(),
-            size_of::<TaskStorage>(),
-            "the transparent resident slot must add no per-task size"
+            size_of::<Option<TaskStorage>>(),
+            128,
+            "TaskStorage's niche should make its Option free"
+        );
+        assert_eq!(
+            size_of::<TaskSlot<TaskStorage>>(),
+            128,
+            "intrusive task slot must not add padding"
+        );
+        assert_eq!(
+            size_of::<[AtomicU64; BITMAP_WORDS]>(),
+            CHUNK_SIZE / 8,
+            "chunk occupancy bitmap size changed"
+        );
+        assert_eq!(
+            size_of::<TaskChunk<TaskStorage>>(),
+            24 + CHUNK_SIZE / 8,
+            "chunk counters and bitmap size changed"
+        );
+        assert_eq!(
+            size_of::<[TaskSlot<TaskStorage>; CHUNK_SIZE]>(),
+            128 * CHUNK_SIZE,
+            "chunk slot allocation size changed"
         );
         // `LazyField` is 40 B = 32 B largest payload + 8 B discriminant.
         assert_eq!(
