@@ -2164,8 +2164,22 @@ impl TurboTasksBackend {
                 ctx.prepare_tasks(tasks, "prefetch");
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
-            let in_progress = task.take_in_progress()?;
+            // TEMP INSTRUMENTATION (do not ship): both early returns below leave the foreground
+            // job counter incremented (`schedule` bumped it; only the executor's
+            // `finish_foreground_job` decrements, and that runs after this returns Some). If a
+            // stuck task takes either path, that is the leak.
+            let Some(in_progress) = task.take_in_progress() else {
+                eprintln!(
+                    "[GC-HANG] try_start_task_execution({task_id:?}): no in-progress state — \
+                     returning None"
+                );
+                return None;
+            };
             let InProgressState::Scheduled { done_event, reason } = in_progress else {
+                eprintln!(
+                    "[GC-HANG] try_start_task_execution({task_id:?}): in-progress but not \
+                     Scheduled — returning None"
+                );
                 let old = task.set_in_progress(in_progress);
                 debug_assert!(old.is_none(), "InProgress already exists");
                 return None;
