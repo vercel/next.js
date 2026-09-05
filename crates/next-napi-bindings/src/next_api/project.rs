@@ -822,7 +822,15 @@ pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<()> {
     let tt = project.turbopack_ctx.turbo_tasks();
+    // TEMP INSTRUMENTATION (do not ship): how much work is still in flight when a *build* starts
+    // shutting down. Expected to be zero: write_all_entrypoints_to_disk ends in a strongly
+    // consistent read, so everything it needed should have completed.
+    eprintln!(
+        "[GC-HANG] project_shutdown: BEGIN, in_progress_foreground_jobs={}",
+        tt.get_in_progress_count()
+    );
     tt.stop_and_wait().await;
+    eprintln!("[GC-HANG] project_shutdown: stop_and_wait returned");
     run_exit_handlers(&project.exit_receiver).await;
     Ok(())
 }
@@ -1351,6 +1359,11 @@ pub async fn project_write_all_entrypoints_to_disk(
     let container = project.container;
     let tt = ctx.turbo_tasks();
 
+    // TEMP INSTRUMENTATION (do not ship): bracket the write phase. In `next build` nothing should
+    // still be executing once the strongly consistent reads below have returned, so a task
+    // running at shutdown means work escaped this scope.
+    eprintln!("[GC-HANG] project_write_all_entrypoints_to_disk: BEGIN");
+
     #[turbo_tasks::function(operation, root)]
     async fn has_deferred_entrypoints_operation(
         container: ResolvedVc<ProjectContainer>,
@@ -1555,6 +1568,14 @@ pub async fn project_write_all_entrypoints_to_disk(
         .await?;
 
     issues.extend(emit_issues.iter().cloned());
+
+    // TEMP INSTRUMENTATION (do not ship): pairs with the BEGIN above. A non-zero count here means
+    // work is still running after every strongly consistent read in this function has returned,
+    // which is what leaves tasks to be canceled by the shutdown that follows.
+    eprintln!(
+        "[GC-HANG] project_write_all_entrypoints_to_disk: END, in_progress_foreground_jobs={}",
+        tt.get_in_progress_count()
+    );
 
     Ok(TurbopackResult {
         result: if let Some(entrypoints) = entrypoints {

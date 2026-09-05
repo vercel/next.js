@@ -2121,6 +2121,20 @@ impl TurboTasksBackend {
             }
         }
 
+        // Same for a strongly consistent reader waiting on this task's activeness. It subscribed
+        // to `all_clean_event` because the task was dirty or had dirty containers, and the only
+        // other notifier fires on a transition *to* clean. A canceled task never becomes clean —
+        // the `update_dirty_state` below in fact marks it dirty — so without this the reader waits
+        // forever and its whole `read_strongly_consistent` chain stays suspended, holding
+        // foreground jobs that `stop_and_wait` then blocks on.
+        if let Some(activeness_state) = task.get_activeness_mut() {
+            activeness_state.all_clean_event.notify(usize::MAX);
+            activeness_state.unset_active_until_clean();
+            if activeness_state.is_empty() {
+                task.take_activeness();
+            }
+        }
+
         // Mark the cancelled task as session-dependent dirty so it will be re-executed
         // in the next session. Without this, any reader that encounters the cancelled task
         // records an error in its output. That error is persisted and would poison

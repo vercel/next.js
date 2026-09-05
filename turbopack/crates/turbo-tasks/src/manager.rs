@@ -1653,8 +1653,12 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                         let single_execution_future = async {
                             let stopped = this.stopped.load(Ordering::Acquire);
                             if stopped {
+                                // TEMP INSTRUMENTATION (do not ship): name the task, not just
+                                // the id. In `next build` nothing should still be executing at
+                                // shutdown, so what these are is the question.
                                 eprintln!(
-                                    "[GC-HANG] execute({task_id:?}): canceled because stopped"
+                                    "[GC-HANG] canceled because stopped: {}",
+                                    this.backend.debug_describe_task(task_id)
                                 );
                                 this.backend.task_execution_canceled(task_id, &*this);
                                 return None;
