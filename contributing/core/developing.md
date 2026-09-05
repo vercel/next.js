@@ -76,6 +76,12 @@ _You can skip these steps if you don't intend to modify any Rust code._
    pnpm install
    ```
 
+1. On a fresh clone, build the packages once before starting the development server:
+
+   ```
+   pnpm build
+   ```
+
 1. Start developing and watch for JavaScript code changes using
    [Turborepo](https://turborepo.dev/):
 
