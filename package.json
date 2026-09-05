@@ -299,7 +299,7 @@
     "webpack-bundle-analyzer": "4.7.0",
     "webpack-dev-server": "5.2.0",
     "whatwg-fetch": "3.0.0",
-    "ws": "8.2.3",
+    "ws": "8.21.2",
     "yargs": "16.2.0"
   },
   "engines": {
@@ -343,7 +343,8 @@
       "@vercel/blob": "patches/@vercel__blob.patch",
       "postcss-scss": "patches/postcss-scss.patch",
       "playwright-core@1.61.0": "patches/playwright-core@1.61.0.patch",
-      "@types/node@20.17.7": "patches/@types__node@20.17.7.patch"
+      "@types/node@20.17.7": "patches/@types__node@20.17.7.patch",
+      "@edge-runtime/primitives@6.0.0": "patches/@edge-runtime__primitives@6.0.0.patch"
     }
   }
 }

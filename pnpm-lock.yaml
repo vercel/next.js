@@ -26,6 +26,9 @@ overrides:
 packageExtensionsChecksum: sha256-ylDR55omOZlT4Sfpfh6n7mO2r/cLCmlirAikJ/E/LAw=
 
 patchedDependencies:
+  '@edge-runtime/primitives@6.0.0':
+    hash: a1ab5639c9597bfebb04f5d9da945f7204c4de796451af23d4ff386a25540047
+    path: patches/@edge-runtime__primitives@6.0.0.patch
   '@modelcontextprotocol/sdk':
     hash: 680fe4edb7abd1de29d08cdf217a22506e815a8cc1c2282201d5d47aa3e5da12
     path: patches/@modelcontextprotocol__sdk.patch
@@ -635,8 +638,8 @@ importers:
         specifier: 3.0.0
         version: 3.0.0
       ws:
-        specifier: 8.2.3
-        version: 8.2.3
+        specifier: 8.21.2
+        version: 8.21.2
       yargs:
         specifier: 16.2.0
         version: 16.2.0
@@ -1208,7 +1211,7 @@ importers:
         version: 4.0.0
       '@edge-runtime/primitives':
         specifier: 6.0.0
-        version: 6.0.0
+        version: 6.0.0(patch_hash=a1ab5639c9597bfebb04f5d9da945f7204c4de796451af23d4ff386a25540047)
       '@hapi/accept':
         specifier: 5.0.2
         version: 5.0.2
@@ -1387,8 +1390,8 @@ importers:
         specifier: npm:@types/webpack-sources@0.1.5
         version: '@types/webpack-sources@0.1.5'
       '@types/ws':
-        specifier: 8.2.0
-        version: 8.2.0
+        specifier: 8.18.1
+        version: 8.18.1
       '@vercel/blob':
         specifier: 2.3.2
         version: 2.3.2(patch_hash=cb53bfa5effb15b3a361e176003df667cadf757b27b7c9b458c2f0fce86ea893)
@@ -1798,8 +1801,8 @@ importers:
         specifier: 7.0.1
         version: 7.0.1
       ws:
-        specifier: 8.2.3
-        version: 8.2.3
+        specifier: 8.21.2
+        version: 8.21.2
       zod:
         specifier: 3.25.76
         version: 3.25.76
@@ -7467,11 +7470,8 @@ packages:
   '@types/wrap-ansi@3.0.0':
     resolution: {integrity: sha512-ltIpx+kM7g/MLRZfkbL7EsCEjfzCcScLpkg37eXEtx5kmrAKBkTJwd1GIAjDSL8wTpM6Hzn5YO4pSb91BEwu1g==}
 
-  '@types/ws@8.2.0':
-    resolution: {integrity: sha512-cyeefcUCgJlEk+hk2h3N+MqKKsPViQgF5boi9TTHSK+PoR9KWBb/C5ccPcDyAqgsbAYHTwulch725DV84+pSpg==}
-
-  '@types/ws@8.5.14':
-    resolution: {integrity: sha512-bd/YFLW+URhBzMXurx7lWByOu+xzU9+kb3RboOteXYDfW+tr+JZa99OyNmPINEGB/ahzKrEuc8rcv4gnpJmxTw==}
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@types/yargs-parser@21.0.0':
     resolution: {integrity: sha512-iO9ZQHkZxHn4mSakYV0vFHAVDyEOIJQrV2uZ06HxEPcx+mt8swXoZHIbaaJ2crJYFfErySgktuTZ3BeLz+XmFA==}
@@ -18812,36 +18812,12 @@ packages:
       utf-8-validate:
         optional: true
 
-  ws@8.14.2:
-    resolution: {integrity: sha512-wEBG1ftX4jcglPxgFCMJmZ2PLtSbJ2Peg6TmpJFTbe9GZYOQCDPdMYu/Tm0/bGZkw8paZnJY45J4K2PZrLYq8g==}
+  ws@8.21.2:
+    resolution: {integrity: sha512-54dMVAo4WIe6SKy3vBgN+9bJZqqQ8IMRevAkOLQALhi49qkkQDQfWdAZ8KQlXiEabw88ARXXdUrlvtbKQX+aKw==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
       utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-
-  ws@8.18.0:
-    resolution: {integrity: sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-
-  ws@8.2.3:
-    resolution: {integrity: sha512-wBuoj1BDpC6ZQ1B7DWQBYVLphPWkm8i9Y0/3YdHjHKHiohOJ1ws+3OccDWtH+PoC9DZD5WOTrJvNbWvjS6JWaA==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: ^5.0.2
     peerDependenciesMeta:
       bufferutil:
         optional: true
@@ -20178,11 +20154,11 @@ snapshots:
 
   '@edge-runtime/ponyfill@4.0.0': {}
 
-  '@edge-runtime/primitives@6.0.0': {}
+  '@edge-runtime/primitives@6.0.0(patch_hash=a1ab5639c9597bfebb04f5d9da945f7204c4de796451af23d4ff386a25540047)': {}
 
   '@edge-runtime/vm@5.0.0':
     dependencies:
-      '@edge-runtime/primitives': 6.0.0
+      '@edge-runtime/primitives': 6.0.0(patch_hash=a1ab5639c9597bfebb04f5d9da945f7204c4de796451af23d4ff386a25540047)
 
   '@emnapi/core@1.10.0':
     dependencies:
@@ -23898,7 +23874,7 @@ snapshots:
       recast: 0.23.11
       semver: 7.6.3
       util: 0.12.5
-      ws: 8.2.3
+      ws: 8.21.2
     optionalDependencies:
       prettier: 3.6.2
     transitivePeerDependencies:
@@ -24791,11 +24767,7 @@ snapshots:
 
   '@types/wrap-ansi@3.0.0': {}
 
-  '@types/ws@8.2.0':
-    dependencies:
-      '@types/node': 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
-
-  '@types/ws@8.5.14':
+  '@types/ws@8.18.1':
     dependencies:
       '@types/node': 20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab)
 
@@ -31590,7 +31562,7 @@ snapshots:
       whatwg-encoding: 2.0.0
       whatwg-mimetype: 3.0.0
       whatwg-url: 11.0.0
-      ws: 8.14.2
+      ws: 8.21.2
       xml-name-validator: 4.0.0
     transitivePeerDependencies:
       - bufferutil
@@ -38638,7 +38610,7 @@ snapshots:
       '@types/serve-index': 1.9.4
       '@types/serve-static': 1.15.7
       '@types/sockjs': 0.3.36
-      '@types/ws': 8.5.14
+      '@types/ws': 8.18.1
       ansi-html-community: 0.0.8
       bonjour-service: 1.3.0
       chokidar: 3.6.0
@@ -38658,7 +38630,7 @@ snapshots:
       sockjs: 0.3.24
       spdy: 4.0.2
       webpack-dev-middleware: 7.4.2(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23)))
-      ws: 8.18.0
+      ws: 8.21.2
     optionalDependencies:
       webpack: 5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))
     transitivePeerDependencies:
@@ -38957,11 +38929,7 @@ snapshots:
 
   ws@7.5.3: {}
 
-  ws@8.14.2: {}
-
-  ws@8.18.0: {}
-
-  ws@8.2.3: {}
+  ws@8.21.2: {}
 
   xdg-app-paths@5.1.0:
     dependencies:

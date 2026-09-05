@@ -1,3 +1,7 @@
+import { isInternalHeader } from './internal-headers'
+
+export { isInternalHeader } from './internal-headers'
+
 export const ipcForbiddenHeaders = [
   'accept-encoding',
   'keepalive',
@@ -37,28 +41,28 @@ export const filterReqHeaders = (
   return headers as Record<string, undefined | string | string[]>
 }
 
-// These are headers that are only used internally and should
-// not be honored from the external request
-const INTERNAL_HEADERS = [
-  'x-middleware-rewrite',
-  'x-middleware-redirect',
-  'x-middleware-set-cookie',
-  'x-middleware-skip',
-  'x-middleware-override-headers',
-  'x-middleware-next',
-  'x-now-route-matches',
-  'x-matched-path',
-  'x-nextjs-data',
-  'x-next-resume-state-length',
-  'next-resume',
-]
-
 export const filterInternalHeaders = (
   headers: Record<string, undefined | string | string[]>
 ) => {
   for (const header in headers) {
-    if (INTERNAL_HEADERS.includes(header)) {
+    if (isInternalHeader(header)) {
       delete headers[header]
     }
   }
+}
+
+export const filterInternalRawHeaders = (headers: string[]) => {
+  let writeIndex = 0
+
+  for (let readIndex = 0; readIndex < headers.length; readIndex += 2) {
+    const name = headers[readIndex]
+    if (name && isInternalHeader(name)) continue
+
+    headers[writeIndex++] = name
+    if (readIndex + 1 < headers.length) {
+      headers[writeIndex++] = headers[readIndex + 1]
+    }
+  }
+
+  headers.length = writeIndex
 }

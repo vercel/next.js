@@ -1,0 +1,26 @@
+diff --git a/dist/fetch.js b/dist/fetch.js
+index dc742250d40657e2595b250ba91477266470a69b..a1255eb44c3028738c024f7967ad2ecfb1e47014 100644
+--- a/dist/fetch.js
++++ b/dist/fetch.js
+@@ -1732,6 +1732,8 @@ var require_undici_core_request = __commonJS({
+       } else if (request.contentType === null && headerName === "content-type") {
+         request.contentType = val;
+         request.headers.push(key, val);
++      } else if (headerName === "transfer-encoding" || headerName === "keep-alive" || headerName === "upgrade") {
++        throw new InvalidArgumentError(`invalid ${headerName} header`);
+       } else if (headerName === "connection") {
+         const value = typeof val === "string" ? val.toLowerCase() : null;
+         if (value !== "close" && value !== "keep-alive") {
+diff --git a/dist/load.js b/dist/load.js
+index d482b624795c041d6330d0c0fe0e0a6dfc845803..6e694f285d92989315f1f29b033728669f056575 100644
+--- a/dist/load.js
++++ b/dist/load.js
+@@ -1732,6 +1732,8 @@ var require_undici_core_request = __commonJS({
+       } else if (request.contentType === null && headerName === "content-type") {
+         request.contentType = val;
+         request.headers.push(key, val);
++      } else if (headerName === "transfer-encoding" || headerName === "keep-alive" || headerName === "upgrade") {
++        throw new InvalidArgumentError(`invalid ${headerName} header`);
+       } else if (headerName === "connection") {
+         const value = typeof val === "string" ? val.toLowerCase() : null;
+         if (value !== "close" && value !== "keep-alive") {
