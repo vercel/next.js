@@ -154,6 +154,26 @@ does not measure those edits. Next PRs run the e2e suite only.
   runs by default after the timed runs), `--prepare` (build caches
   only — use when two cells will share an arm, to avoid duplicate
   builds racing).
+- `--browser` (e2e suite) adds a timed headless-Chromium phase per
+  (run, arm). Initial load: `hydrate` (navigationStart-relative),
+  `hydrateClient` (ttfb-relative — a server latency shift can't
+  masquerade as a hydration change), `fcp`, `lcp`, `blocking`
+  (over-50ms long-task time up to the hydration mark), `script`/`task`
+  (CPU counters read at quiescence, so work deferred past the
+  hydration mark still counts), `heapMb` (after a forced GC —
+  retained, not transient). Client navigation (the browser-side
+  Flight parse path): `nav` (wall to URL commit), `navSettled` (wall
+  to last DOM mutation), `navScript`/`navTask` (counter deltas). All
+  under a fixed CPU throttle (`--browser-throttle`, default 4x;
+  `--browser-iterations`, default 10 medianed per run); server and
+  browser are pinned to disjoint CPU sets. The pinned Chromium is
+  baked into the experiment snapshot so both arms run the same
+  binary. Samples that never quiesce (pages with steady background
+  timers) surface through the row's `errors` field — counters are
+  then windowed reads, not totals. Browser metrics carry the same
+  claim bar as everything else: A/A-validate them on the team/config
+  before first use (run one `--browser` cell with both arms at the
+  same ref and require no significant cells).
 - CPU profiles are captured by default: one profile pass per arm runs
   strictly AFTER the timed runs (it cannot touch the numbers), costs
   ~45-60 min extra VM wall-clock, and lands in `<runDir>/prof-vm<N>/`
@@ -191,6 +211,13 @@ boot-level mean, ±95% CI, and p across boots. Apply the policy in
   sign flips across boots. An inconsistency you cannot explain
   belongs in the report, not in the drawer.
 - The `within-run p` shown in brackets is a diagnostic, never a claim.
+- A null is only as strong as its interval. The analysis ends with a
+  `=== summary ===` block splitting every cell into claims (p < 0.01),
+  flags (0.01 ≤ p < 0.05), and `no effect resolved`, the last sorted
+  tightest first and each carrying `cannot rule out <X%` — the largest
+  effect still compatible with that cell's data. Read it: the top of
+  that list is evidence of no effect, the bottom is a cell that could
+  not have seen one. Never treat a loose null as evidence of parity.
 - Check the fingerprint header first: two distinct fingerprints = valid
   A/B; "inconsistent fingerprints" = invalid, report no numbers. The
   fingerprint hashes both bundlers' compiled server files — arms
@@ -219,7 +246,13 @@ Significant (boot-level p < 0.01, A/A-validated):
 | /dashboard under load | +14.4% throughput (req/s) | ±3.2% | <0.0001 |
 | /dashboard serial | −10.7% median latency (ms) | ±0.6% | <0.0001 |
 
-No detected difference: <every cell not in the table, by name>.
+No detected difference, with what each cell could have seen:
+| cell | rules out effects above |
+|---|---|
+| /blog hydrate | 1.7% |
+| /docs lcp | 6.1% |
+| /dashboard fcp | 12.7% |
+
 Flags: <cells at 0.01 ≤ p < 0.05, sign disagreements across boots,
 fingerprint caveats, anything that does not add up>
 ```
@@ -233,7 +266,13 @@ those cells are absent; say so instead of silently reporting less. State the pla
 are platform-dependent (GC share differs by CPU); direction and
 mechanism transfer, percentages do not. Never present a
 noise-compatible delta as a small win or loss — it is "no detected
-difference".
+difference". Copy the resolution limits from the summary block rather
+than listing null cells bare: "no difference" and "this run could not
+have seen a difference" are opposite conclusions, and only the limit
+tells them apart. A cell whose limit is larger than the effect size the
+change plausibly produces has not tested the change at all — say so,
+and say what it would take to resolve it (CI narrows with 1/√boots, so
+4x the VMs buys 2x the resolution).
 
 ## Results database
 
