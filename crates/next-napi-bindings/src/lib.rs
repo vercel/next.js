@@ -34,28 +34,22 @@ DEALINGS IN THE SOFTWARE.
 
 use std::sync::Arc;
 
-use napi::bindgen_prelude::create_custom_tokio_runtime;
 use swc_core::{
     base::Compiler,
     common::{FilePathMapping, SourceMap},
 };
 
 pub mod code_frame;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod lockfile;
 pub mod mdx;
 pub mod minify;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod next_api;
 pub mod parse;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod react_compiler;
 pub mod rspack;
 pub mod transform;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod turbo_trace_server;
-#[cfg(not(target_arch = "wasm32"))]
 pub mod turbopack;
 pub mod util;
 
@@ -82,6 +76,7 @@ fn init() {
         static LAST_SWC_ATOM_GC_TIME: RefCell<Option<Instant>> = const { RefCell::new(None) };
     }
 
+    use napi::bindgen_prelude::create_custom_tokio_runtime;
     use tokio::runtime::Builder;
     use turbo_tasks::{panic_hooks::handle_panic, parallel::available_parallelism};
     use turbo_tasks_malloc::TurboMalloc;

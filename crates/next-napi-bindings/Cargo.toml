@@ -83,24 +83,8 @@ swc_core = { workspace = true, features = [
     "ecma_visit",
 ] }
 
-# Dependencies for the native, non-wasm32 build.
-#
-# SWC's plugin host is native-only: `__plugin_transform_host` turns on `swc/plugin`, which pulls in
-# the plugin runner and compiles SWC's `target_arch = "wasm32"` plugin path, and SWC does not support
-# running wasm plugins from inside wasm (https://github.com/swc-project/swc/issues/3934).
-# `plugin_transform_host_native_filesystem_cache` is a native filesystem cache and cannot apply there
-# either.
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-swc_core = { workspace = true, features = [
-    "__plugin_transform_host",
-    "__plugin_transform_host_schema_v1",
-    "plugin_transform_host_native_filesystem_cache",
-] }
-swc_ecma_react_compiler = { workspace = true }
-turbopack-lightningcss-napi = { workspace = true }
-lightningcss = { workspace = true }
-swc_plugin_backend_wasmtime = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
+# Turbopack. These are built for wasm too, so that the wasm fallback can support Turbopack and not
+# just SWC.
 turbo-rcstr = { workspace = true, features = ["napi"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-backend = { workspace = true }
@@ -109,18 +93,43 @@ turbo-unix-path = { workspace = true }
 next-api = { workspace = true, features = ["worker_pool"] }
 next-build = { workspace = true }
 next-core = { workspace = true }
-
-mdxjs = { workspace = true, features = ["serializable"] }
-
-turbo-tasks-malloc = { workspace = true, default-features = false, features = [
-    "custom_allocator",
-] }
-
 turbopack-core = { workspace = true }
 turbopack-ecmascript-hmr-protocol = { workspace = true }
 turbopack-trace-utils = { workspace = true }
 turbopack-trace-server = { workspace = true }
 turbopack-node = { workspace = true, default-features = false, features = ["worker_pool"] }
+
+mdxjs = { workspace = true, features = ["serializable"] }
+
+# These back the `css` and `react_compiler` modules. They build for wasm32 as well as native, so they
+# are shared rather than native-only.
+swc_ecma_react_compiler = { workspace = true }
+turbopack-lightningcss-napi = { workspace = true }
+lightningcss = { workspace = true }
+
+# Dependencies for the native, non-wasm32 build.
+#
+# - SWC's plugin host is native-only: `__plugin_transform_host` turns on `swc/plugin`, which pulls in
+#   the plugin runner and compiles SWC's `target_arch = "wasm32"` plugin path, and SWC does not
+#   support running wasm plugins from inside wasm (https://github.com/swc-project/swc/issues/3934).
+#   `plugin_transform_host_native_filesystem_cache` is a native filesystem cache and cannot apply
+#   there either.
+# - `swc_plugin_backend_wasmtime` cannot run inside wasm; see
+#   `turbopack-ecmascript-plugins`.
+# - `tokio`'s `full` feature pulls in `process` and `signal`, which do not exist on wasi. The wasi
+#   build gets its own `tokio` below.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+swc_core = { workspace = true, features = [
+    "__plugin_transform_host",
+    "__plugin_transform_host_schema_v1",
+    "plugin_transform_host_native_filesystem_cache",
+] }
+swc_plugin_backend_wasmtime = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+
+turbo-tasks-malloc = { workspace = true, default-features = false, features = [
+    "custom_allocator",
+] }
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = "0.60"
@@ -130,8 +139,10 @@ windows-sys = "0.60"
 getrandom = { version = "0.2.9", default-features = false, features = ["js"] }
 iana-time-zone = { version = "*", features = ["fallback"] }
 
-mdxjs = { workspace = true }
-
+# `turbo-tasks-malloc`'s `custom_allocator` feature is built on mimalloc, which isn't available
+# inside a wasm instance, so it stays off here. `TurboMalloc`'s calls still compile but are no-ops:
+# there is no per-thread allocation accounting on wasm, so memory figures are absent from traces and
+# telemetry. Nothing is incorrect; restoring the numbers would need a wasm-specific allocator.
 turbo-tasks-malloc = { workspace = true, default-features = false }
 
 # wasi-only dependencies.
