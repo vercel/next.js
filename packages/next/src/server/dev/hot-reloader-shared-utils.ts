@@ -1,3 +1,4 @@
+import { getRegistry } from '../../lib/helpers/get-registry'
 import { getPathMatch } from '../../shared/lib/router/utils/path-match'
 import { parseVersionInfo, type VersionInfo } from './parse-version-info'
 
@@ -13,13 +14,22 @@ export async function getVersionInfo(): Promise<VersionInfo> {
     let res
 
     try {
+      const registry = await getRegistry()
       // use NPM registry regardless user using Yarn
-      res = await fetch('https://registry.npmjs.org/-/package/next/dist-tags')
+      res = await fetch(`${registry}-/package/next/dist-tags`)
     } catch {
       // ignore fetch errors
     }
+    const contentType = res?.headers?.get?.('content-type')
 
-    if (!res || !res.ok) return { installed, staleness: 'unknown' }
+    if (
+      !res ||
+      !res?.ok ||
+      // only reject if content-type is explicitly not JSON, absent content-type is treated as valid registry response
+      (contentType && contentType !== 'application/json')
+    ) {
+      return { installed, staleness: 'unknown' }
+    }
 
     const { latest, canary } = await res.json()
 
