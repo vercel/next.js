@@ -23,27 +23,43 @@ export const RouteAnnouncer = () => {
 
   // Only announce the path change, but not for the first load because screen
   // reader will do that automatically.
-  const previouslyLoadedPath = React.useRef(asPath)
+  const previousRoute = React.useRef<{
+    title: string
+    heading: string
+    asPath: string
+  } | null>(null)
 
   // Every time the path changes, announce the new page’s title following this
-  // priority: first the document title (from head), otherwise the first h1, or
-  // if none of these exist, then the pathname from the URL. This methodology is
-  // inspired by Marcy Sutton’s accessible client routing user testing. More
-  // information can be found here:
+  // priority: first the document title, otherwise the first h1, or if neither
+  // of those changed, the pathname from the URL. This methodology is inspired
+  // by Marcy Sutton’s accessible client routing user testing. More information
+  // can be found here:
   // https://www.gatsbyjs.com/blog/2019-07-11-user-testing-accessible-client-routing/
   React.useEffect(
     () => {
-      // If the path hasn't change, we do nothing.
-      if (previouslyLoadedPath.current === asPath) return
-      previouslyLoadedPath.current = asPath
+      const title = document.title
+      const pageHeader = document.querySelector('h1')
+      const heading = pageHeader
+        ? pageHeader.innerText || pageHeader.textContent || ''
+        : ''
 
-      if (document.title) {
-        setRouteAnnouncement(document.title)
-      } else {
-        const pageHeader = document.querySelector('h1')
-        const content = pageHeader?.innerText ?? pageHeader?.textContent
+      const previous = previousRoute.current
+      previousRoute.current = { title, heading, asPath }
 
-        setRouteAnnouncement(content || asPath)
+      if (previous === null) {
+        return
+      }
+
+      // Announce the first of these that actually changed. Falling through
+      // matters when two routes share a document title (e.g. `/docs` and
+      // `/docs/intro`): re-announcing the identical title is a no-op for React,
+      // so nothing would reach the live region at all.
+      if (title && title !== previous.title) {
+        setRouteAnnouncement(title)
+      } else if (heading && heading !== previous.heading) {
+        setRouteAnnouncement(heading)
+      } else if (asPath !== previous.asPath) {
+        setRouteAnnouncement(asPath)
       }
     },
     // TODO: switch to pathname + query object of dynamic route requirements
