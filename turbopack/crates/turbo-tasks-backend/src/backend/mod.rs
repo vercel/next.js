@@ -3530,6 +3530,12 @@ impl TurboTasksBackend {
         let is_dirty = task.is_dirty();
         let has_dirty_containers = task.has_dirty_containers();
         if is_dirty.is_some() || has_dirty_containers {
+            // TEMP INSTRUMENTATION (do not ship)
+            eprintln!(
+                "[GC-HANG] dispose_root_task({task_id:?}): dirty branch (dirty={:?} \
+                 dirty_containers={has_dirty_containers}) — leaving edges intact",
+                is_dirty.is_some()
+            );
             if let Some(activeness_state) = task.get_activeness_mut() {
                 // We will finish the task, but it would be removed after the task is done
                 activeness_state.unset_root_type();
@@ -3545,12 +3551,25 @@ impl TurboTasksBackend {
             let old_edges = capture_all_outgoing_edges(&task);
             drop(task);
 
+            // TEMP INSTRUMENTATION (do not ship): this whole edge teardown is new in this PR —
+            // canary only notified and stopped here. Tearing a disposed root's edges down can
+            // drop the aggregation/activeness that keeps still-executing children scheduled, so
+            // log which task is torn down and how many edges go with it.
+            eprintln!(
+                "[GC-HANG] dispose_root_task({task_id:?}): clean branch — cleaning up {} outgoing \
+                 edges",
+                old_edges.len()
+            );
+
             if !old_edges.is_empty() {
                 CleanupOldEdgesOperation::run(
                     task_id,
                     old_edges,
                     AggregationUpdateQueue::new(),
                     &mut ctx,
+                );
+                eprintln!(
+                    "[GC-HANG] dispose_root_task({task_id:?}): CleanupOldEdgesOperation done"
                 );
             }
         }

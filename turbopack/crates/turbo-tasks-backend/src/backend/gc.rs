@@ -294,6 +294,17 @@ impl TurboTasksBackend {
         op: &'static str,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
+        // TEMP BISECT (do not ship): no-op the pin/unpin APIs to test whether this PR's pinning is
+        // what strands the NFT task chain. The pin only feeds the collector, which is disabled on
+        // this build (neither `create_turbo_tasks` branch sets `gc` and `TURBO_ENGINE_GC` is
+        // unset), so skipping it changes nothing a GC-off build can observe -- but it does skip
+        // `try_execute_context` (which takes a `stopping` read guard) and the `Meta` task open.
+        //
+        // If the hang survives this, the pin path is exonerated.
+        if !self.gc_enabled {
+            return;
+        }
+
         // We expect this call to come from outside a turbo-task context, at least sometimes
         // So be defensive about conostructing a context.  If we get none then we are shutting down
         // and it is too late for ref-counting.
