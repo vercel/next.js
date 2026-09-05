@@ -189,7 +189,6 @@ impl TurboTasksBackend {
         let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now);
 
         let aged_out_count = aged_out.len();
-        // TODO(perf): recycle the task ids of collected tasks.
         let budget = if interruptible {
             Some(GcBudget {
                 phase,
@@ -403,6 +402,8 @@ impl TurboTasksBackend {
             && let Err(err) = self.backing_storage.save_snapshot(
                 Vec::new(),
                 Some(roots),
+                // This hook runs no eviction, so it frees no ids to persist.
+                None,
                 Vec::<Vec<SnapshotItem>>::new(),
             )
         {
