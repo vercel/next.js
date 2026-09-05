@@ -148,6 +148,7 @@ type AppRouteHandlerFnContext = {
 
 type PreparedAppRouteExecution = {
   handler: AppRouteHandlerFn
+  userland: AppRouteUserlandModule
   dynamic: AppSegmentConfig['dynamic']
   hasNonStaticMethods: boolean
   actionStore: ActionStore
@@ -205,13 +206,15 @@ export interface AppRouteRouteModuleOptions
   readonly resolvedPagePath: string
   readonly nextConfigOutput: NextConfig['output']
   /**
-   * Optional synchronous getter that returns the live userland module. When
-   * provided (Turbopack dev mode), it is called on every request so that
-   * server HMR updates are picked up without re-executing the entry chunk.
-   * Using require() instead of import() keeps this synchronous so the time
-   * spent here is not incorrectly attributed to application-code in timing.
+   * Optional getter that returns the live userland module. When provided
+   * (Turbopack dev mode), it is called on every request so that server HMR
+   * updates are picked up without re-executing the entry chunk. Most require()
+   * calls stay synchronous; async modules with top-level await return a Promise
+   * which the individual request must resolve as its snapshot.
    */
-  readonly getUserland?: () => AppRouteUserlandModule
+  readonly getUserland?: () =>
+    | AppRouteUserlandModule
+    | Promise<AppRouteUserlandModule>
 }
 
 /**
@@ -251,9 +254,11 @@ export class AppRouteRouteModule extends RouteModule<
   // Loaded lazily since the route file may be an async module (top-level
   // await).
   private readonly _lazyUserland: LazyModule<AppRouteUserlandModule>
-  // Synchronous per-request userland getter for Turbopack dev mode.
-  // Called on every request to pick up server HMR updates.
-  private readonly _getUserland?: () => AppRouteUserlandModule
+  // Per-request userland getter for Turbopack dev mode. Async only when the
+  // current module graph contains top-level await.
+  private readonly _getUserland?: () =>
+    | AppRouteUserlandModule
+    | Promise<AppRouteUserlandModule>
   private _methods!: Record<HTTP_METHOD, AppRouteHandlerFn>
   private _hasNonStaticMethods!: boolean
   private _dynamic!: AppRouteUserlandModule['dynamic']
@@ -322,21 +327,7 @@ export class AppRouteRouteModule extends RouteModule<
     // Get the non-static methods for this route.
     this._hasNonStaticMethods = hasNonStaticMethods(userland)
 
-    // Get the dynamic property from the userland module.
-    this._dynamic = userland.dynamic
-    if (this.nextConfigOutput === 'export') {
-      if (this._dynamic === 'force-dynamic') {
-        throw new Error(
-          `export const dynamic = "force-dynamic" on page "${this.definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
-        )
-      } else if (!isStaticGenEnabled(userland) && userland['GET']) {
-        throw new Error(
-          `export const dynamic = "force-static"/export const revalidate not configured on route "${this.definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
-        )
-      } else {
-        this._dynamic = 'error'
-      }
-    }
+    this._dynamic = this.getEffectiveDynamic(userland)
 
     // We only warn in development after here, so return if we're not in
     // development.
@@ -372,6 +363,26 @@ export class AppRouteRouteModule extends RouteModule<
     }
   }
 
+  private getEffectiveDynamic(
+    userland: AppRouteUserlandModule
+  ): AppRouteUserlandModule['dynamic'] {
+    let dynamic = userland.dynamic
+    if (this.nextConfigOutput === 'export') {
+      if (dynamic === 'force-dynamic') {
+        throw new Error(
+          `export const dynamic = "force-dynamic" on page "${this.definition.pathname}" cannot be used with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+        )
+      } else if (!isStaticGenEnabled(userland) && userland['GET']) {
+        throw new Error(
+          `export const dynamic = "force-static"/export const revalidate not configured on route "${this.definition.pathname}" with "output: export". See more info here: https://nextjs.org/docs/advanced-features/static-html-export`
+        )
+      } else {
+        dynamic = 'error'
+      }
+    }
+    return dynamic
+  }
+
   /**
    * Returns the handler function for the given HTTP method.
    * Must be called after ensureUserland() has resolved so that _methods is
@@ -387,7 +398,8 @@ export class AppRouteRouteModule extends RouteModule<
   /**
    * Returns the handler for the given method using a live userland snapshot.
    * Used in Turbopack dev mode to pick up server HMR updates. The userland
-   * is fetched synchronously via require() so no async overhead is added.
+   * is fetched via require(), which is synchronous unless the current module
+   * graph contains top-level await.
    */
   private resolveHandlerFromUserland(
     method: string,
@@ -530,6 +542,7 @@ export class AppRouteRouteModule extends RouteModule<
 
   private async prerenderToResponse(
     handler: AppRouteHandlerFn,
+    userland: AppRouteUserlandModule,
     actionStore: ActionStore,
     workStore: WorkStore,
     requestStore: RequestStore,
@@ -555,7 +568,7 @@ export class AppRouteRouteModule extends RouteModule<
 
     let res: unknown
     try {
-      const userlandRevalidate = this.userland.revalidate
+      const userlandRevalidate = userland.revalidate
       const defaultRevalidate: number =
         // If the static generation store does not have a revalidate value
         // set, then we should set it the revalidate value from the userland
@@ -902,21 +915,47 @@ export class AppRouteRouteModule extends RouteModule<
     req: NextRequest,
     context: AppRouteRouteHandlerContext
   ): Promise<PreparedAppRouteExecution> {
-    // Ensure userland is fully loaded (handles async modules with top-level
-    // await, where require() returns a Promise instead of the module).
-    await this.ensureUserland()
-
-    // In Turbopack dev mode, fetch the live userland module on every request
-    // via the synchronous require() getter so server HMR updates are reflected
-    // immediately. This is cheap — it is just a devModuleCache lookup.
-    // For routes with top-level await, require() may still return a Promise
-    // (async module); in that case fall back to the already-resolved
-    // userland module resolved by ensureUserland() above.
+    // Snapshot the current Turbopack userland exactly once for this request.
+    // Async modules must use their live Promise rather than the sticky initial
+    // LazyModule state, so an HMR edit can recover from an earlier TLA failure.
+    // Check Promise explicitly: a route is allowed to export a field named
+    // `then`, which must not make the module itself thenable here.
     const rawLiveUserland = this._getUserland?.()
-    const liveUserland =
-      rawLiveUserland instanceof Promise
-        ? undefined
-        : (rawLiveUserland as AppRouteUserlandModule | undefined)
+    let liveUserland: AppRouteUserlandModule | undefined
+    if (rawLiveUserland instanceof Promise) {
+      liveUserland = await rawLiveUserland
+    } else {
+      liveUserland = rawLiveUserland
+    }
+
+    if (liveUserland) {
+      // Initialize validation/diagnostics from this request's exact resolved
+      // snapshot. Requiring independently here could observe a newer rejected
+      // generation and permanently poison LazyModule while this request still
+      // owns the earlier successful generation.
+      //
+      // On a cold load, trace the initialization with the same span the lazy
+      // loader would have produced so cold module loading stays observable.
+      // Later generations initialize without it.
+      if (this._lazyUserland.isUninitialized) {
+        getTracer().trace(
+          AppRouteRouteModuleSpan.loadUserland,
+          {
+            spanName: 'load app route module',
+            attributes: {
+              'next.route': this.definition.pathname,
+            },
+          },
+          () => this._lazyUserland.initializeIfNeeded(liveUserland!)
+        )
+      } else {
+        this._lazyUserland.initializeIfNeeded(liveUserland)
+      }
+    } else {
+      await this.ensureUserland()
+    }
+
+    const userland = liveUserland ?? this.userland
 
     const handler = liveUserland
       ? this.resolveHandlerFromUserland(req.method, liveUserland)
@@ -924,8 +963,6 @@ export class AppRouteRouteModule extends RouteModule<
 
     // Use the live userland (if available) for per-request values so HMR
     // changes to fetchCache, dynamic, etc. are also picked up.
-    const userland = liveUserland ?? this.userland
-
     // Add the fetchCache option to the renderOpts.
     context.renderOpts.fetchCache = userland.fetchCache
 
@@ -952,7 +989,10 @@ export class AppRouteRouteModule extends RouteModule<
 
     return {
       handler,
-      dynamic: liveUserland?.dynamic ?? this._dynamic,
+      userland,
+      dynamic: liveUserland
+        ? this.getEffectiveDynamic(liveUserland)
+        : this._dynamic,
       hasNonStaticMethods: liveUserland
         ? hasNonStaticMethods(liveUserland)
         : this._hasNonStaticMethods,
@@ -1055,7 +1095,8 @@ export class AppRouteRouteModule extends RouteModule<
     prepared: PreparedAppRouteExecution,
     workStore: WorkStore
   ): Promise<Response> {
-    const { actionStore, handler, implicitTags, requestStore } = prepared
+    const { actionStore, handler, userland, implicitTags, requestStore } =
+      prepared
 
     // Run the handler with the request AsyncLocalStorage to inject the helper
     // support. We set this to `unknown` because the type is not known until
@@ -1117,6 +1158,7 @@ export class AppRouteRouteModule extends RouteModule<
               () =>
                 this.prerenderToResponse(
                   handler,
+                  userland,
                   actionStore,
                   workStore,
                   requestStore,
