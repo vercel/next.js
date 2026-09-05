@@ -166,6 +166,8 @@ Using a custom cache handler will allow you to ensure consistency across all pod
 > **Good to know:**
 >
 > - `revalidatePath` is a convenience layer on top of cache tags. Calling `revalidatePath` will call the `revalidateTag` function with a special default tag for the provided page.
+> - The example above keeps entries in memory. A handler backed by durable storage (like the [Redis example](https://github.com/vercel/next.js/tree/canary/examples/cache-handler-redis)) must serialize entries itself, and an entry can contain `Buffer` (for example `rscData`) and `Map` (for example `segmentData`) values that `JSON.stringify`/`JSON.parse` can't serialize and restore on their own. Not handling this serialization results in errors like `segmentData.get is not a function` or `failed to pipe response` on client-side navigation or prefetch (RSC) requests.
+> - When indexing entries for `revalidateTag`, read cache tags from the right place: `APP_PAGE`, `APP_ROUTE`, and `PAGES` entries carry them in the `x-next-cache-tags` response header (`data.headers`), while `ctx.tags` carries tags for `fetch` entries.
 
 ## Build Cache
 
