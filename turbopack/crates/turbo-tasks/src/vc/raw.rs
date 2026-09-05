@@ -975,7 +975,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "TaskId exceeds 31 bits")]
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn task_output_panics_on_out_of_range_task_id() {
         // `TASK_ID_MAX + 1` is the first value that sets bit 31.
         // SAFETY: non-zero.
@@ -986,7 +989,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "TaskId exceeds 31 bits")]
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn task_cell_panics_on_out_of_range_task_id() {
         // SAFETY: non-zero.
         let task = unsafe { TaskId::new_unchecked(TASK_ID_MAX + 1) };
@@ -997,7 +1003,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "exceeds")]
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn cell_id_panics_on_out_of_range_type_id() {
         // SAFETY: `MAX_VALUE_TYPE_ID + 1` is non-zero.
         let type_id = unsafe { ValueTypeId::new_unchecked(CellId::MAX_VALUE_TYPE_ID + 1) };
@@ -1006,7 +1015,10 @@ mod tests {
     #[test]
     #[cfg(debug_assertions)]
     #[should_panic(expected = "exceeds")]
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn cell_id_panics_on_out_of_range_index() {
         let type_id = unsafe { ValueTypeId::new_unchecked(1) };
         let _ = CellId::new(type_id, CellId::MAX_CELL_INDEX + 1);

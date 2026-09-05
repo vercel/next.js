@@ -1052,6 +1052,8 @@ impl<K: IsTransient + Hash + Eq, V: IsTransient, const I: usize> DropPartial for
 }
 #[cfg(test)]
 mod tests {
+    // Only used by `test_schema_size`, which is 64-bit only.
+    #[cfg(target_pointer_width = "64")]
     use std::mem::size_of;
 
     use turbo_tasks::{CellId, TaskId};
