@@ -60,3 +60,41 @@ pub async fn diamond_root(constant: ResolvedVc<Constant>, fanout: u32) -> Result
 pub async fn diamond_root_op(constant: ResolvedVc<Constant>, fanout: u32) -> Result<Vc<u32>> {
     Ok(diamond_root(*constant, fanout))
 }
+
+// --- Generation fixture ---
+
+/// The generation counter. A `State` so a test can bump it without rebuilding the graph.
+#[turbo_tasks::value(transparent)]
+pub struct Generation(State<u32>);
+
+#[turbo_tasks::function(operation, root)]
+pub fn create_generation() -> Vc<Generation> {
+    Generation(State::new(0)).cell()
+}
+
+/// A leaf keyed by (generation, index). Bumping the generation makes `wide_root` read an entirely
+/// fresh set of these, disconnecting the whole previous generation.
+#[turbo_tasks::function]
+pub fn leaf(generation: u32, index: u32) -> Vc<u32> {
+    Vc::cell(generation.wrapping_mul(1000).wrapping_add(index))
+}
+
+/// A shared-dependency layer, so the disconnected garbage is a subtree (intermediate + leaf) and
+/// the tests exercise the cascade rather than single-node collection.
+#[turbo_tasks::function]
+pub async fn intermediate(generation: u32, index: u32) -> Result<Vc<u32>> {
+    Ok(Vc::cell(1 + *leaf(generation, index).await?))
+}
+
+/// Reads `width` intermediates (each reading a leaf). Bumping the generation re-executes this and
+/// connects a fresh generation's worth of tasks, disconnecting the entire previous generation
+/// (`2 * width` tasks) as garbage.
+#[turbo_tasks::function(operation, root)]
+pub async fn wide_root(generation: ResolvedVc<Generation>, width: u32) -> Result<Vc<u32>> {
+    let generation = *generation.await?.get();
+    let mut sum = 0u32;
+    for index in 0..width {
+        sum = sum.wrapping_add(*intermediate(generation, index).await?);
+    }
+    Ok(Vc::cell(sum))
+}

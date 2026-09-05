@@ -19,7 +19,7 @@
 
 use std::sync::{
     Arc,
-    atomic::{AtomicUsize, Ordering},
+    atomic::{AtomicBool, AtomicUsize, Ordering},
 };
 
 use parking_lot::{Condvar, Mutex};
@@ -51,6 +51,7 @@ struct State<O> {
 pub struct SnapshotCoordinator<O = AnyOperation> {
     /// Combined count + bit. See [`SNAPSHOT_REQUESTED_BIT`].
     in_progress_operations: AtomicUsize,
+    operations_waiting: AtomicBool,
     state: Mutex<State<O>>,
     /// Notified by the last operation to drain (count drops to `BIT` while
     /// `SNAPSHOT_REQUESTED_BIT` is set). Awaited by [`begin_snapshot`].
@@ -70,6 +71,7 @@ impl<O> SnapshotCoordinator<O> {
     pub fn new() -> Self {
         Self {
             in_progress_operations: AtomicUsize::new(0),
+            operations_waiting: AtomicBool::new(false),
             state: Mutex::new(State {
                 snapshot_requested: false,
                 suspended_operations: FxHashSet::default(),
@@ -113,6 +115,8 @@ impl<O> SnapshotCoordinator<O> {
                 if prev - 1 == SNAPSHOT_REQUESTED_BIT {
                     this.operations_drained.notify_all();
                 }
+
+                this.operations_waiting.store(true, Ordering::Relaxed);
                 tokio::task::block_in_place(|| {
                     this.snapshot_completed
                         .wait_while(&mut state, |s| s.snapshot_requested);
@@ -161,6 +165,7 @@ impl<O> SnapshotCoordinator<O> {
             if prev - 1 == SNAPSHOT_REQUESTED_BIT {
                 this.operations_drained.notify_all();
             }
+            this.operations_waiting.store(true, Ordering::Relaxed);
             // Wait for the snapshot to finish.
             tokio::task::block_in_place(|| {
                 this.snapshot_completed
@@ -328,12 +333,22 @@ impl<O> SnapshotPhase<'_, O> {
     pub fn take_suspended_operations(&mut self) -> Vec<Arc<O>> {
         std::mem::take(&mut self.suspended_operations)
     }
+
+    /// Whether any operation is currently blocked waiting for this exclusion to end
+    pub fn operations_waiting(&self) -> bool {
+        self.coord.operations_waiting.load(Ordering::Relaxed)
+    }
 }
 
 impl<O> Drop for SnapshotPhase<'_, O> {
     fn drop(&mut self) {
         let mut state = self.coord.state.lock();
         state.snapshot_requested = false;
+        // Clear the sticky waiter flag for the next exclusion. Everyone is about to be unblocked
+        // and because snapshot_requested is false no new waiters can arrive
+        self.coord
+            .operations_waiting
+            .store(false, Ordering::Relaxed);
         let prev = self
             .coord
             .in_progress_operations
@@ -665,6 +680,43 @@ mod tests {
             0,
             "in_progress_operations should be 0 after all ops and snapshots done"
         );
+    }
+
+    #[test]
+    fn operations_waiting_tracks_blocked_operations() {
+        let coord = Arc::new(SnapshotCoordinator::<Op>::new());
+
+        // Fast path: no exclusion in flight, so these never blocked and are not waiters.
+        let unblocked = coord.begin_operation();
+        assert!(
+            !coord.operations_waiting.load(Ordering::Relaxed),
+            "operations that never blocked are not waiters"
+        );
+        drop(unblocked);
+
+        let phase = coord.begin_snapshot();
+        assert!(
+            !phase.operations_waiting(),
+            "holding the exclusion alone is not a waiter"
+        );
+
+        let coord2 = coord.clone();
+        let op_thread = thread::spawn(move || {
+            let _guard = coord2.begin_operation();
+        });
+
+        // Wait until the operation is actually parked, not merely spawned: the flag is set under
+        // the state lock right before the park.
+        while !phase.operations_waiting() {
+            thread::yield_now();
+        }
+
+        drop(phase); // releases the waiter
+        assert!(
+            !coord.operations_waiting.load(Ordering::Relaxed),
+            "the sticky waiter flag must be cleared when the phase is dropped"
+        );
+        op_thread.join().unwrap();
     }
 
     #[test]
