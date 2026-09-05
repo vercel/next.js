@@ -9973,6 +9973,7 @@ dependencies = [
  "auto-hash-map",
  "bitfield",
  "byteorder",
+ "clap",
  "codspeed-criterion-compat",
  "crc32fast",
  "dashmap 7.0.0-rc2",

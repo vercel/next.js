@@ -364,33 +364,31 @@ Configuration options for compactions are:
 
 ## Training and evaluating zstd dictionaries offline
 
-`taskdata_dictionary` trains and compares zstd dictionaries using active blocks from existing
-database copies without modifying them or running the application that created them:
+`zstd_dictionary` trains and compares zstd dictionaries from logical values in existing database
+copies without modifying them or running the application that created them:
 
 ```sh
-cargo run -p turbo-persistence --bin taskdata_dictionary -- train \
-  --output candidate.zdict \
+cargo run -p turbo-persistence --bin zstd_dictionary -- train \
+  --family <id> --output candidate.zdict \
   path/to/database-a path/to/database-b
 
-cargo run -p turbo-persistence --bin taskdata_dictionary -- evaluate \
-  --dictionary candidate.zdict \
-  --json report.json \
+cargo run -p turbo-persistence --bin zstd_dictionary -- evaluate \
+  --family <id> --dictionary candidate.zdict --json report.json \
   path/to/database-a path/to/database-b
 ```
 
-Training defaults to a 64 KiB dictionary and at most 10,000 samples. It first counts eligible blocks,
-then scans again and selects every `ceil(block_count / max_samples)`th block, so only selected blocks
-are retained for zstd's trainer. `--max-dictionary-size`, `--max-samples`, and `--force` override the
-defaults and output behavior.
+Training produces a 64 KiB dictionary from up to approximately 64 MiB of samples. It takes one
+hash-ordered logical value from each cache in turn, so one large cache cannot monopolize the sample.
+The output path is replaced atomically.
 
-The no-dictionary zstd level 3 baseline is always included during evaluation. Family 2 (TaskData) is
-selected by default; `--family <id>` overrides it. The tool follows `CURRENT`, deletion files, and
-meta-file supersession, verifies checksums, and models the same 12.5% minimum-savings threshold used
-by the writer. Index blocks and ineligible key blocks remain unchanged in modeled SST sizes.
+The no-dictionary zstd level 3 baseline is always included during evaluation. The tool follows
+`CURRENT`, deletion files, and meta-file supersession, and uses `StaticSortedFileIter` to read slice,
+medium, and blob values. Checksums and decompressed lengths are verified.
 
-Only SST blocks are used. External blob references are counted and reported, but `.blob` payloads
-are not read. Timing fields are single-pass diagnostics; use the byte/count fields for repeatable
-comparisons of a copied cache snapshot.
+Small values are grouped into physical blocks in production, so the report's per-value 12.5%
+minimum-savings calculation is a comparative estimate, not exact SST-size modeling. Blob estimates
+include their fixed 8-byte headers. Timing fields are single-pass diagnostics; use byte/count fields
+for repeatable comparisons of one copied cache snapshot.
 
 ## Opening
 

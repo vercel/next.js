@@ -10,26 +10,30 @@
 //! `type - KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN`.
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, HashSet},
     path::{Path, PathBuf},
 };
 
 use anyhow::{Context, Result, bail};
+use byteorder::{BE, ReadBytesExt};
 use fs_err::File;
+use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
-    MAX_INLINE_VALUE_SIZE,
+    BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
     mmap_helper::advise_mmap_for_persistence,
-    offline::{
-        KeyBlockHeader, SstInfo, collect_sst_info, key_block_entry_types, parse_key_block_header,
-        parse_key_block_indices, read_block,
-    },
+    offline::{SstInfo, collect_sst_info},
     static_sorted_file::{
-        KEY_BLOCK_ENTRY_TYPE_BLOB, KEY_BLOCK_ENTRY_TYPE_INLINE_MIN,
-        KEY_BLOCK_ENTRY_TYPE_KEY_DELETED, KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN,
-        KEY_BLOCK_ENTRY_TYPE_MEDIUM, KEY_BLOCK_ENTRY_TYPE_SMALL,
+        BLOCK_TYPE_FIXED_KEY_NO_HASH, BLOCK_TYPE_FIXED_KEY_WITH_HASH, BLOCK_TYPE_KEY_NO_HASH,
+        BLOCK_TYPE_KEY_WITH_HASH, FIXED_KEY_BLOCK_MIXED_VALUE_TYPE, KEY_BLOCK_ENTRY_TYPE_BLOB,
+        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN, KEY_BLOCK_ENTRY_TYPE_KEY_DELETED,
+        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN, KEY_BLOCK_ENTRY_TYPE_MEDIUM,
+        KEY_BLOCK_ENTRY_TYPE_SMALL,
     },
 };
+
+/// Size of the key block header (1B type + 3B entry count).
+const KEY_BLOCK_HEADER_SIZE: usize = 4;
 
 /// Block size information
 #[derive(Default, Debug, Clone)]
@@ -207,6 +211,192 @@ fn format_bytes(bytes: u64) -> String {
     }
 }
 
+/// Information about a raw block read from disk.
+struct RawBlock {
+    data: Box<[u8]>,
+    compressed_size: u64,
+    actual_size: u64,
+    was_compressed: bool,
+}
+
+/// Reads, checksums, and decompresses a single block from the mmap.
+fn read_block(
+    mmap: &Mmap,
+    block_offsets_start: usize,
+    block_index: u16,
+    sequence_number: u32,
+    compression: Compression,
+) -> Result<RawBlock> {
+    let offset = block_offsets_start + block_index as usize * size_of::<u32>();
+
+    let block_start = if block_index == 0 {
+        0
+    } else {
+        (&mmap[offset - size_of::<u32>()..offset]).read_u32::<BE>()? as usize
+    };
+    let block_end = (&mmap[offset..offset + size_of::<u32>()]).read_u32::<BE>()? as usize;
+
+    let uncompressed_length =
+        (&mmap[block_start..block_start + size_of::<u32>()]).read_u32::<BE>()?;
+    let expected_checksum = (&mmap
+        [block_start + size_of::<u32>()..block_start + BLOCK_HEADER_SIZE])
+        .read_u32::<BE>()?;
+    let compressed_data = &mmap[block_start + BLOCK_HEADER_SIZE..block_end];
+    let compressed_size = compressed_data.len() as u64;
+
+    let was_compressed = uncompressed_length > 0;
+    let actual_size = if was_compressed {
+        uncompressed_length as u64
+    } else {
+        compressed_size
+    };
+
+    let actual_checksum = checksum_block(compressed_data);
+    if actual_checksum != expected_checksum {
+        bail!(
+            "Cache corruption detected: checksum mismatch in block {} of {:08}.sst (expected \
+             {:08x}, got {:08x})",
+            block_index,
+            sequence_number,
+            expected_checksum,
+            actual_checksum
+        );
+    }
+
+    let data = if was_compressed {
+        let mut buffer = vec![0u8; uncompressed_length as usize];
+        let bytes_written = match compression {
+            Compression::Lz4 => {
+                decompress(compressed_data, &mut buffer).context("LZ4 decompression failed")?
+            }
+            Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
+                .context("zstd decompression failed")?,
+        };
+        assert_eq!(
+            bytes_written, uncompressed_length as usize,
+            "Decompressed length does not match expected"
+        );
+        buffer.into_boxed_slice()
+    } else {
+        Box::from(compressed_data)
+    };
+
+    Ok(RawBlock {
+        data,
+        compressed_size,
+        actual_size,
+        was_compressed,
+    })
+}
+
+/// Parses an index block to extract all referenced key block indices.
+///
+/// Index block format: `[1B type][2B first_block][N * (8B hash + 2B block_index)]`.
+fn parse_key_block_indices(index_block: &[u8]) -> HashSet<u16> {
+    assert!(index_block.len() >= 3, "Index block too small");
+    let mut data = &index_block[1..]; // skip block type byte
+    let first_block = data.read_u16::<BE>().unwrap();
+    let mut indices = HashSet::new();
+    indices.insert(first_block);
+    const ENTRY_SIZE: usize = size_of::<u64>() + size_of::<u16>();
+    let entry_count = data.len() / ENTRY_SIZE;
+    for i in 0..entry_count {
+        let block_index = (&data[i * ENTRY_SIZE + 8..]).read_u16::<BE>().unwrap();
+        indices.insert(block_index);
+    }
+    indices
+}
+
+/// Parsed header of a key block.
+#[derive(Clone, Copy)]
+enum KeyBlockHeader {
+    Variable {
+        entry_count: u32,
+    },
+    Fixed {
+        entry_count: u32,
+        value_type: u8,
+    },
+    /// Fixed-size layout whose entries share a value size but not a value type, so each carries
+    /// its own type byte between its key and its value.
+    FixedMixedType {
+        entry_count: u32,
+        hash_len: usize,
+        key_size: usize,
+        stride: usize,
+    },
+}
+
+/// Parses the header of a key block from the full decompressed block data.
+fn parse_key_block_header(block: &[u8]) -> Result<KeyBlockHeader> {
+    assert!(block.len() >= 4, "Key block too small");
+    let block_type = block[0];
+    let entry_count = ((block[1] as u32) << 16) | ((block[2] as u32) << 8) | (block[3] as u32);
+    match block_type {
+        BLOCK_TYPE_KEY_WITH_HASH | BLOCK_TYPE_KEY_NO_HASH => {
+            Ok(KeyBlockHeader::Variable { entry_count })
+        }
+        BLOCK_TYPE_FIXED_KEY_WITH_HASH | BLOCK_TYPE_FIXED_KEY_NO_HASH => {
+            assert!(block.len() >= 6, "Fixed key block header too small");
+            if block[5] == FIXED_KEY_BLOCK_MIXED_VALUE_TYPE {
+                assert!(block.len() >= 7, "Mixed-type key block header too small");
+                let hash_len = if block_type == BLOCK_TYPE_FIXED_KEY_WITH_HASH {
+                    8
+                } else {
+                    0
+                };
+                let key_size = block[4] as usize;
+                let val_size = block[6] as usize;
+                Ok(KeyBlockHeader::FixedMixedType {
+                    entry_count,
+                    hash_len,
+                    key_size,
+                    // +1 for the per-entry type byte.
+                    stride: hash_len + key_size + val_size + 1,
+                })
+            } else {
+                Ok(KeyBlockHeader::Fixed {
+                    entry_count,
+                    value_type: block[5],
+                })
+            }
+        }
+        _ => bail!("Invalid key block type: {block_type}"),
+    }
+}
+
+/// Iterates over entry type bytes in a key block.
+///
+/// For variable-size key blocks, reads byte 0 of each 4-byte offset table entry. For fixed-size
+/// key blocks, yields the single `value_type` repeated `entry_count` times, or reads the per-entry
+/// type byte when the block has mixed types.
+fn iter_key_block_entry_types(
+    header: KeyBlockHeader,
+    block: &[u8],
+) -> impl Iterator<Item = u8> + '_ {
+    let entry_count = match header {
+        KeyBlockHeader::Variable { entry_count }
+        | KeyBlockHeader::Fixed { entry_count, .. }
+        | KeyBlockHeader::FixedMixedType { entry_count, .. } => entry_count,
+    };
+    (0..entry_count).map(move |i| match header {
+        // Variable block: offset table starts at byte 4 (after 1B type + 3B count),
+        // each entry is 4 bytes, first byte is the entry type.
+        KeyBlockHeader::Variable { .. } => block[KEY_BLOCK_HEADER_SIZE + i as usize * 4],
+        KeyBlockHeader::Fixed { value_type, .. } => value_type,
+        KeyBlockHeader::FixedMixedType {
+            hash_len,
+            key_size,
+            stride,
+            ..
+        } => {
+            // Entry data starts after the 7-byte mixed-type header; the type byte sits between
+            // the entry's key and its value.
+            block[7 + i as usize * stride + hash_len + key_size]
+        }
+    })
+}
+
 /// Analyze an SST file and return entry type statistics
 fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
     let compression = info.compression;
@@ -237,10 +427,10 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         info.sequence_number,
         compression,
     )?;
-    let key_block_indices = parse_key_block_indices(&index_raw.data)?;
+    let key_block_indices = parse_key_block_indices(&index_raw.data);
 
     stats.index_blocks.add(
-        index_raw.stored_size,
+        index_raw.compressed_size,
         index_raw.actual_size,
         index_raw.was_compressed,
     );
@@ -268,7 +458,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
             // Value block — no type header, just raw data.
             stats
                 .value_blocks
-                .add(raw.stored_size, raw.actual_size, raw.was_compressed);
+                .add(raw.compressed_size, raw.actual_size, raw.was_compressed);
             continue;
         }
 
@@ -276,7 +466,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
 
         stats
             .key_blocks
-            .add(raw.stored_size, raw.actual_size, raw.was_compressed);
+            .add(raw.compressed_size, raw.actual_size, raw.was_compressed);
 
         let key_block_header = parse_key_block_header(block).with_context(|| {
             format!(
@@ -286,18 +476,22 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         })?;
         match key_block_header {
             KeyBlockHeader::Variable { .. } => {
-                stats
-                    .variable_key_blocks
-                    .add(raw.stored_size, raw.actual_size, raw.was_compressed);
+                stats.variable_key_blocks.add(
+                    raw.compressed_size,
+                    raw.actual_size,
+                    raw.was_compressed,
+                );
             }
             KeyBlockHeader::Fixed { .. } | KeyBlockHeader::FixedMixedType { .. } => {
-                stats
-                    .fixed_key_blocks
-                    .add(raw.stored_size, raw.actual_size, raw.was_compressed);
+                stats.fixed_key_blocks.add(
+                    raw.compressed_size,
+                    raw.actual_size,
+                    raw.was_compressed,
+                );
             }
         };
 
-        for entry_type in key_block_entry_types(key_block_header, block)? {
+        for entry_type in iter_key_block_entry_types(key_block_header, block) {
             track_entry_type(&mut stats, entry_type);
         }
     }
