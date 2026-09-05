@@ -240,10 +240,11 @@ The checksum is verified on the compressed data **before** decompression when th
 
 ## Reading
 
-Reading start from the current sequence number and goes downwards.
+Opened meta files are stored in per-family shards. A lookup scans only the requested family's meta
+files, from newest to oldest; there is no ordering dependency between families.
 
 - We have all SST files memory mapped
-- for i = CURRENT sequence number .. 0
+- for each meta file of the queried key family, newest first
   - Check AMQF from SST file for key existence -> if not continue
   - let block = 0
   - loop
@@ -310,6 +311,13 @@ During the merge operation we eliminate duplicate keys. When blob references are
 Since the process might exit unexpectedly, to avoid "forgetting" to delete the SST files we keep track of that in a `*.del` file. This file contains the sequence number of SST and blob files that should be deleted. We write that file before the current sequence number is updated. On restart we execute the deletes again.
 
 We limit the number of SST files that are merged at once to avoid long compactions.
+
+When compaction produces a new meta file for a family, it also copies the metadata for that
+family's untouched live SST files into the new meta file. This is a metadata-only copy: the SST
+contents are not rewritten. Consolidating the family's live metadata lets the same commit retire
+old partially-obsolete meta files, so subsequent queries have fewer meta files to inspect. The work
+is bounded by the amount of live metadata in each family selected for compaction, and a compaction
+with no merge work does not rewrite metadata.
 
 Full example:
 

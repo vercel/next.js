@@ -477,10 +477,6 @@ impl MetaFile {
         &self.obsolete_entries
     }
 
-    pub fn has_active_entries(&self) -> bool {
-        !self.entries.is_empty()
-    }
-
     pub fn obsolete_sst_files(&self) -> &[u32] {
         &self.obsolete_sst_files
     }

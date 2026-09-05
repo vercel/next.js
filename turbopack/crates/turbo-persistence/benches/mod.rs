@@ -1,4 +1,9 @@
-use std::{cell::UnsafeCell, path::Path, sync::LazyLock, time::Duration};
+use std::{
+    cell::{Cell, UnsafeCell},
+    path::Path,
+    sync::LazyLock,
+    time::Duration,
+};
 
 use anyhow::Result;
 use criterion::{
@@ -838,6 +843,137 @@ fn bench_read_get_multiple(c: &mut Criterion) {
 // Compaction Benchmarks
 // =============================================================================
 
+fn family_benchmark_key(family: u32, commit: u32, item: u32) -> [u8; 12] {
+    let mut key = [0; 12];
+    key[..4].copy_from_slice(&family.to_be_bytes());
+    key[4..8].copy_from_slice(&commit.to_be_bytes());
+    key[8..].copy_from_slice(&item.to_be_bytes());
+    key
+}
+
+fn bench_family_sharding(c: &mut Criterion) {
+    const FAMILIES: usize = 4;
+    const COMMITS: u32 = 100;
+    let entries_per_commit = scaled(1_000);
+    let db = LazyLock::new(|| {
+        let tempdir = tempfile::tempdir().unwrap();
+        let config = TpDbConfig {
+            family_configs: ["family-0", "family-1", "family-2", "family-3"].map(|name| {
+                FamilyConfig {
+                    name,
+                    kind: FamilyKind::SingleValue,
+                    compression: Compression::Lz4,
+                }
+            }),
+        };
+        let db = TurboPersistence::<SerialScheduler, FAMILIES>::open_with_config(
+            tempdir.path().to_path_buf(),
+            config,
+        )
+        .unwrap();
+        for commit in 0..COMMITS {
+            for family in 0..FAMILIES as u32 {
+                let batch = db.write_batch().unwrap();
+                for item in 0..entries_per_commit as u32 {
+                    batch
+                        .put(
+                            family,
+                            family_benchmark_key(family, commit, item),
+                            item.to_be_bytes().to_vec().into(),
+                        )
+                        .unwrap();
+                }
+                db.commit_write_batch(batch).unwrap();
+            }
+        }
+        (tempdir, db)
+    });
+
+    let mut group = c.benchmark_group("read/family_sharding");
+    group.measurement_time(Duration::from_secs(5));
+    let hit = family_benchmark_key(2, COMMITS - 1, 0);
+    let miss = family_benchmark_key(2, COMMITS, 0);
+    let batch_hits = (0..64)
+        .map(|item| family_benchmark_key(2, COMMITS - 1, item))
+        .collect::<Vec<_>>();
+    let batch_misses = (0..64)
+        .map(|item| family_benchmark_key(2, COMMITS, item))
+        .collect::<Vec<_>>();
+
+    group.bench_function("get/hit", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.get(2, black_box(&hit)).unwrap()))
+    });
+    group.bench_function("get/miss", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.get(2, black_box(&miss)).unwrap()))
+    });
+    group.bench_function("batch_get/hit_64", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.batch_get(2, black_box(&batch_hits)).unwrap()))
+    });
+    group.bench_function("batch_get/miss_64", |b| {
+        let (_, db) = &*db;
+        b.iter(|| black_box(db.batch_get(2, black_box(&batch_misses)).unwrap()))
+    });
+    group.finish();
+}
+
+fn bench_compaction_meta_subsumption(c: &mut Criterion) {
+    let mut group = c.benchmark_group("compaction/meta_subsumption");
+    group.sample_size(10);
+    group.sampling_mode(SamplingMode::Flat);
+    let entries_per_commit = scaled(2_000);
+    let reported_retained_count = Cell::new(false);
+
+    group.bench_function("partial_40_commits", |b| {
+        b.iter_batched(
+            || {
+                let tempdir = tempfile::tempdir().unwrap();
+                let db = TurboPersistence::<SerialScheduler, 1>::open(tempdir.path().to_path_buf())
+                    .unwrap();
+                for generation in 0..40u32 {
+                    let batch = db.write_batch().unwrap();
+                    for key in 0..entries_per_commit as u32 {
+                        batch
+                            .put(
+                                0,
+                                key.to_be_bytes(),
+                                generation.to_be_bytes().to_vec().into(),
+                            )
+                            .unwrap();
+                    }
+                    db.commit_write_batch(batch).unwrap();
+                }
+                (tempdir, db)
+            },
+            |(tempdir, db)| {
+                let result = db
+                    .compact(&CompactConfig {
+                        min_merge_count: 2,
+                        optimal_merge_count: 2,
+                        max_merge_count: 2,
+                        max_merge_bytes: u64::MAX,
+                        min_merge_duplication_bytes: 0,
+                        optimal_merge_duplication_bytes: 0,
+                        max_merge_segment_count: 1,
+                    })
+                    .unwrap();
+                let retained_meta_files = db.meta_info().unwrap().len();
+                if !reported_retained_count.replace(true) {
+                    println!(
+                        "retained meta files after partial compaction: {retained_meta_files}; {}",
+                        result.as_ref().unwrap()
+                    );
+                }
+                black_box((tempdir, result, retained_meta_files))
+            },
+            BatchSize::PerIteration,
+        )
+    });
+    group.finish();
+}
+
 fn bench_compaction(c: &mut Criterion) {
     let mut group = c.benchmark_group("compaction");
     // Compaction is expensive, reduce sample size
@@ -1490,6 +1626,6 @@ fn bench_block_cache(c: &mut Criterion) {
 criterion_group!(
     name = benches;
     config = Criterion::default();
-    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_compaction, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
+    targets = bench_write, bench_write_multi_value, bench_read_get, bench_read_batch_get, bench_read_get_multiple, bench_family_sharding, bench_compaction, bench_compaction_meta_subsumption, bench_compaction_multi_value, bench_qfilter, bench_static_sorted_file_lookup, bench_block_cache
 );
 criterion_main!(benches);

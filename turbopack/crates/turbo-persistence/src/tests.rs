@@ -2866,3 +2866,67 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
     db.shutdown()?;
     Ok(())
 }
+
+#[test]
+fn partial_compaction_subsumes_live_family_metadata() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let db = TurboPersistence::<RayonParallelScheduler, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+
+    const KEYS: u32 = 2_000;
+    for generation in 0..4u32 {
+        let batch = db.write_batch()?;
+        for key in 0..KEYS {
+            batch.put(
+                0,
+                key.to_be_bytes().to_vec(),
+                generation.to_be_bytes().to_vec().into(),
+            )?;
+        }
+        db.commit_write_batch(batch)?;
+    }
+    assert_eq!(db.meta_info()?.len(), 4);
+
+    let partial = CompactConfig {
+        min_merge_count: 2,
+        optimal_merge_count: 2,
+        max_merge_count: 2,
+        max_merge_bytes: u64::MAX,
+        min_merge_duplication_bytes: 0,
+        optimal_merge_duplication_bytes: 0,
+        max_merge_segment_count: 1,
+    };
+    assert!(db.compact(&partial)?.is_some());
+    assert_eq!(
+        db.meta_info()?.len(),
+        1,
+        "all live family metadata should be consolidated into the compaction meta file"
+    );
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &3u32.to_be_bytes()
+        );
+    }
+
+    db.full_compact()?;
+    assert_eq!(db.meta_info()?.len(), 1);
+    assert!(db.compact(&partial)?.is_none());
+    drop(db);
+
+    let reopened = TurboPersistence::<RayonParallelScheduler, 1>::open_with_parallel_scheduler(
+        path.to_path_buf(),
+        RayonParallelScheduler,
+    )?;
+    assert_eq!(reopened.meta_info()?.len(), 1);
+    for key in 0..KEYS {
+        assert_eq!(
+            &*reopened.get(0, &key.to_be_bytes())?.unwrap(),
+            &3u32.to_be_bytes()
+        );
+    }
+    Ok(())
+}
