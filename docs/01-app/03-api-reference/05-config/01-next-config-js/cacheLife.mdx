@@ -54,7 +54,8 @@ import { cacheLife } from 'next/cache'
 export async function getCachedData() {
   'use cache'
   cacheLife('blog')
-  const data = await fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
   return data
 }
 ```
@@ -65,10 +66,13 @@ import { cacheLife } from 'next/cache'
 export async function getCachedData() {
   'use cache'
   cacheLife('blog')
-  const data = await fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
   return data
 }
 ```
+
+You can also override a built-in profile by defining one with the same name (`default`, `seconds`, `minutes`, `hours`, `days`, `weeks`, or `max`). See [Overriding the default cache profiles](/docs/app/api-reference/functions/cacheLife#overriding-the-default-cache-profiles).
 
 ## Reference
 

@@ -85,6 +85,23 @@ export function FixCardMinusCircleIcon() {
   )
 }
 
+export function FixCardArrowUpIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M12 4v16" />
+      <path d="M5 11l7-7 7 7" />
+    </svg>
+  )
+}
+
+export function FixCardMinusIcon() {
+  return (
+    <svg {...ICON_PROPS}>
+      <path d="M5 12h14" />
+    </svg>
+  )
+}
+
 export function FixCardLayoutIcon() {
   return (
     <svg

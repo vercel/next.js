@@ -12,14 +12,14 @@ describe('css-chunking', () => {
     async () => {
       const $ = await next.render$('/')
       const stylesheets = $('link[rel="stylesheet"]')
-      stylesheets.each(async (_, element) => {
+      for (const element of stylesheets.get() as CheerioElement[]) {
         const href = element.attribs.href
         const result = await next.fetch(href)
         const css = await result.text()
 
         // eslint-disable-next-line jest/no-standalone-expect
         expect(css).not.toContain('.otherPage')
-      })
+      }
     }
   )
 })

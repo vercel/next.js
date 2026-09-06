@@ -2,9 +2,17 @@ use std::{
     borrow::Cow,
     fmt::{Display, Formatter},
     hash::{Hash, Hasher},
+    num::NonZeroU32,
     sync::Arc,
 };
 
+use bincode::{
+    Decode, Encode,
+    de::Decoder,
+    enc::Encoder,
+    error::{DecodeError, EncodeError},
+    impl_borrow_decode,
+};
 use num_bigint::BigInt;
 use num_traits::Zero;
 use swc_core::{
@@ -12,45 +20,80 @@ use swc_core::{
     ecma::{ast::Lit, atoms::Atom},
 };
 use turbo_rcstr::RcStr;
-use turbopack_core::compile_time_info::TotalOrderF64;
+use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
 use crate::{
-    analyzer::{JsValue, imports::ImportAnnotations},
+    analyzer::{Bump, JsValue, imports::ImportAnnotations},
     utils::StringifyJs,
 };
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum ObjectPart {
-    KeyValue(JsValue, JsValue),
-    Spread(JsValue),
+#[derive(Debug, Hash, PartialEq)]
+pub enum ObjectPart<'a> {
+    KeyValue(JsValue<'a>, JsValue<'a>),
+    Spread(JsValue<'a>),
 }
 
-impl Default for ObjectPart {
+impl Default for ObjectPart<'_> {
     fn default() -> Self {
         ObjectPart::Spread(Default::default())
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub struct ConstantNumber(pub TotalOrderF64);
+impl<'a> ObjectPart<'a> {
+    /// Deep-clone this object part into `arena`. See [`JsValue::clone_in`].
+    pub(crate) fn clone_in(&self, arena: &'a Bump) -> Self {
+        match self {
+            ObjectPart::KeyValue(k, v) => {
+                ObjectPart::KeyValue(k.clone_in(arena), v.clone_in(arena))
+            }
+            ObjectPart::Spread(s) => ObjectPart::Spread(s.clone_in(arena)),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Encode, Decode, TraceRawVcs)]
+pub struct ConstantNumber(pub f64);
 
 impl ConstantNumber {
     pub fn as_u32_index(&self) -> Option<usize> {
-        let index: u32 = *self.0 as u32;
-        (index as f64 == *self.0).then_some(index as usize)
-    }
-}
-impl From<f64> for ConstantNumber {
-    fn from(value: f64) -> Self {
-        ConstantNumber(value.into())
+        let index: u32 = self.0 as u32;
+        (index as f64 == self.0).then_some(index as usize)
     }
 }
 
-#[derive(Debug, Clone)]
+impl Hash for ConstantNumber {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.to_ne_bytes().hash(state);
+    }
+}
+
+impl From<f64> for ConstantNumber {
+    fn from(value: f64) -> Self {
+        ConstantNumber(value)
+    }
+}
+
+#[derive(Debug, Clone, TraceRawVcs)]
 pub enum ConstantString {
-    Atom(Atom),
+    Atom(#[turbo_tasks(trace_ignore)] Atom),
     RcStr(RcStr),
 }
+// SAFETY: ConstantString doesn't contain any Vcs
+unsafe impl NonLocalValue for ConstantString {}
+impl Encode for ConstantString {
+    fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
+        match self {
+            ConstantString::Atom(s) => s.as_str().encode(encoder),
+            ConstantString::RcStr(s) => s.as_str().encode(encoder),
+        }
+    }
+}
+impl<Context> Decode<Context> for ConstantString {
+    fn decode<D: Decoder<Context = Context>>(decoder: &mut D) -> Result<Self, DecodeError> {
+        Ok(Self::RcStr(Decode::decode(decoder)?))
+    }
+}
+impl_borrow_decode!(ConstantString);
 
 impl ConstantString {
     pub fn as_str(&self) -> &str {
@@ -123,7 +166,7 @@ impl From<RcStr> for ConstantString {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Default, Hash, TraceRawVcs, Encode, Decode)]
 pub enum ConstantValue {
     #[default]
     Undefined,
@@ -132,9 +175,18 @@ pub enum ConstantValue {
     True,
     False,
     Null,
-    BigInt(Box<BigInt>),
-    Regex(Box<(Atom, Atom)>),
+    BigInt(
+        #[turbo_tasks(trace_ignore)]
+        #[bincode(with_serde)]
+        Box<BigInt>,
+    ),
+    Regex(
+        #[turbo_tasks(trace_ignore)]
+        #[bincode(with_serde)]
+        Box<(Atom, Atom)>,
+    ),
 }
+unsafe impl NonLocalValue for ConstantValue {}
 
 impl ConstantValue {
     pub fn as_str(&self) -> Option<&str> {
@@ -157,7 +209,7 @@ impl ConstantValue {
             Self::Undefined | Self::False | Self::Null => false,
             Self::True | Self::Regex(..) => true,
             Self::Str(s) => !s.is_empty(),
-            Self::Num(ConstantNumber(n)) => **n != 0.0,
+            Self::Num(ConstantNumber(n)) => *n != 0.0,
             Self::BigInt(n) => !n.is_zero(),
         }
     }
@@ -215,10 +267,13 @@ impl From<Lit> for ConstantValue {
                 }
             }
             Lit::Null(_) => ConstantValue::Null,
-            Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value.into())),
+            Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
             Lit::BigInt(v) => ConstantValue::BigInt(v.value),
             Lit::Regex(v) => ConstantValue::Regex(Box::new((v.exp, v.flags))),
-            Lit::JSXText(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
+            Lit::JSXText(v) => {
+                // TODO
+                ConstantValue::Str(ConstantString::Atom(v.value.to_atom_lossy().into_owned()))
+            }
         }
     }
 }
@@ -242,6 +297,29 @@ impl Display for ConstantValue {
 pub struct ModuleValue {
     pub module: Wtf8Atom,
     pub annotations: Option<Arc<ImportAnnotations>>,
+    /// Whether to analyze this module for constants
+    // TODO this is a hack: ideally we'd have truly "bidirectional linking" instead of the current
+    // `early_visitor` plus `visitor` setup. Then this could just be implemented with a rewrite
+    // rule for `Member(ModuleValue, prop) if prop.as_str().is_upper_case() => { ... }`
+    pub analyze_for_constants: bool,
+    // This is an Option<NonZeroU32> to JsValue to only be 32 bytes in size.
+    pub reference: Option<ModuleReferenceIndex>,
+}
+
+#[derive(Copy, Debug, Clone, Hash, PartialEq, Eq)]
+pub struct ModuleReferenceIndex(NonZeroU32);
+
+impl From<u32> for ModuleReferenceIndex {
+    fn from(value: u32) -> Self {
+        // The only way this can overflow is if value == u32::MAX, which is unlikely since it would
+        // require us to have that many module references.
+        ModuleReferenceIndex(NonZeroU32::new(value + 1).unwrap())
+    }
+}
+impl ModuleReferenceIndex {
+    pub fn get(&self) -> usize {
+        (self.0.get() - 1) as usize
+    }
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -346,6 +424,43 @@ impl Display for LogicalProperty {
             LogicalProperty::Falsy => write!(f, "falsy"),
             LogicalProperty::Nullish => write!(f, "nullish"),
             LogicalProperty::NonNullish => write!(f, "non-nullish"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
+pub enum ObjectMutability {
+    // Don't reorder these variants, as their order is used in `merge_with`.
+    /// Known properties: frozen (= <value>)
+    /// Missing properties: frozen (= Undefined)
+    Frozen,
+    /// Known properties: frozen (= <value>)
+    /// Missing properties: mutable (= Unknown)
+    FrozenSubset,
+    /// Known properties: mutable (= <value> | Unknown)
+    /// Missing properties: mutable (= Unknown)
+    Mutable,
+}
+
+impl ObjectMutability {
+    pub fn merge_with(&mut self, other: Self) {
+        *self = std::cmp::max(*self, other)
+    }
+
+    pub fn is_mutable(&self) -> bool {
+        matches!(self, ObjectMutability::Mutable)
+    }
+    pub fn is_missing_unknown(&self) -> bool {
+        matches!(self, ObjectMutability::FrozenSubset)
+    }
+}
+
+impl Display for ObjectMutability {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ObjectMutability::Frozen => write!(f, "frozen"),
+            ObjectMutability::FrozenSubset => write!(f, "frozen subset"),
+            ObjectMutability::Mutable => write!(f, ""),
         }
     }
 }

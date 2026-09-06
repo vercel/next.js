@@ -96,10 +96,8 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
         span.record("module_count", module_count);
 
         // Use all entries from all graphs
-        let entries = graphs
-            .iter()
-            .flat_map(|g| g.entries.iter())
-            .flat_map(|g| g.entries())
+        let entries = module_graph
+            .all_chunk_group_entry_modules()
             .collect::<Vec<_>>();
 
         // First, compute the depth for each module in the graph
@@ -173,6 +171,7 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
             &mut (),
             |parent_info: Option<(ResolvedVc<Box<dyn Module>>, &'_ RefData, _)>,
              node: ResolvedVc<Box<dyn Module>>,
+             _,
              _|
              -> Result<GraphTraversalAction> {
                 // On the down traversal, establish which edges are mergeable and set the list

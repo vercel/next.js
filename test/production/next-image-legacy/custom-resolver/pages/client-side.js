@@ -2,7 +2,7 @@ import React from 'react'
 import Image from 'next/legacy/image'
 
 const myLoader = ({ src, width, quality }) => {
-  return `https://customresolver.com/${src}?w~~${width},q~~${quality}`
+  return `https://next-data-api-endpoint.vercel.app/next-image-legacy/${src}?w~~${width},q~~${quality}`
 }
 
 const MyImage = (props) => {
@@ -24,7 +24,7 @@ const Page = () => {
       <Image
         id="unoptimized-image"
         unoptimized
-        src="https://arbitraryurl.com/foo.jpg"
+        src="https://next-data-api-endpoint.vercel.app/next-image-legacy/foo.jpg"
         loading="eager"
         width={300}
         height={400}

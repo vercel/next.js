@@ -52,7 +52,7 @@ function filterToErrorHeaders(output: string): string {
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/edge-with-layout/layout.tsx (1:14)
-         Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
+         Error: Route segment config "dynamic" is not compatible with \`nextConfig.cacheComponents\`. Please remove it.
          > 1 | export const dynamic = 'force-dynamic'
              |              ^^^^^^^",
            "stack": [],
@@ -82,8 +82,10 @@ function filterToErrorHeaders(output: string): string {
           /\.\/app\/layout\.tsx:1:14/g
         )
 
-        // Should appear exactly twice: once in the formatted error message, once in the stack trace
-        expect(layoutErrorMatches.length).toBe(2)
+        // The location appears once, in the formatted error message. The
+        // stack of the build error holds framework frames only, and none of
+        // them names the route.
+        expect(layoutErrorMatches.length).toBe(1)
       }
     })
   }

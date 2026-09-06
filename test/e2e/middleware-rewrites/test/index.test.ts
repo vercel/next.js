@@ -6,13 +6,18 @@ import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
+const isTurbopackTest = Boolean(process.env.IS_TURBOPACK_TEST)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
+
 describe('Middleware Rewrite', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: {
       pages: new FileRef(join(__dirname, '../app/pages')),
       'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
       'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
     },
+    // FIXME: Fails to deploy
+    skipDeployment: isAdapterTest && isTurbopackTest,
   })
 
   function tests() {
@@ -91,6 +96,26 @@ describe('Middleware Rewrite', () => {
       expect(resWithHeaders.status).toBe(200)
       const json = await resWithHeaders.json()
       expect(json.headers['x-hello-from-middleware1']).toBe('hello')
+    })
+
+    // Regression test for https://github.com/vercel/next.js/issues/94647.
+    it('should preserve rewrite query and dynamic params in Pages API routes', async () => {
+      const res = await next.fetch('/foo/bar?key=value')
+
+      expect(res.status).toBe(200)
+      expect(await res.json()).toEqual({
+        // Deployed proxies include query values added while resolving rewrites
+        // in the URL passed to the function. Locally they are only in req.query.
+        url: isNextDeploy
+          ? '/foo/bar?key=value&added=1&extra=2'
+          : '/foo/bar?key=value',
+        query: {
+          key: 'value',
+          added: '1',
+          extra: '2',
+          slug: ['bar'],
+        },
+      })
     })
 
     it('should handle static dynamic rewrite from middleware correctly', async () => {

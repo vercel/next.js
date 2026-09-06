@@ -515,6 +515,134 @@
         ],
         span: 392..407,
     },
+    DestructuredMember {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "a",
+                ),
+            ),
+        ),
+        span: 437..438,
+    },
+    DestructuredMember {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "b",
+                ),
+            ),
+        ),
+        span: 444..447,
+    },
+    DestructuredMember {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "c",
+                ),
+            ),
+        ),
+        span: 453..458,
+    },
+    DestructuredMember {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "d",
+                ),
+            ),
+        ),
+        span: 464..465,
+    },
+    DestructuredMember {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "a",
+                ),
+            ),
+        ),
+        span: 490..491,
+    },
+    DestructuredMember {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "b",
+                ),
+            ),
+        ),
+        span: 493..494,
+    },
+    DestructuredMember {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "c",
+                ),
+            ),
+        ),
+        span: 496..497,
+    },
+    DestructuredMember {
+        obj: Variable(
+            (
+                "object",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "d",
+                ),
+            ),
+        ),
+        span: 499..500,
+    },
     FreeVar {
         var: "global",
         ast_path: [

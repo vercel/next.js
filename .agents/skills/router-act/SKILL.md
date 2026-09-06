@@ -60,6 +60,22 @@ await act(async () => { ... })
 - Extra responses that don't match any `includes` assertion are silently ignored — you only need to assert on the responses you care about. This keeps tests decoupled from the exact number of requests the router makes.
 - Each `includes` expectation claims exactly one response. If the same substring appears in N separate responses, provide N separate `{ includes: '...' }` entries.
 
+### App Shell requests are ignored by default
+
+When App Shells are enabled (the default when Cache Components is on), a `prefetch` is split into two phases: an **App Shell** prefetch — the param/searchParam-independent chrome of the route (layouts, loading boundaries, static shell) — and a separate per-link/per-page data prefetch. The App Shell is conceptually part of the route, not prefetch data, so **`act` ignores App Shell requests for all assertion purposes** (they carry a `next-router-prefetch: '3'` header).
+
+This means you generally do **not** need to account for the extra App Shell response in your assertions. If a `Loading...` fallback now arrives in both the App Shell prefetch and the per-link prefetch, you still write a single `{ includes: 'Loading...' }` — the App Shell copy is invisible to matching. Likewise, `'no-requests'` still passes even if an App Shell prefetch fires, and `block: 'reject'` won't match content that appears only in the App Shell.
+
+App Shell requests are still intercepted, fulfilled, and awaited (so the shell is cached and no requests are left in flight) — they just don't participate in `includes` matching, `no-requests`, `block: 'reject'`, or the "at least one request" check. An App Shell response that returns an error status (4xx/5xx) still fails the test.
+
+To assert on App Shell responses directly — for tests specifically about App Shell behavior — opt in at the `act` instance level:
+
+```typescript
+const act = createRouterAct(page, { includeAppShellRequests: true })
+```
+
+With this option, App Shell requests are treated like any other router request. Prefer expressing App Shell behavior through observable outcomes (e.g. an instant navigation rendering the cached shell before the data response arrives) rather than asserting on prefetch content where practical. See `test/e2e/app-dir/segment-cache/prefetch-app-shell/prefetch-app-shell.test.ts` for the canonical example.
+
 ### What `act` Does Internally
 
 `act` intercepts all router requests — prefetches, navigations, and Server Actions — made during the scope:

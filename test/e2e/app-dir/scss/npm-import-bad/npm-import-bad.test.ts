@@ -38,7 +38,7 @@ describe('CSS Import from node_modules', () => {
       if (isTurbopack) {
         expect(errorSource).toMatchInlineSnapshot(`
          "./styles/global.scss.css (1:9)
-         Module not found: Can't resolve 'nprogress/nprogress.css'
+         Error: Module not found: Can't resolve 'nprogress/nprogress.css'
          > 1 | @import 'nprogress/nprogress.css';
              |         ^
            2 |

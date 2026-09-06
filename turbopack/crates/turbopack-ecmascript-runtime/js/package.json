@@ -10,7 +10,7 @@
     "check:browser-dev-client": "tsc -p src/browser/dev/hmr-client",
     "check:browser-runtime-base": "tsc -p src/browser/runtime/base",
     "check:browser-runtime-dom": "tsc -p src/browser/runtime/dom",
-    "check:browser-runtime-edge": "tsc -p src/browser/runtime/edge"
+    "check:browser-runtime-self-contained": "tsc -p src/browser/runtime/self-contained"
   },
   "exports": {
     ".": "./src/main.js",

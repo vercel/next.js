@@ -29,8 +29,11 @@ mod write_batch;
 mod tests;
 
 pub use arc_bytes::ArcBytes;
-pub use compression::checksum_block;
-pub use db::{CompactConfig, MetaFileEntryInfo, MetaFileInfo, TurboPersistence};
+pub use compression::{Compression, checksum_block};
+pub use db::{
+    CommitStats, CompactConfig, CurrentDbVersion, MetaFileEntryInfo, MetaFileInfo,
+    TurboPersistence, read_current_version,
+};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FamilyKind {
@@ -51,12 +54,13 @@ pub enum FamilyKind {
 pub struct FamilyConfig {
     pub name: &'static str,
     pub kind: FamilyKind,
+    pub compression: Compression,
 }
 
-/// Database-wide configuration with per-family settings.
+/// Database-wide configuration with per-family storage settings.
 ///
-/// Each family (keyspace) can have different file size limits to optimize
-/// for its specific access patterns and data characteristics.
+/// Each family (keyspace) can select storage behavior suited to its access patterns and data
+/// characteristics.
 #[derive(Clone, Debug)]
 pub struct DbConfig<const FAMILIES: usize> {
     pub family_configs: [FamilyConfig; FAMILIES],
@@ -68,16 +72,20 @@ impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
             family_configs: [FamilyConfig {
                 name: "unknown",
                 kind: FamilyKind::SingleValue,
+                compression: Compression::Lz4,
             }; FAMILIES],
         }
     }
 }
+/// The largest value that [`WriteBatch::delete_value`] can delete, since the tombstone stores
+/// a copy of the value inline.
+pub use constants::MAX_INLINE_VALUE_SIZE;
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
 pub use meta_file::MetaEntryFlags;
 pub use parallel_scheduler::{ParallelScheduler, SerialScheduler};
 pub use static_sorted_file::{
-    BlockCache, BlockCacheLifecycle, BlockWeighter, SstLookupResult, StaticSortedFile,
-    StaticSortedFileMetaData,
+    BlockCache, BlockCacheLifecycle, BlockWeighter, KeyBlockLayout, SstLookupResult,
+    StaticSortedFile, StaticSortedFileMetaData,
 };
 pub use static_sorted_file_builder::{
     BLOCK_HEADER_SIZE, Entry, EntryValue, StreamingSstWriter, write_static_stored_file,

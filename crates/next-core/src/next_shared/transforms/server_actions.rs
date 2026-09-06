@@ -6,16 +6,15 @@ use next_custom_transforms::transforms::server_actions::{
 };
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{
-    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
-};
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use super::module_rule_match_js_no_url;
+use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 use crate::{mode::NextMode, next_config::CacheKinds};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum ActionsTransform {
     /// Browser and SSR
     Client,
@@ -32,25 +31,19 @@ pub async fn get_server_actions_transform_rule(
     use_cache_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
 ) -> Result<ModuleRule> {
-    let transformer = EcmascriptInputTransform::Plugin(
-        next_server_actions_transform_plugin(
-            mode,
-            transform,
-            *encryption_key,
-            use_cache_enabled,
-            *cache_kinds,
-        )
-        .to_resolved()
-        .await?,
-    );
-    // TODO: use get_ecma_transform_rule instead
-    Ok(ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![transformer]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![]),
-        }],
+    let transformer = next_server_actions_transform_plugin(
+        mode,
+        transform,
+        *encryption_key,
+        use_cache_enabled,
+        *cache_kinds,
+    )
+    .to_resolved()
+    .await?;
+    Ok(get_ecma_transform_rule(
+        transformer,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Preprocess,
     ))
 }
 

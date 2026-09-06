@@ -5,7 +5,13 @@ use serde_json::Value;
 fn main() -> anyhow::Result<()> {
     println!("cargo:rerun-if-env-changed=CI");
     println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_OS");
+    println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_FAMILY");
+    // Note these have to be read from `CARGO_CFG_*`, not `#[cfg(...)]`: inside a build script,
+    // `#[cfg(...)]` describes the machine *running* the script (the host), not the target being
+    // compiled.
     let is_macos_target = env::var("CARGO_CFG_TARGET_OS").is_ok_and(|value| value == "macos");
+    let is_linux_target = env::var("CARGO_CFG_TARGET_OS").is_ok_and(|value| value == "linux");
+    let is_wasm_target = env::var("CARGO_CFG_TARGET_FAMILY").is_ok_and(|value| value == "wasm");
 
     let nextjs_version = {
         let package_json_path = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -86,8 +92,12 @@ fn main() -> anyhow::Result<()> {
 
     // Resolve a potential linker issue for unit tests on linux
     // https://github.com/napi-rs/napi-rs/issues/1782
-    #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
-    println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
+    //
+    // Cross-compiling from Linux to wasm must not pass this: `rust-lld -flavor wasm` rejects it
+    // with `unknown argument: -Wl,--warn-unresolved-symbols`.
+    if is_linux_target && !is_wasm_target {
+        println!("cargo:rustc-link-arg=-Wl,--warn-unresolved-symbols");
+    }
 
     Ok(())
 }

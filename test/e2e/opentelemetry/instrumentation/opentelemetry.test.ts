@@ -1,6 +1,7 @@
-import { isNextDev, nextTestSetup } from 'e2e-utils'
-import { check, retry } from 'next-test-utils'
+import { FileRef, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
+import path from 'path'
 
 import { SavedSpan } from './constants'
 import { type Collector, connectCollector } from './collector'
@@ -11,23 +12,11 @@ const EXTERNAL = {
 } as const
 
 const COLLECTOR_PORT = 9001
-const isStartMode = process.env.NEXT_TEST_MODE === 'start'
+const ROUTE_PREPARATION_COLLECTOR_PORT = 9002
+const INSTRUMENTATION_STARTUP_COLLECTOR_PORT = 9003
+const APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT = 9004
 
-describe('opentelemetry', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
-    files: __dirname,
-    skipDeployment: true,
-    dependencies: require('./package.json').dependencies,
-    env: {
-      TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
-      NEXT_TELEMETRY_DISABLED: '1',
-    },
-  })
-
-  if (skipped) {
-    return
-  }
-
+function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
   let collector: Collector
 
   function getCollector(): Collector {
@@ -41,6 +30,67 @@ describe('opentelemetry', () => {
   afterEach(async () => {
     await collector.shutdown()
   })
+
+  let next = nextTestSetup({
+    files: __dirname,
+    skipDeployment: true,
+    dependencies: require('./package.json').dependencies,
+    ...(!useDirectEntrypointHandler
+      ? {
+          env: {
+            TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
+            NEXT_TELEMETRY_DISABLED: '1',
+          },
+        }
+      : {
+          startCommand: 'pnpm start-entrypoint',
+          packageJson: {
+            scripts: {
+              'start-entrypoint':
+                'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+            },
+          },
+          serverReadyPattern: /- Local:/,
+          env: {
+            TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
+            NEXT_TELEMETRY_DISABLED: '1',
+            NODE_ENV: 'production',
+          },
+        }),
+    overrideFiles: useNodeMiddleware
+      ? {
+          'middleware.ts': new FileRef(
+            path.join(__dirname, 'middleware-node.ts')
+          ),
+        }
+      : undefined,
+  })
+  return { next, getCollector }
+}
+
+describe.each(
+  [
+    { name: 'default' },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)('opentelemetry - $name', ({ useDirectEntrypointHandler }) => {
+  const {
+    next: { next, skipped, isNextDev },
+    getCollector,
+  } = setup({
+    useDirectEntrypointHandler,
+    useNodeMiddleware: false,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  // Edge runtime is currently not implemented in custom-entrypoint-server.ts
+  const itEdge = useDirectEntrypointHandler ? it.skip : it
 
   for (const env of [
     {
@@ -192,16 +242,21 @@ describe('opentelemetry', () => {
                       },
                     ],
                   },
-                  {
-                    name: 'resolve page components',
-                    attributes: {
-                      'next.route': '/app/[param]/rsc-fetch',
-                      'next.span_name': 'resolve page components',
-                      'next.span_type': 'NextNodeServer.findPageComponents',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/app/[param]/rsc-fetch',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                 ],
               },
             ])
@@ -223,7 +278,7 @@ describe('opentelemetry', () => {
             ])
           })
 
-          it('should handle RSC with fetch on edge', async () => {
+          itEdge('should handle RSC with fetch on edge', async () => {
             await next.fetch('/app/param/rsc-fetch/edge', env.fetchInit)
 
             await expectTrace(
@@ -368,6 +423,81 @@ describe('opentelemetry', () => {
             ])
           })
 
+          if (env.name === 'root context' && !useDirectEntrypointHandler) {
+            it.each(['/api/app/param/data', '/pages/param/getServerSideProps'])(
+              'should trace route module loading for %s',
+              async (pathname) => {
+                await next.fetch(pathname)
+
+                await retry(async () => {
+                  const spans = getCollector().getSpans()
+                  const rootSpan = spans.find(
+                    (span) =>
+                      span.attributes?.['next.span_type'] ===
+                        'BaseServer.handleRequest' &&
+                      span.attributes?.['http.target'] === pathname
+                  )
+                  const loadSpans = spans.filter(
+                    (span) =>
+                      span.attributes?.['next.span_type'] ===
+                        'LoadComponents.loadRouteModule' &&
+                      span.traceId === rootSpan?.traceId
+                  )
+
+                  expect(rootSpan).toBeDefined()
+                  expect(loadSpans).toEqual([
+                    expect.objectContaining({
+                      runtime: 'nodejs',
+                      name: 'load route module',
+                      traceId: rootSpan?.traceId,
+                      attributes: {
+                        'next.span_category': 'nextjs',
+                        'next.span_name': 'load route module',
+                        'next.span_type': 'LoadComponents.loadRouteModule',
+                      },
+                      status: { code: 0 },
+                    }),
+                  ])
+                })
+              }
+            )
+
+            it('should trace route module preparation', async () => {
+              const pathname = '/api/app/param/data'
+              await next.fetch(pathname)
+
+              await retry(async () => {
+                const spans = getCollector().getSpans()
+                const rootSpan = spans.find(
+                  (span) =>
+                    span.attributes?.['next.span_type'] ===
+                      'BaseServer.handleRequest' &&
+                    span.attributes?.['http.target'] === pathname
+                )
+                const prepareSpans = spans.filter(
+                  (span) =>
+                    span.attributes?.['next.span_type'] ===
+                      'RouteModule.prepare' &&
+                    span.traceId === rootSpan?.traceId
+                )
+
+                expect(rootSpan).toBeDefined()
+                expect(prepareSpans).toEqual([
+                  expect.objectContaining({
+                    runtime: 'nodejs',
+                    name: 'prepare route module',
+                    traceId: rootSpan?.traceId,
+                    attributes: {
+                      'next.span_category': 'nextjs',
+                      'next.span_name': 'prepare route module',
+                      'next.span_type': 'RouteModule.prepare',
+                    },
+                    status: { code: 0 },
+                  }),
+                ])
+              })
+            })
+          }
           it('should handle route handlers in app router', async () => {
             await next.fetch('/api/app/param/data', env.fetchInit)
 
@@ -399,16 +529,21 @@ describe('opentelemetry', () => {
                     kind: 0,
                     status: { code: 0 },
                   },
-                  {
-                    name: 'resolve page components',
-                    attributes: {
-                      'next.route': '/api/app/[param]/data',
-                      'next.span_name': 'resolve page components',
-                      'next.span_type': 'NextNodeServer.findPageComponents',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/api/app/[param]/data',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                   {
                     name: 'start response',
                     attributes: {
@@ -423,8 +558,147 @@ describe('opentelemetry', () => {
             ])
           })
 
-          it('should handle route handlers in app router on edge', async () => {
-            await next.fetch('/api/app/param/data/edge', env.fetchInit)
+          it('should record accurate status code for non-200 route handler responses', async () => {
+            await next.fetch('/api/app/param/status', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/app/[param]/status',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/app/[param]/status',
+                  'http.status_code': 418,
+                  'http.target': '/api/app/param/status',
+                  'next.route': '/api/app/[param]/status',
+                  'next.span_name': 'GET /api/app/[param]/status',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (app) /api/app/[param]/status',
+                    attributes: {
+                      'next.route': '/api/app/[param]/status',
+                      'next.span_name':
+                        'executing api route (app) /api/app/[param]/status',
+                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/api/app/[param]/status',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                  {
+                    name: 'start response',
+                    attributes: {
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
+          it('should record status code for failing handler', async () => {
+            await next.fetch('/api/app/param/error', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/app/[param]/error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/app/[param]/error',
+                  'http.status_code': 500,
+                  'http.target': '/api/app/param/error',
+                  'next.route': '/api/app/[param]/error',
+                  'next.span_name': 'GET /api/app/[param]/error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 2 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (app) /api/app/[param]/error',
+                    attributes: {
+                      'next.route': '/api/app/[param]/error',
+                      'next.span_name':
+                        'executing api route (app) /api/app/[param]/error',
+                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 2, message: 'foobar' },
+                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/api/app/[param]/error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                ],
+              },
+            ])
+          })
+
+          itEdge(
+            'should handle route handlers in app router on edge',
+            async () => {
+              await next.fetch('/api/app/param/data/edge', env.fetchInit)
+
+              await expectTrace(
+                getCollector(),
+                [
+                  {
+                    runtime: 'edge',
+                    traceId: env.span.traceId,
+                    parentId: env.span.rootParentId,
+                    name: 'executing api route (app) /api/app/[param]/data/edge',
+                    attributes: {
+                      'next.route': '/api/app/[param]/data/edge',
+                      'next.span_name':
+                        'executing api route (app) /api/app/[param]/data/edge',
+                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+                true
+              )
+            }
+          )
+
+          itEdge('should handle failing handler on edge', async () => {
+            await next.fetch('/api/app/param/error/edge', env.fetchInit)
 
             await expectTrace(
               getCollector(),
@@ -433,56 +707,19 @@ describe('opentelemetry', () => {
                   runtime: 'edge',
                   traceId: env.span.traceId,
                   parentId: env.span.rootParentId,
-                  name: 'executing api route (app) /api/app/[param]/data/edge',
+                  name: 'executing api route (app) /api/app/[param]/error/edge',
                   attributes: {
-                    'next.route': '/api/app/[param]/data/edge',
+                    'next.route': '/api/app/[param]/error/edge',
                     'next.span_name':
-                      'executing api route (app) /api/app/[param]/data/edge',
+                      'executing api route (app) /api/app/[param]/error/edge',
                     'next.span_type': 'AppRouteRouteHandlers.runHandler',
                   },
                   kind: 0,
-                  status: { code: 0 },
+                  status: { code: 2 },
                 },
               ],
               true
             )
-          })
-
-          it('should trace middleware', async () => {
-            await next.fetch('/behind-middleware', env.fetchInit)
-
-            await expectTrace(getCollector(), [
-              {
-                runtime: 'edge',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'middleware GET',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.target': '/behind-middleware',
-                  'next.span_name': 'middleware GET',
-                  'next.span_type': 'Middleware.execute',
-                },
-                status: { code: 0 },
-                spans: [],
-              },
-
-              {
-                runtime: 'nodejs',
-                traceId: env.span.traceId,
-                parentId: env.span.rootParentId,
-                name: 'GET /behind-middleware',
-                attributes: {
-                  'http.method': 'GET',
-                  'http.route': '/behind-middleware',
-                  'http.status_code': 200,
-                  'http.target': '/behind-middleware',
-                  'next.route': '/behind-middleware',
-                  'next.span_name': 'GET /behind-middleware',
-                  'next.span_type': 'BaseServer.handleRequest',
-                },
-              },
-            ])
           })
 
           it('should handle error in RSC', async () => {
@@ -600,16 +837,21 @@ describe('opentelemetry', () => {
                       },
                     ],
                   },
-                  {
-                    name: 'resolve page components',
-                    attributes: {
-                      'next.route': '/app/[param]/rsc-fetch/error',
-                      'next.span_name': 'resolve page components',
-                      'next.span_type': 'NextNodeServer.findPageComponents',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/app/[param]/rsc-fetch/error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                 ],
               },
             ])
@@ -723,16 +965,21 @@ describe('opentelemetry', () => {
                       },
                     ],
                   },
-                  {
-                    name: 'resolve page components',
-                    attributes: {
-                      'next.route': '/app/[param]/loading/error',
-                      'next.span_name': 'resolve page components',
-                      'next.span_type': 'NextNodeServer.findPageComponents',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/app/[param]/loading/error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                 ],
               },
             ])
@@ -782,16 +1029,21 @@ describe('opentelemetry', () => {
                     kind: 0,
                     status: { code: 0 },
                   },
-                  {
-                    name: 'resolve page components',
-                    attributes: {
-                      'next.route': '/pages/[param]/getServerSideProps',
-                      'next.span_name': 'resolve page components',
-                      'next.span_type': 'NextNodeServer.findPageComponents',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/pages/[param]/getServerSideProps',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                 ],
               },
             ])
@@ -838,22 +1090,27 @@ describe('opentelemetry', () => {
                     kind: 0,
                     status: { code: 0 },
                   },
-                  {
-                    name: 'resolve page components',
-                    attributes: {
-                      'next.route': `/pages/[param]/getStaticProps${v}`,
-                      'next.span_name': 'resolve page components',
-                      'next.span_type': 'NextNodeServer.findPageComponents',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': `/pages/[param]/getStaticProps${v}`,
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                 ],
               },
             ])
           })
 
-          it('should handle getServerSideProps on edge', async () => {
+          itEdge('should handle getServerSideProps on edge', async () => {
             await next.fetch(
               '/pages/param/edge/getServerSideProps',
               env.fetchInit
@@ -922,13 +1179,23 @@ describe('opentelemetry', () => {
                 attributes: {
                   'http.method': 'GET',
                   'http.route': '/pages/[param]/getServerSidePropsError',
-                  'http.status_code': 500,
                   'http.target': '/pages/param/getServerSidePropsError',
                   'next.route': '/pages/[param]/getServerSidePropsError',
                   'next.span_name':
                     'GET /pages/[param]/getServerSidePropsError',
                   'next.span_type': 'BaseServer.handleRequest',
-                  'error.type': '500',
+                  ...(useDirectEntrypointHandler
+                    ? {
+                        // With direct entrypoints, this 500 error has to be handled by whatever is
+                        // invoking the handler. And that same invoker is then also responsible for
+                        // setting OTEL correctly.
+                        'error.type': 'Error',
+                        'http.status_code': 200,
+                      }
+                    : {
+                        'error.type': '500',
+                        'http.status_code': 500,
+                      }),
                 },
                 kind: 1,
                 status: { code: 2 },
@@ -959,27 +1226,33 @@ describe('opentelemetry', () => {
                       },
                     ],
                   },
-                  {
-                    name: 'render route (pages) /_error',
-                    attributes: {
-                      'next.route': '/_error',
-                      'next.span_name': 'render route (pages) /_error',
-                      'next.span_type': 'Render.renderDocument',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                  {
-                    name: 'resolve page components',
-                    attributes: {
-                      'next.route': '/_error',
-                      'next.span_name': 'resolve page components',
-                      'next.span_type': 'NextNodeServer.findPageComponents',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                  ...(isNextDev
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'render route (pages) /_error',
+                          attributes: {
+                            'next.route': '/_error',
+                            'next.span_name': 'render route (pages) /_error',
+                            'next.span_type': 'Render.renderDocument',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/_error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                  ...(isNextDev || useDirectEntrypointHandler
                     ? []
                     : [
                         {
@@ -1005,16 +1278,22 @@ describe('opentelemetry', () => {
                           status: { code: 0 },
                         },
                       ]),
-                  {
-                    name: 'resolve page components',
-                    attributes: {
-                      'next.route': '/pages/[param]/getServerSidePropsError',
-                      'next.span_name': 'resolve page components',
-                      'next.span_type': 'NextNodeServer.findPageComponents',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route':
+                              '/pages/[param]/getServerSidePropsError',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                 ],
               },
             ])
@@ -1071,26 +1350,33 @@ describe('opentelemetry', () => {
                         },
                       ]
                     : []),
-                  {
-                    name: 'resolve page components',
-                    attributes: {
-                      'next.route': '/_not-found',
-                      'next.span_name': 'resolve page components',
-                      'next.span_type': 'NextNodeServer.findPageComponents',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
-                  {
-                    name: 'resolve page components',
-                    attributes: {
-                      'next.route': '/pages/[param]/getServerSidePropsNotFound',
-                      'next.span_name': 'resolve page components',
-                      'next.span_type': 'NextNodeServer.findPageComponents',
-                    },
-                    kind: 0,
-                    status: { code: 0 },
-                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/_not-found',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route':
+                              '/pages/[param]/getServerSidePropsNotFound',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
                 ],
               },
             ])
@@ -1131,7 +1417,7 @@ describe('opentelemetry', () => {
             ])
           })
 
-          it('should handle api routes in pages on edge', async () => {
+          itEdge('should handle api routes in pages on edge', async () => {
             await next.fetch('/api/pages/param/edge', env.fetchInit)
 
             await expectTrace(
@@ -1154,11 +1440,505 @@ describe('opentelemetry', () => {
               true
             )
           })
+
+          it('should handle failing api routes in pages', async () => {
+            await next.fetch('/api/pages/param/error', env.fetchInit)
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/pages/[param]/error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/pages/[param]/error',
+                  'http.status_code': 500,
+                  'http.target': '/api/pages/param/error',
+                  'next.route': '/api/pages/[param]/error',
+                  'next.span_name': 'GET /api/pages/[param]/error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 2 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (pages) /api/pages/[param]/error',
+                    attributes: {
+                      'next.span_name':
+                        'executing api route (pages) /api/pages/[param]/error',
+                      'next.span_type': 'Node.runHandler',
+                    },
+                    kind: 0,
+                    // TODO this difference is odd
+                    status: { code: isNextDev ? 2 : 0 },
+                  },
+                  ...(isNextDev
+                    ? [
+                        {
+                          name: 'render route (pages) /_error',
+                          attributes: {
+                            'next.route': '/_error',
+                            'next.span_name': 'render route (pages) /_error',
+                            'next.span_type': 'Render.renderDocument',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/_error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]
+                    : []),
+                ],
+              },
+            ])
+          })
+
+          itEdge(
+            'should handle failing api routes in pages on edge',
+            async () => {
+              await next.fetch('/api/pages/param/error-edge', env.fetchInit)
+
+              await expectTrace(
+                getCollector(),
+                [
+                  {
+                    runtime: 'edge',
+                    traceId: env.span.traceId,
+                    parentId: env.span.rootParentId,
+                    name: 'executing api route (pages) /api/pages/[param]/error-edge',
+                    attributes: {
+                      'next.span_name':
+                        'executing api route (pages) /api/pages/[param]/error-edge',
+                      'next.span_type': 'Node.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 2 },
+                  },
+                ],
+                true
+              )
+            }
+          )
         })
       }
     )
   }
 })
+
+if (isNextStart) {
+  describe('opentelemetry route module preparation with direct entrypoint handler', () => {
+    let collector: Collector | undefined
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+      skipStart: true,
+      dependencies: require('./package.json').dependencies,
+      startCommand: 'pnpm start-entrypoint',
+      packageJson: {
+        scripts: {
+          'start-entrypoint':
+            'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+        },
+      },
+      serverReadyPattern: /- Local:/,
+      env: {
+        TEST_OTEL_COLLECTOR_PORT: String(ROUTE_PREPARATION_COLLECTOR_PORT),
+        NEXT_TELEMETRY_DISABLED: '1',
+        NODE_ENV: 'production',
+      },
+    })
+
+    if (skipped) {
+      return
+    }
+
+    afterAll(async () => {
+      await collector?.shutdown()
+    })
+
+    it('should trace route module preparation', async () => {
+      const connectedCollector = await connectCollector({
+        port: ROUTE_PREPARATION_COLLECTOR_PORT,
+      })
+      collector = connectedCollector
+      await next.start()
+
+      await next.fetch('/app/param/rsc-fetch')
+      await next.fetch('/api/app/param/data')
+
+      await retry(async () => {
+        const prepareSpans = connectedCollector
+          .getSpans()
+          .filter(
+            (span) =>
+              span.attributes?.['next.span_type'] === 'RouteModule.prepare'
+          )
+
+        expect(prepareSpans).toEqual([
+          expect.objectContaining({
+            runtime: 'nodejs',
+            name: 'prepare route module',
+            attributes: {
+              'next.span_category': 'nextjs',
+              'next.span_name': 'prepare route module',
+              'next.span_type': 'RouteModule.prepare',
+            },
+            status: { code: 0 },
+          }),
+        ])
+      })
+    })
+  })
+}
+
+describe.each(
+  [
+    { name: 'default', useDirectEntrypointHandler: false },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)(
+  'opentelemetry App Route module loading - $name',
+  ({ useDirectEntrypointHandler }) => {
+    let collector: Collector | undefined
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+      skipStart: true,
+      dependencies: require('./package.json').dependencies,
+      ...(!useDirectEntrypointHandler
+        ? {
+            env: {
+              TEST_OTEL_COLLECTOR_PORT: String(
+                APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT
+              ),
+              NEXT_TELEMETRY_DISABLED: '1',
+            },
+          }
+        : {
+            startCommand: 'pnpm start-entrypoint',
+            packageJson: {
+              scripts: {
+                'start-entrypoint':
+                  'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+              },
+            },
+            serverReadyPattern: /- Local:/,
+            env: {
+              TEST_OTEL_COLLECTOR_PORT: String(
+                APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT
+              ),
+              NEXT_TELEMETRY_DISABLED: '1',
+              NODE_ENV: 'production',
+            },
+          }),
+    })
+
+    if (skipped) {
+      return
+    }
+
+    afterAll(async () => {
+      await collector?.shutdown()
+    })
+
+    it('should trace cold App Route module loading once', async () => {
+      collector = await connectCollector({
+        port: APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT,
+      })
+      await next.start()
+
+      const pathname = '/api/app/param/data'
+      const route = '/api/app/[param]/data'
+      expect((await next.fetch(pathname)).status).toBe(200)
+
+      let coldSpanId: string | undefined
+      await retry(async () => {
+        const spans = collector?.getSpans() ?? []
+        const rootSpan = spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'BaseServer.handleRequest' &&
+            span.attributes?.['http.target'] === pathname
+        )
+        const moduleLoadSpans = spans.filter(
+          (span) =>
+            span.attributes?.['next.span_type'] ===
+              'AppRouteRouteModule.loadUserland' &&
+            span.attributes?.['next.route'] === route
+        )
+
+        expect(rootSpan).toBeDefined()
+        expect(moduleLoadSpans).toEqual([
+          expect.objectContaining({
+            runtime: 'nodejs',
+            name: 'load app route module',
+            traceId: rootSpan?.traceId,
+            attributes: {
+              'next.route': route,
+              'next.span_category': 'nextjs',
+              'next.span_name': 'load app route module',
+              'next.span_type': 'AppRouteRouteModule.loadUserland',
+            },
+            status: { code: 0 },
+          }),
+        ])
+
+        const moduleLoadSpan = moduleLoadSpans[0]
+        const ancestorIds = new Set<string>()
+        const parentBySpanId = new Map(
+          spans.map((span) => [span.id, span.parentId])
+        )
+        let parentId = moduleLoadSpan.parentId
+        while (parentId) {
+          ancestorIds.add(parentId)
+          parentId = parentBySpanId.get(parentId)
+        }
+        expect(ancestorIds).toContain(rootSpan?.id)
+        coldSpanId = moduleLoadSpan.id
+      })
+
+      expect((await next.fetch(pathname)).status).toBe(200)
+      await retry(async () => {
+        const spans = collector?.getSpans() ?? []
+        expect(
+          spans.filter(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+                'AppRouteRouteModule.loadUserland' &&
+              span.attributes?.['next.route'] === route
+          )
+        ).toEqual([expect.objectContaining({ id: coldSpanId })])
+        expect(
+          spans.filter(
+            (span) =>
+              span.attributes?.['next.span_type'] ===
+                'BaseServer.handleRequest' &&
+              span.attributes?.['http.target'] === pathname
+          )
+        ).toHaveLength(2)
+      })
+    })
+  }
+)
+
+describe.each(
+  [
+    { name: 'default', useDirectEntrypointHandler: false },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)('opentelemetry - middleware $name', ({ useDirectEntrypointHandler }) => {
+  describe.each(['edge', 'nodejs'])('%s runtime', (runtime) => {
+    const {
+      next: { next, skipped },
+      getCollector,
+    } = setup({
+      useDirectEntrypointHandler,
+      useNodeMiddleware: runtime === 'nodejs',
+    })
+
+    if (skipped) {
+      return
+    }
+
+    if (useDirectEntrypointHandler && runtime === 'edge') {
+      it.skip('direct entrypoint handler is not implemented for edge runtime', () => {})
+      return
+    }
+
+    for (const env of [
+      {
+        name: 'root context',
+        fetchInit: undefined,
+        span: {
+          traceId: '[trace-id]',
+          rootParentId: undefined,
+        },
+      },
+      {
+        name: 'incoming context propagation',
+        fetchInit: {
+          headers: {
+            traceparent: `00-${EXTERNAL.traceId}-${EXTERNAL.spanId}-01`,
+          },
+        },
+        span: {
+          traceId: EXTERNAL.traceId,
+          rootParentId: EXTERNAL.spanId,
+        },
+      },
+    ]) {
+      ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
+        env.name,
+        () => {
+          it('should trace middleware', async () => {
+            await next.fetch('/behind-middleware', env.fetchInit)
+            let expected = [
+              {
+                runtime: runtime,
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'middleware GET',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.target': '/behind-middleware',
+                  'next.span_name': 'middleware GET',
+                  'next.span_type': 'Middleware.execute',
+                },
+                status: { code: 0 },
+                spans: [],
+              },
+              {
+                runtime: 'nodejs',
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                name: 'GET /behind-middleware',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/behind-middleware',
+                  'http.status_code': 200,
+                  'http.target': '/behind-middleware',
+                  'next.route': '/behind-middleware',
+                  'next.span_name': 'GET /behind-middleware',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+              },
+            ]
+            if (runtime === 'nodejs') {
+              // TODO unclear why this is reversed for Node.js runtime
+              expected.reverse()
+            }
+            await expectTrace(getCollector(), expected)
+          })
+        }
+      )
+    }
+  })
+})
+
+describe.each(
+  [
+    { name: 'default' },
+    isNextStart && {
+      name: 'direct entrypoints',
+      useDirectEntrypointHandler: true,
+    },
+  ].filter(Boolean)
+)(
+  'opentelemetry instrumentation startup - $name',
+  ({ useDirectEntrypointHandler }) => {
+    let collector: Collector | undefined
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipDeployment: true,
+      skipStart: true,
+      dependencies: require('./package.json').dependencies,
+      ...(!useDirectEntrypointHandler
+        ? {
+            env: {
+              TEST_OTEL_COLLECTOR_PORT: String(
+                INSTRUMENTATION_STARTUP_COLLECTOR_PORT
+              ),
+              NEXT_TELEMETRY_DISABLED: '1',
+            },
+          }
+        : {
+            startCommand: 'pnpm start-entrypoint',
+            packageJson: {
+              scripts: {
+                'start-entrypoint':
+                  'pnpm tsx custom-entrypoint-server.ts --without-parent-span',
+              },
+            },
+            serverReadyPattern: /- Local:/,
+            env: {
+              TEST_OTEL_COLLECTOR_PORT: String(
+                INSTRUMENTATION_STARTUP_COLLECTOR_PORT
+              ),
+              NEXT_TELEMETRY_DISABLED: '1',
+              NODE_ENV: 'production',
+            },
+          }),
+    })
+
+    if (skipped) {
+      return
+    }
+
+    afterAll(async () => {
+      await collector?.shutdown()
+    })
+
+    it('should trace instrumentation startup', async () => {
+      collector = await connectCollector({
+        port: INSTRUMENTATION_STARTUP_COLLECTOR_PORT,
+      })
+      await next.start()
+      await next.fetch('/app/param/rsc-fetch')
+
+      await retry(async () => {
+        const spans = collector?.getSpans() ?? []
+        const loadModuleSpan = spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'Instrumentation.loadModule'
+        )
+        const registerSpan = spans.find(
+          (span) =>
+            span.attributes?.['next.span_type'] === 'Instrumentation.register'
+        )
+
+        expect(
+          spans.filter((span) =>
+            ['Instrumentation.loadModule', 'Instrumentation.register'].includes(
+              span.attributes?.['next.span_type'] as string
+            )
+          )
+        ).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              runtime: 'nodejs',
+              name: 'load instrumentation module',
+              attributes: {
+                'next.span_category': 'nextjs',
+                'next.span_name': 'load instrumentation module',
+                'next.span_type': 'Instrumentation.loadModule',
+              },
+              status: { code: 0 },
+            }),
+            expect.objectContaining({
+              runtime: 'nodejs',
+              name: 'register instrumentation',
+              attributes: {
+                'next.span_category': 'nextjs',
+                'next.span_name': 'register instrumentation',
+                'next.span_type': 'Instrumentation.register',
+              },
+              status: { code: 0 },
+            }),
+          ])
+        )
+        expect(loadModuleSpan?.timestamp).toBeLessThanOrEqual(
+          registerSpan!.timestamp!
+        )
+      })
+    })
+  }
+)
 ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
   'opentelemetry NEXT_OTEL_VERBOSE=1',
   () => {
@@ -1487,7 +2267,7 @@ describe('opentelemetry with custom server', () => {
   })
 })
 
-if (isStartMode) {
+if (isNextStart) {
   describe('opentelemetry with direct entrypoint handler', () => {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
@@ -1631,8 +2411,19 @@ async function expectTrace(
       .filter(Boolean)
   )
 
-  await check(async () => {
-    const traces = collector.getSpans()
+  await retry(async () => {
+    const traces = collector
+      .getSpans()
+      .filter(
+        (span) =>
+          ![
+            'LoadComponents.loadRouteModule',
+            'AppRouteRouteModule.loadUserland',
+            'RouteModule.prepare',
+            'Instrumentation.loadModule',
+            'Instrumentation.register',
+          ].includes(span.attributes?.['next.span_type'] as string)
+      )
 
     const tree: HierSavedSpan[] = []
     const spansForTree: HierSavedSpan[] = traces.map((span) => ({
@@ -1707,6 +2498,5 @@ async function expectTrace(
     })
 
     expect(filteredTree).toMatchObject(match)
-    return 'success'
-  }, 'success')
+  })
 }

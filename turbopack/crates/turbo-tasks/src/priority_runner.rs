@@ -2,6 +2,7 @@ use std::{
     collections::BinaryHeap,
     fmt::Debug,
     future::Future,
+    hash::Hash,
     pin::Pin,
     ptr::drop_in_place,
     sync::{
@@ -14,11 +15,27 @@ use std::{
 
 use parking_lot::Mutex;
 use pin_project_lite::pin_project;
+use rustc_hash::FxHashMap;
 
 pub trait Executor<C, T, P>: Send + Sync {
     type Future: Future<Output = ()> + Send;
 
     fn execute(&self, execute_context: &Arc<C>, task: T, priority: P) -> Self::Future;
+}
+
+/// A queued item that can be claimed by key before a worker starts executing it.
+///
+/// Claiming is how a reader takes over work it is about to wait for: instead of parking until some
+/// worker gets around to the queued item, the reader removes it from the queue (see
+/// [`PriorityRunner::claim`]) and drives it itself.
+pub trait Claimable {
+    type Key: Eq + Hash + Copy + Debug + Send + Sync;
+
+    /// The key this item can be claimed by, or `None` when it must not be claimable.
+    ///
+    /// When multiple queued items share a key, only the most recently queued one is claimable; the
+    /// others stay in the queue and are executed by workers as usual.
+    fn claim_key(&self) -> Option<Self::Key>;
 }
 
 impl<C, T, P, F, Fut> Executor<C, T, P> for F
@@ -33,42 +50,158 @@ where
     }
 }
 
-struct HeapItem<P, T> {
+struct HeapItem<P> {
     priority: P,
-    task: T,
+    /// Index into [`Queue::slots`]. The slot holds the queued item, or `None` when it was claimed
+    /// (see [`Queue::claim`]).
+    slot: usize,
 }
 
-impl<P: Eq, T> PartialEq for HeapItem<P, T> {
+impl<P: Eq> PartialEq for HeapItem<P> {
     fn eq(&self, other: &Self) -> bool {
         self.priority == other.priority
     }
 }
 
-impl<P: Eq, T> Eq for HeapItem<P, T> {}
+impl<P: Eq> Eq for HeapItem<P> {}
 
-impl<P: Ord, T> Ord for HeapItem<P, T> {
+impl<P: Ord> Ord for HeapItem<P> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.priority.cmp(&other.priority)
     }
 }
 
-impl<P: Ord, T> PartialOrd for HeapItem<P, T> {
+impl<P: Ord> PartialOrd for HeapItem<P> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
+/// The queue of items that are not scheduled yet.
+///
+/// Items are ordered by priority in a [`BinaryHeap`], but they are stored out-of-line in `slots` so
+/// that a single item can be removed by key without disturbing the heap (a binary heap has no
+/// keyed removal). Claiming an item takes the value out of its slot and leaves the heap entry
+/// behind as a tombstone, which is skipped (and its slot recycled) when a worker pops it.
+struct Queue<P, T: Claimable> {
+    heap: BinaryHeap<HeapItem<P>>,
+    /// The queued items with their priority. A slot is `Some` while the item is queued, `None` if
+    /// it was claimed. The slot itself is only recycled once its (tombstone) heap entry has
+    /// been popped, so a slot index is never reused while it is still referenced by the heap.
+    ///
+    /// The priority is stored here as well as in the heap entry because [`Queue::claim`] finds an
+    /// item by key and never touches the heap, so unlike [`Queue::pop`] it has no heap entry to
+    /// read it from — and [`Executor::execute`] needs the priority.
+    slots: Vec<Option<(P, T)>>,
+    /// Recycled indices into `slots`.
+    free_slots: Vec<usize>,
+    /// Slot index of the claimable item for each key.
+    claimable: FxHashMap<T::Key, usize>,
+    /// How many items were ever pushed. Diagnostics only, see [`PriorityRunner::total_queued`].
+    #[cfg(feature = "inline_execution_stats")]
+    pushes: u64,
+}
+
+impl<P: Clone + Ord, T: Claimable> Queue<P, T> {
+    fn new() -> Self {
+        Self {
+            heap: BinaryHeap::new(),
+            slots: Vec::new(),
+            free_slots: Vec::new(),
+            claimable: FxHashMap::default(),
+            #[cfg(feature = "inline_execution_stats")]
+            pushes: 0,
+        }
+    }
+
+    /// Whether there is any heap entry left. This can be `true` while all remaining entries are
+    /// tombstones of claimed items; popping is what cleans those up.
+    fn is_empty(&self) -> bool {
+        self.heap.is_empty()
+    }
+
+    fn push(&mut self, priority: P, task: T) {
+        #[cfg(feature = "inline_execution_stats")]
+        {
+            self.pushes += 1;
+        }
+        let key = task.claim_key();
+        let heap_priority = priority.clone();
+        let slot = if let Some(slot) = self.free_slots.pop() {
+            self.slots[slot] = Some((priority, task));
+            slot
+        } else {
+            self.slots.push(Some((priority, task)));
+            self.slots.len() - 1
+        };
+        if let Some(key) = key {
+            // If this key is already queued, the older item stops being claimable. It stays in the
+            // queue and is executed by a worker as usual.
+            self.claimable.insert(key, slot);
+        }
+        self.heap.push(HeapItem {
+            priority: heap_priority,
+            slot,
+        });
+    }
+
+    /// Pops the highest priority item, skipping tombstones of claimed items.
+    fn pop(&mut self) -> Option<(P, T)> {
+        while let Some(HeapItem { slot, .. }) = self.heap.pop() {
+            let entry = self.slots[slot].take();
+            self.free_slots.push(slot);
+            if let Some((priority, task)) = entry {
+                if let Some(key) = task.claim_key() {
+                    // Only remove the mapping when it still points at this item. A newer item with
+                    // the same key must stay claimable.
+                    if self.claimable.get(&key) == Some(&slot) {
+                        self.claimable.remove(&key);
+                    }
+                }
+                self.shrink_amortized();
+                return Some((priority, task));
+            }
+        }
+        self.shrink_amortized();
+        None
+    }
+
+    /// Removes the queued item with the given key, if it is still queued and claimable.
+    fn claim(&mut self, key: &T::Key) -> Option<(P, T)> {
+        let slot = self.claimable.remove(key)?;
+        // The slot is intentionally not recycled here: its heap entry is still around as a
+        // tombstone and must not start pointing at a different item.
+        self.slots.get_mut(slot).and_then(|slot| slot.take())
+    }
+
+    /// Amortized shrinking of the queue, but with a lower threshold to avoid
+    /// frequent reallocations when the queue is small.
+    fn shrink_amortized(&mut self) {
+        if self.heap.capacity() > self.heap.len() * 3 && self.heap.capacity() > 128 {
+            let new_capacity = self.heap.len().next_power_of_two().max(128);
+            self.heap.shrink_to(new_capacity);
+        }
+        if self.heap.is_empty() && self.claimable.is_empty() && self.slots.capacity() > 128 {
+            // Nothing references any slot anymore.
+            self.slots.clear();
+            self.slots.shrink_to(128);
+            self.free_slots.clear();
+            self.free_slots.shrink_to(128);
+        }
+    }
+}
+
 pub struct PriorityRunner<
     C: Send + Sync + 'static,
-    T: Send + 'static,
-    P: Ord + Send + 'static,
+    T: Claimable + Send + 'static,
+    P: Clone + Ord + Send + 'static,
     E: Executor<C, T, P> + 'static,
 > {
     executor: E,
     /// The target number of workers to spawn.
     target_workers: usize,
     /// The queue of tasks to execute. These tasks are not scheduled yet.
-    queue: Mutex<BinaryHeap<HeapItem<P, T>>>,
+    queue: Mutex<Queue<P, T>>,
     /// The number of active workers currently polling tasks.
     /// Workers that responded with Poll::Pending are not counted until they are polled again.
     active_workers: AtomicUsize,
@@ -77,19 +210,34 @@ pub struct PriorityRunner<
 
 impl<
     C: Send + Sync + 'static,
-    T: Send + 'static,
-    P: Debug + Ord + Send + 'static,
+    T: Claimable + Send + 'static,
+    P: Clone + Debug + Ord + Send + 'static,
     E: Executor<C, T, P> + 'static,
 > PriorityRunner<C, T, P, E>
 {
     pub fn new(executor: E) -> Self {
+        Self::with_target_workers(
+            executor,
+            tokio::runtime::Handle::current().metrics().num_workers(),
+        )
+    }
+
+    fn with_target_workers(executor: E, target_workers: usize) -> Self {
         Self {
             executor,
-            target_workers: tokio::runtime::Handle::current().metrics().num_workers(),
-            queue: Mutex::new(BinaryHeap::new()),
+            target_workers,
+            queue: Mutex::new(Queue::new()),
             active_workers: AtomicUsize::new(0),
             phantom: std::marker::PhantomData,
         }
+    }
+
+    /// How many tasks were ever put into the queue, as opposed to being executed without ever being
+    /// queued. Diagnostics only — it lets a test assert that a task never took the detour through
+    /// the queue.
+    #[cfg(feature = "inline_execution_stats")]
+    pub fn total_queued(&self) -> u64 {
+        self.queue.lock().pushes
     }
 
     pub fn schedule(self: &Arc<Self>, execute_context: &Arc<C>, task: T, priority: P) {
@@ -98,7 +246,11 @@ impl<
             // If there is already work in the queue, we don't have any
             // free capacity so we can just push the task to the queue.
             // It will be picked up by existing workers.
-            queue.push(HeapItem { priority, task });
+            //
+            // A worker only stops when it finds the queue empty, so a non-empty queue always has a
+            // worker that will drain it. [`claim`](Self::claim) does take work out of the queue
+            // without being a worker, but that only ever makes the queue shorter.
+            queue.push(priority, task);
             return;
         }
         // The queue is empty, so we might have free capacity to spawn a new worker.
@@ -111,12 +263,23 @@ impl<
             WorkerFuture::spawn(future, execute_context.clone(), self.clone());
         } else {
             // No free capacity, push the task to the queue.
-            queue.push(HeapItem { priority, task });
+            queue.push(priority, task);
             drop(queue);
 
             // Undo the added active worker since we didn't spawn a new worker.
             self.decrease_active_workers(execute_context);
         }
+    }
+
+    /// Takes the queued task with the given key out of the queue and returns its execution future,
+    /// or `None` when there is no such task in the queue (it was never scheduled, a worker already
+    /// picked it up, or it was claimed before).
+    ///
+    /// The caller takes over the responsibility to drive the returned future to completion; the
+    /// task left the queue, so no worker will do it.
+    pub fn claim(&self, execute_context: &Arc<C>, key: &T::Key) -> Option<E::Future> {
+        let (priority, task) = self.queue.lock().claim(key)?;
+        Some(self.executor.execute(execute_context, task, priority))
     }
 
     /// Tries to decrease the active worker count by 1.
@@ -148,17 +311,8 @@ impl<
     }
 
     fn pop_future_from_worker(&self, execute_context: &Arc<C>) -> Option<E::Future> {
-        let mut queue = self.queue.lock();
-        if let Some(heap_item) = queue.pop() {
-            shrink_amortized(&mut queue);
-            drop(queue);
-            Some(
-                self.executor
-                    .execute(execute_context, heap_item.task, heap_item.priority),
-            )
-        } else {
-            None
-        }
+        let popped = self.queue.lock().pop();
+        popped.map(|(priority, task)| self.executor.execute(execute_context, task, priority))
     }
 
     fn spawn_worker_if_work_available(
@@ -166,13 +320,9 @@ impl<
         execute_context: &Arc<C>,
         unused_active_count: bool,
     ) -> bool {
-        let mut queue = self.queue.lock();
-        if let Some(heap_item) = queue.pop() {
-            shrink_amortized(&mut queue);
-            drop(queue);
-            let new_future =
-                self.executor
-                    .execute(execute_context, heap_item.task, heap_item.priority);
+        let popped = self.queue.lock().pop();
+        if let Some((priority, task)) = popped {
+            let new_future = self.executor.execute(execute_context, task, priority);
 
             if !unused_active_count {
                 self.active_workers.fetch_add(1, Ordering::Relaxed);
@@ -182,15 +332,6 @@ impl<
         } else {
             false
         }
-    }
-}
-
-fn shrink_amortized<P, T>(queue: &mut BinaryHeap<HeapItem<P, T>>) {
-    // Amortized shrinking of the queue, but with a lower threshold to avoid
-    // frequent reallocations when the queue is small.
-    if queue.capacity() > queue.len() * 3 && queue.capacity() > 128 {
-        let new_capacity = queue.len().next_power_of_two().max(128);
-        queue.shrink_to(new_capacity);
     }
 }
 
@@ -209,8 +350,10 @@ pin_project! {
         C: Send,
         C: Sync,
         C: 'static,
+        T: Claimable,
         T: Send,
         T: 'static,
+        P: Clone,
         P: Ord,
         P: Send,
         P: 'static,
@@ -228,8 +371,8 @@ pin_project! {
 
 impl<
     C: Send + Sync + 'static,
-    T: Send + 'static,
-    P: Debug + Ord + Send + 'static,
+    T: Claimable + Send + 'static,
+    P: Clone + Debug + Ord + Send + 'static,
     E: Executor<C, T, P> + 'static,
 > WorkerFuture<C, T, P, E>
 {
@@ -245,8 +388,8 @@ impl<
 
 impl<
     C: Send + Sync + 'static,
-    T: Send + 'static,
-    P: Debug + Ord + Send + 'static,
+    T: Claimable + Send + 'static,
+    P: Clone + Debug + Ord + Send + 'static,
     E: Executor<C, T, P> + 'static,
 > Future for WorkerFuture<C, T, P, E>
 {
@@ -335,6 +478,224 @@ mod tests {
     };
 
     use super::*;
+
+    impl Claimable for u32 {
+        type Key = u32;
+
+        fn claim_key(&self) -> Option<u32> {
+            Some(*self)
+        }
+    }
+
+    impl Claimable for (u32, bool) {
+        type Key = u32;
+
+        fn claim_key(&self) -> Option<u32> {
+            Some(self.0)
+        }
+    }
+
+    /// An item that is never claimable, to check that `None` keys are queued and executed as usual.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    struct Unkeyed(u32);
+
+    impl Claimable for Unkeyed {
+        type Key = u32;
+
+        fn claim_key(&self) -> Option<u32> {
+            None
+        }
+    }
+
+    /// An executor that records which items it was asked to execute, in order, and whose futures
+    /// complete immediately. Lets the queue be driven without a tokio runtime.
+    struct RecordingExecutor;
+
+    impl<T: Claimable + Copy + Send + Sync + Debug + 'static> Executor<Mutex<Vec<T>>, T, u32>
+        for RecordingExecutor
+    {
+        type Future = std::future::Ready<()>;
+
+        fn execute(
+            &self,
+            execute_context: &Arc<Mutex<Vec<T>>>,
+            task: T,
+            _priority: u32,
+        ) -> Self::Future {
+            execute_context.lock().push(task);
+            std::future::ready(())
+        }
+    }
+
+    /// The recorded executions of a test runner, in execution order.
+    type Executions<T> = Arc<Mutex<Vec<T>>>;
+    /// A test runner over items of type `T`.
+    type TestRunner<T> = Arc<PriorityRunner<Mutex<Vec<T>>, T, u32, RecordingExecutor>>;
+
+    /// A runner that queues every scheduled item (`target_workers == 0`, so no worker is ever
+    /// spawned) and therefore needs no tokio runtime. `pop_future_from_worker` stands in for what a
+    /// worker would do.
+    fn queueing_runner<T: Claimable + Copy + Send + Sync + Debug + 'static>()
+    -> (TestRunner<T>, Executions<T>) {
+        (
+            Arc::new(PriorityRunner::with_target_workers(RecordingExecutor, 0)),
+            Arc::new(Mutex::new(Vec::new())),
+        )
+    }
+
+    /// Drains the queue the way workers would and returns the items in execution order.
+    fn drain<T: Claimable + Copy + Send + Sync + Debug + 'static>(
+        runner: &TestRunner<T>,
+        executed: &Executions<T>,
+    ) -> Vec<T> {
+        while runner.pop_future_from_worker(executed).is_some() {}
+        let items = executed.lock().clone();
+        executed.lock().clear();
+        items
+    }
+
+    #[test]
+    fn test_claim_queued_entry_by_key() {
+        let (runner, executed) = queueing_runner::<u32>();
+        for task in 0..4 {
+            runner.schedule(&executed, task, task);
+        }
+
+        // Claiming builds the execution future, which the recording executor counts as executed.
+        assert!(runner.claim(&executed, &2).is_some());
+        assert_eq!(*executed.lock(), vec![2]);
+        executed.lock().clear();
+
+        // The claimed entry is gone from the queue; everything else still runs, highest priority
+        // first.
+        assert_eq!(drain(&runner, &executed), vec![3, 1, 0]);
+    }
+
+    #[test]
+    fn test_claim_unknown_key_returns_none() {
+        let (runner, executed) = queueing_runner::<u32>();
+        runner.schedule(&executed, 1, 1);
+
+        // Never scheduled.
+        assert!(runner.claim(&executed, &42).is_none());
+        // Already executed by a "worker".
+        assert_eq!(drain(&runner, &executed), vec![1]);
+        assert!(runner.claim(&executed, &1).is_none());
+        assert!(executed.lock().is_empty());
+    }
+
+    #[test]
+    fn test_claim_twice_returns_none() {
+        let (runner, executed) = queueing_runner::<u32>();
+        runner.schedule(&executed, 7, 7);
+
+        assert!(runner.claim(&executed, &7).is_some());
+        assert!(runner.claim(&executed, &7).is_none());
+        assert_eq!(*executed.lock(), vec![7]);
+        executed.lock().clear();
+
+        // Only a tombstone is left.
+        assert!(drain(&runner, &executed).is_empty());
+    }
+
+    #[test]
+    fn test_claimed_entry_is_executed_exactly_once() {
+        let (runner, executed) = queueing_runner::<u32>();
+        for task in 0..10 {
+            runner.schedule(&executed, task, task);
+        }
+        for task in [0, 5, 9] {
+            assert!(runner.claim(&executed, &task).is_some());
+        }
+        let mut all = drain(&runner, &executed);
+        all.sort_unstable();
+        // Every scheduled item was executed exactly once: three by the claimer, the rest by
+        // "workers".
+        assert_eq!(all, (0..10).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn test_claim_preserves_priority_order() {
+        let (runner, executed) = queueing_runner::<u32>();
+        for task in 0..6 {
+            runner.schedule(&executed, task, task);
+        }
+        assert!(runner.claim(&executed, &4).is_some());
+        executed.lock().clear();
+
+        assert_eq!(drain(&runner, &executed), vec![5, 3, 2, 1, 0]);
+    }
+
+    #[test]
+    fn test_duplicate_keys() {
+        let (runner, executed) = queueing_runner::<(u32, bool)>();
+        // Both items share the claim key `1`.
+        runner.schedule(&executed, (1, false), 1);
+        runner.schedule(&executed, (1, true), 2);
+
+        // The most recently queued item is the claimable one.
+        assert!(runner.claim(&executed, &1).is_some());
+        assert_eq!(*executed.lock(), vec![(1, true)]);
+        executed.lock().clear();
+        // The other one is not claimable anymore, but it is not lost either.
+        assert!(runner.claim(&executed, &1).is_none());
+        assert_eq!(drain(&runner, &executed), vec![(1, false)]);
+    }
+
+    #[test]
+    fn test_unkeyed_entries_are_not_claimable() {
+        let (runner, executed) = queueing_runner::<Unkeyed>();
+        runner.schedule(&executed, Unkeyed(1), 1);
+        runner.schedule(&executed, Unkeyed(2), 2);
+
+        assert!(runner.claim(&executed, &1).is_none());
+        assert_eq!(
+            drain(&runner, &executed),
+            vec![Unkeyed(2), Unkeyed(1)],
+            "unkeyed items are queued and executed as usual"
+        );
+    }
+
+    #[test]
+    fn test_slots_are_recycled() {
+        let (runner, executed) = queueing_runner::<u32>();
+        for _ in 0..100 {
+            for task in 0..8 {
+                runner.schedule(&executed, task, task);
+            }
+            // Claim one of them each round, so tombstones are part of the cycle.
+            assert!(runner.claim(&executed, &3).is_some());
+            drain(&runner, &executed);
+            let queue = runner.queue.lock();
+            assert!(queue.is_empty());
+            assert!(
+                queue.slots.len() <= 8,
+                "slots should be recycled, got {}",
+                queue.slots.len()
+            );
+            assert!(
+                queue.claimable.is_empty(),
+                "claimable index should be empty when the queue is empty"
+            );
+        }
+    }
+
+    /// Every push into the queue is counted, so a test can assert that a task was executed without
+    /// ever being queued.
+    #[cfg(feature = "inline_execution_stats")]
+    #[test]
+    fn test_total_queued_counts_pushes() {
+        let (runner, executed) = queueing_runner::<u32>();
+        assert_eq!(runner.total_queued(), 0);
+        for task in 0..3 {
+            runner.schedule(&executed, task, task);
+        }
+        assert_eq!(runner.total_queued(), 3);
+        // Claiming and draining do not change how many pushes happened.
+        assert!(runner.claim(&executed, &1).is_some());
+        drain(&runner, &executed);
+        assert_eq!(runner.total_queued(), 3);
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn test_cpu_bound_tasks() {

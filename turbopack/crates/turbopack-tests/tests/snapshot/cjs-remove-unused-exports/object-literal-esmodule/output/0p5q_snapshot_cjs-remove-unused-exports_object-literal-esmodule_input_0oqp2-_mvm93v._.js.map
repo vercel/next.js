@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/object-literal-esmodule/input/index.js"],"sourcesContent":["import { used } from './lib.js'\n\nconsole.log(used)\n"],"names":["console","log"],"mappings":"AAAA;;AAEAA,QAAQC,GAAG,CAAC,uPAAI"}},
+    {"offset": {"line": 11, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/cjs-remove-unused-exports/object-literal-esmodule/input/lib.js"],"sourcesContent":["// `module.exports = { … }` with the `__esModule` interop marker. The marker must\n// be kept (never dropped) and must set the ESM-interop flag; `unused` still drops.\nmodule.exports = {\n  __esModule: true,\n  used: 'used-value',\n  unused: 'unused-value',\n}\n"],"names":["module","exports","__esModule","used"],"mappings":"AAAA,iFAAiF;AACjF,mFAAmF;AACnFA,OAAOC,OAAO,GAAG;IACfC,YAAY;IACZC,MAAM;YACE;AACV"}}]
+}

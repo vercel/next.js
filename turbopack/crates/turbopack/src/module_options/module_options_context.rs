@@ -14,8 +14,9 @@ use turbopack_core::{
     environment::Environment, resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{
-    AnalyzeMode, TreeShakingMode, TypeofWindow, references::esm::UrlRewriteBehavior,
-    transform::PresetEnvConfig,
+    AnalyzeMode, TypeofWindow,
+    references::esm::UrlRewriteBehavior,
+    transform::{PresetEnvConfig, ReactCompilerCompilationMode, ReactCompilerTarget},
 };
 pub use turbopack_mdx::MdxTransformOptions;
 use turbopack_node::{
@@ -216,7 +217,8 @@ pub struct ModuleOptionsContext {
     pub environment: Option<ResolvedVc<Environment>>,
     pub execution_context: Option<ResolvedVc<ExecutionContext>>,
     pub side_effect_free_packages: Option<ResolvedVc<Glob>>,
-    pub tree_shaking_mode: Option<TreeShakingMode>,
+    pub follow_reexports: bool,
+    pub module_fragments_enabled: bool,
 
     pub static_url_tag: Option<RcStr>,
 
@@ -250,6 +252,8 @@ pub struct EcmascriptOptionsContext {
     // node_modules.
     pub enable_typeof_window_inlining: Option<TypeofWindow>,
     pub enable_jsx: Option<ResolvedVc<JsxTransformOptions>>,
+    pub enable_rust_react_compiler: Option<ReactCompilerCompilationMode>,
+    pub rust_react_compiler_target: ReactCompilerTarget,
     /// Follow type references and resolve declaration files in additional to
     /// normal resolution.
     pub enable_types: bool,
@@ -272,14 +276,25 @@ pub struct EcmascriptOptionsContext {
     /// Whether to enable `import bytes from 'module' with { type: "bytes" }` syntax.
     pub enable_import_as_bytes: bool,
 
-    /// Whether to enable `import text from 'module' with { type: "text" }` syntax.
-    pub enable_import_as_text: bool,
-
     // TODO should this be a part of Environment instead?
     pub inline_helpers: bool,
 
     /// Whether to infer side effect free modules via local analysis. Defaults to true.
     pub infer_module_side_effects: bool,
+
+    /// Whether to tree shake unused exports from static CommonJS modules. Defaults to false.
+    pub cjs_tree_shaking: bool,
+
+    /// Whether to shorten ("mangle") the export names a module exposes to other modules, to
+    /// reduce output size. Only affects the keys used to link modules together, never a name that
+    /// is observable from user code — modules whose export names can escape keep their original
+    /// names. Defaults to false.
+    pub mangle_export_names: bool,
+    /// Whether to scope-hoist static CommonJS modules. Defaults to false.
+    pub cjs_scope_hoisting: bool,
+
+    /// Whether to enable cross-module constant inlining. Defaults to false.
+    pub cross_module_constants: bool,
 
     /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
     pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,
@@ -307,6 +322,9 @@ pub struct CssOptionsContext {
 
     /// User-specified lightningcss feature flags (include/exclude bitmasks).
     pub lightningcss_features: turbopack_css::LightningCssFeatureFlags,
+
+    /// Include the file name in CSS Module class names for easier debugging.
+    pub module_css_debuggable_idents: bool,
 
     pub placeholder_for_future_extensions: (),
 }

@@ -178,6 +178,8 @@ declare module 'next/cache' {
   } from 'next/dist/server/web/spec-extension/revalidate'
   export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
   export { io } from 'next/dist/server/request/io'
+  export { unstable_navigation } from 'next/dist/server/request/cache-stages'
+  export { unstable_prefetch } from 'next/dist/server/request/cache-stages'
 
   ${overloads}
 

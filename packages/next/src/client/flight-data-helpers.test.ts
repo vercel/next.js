@@ -12,7 +12,7 @@ describe('prepareFlightRouterStateForRequest', () => {
         {},
         ['/some/url', ''],
         'refetch',
-        PrefetchHint.IsRootLayout | 1,
+        PrefetchHint.IsRootLayoutOrAbove | 1,
       ]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState, true)
@@ -129,19 +129,19 @@ describe('prepareFlightRouterStateForRequest', () => {
   })
 
   describe('optional fields preservation', () => {
-    it('should preserve prefetchHints with IsRootLayout', () => {
+    it('should preserve prefetchHints with IsRootLayoutOrAbove', () => {
       const flightRouterState: FlightRouterState = [
         'segment',
         {},
         null,
         null,
-        PrefetchHint.IsRootLayout,
+        PrefetchHint.IsRootLayoutOrAbove,
       ]
 
       const result = prepareFlightRouterStateForRequest(flightRouterState)
       const decoded = JSON.parse(decodeURIComponent(result))
 
-      expect(decoded[4]).toBe(PrefetchHint.IsRootLayout)
+      expect(decoded[4]).toBe(PrefetchHint.IsRootLayoutOrAbove)
     })
 
     it('should preserve prefetchHints with SegmentHasLoadingBoundary', () => {
@@ -250,7 +250,8 @@ describe('prepareFlightRouterStateForRequest', () => {
             },
             ['/dashboard/url', ''],
             'refetch',
-            PrefetchHint.IsRootLayout | PrefetchHint.SegmentHasLoadingBoundary,
+            PrefetchHint.IsRootLayoutOrAbove |
+              PrefetchHint.SegmentHasLoadingBoundary,
           ],
           sidebar: [
             ['slug', 'user-123', 'd', null],
@@ -261,7 +262,8 @@ describe('prepareFlightRouterStateForRequest', () => {
         },
         ['/main/url', ''],
         'inside-shared-layout',
-        PrefetchHint.IsRootLayout | PrefetchHint.SegmentHasLoadingBoundary,
+        PrefetchHint.IsRootLayoutOrAbove |
+          PrefetchHint.SegmentHasLoadingBoundary,
       ]
 
       const result = prepareFlightRouterStateForRequest(complexState)
@@ -272,7 +274,8 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(decoded[2]).toBeNull() // URL stripped
       expect(decoded[3]).toBe('inside-shared-layout') // server marker preserved
       expect(decoded[4]).toBe(
-        PrefetchHint.IsRootLayout | PrefetchHint.SegmentHasLoadingBoundary
+        PrefetchHint.IsRootLayoutOrAbove |
+          PrefetchHint.SegmentHasLoadingBoundary
       ) // prefetchHints preserved
 
       // Children route checks
@@ -280,7 +283,8 @@ describe('prepareFlightRouterStateForRequest', () => {
       expect(childrenRoute[2]).toBeNull() // URL stripped
       expect(childrenRoute[3]).toBe('refetch') // server marker preserved
       expect(childrenRoute[4]).toBe(
-        PrefetchHint.IsRootLayout | PrefetchHint.SegmentHasLoadingBoundary
+        PrefetchHint.IsRootLayoutOrAbove |
+          PrefetchHint.SegmentHasLoadingBoundary
       ) // prefetchHints preserved
 
       // Modal route checks
