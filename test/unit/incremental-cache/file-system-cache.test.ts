@@ -126,4 +126,36 @@ describe('FileSystemCache (isrMemory 0)', () => {
       tags: ['server-time2'],
     })
   })
+
+  it('should read back a fully static PPR page', async () => {
+    await fsCache.set(
+      'ppr-static-page',
+      {
+        kind: CachedRouteKind.APP_PAGE,
+        html: '<html>shell</html>',
+        rscData: Buffer.from('flight'),
+        postponed: undefined,
+        headers: {},
+        status: 200,
+        segmentData: undefined,
+      },
+      { isRoutePPREnabled: true, isFallback: false }
+    )
+
+    const res = await fsCache.get('ppr-static-page', {
+      kind: IncrementalCacheKind.APP_PAGE,
+      isRoutePPREnabled: true,
+      isFallback: false,
+    })
+
+    expect(res?.value).toEqual({
+      kind: CachedRouteKind.APP_PAGE,
+      html: '<html>shell</html>',
+      rscData: Buffer.from('flight'),
+      postponed: undefined,
+      headers: {},
+      status: 200,
+      segmentData: undefined,
+    })
+  })
 })
