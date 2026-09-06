@@ -110,7 +110,7 @@ export function getDeployManifestChangedTests(
 }
 
 /**
- * Detects changed tests files by comparing the current branch with `origin/canary`
+ * Detects changed (see {@link getDiffRevision}) tests files.
  * Returns tests separated by test mode (dev/prod), as well as the corresponding commit hash
  * that the current branch is pointing to
  */
@@ -118,12 +118,7 @@ export default async function getChangedTests() {
   /** @type import('execa').Options */
   const EXECA_OPTS = { shell: true }
 
-  const { branchName, remoteUrl, commitSha, isCanary } = await getGitInfo()
-
-  if (isCanary) {
-    console.log(`Skipping flake detection for canary`)
-    return { devTests: [], prodTests: [], deployTests: [], commitSha }
-  }
+  const { branchName, remoteUrl, commitSha } = await getGitInfo()
 
   const diffRevision = await getDiffRevision()
 
@@ -138,7 +133,6 @@ export default async function getChangedTests() {
     {
       branchName,
       remoteUrl,
-      isCanary,
       commitSha,
     },
     `\ngit diff:\n${changesResult.stderr}\n${changesResult.stdout}`

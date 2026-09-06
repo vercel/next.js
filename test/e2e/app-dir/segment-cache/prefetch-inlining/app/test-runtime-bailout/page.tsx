@@ -1,9 +1,9 @@
 import { cookies } from 'next/headers'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ cookies: [{ name: 'theme', value: 'default' }] }],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'partial'
 
 export default async function RuntimeBailoutPage() {
   const cookieStore = await cookies()

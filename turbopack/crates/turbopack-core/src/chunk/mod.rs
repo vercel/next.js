@@ -16,7 +16,7 @@ use bincode::{Decode, Encode};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+    FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbo_tasks_hash::DeterministicHash;
@@ -30,6 +30,7 @@ pub use crate::chunk::{
         AssetSuffix, ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs,
         ChunkingContext, ChunkingContextExt, EntryChunkGroupResult, MangleType, MinifyType,
         SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        WorkerConfigurationOptions,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -37,6 +38,7 @@ pub use crate::chunk::{
 use crate::{
     asset::Asset,
     chunk::{availability_info::AvailabilityInfo, available_modules::AvailableModulesSet},
+    emit_collect::CollectingModule,
     ident::AssetIdent,
     module::Module,
     module_graph::{
@@ -46,19 +48,9 @@ use crate::{
     output::{OutputAssets, OutputAssetsReference},
 };
 
+#[turbo_tasks::task_input]
 #[derive(
-    Debug,
-    TaskInput,
-    Clone,
-    Copy,
-    PartialEq,
-    Eq,
-    Hash,
-    TraceRawVcs,
-    DeterministicHash,
-    NonLocalValue,
-    Encode,
-    Decode,
+    Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, DeterministicHash, Encode, Decode,
 )]
 pub enum ContentHashing {
     /// Direct content hashing: Embeds the chunk content hash directly into the referencing chunk.
@@ -72,7 +64,7 @@ pub enum ContentHashing {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize, TaskInput)]
+#[derive(Debug, Default, Clone, Copy, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CrossOrigin {
     #[default]
@@ -103,6 +95,30 @@ impl TryFrom<Option<&str>> for CrossOrigin {
                 "invalid crossOrigin value `{value}`; supported values are `anonymous` and \
                  `use-credentials`"
             ),
+        }
+    }
+}
+
+#[turbo_tasks::value(shared)]
+#[derive(Debug, Clone, Copy, Hash, Serialize, Deserialize)]
+pub struct ChunkLoadRetry {
+    /// Number of retry attempts after the initial load fails. `0` disables retries.
+    pub max_retry_attempts: u32,
+    /// Base delay before a retry, in milliseconds.
+    pub base_delay_ms: u32,
+    /// Maximum random jitter added to the base delay, in milliseconds.
+    pub max_jitter_ms: u32,
+}
+
+impl Default for ChunkLoadRetry {
+    fn default() -> Self {
+        // Retry a transient failure once after a short jittered delay. Network
+        // blips (a brief connection reset, a short CDN hiccup) often succeed on
+        // a second try.
+        Self {
+            max_retry_attempts: 1,
+            base_delay_ms: 200,
+            max_jitter_ms: 400,
         }
     }
 }
@@ -186,9 +202,8 @@ impl MergeableModules {
 }
 
 /// Whether a given module needs to be exposed (depending on how it is imported by other modules)
-#[derive(
-    Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, TaskInput, Hash, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, TraceRawVcs, Hash, Encode, Decode)]
 pub enum MergeableModuleExposure {
     // This module is only used from within the current group, and only individual exports are
     // used (and no namespace object is required).
@@ -293,11 +308,10 @@ pub trait OutputChunk: Asset {
     Eq,
     PartialEq,
     ValueDebugFormat,
-    NonLocalValue,
     Encode,
     Decode,
-    TaskInput,
 )]
+#[turbo_tasks::task_input]
 pub enum TracedMode {
     /// Going from bundled to unbundled code, i.e. an external dependency or readFile static assets.
     Entry,
@@ -351,6 +365,17 @@ pub enum ChunkingType {
         _ty: ChunkGroupType,
         merge_tag: Option<RcStr>,
     },
+    /// Declare an emitted module (corresponds to __turboack_emit__).
+    Emitted {
+        namespace: RcStr,
+        /// false = emit to current entry, true = emit to all entries
+        emit_to_all_entries: bool,
+    },
+    /// During the build process, edges with ChunkingType::Emitted are collected and reattached to
+    /// the collecting module. These should not be used manually in a reference.
+    Collected { namespace: RcStr },
+    /// Chunk this reference once per entry, like async loaders.
+    PerEntry,
     /// Create a new chunk group in a separate context, merging references with the same tag into a
     /// single chunk group. It provides available modules to the current chunk group. It's assumed
     /// to be loaded before the current chunk group.
@@ -380,6 +405,7 @@ impl Display for ChunkingType {
                 )
             }
             ChunkingType::Async => write!(f, "Async"),
+            ChunkingType::PerEntry => write!(f, "PerEntry"),
             ChunkingType::Isolated {
                 _ty,
                 merge_tag: Some(merge_tag),
@@ -391,6 +417,18 @@ impl Display for ChunkingType {
                 merge_tag: None,
             } => {
                 write!(f, "Isolated")
+            }
+            ChunkingType::Emitted {
+                namespace,
+                emit_to_all_entries,
+            } => {
+                write!(
+                    f,
+                    "Emitted(namespace: {namespace}, emit_to_all_entries: {emit_to_all_entries})"
+                )
+            }
+            ChunkingType::Collected { namespace } => {
+                write!(f, "Collected(namespace: {namespace})")
             }
             ChunkingType::Shared {
                 inherit_async,
@@ -454,9 +492,20 @@ impl ChunkingType {
                 inherit_async: false,
             },
             ChunkingType::Async => ChunkingType::Async,
+            ChunkingType::PerEntry => ChunkingType::PerEntry,
             ChunkingType::Isolated { _ty, merge_tag } => ChunkingType::Isolated {
                 _ty: *_ty,
                 merge_tag: merge_tag.clone(),
+            },
+            ChunkingType::Emitted {
+                namespace,
+                emit_to_all_entries,
+            } => ChunkingType::Emitted {
+                namespace: namespace.clone(),
+                emit_to_all_entries: *emit_to_all_entries,
+            },
+            ChunkingType::Collected { namespace } => ChunkingType::Collected {
+                namespace: namespace.clone(),
             },
             ChunkingType::Shared {
                 inherit_async: _,
@@ -470,12 +519,19 @@ impl ChunkingType {
     }
 }
 
+/// The modules (soon to be chunk items) that were discovered after traversing a given chunk group.
 #[turbo_tasks::value(cell = "new")]
 pub struct ChunkGroupContentInner {
+    /// Regular chunkable modules/module batches
     pub chunkable_items: Vec<ChunkableModuleOrBatch>,
+    /// As an optimization, we also keep track of the batch groups that were discovered.
     pub batch_groups: Vec<ResolvedVc<ModuleBatchGroup>>,
+    /// The modules that were imported with ChunkingType::Async
     #[bincode(with = "turbo_bincode::indexset")]
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
+    /// All modules that implement CollectingModule
+    #[bincode(with = "turbo_bincode::indexset")]
+    pub collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
     pub available_modules: ResolvedVc<AvailableModulesSet>,
 }
 
@@ -525,6 +581,7 @@ pub trait ChunkType: ValueToString {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         chunk_items: Vec<ChunkItemOrBatchWithAsyncModuleInfo>,
         batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
+        component_chunks: Vec<ResolvedVc<Box<dyn Chunk>>>,
     ) -> Vc<Box<dyn Chunk>>;
 
     #[turbo_tasks::function]
@@ -560,13 +617,12 @@ impl AsyncModuleInfo {
     }
 }
 
-#[derive(
-    Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     pub chunk_type: ResolvedVc<Box<dyn ChunkType>>,
-    pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
+    pub module: Option<ResolvedVc<Box<dyn Module>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 

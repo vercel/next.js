@@ -46,7 +46,7 @@ yarn create playwright
 bun create playwright
 ```
 
-This will take you through a series of prompts to setup and configure Playwright for your project, including adding a `playwright.config.ts` file. Please refer to the [Playwright installation guide](https://playwright.dev/docs/intro#installation) for the step-by-step guide.
+This will take you through a series of prompts to set up and configure Playwright for your project, including adding a `playwright.config.ts` file. Please refer to the [Playwright installation guide](https://playwright.dev/docs/intro#installation) for the step-by-step guide.
 
 ## Creating your first Playwright E2E test
 

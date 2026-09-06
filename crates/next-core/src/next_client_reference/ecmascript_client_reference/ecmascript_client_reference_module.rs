@@ -285,7 +285,9 @@ impl ChunkableModule for EcmascriptClientReferenceModule {
 impl EcmascriptChunkPlaceable for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports> {
-        self.proxy_module().get_exports()
+        // Borrowed from the proxy module, a separate module identity, so they must not carry a
+        // mangling decision — see `EcmascriptExports::borrowed`.
+        self.proxy_module().get_exports().borrowed()
     }
 
     #[turbo_tasks::function]

@@ -120,7 +120,7 @@ impl AsyncModule {
         let reference_idents = references
             .await?
             .iter()
-            .map(|r| async {
+            .map(async |r| {
                 let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
                     return Ok(None);
                 };
@@ -151,7 +151,9 @@ impl AsyncModule {
                         }
                     }
                     ReferencedAsset::External(..) => None,
-                    ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
+                    ReferencedAsset::NonPlaceable(_)
+                    | ReferencedAsset::None
+                    | ReferencedAsset::Unresolvable => None,
                 })
             })
             .try_flat_join()
@@ -171,7 +173,7 @@ impl AsyncModule {
                 && references
                     .await?
                     .iter()
-                    .map(|r| async {
+                    .map(async |r| {
                         let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await?
                         else {
                             return Ok(false);

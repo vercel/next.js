@@ -19,7 +19,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_transitive_emitting() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
         let result_val = result_op.connect().strongly_consistent().await?;
@@ -38,7 +38,7 @@ async fn test_transitive_emitting() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_transitive_emitting_indirect() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!(""));
         let collectibles_op = my_transitive_emitting_function_collectibles(rcstr!(""), rcstr!(""));
@@ -57,7 +57,7 @@ async fn test_transitive_emitting_indirect() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_multi_emitting() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         unmark_top_level_task_may_leak_eventually_consistent_state();
         let result_op = my_multi_emitting_function();
         let result_val = result_op.connect().strongly_consistent().await?;
@@ -76,7 +76,7 @@ async fn test_multi_emitting() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn taking_collectibles() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let result_op = my_collecting_function();
         let result_val = result_op.connect().strongly_consistent().await?;
         let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
@@ -92,7 +92,7 @@ async fn taking_collectibles() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn taking_collectibles_extra_layer() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let result_op = my_collecting_function_indirect();
         let result_val = result_op.connect().strongly_consistent().await?;
         let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
@@ -108,7 +108,7 @@ async fn taking_collectibles_extra_layer() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn taking_collectibles_parallel() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let result_op = my_transitive_emitting_function(rcstr!(""), rcstr!("a"));
         let result_val = result_op.connect().strongly_consistent().await?;
         let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
@@ -150,7 +150,7 @@ async fn taking_collectibles_parallel() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn taking_collectibles_with_resolve() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let result_op = my_transitive_emitting_function_with_resolve(rcstr!("resolve"));
         result_op.connect().strongly_consistent().await?;
         let list = result_op.take_collectibles::<Box<dyn ValueToString>>();

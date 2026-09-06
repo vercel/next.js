@@ -64,7 +64,24 @@ If you are navigating to an external URL (one with a protocol, e.g. `https://`),
 ```js
 // Allowed — navigating to an external site
 location.href = 'https://example.com'
-window.location.assign('https://example.org/path')
+window.location.assign(`https://example.org/${path}`)
+
+// Allowed — variable with absolute URL prefix
+const url = 'https://example.com/' + path
+location.href = url
+```
+
+### No Statically Analyzable Values
+
+If the rule cannot statically determine whether a value is absolute or relative (e.g., function calls, event properties), the check is skipped:
+
+```js
+// Skipped — cannot determine statically
+const url = getUrl() // Function call
+location.href = url
+
+// Skipped — cannot determine statically
+location.href = event.target.href
 ```
 
 ## Useful Links

@@ -13,6 +13,39 @@ const { existsSync } = require('fs')
 const addComment = require('./add-comment')
 const logger = require('./util/logger')
 
+const BUNDLER_DISPLAY_NAMES = {
+  webpack: 'Webpack',
+  turbopack: 'Turbopack',
+}
+
+function getBundlerDisplayName(bundler) {
+  return (
+    BUNDLER_DISPLAY_NAMES[bundler] ||
+    bundler.charAt(0).toUpperCase() + bundler.slice(1)
+  )
+}
+
+// The bundlers the `stats` matrix is expected to produce results for, provided
+// by the workflow via STATS_EXPECTED_BUNDLERS. A bundler whose job failed, was
+// cancelled, or timed out never uploads its pr-stats-<bundler>.json artifact, so
+// comparing the expected set against the artifacts present tells us which
+// bundlers are missing. Returns an empty list when unset (e.g. local runs), in
+// which case we don't attempt to report missing bundlers.
+function getExpectedBundlers() {
+  const raw = process.env.STATS_EXPECTED_BUNDLERS
+  if (!raw) return []
+  return raw
+    .split(/[\s,]+/)
+    .map((b) => b.trim().toLowerCase())
+    .filter(Boolean)
+}
+
+// Extract the bundler slug from a `pr-stats-<bundler>.json` filename.
+function getBundlerFromStatsFile(file) {
+  const match = file.match(/^pr-stats-(.+)\.json$/)
+  return match ? match[1].toLowerCase() : null
+}
+
 async function main() {
   const resultsDir = process.argv[2] || process.cwd()
 
@@ -24,9 +57,55 @@ async function main() {
     (f) => f.startsWith('pr-stats-') && f.endsWith('.json')
   )
 
+  // Work out which bundlers are missing so we can report them in the comment.
+  const expectedBundlers = getExpectedBundlers()
+  const presentBundlers = statsFiles
+    .map(getBundlerFromStatsFile)
+    .filter(Boolean)
+  const missingBundlers = expectedBundlers.filter(
+    (bundler) => !presentBundlers.includes(bundler)
+  )
+
+  if (missingBundlers.length > 0) {
+    logger(
+      `Missing stats for bundler(s): ${missingBundlers.join(', ')} ` +
+        `(their job failed, was cancelled, or timed out)`
+    )
+  }
+
   if (statsFiles.length === 0) {
-    // This can happen for docs-only changes where stats jobs are skipped
-    logger('No pr-stats-*.json files found - this may be a docs-only change')
+    // The aggregate step only runs for non-docs changes (docs-only changes skip
+    // it via the DOCS_CHANGE gate), so the absence of any artifact means no
+    // bundler produced results. Only surface an "all bundlers failed" notice
+    // when the stats jobs genuinely failed. A 'cancelled' result here means the
+    // whole run was cancelled (superseded, or every bundler cancelled); we stay
+    // silent so scripts/pr-ci-comment.mjs posts the cancelled notice instead of
+    // a misleading failure comment for a run that never really ran.
+    const statsResult = process.env.STATS_RESULT
+
+    if (expectedBundlers.length === 0 || statsResult !== 'failure') {
+      logger(
+        `No pr-stats-*.json files found (stats result: ${statsResult || 'unknown'}) - nothing to aggregate`
+      )
+      process.exit(0)
+    }
+
+    logger(
+      `No pr-stats-*.json files found - all bundler jobs ` +
+        `(${expectedBundlers.join(', ')}) failed`
+    )
+
+    // No successful run means we don't have the actionInfo/statsConfig captured
+    // inside a pr-stats file, so synthesize the minimum addComment needs to
+    // render the "all bundlers failed" notice. In CI the rendered comment is
+    // read from this job's logs and posted by scripts/pr-ci-comment.mjs; the
+    // direct-post path in addComment is a no-op without a token/endpoint.
+    await addComment(
+      [],
+      { isRelease: false, commitId: null },
+      {},
+      { missingBundlers: expectedBundlers.map(getBundlerDisplayName) }
+    )
     process.exit(0)
   }
 
@@ -116,7 +195,9 @@ async function main() {
   )
 
   // Post the combined comment
-  await addComment(mergedResults, actionInfo, statsConfig)
+  await addComment(mergedResults, actionInfo, statsConfig, {
+    missingBundlers: missingBundlers.map(getBundlerDisplayName),
+  })
 
   logger('Aggregation complete')
 }

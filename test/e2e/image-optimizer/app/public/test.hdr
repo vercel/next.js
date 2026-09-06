@@ -1,0 +1,4 @@
+#?RADIANCE
+FORMAT=32-bit_rle_rgbe
+
+-Y 1 +X 1

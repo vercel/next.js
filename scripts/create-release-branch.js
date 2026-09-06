@@ -6,8 +6,51 @@ const {
   configureGitHubAuth,
   getGitHubToken,
   getGitHubTokenMissingMessage,
-  verifyGitHubApiAccess,
 } = require('./release-github-auth')
+const {
+  githubRequest,
+  createSignedCommit,
+  upsertBranchRef,
+} = require('./github-utils/signed-commit')
+
+const REPO_OWNER = 'vercel'
+const REPO_NAME = 'next.js'
+
+/**
+ * Fail fast, before any file mutation, if the branch already exists.
+ *
+ * This doubles as the API preflight: it exercises the same git-data path the
+ * script later writes to (blobs/trees/commits/refs), so a token missing those
+ * grants fails here rather than midway through creating objects. A plain
+ * repository GET would succeed with any valid installation token and so could
+ * never catch that.
+ */
+async function verifyBranchIsAvailable(token, branch) {
+  let existing
+
+  try {
+    existing = await githubRequest(
+      token,
+      'GET',
+      `/repos/${REPO_OWNER}/${REPO_NAME}/git/ref/heads/${branch}`
+    )
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+
+    // A 404 is the expected, successful outcome: the branch is available.
+    if (message.includes('failed (404)')) {
+      console.log(`Verified GitHub API access; branch ${branch} is available`)
+      return
+    }
+
+    throw error
+  }
+
+  throw new Error(
+    `Branch ${branch} already exists (at ${existing.object?.sha}). ` +
+      `Delete it or choose a different branch name before re-running.`
+  )
+}
 
 async function main() {
   const args = process.argv
@@ -30,23 +73,16 @@ async function main() {
   }
 
   await configureGitHubAuth(githubToken)
-  await verifyGitHubApiAccess(
-    githubToken,
-    '/repos/vercel/next.js/environments/release-stable/deployment-branch-policies?per_page=1',
-    'release-stable deployment branch policies'
-  )
+  await verifyBranchIsAvailable(githubToken, branchName)
 
-  await execa(`git checkout -b "${branchName}"`, {
+  await execa('git', ['checkout', '-b', branchName], {
     stdio: 'inherit',
-    shell: true,
   })
-  await execa(`git fetch origin ${tagName} --tags`, {
+  await execa('git', ['fetch', 'origin', tagName, '--tags'], {
     stdio: 'inherit',
-    shell: true,
   })
-  await execa(`git reset --hard ${tagName}`, {
+  await execa('git', ['reset', '--hard', tagName], {
     stdio: 'inherit',
-    shell: true,
   })
   const lernaPath = path.join(__dirname, '..', 'lerna.json')
   const existingLerna = JSON.parse(
@@ -81,52 +117,49 @@ async function main() {
     .replace(`['canary']`, `['${branchName}']`)
     .replace(/[\s]{1,}('test-new-tests-.+',)/g, '')
 
-  buildAndTest = buildAndTest.replace(
-    /(^[ \t]*)# test-new-tests-if\n(^[ \t]*)if:.*\n(^[ \t]*)# test-new-tests-end-if/gm,
-    (_, indent1, indent2, indent3) =>
-      `${indent1}# test-new-tests-if\n${indent2}if: false\n${indent3}# test-new-tests-end-if`
-  )
-
   await fs.promises.writeFile(buildAndTestPath, buildAndTest)
 
-  await execa(`git add .`, {
-    stdio: 'inherit',
-    shell: true,
-  })
-  await execa(`git commit -m "setup release branch"`, {
-    stdio: 'inherit',
-    shell: true,
-  })
+  const commitMessage = 'setup release branch'
 
-  await execa(`git push origin "${branchName}"`, {
+  await execa('git', ['add', '.'], {
     stdio: 'inherit',
-    shell: true,
+  })
+  await execa('git', ['commit', '-m', commitMessage], {
+    stdio: 'inherit',
   })
 
-  console.log(`Waiting 5s before updating branch rules`)
-  await new Promise((resolve) => setTimeout(resolve, 5_000))
+  // Branch protection requires signed commits, so create the commit on the
+  // remote as a GitHub-signed commit via the REST API instead of running
+  // `git push` (which would push the unsigned local commit).
+  //
+  // Release tags are annotated tag objects, so dereference to the underlying
+  // commit -- the tag object's SHA is not valid as a commit parent.
+  const { stdout: baseSha } = await execa('git', [
+    'rev-parse',
+    `${tagName}^{commit}`,
+  ])
+  const { stdout: localCommitSha } = await execa('git', ['rev-parse', 'HEAD'])
 
-  const updateEnvironmentRes = await fetch(
-    'https://api.github.com/repos/vercel/next.js/environments/release-stable/deployment-branch-policies',
-    {
-      method: 'POST',
-      headers: {
-        Accept: 'application/vnd.github+json',
-        Authorization: `Bearer ${githubToken}`,
-        'X-GitHub-Api-Version': '2022-11-28',
-      },
-      body: JSON.stringify({ name: branchName }),
-    }
+  const signedCommit = await createSignedCommit({
+    token: githubToken,
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    baseSha: baseSha.trim(),
+    localCommitSha: localCommitSha.trim(),
+    message: commitMessage,
+  })
+
+  await upsertBranchRef({
+    token: githubToken,
+    owner: REPO_OWNER,
+    repo: REPO_NAME,
+    branch: branchName,
+    sha: signedCommit.sha,
+  })
+
+  console.log(
+    `Created branch ${branchName} at signed commit ${signedCommit.sha}`
   )
-
-  if (!updateEnvironmentRes.ok) {
-    console.error(
-      { status: updateEnvironmentRes.status },
-      await updateEnvironmentRes.text()
-    )
-    throw new Error(`Failed to update environment branch rules`)
-  }
-  console.log(`Successfully updated deployment environment branch rules`)
 }
 
 main()

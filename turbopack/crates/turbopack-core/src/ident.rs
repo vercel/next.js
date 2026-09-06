@@ -5,8 +5,7 @@ use bincode::{Decode, Encode};
 use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    NonLocalValue, ReadRef, ResolvedVc, TaskInput, ValueToString, ValueToStringRef, Vc,
-    trace::TraceRawVcs, turbofmt,
+    ReadRef, ResolvedVc, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_xxh3_hash64};
@@ -14,19 +13,8 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher, encode_base38, hash_
 use crate::resolve::ModulePart;
 
 /// A layer identifies a distinct part of the module graph.
-#[derive(
-    Clone,
-    TaskInput,
-    Hash,
-    Debug,
-    DeterministicHash,
-    Eq,
-    PartialEq,
-    TraceRawVcs,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Hash, Debug, DeterministicHash, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
 pub struct Layer {
     name: RcStr,
     user_friendly_name: Option<RcStr>,
@@ -59,8 +47,8 @@ impl Layer {
     }
 }
 
-#[turbo_tasks::value]
-#[derive(Clone, Debug, Hash, TaskInput)]
+#[turbo_tasks::value(task_input)]
+#[derive(Clone, Debug, Hash)]
 pub struct AssetIdent {
     /// The primary path of the asset
     pub path: FileSystemPath,
@@ -305,9 +293,15 @@ impl AssetIdent {
 
         if has_hash {
             let hash = encode_base38(hasher.finish());
-            // 7 base38 chars ≈ 36 bits of collision resistance
-            let truncated_hash = &hash[..7];
-            write!(name, "_{truncated_hash}")?;
+            // Use the complete fixed-width base38 encoding of the 64-bit hash.
+            //
+            // This suffix is what distinguishes idents that share a readable
+            // name prefix, so truncating it makes distinct output paths collide
+            // for large module graphs, failing the build with "Two or more
+            // assets with different content were emitted to the same output
+            // path". Keeping all 64 bits removes that failure mode, at the cost
+            // of a slightly longer file name.
+            write!(name, "_{hash}")?;
         }
 
         // Location in "path" where hashed and named parts are split.
