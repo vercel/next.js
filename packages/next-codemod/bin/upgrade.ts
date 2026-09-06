@@ -15,6 +15,7 @@ import {
   getPnpmMajorVersion,
   addPackageDependency,
   runInstallation,
+  getNpxCommand,
 } from '../lib/handle-package'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
@@ -289,7 +290,7 @@ export async function runUpgrade(
     shouldRunReactTypesCodemods =
       await suggestReactTypesCodemods(nonInteractive)
 
-    execCommand = getNpxCommand(packageManager)
+    execCommand = getNpxCommand(packageManager, cwd)
   }
 
   fs.writeFileSync(appPackageJsonPath, JSON.stringify(appPackageJson, null, 2))
@@ -933,20 +934,4 @@ function warnDependenciesOutOfRange(
       })
     })
   }
-}
-
-function getNpxCommand(pkgManager: PackageManager) {
-  let command = 'npx --yes'
-  if (pkgManager === 'pnpm') {
-    command = 'pnpm --silent dlx'
-  } else if (pkgManager === 'yarn') {
-    try {
-      execSync('yarn dlx --help', { stdio: 'ignore', cwd })
-      command = 'yarn --quiet dlx'
-    } catch {}
-  } else if (pkgManager === 'bun') {
-    command = 'bunx'
-  }
-
-  return command
 }
