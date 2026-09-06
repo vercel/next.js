@@ -21,7 +21,7 @@ use crate::chunk::{
 #[derive(Debug)]
 pub struct EcmascriptChunkContentEntry {
     pub code: ResolvedVc<Code>,
-    pub hash: ResolvedVc<u64>,
+    pub hash: ResolvedVc<u128>,
 }
 
 impl EcmascriptChunkContentEntry {
@@ -71,7 +71,7 @@ impl EcmascriptChunkContentEntries {
                             batch
                                 .chunk_items
                                 .iter()
-                                .map(|item| async move {
+                                .map(async |item| {
                                     Ok((
                                         item.chunk_item.id().await?,
                                         EcmascriptChunkContentEntry::new(

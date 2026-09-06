@@ -1,0 +1,10 @@
+runtime: [
+    "FOO1",
+    "FOO2",
+    "FOO3",
+    "FOO4",
+    "FOO5",
+    "INLINED3",
+    "FOO6",
+    "INLINED4",
+]

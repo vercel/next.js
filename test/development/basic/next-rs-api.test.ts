@@ -1,8 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import { createDefineEnv, loadBindings, HmrTarget } from 'next/dist/build/swc'
+import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
 import type {
   Issue,
+  MemoryEvictionMode,
   Project,
   RawEntrypoints,
   StyledString,
@@ -200,6 +201,8 @@ async function main() {
     currentNodeJsVersion: '18.0.0',
     isPersistentCachingEnabled: false,
     nextVersion: '0.0.0',
+  }, {
+    turbopackMemoryEviction: 'off',
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
@@ -313,46 +316,51 @@ describe('next.rs api', () => {
       ? path.resolve(__dirname, '../../..')
       : next.testDir
     const distDir = '.next'
-    project = await bindings.turbo.createProject({
-      env: {},
-      nextConfig: nextConfig,
-      rootPath,
-      projectPath: path.relative(rootPath, next.testDir) || '.',
-      distDir,
-      watch: {
-        enable: true,
-      },
-      dev: true,
-      defineEnv: createDefineEnv({
-        projectPath: next.testDir,
-        isTurbopack: true,
-        clientRouterFilters: undefined,
-        config: nextConfig,
-        dev: true,
-        distDir: path.join(rootPath, distDir),
-        fetchCacheKeyPrefix: undefined,
-        hasRewrites: false,
-        middlewareMatchers: undefined,
-        rewrites: {
-          beforeFiles: [],
-          afterFiles: [],
-          fallback: [],
+    project = await bindings.turbo.createProject(
+      {
+        env: {},
+        nextConfig: nextConfig,
+        rootPath,
+        projectPath: path.relative(rootPath, next.testDir) || '.',
+        distDir,
+        watch: {
+          enable: true,
         },
-      }),
-      buildId: 'development',
-      encryptionKey: '12345',
-      previewProps: {
-        previewModeId: 'development',
-        previewModeEncryptionKey: '12345',
-        previewModeSigningKey: '12345',
+        dev: true,
+        defineEnv: createDefineEnv({
+          projectPath: next.testDir,
+          isTurbopack: true,
+          clientRouterFilters: undefined,
+          config: nextConfig,
+          dev: true,
+          distDir: path.join(rootPath, distDir),
+          fetchCacheKeyPrefix: undefined,
+          hasRewrites: false,
+          middlewareMatchers: undefined,
+          rewrites: {
+            beforeFiles: [],
+            afterFiles: [],
+            fallback: [],
+          },
+        }),
+        buildId: 'development',
+        encryptionKey: '12345',
+        previewProps: {
+          previewModeId: 'development',
+          previewModeEncryptionKey: '12345',
+          previewModeSigningKey: '12345',
+        },
+        browserslistQuery: 'last 2 versions',
+        noMangling: false,
+        writeRoutesHashesManifest: false,
+        currentNodeJsVersion: '18.0.0',
+        isPersistentCachingEnabled: false,
+        nextVersion: '0.0.0',
       },
-      browserslistQuery: 'last 2 versions',
-      noMangling: false,
-      writeRoutesHashesManifest: false,
-      currentNodeJsVersion: '18.0.0',
-      isPersistentCachingEnabled: false,
-      nextVersion: '0.0.0',
-    })
+      {
+        turbopackMemoryEviction: 'off' as MemoryEvictionMode,
+      }
+    )
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
       (update) => (update.updateType === 'end' ? update.value : undefined)
@@ -492,7 +500,7 @@ describe('next.rs api', () => {
           expect(result.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
 
-          const result2 = await route.pages[0].rscEndpoint.writeToDisk()
+          const result2 = await route.pages[0].rscHmrEndpoint.writeToDisk()
           expect(result2.type).toBe(runtime)
           expect(result2.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
@@ -602,7 +610,7 @@ describe('next.rs api', () => {
           case 'app-page': {
             await route.pages[0].htmlEndpoint.writeToDisk()
             serverSideSubscription =
-              await route.pages[0].rscEndpoint.serverChanged(false)
+              await route.pages[0].rscHmrEndpoint.serverChanged(false)
             break
           }
           default: {
@@ -610,15 +618,13 @@ describe('next.rs api', () => {
           }
         }
 
-        const result = await project
-          .hmrChunkNamesSubscribe(HmrTarget.Client)
-          .next()
+        const result = await project.clientHmrChunkNamesSubscribe().next()
         expect(result.done).toBe(false)
         const chunkNames = result.value.chunkNames
         expect(chunkNames).toHaveProperty('length', expect.toBePositive())
 
         const subscriptions = chunkNames.map((chunkName) =>
-          project.hmrEvents(chunkName, HmrTarget.Client)
+          project.clientHmrEvents(chunkName)
         )
         await Promise.all(
           subscriptions.map(async (subscription) => {
@@ -732,12 +738,12 @@ describe('next.rs api', () => {
     if (route.type !== 'page') throw new Error('unknown route type')
     await route.htmlEndpoint.writeToDisk()
 
-    const result = await project.hmrChunkNamesSubscribe(HmrTarget.Client).next()
+    const result = await project.clientHmrChunkNamesSubscribe().next()
     expect(result.done).toBe(false)
     const chunkNames = result.value.chunkNames
 
     const subscriptions = chunkNames.map((chunkName) =>
-      project.hmrEvents(chunkName, HmrTarget.Client)
+      project.clientHmrEvents(chunkName)
     )
     await Promise.all(
       subscriptions.map(async (subscription) => {

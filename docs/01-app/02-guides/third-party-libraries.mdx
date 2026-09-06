@@ -367,6 +367,7 @@ Options to pass to the `<GoogleAnalytics>` component.
 | --------------- | -------- | ------------------------------------------------------------------------------------------------------ |
 | `gaId`          | Required | Your [measurement ID](https://support.google.com/analytics/answer/12270356). Usually starts with `G-`. |
 | `dataLayerName` | Optional | Name of the data layer. Defaults to `dataLayer`.                                                       |
+| `debugMode`     | Optional | Enable Google Analytics [debug mode](https://support.google.com/analytics/answer/7201382).             |
 | `nonce`         | Optional | A [nonce](/docs/app/guides/content-security-policy#nonces).                                            |
 
 ### Google Maps Embed

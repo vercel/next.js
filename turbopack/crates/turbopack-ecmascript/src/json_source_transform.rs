@@ -67,13 +67,13 @@ impl SourceTransform for JsonSourceTransform {
             FileJsonContent::Content(data) => {
                 let data_str = data.to_string();
 
-                // The "use turbopack no side effects" directive marks this module as
+                // The "use turbopack: no side effects" directive marks this module as
                 // side-effect free for tree shaking
                 let mut code = String::with_capacity(
                     data_str.len() + 100, /* estimate to account for our `use` comment, export
                                            * overhead and sourcemap comment */
                 );
-                code.push_str("\"use turbopack no side effects\";\n");
+                code.push_str("\"use turbopack: no side effects\";\n");
 
                 let rename_pattern = if this.use_esm {
                     // Spec-compliant ESM: only default export

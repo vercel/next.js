@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use anyhow::Result;
 
-use crate::{RawVc, Vc};
+use crate::{RawVc, ResolvedVc, Vc};
 
 /// Trait to implement in order for a type to be accepted as a
 /// `turbo_tasks::function` return type.
@@ -26,6 +26,17 @@ where
 
     fn try_into_raw_vc(self) -> Result<RawVc> {
         Ok(self.node)
+    }
+}
+
+impl<T> TaskOutput for ResolvedVc<T>
+where
+    T: Send + ?Sized,
+{
+    type Return = T;
+
+    fn try_into_raw_vc(self) -> Result<RawVc> {
+        Ok(self.node.node)
     }
 }
 

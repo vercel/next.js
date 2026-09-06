@@ -42,6 +42,14 @@ impl<T: Send + Sync + 'static> MessageChannel<T> {
             .map_err(|_| anyhow::anyhow!("failed to send message"))
     }
 
+    /// Synchronous, non-blocking send (the channel is unbounded). Lets callers
+    /// on the napi env thread enqueue without going async.
+    pub(crate) fn send_sync(&self, message: T) -> Result<()> {
+        self.sender
+            .send(message)
+            .map_err(|_| anyhow::anyhow!("failed to send message"))
+    }
+
     pub(crate) async fn recv(&self) -> Result<T> {
         let mut rx = self.receiver.lock().await;
         rx.recv()
@@ -165,7 +173,7 @@ impl WorkerPoolOperation {
             .with_context(|| format!("failed to recv message in worker {worker_id}"))
     }
 
-    pub(crate) async fn send_task_message(&self, message: TaskMessage) -> Result<()> {
+    pub(crate) fn send_task_message(&self, message: TaskMessage) -> Result<()> {
         let channel = {
             let mut map = self.task_routed_channel.lock();
             map.entry(message.task_id)
@@ -173,9 +181,8 @@ impl WorkerPoolOperation {
                 .clone()
         };
         channel
-            .send(message.data)
-            .await
-            .with_context(|| format!("failed to send  response for task {}", message.task_id))
+            .send_sync(message.data)
+            .with_context(|| format!("failed to send response for task {}", message.task_id))
     }
 }
 
@@ -294,6 +301,8 @@ impl Operation for WorkerOperation {
         if self.on_drop.is_some() {
             self.state.stats.lock().remove_worker();
             self.on_drop = None;
+            // Clearing the return-to-pool callback does not stop the underlying Node.js worker.
+            let _ = terminate_worker(self.worker_options.clone(), self.worker_id);
         }
     }
 }

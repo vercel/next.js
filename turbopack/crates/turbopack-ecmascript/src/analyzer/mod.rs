@@ -1,24 +1,13 @@
-use std::{
-    hash::{Hash, Hasher},
-    sync::LazyLock,
-};
-
-use anyhow::{Result, bail};
 use swc_core::{
     common::Mark,
-    ecma::{
-        ast::{Id, Ident},
-        atoms::Atom,
-    },
+    ecma::ast::{Id, Ident},
 };
-use turbo_esregex::EsRegex;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, Vc};
 
 pub(crate) use self::imports::ImportMap;
-use crate::references::require_context::RequireContextMap;
 
 pub mod builtin;
+pub mod bump_vec;
+pub(crate) mod cjs_ast;
 pub mod graph;
 pub mod imports;
 pub mod linker;
@@ -27,213 +16,11 @@ pub mod top_level_await;
 pub mod well_known;
 
 mod jsvalue;
+pub use bump_vec::BumpVec;
+pub use bumpalo::Bump;
 pub use jsvalue::*;
-
-/// A list of well-known objects that have special meaning in the analysis.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum WellKnownObjectKind {
-    GlobalObject,
-    PathModule,
-    PathModuleDefault,
-    FsModule,
-    FsModuleDefault,
-    FsModulePromises,
-    FsExtraModule,
-    FsExtraModuleDefault,
-    ModuleModule,
-    ModuleModuleDefault,
-    UrlModule,
-    UrlModuleDefault,
-    WorkerThreadsModule,
-    WorkerThreadsModuleDefault,
-    ChildProcessModule,
-    ChildProcessModuleDefault,
-    OsModule,
-    OsModuleDefault,
-    NodeProcessModule,
-    NodeProcessArgv,
-    NodeProcessEnv,
-    NodePreGyp,
-    NodeExpressApp,
-    NodeProtobufLoader,
-    NodeBuffer,
-    RequireCache,
-    ImportMeta,
-    /// An iterator object, used to model generator return values.
-    Generator,
-    /// The `module.hot` object providing HMR API.
-    ModuleHot,
-}
-
-impl WellKnownObjectKind {
-    pub fn as_define_name(&self) -> Option<&[&str]> {
-        match self {
-            Self::GlobalObject => Some(&["Object"]),
-            Self::PathModule => Some(&["path"]),
-            Self::FsModule => Some(&["fs"]),
-            Self::UrlModule => Some(&["url"]),
-            Self::ChildProcessModule => Some(&["child_process"]),
-            Self::OsModule => Some(&["os"]),
-            Self::WorkerThreadsModule => Some(&["worker_threads"]),
-            Self::NodeProcessModule => Some(&["process"]),
-            Self::NodeProcessArgv => Some(&["process", "argv"]),
-            Self::NodeProcessEnv => Some(&["process", "env"]),
-            Self::NodeBuffer => Some(&["Buffer"]),
-            Self::RequireCache => Some(&["require", "cache"]),
-            Self::ImportMeta => Some(&["import", "meta"]),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct RequireContextOptions {
-    pub dir: RcStr,
-    pub include_subdirs: bool,
-    /// this is a regex (pattern, flags)
-    pub filter: EsRegex,
-}
-
-/// Parse the arguments passed to a require.context invocation, validate them
-/// and convert them to the appropriate rust values.
-pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> {
-    if !(1..=3).contains(&args.len()) {
-        // https://linear.app/vercel/issue/WEB-910/add-support-for-requirecontexts-mode-argument
-        bail!("require.context() only supports 1-3 arguments (mode is not supported)");
-    }
-
-    let Some(dir) = args[0].as_str().map(|s| s.into()) else {
-        bail!("require.context(dir, ...) requires dir to be a constant string");
-    };
-
-    let include_subdirs = if let Some(include_subdirs) = args.get(1) {
-        if let Some(include_subdirs) = include_subdirs.as_bool() {
-            include_subdirs
-        } else {
-            bail!(
-                "require.context(..., includeSubdirs, ...) requires includeSubdirs to be a \
-                 constant boolean",
-            );
-        }
-    } else {
-        true
-    };
-
-    let filter = if let Some(filter) = args.get(2) {
-        if let JsValue::Constant(ConstantValue::Regex(box (pattern, flags))) = filter {
-            EsRegex::new(pattern, flags)?
-        } else {
-            bail!("require.context(..., ..., filter) requires filter to be a regex");
-        }
-    } else {
-        // https://webpack.js.org/api/module-methods/#requirecontext
-        // > optional, default /^\.\/.*$/, any file
-        static DEFAULT_REGEX: LazyLock<EsRegex> =
-            LazyLock::new(|| EsRegex::new(r"^\./.*$", "").unwrap());
-
-        DEFAULT_REGEX.clone()
-    };
-
-    Ok(RequireContextOptions {
-        dir,
-        include_subdirs,
-        filter,
-    })
-}
-
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct RequireContextValue(FxIndexMap<RcStr, RcStr>);
-
-impl RequireContextValue {
-    pub async fn from_context_map(map: Vc<RequireContextMap>) -> Result<Self> {
-        let mut context_map = FxIndexMap::default();
-
-        for (key, entry) in map.await?.iter() {
-            context_map.insert(key.clone(), entry.origin_relative.clone());
-        }
-
-        Ok(RequireContextValue(context_map))
-    }
-}
-
-impl Hash for RequireContextValue {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.0.len().hash(state);
-        for (i, (k, v)) in self.0.iter().enumerate() {
-            i.hash(state);
-            k.hash(state);
-            v.hash(state);
-        }
-    }
-}
-
-/// A list of well-known functions that have special meaning in the analysis.
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
-pub enum WellKnownFunctionKind {
-    ArrayFilter,
-    ArrayForEach,
-    ArrayMap,
-    ObjectAssign,
-    PathJoin,
-    PathDirname,
-    /// `0` is the current working directory.
-    PathResolve(Box<JsValue>),
-    Import,
-    Require,
-    /// `0` is the path to resolve from (relative to the current module).
-    RequireFrom(Box<ConstantString>),
-    RequireResolve,
-    RequireContext,
-    // Boxed: `RequireContextValue` wraps a 56-byte `FxIndexMap`. Inlining it here dominates
-    // `WellKnownFunctionKind`'s size (64 bytes) and by extension `JsValue`.
-    RequireContextRequire(Box<RequireContextValue>),
-    RequireContextRequireKeys(Box<RequireContextValue>),
-    RequireContextRequireResolve(Box<RequireContextValue>),
-    Define,
-    FsReadMethod(Atom),
-    FsReadDir,
-    PathToFileUrl,
-    CreateRequire,
-    ChildProcessSpawnMethod(Atom),
-    ChildProcessFork,
-    OsArch,
-    OsPlatform,
-    OsEndianness,
-    ProcessCwd,
-    NodePreGypFind,
-    NodeGypBuild,
-    NodeBindings,
-    NodeExpress,
-    NodeExpressSet,
-    NodeStrongGlobalize,
-    NodeStrongGlobalizeSetRootDir,
-    NodeResolveFrom,
-    NodeProtobufLoad,
-    WorkerConstructor,
-    SharedWorkerConstructor,
-    // The worker_threads Worker class
-    NodeWorkerConstructor,
-    URLConstructor,
-    /// `module.hot.accept(deps, callback, errorHandler)` — accept HMR updates for dependencies.
-    ModuleHotAccept,
-    /// `module.hot.decline(deps)` — decline HMR updates for dependencies.
-    ModuleHotDecline,
-    /// `import.meta.glob(patterns, options?)` — Vite-compatible glob import.
-    ImportMetaGlob,
-}
-
-impl WellKnownFunctionKind {
-    pub fn as_define_name(&self) -> Option<&[&str]> {
-        match self {
-            Self::Import { .. } => Some(&["import"]),
-            Self::Require { .. } => Some(&["require"]),
-            Self::RequireResolve => Some(&["require", "resolve"]),
-            Self::RequireContext => Some(&["require", "context"]),
-            Self::Define => Some(&["define"]),
-            _ => None,
-        }
-    }
-}
+pub use thread_local::ThreadLocal;
+pub use well_known::{kinds::*, require_context::*};
 
 fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
     i.ctxt.outer() == unresolved_mark
@@ -241,6 +28,33 @@ fn is_unresolved(i: &Ident, unresolved_mark: Mark) -> bool {
 
 fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
     i.1.outer() == unresolved_mark
+}
+
+/// Whether a visitor — or one of the builtin / well-known rewrite helpers —
+/// changed the `JsValue` it was given. Returned alongside the (possibly
+/// rewritten) value. [`Modified::Yes`] makes the linker re-enter the value for
+/// further processing; [`Modified::No`] means it is final.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Modified {
+    Yes,
+    No,
+}
+
+impl Modified {
+    /// `true` if the value was modified.
+    pub fn is_modified(self) -> bool {
+        matches!(self, Modified::Yes)
+    }
+}
+
+impl From<bool> for Modified {
+    fn from(modified: bool) -> Self {
+        if modified {
+            Modified::Yes
+        } else {
+            Modified::No
+        }
+    }
 }
 
 #[doc(hidden)]
@@ -251,29 +65,33 @@ pub mod test_utils {
     use turbopack_core::compile_time_info::CompileTimeInfo;
 
     use super::{
-        ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+        ConstantValue, JsValue, JsValueUrlKind, Modified, ModuleValue, WellKnownFunctionKind,
         WellKnownObjectKind, builtin::early_replace_builtin, well_known::replace_well_known,
     };
     use crate::{
         analyzer::{
-            RequireContextValue, builtin::replace_builtin, imports::ImportAttributes,
-            parse_require_context,
+            Bump, RequireContextValue, ThreadLocal, builtin::replace_builtin,
+            imports::ImportAttributes, parse_require_context,
         },
         utils::module_value_to_well_known_object,
     };
 
-    pub async fn early_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
+    pub async fn early_visitor<'a>(
+        _arena: &'a ThreadLocal<Bump>,
+        mut v: JsValue<'a>,
+    ) -> Result<(JsValue<'a>, Modified)> {
         let m = early_replace_builtin(&mut v);
         Ok((v, m))
     }
 
     /// Visitor that replaces well known functions and objects with their
     /// corresponding values. Returns the new value and whether it was modified.
-    pub async fn visitor(
-        v: JsValue,
+    pub async fn visitor<'a>(
+        arena: &'a ThreadLocal<Bump>,
+        v: JsValue<'a>,
         compile_time_info: Vc<CompileTimeInfo>,
         attributes: &ImportAttributes,
-    ) -> Result<(JsValue, bool)> {
+    ) -> Result<(JsValue<'a>, Modified)> {
         let ImportAttributes { ignore, .. } = *attributes;
         let mut new_value = match v {
             JsValue::Call(_, ref call)
@@ -283,12 +101,15 @@ pub mod test_utils {
                 ) =>
             {
                 match &call.args()[0] {
-                    JsValue::Constant(ConstantValue::Str(v)) => {
-                        JsValue::promise(JsValue::Module(ModuleValue {
+                    JsValue::Constant(ConstantValue::Str(v)) => JsValue::promise(
+                        arena.get_or_default(),
+                        JsValue::Module(ModuleValue {
                             module: v.as_atom().into_owned().into(),
                             annotations: None,
-                        }))
-                    }
+                            analyze_for_constants: false,
+                            reference: None,
+                        }),
+                    ),
                     _ => v.into_unknown(true, rcstr!("import() non constant")),
                 }
             }
@@ -298,13 +119,12 @@ pub mod test_utils {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::CreateRequire)
                 ) =>
             {
-                if let [
-                    JsValue::Member(
-                        _,
-                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                        box JsValue::Constant(ConstantValue::Str(prop)),
-                    ),
-                ] = call.args()
+                if let [JsValue::Member(_, obj, prop)] = call.args()
+                    && matches!(
+                        &**obj,
+                        JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
+                    )
+                    && let JsValue::Constant(ConstantValue::Str(prop)) = &**prop
                     && prop.as_str() == "url"
                 {
                     JsValue::WellKnownFunction(WellKnownFunctionKind::Require)
@@ -369,12 +189,13 @@ pub mod test_utils {
             {
                 if let [
                     JsValue::Constant(ConstantValue::Str(url)),
-                    JsValue::Member(
-                        _,
-                        box JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta),
-                        box JsValue::Constant(ConstantValue::Str(prop)),
-                    ),
+                    JsValue::Member(_, obj, prop),
                 ] = call.args()
+                    && matches!(
+                        &**obj,
+                        JsValue::WellKnownObject(WellKnownObjectKind::ImportMeta)
+                    )
+                    && let JsValue::Constant(ConstantValue::Str(prop)) = &**prop
                 {
                     if prop.as_str() == "url" {
                         // TODO avoid clone
@@ -419,18 +240,22 @@ pub mod test_utils {
                 if let Some(wko) = module_value_to_well_known_object(mv) {
                     wko
                 } else {
-                    return Ok((v, false));
+                    return Ok((v, Modified::No));
                 }
             }
             _ => {
-                let (mut v, m1) = replace_well_known(v, compile_time_info, true).await?;
-                let m2 = replace_builtin(&mut v);
-                let m = m1 || m2 || v.make_nested_operations_unknown();
+                let (mut v, m1) = replace_well_known(arena, v, compile_time_info, true).await?;
+                let m2 = replace_builtin(arena.get_or_default(), &mut v);
+                let m = if m1.is_modified() || m2.is_modified() {
+                    Modified::Yes
+                } else {
+                    Modified::from(v.make_nested_operations_unknown())
+                };
                 return Ok((v, m));
             }
         };
-        new_value.normalize_shallow();
-        Ok((new_value, true))
+        new_value.normalize_shallow(arena.get_or_default());
+        Ok((new_value, Modified::Yes))
     }
 }
 
@@ -438,6 +263,7 @@ pub mod test_utils {
 mod tests {
     use std::{mem::take, path::PathBuf, sync::Arc, time::Instant};
 
+    use bumpalo::boxed::Box as BumpBox;
     use parking_lot::Mutex;
     use rustc_hash::FxHashMap;
     use swc_core::{
@@ -462,13 +288,13 @@ mod tests {
     };
 
     use super::{
-        JsValue,
+        BumpVec, JsValue,
         graph::{ConditionalKind, Effect, EffectArg, EvalContext, VarGraph, create_graph},
         linker::link,
     };
     use crate::{
-        AnalyzeMode,
-        analyzer::{graph::AssignmentScopes, imports::ImportAttributes},
+        AnalyzeMode, SpecifiedModuleType,
+        analyzer::{Bump, ThreadLocal, graph::AssignmentScopes, imports::ImportAttributes},
     };
 
     #[fixture("tests/analyzer/graph/**/input.js")]
@@ -505,6 +331,7 @@ mod tests {
 
         let cm: Arc<SourceMap> = Arc::new(SourceMap::new(FilePathMapping::empty()));
         let globals = Arc::new(Globals::new());
+        let arena = ThreadLocal::new();
 
         // Keep all non-`Send` SWC types (`SingleThreadedComments`, `Lrc<SourceFile>`)
         // confined to this synchronous block so they don't have to cross an `.await`
@@ -534,10 +361,14 @@ mod tests {
             );
 
             let var_graph = create_graph(
+                arena.get_or_default(),
                 &m,
                 &eval_context,
                 AnalyzeMode::CodeGenerationAndTracing,
                 true,
+                SpecifiedModuleType::EcmaScript,
+                true,
+                false,
             );
             anyhow::Ok((eval_context, var_graph))
         })?;
@@ -545,21 +376,21 @@ mod tests {
 
         let mut named_values = var_graph
             .values
-            .clone()
-            .into_iter()
+            .iter()
             .map(|((id, ctx), value)| {
-                let unique = var_graph.values.keys().filter(|(i, _)| &id == i).count() == 1;
+                let unique = var_graph.values.keys().filter(|(i, _)| id == i).count() == 1;
+                let value = value.clone_in(arena.get_or_default());
                 if unique {
-                    (id.to_string(), ((id, ctx), value))
+                    (id.to_string(), ((id.clone(), *ctx), value))
                 } else {
-                    (format!("{id}{ctx:?}"), ((id, ctx), value))
+                    (format!("{id}{ctx:?}"), ((id.clone(), *ctx), value))
                 }
             })
             .collect::<Vec<_>>();
         named_values.sort_by(|a, b| a.0.cmp(&b.0));
 
-        fn explain_all<'a>(
-            values: impl IntoIterator<Item = (&'a String, &'a JsValue, Option<AssignmentScopes>)>,
+        fn explain_all<'x, 'a: 'x>(
+            values: impl IntoIterator<Item = (&'x String, &'x JsValue<'a>, Option<AssignmentScopes>)>,
         ) -> String {
             values
                 .into_iter()
@@ -614,13 +445,14 @@ mod tests {
 
             let start = Instant::now();
             let mut resolved = Vec::new();
-            for (name, (id, _)) in named_values.iter().cloned() {
+            for (name, id) in named_values.iter().map(|(name, (id, _))| (name, id)) {
                 let start = Instant::now();
                 // Ideally this would use eval_context.imports.get_attributes(span), but the
                 // span isn't available here
                 let (res, steps) = resolve(
+                    &arena,
                     &var_graph,
-                    JsValue::Variable(id),
+                    JsValue::Variable(id.clone()),
                     ImportAttributes::empty_ref(),
                     &var_cache,
                 )
@@ -635,7 +467,7 @@ mod tests {
                     );
                 }
 
-                resolved.push((name, res));
+                resolved.push((name.clone(), res));
             }
             let time = start.elapsed();
             if time.as_millis() > 1 {
@@ -672,30 +504,48 @@ mod tests {
             while let Some((parent, effect)) = queue.pop() {
                 i += 1;
                 let start = Instant::now();
-                async fn handle_args(
-                    args: Vec<EffectArg>,
-                    queue: &mut Vec<(usize, Effect)>,
-                    var_graph: &VarGraph,
-                    var_cache: &Mutex<FxHashMap<Id, JsValue>>,
+                async fn handle_args<'a>(
+                    arena: &'a ThreadLocal<Bump>,
+                    args: BumpVec<'a, EffectArg<'a>>,
+                    queue: &mut Vec<(usize, Effect<'a>)>,
+                    var_graph: &VarGraph<'a>,
+                    var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
                     i: usize,
-                ) -> Vec<JsValue> {
+                ) -> Vec<JsValue<'a>> {
                     let mut new_args = Vec::with_capacity(args.len());
                     for arg in args {
                         match arg {
                             EffectArg::Value(v) => {
                                 new_args.push(
-                                    resolve(var_graph, v, ImportAttributes::empty_ref(), var_cache)
-                                        .await
-                                        .0,
+                                    resolve(
+                                        arena,
+                                        var_graph,
+                                        v,
+                                        ImportAttributes::empty_ref(),
+                                        var_cache,
+                                    )
+                                    .await
+                                    .0,
                                 );
                             }
                             EffectArg::Closure(v, effects) => {
                                 new_args.push(
-                                    resolve(var_graph, v, ImportAttributes::empty_ref(), var_cache)
-                                        .await
-                                        .0,
+                                    resolve(
+                                        arena,
+                                        var_graph,
+                                        v,
+                                        ImportAttributes::empty_ref(),
+                                        var_cache,
+                                    )
+                                    .await
+                                    .0,
                                 );
-                                queue.extend(effects.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(BumpBox::into_inner(effects).effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             EffectArg::Spread => {
                                 new_args.push(JsValue::unknown_empty(true, rcstr!("spread")));
@@ -706,67 +556,106 @@ mod tests {
                 }
                 let steps = match effect {
                     Effect::Conditional {
-                        condition, kind, ..
+                        mut condition,
+                        kind,
+                        ..
                     } => {
                         let (condition, steps) = resolve(
+                            &arena,
                             &var_graph,
-                            *condition,
+                            take(&mut *condition),
                             ImportAttributes::empty_ref(),
                             &var_cache,
                         )
                         .await;
                         resolved.push((format!("{parent} -> {i} conditional"), condition));
-                        match *kind {
+                        match BumpBox::into_inner(kind) {
                             ConditionalKind::If { then } => {
-                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(then.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::Else { r#else } => {
-                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(r#else.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::IfElse { then, r#else }
                             | ConditionalKind::Ternary { then, r#else } => {
-                                queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
-                                queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(r#else.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
+                                queue.extend(
+                                    BumpVec::from(then.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                             ConditionalKind::IfElseMultiple { then, r#else } => {
-                                for then in then {
-                                    queue.extend(then.effects.into_iter().rev().map(|e| (i, e)));
+                                for then in BumpVec::from(then) {
+                                    queue.extend(
+                                        BumpVec::from(then.effects)
+                                            .into_iter()
+                                            .rev()
+                                            .map(|e| (i, e)),
+                                    );
                                 }
-                                for r#else in r#else {
-                                    queue.extend(r#else.effects.into_iter().rev().map(|e| (i, e)));
+                                for r#else in BumpVec::from(r#else) {
+                                    queue.extend(
+                                        BumpVec::from(r#else.effects)
+                                            .into_iter()
+                                            .rev()
+                                            .map(|e| (i, e)),
+                                    );
                                 }
                             }
                             ConditionalKind::And { expr }
                             | ConditionalKind::Or { expr }
                             | ConditionalKind::NullishCoalescing { expr }
                             | ConditionalKind::Labeled { body: expr } => {
-                                queue.extend(expr.effects.into_iter().rev().map(|e| (i, e)));
+                                queue.extend(
+                                    BumpVec::from(expr.effects)
+                                        .into_iter()
+                                        .rev()
+                                        .map(|e| (i, e)),
+                                );
                             }
                         };
                         steps
                     }
                     Effect::Call {
-                        func,
+                        mut func,
                         args,
                         new,
                         span,
                         ..
                     } => {
                         let (func, steps) = resolve(
+                            &arena,
                             &var_graph,
-                            *func,
+                            take(&mut *func),
                             eval_context.imports.get_attributes(span),
                             &var_cache,
                         )
                         .await;
                         let new_args =
-                            handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                            handle_args(&arena, args, &mut queue, &var_graph, &var_cache, i).await;
                         resolved.push((
                             format!("{parent} -> {i} call"),
                             if new {
-                                JsValue::new_from_iter(func, new_args)
+                                JsValue::new_from_iter(arena.get_or_default(), func, new_args)
                             } else {
-                                JsValue::call_from_iter(func, new_args)
+                                JsValue::call_from_iter(arena.get_or_default(), func, new_args)
                             },
                         ));
                         steps
@@ -775,39 +664,66 @@ mod tests {
                         resolved.push((format!("{parent} -> {i} free var"), JsValue::FreeVar(var)));
                         0
                     }
-                    Effect::TypeOf { arg, .. } => {
-                        let (arg, steps) =
-                            resolve(&var_graph, *arg, ImportAttributes::empty_ref(), &var_cache)
-                                .await;
+                    Effect::TypeOf { mut arg, .. } => {
+                        let (arg, steps) = resolve(
+                            &arena,
+                            &var_graph,
+                            take(&mut *arg),
+                            ImportAttributes::empty_ref(),
+                            &var_cache,
+                        )
+                        .await;
                         resolved.push((
                             format!("{parent} -> {i} typeof"),
-                            JsValue::type_of(Box::new(arg)),
+                            JsValue::type_of(arena.get_or_default(), arg),
                         ));
                         steps
                     }
                     Effect::MemberCall {
-                        obj, prop, args, ..
+                        mut obj,
+                        mut prop,
+                        args,
+                        ..
                     } => {
-                        let (obj, obj_steps) =
-                            resolve(&var_graph, *obj, ImportAttributes::empty_ref(), &var_cache)
-                                .await;
-                        let (prop, prop_steps) =
-                            resolve(&var_graph, *prop, ImportAttributes::empty_ref(), &var_cache)
-                                .await;
+                        let (obj, obj_steps) = resolve(
+                            &arena,
+                            &var_graph,
+                            take(&mut *obj),
+                            ImportAttributes::empty_ref(),
+                            &var_cache,
+                        )
+                        .await;
+                        let (prop, prop_steps) = resolve(
+                            &arena,
+                            &var_graph,
+                            take(&mut *prop),
+                            ImportAttributes::empty_ref(),
+                            &var_cache,
+                        )
+                        .await;
                         let new_args =
-                            handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                            handle_args(&arena, args, &mut queue, &var_graph, &var_cache, i).await;
                         resolved.push((
                             format!("{parent} -> {i} member call"),
-                            JsValue::member_call_from_iter(obj, prop, new_args),
+                            JsValue::member_call_from_iter(
+                                arena.get_or_default(),
+                                obj,
+                                prop,
+                                new_args,
+                            ),
                         ));
                         obj_steps + prop_steps
                     }
                     Effect::DynamicImport { args, .. } => {
                         let new_args =
-                            handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
+                            handle_args(&arena, args, &mut queue, &var_graph, &var_cache, i).await;
                         resolved.push((
                             format!("{parent} -> {i} dynamic import"),
-                            JsValue::call_from_iter(JsValue::FreeVar("import".into()), new_args),
+                            JsValue::call_from_iter(
+                                arena.get_or_default(),
+                                JsValue::FreeVar("import".into()),
+                                new_args,
+                            ),
                         ));
                         0
                     }
@@ -820,7 +736,9 @@ mod tests {
                     }
                     Effect::ImportMeta { .. }
                     | Effect::ImportedBinding { .. }
-                    | Effect::Member { .. } => 0,
+                    | Effect::Member { .. }
+                    | Effect::DestructuredMember { .. }
+                    | Effect::In { .. } => 0,
                 };
                 let time = start.elapsed();
                 if time.as_millis() > 1 {
@@ -860,12 +778,13 @@ mod tests {
         Ok(())
     }
 
-    async fn resolve(
-        var_graph: &VarGraph,
-        val: JsValue,
+    async fn resolve<'a>(
+        arena: &'a ThreadLocal<Bump>,
+        var_graph: &VarGraph<'a>,
+        val: JsValue<'a>,
         attributes: &ImportAttributes,
-        var_cache: &Mutex<FxHashMap<Id, JsValue>>,
-    ) -> (JsValue, u32) {
+        var_cache: &Mutex<FxHashMap<Id, JsValue<'a>>>,
+    ) -> (JsValue<'a>, u32) {
         // The caller (`fixture`) runs us inside `tt.run_once`, so a real
         // turbo-tasks task context is already established here.
         async {
@@ -890,11 +809,13 @@ mod tests {
             .cell()
             .await?;
             link(
+                arena,
                 var_graph,
                 val,
-                &super::test_utils::early_visitor,
+                &(|val| Box::pin(super::test_utils::early_visitor(arena, val))),
                 &(|val| {
                     Box::pin(super::test_utils::visitor(
+                        arena,
                         val,
                         compile_time_info,
                         attributes,

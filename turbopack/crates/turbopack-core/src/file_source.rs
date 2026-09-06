@@ -1,7 +1,10 @@
 use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
-use turbo_tasks_fs::{FileContent, FileSystemEntryType, FileSystemPath, LinkContent};
+use turbo_tasks_fs::{
+    FileContent, FileSystemEntryType, FileSystemPath, LinkContent, LinkTarget, WriteLinkContent,
+    WriteLinkTarget, WriteLinkTargetType,
+};
 
 use crate::{
     asset::{Asset, AssetContent},
@@ -66,11 +69,31 @@ impl Asset for FileSource {
         let file_type = &*self.path.get_type().await?;
         match file_type {
             FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
-                LinkContent::Link { target, link_type } => Ok(AssetContent::Redirect {
-                    target: target.clone(),
-                    link_type: *link_type,
+                LinkContent::Link { target } => {
+                    let write_target = match target {
+                        LinkTarget::Absolute { resolved } => {
+                            WriteLinkTarget::Absolute(resolved.path.clone())
+                        }
+                        LinkTarget::Relative { raw, .. } => WriteLinkTarget::Relative(raw.clone()),
+                    };
+                    let target_fs_path = target.file_system_path();
+                    let write_target_type = match *target_fs_path.get_type().await? {
+                        FileSystemEntryType::Directory => {
+                            WriteLinkTargetType::DirectoryOrJunctionPoint
+                        }
+                        FileSystemEntryType::Symlink
+                            if *target_fs_path.is_junction_point().await? =>
+                        {
+                            WriteLinkTargetType::DirectoryOrJunctionPoint
+                        }
+                        _ => WriteLinkTargetType::FileNonPortable,
+                    };
+                    Ok(AssetContent::Redirect(WriteLinkContent {
+                        target: write_target,
+                        target_type: write_target_type,
+                    })
+                    .cell())
                 }
-                .cell()),
                 _ => bail!("Invalid symlink"),
             },
             FileSystemEntryType::File => {

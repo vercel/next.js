@@ -16,7 +16,7 @@ use swc_core::{
     },
     quote, quote_expr,
 };
-use turbo_rcstr::RcStr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat, trace::TraceRawVcs,
@@ -31,7 +31,7 @@ use turbopack_core::{
         ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
-    issue::IssueSource,
+    issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::{Module, ModuleSideEffects},
     module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
@@ -74,6 +74,8 @@ pub struct ImportMetaGlobOptions {
     pub query: Option<RcStr>,
     /// Base path for resolving and keying modules.
     pub base: Option<RcStr>,
+    /// Whether glob matching is case-sensitive.
+    pub case_sensitive: bool,
 }
 
 /// Parse the arguments of an `import.meta.glob(patterns, options?)` call.
@@ -88,7 +90,7 @@ pub struct ImportMetaGlobOptions {
 /// - **`as` option** (deprecated in Vite 5 in favor of `query`) is not supported. Use `query:
 ///   '?raw'` or `query: '?url'` instead.
 pub fn parse_import_meta_glob(
-    args: &[JsValue],
+    args: &[JsValue<'_>],
     handler: &Handler,
     span: Span,
     diagnostic_id: DiagnosticId,
@@ -150,6 +152,7 @@ pub fn parse_import_meta_glob(
     let mut import = None;
     let mut query = None;
     let mut base = None;
+    let mut case_sensitive = true;
 
     if let Some(opts) = args.get(1) {
         match opts {
@@ -261,6 +264,18 @@ pub fn parse_import_meta_glob(
                                     );
                                 }
                             }
+                            Some("caseSensitive") => {
+                                if let Some(b) = val.as_bool() {
+                                    case_sensitive = b;
+                                } else {
+                                    handler.span_warn_with_code(
+                                        span,
+                                        "import.meta.glob() 'caseSensitive' option must be a \
+                                         constant boolean (true or false), defaulting to true",
+                                        diagnostic_id.clone(),
+                                    );
+                                }
+                            }
                             // The `as` option was deprecated in Vite 5 in favor of `query`.
                             // We don't support it; users should use `query` instead.
                             Some("as") => {
@@ -276,7 +291,8 @@ pub fn parse_import_meta_glob(
                                     span,
                                     &format!(
                                         "import.meta.glob() unsupported option '{other}'. \
-                                         Supported options are: eager, import, query, base"
+                                         Supported options are: eager, import, query, base, \
+                                         caseSensitive"
                                     ),
                                     diagnostic_id.clone(),
                                 );
@@ -309,6 +325,7 @@ pub fn parse_import_meta_glob(
         import,
         query,
         base,
+        case_sensitive,
     })
 }
 
@@ -413,7 +430,7 @@ impl ImportMetaGlobMap {
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
-        let origin_path = origin.origin_path().await?.parent();
+        let origin_path = origin.into_trait_ref().await?.origin_path().parent();
 
         // Use read_glob for efficient directory-pruning file discovery.
         let glob_result = base_dir.read_glob(positive_glob).await?;
@@ -443,14 +460,18 @@ impl ImportMetaGlobMap {
                     true
                 }
             })
-            .map(|(_base_relative, path)| {
+            .map(|(base_relative, _logical_path)| {
                 let origin_path = &origin_path;
+                let base_dir = &base_dir;
                 let query = &query;
                 let reference_sub_type = &reference_sub_type;
                 async move {
-                    // Compute the origin-relative path for import resolution and as the
-                    // user-visible key in the result object.
-                    let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
+                    // ReadGlobResult paths are logical too, but reconstruct from its keys here so
+                    // matching and user-visible specifiers have one explicit source of truth. The
+                    // module resolver resolves this logical request and tracks its symlink chain.
+                    let logical_path = base_dir.join(base_relative)?;
+                    let Some(origin_relative) = origin_path.get_relative_path_to(&logical_path)
+                    else {
                         bail!(
                             "import.meta.glob: failed to compute relative path from origin to \
                              matched file"
@@ -551,6 +572,7 @@ fn modifier(
     import: &Option<RcStr>,
     query: &Option<RcStr>,
     base: &Option<RcStr>,
+    case_sensitive: bool,
 ) -> RcStr {
     let mut s = format!("import.meta.glob {}", patterns.join(", "));
     if eager {
@@ -568,6 +590,9 @@ fn modifier(
         s.push_str(" base=");
         s.push_str(b);
     }
+    if !case_sensitive {
+        s.push_str(" case-insensitive");
+    }
     s.into()
 }
 
@@ -579,6 +604,7 @@ pub struct ImportMetaGlobAsset {
     pub import: Option<RcStr>,
     pub query: Option<RcStr>,
     pub base: Option<RcStr>,
+    pub case_sensitive: bool,
     pub issue_source: Option<IssueSource>,
     pub error_mode: ResolveErrorMode,
 }
@@ -594,7 +620,7 @@ impl ImportMetaGlobAsset {
     #[turbo_tasks::function]
     pub async fn map(&self) -> Result<Vc<ImportMetaGlobMap>> {
         let origin = *self.origin;
-        let origin_dir = origin.origin_path().await?.parent();
+        let origin_dir = origin.into_trait_ref().await?.origin_path().parent();
 
         // Compute the base directory for glob scanning.
         // With `base`, patterns are resolved relative to origin + base.
@@ -608,13 +634,17 @@ impl ImportMetaGlobAsset {
         // Negative patterns start with `!`; the `!` prefix is stripped.
         let (positive_raw, negative_raw): (Vec<_>, Vec<_>) =
             self.patterns.iter().partition(|p| !p.starts_with('!'));
+        let glob_options = GlobOptions {
+            case_insensitive: !self.case_sensitive,
+            ..Default::default()
+        };
 
         // Build the positive Glob. Turbopack's Glob operates on paths relative
         // to the scan directory (no leading `./`), so strip that prefix. For
         // multiple patterns, use `Glob::alternatives` to combine them.
         let positive_globs: Vec<Vc<Glob>> = positive_raw
             .iter()
-            .map(|p| Glob::new(strip_relative_prefix(p).into(), GlobOptions::default()))
+            .map(|p| Glob::new(strip_relative_prefix(p).into(), glob_options))
             .collect();
 
         let positive_glob = if positive_globs.len() == 1 {
@@ -631,7 +661,7 @@ impl ImportMetaGlobAsset {
                 .map(|p| {
                     let stripped = p.strip_prefix('!').unwrap_or(p);
                     let stripped = strip_relative_prefix(stripped);
-                    Glob::new(stripped.into(), GlobOptions::default())
+                    Glob::new(stripped.into(), glob_options)
                 })
                 .collect();
 
@@ -662,14 +692,20 @@ impl ImportMetaGlobAsset {
 impl Module for ImportMetaGlobAsset {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let origin_path = self.origin.origin_path().owned().await?;
+        let origin = self.origin.into_trait_ref().await?;
+        let origin_path = origin.origin_path();
+        // The layer is part of the ident so that this virtual module is distinct
+        // per layer (the same file can be processed in multiple layers), and so
+        // that import traces can collapse it into the importing module.
         Ok(AssetIdent::from_path(origin_path)
+            .with_layer(origin.asset_context().into_trait_ref().await?.layer())
             .with_modifier(modifier(
                 &self.patterns,
                 self.eager,
                 &self.import,
                 &self.query,
                 &self.base,
+                self.case_sensitive,
             ))
             .into_vc())
     }
@@ -688,6 +724,46 @@ impl Module for ImportMetaGlobAsset {
             Some(name) => ExportUsage::Named(name.clone()),
             None => ExportUsage::All,
         };
+
+        // A matched file that has no module type is reported against the file
+        // itself, which is not part of the module graph and therefore has no
+        // import trace. Point at the call site as well, otherwise there is
+        // nothing connecting the error to a request the user never wrote.
+        for (key, entry) in map.iter() {
+            if entry.result.await?.primary.iter().any(|(_, item)| {
+                matches!(
+                    item,
+                    turbopack_core::resolve::ModuleResolveResultItem::Unknown(_)
+                )
+            }) {
+                CodeGenerationIssue {
+                    severity: IssueSeverity::Error,
+                    title: StyledString::Text(rcstr!(
+                        "import.meta.glob() matched a file that has no module type"
+                    ))
+                    .resolved_cell(),
+                    message: StyledString::Text(
+                        format!(
+                            "import.meta.glob({}) matched {key}, which doesn't have an associated \
+                             module type. Narrow the pattern, exclude the file with a negative \
+                             pattern (\"!...\"), or register a loader or module type for its file \
+                             extension.",
+                            this.patterns
+                                .iter()
+                                .map(|p| format!("{p:?}"))
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        )
+                        .into(),
+                    )
+                    .resolved_cell(),
+                    path: this.origin.into_trait_ref().await?.origin_path(),
+                    source: this.issue_source,
+                }
+                .resolved_cell()
+                .emit();
+            }
+        }
 
         Ok(Vc::cell(
             map.iter()
@@ -762,6 +838,7 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
                 chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
+                None,
             )
             .await?;
 
@@ -773,8 +850,9 @@ impl EcmascriptChunkPlaceable for ImportMetaGlobAsset {
 
             // Generate the value expression based on eager/lazy and import options
             let value_expr = if this.eager {
-                // Eager: direct synchronous require
-                let module_expr = pm.create_require(Cow::Borrowed(&key_expr));
+                // Eager: synchronously evaluate the module and use its ESM namespace,
+                // matching what a static `import * as ns from "..."` would produce.
+                let module_expr = pm.create_esm_require(Cow::Borrowed(&key_expr));
                 // If `import` option is set, access the named export
                 if let Some(named) = &this.import {
                     quote!(
@@ -881,6 +959,7 @@ impl ImportMetaGlobAssetReference {
         import: Option<RcStr>,
         query: Option<RcStr>,
         base: Option<RcStr>,
+        case_sensitive: bool,
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Self {
@@ -891,6 +970,7 @@ impl ImportMetaGlobAssetReference {
             import,
             query,
             base,
+            case_sensitive,
             issue_source,
             error_mode,
         }

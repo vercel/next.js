@@ -1,5 +1,5 @@
 import { nextTestSetup, isNextDeploy } from 'e2e-utils'
-import { pathExists, readdir } from 'fs-extra'
+import { pathExists, readdir, readFile } from 'fs-extra'
 import { join } from 'path'
 
 describe('CPU Profiling - next build', () => {
@@ -23,6 +23,14 @@ describe('CPU Profiling - next build', () => {
     await next.build()
   })
 
+  it('should write a .gitignore into .next-profiles', async () => {
+    const gitignore = join(next.testDir, '.next-profiles', '.gitignore')
+    expect(await pathExists(gitignore)).toBe(true)
+    // `*` keeps the (potentially large) profiling output out of git and away
+    // from gitignore-respecting tools that would otherwise scan it.
+    expect(await readFile(gitignore, 'utf8')).toContain('*')
+  })
+
   it('should create CPU profile files after build', async () => {
     const profileDir = join(next.testDir, '.next-profiles')
 
@@ -36,11 +44,9 @@ describe('CPU Profiling - next build', () => {
     expect(cpuProfiles.some((f) => f.startsWith('build-main-'))).toBe(true)
 
     if (isTurbopack) {
-      // Turbopack mode generates: build-main, build-turbopack
-      expect(cpuProfiles.length).toBe(2)
-      expect(cpuProfiles.some((f) => f.startsWith('build-turbopack-'))).toBe(
-        true
-      )
+      // Turbopack builds in the main build process, so `build-main` is the only
+      // profile.
+      expect(cpuProfiles.length).toBe(1)
     } else {
       // Webpack mode generates: build-main, build-webpack-client, build-webpack-server, build-webpack-edge-server
       expect(cpuProfiles.length).toBe(4)

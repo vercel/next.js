@@ -29,14 +29,12 @@ use turbo_rcstr::RcStr;
 use turbo_tasks_hash::DeterministicHasher;
 
 use crate::{
-    RawVc, ReadCellOptions, ReadOutputOptions, ReadRef, SharedReference, TaskId, TaskIdSet,
-    TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic, ValueTypeId,
-    ValueTypePersistence, VcValueTrait, VcValueType,
-    dyn_task_inputs::{DynTaskInputs, StackDynTaskInputs},
-    event::EventListener,
+    CellId, RawVc, ReadCellOptions, ReadOutcome, ReadOutputOptions, ReadRef, SharedReference,
+    TaskId, TaskIdSet, TaskPriority, TraitRef, TraitTypeId, TurboTasksCallApi, TurboTasksPanic,
+    ValueTypeId, ValueTypePersistence, VcValueTrait, VcValueType,
+    dyn_task_inputs::{DynTaskInputs, DynTaskInputsStorage},
     macro_helpers::NativeFunction,
-    manager::{TaskPersistence, TurboTasksBackendApi},
-    raw_vc::CellId,
+    manager::{TaskPersistence, TurboTasks},
     registry,
     task::shared_reference::TypedSharedReference,
     task_statistics::TaskStatisticsApi,
@@ -594,40 +592,35 @@ pub enum VerificationMode {
     Skip,
 }
 
-pub trait Backend: Sync + Send {
+pub trait Backend: Sized + Sync + Send {
     #[allow(unused_variables)]
-    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    fn startup(&self, turbo_tasks: &TurboTasks<Self>) {}
 
     #[allow(unused_variables)]
-    fn stop(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    fn stop(&self, turbo_tasks: &TurboTasks<Self>) {}
     #[allow(unused_variables)]
-    fn stopping(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    fn stopping(&self, turbo_tasks: &TurboTasks<Self>) {}
 
     #[allow(unused_variables)]
-    fn idle_start(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    fn idle_start(&self, turbo_tasks: &TurboTasks<Self>) {}
     #[allow(unused_variables)]
-    fn idle_end(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {}
+    fn idle_end(&self, turbo_tasks: &TurboTasks<Self>) {}
 
-    fn invalidate_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
+    fn invalidate_task(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
 
-    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &dyn TurboTasksBackendApi<Self>);
-    fn invalidate_tasks_set(&self, tasks: &TaskIdSet, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
+    fn invalidate_tasks(&self, tasks: &[TaskId], turbo_tasks: &TurboTasks<Self>);
+    fn invalidate_tasks_set(&self, tasks: &TaskIdSet, turbo_tasks: &TurboTasks<Self>);
 
-    fn invalidate_serialization(
-        &self,
-        _task: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
-    }
+    fn invalidate_serialization(&self, _task: TaskId, _turbo_tasks: &TurboTasks<Self>) {}
 
     fn try_start_task_execution<'a>(
         &'a self,
         task: TaskId,
         priority: TaskPriority,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &TurboTasks<Self>,
     ) -> Option<TaskExecutionSpec<'a>>;
 
-    fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
+    fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
 
     /// Called when a task's execution finishes.
     ///
@@ -641,7 +634,7 @@ pub trait Backend: Sync + Send {
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         #[cfg(feature = "verify_determinism")] stateful: bool,
         has_invalidator: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &TurboTasks<Self>,
     ) -> Option<TaskPriority>;
 
     type BackendJob: Send + 'static;
@@ -649,7 +642,7 @@ pub trait Backend: Sync + Send {
     fn run_backend_job<'a>(
         &'a self,
         job: Self::BackendJob,
-        turbo_tasks: &'a dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &'a TurboTasks<Self>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>>;
 
     /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
@@ -659,8 +652,8 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         reader: Option<TaskId>,
         options: ReadOutputOptions,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<RawVc, EventListener>>;
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<ReadOutcome<RawVc>>;
 
     /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -670,8 +663,8 @@ pub trait Backend: Sync + Send {
         index: CellId,
         reader: Option<TaskId>,
         options: ReadCellOptions,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) -> Result<Result<TypedCellContent, EventListener>>;
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Result<ReadOutcome<TypedCellContent>>;
 
     /// INVALIDATION: Be careful with this, it will not track dependencies, so
     /// using it could break cache invalidation.
@@ -679,7 +672,7 @@ pub trait Backend: Sync + Send {
         &self,
         current_task: TaskId,
         index: CellId,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &TurboTasks<Self>,
     ) -> Result<TypedCellContent>;
 
     /// INVALIDATION: Be careful with this, when reader is None, it will not track dependencies, so
@@ -689,7 +682,7 @@ pub trait Backend: Sync + Send {
         task: TaskId,
         trait_id: TraitTypeId,
         reader: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &TurboTasks<Self>,
     ) -> TaskCollectiblesMap;
 
     fn emit_collectible(
@@ -697,7 +690,7 @@ pub trait Backend: Sync + Send {
         trait_type: TraitTypeId,
         collectible: RawVc,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &TurboTasks<Self>,
     );
 
     fn unemit_collectible(
@@ -706,7 +699,7 @@ pub trait Backend: Sync + Send {
         collectible: RawVc,
         count: u32,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &TurboTasks<Self>,
     );
 
     fn update_task_cell(
@@ -717,41 +710,45 @@ pub trait Backend: Sync + Send {
         updated_key_hashes: Option<SmallVec<[u64; 2]>>,
         content_hash: Option<CellHash>,
         verification_mode: VerificationMode,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &TurboTasks<Self>,
     );
 
     fn get_or_create_task(
         &self,
         native_fn: &'static NativeFunction,
         this: Option<RawVc>,
-        arg: &mut dyn StackDynTaskInputs,
+        arg: &mut dyn DynTaskInputsStorage,
         parent_task: Option<TaskId>,
         persistence: TaskPersistence,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &TurboTasks<Self>,
     ) -> TaskId;
 
     fn connect_task(
         &self,
         task: TaskId,
         parent_task: Option<TaskId>,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &TurboTasks<Self>,
     );
 
-    fn mark_own_task_as_finished(
-        &self,
-        _task: TaskId,
-        _turbo_tasks: &dyn TurboTasksBackendApi<Self>,
-    ) {
+    fn mark_own_task_as_finished(&self, _task: TaskId, _turbo_tasks: &TurboTasks<Self>) {
         // Do nothing by default
     }
+
+    /// Pin a task against garbage collection (via [`prevent_gc`](crate::prevent_gc)). A pinned task
+    /// is treated as a GC root, keeping alive references that escape the tracked task graph. The
+    /// default is a no-op for backends without GC.
+    fn pin_task_for_gc(&self, _task: TaskId, _turbo_tasks: &TurboTasks<Self>);
+
+    /// Removes a pin added by [`pin_task_for_gc`](Backend::pin_task_for_gc).
+    fn unpin_task_for_gc(&self, _task: TaskId, _turbo_tasks: &TurboTasks<Self>);
 
     fn create_transient_task(
         &self,
         task_type: TransientTaskType,
-        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+        turbo_tasks: &TurboTasks<Self>,
     ) -> TaskId;
 
-    fn dispose_root_task(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>);
+    fn dispose_root_task(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
 
     fn task_statistics(&self) -> &TaskStatisticsApi;
 
@@ -759,7 +756,7 @@ pub trait Backend: Sync + Send {
 
     /// Returns a human-readable name for the given task. Used by error display formatting
     /// to lazily resolve task names instead of storing them eagerly in error objects.
-    fn get_task_name(&self, task: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) -> String;
+    fn get_task_name(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) -> String;
 }
 
 #[cfg(test)]
@@ -810,7 +807,7 @@ mod cached_task_type_tests {
 
     /// Build a `Some(RawVc::TaskOutput(..))` this value.
     fn make_this(id: u32) -> Option<RawVc> {
-        Some(RawVc::TaskOutput(
+        Some(RawVc::task_output(
             TaskId::new(id).expect("non-zero task id"),
         ))
     }

@@ -16,7 +16,7 @@ describe('font-loader-in-document-error', () => {
       // TODO: Turbopack doesn't include pages/
       expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
         "./_document.js
-        next/font: error:
+        Error: next/font: error:
         Cannot be used within _document.js"
       `)
     } else if (process.env.NEXT_RSPACK) {

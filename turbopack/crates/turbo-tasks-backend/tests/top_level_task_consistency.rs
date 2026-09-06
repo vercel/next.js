@@ -26,7 +26,7 @@ async fn returns_value_operation() -> Result<Vc<Value>> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 #[should_panic]
 async fn test_eventual_read_in_top_level_task_fails() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         // This should fail because we're in a top-level task (run_once)
         // and doing an eventually consistent read (default .await)
         returns_value_operation().connect().await
@@ -37,7 +37,7 @@ async fn test_eventual_read_in_top_level_task_fails() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_cell_read_in_top_level_task_succeeds() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         let cell = returns_value_operation()
             .resolve()
             .strongly_consistent()
@@ -52,7 +52,7 @@ async fn test_cell_read_in_top_level_task_succeeds() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_manual_mark_unmark_top_level_task() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         // We're in a top-level task initially, but let's unmark it
         unmark_top_level_task_may_leak_eventually_consistent_state();
 
@@ -83,9 +83,7 @@ async fn test_manual_mark_top_level_task_causes_error() {
         Ok(Value { value: 42 }.cell())
     }
 
-    run_once(&REGISTRATION, || async {
-        operation().read_strongly_consistent().await
-    })
-    .await
-    .unwrap()
+    run_once(&REGISTRATION, || operation().read_strongly_consistent())
+        .await
+        .unwrap()
 }

@@ -3,7 +3,7 @@ use std::collections::BTreeSet;
 use anyhow::{Result, bail};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
@@ -47,7 +47,6 @@ use crate::{
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_config::NextConfig,
-    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{get_next_edge_and_server_fallback_import_map, get_next_server_import_map},
     next_server::{
         resolve::{ExternalCjsModulesResolvePlugin, ExternalPredicate},
@@ -78,8 +77,8 @@ use crate::{
     },
 };
 
-#[turbo_tasks::value(shared)]
-#[derive(Debug, Clone, Hash, TaskInput)]
+#[turbo_tasks::value(shared, task_input)]
+#[derive(Debug, Clone, Hash)]
 pub enum ServerContextType {
     Pages {
         pages_dir: FileSystemPath,
@@ -228,24 +227,6 @@ pub async fn get_server_resolve_options_context(
             .to_resolved()
             .await?;
 
-    let before_resolve_plugins = match &ty {
-        ServerContextType::Pages { .. }
-        | ServerContextType::AppSSR { .. }
-        | ServerContextType::AppRSC { .. } => {
-            vec![ResolvedVc::upcast(
-                NextFontLocalResolvePlugin::new(project_path.clone())
-                    .to_resolved()
-                    .await?,
-            )]
-        }
-        ServerContextType::PagesApi { .. }
-        | ServerContextType::AppRoute { .. }
-        | ServerContextType::Middleware { .. }
-        | ServerContextType::Instrumentation { .. } => {
-            vec![]
-        }
-    };
-
     let after_resolve_plugins = match ty {
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             vec![
@@ -280,7 +261,9 @@ pub async fn get_server_resolve_options_context(
         custom_conditions,
         import_map: Some(next_server_import_map),
         fallback_import_map: Some(next_server_fallback_import_map),
-        before_resolve_plugins,
+        // A request starting with `/` is resolved from the project directory, which is not
+        // necessarily the root of the filesystem (e.g. in a monorepo).
+        server_relative_root: Some(project_path.clone()),
         after_resolve_plugins,
         ..Default::default()
     };
@@ -333,6 +316,7 @@ pub async fn get_server_compile_time_info(
     node_version: ResolvedVc<NodeJsVersion>,
     report_system_env_inlining: Vc<IssueSeverity>,
     hot_module_replacement_enabled: bool,
+    import_meta_env_base_url: RcStr,
 ) -> Result<Vc<CompileTimeInfo>> {
     CompileTimeInfo::builder(
         Environment::new(ExecutionEnvironment::NodeJsLambda(
@@ -353,6 +337,7 @@ pub async fn get_server_compile_time_info(
             .await?,
     )
     .hot_module_replacement_enabled(hot_module_replacement_enabled)
+    .import_meta_env_base_url(import_meta_env_base_url)
     .cell()
     .await
 }
@@ -411,6 +396,7 @@ pub async fn get_server_module_options_context(
     encryption_key: ResolvedVc<RcStr>,
     environment: ResolvedVc<Environment>,
     client_environment: ResolvedVc<Environment>,
+    enable_tracing: bool,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let mut next_server_rules = get_next_server_transforms_rules(
@@ -482,11 +468,11 @@ pub async fn get_server_module_options_context(
     let enable_webpack_loaders =
         *webpack_loader_options(project_path.clone(), next_config, loader_conditions).await?;
 
-    let tree_shaking_mode_for_user_code = *next_config
-        .tree_shaking_mode_for_user_code(next_mode.is_development())
+    let module_fragments_enabled_for_user_code = *next_config
+        .module_fragments_enabled_for_user_code(next_mode.is_development())
         .await?;
-    let tree_shaking_mode_for_foreign_code = *next_config
-        .tree_shaking_mode_for_foreign_code(next_mode.is_development())
+    let module_fragments_enabled_for_foreign_code = *next_config
+        .module_fragments_enabled_for_foreign_code(next_mode.is_development())
         .await?;
 
     let tsconfig_path = next_config
@@ -560,11 +546,14 @@ pub async fn get_server_module_options_context(
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             enable_import_as_bytes: *next_config.turbopack_import_type_bytes().await?,
-            enable_import_as_text: *next_config.turbopack_import_type_text().await?,
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
+            cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
+            mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
+            cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
+            cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
             ..Default::default()
         },
         execution_context: Some(execution_context),
@@ -573,20 +562,22 @@ pub async fn get_server_module_options_context(
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
+            module_css_debuggable_idents: next_mode.is_development(),
             ..Default::default()
         },
-        tree_shaking_mode: tree_shaking_mode_for_user_code,
+        follow_reexports: true,
+        module_fragments_enabled: module_fragments_enabled_for_user_code,
         side_effect_free_packages: Some(
             side_effect_free_packages_glob(next_config.optimize_package_imports())
                 .to_resolved()
                 .await?,
         ),
-        analyze_mode: if next_mode.is_development() {
-            AnalyzeMode::CodeGeneration
-        } else {
+        analyze_mode: if enable_tracing {
             AnalyzeMode::CodeGenerationAndTracing
+        } else {
+            AnalyzeMode::CodeGeneration
         },
-        enable_externals_tracing: if next_mode.is_production() {
+        enable_externals_tracing: if enable_tracing {
             Some(
                 ExternalsTracingOptions {
                     tracing_root: project_path,
@@ -638,7 +629,8 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+                follow_reexports: true,
+                module_fragments_enabled: module_fragments_enabled_for_foreign_code,
                 ..module_options_context.clone()
             };
 
@@ -659,6 +651,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -702,7 +695,8 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+                follow_reexports: true,
+                module_fragments_enabled: module_fragments_enabled_for_foreign_code,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -721,6 +715,8 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    // React Compiler only optimizes the React client runtime, so skip it.
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -783,7 +779,8 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+                follow_reexports: true,
+                module_fragments_enabled: module_fragments_enabled_for_foreign_code,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -801,6 +798,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(rsc_jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -859,7 +857,8 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+                follow_reexports: true,
+                module_fragments_enabled: module_fragments_enabled_for_foreign_code,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -877,6 +876,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(rsc_jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -946,7 +946,8 @@ pub async fn get_server_module_options_context(
                 enable_webpack_loaders: foreign_enable_webpack_loaders,
                 // NOTE(WEB-1016) PostCSS transforms should also apply to foreign code.
                 enable_postcss_transform: enable_foreign_postcss_transform,
-                tree_shaking_mode: tree_shaking_mode_for_foreign_code,
+                follow_reexports: true,
+                module_fragments_enabled: module_fragments_enabled_for_foreign_code,
                 ..module_options_context.clone()
             };
             let internal_module_options_context = ModuleOptionsContext {
@@ -964,6 +965,7 @@ pub async fn get_server_module_options_context(
                     enable_jsx: Some(jsx_runtime_options),
                     enable_typescript_transform: Some(tsconfig),
                     enable_decorators: Some(decorators_options.to_resolved().await?),
+                    enable_rust_react_compiler: None,
                     ..module_options_context.ecmascript
                 },
                 enable_webpack_loaders,
@@ -1002,7 +1004,8 @@ fn client_disallowed_directive_transform_plugin(error_proxy_module: RcStr) -> Vc
     )) as Box<dyn CustomTransformer + Send + Sync>)
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input(contains_unresolved_vcs)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub struct ServerChunkingContextOptions {
     pub mode: Vc<NextMode>,
     pub root_path: FileSystemPath,
@@ -1024,6 +1027,7 @@ pub struct ServerChunkingContextOptions {
     pub css_url_suffix: Vc<Option<RcStr>>,
     pub hash_salt: ResolvedVc<RcStr>,
     pub style_groups_algorithm: StyleGroupsAlgorithm,
+    pub per_page_module_graph: Vc<bool>,
 }
 
 /// Like `get_server_chunking_context` but all assets are emitted as client assets (so `/_next`)
@@ -1052,6 +1056,7 @@ pub async fn get_server_chunking_context_with_client_assets(
         css_url_suffix,
         hash_salt,
         style_groups_algorithm,
+        per_page_module_graph,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
 
@@ -1098,6 +1103,9 @@ pub async fn get_server_chunking_context_with_client_assets(
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
+    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
+    // chunk may leave out.
+    .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
     builder = builder.source_map_source_type(if next_mode.is_development() {
@@ -1156,6 +1164,7 @@ pub async fn get_server_chunking_context(
         css_url_suffix,
         hash_salt,
         style_groups_algorithm,
+        per_page_module_graph,
     } = options;
     let css_url_suffix = css_url_suffix.to_resolved().await?;
     let next_mode = mode.await?;
@@ -1205,6 +1214,9 @@ pub async fn get_server_chunking_context(
     .debug_ids(*debug_ids.await?)
     .hash_salt(hash_salt)
     .nested_async_availability(*nested_async_chunking.await?)
+    // Per-page graphs each see only one page, so none of them can decide what the shared runtime
+    // chunk may leave out.
+    .shared_runtime_chunk(*per_page_module_graph.await?)
     .worker_forwarded_globals(worker_forwarded_globals());
 
     if next_mode.is_development() {

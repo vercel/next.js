@@ -94,6 +94,22 @@ describe('Prerender', () => {
     'x-next-revalidate-tag-token',
   ]
 
+  const completeStaticPageClassification = {
+    routeType: 'page',
+    response: 'complete',
+    compute: 'static',
+  }
+  const initialStaticFallbackClassification = {
+    routeType: 'fallback',
+    response: 'initial',
+    compute: 'static',
+  }
+  const emptyBlockingPageClassification = {
+    routeType: 'page',
+    response: 'empty',
+    compute: 'blocking',
+  }
+
   const expectedManifestRoutes = () => ({
     '/': {
       allowHeader,
@@ -1721,9 +1737,22 @@ describe('Prerender', () => {
           })
 
           expect(manifest.version).toBe(4)
-          expect(manifest.routes).toEqual(expectedManifestRoutes())
+          expect(manifest.routes).toEqual(
+            Object.fromEntries(
+              Object.entries(expectedManifestRoutes()).map(
+                ([pathname, route]) => [
+                  pathname,
+                  {
+                    ...route,
+                    ...completeStaticPageClassification,
+                  },
+                ]
+              )
+            )
+          )
           expect(manifest.dynamicRoutes).toEqual({
             '/api-docs/[...slug]': {
+              ...initialStaticFallbackClassification,
               dataRoute: `/_next/data/${next.buildId}/api-docs/[...slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/api\\-docs\\/(.+?)\\.json$`
@@ -1733,6 +1762,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blocking-fallback-once/[slug]': {
+              ...emptyBlockingPageClassification,
               dataRoute: `/_next/data/${next.buildId}/blocking-fallback-once/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\-once\\/([^\\/]+?)\\.json$`
@@ -1744,6 +1774,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blocking-fallback-some/[slug]': {
+              ...emptyBlockingPageClassification,
               dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\-some\\/([^\\/]+?)\\.json$`
@@ -1755,6 +1786,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blocking-fallback/[slug]': {
+              ...emptyBlockingPageClassification,
               dataRoute: `/_next/data/${next.buildId}/blocking-fallback/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\/([^\\/]+?)\\.json$`
@@ -1766,6 +1798,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blog/[post]': {
+              ...initialStaticFallbackClassification,
               fallback: '/blog/[post].html',
               dataRoute: `/_next/data/${next.buildId}/blog/[post].json`,
               dataRouteRegex: normalizeRegEx(
@@ -1775,6 +1808,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blog/[post]/[comment]': {
+              ...initialStaticFallbackClassification,
               fallback: '/blog/[post]/[comment].html',
               dataRoute: `/_next/data/${next.buildId}/blog/[post]/[comment].json`,
               dataRouteRegex: normalizeRegEx(
@@ -1795,6 +1829,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/fallback-only/[slug]': {
+              ...initialStaticFallbackClassification,
               dataRoute: `/_next/data/${next.buildId}/fallback-only/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
@@ -1806,6 +1841,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/fallback-true/[slug]': {
+              ...initialStaticFallbackClassification,
               allowHeader,
               dataRoute: `/_next/data/${next.buildId}/fallback-true/[slug].json`,
               dataRouteRegex: normalizeRegEx(
@@ -1828,6 +1864,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/non-json-blocking/[p]': {
+              ...emptyBlockingPageClassification,
               dataRoute: `/_next/data/${next.buildId}/non-json-blocking/[p].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\-blocking\\/([^\\/]+?)\\.json$`
@@ -1839,6 +1876,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/non-json/[p]': {
+              ...initialStaticFallbackClassification,
               dataRoute: `/_next/data/${next.buildId}/non-json/[p].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\/([^\\/]+?)\\.json$`
@@ -1850,6 +1888,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/user/[user]/profile': {
+              ...initialStaticFallbackClassification,
               fallback: '/user/[user]/profile.html',
               dataRoute: `/_next/data/${next.buildId}/user/[user]/profile.json`,
               dataRouteRegex: normalizeRegEx(
@@ -1862,6 +1901,7 @@ describe('Prerender', () => {
             },
 
             '/catchall/[...slug]': {
+              ...initialStaticFallbackClassification,
               fallback: '/catchall/[...slug].html',
               routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
               dataRoute: `/_next/data/${next.buildId}/catchall/[...slug].json`,

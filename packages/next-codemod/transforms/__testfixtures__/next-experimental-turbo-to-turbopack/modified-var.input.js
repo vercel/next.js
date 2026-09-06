@@ -5,8 +5,8 @@ const config = {
       resolveAlias: {
         underscore: 'lodash',
       },
-      memoryLimit: 4096,
     },
+    turbopackMemoryLimit: 4096,
     typedRoutes: true,
   },
 };

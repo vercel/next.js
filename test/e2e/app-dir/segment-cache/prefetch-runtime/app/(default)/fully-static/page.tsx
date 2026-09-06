@@ -3,8 +3,8 @@
 // but it's useful to exercise this codepath.
 // In the future, this test can be used to check whether we correctly
 // *skip* a runtime prefetch if a page was prerendered as static.
-export const unstable_instant = true
-export const unstable_prefetch = 'force-runtime'
+export const instant = true
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (
