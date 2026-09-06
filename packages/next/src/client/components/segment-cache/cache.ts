@@ -3140,6 +3140,10 @@ function writeServerResponseIntoCache(
     // unknown to use the default.
     UnknownDynamicStaleTime
   )
+  const requiresRuntimeCompleteness =
+    (navigationSeed.routeTree.prefetchHints &
+      PrefetchHint.SubtreeHasPartialPrefetching) !==
+    0
 
   const treeDivergedFromPrediction =
     predictedFromRoute !== null && navigationSeed.treeDivergedFromBase
@@ -3196,6 +3200,7 @@ function writeServerResponseIntoCache(
     spawnedEntries,
     contentFetchStrategy,
     isUpgradeableISRFallback,
+    requiresRuntimeCompleteness,
     responseNeedsRuntimeRequest,
     writtenEntries
   )
@@ -3230,6 +3235,7 @@ function writeServerResponseIntoCache(
       spawnedEntries,
       contentFetchStrategy,
       isUpgradeableISRFallback,
+      requiresRuntimeCompleteness,
       responseNeedsRuntimeRequest
     )
     if (writtenHeadEntry !== null) {
@@ -3273,6 +3279,7 @@ function writeTreeDataIntoCache(
   spawnedEntries: Map<SegmentRequestKey, PendingSegmentCacheEntry> | null,
   contentFetchStrategy: FetchStrategy.PPR | FetchStrategy.PPRRuntime | null,
   isUpgradeableISRFallback: boolean,
+  requiresRuntimeCompleteness: boolean,
   responseNeedsRuntimeRequest: boolean | null,
   // Accumulates the entries the walk wrote content into (fulfilled spawned
   // entries and installed detached upserts), for LRU size accounting.
@@ -3300,6 +3307,7 @@ function writeTreeDataIntoCache(
       spawnedEntries,
       contentFetchStrategy,
       isUpgradeableISRFallback,
+      requiresRuntimeCompleteness,
       responseNeedsRuntimeRequest
     )
     if (writtenEntry !== null) {
@@ -3327,6 +3335,7 @@ function writeTreeDataIntoCache(
         spawnedEntries,
         contentFetchStrategy,
         isUpgradeableISRFallback,
+        requiresRuntimeCompleteness,
         responseNeedsRuntimeRequest,
         writtenEntries
       )
@@ -3350,13 +3359,7 @@ function writeTreeDataIntoCache(
 function writeSegmentDataIntoCache(
   now: number,
   map: CacheMap<SegmentCacheEntry>,
-  fetchStrategy:
-    | FetchStrategy.LoadingBoundary
-    | FetchStrategy.PPR
-    | FetchStrategy.PPRRuntime
-    | FetchStrategy.RuntimeShell
-    | FetchStrategy.StaticShell
-    | FetchStrategy.Full,
+  fetchStrategy: FetchStrategy,
   rsc: React.ReactNode,
   isPartial: boolean,
   staleAt: number,
@@ -3381,6 +3384,7 @@ function writeSegmentDataIntoCache(
   // none; per-segment prefetch responses and prerendered page payloads
   // (including the truncated initial payload) do — in which case the entry
   // records the payload's tier unrefined.
+  requiresRuntimeCompleteness: boolean,
   responseNeedsRuntimeRequest: boolean | null
 ): FulfilledSegmentCacheEntry | null {
   // The strategy tier recorded on the entry — the tier of the content that
@@ -3421,23 +3425,28 @@ function writeSegmentDataIntoCache(
     // tier.
     recordedFetchStrategy = contentFetchStrategy ?? fetchStrategy
   } else {
-    // The verdict says this payload is runtime-complete: refine the recorded
-    // tier UP to the runtime tier of the same variant. Only the static
-    // tiers have a runtime counterpart to refine to; any other payload tier
-    // records itself — never below the payload's own tier. (This also makes
-    // the verdict inert for Full payloads, which matters because the Full
-    // flow decodes incrementally and `response.u` is read off the thenable's
-    // status — only sound on fully-buffered decodes. A prerendered page
-    // payload served to a Full prefetch carries a verdict; a not-yet-arrived
-    // row misreads as `false`, and without this clamp that would downgrade a
-    // Full-tier write to PPRRuntime.)
     const payloadFetchStrategy = contentFetchStrategy ?? fetchStrategy
-    recordedFetchStrategy =
-      payloadFetchStrategy === FetchStrategy.StaticShell
-        ? FetchStrategy.RuntimeShell
-        : payloadFetchStrategy === FetchStrategy.PPR
-          ? FetchStrategy.PPRRuntime
-          : payloadFetchStrategy
+    if (requiresRuntimeCompleteness) {
+      // The verdict says this payload does not need a runtime request.
+      // If we requested it at a static tier, raise the recorded tier up to the
+      // runtime tier of the same variant.
+      // This also makes the verdict a noop for Full payloads, which matters because
+      // the Full flow decodes incrementally, and synchronously reading `response.u`
+      // is only sound for a buffered payload.
+      recordedFetchStrategy =
+        payloadFetchStrategy === FetchStrategy.StaticShell
+          ? FetchStrategy.RuntimeShell
+          : payloadFetchStrategy === FetchStrategy.PPR
+            ? FetchStrategy.PPRRuntime
+            : payloadFetchStrategy
+    } else {
+      // Only upgrade static segments to their runtime equivalents if the route
+      // can use runtime requests. Otherwise, when re-using a shell segment across
+      // params, `pingSegmentBundle` for a PPR strategy would see a `ShellRuntime`
+      // shell entry and incorrectly decide that a new PPR request would not
+      // provide more content.
+      recordedFetchStrategy = payloadFetchStrategy
+    }
   }
 
   // Decide whether to re-key the entry under a more generic vary path based on
