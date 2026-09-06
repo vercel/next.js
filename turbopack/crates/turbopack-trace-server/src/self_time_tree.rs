@@ -12,11 +12,48 @@ pub struct SelfTimeTree<T> {
     count: usize,
 }
 
+/// One self-time interval. There are roughly two of these per span, so after
+/// `Span` itself this is the largest per-span cost in the crate.
+///
+/// Stores a `u32` length rather than a second `Timestamp`, which keeps the whole
+/// entry in 16 bytes instead of 24. Timestamps are 1/100 µs ticks, so a `u32`
+/// spans 42.9 seconds; the longest self-time interval measured over 4 GB of a
+/// real 9 GB trace was 6.6 s, and the item is a span index, whose largest
+/// measured value was ~12M against a 4.29B ceiling.
 struct SelfTimeEntry<T> {
     start: Timestamp,
-    end: Timestamp,
+    duration: u32,
     item: T,
 }
+
+/// Longest interval a single entry can represent, given the `u32` duration
+/// field: ~42.9 s at 1/100 µs per tick. [`SelfTimeTree::insert`] splits anything
+/// longer, so this is never a limit on how long an interval — or a span — is.
+const MAX_ENTRY_DURATION: u64 = u32::MAX as u64;
+
+impl<T> SelfTimeEntry<T> {
+    /// Caller must have ensured `end - start <= MAX_ENTRY_DURATION`;
+    /// [`SelfTimeTree::insert`] is what guarantees that.
+    fn new(start: Timestamp, end: Timestamp, item: T) -> Self {
+        let duration = *end.saturating_sub(start);
+        debug_assert!(
+            duration <= MAX_ENTRY_DURATION,
+            "interval of {duration} ticks should have been split by insert()"
+        );
+        Self {
+            start,
+            duration: duration as u32,
+            item,
+        }
+    }
+
+    fn end(&self) -> Timestamp {
+        Timestamp::from_value(*self.start + self.duration as u64)
+    }
+}
+
+// The store instantiates this with a `NonZeroU32` item. Keep it at 16 bytes.
+const _: () = assert!(std::mem::size_of::<SelfTimeEntry<std::num::NonZeroU32>>() == 16);
 
 struct SelfTimeChildren<T> {
     /// Entries < split_point
@@ -60,15 +97,44 @@ impl<T> SelfTimeTree<T> {
         bytes
     }
 
-    pub fn insert(&mut self, start: Timestamp, end: Timestamp, item: T) {
+    /// Insert a self-time interval.
+    ///
+    /// Intervals longer than [`MAX_ENTRY_DURATION`] are split across several
+    /// entries, so the `u32` duration field is not a ceiling on interval or span
+    /// length. Splitting is exact rather than a compromise, because both queries
+    /// are coverage-based: `lookup_range_count` sums covered time, and in
+    /// `lookup_range_corrected_time`'s sweep the second piece's `Start` and the
+    /// first's `End` share a timestamp with `Start` ordered first, so the overlap
+    /// count nets out with no time elapsing between them.
+    ///
+    /// Not hypothetical: `Store::set_total_time`, used by the Next.js JSON
+    /// reader, synthesizes a single self-time interval covering a childless
+    /// span's entire duration.
+    pub fn insert(&mut self, start: Timestamp, end: Timestamp, item: T)
+    where
+        T: Clone,
+    {
+        let mut chunk_start = start;
+        while *end.saturating_sub(chunk_start) > MAX_ENTRY_DURATION {
+            let chunk_end = Timestamp::from_value(*chunk_start + MAX_ENTRY_DURATION);
+            self.insert_entry(chunk_start, chunk_end, item.clone());
+            chunk_start = chunk_end;
+        }
+        self.insert_entry(chunk_start, end, item);
+    }
+
+    fn insert_entry(&mut self, start: Timestamp, end: Timestamp, item: T) {
         self.count += 1;
-        self.entries.push(SelfTimeEntry { start, end, item });
+        self.entries.push(SelfTimeEntry::new(start, end, item));
         self.check_for_split();
     }
 
-    fn insert_without_check(&mut self, start: Timestamp, end: Timestamp, item: T) {
+    /// Move an existing entry into this node, without re-deriving its duration
+    /// or checking for a split. Used by redistribution, which does its own split
+    /// check afterwards.
+    fn push_entry(&mut self, entry: SelfTimeEntry<T>) {
         self.count += 1;
-        self.entries.push(SelfTimeEntry { start, end, item });
+        self.entries.push(entry);
     }
 
     fn check_for_split(&mut self) {
@@ -107,7 +173,7 @@ impl<T> SelfTimeTree<T> {
                 .entries
                 .iter()
                 .fold((Timestamp::MAX, Timestamp::ZERO), |(lo, hi), e| {
-                    (lo.min(e.start), hi.max(e.end))
+                    (lo.min(e.start), hi.max(e.end()))
                 });
             let middle = (start + end) / 2;
             // Pre-allocate half the split threshold: after distributing, each child
@@ -130,13 +196,14 @@ impl<T> SelfTimeTree<T> {
         };
         let mut i = children.spanning_entries;
         while i < self.entries.len() {
-            let SelfTimeEntry { start, end, .. } = self.entries[i];
+            let (start, end) = {
+                let entry = &self.entries[i];
+                (entry.start, entry.end())
+            };
             if end <= children.split_point {
-                let SelfTimeEntry { start, end, item } = self.entries.swap_remove(i);
-                children.left.insert_without_check(start, end, item);
+                children.left.push_entry(self.entries.swap_remove(i));
             } else if start >= children.split_point {
-                let SelfTimeEntry { start, end, item } = self.entries.swap_remove(i);
-                children.right.insert_without_check(start, end, item);
+                children.right.push_entry(self.entries.swap_remove(i));
             } else {
                 self.entries.swap(i, children.spanning_entries);
                 children.spanning_entries += 1;
@@ -233,9 +300,9 @@ impl<T> SelfTimeTree<T> {
     pub fn lookup_range_count(&self, start: Timestamp, end: Timestamp) -> Timestamp {
         let mut total_count = Timestamp::ZERO;
         for entry in &self.entries {
-            if entry.start <= end && entry.end >= start {
+            if entry.start <= end && entry.end() >= start {
                 let start = std::cmp::max(entry.start, start);
-                let end = std::cmp::min(entry.end, end);
+                let end = std::cmp::min(entry.end(), end);
                 let span = end - start;
                 total_count += span;
             }
@@ -308,8 +375,8 @@ impl<T> SelfTimeTree<T> {
         f: &mut impl FnMut(Timestamp, Timestamp, &T),
     ) {
         for entry in &self.entries {
-            if entry.start <= end && entry.end >= start {
-                f(entry.start, entry.end, &entry.item);
+            if entry.start <= end && entry.end() >= start {
+                f(entry.start, entry.end(), &entry.item);
             }
         }
         if let Some(children) = &self.children {
@@ -333,8 +400,8 @@ impl<T> SelfTimeTree<T> {
             self.rebalance();
         }
         for entry in &self.entries {
-            if entry.start <= end && entry.end >= start {
-                f(entry.start, entry.end, &entry.item);
+            if entry.start <= end && entry.end() >= start {
+                f(entry.start, entry.end(), &entry.item);
             }
         }
         if let Some(children) = &mut self.children {
@@ -388,6 +455,32 @@ mod tests {
             assert_balanced(&children.left);
             assert_balanced(&children.right);
         }
+    }
+
+    #[test]
+    fn intervals_longer_than_one_entry_are_split_exactly() {
+        // `set_total_time` can synthesize a self-time interval covering a whole
+        // childless span, which may exceed what one entry's u32 duration holds.
+        // Splitting must leave both queries' answers unchanged.
+        let long = MAX_ENTRY_DURATION + MAX_ENTRY_DURATION / 2;
+        let end = Timestamp::from_value(long);
+
+        let mut tree: SelfTimeTree<u32> = SelfTimeTree::new();
+        tree.insert(Timestamp::ZERO, end, 1);
+        assert!(tree.len() > 1, "expected the interval to be split");
+        assert_eq!(tree.lookup_range_count(Timestamp::ZERO, end), end);
+        // Sole interval, so corrected time is its full extent.
+        assert_eq!(tree.lookup_range_corrected_time(Timestamp::ZERO, end), end);
+
+        // With a second interval covering the same range, corrected time halves
+        // uniformly: the split must not perturb the overlap count at the seams.
+        let mut tree2: SelfTimeTree<u32> = SelfTimeTree::new();
+        tree2.insert(Timestamp::ZERO, end, 1);
+        tree2.insert(Timestamp::ZERO, end, 2);
+        assert_eq!(
+            tree2.lookup_range_corrected_time(Timestamp::ZERO, end),
+            Timestamp::from_value(long / 2)
+        );
     }
 
     #[test]

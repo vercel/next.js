@@ -1,7 +1,7 @@
 use std::{
     cmp::{max, min},
     env,
-    num::NonZeroUsize,
+    num::{NonZeroU32, NonZeroUsize},
     sync::{
         OnceLock, RwLock,
         atomic::{AtomicU8, AtomicU64, Ordering},
@@ -51,7 +51,10 @@ pub struct Store {
     /// The derived half of every span, lazily allocated per chunk. See
     /// [`crate::cold`].
     pub(crate) cold: ColdStore,
-    pub(crate) self_time_tree: Option<SelfTimeTree<SpanIndex>>,
+    /// Keyed by `NonZeroU32` rather than [`SpanIndex`] so its entries stay at
+    /// 16 bytes; see [`crate::self_time_tree`]. Converted at the two boundaries
+    /// in `insert_self_time`.
+    pub(crate) self_time_tree: Option<SelfTimeTree<NonZeroU32>>,
     max_self_time_lookup_time: AtomicU64,
     /// Global sorted list of memory samples (timestamp, memory_bytes).
     memory_samples: Vec<MemorySample>,
@@ -292,10 +295,21 @@ impl Store {
         if let Some(tree) = self.self_time_tree.as_mut() {
             if Timestamp::from_value(*self.max_self_time_lookup_time.get_mut()) >= start {
                 tree.for_each_in_range_optimize(start, end, &mut |_, _, span| {
-                    outdated_spans.insert(*span);
+                    // Widening back: a `NonZeroU32` is always a valid `SpanIndex`.
+                    outdated_spans.insert(SpanIndex::new(span.get() as usize).unwrap());
                 });
             }
-            tree.insert(start, end, span_index);
+            // Spans beyond `u32::MAX` are simply not tracked for corrected time
+            // rather than being truncated into a wrong index. That ceiling is
+            // 4.29B against a largest-measured ~12M, and corrected time is a
+            // display-only heuristic, so losing it is far preferable to
+            // invalidating the wrong spans.
+            if let Some(item) = u32::try_from(span_index.get())
+                .ok()
+                .and_then(NonZeroU32::new)
+            {
+                tree.insert(start, end, item);
+            }
         }
     }
 

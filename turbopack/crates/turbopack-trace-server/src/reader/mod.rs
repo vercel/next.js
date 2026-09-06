@@ -333,8 +333,14 @@ impl TraceReader {
                                 // `wait_for_more_data`, so the report has to be
                                 // emitted on this path too — it is the path
                                 // every measurement run takes.
+                                // Report before *and* after `optimize`. The
+                                // difference is slack that was live at the
+                                // high-water mark but did not need to be — which
+                                // is the number that matters when the target
+                                // cannot return memory to the OS.
+                                self.print_memory_report("pre-optimize");
                                 self.store.write().optimize();
-                                self.print_memory_report();
+                                self.print_memory_report("post-optimize");
                                 self.wait_for_new_file(&mut file);
                                 return true;
                             }
@@ -366,7 +372,7 @@ impl TraceReader {
     /// Print the store's byte breakdown when `MEMORY_REPORT=1`. Takes the
     /// write lock and walks every span, so it is gated behind the env var
     /// rather than being always-on.
-    fn print_memory_report(&self) {
+    fn print_memory_report(&self, label: &str) {
         let Ok(mode) = env::var("MEMORY_REPORT") else {
             return;
         };
@@ -375,7 +381,7 @@ impl TraceReader {
             // the report shows the serving peak and not just the ingest peak.
             self.store.read().warm_all_derived();
         }
-        println!("{}", self.store.write().memory_report());
+        println!("[{label}] {}", self.store.write().memory_report());
     }
 
     fn wait_for_more_data(
@@ -405,7 +411,7 @@ impl TraceReader {
             } else if !stats.is_empty() {
                 println!("{stats}");
             }
-            self.print_memory_report();
+            self.print_memory_report("initial-read");
         }
         loop {
             // No more data to read, sleep for a while to wait for more data
