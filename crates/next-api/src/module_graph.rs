@@ -103,7 +103,7 @@ impl NextDynamicGraphs {
                 let result = self
                     .0
                     .iter()
-                    .map(|graph| async move {
+                    .map(async |graph| {
                         Ok(graph
                             .get_next_dynamic_imports_for_endpoint(entry)
                             .await?
@@ -170,7 +170,7 @@ impl NextDynamicGraph {
                 }
                 Either::Left(std::iter::once(entry))
             } else {
-                Either::Right(graph.graphs.first().unwrap().entry_modules())
+                Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
             };
 
             let mut result = vec![];
@@ -300,11 +300,10 @@ impl ServerActionsGraphs {
                 let result = self
                     .0
                     .iter()
-                    .map(|graph| async move {
+                    .map(|graph| {
                         graph
                             .get_server_actions_for_endpoint(entry, rsc_asset_context)
                             .owned()
-                            .await
                     })
                     .try_flat_join()
                     .await?;
@@ -372,7 +371,7 @@ impl ServerActionsGraph {
 
             let actions = data
                 .iter()
-                .map(|(module, (layer, actions))| async move {
+                .map(async |(module, (layer, actions))| {
                     let actions = actions.await?;
                     actions
                         .actions
@@ -557,7 +556,7 @@ impl ClientReferencesGraph {
                 }
                 Either::Left(std::iter::once(entry))
             } else {
-                Either::Right(graph.graphs.first().unwrap().entry_modules())
+                Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
             };
 
             // Because we care about 'evaluation order' we need to collect client references in the
@@ -784,7 +783,7 @@ async fn validate_pages_css_imports_individual(
         }
         Either::Left(std::iter::once(entry))
     } else {
-        Either::Right(graph.graphs.first().unwrap().entry_modules())
+        Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
     };
 
     let mut candidates = vec![];

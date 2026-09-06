@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
 describe('Custom Properties: Pass-Through IE11', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'cp-ie-11'),
   })
 
@@ -17,20 +17,14 @@ describe('Custom Properties: Pass-Through IE11', () => {
       .replace(/\/\*.*?\*\//g, '')
       .trim()
 
-    if (isTurbopack) {
-      expect(
-        cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`":root{--color:red}h1{color:var(--color)}"`)
-    } else {
-      expect(
-        cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`":root{--color:red}h1{color:var(--color)}"`)
-    }
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `":root{--color:red}h1{color:var(--color)}"`
+    )
   })
 })
 
 describe('Custom Properties: Pass-Through Modern', () => {
-  const { next, isTurbopack } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'cp-modern'),
   })
 
@@ -45,15 +39,9 @@ describe('Custom Properties: Pass-Through Modern', () => {
       .replace(/\/\*.*?\*\//g, '')
       .trim()
 
-    if (isTurbopack) {
-      expect(
-        cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`":root{--color:red}h1{color:var(--color)}"`)
-    } else {
-      expect(
-        cssContent.replace(/\/\*.*?\*\//g, '').trim()
-      ).toMatchInlineSnapshot(`":root{--color:red}h1{color:var(--color)}"`)
-    }
+    expect(cssContent.replace(/\/\*.*?\*\//g, '').trim()).toMatchInlineSnapshot(
+      `":root{--color:red}h1{color:var(--color)}"`
+    )
   })
 })
 

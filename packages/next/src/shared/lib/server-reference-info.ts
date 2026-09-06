@@ -4,6 +4,12 @@ export interface ServerReferenceInfo {
   hasRestArgs: boolean
 }
 
+export const SERVER_REFERENCE_ID_LENGTH = 42
+
+export function mightBeServerReferenceId(id: string): boolean {
+  return id.length === SERVER_REFERENCE_ID_LENGTH
+}
+
 /**
  * Extracts info about the server reference for the given server reference ID by
  * parsing the first byte of the hex-encoded ID.

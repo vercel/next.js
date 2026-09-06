@@ -13,7 +13,6 @@ describe('Error overlay - RSC build errors', () => {
       'react-tweet': '^3.2.0',
       '@mdx-js/react': '^2.3.0',
       tailwindcss: '^3.2.6',
-      typescript: 'latest',
       '@types/react': '^18.0.28',
       '@types/react-dom': '^18.0.10',
       'image-size': '^1.0.2',

@@ -241,7 +241,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -287,7 +287,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -344,7 +344,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     4,
                 ),
@@ -353,6 +353,46 @@
                 Return,
             ),
         ],
+    },
+    DestructuredMember {
+        obj: Call(
+            2,
+            Variable(
+                (
+                    "pkgAndSubpathForCurrentPlatform",
+                    #2,
+                ),
+            ),
+            [],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "pkg",
+                ),
+            ),
+        ),
+        span: 426..429,
+    },
+    DestructuredMember {
+        obj: Call(
+            2,
+            Variable(
+                (
+                    "pkgAndSubpathForCurrentPlatform",
+                    #2,
+                ),
+            ),
+            [],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "subpath",
+                ),
+            ),
+        ),
+        span: 431..438,
     },
     Call {
         func: Variable(
@@ -383,7 +423,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -442,7 +482,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -508,7 +548,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -617,7 +657,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -675,7 +715,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     3,
                 ),

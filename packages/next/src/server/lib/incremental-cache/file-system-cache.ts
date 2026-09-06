@@ -456,26 +456,31 @@ export default class FileSystemCache implements CacheHandler {
     await writer.wait()
   }
 
-  private getFilePath(pathname: string, kind: IncrementalCacheKind): string {
+  private getFilePath(key: string, kind: IncrementalCacheKind): string {
+    let rootDir: string
     switch (kind) {
       case IncrementalCacheKind.FETCH:
         // we store in .next/cache/fetch-cache so it can be persisted
         // across deploys
-        return path.join(
-          this.serverDistDir,
-          '..',
-          'cache',
-          'fetch-cache',
-          pathname
-        )
+        rootDir = path.join(this.serverDistDir, '..', 'cache', 'fetch-cache')
+        break
       case IncrementalCacheKind.PAGES:
-        return path.join(this.serverDistDir, 'pages', pathname)
+        rootDir = path.join(this.serverDistDir, 'pages')
+        break
       case IncrementalCacheKind.IMAGE:
       case IncrementalCacheKind.APP_PAGE:
       case IncrementalCacheKind.APP_ROUTE:
-        return path.join(this.serverDistDir, 'app', pathname)
+        rootDir = path.join(this.serverDistDir, 'app')
+        break
       default:
         throw new Error(`Unexpected file path kind: ${kind}`)
     }
+
+    const filePath = path.join(rootDir, key)
+    if (!(filePath.startsWith(rootDir + path.sep) || filePath === rootDir)) {
+      throw new Error(`Invalid file path: ${filePath}`)
+    }
+
+    return filePath
   }
 }

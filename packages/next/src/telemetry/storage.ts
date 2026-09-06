@@ -290,6 +290,9 @@ export class Telemetry {
     }
 
     if (this.NEXT_TELEMETRY_DEBUG) {
+      // Resolve the anonymous meta so the debug output mirrors the payload that
+      // would be sent (including `agentName`, `ciName`, etc.).
+      const meta = await getAnonymousMeta()
       // Return a promise that resolves after logging to ensure the output
       // is captured before the process exits (e.g., during flushDetached)
       return new Promise((resolve) => {
@@ -297,7 +300,8 @@ export class Telemetry {
           // Print to standard error to simplify selecting the output
           events.forEach(({ eventName, payload }) =>
             console.error(
-              `[telemetry] ` + JSON.stringify({ eventName, payload }, null, 2)
+              `[telemetry] ` +
+                JSON.stringify({ eventName, payload, meta }, null, 2)
             )
           )
           resolve(undefined)
@@ -318,7 +322,7 @@ export class Telemetry {
           projectId: await this.getProjectId(),
           sessionId: this.sessionId,
         },
-        meta: getAnonymousMeta(),
+        meta: await getAnonymousMeta(),
         events: events.map(({ eventName, payload }) => ({
           eventName,
           fields: payload,

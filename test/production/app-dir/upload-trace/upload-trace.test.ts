@@ -32,11 +32,11 @@ describe('upload-trace', () => {
     expect(cpuProfiles.length).toBeGreaterThan(0)
 
     if (isTurbopack) {
-      expect(allFiles).toContain('trace-turbopack')
+      expect(allFiles).toContain('trace-turbopack.bin')
     }
 
     const uploadableFiles = allFiles.filter(
-      (f: string) => f.endsWith('.cpuprofile') || f === 'trace-turbopack'
+      (f: string) => f.endsWith('.cpuprofile') || f === 'trace-turbopack.bin'
     )
     const expectedUploadCount = uploadableFiles.length
 

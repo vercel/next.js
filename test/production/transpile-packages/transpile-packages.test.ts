@@ -5,7 +5,7 @@ describe('app fetch build cache', () => {
     files: __dirname,
     dependencies: {
       '@aws-sdk/client-s3': 'latest',
-      lodash: 'latest',
+      lodash: '4.18.1',
     },
   })
 

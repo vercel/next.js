@@ -12,6 +12,9 @@ describe('non-root-project-monorepo', () => {
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
       packages: new FileRef(path.resolve(__dirname, 'packages')),
+      // Deliberately shadows apps/web/content, to pin down which one a
+      // `/`-rooted import resolves from.
+      content: new FileRef(path.resolve(__dirname, 'content')),
       'pnpm-workspace.yaml': `packages:
       - 'apps/*'
       - 'packages/*'
@@ -27,6 +30,15 @@ describe('non-root-project-monorepo', () => {
   if (skipped) {
     return
   }
+
+  describe('server relative import', () => {
+    it('should resolve a `/`-rooted import from the project directory, not the workspace root', async () => {
+      // `/content/where` exists both in apps/web (the project directory) and at
+      // the workspace root, so the value says which root was used.
+      const $ = await next.render$('/server-relative-import')
+      expect($('#where').text()).toBe('FROM-PROJECT-DIR')
+    })
+  })
 
   describe('monorepo-package', () => {
     it('should work during RSC', async () => {

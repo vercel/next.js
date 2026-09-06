@@ -171,7 +171,10 @@ describe('Error overlay - editor links', () => {
 
         await session.waitForRedbox()
         await clickImportTraceFiles(browser)
-        await check(() => editorRequestsCount, /3/)
+        await check(
+          () => editorRequestsCount,
+          process.env.NEXT_RSPACK ? /4/ : /3/
+        )
       })
     }
   )

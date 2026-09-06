@@ -42,9 +42,9 @@ class CatchError<P extends UserProps> extends React.Component<
 > {
   declare context: AppRouterInstance | null
   static contextType = AppRouterContext
-  // `unstable_catchError()` is parsed as an HOC-style name and displays as
-  // a label (<name> [unstable_catchError]) in DevTools.
-  static displayName = 'unstable_catchError(Next.CatchError)'
+  // `catchError()` is parsed as an HOC-style name and displays as
+  // a label (<name> [catchError]) in DevTools.
+  static displayName = 'catchError(Next.CatchError)'
 
   constructor(props: CatchErrorProps<P>) {
     super(props)
@@ -108,10 +108,10 @@ class CatchError<P extends UserProps> extends React.Component<
     this.setState({ error: null })
   }
 
-  unstable_retry = () => {
+  retry = () => {
     if (this.props.isPagesRouter) {
       throw new Error(
-        '`unstable_retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
+        '`retry()` can only be used in the App Router. Use `reset()` in the Pages Router.'
       )
     }
 
@@ -136,7 +136,7 @@ class CatchError<P extends UserProps> extends React.Component<
             // TODO(NAR-804): Docs say this is an Error object, but we don't guarantee that
             error: thrownValue,
             reset: this.reset,
-            unstable_retry: this.unstable_retry,
+            retry: this.retry,
           }}
         />
       )
@@ -147,9 +147,9 @@ class CatchError<P extends UserProps> extends React.Component<
 }
 
 /**
- * `unstable_catchError` is a counterpart to `error.js` that provides a granular
+ * `catchError` is a counterpart to `error.js` that provides a granular
  * control of error boundaries at the component level. It provides the `ErrorInfo`
- * including `unstable_retry` for error recovery.
+ * including `retry` for error recovery.
  *
  * Pass a Component-like fallback function that receives the props and `ErrorInfo`.
  * The props omit `children` intentionally as it is the "fallback" of the error and
@@ -162,13 +162,13 @@ class CatchError<P extends UserProps> extends React.Component<
  * ```tsx
  * // CustomErrorBoundary.tsx
  * 'use client'
- * import { unstable_catchError, type ErrorInfo } from 'next/error'
+ * import { catchError, type ErrorInfo } from 'next/error'
  *
  * function CustomErrorBoundary(props: Props, errorInfo: ErrorInfo) {
  *   return ...
  * }
  *
- * export default unstable_catchError(CustomErrorBoundary)
+ * export default catchError(CustomErrorBoundary)
  *
  * // page.tsx
  * 'use client'
@@ -183,7 +183,7 @@ class CatchError<P extends UserProps> extends React.Component<
  * }
  * ```
  */
-export function unstable_catchError<P extends UserProps>(
+export function catchError<P extends UserProps>(
   fallback: (
     // children is omitted by design as the error fallback component is the "fallback"
     // for the children when an error occurs.
@@ -191,7 +191,7 @@ export function unstable_catchError<P extends UserProps>(
     errorInfo: ErrorInfo
   ) => React.ReactNode
 ): React.ComponentType<P & { children?: React.ReactNode }> {
-  // Create Fallback component from the closure of `unstable_catchError`.
+  // Create Fallback component from the closure of `catchError`.
   const Fallback = ({ props, errorInfo }: { props: P; errorInfo: ErrorInfo }) =>
     fallback(props, errorInfo)
 

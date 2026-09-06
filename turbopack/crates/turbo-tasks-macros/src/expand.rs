@@ -1,9 +1,63 @@
 use proc_macro2::{Ident, TokenStream};
 use quote::quote;
 use syn::{
-    Data, DataEnum, DataStruct, DeriveInput, Field, Fields, FieldsNamed, FieldsUnnamed,
-    spanned::Spanned,
+    Data, DataEnum, DataStruct, Field, Fields, FieldsNamed, FieldsUnnamed, Item, ItemEnum,
+    ItemStruct, spanned::Spanned,
 };
+
+/// Extract the field shape ([`Data`]) of a struct/enum [`Item`] for use with [`match_expansion`]
+/// and the `NonLocalValue` field assertions. Returns `None` for any other item kind.
+pub fn item_data(item: &Item) -> Option<Data> {
+    match item {
+        Item::Struct(ItemStruct {
+            fields, semi_token, ..
+        }) => Some(Data::Struct(DataStruct {
+            struct_token: Default::default(),
+            fields: fields.clone(),
+            semi_token: *semi_token,
+        })),
+        Item::Enum(ItemEnum { variants, .. }) => Some(Data::Enum(DataEnum {
+            enum_token: Default::default(),
+            brace_token: Default::default(),
+            variants: variants.clone(),
+        })),
+        _ => None,
+    }
+}
+
+/// Emit a field-walking body for `TaskInput::is_transient`: `field1.is_transient() ||
+/// field2.is_transient() || ... || false`. Used by both `#[turbo_tasks::task_input]` and
+/// `#[turbo_tasks::value(task_input)]` — they emit structurally identical `is_transient` impls,
+/// just on a different surrounding `impl TaskInput` block.
+pub fn task_input_is_transient_body(ident: &Ident, data: &Data) -> TokenStream {
+    match_expansion(
+        ident,
+        data,
+        &|_ident, fields| {
+            let (capture, fields) = generate_exhaustive_destructuring(fields.named.iter());
+            (
+                capture,
+                quote! {
+                    {#(
+                        turbo_tasks::TaskInput::is_transient(#fields) ||
+                    )* false}
+                },
+            )
+        },
+        &|_ident, fields| {
+            let (capture, fields) = generate_exhaustive_destructuring(fields.unnamed.iter());
+            (
+                capture,
+                quote! {
+                    {#(
+                        turbo_tasks::TaskInput::is_transient(#fields) ||
+                    )* false}
+                },
+            )
+        },
+        &|_ident| quote! {false},
+    )
+}
 
 /// Handles the expansion of a struct/enum into a match statement that accesses
 /// every field for procedural code generation.
@@ -23,21 +77,32 @@ pub fn match_expansion<
     EU: Fn(TokenStream, &FieldsUnnamed) -> (TokenStream, TokenStream),
     U: Fn(TokenStream) -> TokenStream,
 >(
-    derive_input: &DeriveInput,
+    ident: &Ident,
+    data: &Data,
     expand_named: &EN,
     expand_unnamed: &EU,
     expand_unit: &U,
 ) -> TokenStream {
-    let ident = &derive_input.ident;
     let expand_unit = move |ident| (TokenStream::new(), expand_unit(ident));
-    match &derive_input.data {
+    match data {
         Data::Enum(DataEnum { variants, .. }) => {
-            let (idents, (variants_fields_capture, expansion)): (Vec<_>, (Vec<_>, Vec<_>)) =
-                variants
-                    .iter()
-                    .map(|variant| {
-                        let variants_idents = &variant.ident;
-                        let ident = quote! { #ident::#variants_idents };
+            // Forward each variant's `#[cfg(...)]` attributes onto the generated match arm so a
+            // cfg'd-out variant doesn't appear in compiled code.
+            let (cfg_attrs, (idents, (variants_fields_capture, expansion))): (
+                Vec<_>,
+                (Vec<_>, (Vec<_>, Vec<_>)),
+            ) = variants
+                .iter()
+                .map(|variant| {
+                    let variants_idents = &variant.ident;
+                    let ident = quote! { #ident::#variants_idents };
+                    let cfgs: Vec<_> = variant
+                        .attrs
+                        .iter()
+                        .filter(|a| a.path().is_ident("cfg"))
+                        .collect();
+                    (
+                        quote! { #(#cfgs)* },
                         (
                             ident.clone(),
                             expand_fields(
@@ -47,9 +112,10 @@ pub fn match_expansion<
                                 expand_unnamed,
                                 expand_unit,
                             ),
-                        )
-                    })
-                    .unzip();
+                        ),
+                    )
+                })
+                .unzip();
 
             if idents.is_empty() {
                 let (_, expansion) = expand_unit(quote! { #ident });
@@ -60,6 +126,7 @@ pub fn match_expansion<
                 quote! {
                     match self {
                         #(
+                            #cfg_attrs
                             #idents #variants_fields_capture => #expansion,
                         )*
                     }
@@ -92,11 +159,7 @@ pub fn match_expansion<
             }
         }
         _ => {
-            derive_input
-                .span()
-                .unwrap()
-                .error("unsupported syntax")
-                .emit();
+            ident.span().unwrap().error("unsupported syntax").emit();
 
             quote! {}
         }

@@ -8,6 +8,7 @@ import {
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
 } from '../shared/lib/router/utils/interception-routes'
+import { DYNAMIC_FILTER_PLACEHOLDER } from '../shared/lib/router/utils/dynamic-filter-pattern'
 
 export function createClientRouterFilter(
   paths: string[],
@@ -42,6 +43,13 @@ export function createClientRouterFilter(
 
       if (subPath) {
         dynamicPaths.add(subPath)
+      } else {
+        // The route begins with a dynamic segment, so it has no static
+        // prefix to anchor the prefix-based dynamic filter on (e.g.
+        // `/[locale]/about`). Store its normalized pattern instead so the
+        // client can still detect it when a pages dynamic route would
+        // otherwise shadow it.
+        dynamicPaths.add(normalizeRouteToFilterPattern(path))
       }
     } else {
       staticPaths.add(path)
@@ -71,4 +79,19 @@ export function createClientRouterFilter(
     dynamicFilter: dynamicFilter.export(),
   }
   return data
+}
+
+/**
+ * Replace every dynamic segment of a route with the placeholder token, e.g.
+ * `/[locale]/about` -> `/[]/about`, `/[lang]` -> `/[]`. This is the encode half
+ * of the dynamic filter; the pages router decodes it with
+ * `hasDynamicFilterCandidate`, and both rely on `DYNAMIC_FILTER_PLACEHOLDER`.
+ */
+function normalizeRouteToFilterPattern(route: string): string {
+  return route
+    .split('/')
+    .map((segment) =>
+      segment.startsWith('[') ? DYNAMIC_FILTER_PLACEHOLDER : segment
+    )
+    .join('/')
 }

@@ -14,24 +14,23 @@ import path from 'path'
  *   - NOT crash with a `TurbopackInternalError` / "FATAL" log
  *   - recover once `node_modules/next` is restored
  */
-const describeMaybe = process.env.NEXT_SKIP_ISOLATE ? describe.skip : describe
+const describeMaybe =
+  process.env.NEXT_SKIP_ISOLATE || !process.env.IS_TURBOPACK_TEST
+    ? describe.skip
+    : describe
 
 describeMaybe('concurrent-install', () => {
-  const { next, isTurbopack } = nextTestSetup({
-    files: __dirname,
-  })
-
-  const itTurbopack = isTurbopack ? it : it.skip
-
-  async function getNextPath(): Promise<string> {
+  async function getNextPath(next): Promise<string> {
     const nextPath = path.join(next.testDir, 'node_modules', 'next')
     // sanity check
     await fs.lstat(nextPath)
     return nextPath
   }
 
-  async function moveNextAside(): Promise<{ original: string; stash: string }> {
-    const original = await getNextPath()
+  async function moveNextAside(
+    next
+  ): Promise<{ original: string; stash: string }> {
+    const original = await getNextPath(next)
     const stash = `${original}.stash-${Date.now()}`
     await fs.rename(original, stash)
     return { original, stash }
@@ -47,13 +46,16 @@ describeMaybe('concurrent-install', () => {
     await fs.rename(stash, original)
   }
 
-  itTurbopack(
-    'does not crash when node_modules/next is moved mid-session',
-    async () => {
+  describe('does not crash when node_modules/next is moved mid-session', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+    })
+
+    it('works', async () => {
       await next.browser('/')
 
       const getOutput = next.getCliOutputFromHere()
-      const stashInfo = await moveNextAside()
+      const stashInfo = await moveNextAside(next)
       try {
         // Force a recompile while next is missing. Not strickly necessary, but important to ensure
         // we do recover with the new content eventually
@@ -86,16 +88,19 @@ describeMaybe('concurrent-install', () => {
         'FATAL: An unexpected Turbopack error occurred'
       )
       expect(getOutput()).not.toContain('TurbopackInternalError')
-    }
-  )
+    })
+  })
 
-  itTurbopack(
-    'surfaces a friendly issue when node_modules/next is missing',
-    async () => {
+  describe('surfaces a friendly issue when node_modules/next is missing', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+    })
+
+    it('works', async () => {
       await next.browser('/')
 
       const getOutput = next.getCliOutputFromHere()
-      const stashInfo = await moveNextAside()
+      const stashInfo = await moveNextAside(next)
       try {
         await next.patchFile(
           'app/page.tsx',
@@ -127,17 +132,20 @@ describeMaybe('concurrent-install', () => {
       } finally {
         await restoreNext(stashInfo)
       }
-    }
-  )
+    })
+  })
 
-  itTurbopack(
-    'does not crash when navigating to an uncompiled route while node_modules/next is missing',
-    async () => {
+  describe('does not crash when navigating to an uncompiled route while node_modules/next is missing', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+    })
+
+    it('works', async () => {
       // Compile `/` so the harness has at least one warm chunk.
       await next.browser('/')
 
       const getOutput = next.getCliOutputFromHere()
-      const stashInfo = await moveNextAside()
+      const stashInfo = await moveNextAside(next)
       try {
         // Navigating to `/late-route` (never compiled in this session) forces
         // a fresh `hmr_version_state` evaluation for that chunk. That path
@@ -175,6 +183,6 @@ describeMaybe('concurrent-install', () => {
         15000,
         500
       )
-    }
-  )
+    })
+  })
 })

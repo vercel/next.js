@@ -4,6 +4,9 @@ const withMdx = createMdx()
 
 export default withMdx({
   typedRoutes: true,
+  experimental: {
+    useTypeScriptCli: false,
+  },
 
   pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
 

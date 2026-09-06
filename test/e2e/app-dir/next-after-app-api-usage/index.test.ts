@@ -1,6 +1,7 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { REQUEST_API_NAMES } from './app/request-apis-in-promise/common'
 
 describe('nextjs APIs in after()', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
@@ -33,20 +34,10 @@ describe('nextjs APIs in after()', () => {
     } else {
       buildLogs = '(no build logs in dev)'
     }
-    await next.start()
+    await next.start({ skipBuild: true })
   })
 
   describe('request APIs inside after()', () => {
-    // TODO(after): test unawaited calls, like this
-    //
-    // export default function Page() {
-    //   const promise = headers()
-    //   after(async () => {
-    //     const headerStore = await promise
-    //   })
-    //   return null
-    // }
-
     it('cannot be called in a dynamic page', async () => {
       const path = '/request-apis/page-dynamic'
       await next.render(path)
@@ -55,17 +46,17 @@ describe('nextjs APIs in after()', () => {
 
         expect(logs).not.toContain(`[${path}] headers(): ok`)
         expect(logs).toContain(
-          `[${path}] headers(): error: Error: Route ${path} used \`headers()\` inside \`after()\`. This is not supported.`
+          `[${path}] headers(): error: Error: Route ${path} used \`headers()\` inside \`after()\` while rendering. This is not supported.`
         )
 
         expect(logs).not.toContain(`[${path}] cookies(): ok`)
         expect(logs).toContain(
-          `[${path}] cookies(): error: Error: Route ${path} used \`cookies()\` inside \`after()\`. This is not supported.`
+          `[${path}] cookies(): error: Error: Route ${path} used \`cookies()\` inside \`after()\` while rendering. This is not supported.`
         )
 
         expect(logs).not.toContain(`[${path}] connection(): ok`)
         expect(logs).toContain(
-          `[${path}] connection(): error: Error: Route ${path} used \`connection()\` inside \`after()\`.`
+          `[${path}] connection(): error: Error: Route ${path} used \`connection()\` inside \`after()\` while rendering.`
         )
       })
       await retry(() => {
@@ -73,17 +64,17 @@ describe('nextjs APIs in after()', () => {
 
         expect(logs).not.toContain(`[${path}] nested headers(): ok`)
         expect(logs).toContain(
-          `[${path}] nested headers(): error: Error: Route ${path} used \`headers()\` inside \`after()\`. This is not supported.`
+          `[${path}] nested headers(): error: Error: Route ${path} used \`headers()\` inside \`after()\` while rendering. This is not supported.`
         )
 
         expect(logs).not.toContain(`[${path}] nested cookies(): ok`)
         expect(logs).toContain(
-          `[${path}] nested cookies(): error: Error: Route ${path} used \`cookies()\` inside \`after()\`. This is not supported.`
+          `[${path}] nested cookies(): error: Error: Route ${path} used \`cookies()\` inside \`after()\` while rendering. This is not supported.`
         )
 
         expect(logs).not.toContain(`[${path}] nested connection(): ok`)
         expect(logs).toContain(
-          `[${path}] nested connection(): error: Error: Route ${path} used \`connection()\` inside \`after()\`.`
+          `[${path}] nested connection(): error: Error: Route ${path} used \`connection()\` inside \`after()\` while rendering.`
         )
       })
     })
@@ -105,17 +96,17 @@ describe('nextjs APIs in after()', () => {
 
           expect(logs).not.toContain(`[${path}] headers(): ok`)
           expect(logs).toContain(
-            `[${path}] headers(): error: Error: Route ${path} used \`headers()\` inside \`after()\`. This is not supported.`
+            `[${path}] headers(): error: Error: Route ${path} used \`headers()\` inside \`after()\` while rendering. This is not supported.`
           )
 
           expect(logs).not.toContain(`[${path}] cookies(): ok`)
           expect(logs).toContain(
-            `[${path}] cookies(): error: Error: Route ${path} used \`cookies()\` inside \`after()\`. This is not supported.`
+            `[${path}] cookies(): error: Error: Route ${path} used \`cookies()\` inside \`after()\` while rendering. This is not supported.`
           )
 
           expect(logs).not.toContain(`[${path}] connection(): ok`)
           expect(logs).toContain(
-            `[${path}] connection(): error: Error: Route ${path} used \`connection()\` inside \`after()\`.`
+            `[${path}] connection(): error: Error: Route ${path} used \`connection()\` inside \`after()\` while rendering.`
           )
         })
         await retry(() => {
@@ -123,17 +114,17 @@ describe('nextjs APIs in after()', () => {
 
           expect(logs).not.toContain(`[${path}] nested headers(): ok`)
           expect(logs).toContain(
-            `[${path}] nested headers(): error: Error: Route ${path} used \`headers()\` inside \`after()\`. This is not supported.`
+            `[${path}] nested headers(): error: Error: Route ${path} used \`headers()\` inside \`after()\` while rendering. This is not supported.`
           )
 
           expect(logs).not.toContain(`[${path}] nested cookies(): ok`)
           expect(logs).toContain(
-            `[${path}] nested cookies(): error: Error: Route ${path} used \`cookies()\` inside \`after()\`. This is not supported.`
+            `[${path}] nested cookies(): error: Error: Route ${path} used \`cookies()\` inside \`after()\` while rendering. This is not supported.`
           )
 
           expect(logs).not.toContain(`[${path}] nested connection(): ok`)
           expect(logs).toContain(
-            `[${path}] nested connection(): error: Error: Route ${path} used \`connection()\` inside \`after()\`.`
+            `[${path}] nested connection(): error: Error: Route ${path} used \`connection()\` inside \`after()\` while rendering.`
           )
         })
       })
@@ -280,4 +271,169 @@ describe('nextjs APIs in after()', () => {
       })
     })
   })
+
+  describe('async APIs in promises passed to after', () => {
+    describe('in route handlers', () => {
+      it.each(REQUEST_API_NAMES)(
+        'does not error - %s',
+        async (apiName: string) => {
+          const cliOutputIndex = next.cliOutput.length
+          const getCliOutput = () => next.cliOutput.slice(cliOutputIndex)
+
+          await next.fetch(
+            `/request-apis-in-promise/route-handler?api=${apiName}`
+          )
+
+          const cliOutput = await retry(() => {
+            const cliOutput = getCliOutput()
+            expect(cliOutput).toContain(`route :: ${apiName} :: finished`)
+            return cliOutput
+          })
+
+          expect(cliOutput).toContain(`route :: ${apiName} :: promise :: ok`)
+          expect(cliOutput).not.toContain(
+            `route :: ${apiName} :: promise :: error`
+          )
+
+          expect(cliOutput).toContain(
+            `route :: ${apiName} :: nested after :: ok`
+          )
+          expect(cliOutput).not.toContain(
+            `route :: ${apiName} :: nested after :: error`
+          )
+        }
+      )
+    })
+
+    describe('in server actions', () => {
+      it.each(REQUEST_API_NAMES)(
+        'does not error - %s',
+        async (apiName: string) => {
+          const browser = await next.browser(
+            `/request-apis-in-promise/server-action`
+          )
+
+          const cliOutputIndex = next.cliOutput.length
+          const getCliOutput = () => next.cliOutput.slice(cliOutputIndex)
+          await browser
+            .elementByCss(
+              `form[data-api-name="${apiName}"] button[type="submit"]`
+            )
+            .click()
+
+          const cliOutput = await retry(() => {
+            const cliOutput = getCliOutput()
+            expect(cliOutput).toContain(`action :: ${apiName} :: finished`)
+            return cliOutput
+          })
+
+          expect(cliOutput).toContain(`action :: ${apiName} :: promise :: ok`)
+          expect(cliOutput).not.toContain(
+            `action :: ${apiName} :: promise :: error`
+          )
+
+          expect(cliOutput).toContain(
+            `action :: ${apiName} :: nested after :: ok`
+          )
+          expect(cliOutput).not.toContain(
+            `action :: ${apiName} :: nested after :: error`
+          )
+        }
+      )
+    })
+
+    describe('in renders', () => {
+      it.each(REQUEST_API_NAMES)(
+        'throws an error - %s',
+        async (apiName: string) => {
+          const route = `/request-apis-in-promise/render`
+          const path = `${route}?apiName=${apiName}`
+
+          const cliOutputIndex = next.cliOutput.length
+          const getCliOutput = () => next.cliOutput.slice(cliOutputIndex)
+
+          await next.fetch(path)
+
+          const cliOutput = await retry(() => {
+            const cliOutput = getCliOutput()
+            expect(cliOutput).toContain(`render :: ${apiName} :: finished`)
+            return cliOutput
+          })
+          const message = `Error: Route ${route} used \`${apiName}()\` inside \`after()\` while rendering.`
+
+          expect(cliOutput).toContain(
+            `render :: ${apiName} :: promise :: error: ${message}`
+          )
+          expect(cliOutput).not.toContain(
+            `render :: ${apiName} :: promise :: ok`
+          )
+
+          expect(cliOutput).toContain(
+            `render :: ${apiName} :: nested after :: error: ${message}`
+          )
+          expect(cliOutput).not.toContain(
+            `render :: ${apiName} :: nested after :: ok`
+          )
+        }
+      )
+    })
+
+    describe('in renders after server actions', () => {
+      it.each(REQUEST_API_NAMES)(
+        'throws an error - %s',
+        async (apiName: string) => {
+          const route = '/request-apis-in-promise/render-after-action'
+          const initialCliOutputIndex = next.cliOutput.length
+          const browser = await next.browser(route)
+          // Clear cookies after every run
+          await using _ = defer(() => browser.deleteCookies())
+
+          // Sanity check: we should not be running any of the APIs now,
+          // only when a server action causes a rerender
+          expect(next.cliOutput.slice(initialCliOutputIndex)).not.toContain(
+            `render after action :: ${apiName} :: starting`
+          )
+
+          const cliOutputIndex = next.cliOutput.length
+          const getCliOutput = () => next.cliOutput.slice(cliOutputIndex)
+          await browser
+            .elementByCss(
+              `form[data-api-name="${apiName}"] button[type="submit"]`
+            )
+            .click()
+
+          const cliOutput = await retry(() => {
+            const cliOutput = getCliOutput()
+            expect(cliOutput).toContain(
+              `render after action :: ${apiName} :: finished`
+            )
+            return cliOutput
+          })
+          const message = `Error: Route ${route} used \`${apiName}()\` inside \`after()\` while rendering.`
+
+          expect(cliOutput).toContain(
+            `render after action :: ${apiName} :: promise :: error: ${message}`
+          )
+          expect(cliOutput).not.toContain(
+            `render after action :: ${apiName} :: promise :: ok`
+          )
+
+          expect(cliOutput).toContain(
+            `render after action :: ${apiName} :: nested after :: error: ${message}`
+          )
+          expect(cliOutput).not.toContain(
+            `render after action :: ${apiName} :: nested after :: ok`
+          )
+        }
+      )
+    })
+  })
 })
+
+function defer(callback: () => void | Promise<void>): AsyncDisposable {
+  return {
+    [Symbol.asyncDispose]: async () => {
+      return callback()
+    },
+  }
+}

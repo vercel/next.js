@@ -1,4 +1,79 @@
 [
+    DestructuredMember {
+        obj: Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "os",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "platform",
+                ),
+            ),
+        ),
+        span: 9..17,
+    },
+    DestructuredMember {
+        obj: Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "os",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "endianness",
+                ),
+            ),
+        ),
+        span: 19..29,
+    },
+    DestructuredMember {
+        obj: Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "os",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "arch",
+                ),
+            ),
+        ),
+        span: 31..35,
+    },
     FreeVar {
         var: "require",
         ast_path: [
@@ -84,6 +159,31 @@
         span: 40..53,
         in_try: false,
         new: false,
+    },
+    DestructuredMember {
+        obj: Call(
+            3,
+            FreeVar(
+                "require",
+            ),
+            [
+                Constant(
+                    Str(
+                        Atom(
+                            "process",
+                        ),
+                    ),
+                ),
+            ],
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "platform",
+                ),
+            ),
+        ),
+        span: 63..71,
     },
     FreeVar {
         var: "require",

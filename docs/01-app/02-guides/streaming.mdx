@@ -12,8 +12,6 @@ related:
     - app/guides/rendering-philosophy
 ---
 
-{/* AI agent hint: Suspense alone does not guarantee instant client-side navigations. Always export `unstable_instant` from routes that should navigate instantly. See docs/01-app/02-guides/instant-navigation.mdx for the full guide. */}
-
 ## What is streaming?
 
 In traditional server-side rendering, the server produces the full HTML document before sending anything. A single slow database query or API call can block the entire page. Streaming changes this by using [chunked transfer encoding](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Transfer-Encoding) to send parts of the response as they become ready. The browser starts rendering HTML while the server is still generating the rest.
@@ -38,7 +36,7 @@ When a browser requests a page, two streams work together during the initial pag
 
 ### The HTML stream
 
-React's server renderer produces progressive HTML chunks. The static parts of your page (layouts, navigation, Suspense fallbacks) render first and are sent immediately. When an async [Server Component](/docs/app/glossary#server-component) resolves, React streams its completed HTML along with inline `<script>` tags: one that swaps the fallback DOM node with the new content, and another carrying the [component payload](#the-component-payload) so React can later hydrate it. The browser executes the swap instantly, without waiting for the page's JavaScript bundle to load or hydration to complete. This is what the user _sees_: the page painting progressively, section by section.
+React's server renderer produces progressive HTML chunks. The static parts of your page (layouts, navigation, Suspense fallbacks) render first and are sent immediately. When a `<Suspense>` boundary's content is ready, for example when an async [Server Component](/docs/app/glossary#server-component) resolves, React streams its completed HTML along with inline `<script>` tags: one that swaps the fallback DOM node with the new content, and another carrying the [component payload](#the-component-payload) so React can later hydrate it. The browser executes the swap instantly, without waiting for the page's JavaScript bundle to load or hydration to complete. This is what the user _sees_: the page painting progressively, section by section.
 
 ### The component payload
 
@@ -379,11 +377,10 @@ This keeps `ProductGrid` simple (it takes a `string`, not a `Promise`) while sti
 | **Navigation** | Prefetched as instant fallback           | Not prefetched by default        |
 | **Best for**   | Pages where nothing renders without data | Most pages, for granular control |
 
-Prefer explicit `<Suspense>` boundaries close to the dynamic access. When the prerenderer encounters dynamic work, it walks up the tree looking for the nearest Suspense boundary. If none is found, the build fails with a [blocking route error](/docs/messages/blocking-route). A `loading.js` high in the tree is a valid boundary, so the framework finds it and stops, but now the entire page falls back to a full-page skeleton instead of streaming granularly.
+Prefer explicit `<Suspense>` boundaries close to the dynamic access. When the prerenderer encounters dynamic work, it walks up the tree looking for the nearest Suspense boundary. If none is found, the build fails with a [blocking route error](/docs/messages/blocking-prerender-dynamic). A `loading.js` high in the tree is a valid boundary, so the framework finds it and stops, but now the entire page falls back to a full-page skeleton instead of streaming granularly.
 
 ### Error handling mid-stream
 
-{/* TODO: catchError semantics - not landed on stable yet */}
 If a component throws an error after streaming has started, the nearest [`error.js`](/docs/app/api-reference/file-conventions/error) boundary catches it and renders the error UI in place of the failed component. The rest of the page remains intact, only the section that errored is replaced.
 
 Because the HTTP status code (`200 OK`) has already been sent with the first chunk, it cannot be changed to a `4xx` or `5xx`. The error is handled entirely within the streamed HTML. See [The HTTP contract](#the-http-contract) for more on this constraint.
@@ -480,7 +477,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 }
 ```
 
-See [Sharing data with context and React.cache](/docs/app/getting-started/fetching-data#sharing-data-with-context-and-reactcache) for the full pattern including the provider and consumer components.
+See [Using React's `use` within a Context Provider](/docs/app/guides/single-page-applications#using-reacts-use-within-a-context-provider) for the full pattern.
 
 ## Streaming in Route Handlers
 
@@ -582,11 +579,17 @@ Without streaming, the server waits for all data before sending any HTML, so TTF
 
 ### LCP (Largest Contentful Paint)
 
-If your LCP element (a hero image, a main heading, a product photo) is inside a Suspense boundary, it can't paint until that boundary resolves. To keep LCP fast:
+If your LCP element (a hero image, a main heading, a product photo) is inside a Suspense boundary, it can't paint until that boundary's content is swapped in. The element then depends on the work the server does to render it, not on your initial server response time. Revealing it costs something on the client too, because React streams a small inline script alongside the boundary's HTML and the content only appears once that script runs.
+
+Data fetching is not the only reason a boundary delays your LCP element. React also holds back a large boundary, because sending its HTML takes time. See [what activates a Suspense boundary](https://react.dev/reference/react/Suspense#what-activates-a-suspense-boundary).
+
+> **Good to know:** As a rule of thumb, if there's a Suspense boundary, React might use it. Under a slow network or a busy CPU, concurrent rendering can fall back to it even when you didn't expect it. Adding a boundary means accepting that, so don't add one you don't need.
+
+To keep LCP fast:
 
 - Keep LCP elements **outside** or **above** Suspense boundaries so they render as part of the static shell.
-- Use the [`preload`](/docs/app/api-reference/components/image#preload) prop on `next/image` for LCP images. This injects a `<link rel="preload">` into the `<head>`, so the browser starts fetching the image from the very first chunk, before the `<img>` tag even appears in the HTML.
-- For non-image LCP elements (text, headings), make sure they are not wrapped in a Suspense boundary that depends on slow data.
+- Use the [`preload`](/docs/app/api-reference/components/image#preload) prop on `next/image` for LCP images. This injects a `<link rel="preload">` into the `<head>`, so the browser starts fetching the image from the very first chunk, before the `<img>` tag even appears in the HTML. It controls when the image is fetched, not when it paints. An image inside a boundary still waits for the swap.
+- For non-image LCP elements (text, headings), render them outside Suspense boundaries.
 
 ### CLS (Cumulative Layout Shift)
 
@@ -669,13 +672,17 @@ export default async function PostPage({ params }) {
 
 > **Good to know:** You can also reject requests early using [`proxy`](/docs/app/api-reference/file-conventions/proxy) (for redirects, rewrites, or returning a response) or [`next.config.js` redirects](/docs/app/api-reference/config/next-config-js/redirects). Both run before the page renders, so HTTP status codes are still available.
 
-### Metadata and bots
+### Bots and crawlers
 
-[`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) resolves before streaming begins for bots that only scrape static HTML (such as Twitterbot or Slackbot). For full browsers and capable crawlers, metadata can [stream](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) alongside the page content.
+HTML-limited bots and crawlers need metadata to be available in the `<head>` of the initial HTML. Next.js detects them by their user agent and waits for [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) to resolve before streaming the page content. Full browsers and DOM-capable crawlers can instead receive [streaming metadata](/docs/app/api-reference/functions/generate-metadata#streaming-metadata) alongside the page content.
 
-Next.js automatically detects user agents to choose the right behavior. You can customize which bots receive blocking metadata with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) configuration option.
+You can customize which bots receive blocking metadata with the [`htmlLimitedBots`](/docs/app/api-reference/config/next-config-js/htmlLimitedBots) configuration option. See the [`loading.js` SEO section](/docs/app/api-reference/file-conventions/loading#seo) for more details.
 
-See the [`loading.js` SEO section](/docs/app/api-reference/file-conventions/loading#seo) for more details.
+#### Cache Components
+
+With [Cache Components](/docs/app/getting-started/caching), visitors and DOM-capable crawlers receive the prerendered shell immediately, and dynamic content streams in as it resolves. HTML-limited bots skip the prerendered shell and render the page dynamically so metadata can be placed in the `<head>`. Once the metadata resolves, the remaining page content can still stream.
+
+Keep this in mind when your prerendered shell depends on inputs that only exist while prerendering, such as build-time data or values that are not reachable in the request-time environment. Visitors and DOM-capable crawlers receive the shell without re-running that code, but an HTML-limited bot re-renders it dynamically, so a page that loads for a person can fail to render for a crawler. Make sure any data the shell relies on is also available at request time.
 
 ## What can affect streaming
 
@@ -764,6 +771,14 @@ chunk 3 (+3000ms) # Analytics dashboard: payload + <div hidden id="S:1"> (swaps 
 The `<template id="B:0">` markers are the Suspense fallback placeholders. When a boundary resolves, React streams a `<div hidden id="S:0">` containing the completed HTML and a script that swaps it into the page. The timestamps show each boundary resolving independently.
 
 > **Good to know:** The `Accept-Encoding: identity` header disables compression so chunks are not buffered by the compression layer.
+
+**Compare a bot request.** Add a bot user agent to the same script with `headers: { 'User-Agent': 'Twitterbot/1.0', 'Accept-Encoding': 'identity' }`. Now `await fetch()` itself blocks until the full render completes (around 3 seconds for this page), because the server holds the response until it has the finished document. The body then arrives all at once, with none of the staggered `+1000ms` / `+3000ms` timestamps:
+
+```text filename="Terminal"
+chunk 0 (+0ms) # Entire document in a single burst, after fetch() already waited
+```
+
+This is the [bots and crawlers](#bots-and-crawlers) behavior: the server waits for the full render and sends one fully formed HTML document instead of streaming.
 
 ### Platform support
 

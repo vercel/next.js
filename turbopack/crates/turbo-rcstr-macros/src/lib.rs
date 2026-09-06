@@ -43,7 +43,7 @@ pub fn rcstr(input: TokenStream) -> TokenStream {
                     "{{ static RCSTR_STORAGE: ::turbo_rcstr::StaticPrehashedString = \
                      ::turbo_rcstr::make_const_prehashed_string({lit}); const RCSTR: \
                      ::turbo_rcstr::RcStr = ::turbo_rcstr::from_static(&RCSTR_STORAGE); \
-                     ::turbo_rcstr::__rcstr_inventory_submit!( \
+                     ::turbo_rcstr::__rcstr_static_submit!(
                      ::turbo_rcstr::StaticRcStr(&RCSTR_STORAGE) ); RCSTR }}",
                 )
             }
@@ -54,7 +54,7 @@ pub fn rcstr(input: TokenStream) -> TokenStream {
                  ::turbo_rcstr::StaticPrehashedString = \
                  ::turbo_rcstr::make_const_prehashed_string(TEXT); const RCSTR: \
                  ::turbo_rcstr::RcStr = ::turbo_rcstr::from_static(&RCSTR_STORAGE); \
-                 ::turbo_rcstr::__rcstr_inventory_submit!( \
+                 ::turbo_rcstr::__rcstr_static_submit!(
                  ::turbo_rcstr::StaticRcStr(&RCSTR_STORAGE) ); RCSTR }} }}",
             )
         };

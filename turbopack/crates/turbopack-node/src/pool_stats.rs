@@ -1,7 +1,9 @@
 use std::{cmp::max, fmt::Debug, time::Duration};
 
+#[cfg(any(feature = "process_pool", feature = "worker_pool"))]
 use tokio::sync::OwnedSemaphorePermit;
 
+#[cfg(any(feature = "process_pool", feature = "worker_pool"))]
 pub enum AcquiredPermits {
     Idle {
         // This is used for drop
