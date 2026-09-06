@@ -1,4 +1,4 @@
-'use turbopack no side effects'
+'use turbopack: no side effects'
 
 // Evaluate the ES2024 feature check once at module load time.
 const _fromBase64: ((s: string) => Uint8Array) | null =

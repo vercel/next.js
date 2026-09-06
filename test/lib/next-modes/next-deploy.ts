@@ -1,10 +1,14 @@
 import os from 'os'
 import path from 'path'
+import dns from 'dns'
 import execa from 'execa'
 import fs from 'fs-extra'
-import { NextInstance } from './base'
+import { NextInstance, type NextInstanceOpts } from './base'
 import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
+import { setTimeout } from 'timers/promises'
+import { FileRef } from '../e2e-utils'
+import { PROXY_HOST_MAP_ENV_KEY } from '../browsers/launch'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -12,6 +16,18 @@ export class NextDeployInstance extends NextInstance {
   private _deploymentId: string | undefined
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
+  private _restoreDnsLookup: (() => void) | null = null
+
+  constructor(opts: NextInstanceOpts) {
+    super(opts)
+
+    if (typeof opts.files === 'string' || opts.files instanceof FileRef) {
+      this.env = {
+        NEXT_PRIVATE_LOCAL_DEV: '1',
+        ...this.env,
+      }
+    }
+  }
 
   protected throwIfUnavailable(): void | never {
     if (this.isStopping !== null) {
@@ -156,7 +172,7 @@ export class NextDeployInstance extends NextInstance {
     }
   }
 
-  private parseIdsFromCliOuput(): void {
+  private parseIdsFromCliOutput(): void {
     const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
     if (!buildId) {
       throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
@@ -185,9 +201,59 @@ export class NextDeployInstance extends NextInstance {
     )
   }
 
+  private async fetchBuildLogsUntilComplete(
+    url: string,
+    vercelEnv: NodeJS.ProcessEnv,
+    vercelFlags: string[]
+  ): Promise<string> {
+    // The fixture's `post-build` script prints the BUILD_ID, DEPLOYMENT_ID and
+    // NEXT_SUPPORTS_IMMUTABLE_ASSETS markers (in that order) as the final lines
+    // of the build (see `base.ts`). A deployment can report `Ready` before that
+    // tail has propagated to the log query API, so `vercel inspect --logs` can
+    // return a truncated prefix that stops before the markers. Gate on the
+    // last-printed marker so a partial read can't slip into the parser, and
+    // re-query until it appears.
+    const maxAttempts = 20
+    const retryDelayMs = 3000
+    let output = ''
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      const buildLogs = await execa(
+        'vercel',
+        ['inspect', '--logs', url, ...vercelFlags],
+        {
+          env: vercelEnv,
+          reject: false,
+        }
+      )
+      if (buildLogs.exitCode !== 0) {
+        throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
+      }
+      // Build logs are piped to stderr, so combine both streams.
+      output = buildLogs.stdout + buildLogs.stderr
+
+      if (/NEXT_SUPPORTS_IMMUTABLE_ASSETS: (.+)/.test(output)) {
+        return output
+      }
+
+      if (attempt < maxAttempts) {
+        require('console').log(
+          `Build log markers not yet propagated for ${url} (attempt ${attempt}/${maxAttempts}); the build log tail likely hasn't propagated yet. Retrying in ${retryDelayMs}ms...`
+        )
+        await setTimeout(retryDelayMs)
+      }
+    }
+
+    // The markers never appeared within the retry window; return the last
+    // output so `parseIdsFromCliOutput` throws a descriptive error including it.
+    return output
+  }
+
   public async setup(parentSpan: Span) {
     super.setup(parentSpan)
     await super.createTestDir({ parentSpan, skipInstall: true })
+
+    await this.writeMirrorNpmrcIfNecessary()
 
     const existingDeployUrl = process.env.NEXT_TEST_DEPLOY_URL?.trim()
     const customDeployScriptPath =
@@ -233,7 +299,7 @@ export class NextDeployInstance extends NextInstance {
         this._cliOutput = buildLogs.stdout + buildLogs.stderr
       }
 
-      this.parseIdsFromCliOuput()
+      this.parseIdsFromCliOutput()
       return
     }
 
@@ -257,7 +323,7 @@ export class NextDeployInstance extends NextInstance {
 
       // Use the custom logs script to get build logs and extract buildId
       this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
-      this.parseIdsFromCliOuput()
+      this.parseIdsFromCliOutput()
       return
     }
 
@@ -274,7 +340,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     const vercelFlags: string[] = []
-    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER
+    const NEXT_ENABLE_ADAPTER = process.env.NEXT_ENABLE_ADAPTER === '1'
     const IS_TURBOPACK_TEST = process.env.IS_TURBOPACK_TEST
 
     const TEST_TEAM_NAME = NEXT_ENABLE_ADAPTER
@@ -358,6 +424,29 @@ export class NextDeployInstance extends NextInstance {
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
 
+    // Route the build to a named hive, and to a specific build-container image.
+    // The dispatcher reads the image version only for a build on a forced hive.
+    // A version without a hive falls back to the default image and reports no
+    // error, so reject that combination here.
+    const forceBuildInHive = process.env.VERCEL_FORCE_BUILD_IN_HIVE
+    const buildContainerVersion = process.env.VERCEL_BUILD_CONTAINER_VERSION
+
+    if (buildContainerVersion && !forceBuildInHive) {
+      throw new Error(
+        'VERCEL_BUILD_CONTAINER_VERSION requires VERCEL_FORCE_BUILD_IN_HIVE to be set to a hive ID.'
+      )
+    }
+
+    if (forceBuildInHive) {
+      additionalEnv.push(`VERCEL_FORCE_BUILD_IN_HIVE=${forceBuildInHive}`)
+    }
+
+    if (buildContainerVersion) {
+      additionalEnv.push(
+        `VERCEL_BUILD_CONTAINER_VERSION=${buildContainerVersion}`
+      )
+    }
+
     // Add experimental feature flags
 
     if (process.env.__NEXT_CACHE_COMPONENTS) {
@@ -370,18 +459,13 @@ export class NextDeployInstance extends NextInstance {
         `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
       )
     }
-    if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
-      )
-    }
     if (process.env.IS_TURBOPACK_TEST) {
       additionalEnv.push(`IS_TURBOPACK_TEST=1`)
     }
     if (process.env.IS_WEBPACK_TEST) {
       additionalEnv.push(`IS_WEBPACK_TEST=1`)
     }
-    if (process.env.NEXT_ENABLE_ADAPTER) {
+    if (NEXT_ENABLE_ADAPTER) {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=1`)
     } else {
       additionalEnv.push(`NEXT_ENABLE_ADAPTER=0`)
@@ -432,36 +516,139 @@ export class NextDeployInstance extends NextInstance {
 
     require('console').log(`Deployment URL: ${this._url}`)
 
-    // Use the vercel inspect command to get the CLI output from the build.
-    const buildLogs = await execa(
-      'vercel',
-      ['inspect', '--logs', this._url, ...vercelFlags],
-      {
-        env: vercelEnv,
-        reject: false,
-      }
+    // Fetch the build logs to extract the build/deployment id markers that the
+    // fixture's `post-build` script prints. The deployment can report `Ready`
+    // (and `vercel deploy` can return) before its full build-log tail has
+    // propagated to the log query API, so re-query until the markers appear
+    // rather than failing on the first incomplete read. TODO: Combine with
+    // runtime logs (via `vercel logs`)
+    this._cliOutput = await this.fetchBuildLogsUntilComplete(
+      this._url,
+      vercelEnv,
+      vercelFlags
     )
-    if (buildLogs.exitCode !== 0) {
-      throw new Error(`Failed to get build output logs: ${buildLogs.stderr}`)
-    }
-    // TODO: Combine with runtime logs (via `vercel logs`)
-    // Build logs seem to be piped to stderr, so we'll combine them to make sure we get all the logs.
-    this._cliOutput = buildLogs.stdout + buildLogs.stderr
 
-    this.parseIdsFromCliOuput()
-    // Use the stdout from the logs command as the CLI output. The CLI will
-    // output other unrelated logs to stderr.
+    this.parseIdsFromCliOutput()
+  }
+
+  // When preview builds are private, the deploy build installs Next.js
+  // artifacts from an auth-protected route and needs credentials. The build
+  // authenticates with the Vercel OIDC token that Vercel automatically
+  // provides to builds (vercel-packages accepts it for allowlisted teams), so
+  // we write an `.npmrc` referencing it. Referencing the environment variable
+  // instead of inlining a token keeps credentials out of the uploaded
+  // deployment source. Only written for private preview builds since public
+  // ones need no credentials and pnpm fails when an `.npmrc` references an
+  // unset environment variable.
+  // TODO: pnpm >= 10.34.2 no longer expands environment variables in
+  // repository .npmrc files (GHSA-3qhv-2rgh-x77r). An install command writing
+  // to the user-level pnpm config (like vercel/front does) did not work with
+  // `vercel deploy` and needs more investigation.
+  private async writeMirrorNpmrcIfNecessary(): Promise<void> {
+    const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+    const access = process.env.PREVIEW_BUILDS_ACCESS
+
+    if (!baseUrlRaw || access !== 'private') {
+      require('console').log(
+        `Skipping .npmrc write for preview-builds mirror: missing base URL or preview builds are public`
+      )
+      return
+    }
+
+    const baseUrl = new URL(baseUrlRaw)
+    // Derive the npmrc auth key from the mirror base URL: strip the scheme and
+    // ensure a trailing slash so it matches requests to that registry path.
+    const registryKey = `//${baseUrl.host}${baseUrl.pathname.replace(/\/?$/, '/')}`
+
+    require('console').log(
+      `Writing .npmrc for preview-builds mirror: ${registryKey}`
+    )
+    // Appended rather than written, because a fixture may ship its own `.npmrc`
+    // (several do) and overwriting it silently drops that configuration.
+    const npmrcPath = path.join(this.testDir, '.npmrc')
+    const existing = (await fs.pathExists(npmrcPath))
+      ? await fs.readFile(npmrcPath, 'utf8')
+      : ''
+    const separator = existing === '' || existing.endsWith('\n') ? '' : '\n'
+
+    await fs.writeFile(
+      npmrcPath,
+      `${existing}${separator}${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
+    )
+  }
+
+  /**
+   * Redirects the deployment host to the proxy address for this process only.
+   * The patched `dns.lookup` covers `fetch`, because Node resolves the
+   * connection through it while the TLS handshake still uses the original
+   * hostname for SNI. A valid certificate therefore still validates.
+   *
+   * This mode needs no `sudo`, and it keeps concurrent test files independent,
+   * unlike the shared `/etc/hosts` file.
+   */
+  private redirectHostInProcess(hostname: string, address: string): void {
+    require('console').log(
+      `Redirecting ${hostname} to ${address} for this process`
+    )
+
+    const originalLookup = dns.lookup
+
+    // `dns.lookup` answers for an IP address literal without a query, and it
+    // answers in the shape that the caller's options ask for. The redirection
+    // therefore replaces the hostname, passes the remaining arguments through
+    // untouched, and lets Node produce the result.
+    function patchedLookup(
+      this: unknown,
+      lookupHostname: string,
+      ...args: unknown[]
+    ): void {
+      Reflect.apply(originalLookup, this, [
+        lookupHostname === hostname ? address : lookupHostname,
+        ...args,
+      ])
+    }
+
+    // `dns.lookup` holds the argument names that `util.promisify` reads in a
+    // hidden symbol property. The wrapper takes over every own property, so the
+    // promisified form still resolves to an object instead of a bare address.
+    Object.defineProperties(
+      patchedLookup,
+      Object.getOwnPropertyDescriptors(originalLookup)
+    )
+
+    dns.lookup = Object.assign(patchedLookup, originalLookup)
+
+    this._restoreDnsLookup = () => {
+      dns.lookup = originalLookup
+    }
+
+    process.env[PROXY_HOST_MAP_ENV_KEY] = `${hostname}=${address}`
   }
 
   private async configureProxyAddress(): Promise<void> {
-    // If configured, we should configure the `/etc/hosts` file to point the
-    // deployment domain to the specified proxy address.
-    if (
-      process.env.NEXT_TEST_PROXY_ADDRESS &&
-      // Validate that the proxy address is a valid IP address.
-      /^\d+\.\d+\.\d+\.\d+$/.test(process.env.NEXT_TEST_PROXY_ADDRESS)
-    ) {
-      this._writtenHostsLine = `${process.env.NEXT_TEST_PROXY_ADDRESS}\t${this._parsedUrl.hostname}\n`
+    const proxyAddress = process.env.NEXT_TEST_PROXY_ADDRESS
+    const redirectInProcess = !!process.env.NEXT_TEST_PROXY_IN_PROCESS
+
+    // Validate that the proxy address is a valid IP address.
+    if (!proxyAddress || !/^\d+\.\d+\.\d+\.\d+$/.test(proxyAddress)) {
+      // Without a redirection the production CDN serves the deployment, so the
+      // test passes and exercises none of the proxy under test. Fail instead of
+      // ignoring an incomplete request for in-process redirection.
+      if (redirectInProcess) {
+        throw new Error(
+          `NEXT_TEST_PROXY_IN_PROCESS needs a valid IP address in NEXT_TEST_PROXY_ADDRESS, received ${proxyAddress ? `"${proxyAddress}"` : 'no value'}.`
+        )
+      }
+
+      return
+    }
+
+    if (redirectInProcess) {
+      this.redirectHostInProcess(this._parsedUrl.hostname, proxyAddress)
+    } else {
+      // Otherwise we point the deployment domain to the proxy address through
+      // the `/etc/hosts` file.
+      this._writtenHostsLine = `${proxyAddress}\t${this._parsedUrl.hostname}\n`
 
       require('console').log(
         `Writing proxy address to hosts file: ${this._writtenHostsLine.trim()}`
@@ -496,6 +683,13 @@ export class NextDeployInstance extends NextInstance {
           err
         )
       })
+    }
+
+    if (this._restoreDnsLookup) {
+      require('console').log(`Removing the in-process host redirection`)
+      this._restoreDnsLookup()
+      this._restoreDnsLookup = null
+      delete process.env[PROXY_HOST_MAP_ENV_KEY]
     }
 
     // If configured, we should remove the proxy address from the hosts file.

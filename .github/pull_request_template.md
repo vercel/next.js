@@ -4,6 +4,8 @@ Choose the right checklist for the change(s) that you're making:
 
 ## For Contributors
 
+We encourage you to use AI to assist you in researching, creating, and reviewing changes. However, you must review and deeply understand the contributions you are making. For this reason, **pull request descriptions from external contributors must be written by a human**.
+
 ### Improving Documentation
 
 - Run `pnpm prettier-fix` to fix formatting issues before opening the PR.
@@ -29,7 +31,6 @@ Choose the right checklist for the change(s) that you're making:
 - This repository requires verified commit signatures on protected branches.
 - If this pull request is blocked for unsigned commits, re-sign the commits and force-push the branch.
 - A `Signed-off-by` line in the commit message is not enough.
-
 
 ## For Maintainers
 

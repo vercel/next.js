@@ -10,8 +10,12 @@ import {
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
-const expectedTimeoutErrorMessage =
-  'Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
+const timeoutErrorMessage =
+  'A `"use cache"` function took too long during prerendering. The most common cause is passing unresolved request-specific arguments, such as `params` or `searchParams`, into the cached function. Resolve the data before calling the function and pass only the values you need.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
+
+function expectedTimeoutErrorMessage(route: string) {
+  return `Route "${route}": ${timeoutErrorMessage}`
+}
 
 describe('use-cache-hanging-inputs', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -42,7 +46,9 @@ describe('use-cache-hanging-inputs', () => {
         const errorSource = await getRedboxSource(browser)
 
         expect(errorCount).toBe(1)
-        expect(errorDescription).toBe(expectedTimeoutErrorMessage)
+        expect(errorDescription).toBe(
+          expectedTimeoutErrorMessage('/uncached-promise')
+        )
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -58,7 +64,8 @@ describe('use-cache-hanging-inputs', () => {
            13 |   return ("
         `)
 
-        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/uncached-promise')}
     at Foo (app/uncached-promise/page.tsx:10:13)`)
       }, 180_000)
     })
@@ -80,7 +87,9 @@ describe('use-cache-hanging-inputs', () => {
         const errorSource = await getRedboxSource(browser)
 
         expect(errorCount).toBe(1)
-        expect(errorDescription).toBe(expectedTimeoutErrorMessage)
+        expect(errorDescription).toBe(
+          expectedTimeoutErrorMessage('/uncached-promise-nested')
+        )
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
@@ -96,7 +105,8 @@ describe('use-cache-hanging-inputs', () => {
            19 |   return getCachedData(promise)"
         `)
 
-        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/uncached-promise-nested')}
     at indirection (app/uncached-promise-nested/page.tsx:16:1)
     at Page (app/uncached-promise-nested/page.tsx:23:22)`)
       }, 180_000)
@@ -122,7 +132,9 @@ describe('use-cache-hanging-inputs', () => {
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        expect(errorDescription).toBe(expectedTimeoutErrorMessage)
+        expect(errorDescription).toBe(
+          expectedTimeoutErrorMessage('/bound-args')
+        )
 
         expect(errorSource).toMatchInlineSnapshot(`
          "app/bound-args/page.tsx (13:15) @ Foo
@@ -136,7 +148,8 @@ describe('use-cache-hanging-inputs', () => {
            16 |     return ("
         `)
 
-        expect(cliOutput).toContain(`Error: ${expectedTimeoutErrorMessage}
+        expect(cliOutput)
+          .toContain(`Error: ${expectedTimeoutErrorMessage('/bound-args')}
     at Foo (app/bound-args/page.tsx:13:15)`)
       }, 180_000)
     })
@@ -153,9 +166,7 @@ describe('use-cache-hanging-inputs', () => {
 
         expect({ count, title, description }).toEqual({
           count: 1,
-          // TODO(restart-on-cache-miss): fix environment labelling
-          // title: 'Runtime Error\nCache',
-          title: 'Runtime Error\nPrerender',
+          title: 'Runtime Error\nCache',
           description: 'kaputt!',
         })
       })
@@ -169,7 +180,7 @@ describe('use-cache-hanging-inputs', () => {
       expect(cliOutput).toInclude('Error: kaputt!')
 
       expect(cliOutput).toIncludeRepeated(
-        escapeStringRegexp(expectedTimeoutErrorMessage),
+        escapeStringRegexp(timeoutErrorMessage),
         4
       )
 

@@ -21,6 +21,7 @@ describe('TypeScript with error handling options', () => {
               .catch(() => '')
             originalTsConfig = await next.readFile('tsconfig.json')
             const nextConfig = {
+              experimental: { useTypeScriptCli: false },
               typescript: { ignoreBuildErrors },
             }
             await next.patchFile(

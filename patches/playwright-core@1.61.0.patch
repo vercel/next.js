@@ -1,0 +1,24 @@
+diff --git a/lib/coreBundle.js b/lib/coreBundle.js
+index 1d36a373cb14a856c9a69e218df5183bb250d2f0..560bd6cc4fc3fd11937b6039279bbfcb08152172 100644
+--- a/lib/coreBundle.js
++++ b/lib/coreBundle.js
+@@ -60688,6 +60688,19 @@ var init_browserContext2 = __esm({
+       _onRequestFailed(request2, responseEndTiming, failureText, page) {
+         request2._failureText = failureText || null;
+         request2._setResponseEndTiming(responseEndTiming);
++        // PATCH (next.js): mirror what `_onRequestFinished` does for the
++        // response, so callers awaiting `response.finished()` don't hang on
++        // failed/canceled requests. The server side already resolves the
++        // server-side `_finishedPromise` from `_onLoadingFailed` (see
++        // chromium/crNetworkManager.js), but only the `requestFinished` IPC
++        // carries a response payload — `requestFailed` does not, so the
++        // client-side Response's `_finishedPromise` is otherwise never
++        // resolved. We look up the response via the existing async RPC and
++        // resolve it fire-and-forget; catch is a no-op so we never produce
++        // an unhandled rejection if the context tears down concurrently.
++        request2.response().then((response2) => {
++          if (response2 !== null) response2._finishedPromise.resolve(null);
++        }).catch(() => {});
+         this.emit(Events.BrowserContext.RequestFailed, request2);
+         if (page)
+           page.emit(Events.Page.RequestFailed, request2);

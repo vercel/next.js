@@ -30,6 +30,9 @@ describe('required server files app router', () => {
       cacheMaxMemorySize: 0,
       output: 'standalone',
     },
+    dependencies: {
+      'is-even': '1.0.0',
+    },
     skipStart: true,
   })
 

@@ -7,4 +7,9 @@ module.exports = {
       },
     ],
   },
+  experimental: {
+    instantInsights: {
+      validationLevel: 'manual-warning',
+    },
+  },
 }

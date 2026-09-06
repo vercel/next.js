@@ -23,7 +23,7 @@ To use rewrites you can use the `rewrites` key in `next.config.js`:
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/about',
@@ -36,7 +36,7 @@ module.exports = {
 
 Rewrites are applied to client-side routing. In the example above, navigating to `<Link href="/about">` will serve content from `/` while keeping the URL as `/about`.
 
-`rewrites` is an async function that expects to return either an array or an object of arrays (see below) holding objects with `source` and `destination` properties:
+`rewrites` can be defined as a synchronous or async function. It should return, or resolve to, either an array or an object of arrays (see below) holding objects with `source` and `destination` properties:
 
 - `source`: `String` - is the incoming request path pattern.
 - `destination`: `String` is the path you want to route to.
@@ -49,7 +49,7 @@ When the `rewrites` function returns an array, rewrites are applied after checki
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return {
       beforeFiles: [
         // These rewrites are checked after headers/redirects
@@ -91,10 +91,11 @@ The order Next.js routes are checked is:
 1. [headers](/docs/app/api-reference/config/next-config-js/headers) are checked/applied
 2. [redirects](/docs/app/api-reference/config/next-config-js/redirects) are checked/applied
 3. [proxy](/docs/app/api-reference/file-conventions/proxy)
-4. `beforeFiles` rewrites are checked/applied
+4. `beforeFiles` rewrites: for each entry, if `source`, `has`, and `missing` matches the request, it's rewritten to `destination`.
 5. static files from the [public directory](/docs/app/api-reference/file-conventions/public-folder), `_next/static` files, and non-dynamic pages are checked/served
-6. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
-7. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked. If you use [fallback: true/'blocking'](/docs/pages/api-reference/functions/get-static-paths#fallback-true) in `getStaticPaths`, the fallback `rewrites` defined in your `next.config.js` will _not_ be run.
+6. `afterFiles` rewrites are tried in order. If a `source`, `has`, and `missing` matches the request, it's rewritten to `destination`; the first rewrite that resolves to a static file, page, or dynamic route is served.
+7. dynamic routes (e.g., `app/blog/[slug]/page.tsx`) are matched against the current path
+8. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked. If you use [fallback: true/'blocking'](/docs/pages/api-reference/functions/get-static-paths#fallback-true) in `getStaticPaths`, those dynamic routes take priority over the fallback `rewrites` defined in your `next.config.js`.
 
 </AppOnly>
 
@@ -102,10 +103,11 @@ The order Next.js routes are checked is:
 
 1. [headers](/docs/pages/api-reference/config/next-config-js/headers) are checked/applied
 2. [redirects](/docs/pages/api-reference/config/next-config-js/redirects) are checked/applied
-3. `beforeFiles` rewrites are checked/applied
+3. `beforeFiles` rewrites: for each entry, if `source` matches the request, it's rewritten to `destination`.
 4. static files from the [public directory](/docs/pages/api-reference/file-conventions/public-folder), `_next/static` files, and non-dynamic pages are checked/served
-5. `afterFiles` rewrites are checked/applied, if one of these rewrites is matched we check dynamic routes/static files after each match
-6. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked. If you use [fallback: true/'blocking'](/docs/pages/api-reference/functions/get-static-paths#fallback-true) in `getStaticPaths`, the fallback `rewrites` defined in your `next.config.js` will _not_ be run.
+5. `afterFiles` rewrites are tried in order. If a `source` matches the request, it's rewritten to `destination`; the first rewrite that resolves to a static file, page, or dynamic route is served.
+6. dynamic routes (e.g., `pages/blog/[slug].tsx`) are matched against the current path
+7. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked. If you use [fallback: true/'blocking'](/docs/pages/api-reference/functions/get-static-paths#fallback-true) in `getStaticPaths`, the fallback `rewrites` defined in your `next.config.js` will _not_ be run.
 
 </PagesOnly>
 
@@ -115,7 +117,7 @@ When using parameters in a rewrite the parameters will be passed in the query by
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/old-about/:path*',
@@ -130,7 +132,7 @@ If a parameter is used in the destination none of the parameters will be automat
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/docs/:path*',
@@ -145,7 +147,7 @@ You can still pass the parameters manually in the query if one is already used i
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/:first/:second',
@@ -167,7 +169,7 @@ Path matches are allowed, for example `/blog/:slug` will match `/blog/first-post
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/blog/:slug',
@@ -190,7 +192,7 @@ To match a wildcard path you can use `*` after a parameter, for example `/blog/:
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/blog/:slug*',
@@ -207,7 +209,7 @@ To match a regex path you can wrap the regex in parenthesis after a parameter, f
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/old-blog/:post(\\d{1,})',
@@ -222,7 +224,7 @@ The following characters `(`, `)`, `{`, `}`, `[`, `]`, `|`, `\`, `^`, `.`, `:`, 
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return [
       {
         // this will match `/english(default)/something` being requested
@@ -246,7 +248,7 @@ To only match a rewrite when header, cookie, or query values also match the `has
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return [
       // if the header `x-rewrite-me` is present,
       // this rewrite will be applied
@@ -336,7 +338,7 @@ Rewrites allow you to rewrite to an external URL. This is especially useful for 
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/blog',
@@ -356,7 +358,7 @@ If you're using `trailingSlash: true`, you also need to insert a trailing slash 
 ```js filename="next.config.js"
 module.exports = {
   trailingSlash: true,
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/blog/',
@@ -379,7 +381,7 @@ This way you don't have to change the rewrites configuration when migrating more
 
 ```js filename="next.config.js"
 module.exports = {
-  async rewrites() {
+  rewrites() {
     return {
       fallback: [
         {
@@ -400,7 +402,7 @@ When leveraging [`basePath` support](/docs/app/api-reference/config/next-config-
 module.exports = {
   basePath: '/docs',
 
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/with-basePath', // automatically becomes /docs/with-basePath
@@ -431,7 +433,7 @@ module.exports = {
     defaultLocale: 'en',
   },
 
-  async rewrites() {
+  rewrites() {
     return [
       {
         source: '/with-locale', // automatically handles all locales

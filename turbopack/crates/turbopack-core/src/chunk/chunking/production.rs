@@ -1,7 +1,8 @@
 use std::{borrow::Cow, collections::BinaryHeap, hash::BuildHasherDefault, mem::take};
 
 use anyhow::{Context, Result};
-use rustc_hash::FxHasher;
+use roaring::RoaringBitmap;
+use rustc_hash::{FxHashMap, FxHasher};
 use smallvec::SmallVec;
 use tracing::{Instrument, field::Empty};
 use turbo_prehash::BuildHasherExt;
@@ -11,13 +12,19 @@ use crate::{
     chunk::{
         ChunkItemBatchGroup, ChunkItemBatchWithAsyncModuleInfo, ChunkItemWithAsyncModuleInfo,
         ChunkingConfig,
-        chunking::{ChunkItemOrBatchWithInfo, SplitContext, make_chunk},
+        chunking::{ChunkItemOrBatchWithInfo, ComponentChunkItems, SplitContext, make_chunk},
     },
     module_graph::{
         ModuleGraph,
         chunk_group_info::{ModuleToChunkGroups, RoaringBitmapWrapper},
     },
 };
+
+/// Default estimated cost of an additional request, in bytes (200 KB).
+const DEFAULT_ESTIMATED_REQUEST_COST_BYTES: u64 = 200_000;
+
+/// Probability that a navigation stays within a cluster.
+const CLUSTER_NAVIGATION_PROBABILITY: f64 = 0.6;
 
 pub async fn make_production_chunks(
     chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
@@ -37,6 +44,8 @@ pub async fn make_production_chunks(
     let span = span_outer.clone();
     async move {
         let module_chunk_groups = module_graph.chunk_group_info().module_chunk_groups();
+        let chunk_group_info = module_graph.chunk_group_info().await?;
+        let heuristics = &chunk_group_info.chunking_heuristics;
         let merged_modules = module_graph.merged_modules().await?;
 
         #[derive(Default)]
@@ -67,15 +76,13 @@ pub async fn make_production_chunks(
                             },
                         ..
                     } => Prepared::ChunkItem(
-                        if let Some(module_chunk_groups) =
-                            module_chunk_groups.get(&ResolvedVc::upcast(module)).await?
-                        {
+                        if let Some(module_chunk_groups) = module_chunk_groups.get(&module).await? {
                             module_chunk_groups
                         } else {
                             // Merged modules don't have a chunk group in chunk_group_info, so
                             // lookup using the original module.
                             let original_module = merged_modules
-                                .get_original_module(ResolvedVc::upcast(module))
+                                .get_original_module(module)
                                 .await?
                                 .context("every module should have a chunk group")?;
                             module_chunk_groups
@@ -123,6 +130,11 @@ pub async fn make_production_chunks(
             min_chunk_size,
             max_chunk_count_per_group,
             max_merge_chunk_size,
+            first_page_load_priority,
+            priority_boost_percent,
+            request_cost,
+            generate_component_chunks,
+            min_component_chunk_size,
             ..
         } = chunking_config;
 
@@ -132,6 +144,7 @@ pub async fn make_production_chunks(
                 make_chunk(
                     group.chunk_items,
                     group.batch_group.into_iter().collect(),
+                    Vec::new(),
                     &mut String::new(),
                     &mut split_context,
                 )
@@ -154,6 +167,11 @@ pub async fn make_production_chunks(
                             .sum::<usize>();
                         ChunkCandidate {
                             size,
+                            components: vec![ChunkComponent {
+                                size,
+                                chunk_items: chunk_items.clone(),
+                                batch_groups: batch_group.into_iter().collect(),
+                            }],
                             chunk_items,
                             batch_groups: batch_group.into_iter().collect(),
                             chunk_groups: key.map(Cow::Borrowed),
@@ -191,6 +209,7 @@ pub async fn make_production_chunks(
                                 chunk_items,
                                 batch_groups,
                                 chunk_groups,
+                                components,
                             } = heap.pop().unwrap();
                             chunks_to_merge_size += size;
                             chunks_to_merge.push(MergeCandidate {
@@ -198,6 +217,7 @@ pub async fn make_production_chunks(
                                 chunk_items,
                                 batch_groups,
                                 chunk_groups,
+                                components,
                             });
                             continue;
                         }
@@ -216,6 +236,29 @@ pub async fn make_production_chunks(
                 } else {
                     unreachable!();
                 };
+
+                // Chunking-heuristics-derived constants for the maths below.
+                //
+                // The cost of a single request in transferred bytes.
+                // Defaults to 200,000 bytes (200 KB).
+                let c_req = request_cost
+                    .unwrap_or(DEFAULT_ESTIMATED_REQUEST_COST_BYTES)
+                    .min(i64::MAX as u64) as i64;
+
+                // Default `P(N = 1)`: the probability that we request exactly 1 chunk group.
+                // `firstPageLoadPriority` (a config percentage) maps to it; the default is 0.67
+                // (~2/3).
+                let default_p1 =
+                    first_page_load_priority.map_or(0.67, |percent| percent as f64 / 100.0);
+
+                // `priorityBoost` multiplier applied to `P(N = 1)` for priority routes; the default
+                // is 1.5 (a 1.5x boost).
+                let priority_boost =
+                    priority_boost_percent.map_or(1.5, |percent| percent as f64 / 100.0);
+
+                // If chunk group clusters are configured in `next.config.js` and the patterns
+                // match at least one route.
+                let has_clusters = heuristics.clusters.iter().any(|c| !c.is_empty());
 
                 let mut iterations = 0;
                 while chunks_to_merge.len() > 1 {
@@ -249,8 +292,8 @@ pub async fn make_production_chunks(
                         for (i, other) in selection.iter().enumerate() {
                             iterations += 1;
                             let overlap = overlap(&candidate.chunk_groups, &other.chunk_groups);
-                            // It need to have at least two chunk groups in common
-                            if overlap <= 1 {
+                            // It need to have at least one chunk group in common
+                            if overlap < 1 {
                                 continue;
                             }
                             // If the candidate is already big enough, avoid shrinking the sharing
@@ -265,187 +308,171 @@ pub async fn make_production_chunks(
                             let b_groups = other.chunk_groups_len() as i64;
                             let b_size = other.size as i64;
                             let o_groups = overlap as i64;
-                            let groups = a_groups.max(b_groups);
+                            let groups = a_groups + b_groups - o_groups;
                             let a_rem = a_groups - o_groups;
                             let b_rem = b_groups - o_groups;
 
-                            /*
-                                UNMERGED CASE
+                            // See ./chunk_merging_cost_benefit.md for a description of how
+                            // this works.
 
-                                from the total of `groups` chunk groups
-                                - `a_groups` chunk groups request a `a_size` chunk
-                                - `b_groups` chunk groups request a `b_size` chunk
-                                but there is an overlapy of `o_groups` between them, which request both chunks.
-
-                                MERGED CASE
-
-                                from the total of `groups` chunk groups
-                                - `a_rem` chunk groups request a `a_size` chunk
-                                - `b_rem` chunk groups request a `b_size` chunk
-                                - `o_groups` chunk groups request the merged chunk of size `(a_size + b_size)`
-                            */
-
-                            /*
-                                For our calculations we assume that there is a probability of 2/3 that we request exactly 1 chunk group (`N = 1`)
-                                and a probability of 2/3 that we request 2 chunk groups (`N = 2`).
-                                This is a simplification, but it should be good enough for our purposes.
-
-                                We want to compute the expected request count `e_req` and the expected total requested size `e_size` for the unmerged and merged case.
-
-                                To compute that we compute the two cases `N = 1` and `N = 2` and combine them
-                                e_size = 2/3 * e_size(N = 1) + 1/3 * e_size(N = 2)
-                                e_req = 2/3 * e_req(N = 1) + 1/3 * e_req(N = 2)
-
-                                We combine `e_size` with `e_req` using this formula:
-                                e_cost = e_req * c_req + e_size
-
-                                The constant `c_req` is the cost of a single request in transferred bytes. We have to choose a good value for that since there is no real value of that.
-                                This way we can compute a cost for both cases (`e_cost_unmerged` and `e_cost_merged`).
-
-                                With both costs we can compute the cost benefit `d` of merging the two chunks:
-                                d = e_cost_unmerged - e_cost_merged
-
-                                We can also split the formula into two parts:
-                                d = d_req * c_req + d_size
-                                d_size = e_size_unmerged - e_size_merged
-                                d_req = e_req_unmerged - e_req_merged
-
-                                And we can split it further for every N:
-                                d_size = 2/3 * d_size(N = 1) + 1/3 * d_size(N = 2)
-                                d_req = 2/3 * d_req(N = 1) + 1/3 * d_req(N = 2)
-                            */
-
-                            /*
-                                To compute `e_size` and `e_req` we need to determine all cases and there probabilities.
-
-                                UNMERGED CASE (N = 1):
-
-                                case X (p = a_rem/groups): size = b_size, requests = 1
-                                case Y (p = r_rem/groups): size = a_size, requests = 1
-                                case Z (p = o_groups/groups): size = a_size + b_size, requests = 2
-
-                                MERGED CASE (N = 1):
-
-                                case X (p = a_rem/groups): size = b_size, requests = 1
-                                case Y (p = r_rem/groups): size = a_size, requests = 1
-                                case Z (p = o_groups/groups): size = a_size + b_size, requests = 1
-                            */
-
-                            /*
-                                There is no difference in the sizes at all, so that means:
-
-                                d_size(N = 1) = 0
-
-                                The only difference is in case Z in the request count. That case has `p = o_groups/groups`:
-
-                                d_req(N = 1) = o_groups / groups * (2 - 1)
-                                d_req(N = 1) = o_groups / groups
-
-                                d(N = 1) = d_req(N = 1) * c_req + d_size(N = 1)
-                                         = o_groups / groups * c_req
-                            */
-
-                            /*
-                                The N = 2 case is more complicated, since we have to consider all possible combinations of the cases X, Y and Z for the two chunk groups:
-
-                                p_x = a_rem/groups
-                                p_y = r_rem/groups
-                                p_z = o_groups/groups
-
-                                The chunk groups remaining after the first one has been picked
-                                rem_g = groups - 1
-
-                                UNMERGED CASE (N = 2):
-                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = b_size, requests = 1
-                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = a_size, requests = 1
-                                case Z + Z (p = (o_groups/groups) * (o_groups - 1)/rem_g): size = a_size + b_size, requests = 2
-                                case X + Y (p = (a_rem/groups) * (b_rem/rem_g) + (b_rem/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
-                                case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
-                                case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = a_size + b_size, requests = 2
-
-                                MERGED CASE (N = 2):
-                                case X + X (p = (a_rem/groups) * ((a_rem - 1)/rem_g)): size = b_size, requests = 1
-                                case Y + Y (p = (b_rem/groups) * ((b_rem - 1)/rem_g)): size = a_size, requests = 1
-                                case Z + Z (p = (o_groups/groups) * (o_groups - 1)/rem_g): size = (a_size + b_size), requests = 1
-                                case X + Y (p = (a_rem/groups) * (b_rem/rem_g) + (b_rem/groups) * (a_rem/rem_g)): size = a_size + b_size, requests = 2
-                                case X + Z (p = (a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)): size = b_size + (a_size + b_size), requests = 3
-                                case Y + Z (p = (b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)): size = a_size + (a_size + b_size), requests = 3
-
-                                Request count is different in these cases: Z + Z (better), X + Z (worse), Y + Z (worse)
-                                Requests size is different (worse) in these cases: X + Z, Y + Z
-
-                                d_req_z_z = ((o_groups/groups) * (o_groups - 1)/rem_g) * (2 - 1)
-                                          = o_groups * (o_groups - 1) / (groups * rem_g)
-                                d_req_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (2 - 3)
-                                          = -2 * o_groups * a_rem / (groups * rem_g)
-                                d_req_y_z = ((b_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (b_rem/rem_g)) * (2 - 3)
-                                          = -2 * o_groups * b_rem / (groups * rem_g)
-
-                                d_req(N = 2) = o_groups * (o_groups - 1 - 2 * a_rem - 2 * b_rem) / (groups * rem_g)
-                                             = o_groups * (o_groups - 1 - 2 * (a_groups - o_groups) - 2 * (b_groups - o_groups)) / (groups * rem_g)
-                                             = o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)
-
-                                d_size_x_z = ((a_rem/groups) * (o_groups/rem_g) + (o_groups/groups) * (a_rem/rem_g)) * (a_size + b_size - (b_size + (a_size + b_size)))
-                                           = (2 * a_rem * o_groups / groups / rem_g)) * (-b_size)
-                                           = -2 * a_rem * b_size * o_groups / (groups * rem_g)
-                                d_size_y_z = -2 * b_rem * a_size * o_groups / (groups * rem_g)
-
-                                d_size(N = 2) = -2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
-
-
-                                d(N = 2) = d_req(N = 2) * c_req + d_size(N = 2)
-                                         = o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g) * c_req + 2 * (a_rem * b_size + b_rem * a_size) * o_groups) / (groups * rem_g)
-                                         = ((o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) * c_req - 2 * (a_rem * b_size + b_rem * a_size) * o_groups)) / (groups * rem_g)
-                            */
-
-                            /*
-                                d  = 2/3 * d(N = 1) + 1/3 * d(N = 2)
-                                3d = 2 * o_groups / groups * c_req + (o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) * c_req - 2 * (a_rem * b_size + b_rem * a_size) * o_groups) / (groups * rem_g)
-                                   = c_req * (2 * o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) - 2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
-                                   = c_req * (o_groups / groups) * (2 + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / rem_g) - 2 * (a_rem * b_size + b_rem * a_size) * o_groups / (groups * rem_g)
-
-                                We pull out some factors:
-                                3d = (c_req * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1)) - 2 * (a_rem * b_size + b_rem * a_size)) * o_groups / (rem_g * groups)
-                            */
-
-                            /*
-                               Note that d_size < 0. So we can make a quick check if d_req is positive.
-
-                               c_req * (o_groups / groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / (groups * rem_g)) > 0
-                               o_groups + o_groups * (5 * o_groups - 2 * a_groups - 2 * b_groups - 1) / rem_g > 0
-                               o_groups + o_groups * 5 * o_groups / rem_g - o_groups * (2 * a_groups + 2 * b_groups + 1) / rem_g > 0
-                               o_groups * rem_g + o_groups * 5 * o_groups - o_groups * (2 * a_groups + 2 * b_groups + 1) > 0
-                               o_groups * rem_g + o_groups * 5 * o_groups > o_groups * (2 * a_groups + 2 * b_groups + 1)
-                               rem_g + 5 * o_groups > 2 * a_groups + 2 * b_groups + 1
-                               rem_g + 5 * o_groups > 2 * (a_rem + o_groups) + 2 * (b_rem + o_groups) + 1
-                               rem_g + 5 * o_groups > 2 * a_rem + 2 * b_rem + 4 * o_groups + 1
-                               rem_g + o_groups > 2 * a_rem + 2 * b_rem + 1
-                               rem_g + o_groups > 2 * (a_rem + b_rem) + 1
-                               groups - 1 + o_groups > 2 * (a_rem + b_rem) + 1
-                               groups + o_groups > 2 * (a_rem + b_rem) + 2
-                            */
-
-                            // It need to have some request count benefit
-                            if groups + o_groups <= 2 * (a_rem + b_rem) + 2 {
+                            // If there are no overlapping groups, there is no benefit to
+                            // merging - skip this process. Also, our code assumes that
+                            // more than one group requests these chunks. If it was just
+                            // one group requesting both it should already have been merged
+                            // in `grouped_chunk_items` above.
+                            if o_groups == 0 || groups < 2 {
                                 continue;
                             }
                             let rem_g = groups - 1;
-                            let c_req = 200000;
-                            // d3 = 3 * d
-                            let pre_d3 = c_req
-                                * (2 * rem_g + (5 * o_groups - 2 * a_groups - 2 * b_groups - 1))
-                                - 2 * (a_rem * b_size + b_rem * a_size);
+
+                            // If a single priority route references every chunk group in the
+                            // overlap, we increase its P(N = 1) by
+                            // `priorityBoost` (default 1.5x, and as a
+                            // result reduce P(N = 2)). This is to encourage merging chunks used
+                            // on these priority routes.
+
+                            // `candidate` and `other` are both chunk items that we are considering
+                            // merging. they are both requested by different chunk groups, we are
+                            // optimising the overlap of these chunk groups. an example of something
+                            // in `o_groups` would be a chunk group that requests both chunk items.
+
+                            let mut is_priority_route = false;
+
+                            // Distinct pairs between the sets X (a_rem), Y (b_rem) and Z (overlap)
+                            // that are both in a cluster.
+                            let (mut c_xx, mut c_xy, mut c_xz, mut c_yy, mut c_yz, mut c_zz) =
+                                (0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+                            if let (Some(a), Some(b)) =
+                                (&candidate.chunk_groups, &other.chunk_groups)
+                            {
+                                let o = &***a & &***b; // `o_groups` (Z)
+
+                                // if there is one chunk group in `o_groups` that is used by a
+                                // priority route, we should prioritise merging these two chunk
+                                // items.
+                                is_priority_route = !o.is_disjoint(&heuristics.priority_routes);
+
+                                if has_clusters {
+                                    let x = &***a - &o; // a_rem groups: load only chunk A
+                                    let y = &***b - &o; // b_rem groups: load only chunk B
+
+                                    // Map each cluster to the candidate groups it contains.
+                                    let mut cluster_groups: FxHashMap<u16, RoaringBitmap> =
+                                        FxHashMap::default();
+                                    for set in [&x, &y, &o] {
+                                        for index in set.iter() {
+                                            for &c in &heuristics.clusters[index as usize] {
+                                                cluster_groups.entry(c).or_default().insert(index);
+                                            }
+                                        }
+                                    }
+
+                                    // Groups sharing >= 1 cluster with `index`, deduped across
+                                    // clusters (excluding `index` itself) so each pair counts once.
+                                    let pairs_with = |index: u32| {
+                                        let mut p = RoaringBitmap::new();
+                                        for &c in &heuristics.clusters[index as usize] {
+                                            if let Some(groups) = cluster_groups.get(&c) {
+                                                p |= groups;
+                                            }
+                                        }
+                                        p.remove(index);
+                                        p
+                                    };
+
+                                    for index in x.iter() {
+                                        let p = pairs_with(index);
+                                        c_xx += p.intersection_len(&x) as f64;
+                                        c_xy += p.intersection_len(&y) as f64;
+                                        c_xz += p.intersection_len(&o) as f64;
+                                    }
+                                    for index in y.iter() {
+                                        let p = pairs_with(index);
+                                        c_yy += p.intersection_len(&y) as f64;
+                                        c_yz += p.intersection_len(&o) as f64;
+                                    }
+                                    for index in o.iter() {
+                                        c_zz += pairs_with(index).intersection_len(&o) as f64;
+                                    }
+                                }
+                            }
+
+                            let paired_x = c_xx + c_xy + c_xz;
+                            let paired_y = c_xy + c_yy + c_yz;
+                            let paired_z = c_xz + c_yz + c_zz;
+
+                            let p1 = if is_priority_route {
+                                (default_p1 * priority_boost).min(1.0)
+                            } else {
+                                default_p1
+                            };
+                            let p2 = 1.0 - p1;
+
+                            let c_req = c_req as f64;
+                            let o = o_groups as f64;
+                            let groups = groups as f64;
+                            let rem_g = rem_g as f64;
+                            let a_rem = a_rem as f64;
+                            let b_rem = b_rem as f64;
+                            let a_size = a_size as f64;
+                            let b_size = b_size as f64;
+
+                            /* transition_probability(source -> dest): probability that, after landing on a page
+                            in the `source` set, the next navigation goes to the `dest` set.
+                            `CLUSTER_NAVIGATION_PROBABILITY` of the time it stays within a cluster
+                            (split across the source's pairs); the
+                            rest spreads over the non-paired groups. With no pairs it is a uniform hop.
+
+                            - pairs_to_dest: co-clustered pairs from source to dest
+                            - source_pairs: all co-clustered pairs leaving source (its row sum)
+                            - source_groups: number of groups in the source set
+                            - dest_groups: groups in the dest set (minus 1 if source == dest) */
+                            let transition_probability =
+                                |pairs_to_dest: f64,
+                                 source_pairs: f64,
+                                 source_groups: f64,
+                                 dest_groups: f64| {
+                                    if source_pairs == 0.0 {
+                                        // Source has no pairs: navigate uniformly.
+                                        return dest_groups / rem_g;
+                                    }
+                                    let non_paired_from_source =
+                                        rem_g * source_groups - source_pairs;
+                                    if non_paired_from_source <= 0.0 {
+                                        // Every other group is paired: all weight on the pairs.
+                                        return pairs_to_dest / source_pairs;
+                                    }
+                                    let non_paired_from_source_to_dest =
+                                        dest_groups * source_groups - pairs_to_dest;
+                                    CLUSTER_NAVIGATION_PROBABILITY * (pairs_to_dest / source_pairs)
+                                        + (1.0 - CLUSTER_NAVIGATION_PROBABILITY)
+                                            * (non_paired_from_source_to_dest
+                                                / non_paired_from_source)
+                                };
+
+                            let p_zz = transition_probability(c_zz, paired_z, o, o - 1.0);
+                            let p_zx = transition_probability(c_xz, paired_z, o, a_rem);
+                            let p_zy = transition_probability(c_yz, paired_z, o, b_rem);
+                            let p_xz = transition_probability(c_xz, paired_x, a_rem, o);
+                            let p_yz = transition_probability(c_yz, paired_y, b_rem, o);
+
+                            let d1 = o / groups * c_req;
+                            let d2 = (o * p_zz * c_req
+                                - a_size * (a_rem * p_xz + o * p_zx)
+                                - b_size * (b_rem * p_yz + o * p_zy))
+                                / groups;
+
+                            let value = p1 * d1 + p2 * d2;
                             // It need to have some runtime benefit of merging the chunks
-                            if pre_d3 < 0 {
+                            if value < 0.0 {
                                 continue;
                             }
-                            let d3 = pre_d3 * o_groups / (rem_g * groups);
-                            let value = d3;
 
                             if let Some((best_i1, best_i2, best_overlap, best_value)) =
                                 best_combination.as_mut()
                             {
-                                if (overlap.cmp(best_overlap)).then_with(|| value.cmp(best_value))
+                                if (overlap.cmp(best_overlap))
+                                    .then_with(|| value.total_cmp(best_value))
                                     == std::cmp::Ordering::Greater
                                 {
                                     *best_i1 = i;
@@ -471,7 +498,9 @@ pub async fn make_production_chunks(
                             chunk_items,
                             mut batch_groups,
                             chunk_groups,
+                            components: other_components,
                         } = other;
+                        candidate.components.extend(other_components);
                         candidate.size += size;
                         candidate.chunk_items.extend(chunk_items);
                         if batch_groups.len() + candidate.batch_groups.len() > 16 {
@@ -508,6 +537,7 @@ pub async fn make_production_chunks(
                                 chunk_items: unused.chunk_items,
                                 batch_groups: unused.batch_groups,
                                 chunk_groups: unused.chunk_groups,
+                                components: unused.components,
                             });
                         } else {
                             chunks_to_merge.push(unused);
@@ -523,11 +553,13 @@ pub async fn make_production_chunks(
                 let mut remained_size = 0;
                 let mut remained_chunk_items = Vec::new();
                 let mut remained_batch_groups = FxIndexSet::default();
+                let mut remained_components = Vec::new();
                 for MergeCandidate {
                     size,
                     chunk_items,
                     batch_groups,
                     chunk_groups,
+                    components,
                 } in chunks_to_merge.into_iter()
                 {
                     if size > merge_threshold {
@@ -536,11 +568,13 @@ pub async fn make_production_chunks(
                             chunk_items,
                             batch_groups,
                             chunk_groups,
+                            components,
                         });
                     } else {
                         remained_size += size;
                         remained_chunk_items.extend(chunk_items);
                         remained_batch_groups.extend(batch_groups);
+                        remained_components.extend(components);
                     }
                 }
 
@@ -552,6 +586,7 @@ pub async fn make_production_chunks(
                         chunk_items: remained_chunk_items,
                         batch_groups: remained_batch_groups.into_iter().collect(),
                         chunk_groups: None,
+                        components: remained_components,
                     });
                 }
             }
@@ -563,13 +598,22 @@ pub async fn make_production_chunks(
                 chunk_items,
                 batch_groups,
                 size,
+                components,
                 ..
             } in heap.into_iter()
             {
                 total_size += size;
+                // Merged chunks also emit their constituent components as referenced "module
+                // chunks" for cache-aware loading; a plain chunk passes no
+                // components.
+                let components = generate_component_chunks
+                    .then(|| split_into_component_chunks(components, min_component_chunk_size))
+                    .flatten()
+                    .unwrap_or_default();
                 make_chunk(
                     chunk_items,
                     batch_groups.into_vec(),
+                    components,
                     &mut String::new(),
                     &mut split_context,
                 )
@@ -584,11 +628,22 @@ pub async fn make_production_chunks(
     .await
 }
 
+/// One original (pre-merge) atomic chunk group. A [`ChunkCandidate`]/[`MergeCandidate`] tracks the
+/// components it was merged from so the emitted merged chunk can also expose them as individual
+/// "module chunks" for cache-aware loading at runtime.
+struct ChunkComponent<'l> {
+    size: usize,
+    chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
+    batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
+}
+
 struct ChunkCandidate<'l> {
     size: usize,
     chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
+    /// Original groups this candidate covers; one per chunk, > 1 once merged.
+    components: Vec<ChunkComponent<'l>>,
 }
 
 impl Ord for ChunkCandidate<'_> {
@@ -616,6 +671,8 @@ struct MergeCandidate<'l> {
     chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
+    /// Original groups this candidate covers; one per chunk, > 1 once merged.
+    components: Vec<ChunkComponent<'l>>,
 }
 
 impl MergeCandidate<'_> {
@@ -645,6 +702,45 @@ impl Eq for MergeCandidate<'_> {}
 impl PartialEq for MergeCandidate<'_> {
     fn eq(&self, other: &Self) -> bool {
         self.size == other.size
+    }
+}
+
+fn split_into_component_chunks<'l>(
+    components: Vec<ChunkComponent<'l>>,
+    min_component_chunk_size: usize,
+) -> Option<Vec<ComponentChunkItems<'l>>> {
+    // A single original part can't benefit from splitting.
+    if components.len() <= 1 {
+        return None;
+    }
+    let mut component_chunks: Vec<ComponentChunkItems<'l>> = Vec::new();
+    let mut remainder_items: Vec<&'l ChunkItemOrBatchWithInfo> = Vec::new();
+    let mut remainder_batch_groups = FxIndexSet::default();
+    for part in components {
+        if part.size >= min_component_chunk_size {
+            component_chunks.push((part.chunk_items, part.batch_groups.into_vec()));
+        } else {
+            // we create a "remainder" chunk with smaller component chunks so that
+            // an entire chunk can be loaded by loading all of its component chunks
+            remainder_items.extend(part.chunk_items);
+            remainder_batch_groups.extend(part.batch_groups);
+        }
+    }
+
+    // TODO (@sampoder): handle the case where there are many the component chunks
+    // that are only slightly smaller than the min_component_chunk_size. this may
+    // mean that there is no benefit to component chunking.
+    if !remainder_items.is_empty() {
+        component_chunks.push((
+            remainder_items,
+            remainder_batch_groups.into_iter().collect(),
+        ));
+    }
+    // A split is only worthwhile if it yields more than one component chunk.
+    if component_chunks.len() <= 1 {
+        None
+    } else {
+        Some(component_chunks)
     }
 }
 

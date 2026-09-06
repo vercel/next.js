@@ -3,7 +3,7 @@
 // trybuild's stderr snapshot comparisons. Unsetting it here means only the
 // sub-compilations trybuild spawns are affected — the main test binary was already
 // compiled with sccache.
-#[ctor::ctor]
+#[ctor::ctor(unsafe)]
 fn unset_rustc_wrapper() {
     unsafe { std::env::remove_var("RUSTC_WRAPPER") };
 }

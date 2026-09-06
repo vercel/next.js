@@ -281,7 +281,7 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-To automatically bundle all packages, you can use the [`bundlePagesRouterDependencies`](/docs/pages/api-reference/config/next-config-js/bundlePagesRouterDependencies) option in your `next.config.js`.
+To automatically bundle all packages, you can use the [`bundlePagesRouterDependencies`](/docs/pages/api-reference/config/next-config-js/bundlePagesRouterDependencies) option in your `next.config.js`. This option defaults to `false`.
 
 ```js filename="next.config.js"
 /** @type {import('next').NextConfig} */

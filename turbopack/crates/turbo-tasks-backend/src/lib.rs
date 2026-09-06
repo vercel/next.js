@@ -1,5 +1,5 @@
 #![feature(anonymous_lifetime_in_impl_trait)]
-#![feature(box_patterns)]
+#![feature(deref_patterns)]
 
 mod backend;
 mod backing_storage;
@@ -14,22 +14,29 @@ use std::path::Path;
 use anyhow::Result;
 use turbo_persistence::{CompactConfig, TurboPersistence};
 
-use crate::database::{
-    noop_kv::NoopKvDb,
-    turbo::{self, TurboKeyValueDatabase},
-};
+use crate::database::turbo::{self, TurboKeyValueDatabase};
 pub use crate::{
-    backend::{BackendOptions, StorageMode, TurboTasksBackend},
-    backing_storage::BackingStorage,
+    backend::{BackendOptions, EvictionMode, StorageMode, TurboTasksBackend},
     database::{
         db_invalidation,
         db_invalidation::StartupCacheState,
         db_versioning::{GitVersionInfo, handle_db_versioning},
     },
-    kv_backing_storage::KeyValueDatabaseBackingStorage,
+    kv_backing_storage::TurboBackingStorage,
 };
 
-pub type TurboBackingStorage = KeyValueDatabaseBackingStorage<TurboKeyValueDatabase>;
+/// Options controlling how the on-disk persistent cache database is opened and compacted.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct BackingStorageOptions {
+    /// Whether the process is running in a CI environment. Enables more aggressive (full)
+    /// compaction on shutdown to reduce the size of the cache that gets uploaded.
+    pub is_ci: bool,
+    /// Whether this is a short-lived session (e.g. a single build). Disables background
+    /// persistence during the session
+    pub is_short_session: bool,
+    /// Whether to skip database compaction on shutdown entirely
+    pub skip_compaction: bool,
+}
 
 /// Creates a `BackingStorage` to be passed to [`TurboTasksBackend::new`].
 ///
@@ -37,23 +44,21 @@ pub type TurboBackingStorage = KeyValueDatabaseBackingStorage<TurboKeyValueDatab
 pub fn turbo_backing_storage(
     base_path: &Path,
     version_info: &GitVersionInfo,
-    is_ci: bool,
-    is_short_session: bool,
-    skip_compaction: bool,
+    options: BackingStorageOptions,
 ) -> Result<(TurboBackingStorage, StartupCacheState)> {
-    KeyValueDatabaseBackingStorage::open_versioned_on_disk(
+    TurboBackingStorage::open_versioned_on_disk(
         base_path.to_owned(),
         version_info,
-        is_ci,
-        |path| TurboKeyValueDatabase::new(path, is_ci, is_short_session, skip_compaction),
+        options.is_ci,
+        |path| TurboKeyValueDatabase::new(path, options),
     )
 }
 
-pub type NoopBackingStorage = KeyValueDatabaseBackingStorage<NoopKvDb>;
-
-/// Creates an no-op in-memory `BackingStorage` to be passed to [`TurboTasksBackend::new`].
-pub fn noop_backing_storage() -> NoopBackingStorage {
-    KeyValueDatabaseBackingStorage::new_in_memory(NoopKvDb)
+/// Creates an in-memory `BackingStorage` to be passed to [`TurboTasksBackend::new`]. Backed by
+/// an empty, read-only [`TurboPersistence`] — reads return `None`, writes are not expected
+/// (callers should set [`BackendOptions::storage_mode`] to `None`).
+pub fn noop_backing_storage() -> TurboBackingStorage {
+    TurboBackingStorage::new_in_memory(TurboKeyValueDatabase::empty_in_memory())
 }
 
 /// Opens a Turbopack persistent cache database at the given base path and performs a full

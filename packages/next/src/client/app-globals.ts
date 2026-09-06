@@ -11,6 +11,8 @@ if (process.env.__NEXT_DEV_SERVER) {
 // Browser-only.
 if (process.env.__NEXT_EXPOSE_TESTING_API && typeof window !== 'undefined') {
   const { startListeningForInstantNavigationCookie } =
+    // TODO(browser-variant): migrate to a .ts/.browser.ts split so the browser bundle drops the server branch; see scripts/generate-browser-variant-aliases.mjs
+    // ast-grep-ignore: no-typeof-window-require
     require('./components/segment-cache/navigation-testing-lock') as typeof import('./components/segment-cache/navigation-testing-lock')
   startListeningForInstantNavigationCookie()
 }

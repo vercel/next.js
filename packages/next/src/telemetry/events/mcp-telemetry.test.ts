@@ -77,7 +77,11 @@ describe('MCP Telemetry Events', () => {
       'mcp/get_logs',
       'mcp/get_page_metadata',
       'mcp/get_project_metadata',
+      'mcp/get_routes',
+      'mcp/get_request_insights',
       'mcp/get_server_action_by_id',
+      'mcp/get_compilation_issues',
+      'mcp/compile_route',
     ]
 
     const usages = allTools.map((tool, index) => ({
@@ -87,7 +91,7 @@ describe('MCP Telemetry Events', () => {
 
     const events = eventMcpToolUsage(usages)
 
-    expect(events).toHaveLength(5)
+    expect(events).toHaveLength(9)
 
     events.forEach((event, index) => {
       expect(event.eventName).toBe(EVENT_MCP_TOOL_USAGE)

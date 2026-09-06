@@ -1,20 +1,20 @@
 use std::{
     cmp::Ordering,
     fmt::Display,
-    fs::File,
     path::{Path, PathBuf},
     sync::OnceLock,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result, bail, ensure};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
+use fs_err::File;
 use memmap2::{Mmap, MmapOptions};
 use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
 use crate::{
-    QueryKey,
+    Compression, FamilyConfig, QueryKey,
     lookup_entry::LookupValue,
     mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -48,6 +48,9 @@ impl Display for MetaEntryFlags {
         }
     }
 }
+
+/// Magic number identifying a `.meta` file.
+pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4A;
 
 /// On-disk layout of a single entry header in the `.meta` file.
 ///
@@ -114,6 +117,8 @@ pub struct MetaEntry {
     ///
     /// The `'static` lifetime is transmuted — the actual borrow is from `MetaFile::mmap`.
     amqf: qfilter::FilterRef<'static>,
+    /// Compression recorded in this entry's meta file.
+    compression: Compression,
     /// The static sorted file that is lazily loaded
     sst: OnceLock<StaticSortedFile>,
 }
@@ -139,6 +144,10 @@ impl MetaEntry {
         self.amqf_data_offset.end - self.amqf_data_offset.start
     }
 
+    pub fn amqf(&self) -> &qfilter::FilterRef<'static> {
+        &self.amqf
+    }
+
     /// Returns the raw serialized AMQF bytes from the mmap.
     pub fn raw_amqf<'l>(&self, amqf_data: &'l [u8]) -> &'l [u8] {
         &amqf_data[self.amqf_data_offset.start as usize..self.amqf_data_offset.end as usize]
@@ -146,12 +155,14 @@ impl MetaEntry {
 
     fn sst(&self, meta: &MetaFile) -> Result<&StaticSortedFile> {
         self.sst.get_or_try_init(|| {
-            StaticSortedFile::open(&meta.db_path, self.sst_data).with_context(|| {
-                format!(
-                    "Unable to open static sorted file referenced from {:08}.meta",
-                    meta.sequence_number()
-                )
-            })
+            StaticSortedFile::open(&meta.db_path, self.sst_data, self.compression).with_context(
+                || {
+                    format!(
+                        "Unable to open static sorted file referenced from {:08}.meta",
+                        meta.sequence_number()
+                    )
+                },
+            )
         })
     }
 
@@ -237,6 +248,8 @@ pub struct MetaFile {
     sequence_number: u32,
     /// The key family of the SST files in this meta file.
     family: u32,
+    /// Compression recorded for this family.
+    compression: Compression,
     /// The entries of the file. Dropped before `mmap` (field declaration order).
     entries: Vec<MetaEntry>,
     /// The entries that have been marked as obsolete.
@@ -259,16 +272,30 @@ pub struct MetaFile {
 impl MetaFile {
     /// Opens a meta file at the given path. Memory maps the entire file and eagerly deserializes
     /// all AMQF filters as zero-copy [`qfilter::FilterRef`]s that borrow from the mmap.
-    pub fn open(db_path: &Path, sequence_number: u32) -> Result<Self> {
+    pub fn open(
+        db_path: &Path,
+        sequence_number: u32,
+        family_configs: Option<&[FamilyConfig]>,
+    ) -> Result<Self> {
         let filename = format!("{sequence_number:08}.meta");
         let path = db_path.join(&filename);
-        Self::open_internal(db_path.to_path_buf(), sequence_number, &path)
-            .with_context(|| format!("Unable to open meta file {filename}"))
+        Self::open_internal(
+            db_path.to_path_buf(),
+            sequence_number,
+            &path,
+            family_configs,
+        )
+        .with_context(|| format!("Unable to open meta file {filename}"))
     }
 
-    fn open_internal(db_path: PathBuf, sequence_number: u32, path: &Path) -> Result<Self> {
-        let file = File::open(path).context("Failed to open meta file")?;
-        let mmap = unsafe { MmapOptions::new().map(&file) }.context("Failed to mmap")?;
+    fn open_internal(
+        db_path: PathBuf,
+        sequence_number: u32,
+        path: &Path,
+        family_configs: Option<&[FamilyConfig]>,
+    ) -> Result<Self> {
+        let file = File::open(path)?;
+        let mmap = unsafe { MmapOptions::new().map(file.file()) }.context("Failed to mmap")?;
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Random)
             .context("Failed to advise mmap")?;
@@ -276,10 +303,26 @@ impl MetaFile {
         // Parse the header from the mmap via ReadBytesExt on &[u8].
         let mut reader: &[u8] = &mmap;
         let magic = reader.read_u32::<BE>()?;
-        if magic != 0xFE4ADA4A {
+        if magic != META_FILE_MAGIC {
             bail!("Invalid magic number");
         }
         let family = reader.read_u32::<BE>()?;
+        let compression = match reader.read_u8()? {
+            value if value == Compression::Lz4 as u8 => Compression::Lz4,
+            value if value == Compression::Zstd3 as u8 => Compression::Zstd3,
+            value => bail!("Invalid compression algorithm {value}"),
+        };
+        if let Some(configs) = family_configs {
+            let configured = configs
+                .get(family as usize)
+                .with_context(|| format!("No configuration for family {family}"))?
+                .compression;
+            ensure!(
+                compression == configured,
+                "Compression configuration mismatch for family {family}: meta file uses \
+                 {compression:?}, runtime config uses {configured:?}"
+            );
+        }
         let obsolete_count = reader.read_u32::<BE>()?;
         let mut obsolete_sst_files = Vec::with_capacity(obsolete_count as usize);
         for _ in 0..obsolete_count {
@@ -337,6 +380,7 @@ impl MetaFile {
                 flags,
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
                 amqf,
+                compression,
                 sst: OnceLock::new(),
             });
             start_of_amqf_data_offset = end_of_amqf_data_offset;
@@ -349,6 +393,7 @@ impl MetaFile {
             db_path,
             sequence_number,
             family,
+            compression,
             entries,
             obsolete_entries: Vec::new(),
             obsolete_sst_files,
@@ -377,6 +422,15 @@ impl MetaFile {
 
     pub fn family(&self) -> u32 {
         self.family
+    }
+
+    pub fn compression(&self) -> Compression {
+        self.compression
+    }
+
+    /// The on-disk size of this meta file in bytes (the length of its memory map).
+    pub fn byte_size(&self) -> u64 {
+        self.mmap.len() as u64
     }
 
     pub fn entries(&self) -> &[MetaEntry] {
@@ -475,10 +529,12 @@ impl MetaFile {
                         // Return immediately with the first result
                         return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(values)));
                     }
-                    // Check for tombstone — stops search across older SSTs within this meta file.
-                    // Since tombstones sort last within a key group, if the last value is Deleted,
-                    // we have a tombstone.
-                    let has_tombstone = values.last().is_some_and(|v| *v == LookupValue::Deleted);
+                    // A key tombstone stops the search across older SSTs within this meta file.
+                    // It sorts last within a key group, so it is the last value if present.
+                    // Key-value tombstones do not stop the search: they delete a single value,
+                    // and older SSTs may hold others for this key.
+                    let has_tombstone =
+                        values.last().is_some_and(|v| *v == LookupValue::KeyDeleted);
                     all_results.extend(values);
                     if has_tombstone {
                         return Ok(MetaLookupResult::SstLookup(SstLookupResult::Found(
