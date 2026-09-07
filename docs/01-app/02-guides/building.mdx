@@ -69,17 +69,39 @@ Without Cache Components, App Router pages and Pages Router routes use these ren
 
 With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), [Partial Prerendering](/docs/app/getting-started/caching#static-cached-and-streaming) is the only rendering model for App Router pages. For these pages, the symbols describe how much HTML the build produced:
 
-| Symbol | Build label       | HTML produced during the build                                               |
-| ------ | ----------------- | ---------------------------------------------------------------------------- |
-| `○`    | Static            | A complete HTML prerender.                                                   |
-| `◐`    | Partial Prerender | A static shell followed by content that renders on demand.                   |
-| `ƒ`    | Dynamic           | An empty HTML prerender for a specific pathname. The page renders on demand. |
+| Symbol | Build label       | HTML produced during the build                             |
+| ------ | ----------------- | ---------------------------------------------------------- |
+| `○`    | Static            | A complete HTML prerender.                                 |
+| `◐`    | Partial Prerender | A static shell followed by content that renders on demand. |
+| `ƒ`    | Dynamic           | No HTML for that row. The page renders on demand.          |
 
-For a Cache Components page, `ƒ` means the build produced empty HTML for that specific pathname. Next.js produces the page HTML on request.
+For a Cache Components page, `ƒ` means the build accepted an empty HTML prerender for that row. Next.js produces the page HTML on request. A dynamic route can also have a fallback row for pathnames not listed by `generateStaticParams`. The example below shows how this row is displayed.
 
 ### Other route entries
 
 Request-dependent [Route Handlers](/docs/app/api-reference/file-conventions/route) (API endpoints), Proxy (Middleware), and dynamic metadata routes such as `icon`, `opengraph-image`, and `twitter-image` use `ƒ`. These entries render on demand and do not use PPR.
+
+### Prerender validation
+
+With Cache Components, `next build` validates that each App Router page can produce a static shell. Request-time values such as `params`, `cookies()`, and `headers()` outside of `<Suspense>` produce a [runtime data error](/docs/messages/blocking-prerender-runtime). Uncached data produces an [uncached data error](/docs/messages/blocking-prerender-dynamic). Each error links to the fixes that apply to that data source.
+
+### Debug prerender errors
+
+Production builds minify server code and omit server source maps by default. Use [`--debug-prerender`](/docs/app/api-reference/cli/next#debugging-prerender-errors) for more detailed stack traces and code frames:
+
+```bash filename="Terminal"
+next build --debug-prerender
+```
+
+The option disables server minification, enables server source maps, and continues after the first prerender error.
+
+> **Warning**: Do not deploy builds produced with `--debug-prerender`. These builds include debugging options and are not optimized for production.
+
+### Build specific routes
+
+Use [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) to compile and prerender selected routes while debugging a large application. The option accepts comma-separated paths and glob patterns. Prefix a pattern with `!` to exclude it. You can also combine it with `--debug-prerender`.
+
+Only matching routes appear in the route table. When you select an App Router route, Next.js also includes the built-in `/_not-found` route.
 
 ## Example
 
@@ -139,17 +161,13 @@ Error occurred prerendering page "/products/[id]".
 
 With Cache Components, Next.js validates whether the route can produce a static shell.
 
-The error shows that request-time work is blocking prerendering, but the stack only points to `body` and `html`. It does not identify the source line.
-
-### Debugging build errors
-
-Production builds minify server code and omit server source maps by default. Rerun the build with [`--debug-prerender`](/docs/app/api-reference/cli/next#debugging-prerender-errors):
+The error shows that request-time work is blocking prerendering, but the stack only points to `body` and `html`. It does not identify the source line. Rerun only the product route with both debugging options:
 
 ```bash filename="Terminal"
-next build --debug-prerender
+next build --debug-prerender --debug-build-paths="app/products/[id]/page.tsx"
 ```
 
-The flag disables server minification, enables server source maps, and continues after the first prerender error. It helps with all errors thrown during prerendering, including blocking errors. The stack now points to the first blocked access in the page, the `params` read:
+The stack now points to the first blocked access in the page, the `params` read:
 
 ```bash filename="Terminal"
 Error: Route "/products/[id]": Next.js encountered uncached or runtime data during prerendering.
@@ -164,13 +182,11 @@ Error: Route "/products/[id]": Next.js encountered uncached or runtime data duri
 
 The detailed stack identifies the [`params`](/docs/app/api-reference/file-conventions/page#params-optional) read as the first blocked access. The uncached product request below it also requires request-time work.
 
-> **Warning**: Do not deploy builds produced with `--debug-prerender`. These builds include debugging options and are not optimized for production.
-
 The development server shows the resolved component and source line in the error overlay. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the development workflow.
 
 The error provides three options: stream the request-time work, cache the product request, or allow the route to block. The following sections show how each option changes the build output.
 
-### A streaming route
+### Stream request-time content
 
 Follow the error's `[stream]` suggestion by adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file. The file wraps the segment in a `<Suspense>` boundary. Next.js prerenders the fallback as the route's static shell, while the params and data work runs at request time. For other boundary placements, see [Streaming](/docs/app/guides/streaming):
 
@@ -186,12 +202,17 @@ export default function Loading() {
 }
 ```
 
-Run the build. It passes, and the route is [partially prerendered](/docs/app/glossary#partial-prerendering-ppr):
+Rebuild only the product route:
+
+```bash filename="Terminal"
+next build --debug-build-paths="app/products/[id]/page.tsx"
+```
+
+The build passes, and the route is [partially prerendered](/docs/app/glossary#partial-prerendering-ppr). Because the command selects only the product route, the table omits `/`:
 
 ```bash filename="Terminal"
 Route (app)
-┌ ○ /                   # Prerendered at build time
-├ ○ /_not-found
+┌ ○ /_not-found
 └   /products/[id]
   └ ◐ /products/[id]    # Shell prerendered, content streams on request
 
@@ -199,19 +220,9 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-Product URLs now serve the prerendered shell instantly, then stream the page content.
+Product URLs now serve the prerendered shell instantly, then stream the page content. At this point, every product URL uses the same shell and waits for its product data. If some product IDs are known during the build, Next.js can attempt to prerender more of those pages.
 
-### Building specific routes
-
-Use [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) to compile and prerender selected routes while debugging a large application:
-
-```bash filename="Terminal"
-next build --debug-build-paths="app/products/[id]/page.tsx"
-```
-
-Next.js compiles and prerenders the matching routes and skips the rest. The option accepts comma-separated paths and glob patterns. Prefix a pattern with `!` to exclude it. You can combine the option with `--debug-prerender`. TypeScript still checks the complete project selected by your `tsconfig` file.
-
-### Prerendered params
+### Prerender known paths
 
 The [dynamic segment](/docs/app/glossary#dynamic-route-segments) shows a single fallback row because Next.js doesn't know which param values exist. Export `generateStaticParams` to list them:
 
@@ -245,12 +256,11 @@ export default async function Page({ params }) {
 }
 ```
 
-Running the build again adds a row for each listed param, indented under the `/products/[id]` route:
+Rebuilding the product route adds a row for each listed param, indented under the `/products/[id]` route:
 
 ```bash filename="Terminal"
 Route (app)
-┌ ○ /
-├ ○ /_not-found
+┌ ○ /_not-found
 └   /products/[id]
   ├ ◐ /products/[id]
   ├ ◐ /products/1       # Params known, data still uncached
@@ -265,7 +275,9 @@ Route (app)
 
 The listed params appear as `◐`. The params tell Next.js which pathnames to prerender, while the uncached lookup supplies their content at request time. Each page serves the static shell and streams its content.
 
-### Cached data
+The known paths still wait for the product lookup because it remains uncached. If the product data can be reused, cache the lookup so the build can finish prerendering those pages.
+
+### Cache reusable data
 
 The error's `[cache]` fix makes the product lookup reusable. Add `use cache` so Next.js can include the result when it prerenders a known product:
 
@@ -309,12 +321,11 @@ export default async function Page({ params }) {
 }
 ```
 
-Running the build again shows the listed params as `○`. Their params are known and their data is cached, so Next.js prerenders each page in full. The `◐` row remains for unlisted params, which serve the static shell while their content streams:
+Rebuilding the product route shows the listed params as `○`. Their params are known and their data is cached, so Next.js prerenders each page in full. The `◐` row remains for unlisted params, which serve the static shell while their content streams:
 
 ```bash filename="Terminal"
 Route (app)
-┌ ○ /
-├ ○ /_not-found
+┌ ○ /_not-found
 └   /products/[id]
   ├ ◐ /products/[id]    # Unlisted params stream on demand
   ├ ○ /products/1       # Prerendered in full at build time
@@ -345,14 +356,20 @@ Route (app)           Revalidate  Expire
   └ ○ /products/3            15m      1y
 ```
 
-The built-in `default` profile revalidates after 15 minutes and never expires. The build output represents an unbounded expiration as one year, shown as `1y`. You can override the default profile in `next.config.ts`. The table does not identify which cache produced each value, so check the route's `cacheLife` calls when it contains multiple caches.
+The built-in `default` profile revalidates after 15 minutes. Its cache lifetime is unbounded, so the route uses the global `expireTime` fallback. `expireTime` defaults to one year, shown as `1y`. You can override the cache profile or `expireTime` in `next.config.ts`. The table does not identify which cache produced each value, so check the route's `cacheLife` calls when it contains multiple caches.
 
-### A blocking route
+### Allow the route to block
 
-Set `instant = false` when the route is allowed to block. The export does not change the rendering model. It opts the segment out of instant-navigation validation. When it is the highest `instant` config in the route tree, it also disables static-shell validation, allowing the build to accept an empty HTML prerender. The route continues to use PPR:
+The `[block]` option is an alternative to caching the product lookup. Suppose the product IDs should still be collected during the build, but each page must read fresh product data before responding. Keep `generateStaticParams`, remove the `loading` file and `use cache`, and set `instant = false`:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export const instant = false
+
+export async function generateStaticParams() {
+  const res = await fetch('https://api.example.com/products')
+  const products = await res.json()
+  return products.map((product) => ({ id: product.id }))
+}
 
 export default async function Page(props: PageProps<'/products/[id]'>) {
   const { id } = await props.params
@@ -365,6 +382,12 @@ export default async function Page(props: PageProps<'/products/[id]'>) {
 ```jsx filename="app/products/[id]/page.js" switcher
 export const instant = false
 
+export async function generateStaticParams() {
+  const res = await fetch('https://api.example.com/products')
+  const products = await res.json()
+  return products.map((product) => ({ id: product.id }))
+}
+
 export default async function Page({ params }) {
   const { id } = await params
   const res = await fetch(`https://api.example.com/products/${id}`)
@@ -373,20 +396,26 @@ export default async function Page({ params }) {
 }
 ```
 
-Next.js attempts to prerender the route. If request-time work blocks the whole page, the build produces empty HTML. Synchronous values such as `Math.random()`, `new Date()`, and `crypto.randomUUID()` still produce prerender errors.
+The `instant = false` export does not change the rendering model. It opts the segment out of instant-navigation validation. When it is the highest `instant` config in the route tree, it also disables static-shell validation, allowing the build to accept an empty HTML prerender. The route continues to use PPR.
 
-The build passes with PPR and an empty HTML prerender. This example has a dynamic segment, so the route table shows `◐` on its fallback row. The same empty output for a specific pathname shows `ƒ`:
+Next.js attempts to prerender each path from `generateStaticParams`. The uncached product request blocks the whole page, so the build produces empty HTML for each row:
 
 ```bash filename="Terminal"
 Route (app)
-┌ ○ /
-├ ○ /_not-found
+┌ ○ /_not-found
 └   /products/[id]
-  └ ◐ /products/[id]    # Empty PPR HTML. Content renders on demand
+  ├ ƒ /products/[id]    # Empty fallback HTML
+  ├ ƒ /products/1       # Empty HTML. Renders on request
+  ├ ƒ /products/2       # Empty HTML. Renders on request
+  └ ƒ /products/3       # Empty HTML. Renders on request
 
-○  (Static)             prerendered as static content
-◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
 ```
+
+Without `generateStaticParams`, the table has only the `/products/[id]` fallback row. That row uses `◐` because it represents the PPR fallback for the dynamic route pattern, even when its HTML is empty. When `generateStaticParams` adds child rows, each row reflects its prerender result, so an empty result uses `ƒ`.
+
+Synchronous values such as `Math.random()`, `new Date()`, and `crypto.randomUUID()` still produce prerender errors.
 
 On an initial request, the server waits for the product lookup before returning the completed page. During a client navigation, the destination has no fallback to show while that work runs. See [Opting out](/docs/app/guides/instant-navigation#opting-out) for when this is appropriate.
 
