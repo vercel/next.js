@@ -55,18 +55,18 @@ bun run build
 
 After a successful build, Next.js prints a route table with a symbol next to each route, showing how it is served:
 
-| Symbol | Name              | Behavior                                                                    |
-| ------ | ----------------- | --------------------------------------------------------------------------- |
-| `○`    | Static            | Fully prerendered at build time. Served without server rendering.           |
-| `◐`    | Partial Prerender | Prerenders what it can at build time. Remaining content renders on demand.  |
-| `●`    | SSG               | Prerendered static HTML (from `generateStaticParams` or `getStaticProps`).  |
-| `ƒ`    | Dynamic           | Rendered on demand. With Cache Components, the HTML prerender can be empty. |
+| Symbol | Name              | Behavior                                                                   |
+| ------ | ----------------- | -------------------------------------------------------------------------- |
+| `○`    | Static            | Fully prerendered at build time. Served without server rendering.          |
+| `◐`    | Partial Prerender | Prerenders what it can at build time. Remaining content renders on demand. |
+| `●`    | SSG               | Prerendered static HTML (from `generateStaticParams` or `getStaticProps`). |
+| `ƒ`    | Dynamic           | Rendered on demand. Can also label an empty PPR HTML output.               |
 
-Next.js also uses `○` Static, `●` SSG, and `ƒ` Dynamic for Pages Router routes and App Router routes without Cache Components. In those models, a route is either prerendered to static HTML or rendered on demand for each request.
+Next.js uses `○` Static, `●` SSG, and `ƒ` Dynamic for Pages Router routes, App Router routes without Cache Components, and non-page routes such as request-dependent Route Handlers. In those models, a route is either prerendered to static HTML or rendered on demand for each request.
 
-[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) uses [Partial Prerendering](/docs/app/getting-started/caching#static-cached-and-streaming) for every App Router page, even when the build produces no HTML shell. The build can produce complete HTML, partial HTML, or an empty HTML file. Per-segment [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) may still contain static information when the HTML file is empty.
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) uses [Partial Prerendering](/docs/app/getting-started/caching#static-cached-and-streaming) for every App Router page. This is still the rendering model when the build produces an empty HTML file. Per-segment [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) may contain static information even when the route has no prerendered HTML.
 
-The current symbols do not distinguish complete, partial, and empty prerenders. A blocking page with an empty HTML file can show `ƒ`. A fallback row for a dynamic route can show `◐` even when its HTML file is empty.
+The symbols do not map directly to the PPR model's complete, partial, and empty HTML outputs. `○` represents a complete prerender. An empty prerender can appear as `ƒ` for a page at a fixed pathname or `◐` on the fallback row for a dynamic pathname. For a Cache Components page, `ƒ` describes its empty HTML output. It does not mean the page stopped using PPR.
 
 The symbol is not a direct report of route config such as [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant). Without Cache Components, or on the Pages Router, prerendered pages can also show `●` (SSG).
 
@@ -362,14 +362,14 @@ export default async function Page({ params }) {
 
 The opt-out applies to asynchronous work such as the `params` read and product request. Synchronous runtime values such as `Math.random()`, `new Date()`, and `crypto.randomUUID()` can still cause a prerender error.
 
-The build passes. A fixed route whose prerender contains empty HTML shows `ƒ`. This example has a dynamic segment, so its fallback row shows `◐` even though the fallback HTML is empty:
+The build passes. The page still uses PPR even though its HTML prerender is empty. This example has a dynamic segment, so the route table shows `◐` on its fallback row. A page at a fixed pathname with the same empty PPR HTML output can show `ƒ` instead:
 
 ```bash filename="Terminal"
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
 └   /products/[id]
-  └ ◐ /products/[id]    # Renders on demand, blocking on the lookup
+  └ ◐ /products/[id]    # Empty PPR HTML; content renders on demand
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
