@@ -1058,7 +1058,7 @@ function maybePropagateCacheEntryMetadata(
     }
     case 'request': {
       if (
-        process.env.NODE_ENV === 'development' &&
+        isValidationRender(outerWorkUnitStore) &&
         outerWorkUnitStore.cacheSignal
       ) {
         // If we're filling caches for a dev request, apply the same logic as
@@ -1986,9 +1986,9 @@ export async function cache(
         break
       }
       case 'request': {
-        if (process.env.NODE_ENV === 'development') {
+        if (isValidationRender(outerWorkUnitStore)) {
           // Similar to runtime prerenders, private caches should not resolve in the static stage
-          // of a dev request, so we delay them.
+          // of a validation request, so we delay them.
           await makeDevtoolsIOAwarePromise(
             undefined,
             outerWorkUnitStore,
@@ -2453,7 +2453,7 @@ export async function cache(
               break
             }
             case 'request': {
-              if (process.env.NODE_ENV === 'development') {
+              if (isValidationRender(workUnitStore)) {
                 // These throws force an explicit cache life decision on an
                 // outer cache that a nested cache would otherwise silently
                 // shorten (see `shouldReportNestedCacheError` above). Otherwise
@@ -2604,11 +2604,7 @@ export async function cache(
               break
             }
             case 'request': {
-              // A request store in `next start` never delays caches — shells
-              // are produced by separate (runtime) prerenders, which apply
-              // the exclusions above. In dev, the request render is also used
-              // to recover shells, so we delay the entry here to match.
-              if (process.env.NODE_ENV === 'development') {
+              if (isValidationRender(workUnitStore)) {
                 // End the cache signal read (once, in case an earlier block
                 // already did) so the delayed value isn't counted as a pending
                 // read at a staged rendering boundary.
@@ -3172,7 +3168,7 @@ export async function cache(
               })
               return hangingPromise
             case 'request': {
-              if (process.env.NODE_ENV === 'development') {
+              if (isValidationRender(workUnitStore)) {
                 // A short-lived entry is a dynamic hole, excluded from the
                 // static shell, so we end the cache signal read here (the
                 // prerender case does the same) to avoid this cache hit being
@@ -3210,11 +3206,8 @@ export async function cache(
               // Same as the resume data cache read path: the entry's stale
               // time is short enough that it's excluded from shells, or, if
               // it's below `MIN_PREFETCHABLE_STALE`, from prerenders
-              // entirely. A request store in `next start` never delays
-              // caches — shells are produced by separate (runtime)
-              // prerenders. In dev, the request render is also used to
-              // recover shells, so we delay the entry here to match.
-              if (process.env.NODE_ENV === 'development') {
+              // entirely.
+              if (isValidationRender(workUnitStore)) {
                 // End the cache signal read (once, in case the expire block
                 // above already did) so the delayed value isn't counted as a
                 // pending read at a staged rendering boundary.
@@ -3664,6 +3657,21 @@ async function computeCacheKeyImplementationPart(
     // otherwise fall back to buildId and/or the HMR hash.
     return hmrRefreshHash ? [buildId, hmrRefreshHash] : [buildId]
   }
+}
+
+/**
+ * A request store in `next start` never delays caches.
+ * We only apply delays when the render will be used for
+ * validation purposes.
+ */
+function isValidationRender(requestStore: RequestStore): boolean {
+  return !!(
+    process.env.__NEXT_CACHE_COMPONENTS &&
+    // In dev we're always running validation.
+    (process.env.__NEXT_DEV_SERVER ||
+      // Build-time instant validation also uses a 'request' store.
+      requestStore.validationSamples)
+  )
 }
 
 /**
