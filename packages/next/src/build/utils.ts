@@ -888,9 +888,18 @@ export async function isPageStatic({
             pathname = pathname.slice(0, -'/route'.length)
           }
 
+          // Static metadata files (e.g. `/[id]/icon.png`) serve the same bytes
+          // for every param, so they prerender once to a canonical `-`
+          // placeholder pathname. A code-based `sitemap.ts` resolves to the
+          // same `/[id]/sitemap.xml` pathname, but unlike a static file it can
+          // export `generateStaticParams`; those params are explicitly
+          // enumerated and must be prerendered individually.
           if (
             routeModule.definition.kind === RouteKind.APP_ROUTE &&
-            isStaticMetadataFile(pathname)
+            isStaticMetadataFile(pathname) &&
+            !segments.some(
+              (segment) => typeof segment.generateStaticParams === 'function'
+            )
           ) {
             ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
               buildStaticMetadataStaticPaths(page))
