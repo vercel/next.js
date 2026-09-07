@@ -6,44 +6,42 @@ const expectedError =
 
 // Variants are supported with Turbopack only, so a webpack build rejects the
 // config of this fixture before it reads the middleware file.
-;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
-  'variants in a middleware file',
-  () => {
-    const { next, skipped } = nextTestSetup({
-      files: __dirname + '/fixtures/middleware-file',
-      // The fixture exists to fail, so the harness must not build or start it.
-      // Both modes below drive Next.js by hand instead.
-      skipStart: true,
-      skipDeployment: true,
+// @force-gate turbopack
+describe('variants in a middleware file', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname + '/fixtures/middleware-file',
+    // The fixture exists to fail, so the harness must not build or start it.
+    // Both modes below drive Next.js by hand instead.
+    skipStart: true,
+    skipDeployment: true,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  if (isNextDev) {
+    beforeAll(async () => {
+      await next.start()
     })
 
-    if (skipped) {
-      return
-    }
+    it('should report the middleware file and keep the dev server up', async () => {
+      // Renaming the file has to recover without a restart, so the dev server
+      // reports the error and carries on rather than failing the route.
+      const response = await next.fetch('/')
 
-    if (isNextDev) {
-      beforeAll(async () => {
-        await next.start()
+      expect(response.status).toBe(200)
+
+      await retry(async () => {
+        expect(next.cliOutput).toContain(expectedError)
       })
+    })
+  } else {
+    it('should fail the build', async () => {
+      const { exitCode, cliOutput } = await next.build()
 
-      it('should report the middleware file and keep the dev server up', async () => {
-        // Renaming the file has to recover without a restart, so the dev server
-        // reports the error and carries on rather than failing the route.
-        const response = await next.fetch('/')
-
-        expect(response.status).toBe(200)
-
-        await retry(async () => {
-          expect(next.cliOutput).toContain(expectedError)
-        })
-      })
-    } else {
-      it('should fail the build', async () => {
-        const { exitCode, cliOutput } = await next.build()
-
-        expect(exitCode).toBe(1)
-        expect(cliOutput).toContain(expectedError)
-      })
-    }
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain(expectedError)
+    })
   }
-)
+})
