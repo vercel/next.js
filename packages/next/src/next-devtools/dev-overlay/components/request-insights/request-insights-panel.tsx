@@ -1050,6 +1050,7 @@ function Trace({
   const [activeItemId, setActiveItemId] = useState<string | null>(
     items[0]?.id ?? null
   )
+  const [hoveredItemId, setHoveredItemId] = useState<string | null>(null)
   const [contextMenuItemId, setContextMenuItemId] = useState<string | null>(
     null
   )
@@ -1063,7 +1064,14 @@ function Trace({
   const activeItemIndex = items.findIndex((item) => item.id === activeItemId)
   const safeActiveItemIndex =
     items.length === 0 ? -1 : Math.max(activeItemIndex, 0)
-  const activeItem = items[safeActiveItemIndex]
+  const displayedItemId =
+    contextMenuItemId ??
+    hoveredItemId ??
+    (isTraceFocused ? items[safeActiveItemIndex]?.id : null)
+  const displayedItemIndex = items.findIndex(
+    (item) => item.id === displayedItemId
+  )
+  const activeItem = items[displayedItemIndex]
   const activeItemDescription = activeItem
     ? getTraceItemDescription(activeItem, range)
     : null
@@ -1111,6 +1119,7 @@ function Trace({
 
       event.preventDefault()
       shouldScrollActiveItemIntoViewRef.current = true
+      setHoveredItemId(null)
       setActiveItemId(items[nextIndex]?.id ?? null)
     },
     [activeItemIndex, items]
@@ -1132,6 +1141,7 @@ function Trace({
         shouldScrollActiveItemIntoViewRef.current = false
         const itemId = items[index]?.id
         if (itemId !== undefined) {
+          setHoveredItemId(itemId)
           setActiveItemId((currentItemId) =>
             currentItemId === itemId ? currentItemId : itemId
           )
@@ -1153,6 +1163,7 @@ function Trace({
       <div className="request-insights-trace-viewport">
         <div
           className="request-insights-trace"
+          onPointerLeave={() => setHoveredItemId(null)}
           onPointerMove={handleTracePointerMove}
         >
           <div className="request-insights-trace-header">
@@ -1190,7 +1201,7 @@ function Trace({
           >
             <div
               aria-activedescendant={
-                safeActiveItemIndex === -1
+                !isTraceFocused || safeActiveItemIndex === -1
                   ? undefined
                   : `${traceId}-item-${safeActiveItemIndex}`
               }
@@ -1225,16 +1236,18 @@ function Trace({
                   >
                     <div
                       aria-label={description}
-                      aria-selected={index === safeActiveItemIndex}
+                      aria-selected={
+                        isTraceFocused && index === safeActiveItemIndex
+                      }
                       className="request-insights-span-row"
-                      data-active={index === safeActiveItemIndex || undefined}
+                      data-active={index === displayedItemIndex || undefined}
                       data-kind={item.kind}
                       data-trace-item-id={item.id}
                       data-trace-index={index}
                       id={`${traceId}-item-${index}`}
                       onContextMenu={() => setActiveItemId(item.id)}
                       ref={
-                        index === safeActiveItemIndex
+                        index === displayedItemIndex
                           ? setActiveTraceRow
                           : undefined
                       }

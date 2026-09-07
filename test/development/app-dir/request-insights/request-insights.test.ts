@@ -1416,6 +1416,27 @@ describe('request insights', () => {
     })
   })
 
+  it('clears a trace hover preview outside the trace', async () => {
+    const browser = await next.browser('/')
+    await openRequestInsightsPanel(browser)
+
+    const activeRows = browser.locator(
+      'nextjs-portal .request-insights-span-row[data-active="true"]'
+    )
+    await browser
+      .locator('nextjs-portal .request-insights-span-row')
+      .first()
+      .hover()
+    await retry(async () => {
+      expect(await activeRows.count()).toBe(1)
+    })
+
+    await browser.locator('nextjs-portal .request-insights-overview').hover()
+    await retry(async () => {
+      expect(await activeRows.count()).toBe(0)
+    })
+  })
+
   it('keeps trace inspection anchored while the panel is resized', async () => {
     const browser = await next.browser('/products/blue?tab=details')
     await openRequestInsightsPanel(browser)
@@ -1436,7 +1457,8 @@ describe('request insights', () => {
     })
 
     await browser
-      .locator('nextjs-portal .request-insights-span-row[data-active="true"]')
+      .locator('nextjs-portal .request-insights-span-row')
+      .first()
       .hover()
     await browser.locator('nextjs-portal .request-insights-trace-rows').focus()
 
@@ -1590,11 +1612,12 @@ describe('request insights', () => {
       expect(selection.selected).toBe('true')
       expect(selection.title).toBe('/api/source?query=redacted')
       expect(selection.firstRowId).toEqual(expect.any(String))
-      expect(selection.activeRowId).toBe(selection.firstRowId)
+      expect(selection.activeRowId).toBeUndefined()
     })
 
     await browser
-      .locator('nextjs-portal .request-insights-span-row[data-active="true"]')
+      .locator('nextjs-portal .request-insights-span-row')
+      .first()
       .hover()
     await browser.locator('nextjs-portal .request-insights-trace-rows').focus()
 
