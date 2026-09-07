@@ -24,6 +24,7 @@ interface NodeJsChunkListUpdate {
   type: 'ChunkListUpdate'
   merged?: NodeJsEcmascriptMergedUpdate[]
   chunks?: Record<string, { type: 'added' | 'deleted' | 'total' | 'partial' }>
+  affectedEntries?: string[]
 }
 
 interface NodeJsPartialHmrUpdate {

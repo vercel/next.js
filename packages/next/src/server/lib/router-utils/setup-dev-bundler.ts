@@ -136,6 +136,7 @@ export type SetupOpts = {
   restartServer?: () => Promise<void>
   resetFetch: () => void
   serverFastRefresh?: boolean
+  webSocketRegistryScope?: object
 }
 
 export interface DevRoutesManifest {
