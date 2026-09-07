@@ -180,15 +180,52 @@ Error: Route "/products/[id]": Next.js encountered uncached or runtime data duri
   4 |   const product = await res.json()
 ```
 
-The detailed stack identifies the [`params`](/docs/app/api-reference/file-conventions/page#params-optional) read as the first blocked access. The `[cache]` suggestion in the error applies to uncached data, not to `params`.
+The detailed stack identifies the [`params`](/docs/app/api-reference/file-conventions/page#params-optional) read as the first blocked access.
 
 During development, `next dev` shows the resolved component and source line, then reruns validation as you edit. This example uses `--debug-prerender` to trace each error from production build output. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the development workflow.
 
+### Stream request-time work
+
+Choose the `[stream]` option by adding a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file:
+
+```tsx filename="app/products/[id]/loading.tsx" switcher
+export default function Loading() {
+  return <div>Loading...</div>
+}
+```
+
+```jsx filename="app/products/[id]/loading.js" switcher
+export default function Loading() {
+  return <div>Loading...</div>
+}
+```
+
+`loading.js` wraps the page in a `<Suspense>` boundary and uses the loading component as its fallback. Next.js prerenders this fallback as the product route's static shell. The page reads the params and fetches the product at request time, then replaces the fallback with the completed content.
+
+For more granular streaming, add an explicit `<Suspense>` boundary around only the component that needs request-time data. More of the page can then remain in the static shell. See [Streaming](/docs/app/guides/streaming).
+
+Rebuild only the product route:
+
+```bash filename="Terminal"
+next build --debug-build-paths="app/products/[id]/page.tsx"
+```
+
+The build passes. Because the command selects only the product route, the table omits `/`:
+
+```bash filename="Terminal"
+Route (app)
+┌ ○ /_not-found
+└ ◐ /products/[id]
+
+○  (Static)             prerendered as static content
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+```
+
+The `◐` symbol shows that the route serves a static shell and streams the remaining content.
+
 ### Prerender selected paths
 
-[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) is optional. Use it to prerender a set of dynamic pathnames known at build time. It resolves `params` only for the paths it returns. Unlisted paths still need a `loading.js` file or a `<Suspense>` boundary for instant navigation.
-
-This example uses `generateStaticParams` to prerender known product IDs. The build can then continue past `params` and identify the next blocked access:
+[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) is optional. Use it to prerender a set of dynamic pathnames known at build time. Keep `loading.js` and export the product IDs from the page:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export async function generateStaticParams() {
@@ -220,61 +257,13 @@ export default async function Page({ params }) {
 }
 ```
 
-Rebuild the product route with both debugging options:
-
-```bash filename="Terminal"
-next build --debug-prerender --debug-build-paths="app/products/[id]/page.tsx"
-```
-
-For each generated path, `params` now resolves during prerendering. The build continues to the uncached product lookup and fails on that line:
-
-```bash filename="Terminal"
-Error: Route "/products/[id]": Next.js encountered uncached or runtime data during prerendering.
-  ...
-Ways to fix this:
-  - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access
-  - [cache] For uncached data (`fetch`, database calls): cache the access with `"use cache"`
-  - [block] Set `export const instant = false` to allow a blocking route
-  ...
-    at Page (app/products/[id]/page.tsx:9:21)
-   8 |   const { id } = await props.params
->  9 |   const res = await fetch(`https://api.example.com/products/${id}`)
-     |                     ^
-  10 |   const product = await res.json()
-Error occurred prerendering page "/products/1".
-```
-
-Adding `generateStaticParams` does not make the build pass. It reveals the uncached product lookup as the next blocked access. First choose `[stream]` to see how generated paths appear while this data remains uncached.
-
-> **Good to know**: With Cache Components, `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params). Apps with a large, frequently changing, or unbounded set of pathnames can omit `generateStaticParams` and use a static shell for request-time params.
-
-### Stream uncached data
-
-Add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file:
-
-```tsx filename="app/products/[id]/loading.tsx" switcher
-export default function Loading() {
-  return <div>Loading...</div>
-}
-```
-
-```jsx filename="app/products/[id]/loading.js" switcher
-export default function Loading() {
-  return <div>Loading...</div>
-}
-```
-
-`loading.js` automatically wraps the page content in a `<Suspense>` boundary and uses the loading component as its fallback. In this example, Next.js prerenders the loading state as the product route's static shell. The page reads the params and fetches the product at request time, then replaces the loading state with the completed content.
-
-For more granular streaming, add an explicit `<Suspense>` boundary around only the component that needs request-time data. More of the page can then remain in the static shell. See [Streaming](/docs/app/guides/streaming).
-
-Rebuild only the product route:
+Rebuild the product route:
 
 ```bash filename="Terminal"
 next build --debug-build-paths="app/products/[id]/page.tsx"
 ```
 
-The build passes and adds a row for each generated path. Because the command selects only the product route, the table omits `/`:
+The route table now includes each generated path:
 
 ```bash filename="Terminal"
 Route (app)
@@ -289,11 +278,13 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-The generated paths appear as `◐` because their params are known, but the product lookup remains request-time work. Each page serves the static shell and streams its product content. If the product data can be reused, cache the lookup so the build can finish prerendering those pages.
+The generated paths remain `◐` because the product lookup is uncached. `generateStaticParams` selects pathnames to prerender, but it does not cache their data. Apps with a large, frequently changing, or unbounded set of pathnames can omit it and use the static shell for request-time params.
+
+> **Good to know**: With Cache Components, `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
 ### Cache reusable data
 
-Add `use cache` to make the product lookup reusable. Next.js can then include the result when it prerenders a known product:
+The first build error also suggested `[cache]` for uncached data. Add `use cache` to make the product lookup reusable. Next.js can then include the result when it prerenders a known product:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export async function generateStaticParams() {
