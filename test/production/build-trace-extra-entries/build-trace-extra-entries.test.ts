@@ -3,13 +3,15 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('build trace with extra entries', () => {
   describe('production mode', () => {
-    const { next, isNextStart, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack, skipped } = nextTestSetup({
       files: path.join(__dirname, 'app'),
       skipStart: true,
+      skipDeployment: true,
     })
 
-    if (!isNextStart || isTurbopack) {
-      it('skipped for non-start or turbopack mode', () => {})
+    if (skipped) return
+    if (isTurbopack) {
+      it('skipped', () => {})
       return
     }
 
