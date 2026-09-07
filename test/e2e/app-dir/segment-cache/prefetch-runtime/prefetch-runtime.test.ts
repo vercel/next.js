@@ -959,6 +959,10 @@ describe('runtime prefetching', () => {
 
       expect(cachedValue1).not.toEqual(cachedValue2)
     })
+
+    it.todo(
+      'includes caches whose staleTime was too short to include in a shell'
+    )
   })
 
   describe('errors', () => {
