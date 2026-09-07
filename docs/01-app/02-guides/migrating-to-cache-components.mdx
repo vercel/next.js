@@ -89,7 +89,7 @@ export const instant = false
 
 You don't have to migrate every route at once. `instant = false` lets you get the whole app building and running first, then convert routes one at a time:
 
-1. **Enable the flag and remove the route segment configs** (`dynamic`, `revalidate`, `fetchCache`). Routes that still render instantly need no further work.
+1. **Enable the flag and migrate each route segment config.** Follow the relevant sections below for [`dynamic = "force-dynamic"`](#dynamic--force-dynamic), [`dynamic = "force-static"`](#dynamic--force-static), [`revalidate`](#revalidate), and [`fetchCache`](#fetchcache). For routes with dynamic params, also follow the [`generateStaticParams`](#generatestaticparams-and-dynamicparams) guidance. Routes that still render instantly need no further work.
 2. **Opt out the routes that aren't ready.** Where an insight or error appears, set `instant = false` on the segment that raised it. To do this in one pass across the whole app, run the [`cache-components-instant-false`](/docs/app/guides/upgrading/codemods#cache-components-instant-false) codemod, which adds the opt-out to every `page`, `layout`, and `default` that doesn't already declare `instant`:
 
    ```bash filename="Terminal"
@@ -568,6 +568,8 @@ Cache Components changes how [dynamic routes](/docs/app/api-reference/file-conve
 ### `generateStaticParams` must return at least one param
 
 **Returning an empty array now errors.** Without Cache Components, returning `[]` defers every path to the first runtime visit. With Cache Components, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must return at least one param so Next.js can prerender the route and validate it produces a non-empty [static shell](/docs/app/glossary#static-shell). An empty array raises [`empty-generate-static-params`](/docs/messages/empty-generate-static-params).
+
+Keep `generateStaticParams` and return at least one real param. Removing the export opts the route out of ISR, so Next.js renders it on every request, even when it uses `use cache` for data. Read [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) to learn how `generateStaticParams` prerenders dynamic routes and upgrades unlisted paths after their first visit.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 // Before - defer all paths to runtime

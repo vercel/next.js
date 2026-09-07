@@ -27,6 +27,9 @@ fn open_tt_at(path: &Path, num_workers: usize) -> Arc<TurboTasks<TurboTasksBacke
             // snapshot_and_evict_for_testing manually.
             storage_mode: Some(turbo_tasks_backend::StorageMode::ReadWriteOnShutdown),
             eviction_mode: EvictionMode::Full,
+            // `gc_for_testing` requires a GC-enabled backend. Set per-backend rather than via
+            // `TURBO_ENGINE_GC` so parallel tests in the same binary don't share the setting.
+            gc: Some(true),
             ..Default::default()
         },
         turbo_tasks_backend::turbo_backing_storage(

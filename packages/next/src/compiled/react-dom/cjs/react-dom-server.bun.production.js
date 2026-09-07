@@ -274,7 +274,13 @@ function createRenderState(
     ));
   bootstrapScriptContent = [];
   void 0 !== importMap &&
-    (bootstrapScriptContent.push('<script type="importmap">'),
+    (bootstrapScriptContent.push(
+      void 0 === externalRuntimeConfig
+        ? '<script type="importmap">'
+        : '<script type="importmap" nonce="' +
+            escapeTextForBrowser(externalRuntimeConfig) +
+            '">'
+    ),
     bootstrapScriptContent.push(
       ("" + JSON.stringify(importMap)).replace(scriptRegex, scriptReplacer)
     ),
@@ -7322,11 +7328,11 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.3.0-canary-ff7445e6-20260831" !== isomorphicReactPackageVersion)
+  if ("19.3.0-canary-f4e439e1-20260902" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.3.0-canary-ff7445e6-20260831\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.3.0-canary-f4e439e1-20260902\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -7819,4 +7825,4 @@ exports.resumeToPipeableStream = function (children, postponedState, options) {
     }
   };
 };
-exports.version = "19.3.0-canary-ff7445e6-20260831";
+exports.version = "19.3.0-canary-f4e439e1-20260902";

@@ -415,4 +415,47 @@ describe('@gate runtime', () => {
       ).resolves.toBeUndefined()
     })
   })
+
+  // A lazy `@force-gate` on a describe force-passes the tests and skips the
+  // fixture build, so hooks registered inside such a describe must not run:
+  // they would touch a fixture that was never booted. These describes go
+  // through the real pragma path like the ones above. The wrapper describe
+  // carries no pragma, so its `beforeEach` is not gated and re-pins a config
+  // with cacheComponents on before each test (the file-level `afterEach`
+  // clears it again).
+  describe('a lazy @force-gate on a describe', () => {
+    beforeEach(() => {
+      registerFixture({
+        getResolvedConfig: async () => ({ cacheComponents: true }),
+      })
+    })
+
+    // @force-gate !cacheComponents
+    describe('skipped suite', () => {
+      beforeEach(() => {
+        throw new Error('beforeEach must be skipped')
+      })
+
+      afterEach(() => {
+        throw new Error('afterEach must be skipped')
+      })
+
+      it('force-passes without running its hooks or body', () => {
+        throw new Error('body must not run')
+      })
+    })
+
+    // @force-gate cacheComponents
+    describe('held suite', () => {
+      let hookRan = false
+
+      beforeEach(() => {
+        hookRan = true
+      })
+
+      it('runs hooks when the gate holds', () => {
+        expect(hookRan).toBe(true)
+      })
+    })
+  })
 })

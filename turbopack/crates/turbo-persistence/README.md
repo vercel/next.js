@@ -56,6 +56,7 @@ A meta file can contain metadata about multiple SST files. The metadata is store
 - Header
   - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
+  - 1 byte compression algorithm, which must match the configuration used to open the database
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
@@ -88,9 +89,11 @@ The SST file contains only data without any header.
 
 #### Block Compression
 
-Blocks can be stored compressed (LZ4) or uncompressed. The 4-byte header distinguishes them:
+Blocks can be stored compressed or uncompressed. The compression algorithm is specified in the meta file.
 
-- **Header > 0**: Block is LZ4 compressed. Header value is the uncompressed length.
+The 4-byte header distinguishes compressed from uncompressed storage:
+
+- **Header > 0**: Block is compressed with the family's configured algorithm. Header value is the uncompressed length.
 - **Header = 0**: Block is stored uncompressed. Actual length is derived from block offsets.
 
 #### Block Checksum
@@ -231,7 +234,7 @@ The plain value compressed with dynamic compression. Each blob file has an 8-byt
 
 - 4 bytes: uncompressed length (u32 big-endian)
 - 4 bytes: CRC32 checksum of the compressed data (u32 big-endian)
-- remaining bytes: LZ4-compressed value data
+- remaining bytes: value data compressed with the blob's key-family configuration
 
 The checksum is verified on the compressed data **before** decompression when the blob is read.
 

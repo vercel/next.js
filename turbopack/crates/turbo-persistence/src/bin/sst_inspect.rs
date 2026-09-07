@@ -20,7 +20,7 @@ use fs_err::{self as fs, File};
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
 use turbo_persistence::{
-    BLOCK_HEADER_SIZE, MAX_INLINE_VALUE_SIZE, checksum_block,
+    BLOCK_HEADER_SIZE, Compression, MAX_INLINE_VALUE_SIZE, checksum_block,
     meta_file::MetaFile,
     mmap_helper::advise_mmap_for_persistence,
     read_current_version,
@@ -133,6 +133,7 @@ impl SstStats {
 struct SstInfo {
     sequence_number: u32,
     block_count: u16,
+    compression: Compression,
 }
 
 /// Accumulates statistics for a single entry of the given type.
@@ -266,7 +267,8 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
     let mut meta_files: Vec<MetaFile> = meta_seqs
         .iter()
         .map(|&seq| {
-            MetaFile::open(db_path, seq).with_context(|| format!("Failed to open {seq:08}.meta"))
+            MetaFile::open(db_path, seq, None)
+                .with_context(|| format!("Failed to open {seq:08}.meta"))
         })
         .collect::<Result<_>>()?;
 
@@ -283,6 +285,7 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
             family_sst_info.entry(family).or_default().push(SstInfo {
                 sequence_number: entry.sequence_number(),
                 block_count: entry.block_count(),
+                compression: meta.compression(),
             });
         }
     }
@@ -304,6 +307,7 @@ fn read_block(
     block_offsets_start: usize,
     block_index: u16,
     sequence_number: u32,
+    compression: Compression,
 ) -> Result<RawBlock> {
     let offset = block_offsets_start + block_index as usize * size_of::<u32>();
 
@@ -343,7 +347,13 @@ fn read_block(
 
     let data = if was_compressed {
         let mut buffer = vec![0u8; uncompressed_length as usize];
-        let bytes_written = decompress(compressed_data, &mut buffer)?;
+        let bytes_written = match compression {
+            Compression::Lz4 => {
+                decompress(compressed_data, &mut buffer).context("LZ4 decompression failed")?
+            }
+            Compression::Zstd3 => zstd::bulk::decompress_to_buffer(compressed_data, &mut buffer)
+                .context("zstd decompression failed")?,
+        };
         assert_eq!(
             bytes_written, uncompressed_length as usize,
             "Decompressed length does not match expected"
@@ -471,6 +481,7 @@ fn iter_key_block_entry_types(
 
 /// Analyze an SST file and return entry type statistics
 fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
+    let compression = info.compression;
     let filename = format!("{:08}.sst", info.sequence_number);
     let path = db_path.join(&filename);
 
@@ -496,6 +507,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
         block_offsets_start,
         index_block_index,
         info.sequence_number,
+        compression,
     )?;
     let key_block_indices = parse_key_block_indices(&index_raw.data);
 
@@ -512,6 +524,7 @@ fn analyze_sst_file(db_path: &Path, info: &SstInfo) -> Result<SstStats> {
             block_offsets_start,
             block_index,
             info.sequence_number,
+            compression,
         ) {
             Ok(raw) => raw,
             Err(e) => {
@@ -930,7 +943,7 @@ fn main() -> Result<()> {
         db_path.display()
     );
 
-    // Analyze and report by family
+    // Analyze and report by family.
     for (family, sst_list) in &family_sst_info {
         let mut family_stats = SstStats::default();
         let mut sst_stats_list: Vec<(u32, SstStats)> = Vec::new();

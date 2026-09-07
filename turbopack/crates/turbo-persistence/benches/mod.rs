@@ -10,9 +10,9 @@ use quick_cache::sync::GuardResult;
 use rand::{RngExt, SeedableRng, rngs::SmallRng, seq::SliceRandom};
 use tempfile::TempDir;
 use turbo_persistence::{
-    ArcBytes, BlockCache, CompactConfig, DbConfig as TpDbConfig, Entry, EntryValue, FamilyConfig,
-    FamilyKind, MetaEntryFlags, SerialScheduler, StaticSortedFile, StaticSortedFileMetaData,
-    TurboPersistence, hash_key, write_static_stored_file,
+    ArcBytes, BlockCache, CompactConfig, Compression, DbConfig as TpDbConfig, Entry, EntryValue,
+    FamilyConfig, FamilyKind, MetaEntryFlags, SerialScheduler, StaticSortedFile,
+    StaticSortedFileMetaData, TurboPersistence, hash_key, write_static_stored_file,
 };
 use turbo_tasks_malloc::TurboMalloc;
 
@@ -622,6 +622,7 @@ fn prefill_multi_value_database(
         family_configs: [FamilyConfig {
             name: "test",
             kind: FamilyKind::MultiValue,
+            compression: Compression::Lz4,
         }],
     };
     let db =
@@ -696,6 +697,7 @@ fn open_multi_value_db(path: &Path) -> TurboPersistence<SerialScheduler, 1> {
         family_configs: [FamilyConfig {
             name: "test",
             kind: FamilyKind::MultiValue,
+            compression: Compression::Lz4,
         }],
     };
     TurboPersistence::<SerialScheduler, 1>::open_with_config(path.to_path_buf(), db_config).unwrap()
@@ -964,6 +966,7 @@ fn bench_write_multi_value(c: &mut Criterion) {
                             family_configs: [FamilyConfig {
                                 name: "test",
                                 kind: FamilyKind::MultiValue,
+                                compression: Compression::Lz4,
                             }],
                         };
                         let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
@@ -1201,15 +1204,20 @@ fn bench_static_sorted_file_lookup(c: &mut Criterion) {
             // Create temp directory and write SST file
             let tempdir = tempfile::tempdir().unwrap();
             let sst_path = tempdir.path().join("00000001.sst");
-            let (meta, _file) =
-                write_static_stored_file(&entries, &sst_path, MetaEntryFlags::FRESH).unwrap();
+            let (meta, _file) = write_static_stored_file(
+                &entries,
+                &sst_path,
+                MetaEntryFlags::FRESH,
+                Compression::Lz4,
+            )
+            .unwrap();
 
             // Open the SST file
             let sst_meta = StaticSortedFileMetaData {
                 sequence_number: 1,
                 block_count: meta.block_count,
             };
-            let sst = StaticSortedFile::open(tempdir.path(), sst_meta).unwrap();
+            let sst = StaticSortedFile::open(tempdir.path(), sst_meta, Compression::Lz4).unwrap();
 
             // Create block caches
             let key_block_cache: BlockCache = BlockCache::with(

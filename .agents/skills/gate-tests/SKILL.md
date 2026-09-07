@@ -159,7 +159,9 @@ single dimension.
   body's cleanup (e.g. a browser context left offline), so later tests may
   fail for cascade reasons. Acceptable for a tripwire, but don't puzzle over
   the individual failure messages in a gated-off run.
-- `afterEach` failures (e.g. redbox matchers) are not gated — only the body is.
+- `afterEach` failures (e.g. redbox matchers) are not gated, only the body is.
+  Hooks under a false lazy `@force-gate` are the exception: they are skipped
+  with the suite instead of running against a fixture that was never booted.
 - `jest.retryTimes(1)` on non-dev CI means a _flaky_ gated-false test passes
   whenever it happens to fail; the tripwire is only deterministic for
   deterministic tests.

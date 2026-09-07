@@ -29,12 +29,19 @@
  *
  * ## `@force-gate`
  *
- * `// @force-gate <condition>` skips the test for real (`○ skipped`) when the
- * condition is false. That requires a decision at collection time, so it only
- * accepts static conditions, and it gives up the stale-gate tripwire entirely.
- * Prefer `@gate`; reach for `@force-gate` only when running the body is
- * impossible rather than merely failing — dev mode has no build output, deploy
- * mode cannot touch the filesystem.
+ * `// @force-gate <condition>` skips the test when the condition is false,
+ * giving up the stale-gate tripwire entirely. Prefer `@gate`; reach for
+ * `@force-gate` only when running the body is impossible rather than merely
+ * failing: dev mode has no build output, deploy mode cannot touch the
+ * filesystem.
+ *
+ * A static condition is decided at collection time, a real Jest
+ * `○ skipped`. A *lazy* one (read off the fixture's resolved config) cannot
+ * be known then, so it force-passes the test at runtime instead (see
+ * `wrapGatedBody`), and on a `describe` it also skips the fixture build
+ * (`nextTestSetup`). Hooks registered inside such a `describe` are skipped
+ * too (see `wrapGatedHook`): the fixture they would prepare or inspect was
+ * never booted.
  */
 
 import { evaluate, parse, type ExprNode } from './expr'
@@ -70,6 +77,23 @@ const describeGateStack: Gate[] = []
 
 /** Bodies this module already wrapped, so inherited gates are not re-applied. */
 const gatedBodies = new WeakSet<Function>()
+
+/**
+ * Hook callbacks the harness itself registered (`nextTestSetup`'s setup and
+ * teardown) while a gated `describe` body was being collected. They must run
+ * even when a lazy `@force-gate` skips the suite: they are what makes the
+ * skip decision, and they clear the fixture afterwards.
+ */
+const ungatedHooks = new WeakSet<Function>()
+
+/**
+ * Marks a hook callback as harness-internal so `wrapHookGlobals` leaves it
+ * alone. Suite code never needs this.
+ */
+export function ungatedHook<T extends Function>(hook: T): T {
+  ungatedHooks.add(hook)
+  return hook
+}
 
 function staleGateMessage(gate: Gate): string {
   return (
@@ -278,6 +302,39 @@ function wrapGatedBody(
 
   gatedBodies.add(body)
   return body as jest.ProvidesCallback
+}
+
+/**
+ * The hook counterpart of `wrapGatedBody`, for a `beforeAll` / `afterAll` /
+ * `beforeEach` / `afterEach` registered inside a `describe` that carries a
+ * lazy `@force-gate`. When the gate force-skips the suite (and its build),
+ * the hooks must not run either: they would prepare or inspect a fixture that
+ * was never booted, while the suite's tests all force-pass without them.
+ *
+ * Only a false lazy `@force-gate` skips a hook. An inverted `@gate` still
+ * runs its tests, so they need their hooks, and a static `@force-gate` skips
+ * the whole `describe` at collection time, hooks included.
+ */
+function wrapGatedHook(
+  gates: Gate[],
+  callback: Function
+): () => Promise<unknown> {
+  return async function gatedHook(this: unknown): Promise<unknown> {
+    if (!hasFixture()) {
+      // The condition cannot be resolved here: either this hook runs before
+      // `nextTestSetup`'s own `beforeAll` registered the fixture, or it is an
+      // `afterAll` running after the fixture was cleared. Run as if ungated.
+      return callback.apply(this)
+    }
+    const config = await getResolvedConfigForGates()
+    if (findLazyForceSkip(gates, config) !== null) {
+      // Silent: the suite-level "build skipped" warning and the per-test
+      // force-pass warnings already carry the signal, and a static
+      // `describe.skip` skips hooks silently too.
+      return
+    }
+    return callback.apply(this)
+  }
 }
 
 /**
@@ -514,10 +571,51 @@ function wrapTestGlobals(): void {
   }
 }
 
+/**
+ * The hook counterpart of `wrapTestGlobals`. Hooks carry no pragma, so the
+ * only thing that can skip one is a lazy `@force-gate` inherited from the
+ * enclosing `describe`, which is exactly the case where the fixture was never
+ * booted and running the hook would fail (or worse, hang) for no benefit.
+ */
+function wrapHookGlobals(): void {
+  for (const key of [
+    'beforeAll',
+    'afterAll',
+    'beforeEach',
+    'afterEach',
+  ] as const) {
+    const original = (global as any)[key]
+    if (typeof original !== 'function' || original.__gateWrapped) continue
+
+    const wrapped = new Proxy(original, {
+      apply(target, thisArg, args: any[]) {
+        const [callback] = args
+        if (
+          typeof callback !== 'function' ||
+          // A `done`-style hook cannot be observed; leave it alone.
+          callback.length > 0 ||
+          !hasLazyForceGate(describeGateStack) ||
+          ungatedHooks.has(callback)
+        ) {
+          return Reflect.apply(target, thisArg, args)
+        }
+
+        return Reflect.apply(target, thisArg, [
+          wrapGatedHook([...describeGateStack], callback),
+          ...args.slice(1),
+        ])
+      },
+    })
+    Object.defineProperty(wrapped, '__gateWrapped', { value: true })
+    ;(global as any)[key] = wrapped
+  }
+}
+
 /** Called from `test/jest-setup-after-env.ts`. */
 export function installGate(): void {
   ;(global as any)._test_gate = _test_gate
   wrapTestGlobals()
+  wrapHookGlobals()
 }
 
 /** Test-only: the parse/validate half, without registering anything. */
