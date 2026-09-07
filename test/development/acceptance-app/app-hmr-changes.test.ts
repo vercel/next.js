@@ -43,7 +43,7 @@ describe('Error overlay - RSC build errors', () => {
 
         await session.patch(pagePath, break1)
 
-        const break2 = break1.replace('{/* break point 2 */}', '<Figure />')
+        const break2 = break1.replace('break 2', '<Figure />')
 
         await session.patch(pagePath, break2)
 
