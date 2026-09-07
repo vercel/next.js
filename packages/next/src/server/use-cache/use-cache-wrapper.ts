@@ -45,6 +45,7 @@ import {
   makePrefetchHangingPromise,
   makeUntrackedHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
+  trackIncompatibleShellContent,
 } from '../dynamic-rendering-utils'
 
 import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight-manifest-plugin'
@@ -2612,21 +2613,32 @@ export async function cache(
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
-                // An unprefetchable entry is excluded from prerenders, so it
-                // resolves in the dynamic stage. Otherwise, a dynamic request
-                // generally recovers a static shell, so the entry can resolve
-                // in the static link data stage. If we need to recover a
-                // session shell instead, as indicated by `needsAppShell`,
-                // the entry must resolve after the session data stage that
-                // the shell includes.
+
                 let stage: AdvanceableRenderStage
                 if (!isPrefetchable) {
+                  // An unprefetchable entry is excluded from prerenders, so it
+                  // resolves in the dynamic stage.
                   stage = RenderStage.Dynamic
-                } else if (workUnitStore.needsAppShell) {
-                  stage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
                 } else {
-                  stage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                  // If the entry would be be excluded from the shell, treat it as
+                  // if it were link data.
+                  // (Note that this is still correct without PPF or in static shell validation,
+                  // where we don't use runtime shells and include static link data)
+                  trackIncompatibleShellContent(
+                    workUnitStore,
+                    '"use cache" excluded from app shells due to a short staletime'
+                  )
+                  stage = workUnitStore.needsAppShell
+                    ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+                    : RENDER_STAGES_BY_DATA_KIND.staticLinkData
                 }
+                debug?.(
+                  logPrefix,
+                  'delaying entry',
+                  serializedCacheKey,
+                  `until after the ${RenderStage[stage]} stage due to short stale value:`,
+                  rdcResult.entry.stale
+                )
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
@@ -3179,7 +3191,14 @@ export async function cache(
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
-
+                const stage = RENDER_STAGES_BY_DATA_KIND.sessionData
+                debug?.(
+                  logPrefix,
+                  'delaying entry',
+                  serializedCacheKey,
+                  `until after the ${RenderStage[stage]} stage due to short expire value:`,
+                  entry.expire
+                )
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,
@@ -3201,6 +3220,7 @@ export async function cache(
         }
 
         if (entry !== undefined && entry.stale < MIN_SHELL_STALE) {
+          const isPrefetchable = entry.stale >= MIN_PREFETCHABLE_STALE
           switch (workUnitStore.type) {
             case 'request': {
               // Same as the resume data cache read path: the entry's stale
@@ -3215,21 +3235,31 @@ export async function cache(
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
-                // An unprefetchable entry is excluded from prerenders, so it
-                // resolves in the dynamic stage. Otherwise, a dynamic request
-                // generally recovers a static shell, so the entry can resolve
-                // in the static link data stage. If we need to recover a
-                // session shell instead, as indicated by `needsAppShell`,
-                // the entry must resolve after the session data stage that
-                // the shell includes.
                 let stage: AdvanceableRenderStage
-                if (entry.stale < MIN_PREFETCHABLE_STALE) {
+                if (!isPrefetchable) {
+                  // An unprefetchable entry is excluded from prerenders, so it
+                  // resolves in the dynamic stage.
                   stage = RenderStage.Dynamic
-                } else if (workUnitStore.needsAppShell) {
-                  stage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
                 } else {
-                  stage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                  // If the entry would be be excluded from the shell, treat it as
+                  // if it were link data.
+                  // (Note that this is still correct without PPF or in static shell validation,
+                  // where we don't use runtime shells and include static link data)
+                  trackIncompatibleShellContent(
+                    workUnitStore,
+                    '"use cache" excluded from app shells due to a short staletime'
+                  )
+                  stage = workUnitStore.needsAppShell
+                    ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+                    : RENDER_STAGES_BY_DATA_KIND.staticLinkData
                 }
+                debug?.(
+                  logPrefix,
+                  'delaying entry',
+                  serializedCacheKey,
+                  `until after the ${RenderStage[stage]} stage due to short stale value:`,
+                  entry.stale
+                )
                 await makeDevtoolsIOAwarePromise(
                   undefined,
                   workUnitStore,

@@ -98,7 +98,7 @@ export function unstable_prefetch(): Promise<void> {
       const { stagedRendering } = workUnitStore
       if (stagedRendering) {
         // We can either recover a static shell or a runtime shell, but not both.
-        trackIncompatibleShellContent(workUnitStore)
+        trackIncompatibleShellContent(workUnitStore, '`unstable_prefetch()`')
         const stage = workUnitStore.needsAppShell
           ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData // Match the timing of 'prerender-runtime'.
           : RENDER_STAGES_BY_DATA_KIND.staticLinkData // Match the timing of 'prerender'.
@@ -251,7 +251,7 @@ export function unstable_navigation(): Promise<void> {
       const { stagedRendering } = workUnitStore
       if (stagedRendering) {
         // We can either recover a static shell or a runtime shell, but not both.
-        trackIncompatibleShellContent(workUnitStore)
+        trackIncompatibleShellContent(workUnitStore, '`unstable_navigation()`')
         const stage = workUnitStore.needsAppShell
           ? RenderStage.NavigationRuntime // Match the timing of 'prerender-runtime'.
           : RenderStage.NavigationStatic // Match the timing of 'prerender'.
