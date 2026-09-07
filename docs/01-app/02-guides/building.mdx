@@ -265,8 +265,6 @@ Route (app)
 
 The listed params appear as `◐`. The params tell Next.js which pathnames to prerender, while the uncached lookup supplies their content at request time. Each page serves the static shell and streams its content.
 
-> **Good to know**: Before enabling Cache Components, generated paths use `●` (SSG). After enabling Cache Components, the same paths show `◐` because Next.js postpones the uncached product lookup. Caching the lookup moves them to `○`.
-
 ### Cached data
 
 The error's `[cache]` fix makes the product lookup reusable. Add `use cache` so Next.js can include the result when it prerenders a known product:
