@@ -223,9 +223,9 @@ export default async function Page() {
 
 ## `dynamic = "error"`
 
-**Remove the config and keep the route fully prerendered.** Without Cache Components, `dynamic = 'error'` forced prerendering, cached `fetch` requests by default, and failed when the route used uncached data or a Request-time API.
+**Remove the config.** Without Cache Components, `dynamic = 'error'` required the route to prerender and treated `fetch` requests as cached by default. It raised an error only when uncached data or a Request-time API prevented prerendering.
 
-If the route has no uncached or request-time work, no replacement is needed. Otherwise, cache the data with [`use cache`](/docs/app/api-reference/directives/use-cache) and [`cacheLife`](/docs/app/api-reference/functions/cacheLife), and remove Request-time API usage.
+After removing the config, `fetch` no longer inherits that cached default. To preserve the route's existing caching behavior, wrap those requests in [`use cache`](/docs/app/api-reference/directives/use-cache) and set their lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife). If the route did not rely on the default, no replacement is needed.
 
 ## `revalidate`
 
