@@ -1968,7 +1968,8 @@ describe('opentelemetry use cache Server Functions', () => {
         (span) =>
           !previousSpanIds.has(span.id) &&
           span.attributes?.['next.span_type'] === 'UseCache.revalidate' &&
-          span.attributes?.['next.cache.name'] === 'readStaleCachedValue'
+          span.attributes?.['next.cache.name'] === 'readStaleCachedValue' &&
+          span.parentId === schedulingSpan?.id
       )
       const nestedSpan = spans.find(
         (span) =>
@@ -2040,7 +2041,7 @@ describe('opentelemetry use cache Server Functions', () => {
       ).toBe(true)
     }, 10_000)
 
-    const beforeFailureSpanIds = currentSpanIds()
+    const failureTraceId = '123456789abcdef0123456789abcdef0'
     await retry(async () => {
       expect(
         await next
@@ -2048,6 +2049,9 @@ describe('opentelemetry use cache Server Functions', () => {
             `/api/cache?background=1&background-fail=1&key=${failingKey}`,
             {
               method: 'POST',
+              headers: {
+                traceparent: `00-${failureTraceId}-123456789abcdef0-01`,
+              },
             }
           )
           .then((res) => res.status)
@@ -2057,7 +2061,7 @@ describe('opentelemetry use cache Server Functions', () => {
         .getSpans()
         .find(
           (span) =>
-            !beforeFailureSpanIds.has(span.id) &&
+            span.traceId === failureTraceId &&
             span.attributes?.['next.span_type'] === 'UseCache.revalidate'
         )
 
