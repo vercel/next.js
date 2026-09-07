@@ -5,10 +5,11 @@ export { NextRequest } from '../spec-extension/request'
 export { NextResponse } from '../spec-extension/response'
 export type {
   WebSocketCloseDetails,
-  WebSocketError,
   WebSocketHooks,
   WebSocketMessage,
+  WebSocketMessageData,
   WebSocketPeer,
+  WebSocketUpgradeOptions,
 } from '../spec-extension/response'
 export { userAgent, userAgentFromString } from '../spec-extension/user-agent'
 export { URLPattern } from '../spec-extension/url-pattern'

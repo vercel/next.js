@@ -5,17 +5,25 @@ import type { PropagateToWorkersField } from './router-utils/types'
 import next from '../next'
 import type { Span } from '../../trace'
 import type { ServerResponse } from 'http'
-import type { OnCacheEntryHandler } from '../request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  type OnCacheEntryHandler,
+} from '../request-meta'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
 import type { ConfiguredExperimentalFeature } from '../config'
+import {
+  closeWebSocketScope,
+  settleWebSocketShutdownStages,
+} from '../websocket-connection-registry'
 
 export type ServerInitResult = {
   requestHandler: RequestHandler
   upgradeHandler: UpgradeHandler
   server: NextServer
   // Make an effort to close upgraded HTTP requests (e.g. Turbopack HMR websockets)
-  closeUpgraded: () => Promise<void>
+  closeUpgraded: (code?: number) => Promise<void>
   // The distDir from config, used by the parent process for telemetry/trace
   distDir: string
   // Experimental features from config, used for logging after server is ready
@@ -117,6 +125,7 @@ async function initializeImpl(opts: {
 
   let requestHandler: RequestHandler
   let upgradeHandler: UpgradeHandler
+  const webSocketRegistryScope = {}
 
   const server = next({
     ...opts,
@@ -175,14 +184,28 @@ async function initializeImpl(opts: {
     upgradeHandler = server.getUpgradeHandler()
   }
 
+  const serverUpgradeHandler = upgradeHandler
+  upgradeHandler = (req, socket, head) => {
+    if (!getRequestMeta(req, 'webSocketRegistryScope')) {
+      addRequestMeta(req, 'webSocketRegistryScope', webSocketRegistryScope)
+    }
+    return serverUpgradeHandler(req, socket, head)
+  }
+
   await server.prepare(opts.serverFields)
 
   return {
     requestHandler,
     upgradeHandler,
     server,
-    async closeUpgraded() {
-      opts.bundlerService?.close()
+    async closeUpgraded(code = 1001) {
+      await settleWebSocketShutdownStages(
+        [
+          () => closeWebSocketScope(webSocketRegistryScope, code),
+          () => opts.bundlerService?.close(),
+        ],
+        'Failed to close render-server WebSocket infrastructure'
+      )
     },
     distDir: opts.distDir,
     experimentalFeatures: opts.experimentalFeatures,

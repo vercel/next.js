@@ -819,13 +819,6 @@ declare module 'next/dist/compiled/ws' {
   }
   export = VendoredWebSocket
 }
-declare module 'next/dist/compiled/crossws' {
-  export type { Hooks, Message, Peer, WSError } from 'crossws'
-}
-declare module 'next/dist/compiled/crossws/adapters/node' {
-  export type { NodeAdapter, NodeOptions } from 'crossws/adapters/node'
-  export { default } from 'crossws/adapters/node'
-}
 declare module 'next/dist/compiled/@vercel/routing-utils' {
   import m from '@vercel/routing-utils/dist/superstatic'
   export = m

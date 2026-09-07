@@ -1,6 +1,0 @@
-module.exports = {
-  adapterPath: require.resolve('./websocket-route-handlers-adapter.mjs'),
-  experimental: {
-    webSocketRouteHandlers: true,
-  },
-}

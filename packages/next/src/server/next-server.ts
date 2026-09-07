@@ -107,6 +107,7 @@ import { BubbledError, getTracer } from './lib/trace/tracer'
 import { NextNodeServerSpan } from './lib/trace/constants'
 import { nodeFs } from './lib/node-fs-methods'
 import { getRouteRegex } from '../shared/lib/router/utils/route-regex'
+import { isDynamicRoute } from '../shared/lib/router/utils/is-dynamic'
 import { pipeToNodeResponse } from './pipe-readable'
 import { createRequestResponseMocks, MockedResponse } from './lib/mock-request'
 import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
@@ -132,6 +133,12 @@ import type { UnwrapPromise } from '../lib/coalesced-function'
 import { populateStaticEnv } from '../lib/static-env'
 import { NodeModuleLoader } from './lib/module-loader/node-module-loader'
 import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
+import { isAppRouteRoute } from '../lib/is-app-route-route'
+import {
+  validateWebSocketHandshake,
+  validateWebSocketOrigin,
+  writeRawHttpError,
+} from './websocket-http'
 import {
   ensureInstrumentationRegistered,
   getInstrumentationModule,
@@ -369,36 +376,140 @@ export default class NextNodeServer extends BaseServer<
     }
 
     const invokeOutput = getRequestMeta(req, 'invokeOutput')
+    const invokePath = getRequestMeta(req, 'invokePath')
     const query = getRequestMeta(req, 'invokeQuery') || {}
     if (!invokeOutput) {
-      socket.end()
+      await writeRawHttpError(req, socket, 404, 'Not Found')
       return
     }
 
     const appPaths = this.getOriginalAppPaths(invokeOutput)
     const page = appPaths?.[appPaths.length - 1] || invokeOutput
+    if (!isAppRouteRoute(page)) {
+      await writeRawHttpError(req, socket, 404, 'Not Found')
+      return
+    }
 
-    const result = await this.findPageComponents({
-      locale: getRequestMeta(req, 'locale'),
-      page,
-      query,
-      params: {},
-      isAppPath: true,
-      appPaths,
-      shouldEnsure: true,
-      url: req.url,
-    })
+    let params = getRequestMeta(req, 'params') || {}
+    const normalizedPage = normalizeAppPath(page)
+    if (
+      invokePath &&
+      isDynamicRoute(normalizedPage) &&
+      !Object.keys(params).length
+    ) {
+      try {
+        const invokePathname = getNextPathnameInfo(
+          parseUrl(invokePath).pathname || '/',
+          { nextConfig: this.nextConfig, parseData: false }
+        ).pathname
+        const match = getRouteMatcher(getRouteRegex(normalizedPage))(
+          invokePathname
+        )
+        if (!match) {
+          await writeRawHttpError(req, socket, 404, 'Not Found')
+          return
+        }
+        params = match
+      } catch (error) {
+        if (error instanceof DecodeError) {
+          await writeRawHttpError(req, socket, 400, 'Bad Request')
+          return
+        }
+        throw error
+      }
+    }
+    addRequestMeta(req, 'query', query)
+    addRequestMeta(req, 'params', params)
 
+    const isEdgeAppRoute = () => {
+      const edgeFunctionPages = this.getEdgeFunctionsPages()
+      return (
+        edgeFunctionPages.includes(page) ||
+        Boolean(
+          appPaths?.some((appPath) => edgeFunctionPages.includes(appPath))
+        )
+      )
+    }
+    if (!this.dev && isEdgeAppRoute()) {
+      await writeRawHttpError(req, socket, 404, 'Not Found')
+      return
+    }
+
+    const handshakeError = validateWebSocketHandshake(req)
+    if (handshakeError) {
+      await writeRawHttpError(
+        req,
+        socket,
+        handshakeError.status,
+        handshakeError.message,
+        handshakeError.headers
+      )
+      return
+    }
+
+    const webSocketConfig = this.nextConfig.experimental.webSocketRouteHandlers
+    const originError = validateWebSocketOrigin(
+      req,
+      typeof webSocketConfig === 'object'
+        ? webSocketConfig.allowedOrigins
+        : undefined
+    )
+    if (originError) {
+      await writeRawHttpError(
+        req,
+        socket,
+        originError.status,
+        originError.message,
+        originError.headers
+      )
+      return
+    }
+
+    const findUpgradeComponents = async () => {
+      try {
+        if (this.dev) {
+          await this.ensurePage({
+            page,
+            appPaths,
+            clientOnly: false,
+            url: req.url,
+          })
+          if (isEdgeAppRoute()) return null
+        }
+        return await this.findPageComponents({
+          locale: getRequestMeta(req, 'locale'),
+          page,
+          query,
+          params,
+          isAppPath: true,
+          appPaths,
+          shouldEnsure: !this.dev,
+          url: req.url,
+        })
+      } catch (error) {
+        if (isEdgeAppRoute()) return null
+        throw error
+      }
+    }
+
+    const result = await findUpgradeComponents()
     if (
       !result ||
       result.components.routeModule?.definition.kind !== RouteKind.APP_ROUTE ||
       typeof (result.components.ComponentMod as AppRouteModule)
         .upgradeHandler !== 'function'
     ) {
-      socket.end()
+      await writeRawHttpError(req, socket, 404, 'Not Found')
       return
     }
 
+    if (!getRequestMeta(req, 'hmrRefreshHash')) {
+      addRequestMeta(
+        req,
+        'hmrRefreshHash',
+        this.getServerComponentsHmrRefreshHash()
+      )
+    }
     addRequestMeta(req, 'relativeProjectDir', relative(process.cwd(), this.dir))
     addRequestMeta(req, 'distDir', this.distDir)
     await (result.components.ComponentMod as AppRouteModule).upgradeHandler(
@@ -408,11 +519,7 @@ export default class NextNodeServer extends BaseServer<
         responseHeaders: getRequestMeta(req, 'webSocketUpgradeHeaders'),
       },
       {
-        node: {
-          req,
-          socket,
-          head,
-        },
+        node: { req, socket, head },
       }
     )
   }
