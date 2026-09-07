@@ -25,9 +25,7 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
   - `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
   - Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
-- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. Each export encodes behavior the route needs to keep doing, so migrate it through the [migration guide's per-key sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components#enable-cache-components). Removing `dynamic = 'force-dynamic'` is required, but it changes the route from full request-time rendering to the Partial Prerendering model. Cache reusable work, place request-time work behind `<Suspense>`, or keep the route under `instant = false` until it can be migrated. If the config was the only request-time signal and the route must wait for a real request, use `connection()`. `revalidate` and `fetchCache` also need real translation. If a value can't be cleanly translated yet, leave a `// TODO: Cache Components adoption — restore revalidate = 3600` comment so the loop picks it up. The `cache-components-instant-false` codemod does not touch these.
-
-- **Preserve static routes.** Fully migrate routes that use `dynamic = 'force-static'` or `dynamic = 'error'` in the first PR. Do not leave those routes, or a shared segment covering them, under `instant = false`.
+- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. Inventory these exports before running the codemod, then follow the [migration guide's per-key sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components). The guide is the source of truth for translating each value. The `cache-components-instant-false` codemod does not remove these configs.
 
 - **`experimental.dynamicIO` is fatal.** It was renamed to top-level `cacheComponents` and the old key now aborts before any build can run — remove it (or replace with `cacheComponents: true`) first. `experimental.useCache` is still accepted as a deprecated alias; redundant once `cacheComponents: true` is set, so remove it for clarity.
 
@@ -35,7 +33,7 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
 
 - **No passing baseline before the flag.** If the app already uses `"use cache"`, the pre-flag build errors with `please enable the feature flag cacheComponents`. Enabling the flag is the first thing you do (in Incremental, before the codemod; in Direct, before fixing routes) — not a thing to do _after_ getting a passing build. Note this in your starting summary so it doesn't read as a regression.
 
-- **Existing caches can stay.** Do not rewrite `fetch` or `unstable_cache` caching merely to enable Cache Components.
+- **Existing caches can stay.** Follow the migration guide's [`fetch` and `unstable_cache` sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components#fetch-cache-options). Do not rewrite them solely to enable Cache Components.
 
 - **Offline docs.** Guide links have offline copies under `node_modules/next/dist/docs/` (bundled since Next.js 16.2), with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`). If you can't predict the numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it. The `/docs/messages/*` error pages are not bundled.
 
@@ -114,7 +112,7 @@ If there's no user to ask, default to **Incremental** and document the choice.
 
 ### incremental
 
-Before invoking the codemod, grep for `^export const (revalidate|dynamic|fetchCache)` across the app directory. Mark routes that use `dynamic = 'force-static'` or `dynamic = 'error'` for migration in this PR, then translate each config per the `requires` note above. For `dynamic = 'force-dynamic'`, remove the export and use `instant = false` when this first PR must preserve blocking behavior. The codemod does not touch these configs.
+Before invoking the codemod, grep for `^export const (revalidate|dynamic|fetchCache)` across the app directory and follow the migration guide for every match. Mark routes that use `dynamic = 'force-static'` or `dynamic = 'error'` for full migration in this PR. The codemod does not remove incompatible configs.
 
 The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. Common false positive: if you recently upgraded Next.js, `package.json` and the lockfile will already be dirty — commit those first.
 
@@ -162,7 +160,7 @@ Incremental only. Stop here before starting step 2 — the pre-step is the shipp
 
 - What you did: turned on Cache Components, ran the codemod, migrated the previously static routes, fixed the remaining blockers, and confirmed the build passes.
 - What changed: the previously static routes still prerender. Other pages and layouts keep a `// TODO: Cache Components adoption` opt-out.
-- What to sanity-check: the previously static routes stay static, and the other routes retain their current request-time behavior.
+- What to sanity-check: the previously static routes stay fully prerendered and prefetchable, and request-specific data on the deferred routes remains request-specific.
 - The question: "Want to open this as its own PR before we start adopting Cache Components route by route? Or keep going on this branch?" Wait for the answer.
 
 Moving to step 2 without checking in defeats the point of taking the incremental path.

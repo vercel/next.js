@@ -56,12 +56,12 @@ test('preserves the catalog route and data cache lifetimes', async () => {
 
 test('stops at a safe incremental boundary', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The first PR is incremental rather than a forced full-app migration. The account route began with dynamic = 'force-dynamic'. That incompatible export is removed, its cookie greeting remains request-specific, and the route may use instant = false to preserve its blocking behavior until a later migration. The product route may also remain explicitly opted out, but the explicitly static catalog and privacy routes are not deferred with them. The final app is safe to ship at this boundary.`
+    `The first PR is incremental rather than a forced full-app migration. The account route's incompatible dynamic = 'force-dynamic' export is removed without adding replacement rendering or caching code solely for that config. Its cookie greeting remains request-specific, and the route may remain under instant = false if it still blocks validation. The product route may also remain explicitly opted out, but the explicitly static catalog and privacy routes are not deferred with them. The final app is safe to ship at this boundary.`
   )
 })
 
 test('prioritizes protected routes and verifies the result', async () => {
   await expect(transcript).toSatisfyCriterion(
-    `Before declaring the first migration PR ready, the agent recognizes that removing dynamic = 'force-dynamic' moves a route into the Partial Prerendering model and requires an explicit decision about its request-time work. It also identifies routes with pre-existing force-static or dynamic-error behavior as high-priority compatibility contracts, completes their migration rather than leaving blanket opt-outs in place, and verifies with a successful production build. Its verification distinguishes preserved route prerendering and navigation prefetch behavior from merely preserving an inner data cache or obtaining a green build through opt-outs.`
+    `Before declaring the first migration PR ready, the agent inventories incompatible route configs and follows the Cache Components migration guide for each one. It identifies routes with pre-existing force-static or dynamic-error behavior as high-priority compatibility contracts, completes their migration rather than leaving blanket opt-outs in place, and verifies with a successful production build. Its verification distinguishes preserved route prerendering and navigation prefetch behavior from merely preserving an inner data cache or obtaining a green build through opt-outs.`
   )
 })
