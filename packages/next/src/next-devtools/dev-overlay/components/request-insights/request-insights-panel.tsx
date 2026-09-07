@@ -902,6 +902,10 @@ function getRequestOverview(request: RequestInsight) {
     { hit: 0, miss: 0, skip: 0, unknown: 0 }
   )
   const knownCacheCount = cacheCounts.hit + cacheCounts.miss + cacheCounts.skip
+  const omittedSpans = request.spans.reduce((count, span) => {
+    const omitted = span.attributes?.['next.request_insights.omitted_spans']
+    return count + (typeof omitted === 'number' ? omitted : 0)
+  }, 0)
 
   return {
     method,
@@ -919,7 +923,7 @@ function getRequestOverview(request: RequestInsight) {
           : `Cache ${cacheCounts.hit} hit, ${cacheCounts.miss} miss, ${cacheCounts.skip} skip${
               cacheCounts.unknown ? `, ${cacheCounts.unknown} unknown` : ''
             }`,
-    spanSummary: `${request.spans.length} span${request.spans.length === 1 ? '' : 's'}`,
+    spanSummary: `${request.spans.length} span${request.spans.length === 1 ? '' : 's'}${omittedSpans ? `, ${omittedSpans} omitted` : ''}`,
     route: request.route,
     routeParams: getRequestRouteParams(request),
     errorSummary,

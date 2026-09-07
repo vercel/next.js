@@ -33,7 +33,18 @@ export function EmitRequestInsightsSnapshot() {
               startTime: startTime + 40,
               durationMs: 1,
               status: 'ok',
-              spans: [],
+              spans: [
+                {
+                  name: 'Run validation',
+                  startTime: startTime + 40,
+                  durationMs: 1,
+                  status: 'ok',
+                  attributes: {
+                    'next.span_type': 'AppRender.instantInsights.runValidation',
+                    'next.request_insights.omitted_spans': 3,
+                  },
+                },
+              ],
               fetches: [],
             },
           ],

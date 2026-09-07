@@ -552,6 +552,16 @@ describe('request insights', () => {
         syntheticInternalVisible: true,
       })
     })
+
+    await browser.elementByCss('.request-insights-settings-trigger').click()
+    await browser
+      .elementByCss('.request-insights-row[aria-label*="/synthetic-internal"]')
+      .click()
+    await retry(async () => {
+      expect(
+        await browser.elementByCss('.request-insights-overview').text()
+      ).toContain('1 span, 3 omitted')
+    })
   })
 
   it('contains Request Insights scrolling inside the overlay panes', async () => {
