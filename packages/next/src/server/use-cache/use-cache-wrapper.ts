@@ -42,7 +42,7 @@ import {
   makeDevtoolsIOAwarePromise,
   makeDynamicHangingPromise,
   makeRuntimeHangingPromise,
-  makeStageHangingPromise,
+  makePrefetchHangingPromise,
   makeUntrackedHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
@@ -2528,23 +2528,7 @@ export async function cache(
             case 'prerender':
             case 'prerender-runtime': {
               const prerenderStore = workUnitStore
-              // The post-shell stage that the entry must be delayed to.
-              let postShellStage: AdvanceableRenderStage
-              if (prerenderStore.type === 'prerender') {
-                postShellStage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
-              } else {
-                postShellStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-              }
-              const stagedRendering = prerenderStore.stagedRendering
-              if (
-                !isPrefetchable ||
-                // If the render ends before the post-shell stage (e.g. a
-                // render that only produces an App Shell), the entry can't
-                // be delayed and is omitted entirely.
-                (stagedRendering !== null &&
-                  stagedRendering.finalStage !== null &&
-                  stagedRendering.finalStage < postShellStage)
-              ) {
+              if (!isPrefetchable) {
                 debug?.(
                   logPrefix,
                   'omitting entry',
@@ -2555,35 +2539,68 @@ export async function cache(
                 if (cacheSignal) {
                   cacheSignal.endRead()
                 }
-                if (isPrefetchable) {
-                  // The entry was omitted only because this render ends
-                  // before the post-shell stage; a render that reaches its
-                  // post-shell stage would serve it.
-                  return makeStageHangingPromise(
-                    prerenderStore.renderSignal,
-                    workStore.route,
-                    'dynamic "use cache"',
-                    prerenderStore
-                  )
-                }
                 // An unprefetchable entry (stale < MIN_PREFETCHABLE_STALE) is
-                // excluded from runtime prerenders too.
+                // excluded from all prerenders.
                 return makeDynamicHangingPromise(
                   prerenderStore.renderSignal,
                   workStore.route,
                   'dynamic "use cache"'
                 )
+              } else {
+                // This entry is prefetchable, but exluded from shells.
+
+                const stagedRendering = prerenderStore.stagedRendering
+                if (stagedRendering === null) {
+                  // Prospective prerender (no staging): do not delay, because if we didn't
+                  // have this entry in the RDC already, we wouldn't delay it either.
+                } else {
+                  // Final prerender (with staging).
+                  // This entry cannot be part of the shell, so we delay it to the prefetch.
+                  let prefetchStage: AdvanceableRenderStage
+                  if (prerenderStore.type === 'prerender') {
+                    prefetchStage = RENDER_STAGES_BY_DATA_KIND.staticLinkData
+                  } else {
+                    prefetchStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+                  }
+                  if (
+                    // If the prerender ends before the prefetch stage (because
+                    // render that only produces an App Shell), this cache
+                    // should be omitted entirely.
+                    stagedRendering.finalStage !== null &&
+                    stagedRendering.finalStage < prefetchStage
+                  ) {
+                    debug?.(
+                      logPrefix,
+                      'omitting entry',
+                      serializedCacheKey,
+                      'from shell due to short stale value:',
+                      rdcResult.entry.stale
+                    )
+                    if (cacheSignal) {
+                      cacheSignal.endRead()
+                    }
+                    // The entry was omitted only because this prerender ends
+                    // before the prefetch stage. Neither static nor runtime
+                    // app shells include it, so it does not count as a runtime
+                    // data access.
+                    return makePrefetchHangingPromise(
+                      prerenderStore.renderSignal,
+                      workStore.route,
+                      'dynamic "use cache"'
+                    )
+                  } else {
+                    debug?.(
+                      logPrefix,
+                      'delaying entry',
+                      serializedCacheKey,
+                      'until the prefetch stage due to short stale value:',
+                      rdcResult.entry.stale
+                    )
+                    await stagedRendering.waitForStage(prefetchStage)
+                  }
+                }
               }
-              if (stagedRendering !== null) {
-                debug?.(
-                  logPrefix,
-                  'delaying entry',
-                  serializedCacheKey,
-                  'until after the shell stage due to short stale value:',
-                  rdcResult.entry.stale
-                )
-                await stagedRendering.waitForStage(postShellStage)
-              }
+
               break
             }
             case 'request': {
