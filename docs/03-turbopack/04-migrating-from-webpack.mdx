@@ -1,0 +1,114 @@
+---
+title: Migrating from webpack
+description: Behavior differences to expect when moving an application from webpack to Turbopack, and the features Turbopack does not support.
+related:
+  title: Next Steps
+  description: Learn what Turbopack supports and how to keep using webpack where you need to.
+  links:
+    - turbopack/supported-features
+    - webpack
+---
+
+There are a number of non-trivial behavior differences between webpack and Turbopack that are important to be aware of when migrating an application. Generally, these are less of a concern for new applications.
+
+If you depend on a feature Turbopack does not support, you can keep building with [webpack](/docs/webpack) using the `--webpack` flag.
+
+## Known gaps with webpack
+
+### Filesystem Root
+
+Turbopack uses the root directory to resolve modules. Files outside of the project root are not resolved.
+
+For example, when linking dependencies outside the project root (via `npm link`, `yarn link`, `pnpm link`, etc.), those linked files will not be resolved by default. To resolve these files, you must configure the root option to the parent directory of both the project and the linked dependencies.
+
+You can configure the filesystem root using [turbopack.root](/docs/turbopack/configuration#root-directory) option in `next.config.js`.
+
+### CSS Module Ordering
+
+Turbopack will follow JS import order to order [CSS modules](/docs/app/getting-started/css#css-modules) which are not otherwise ordered. For example:
+
+```jsx filename="components/BlogPost.jsx"
+import utilStyles from './utils.module.css'
+import buttonStyles from './button.module.css'
+export default function BlogPost() {
+  return (
+    <div className={utilStyles.container}>
+      <button className={buttonStyles.primary}>Click me</button>
+    </div>
+  )
+}
+```
+
+In this example, Turbopack will ensure that `utils.module.css` will appear before `button.module.css` in the produced CSS chunk, following the import order
+
+Webpack generally does this as well, but there are cases where it will ignore JS inferred ordering, for example if it infers the JS file is side-effect-free.
+
+This can lead to subtle rendering changes when adopting Turbopack, if applications have come to rely on an arbitrary ordering. Generally, the solution is easy, e.g. have `button.module.css` `@import utils.module.css` to force the ordering, or identify the conflicting rules and change them to not target the same properties.
+
+### Sass node_modules imports
+
+Turbopack supports importing `node_modules` Sass files out of the box. Webpack supports a legacy tilde `~` syntax for this, which is not supported by Turbopack.
+
+From:
+
+```scss filename="styles/globals.scss"
+@import '~bootstrap/dist/css/bootstrap.min.css';
+```
+
+To:
+
+```scss filename="styles/globals.scss"
+@import 'bootstrap/dist/css/bootstrap.min.css';
+```
+
+If you can't update the imports, you can add a `turbopack.resolveAlias` configuration to map the `~` syntax to the actual path:
+
+```js filename="next.config.js"
+module.exports = {
+  turbopack: {
+    resolveAlias: {
+      '~*': '*',
+    },
+  },
+}
+```
+
+### CSS / Sass / SCSS decimal precision
+
+Turbopack uses [Lightning CSS](https://lightningcss.dev/) to compile CSS. Lightning CSS uses 5 digits of decimal precision for numeric CSS values, while webpack uses 10 digits. This applies to both plain CSS and Sass/SCSS output. For example, a value that evaluates to `25/17` produces:
+
+- **Webpack:** `line-height: 1.4705882353` (10 digits)
+- **Turbopack:** `line-height: 1.47059` (5 digits)
+
+This can lead to subtle rendering differences when migrating from webpack to Turbopack, especially for properties like `line-height`, `letter-spacing`, or other calculated values where high precision matters.
+
+### Webpack plugins
+
+Turbopack does not support webpack plugins. This affects third-party tools that rely on webpack's plugin system for integration. We do support [webpack loaders](/docs/turbopack/configuration#configuring-webpack-loaders). If you depend on webpack plugins, you'll need to find Turbopack-compatible alternatives or continue using webpack until equivalent functionality is available.
+
+## Unsupported and unplanned features
+
+Some features are not yet implemented or not planned:
+
+- **Legacy CSS Modules features**
+  - Standalone `:local` and `:global` pseudo-classes (only the function variant `:global(...)` is supported).
+  - The `@value` rule (superseded by CSS variables).
+  - `:import` and `:export` ICSS rules.
+  - `composes` in `.module.css` composing a `.css` file. In webpack this would treat the `.css` file as a CSS Module, with Turbopack the `.css` file will always be global. This means that if you want to use `composes` in a CSS Module, you need to change the `.css` file to a `.module.css` file.
+  - `@import` in CSS Modules importing `.css` as a CSS Module. In webpack this would treat the `.css` file as a CSS Module, with Turbopack the `.css` file will always be global. This means that if you want to use `@import` in a CSS Module, you need to change the `.css` file to a `.module.css` file.
+- **`sassOptions.functions`**
+  Custom Sass functions defined in `sassOptions.functions` are not supported. This feature allows defining JavaScript functions that can be called from Sass code during compilation. Turbopack's Rust-based architecture cannot directly execute JavaScript functions passed through `sassOptions.functions`, unlike webpack's Node.js-based sass-loader which runs entirely in JavaScript. If you're using custom Sass functions, you'll need to use webpack instead of Turbopack.
+- **`webpack()` configuration** in `next.config.js`
+  Turbopack replaces webpack, so `webpack()` configs are not recognized. Use the [`turbopack` config](/docs/turbopack/configuration) instead.
+- **Yarn PnP**
+  Not planned for Turbopack support in Next.js.
+- **`experimental.urlImports`**
+  Not planned for Turbopack.
+- **`experimental.esmExternals`**
+  Not planned. Turbopack does not support the legacy `esmExternals` configuration in Next.js.
+- **Some Next.js Experimental Flags**
+  - `experimental.nextScriptWorkers`
+  - `experimental.fallbackNodePolyfills`
+    We plan to implement these in the future.
+
+For a full, detailed breakdown of each configuration option and its status, see the [`turbopack` config reference](/docs/turbopack/configuration).

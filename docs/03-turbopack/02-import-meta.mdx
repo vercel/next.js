@@ -1,0 +1,173 @@
+---
+title: import.meta
+description: Turbopack supports import.meta.env for build-time environment metadata and import.meta.glob for importing many modules at once.
+---
+
+Turbopack supports two `import.meta` extensions: `import.meta.env` for build-time environment metadata, and `import.meta.glob()` for importing multiple modules at once. Both require Turbopack and are not available when using webpack.
+
+## import.meta.env
+
+Turbopack supports built-in environment metadata through `import.meta.env`:
+
+| Property   | Type      | Value                                                              |
+| ---------- | --------- | ------------------------------------------------------------------ |
+| `DEV`      | `boolean` | Whether `MODE` is not `"production"`                               |
+| `PROD`     | `boolean` | Whether `MODE` is `"production"`                                   |
+| `MODE`     | `string`  | The compile-time `NODE_ENV`, defaulting to `"development"`         |
+| `BASE_URL` | `string`  | The Next.js `basePath`, with a trailing slash (`"/"` by default)   |
+| `SSR`      | `boolean` | `true` in server bundles and `false` in browser and client bundles |
+
+These values are statically analyzed, so Turbopack can remove unreachable branches:
+
+```ts filename="app/example.ts"
+if (import.meta.env.DEV) {
+  console.log('development mode')
+}
+```
+
+You can also read the whole object, destructure it, or use static bracket access:
+
+```ts filename="app/example.ts"
+const { MODE, SSR } = import.meta.env
+const baseUrl = import.meta.env['BASE_URL']
+```
+
+> **Good to know**: `import.meta.env` requires Turbopack. Custom `VITE_*` variables, Vite custom modes, `envPrefix`, and `envDir` are not supported. `BASE_URL` reflects the Next.js [`basePath`](/docs/app/api-reference/config/next-config-js/basePath) configuration and includes a trailing slash to match Vite's format.
+
+## import.meta.glob
+
+Turbopack supports `import.meta.glob()`, a Vite-compatible API for importing multiple modules at once using glob patterns. The result is an object keyed by the file path relative to the calling file.
+
+```js
+const modules = import.meta.glob('./dir/*.js')
+// {
+//   './dir/foo.js': () => import('./dir/foo.js'),
+//   './dir/bar.js': () => import('./dir/bar.js'),
+// }
+```
+
+> **Good to know:** `import.meta.glob` requires Turbopack. It is not available when using webpack.
+
+### Lazy loading (default)
+
+By default, each value in the result object is a thunk, a function that returns a `Promise` for the module. This enables lazy loading:
+
+```js
+const modules = import.meta.glob('./dir/*.js')
+
+for (const path in modules) {
+  const module = await modules[path]()
+  console.log(path, module)
+}
+```
+
+### Eager loading
+
+Pass `{ eager: true }` to import all matching modules up front. Each value is the module object directly instead of a thunk:
+
+```js
+const modules = import.meta.glob('./dir/*.js', { eager: true })
+
+for (const path in modules) {
+  console.log(path, modules[path].default)
+}
+```
+
+### Named imports
+
+Use the `import` option to select a specific named export from each matched module. This works in both lazy and eager modes:
+
+```js
+// Lazy: each value is () => Promise<exportValue>
+const defaults = import.meta.glob('./dir/*.js', { import: 'default' })
+
+// Eager: each value is the export value directly
+const setups = import.meta.glob('./dir/*.js', { import: 'setup', eager: true })
+```
+
+### Query strings
+
+Use the `query` option to append a query string to every import request:
+
+```js
+const rawFiles = import.meta.glob('./dir/*.txt', { query: '?raw' })
+```
+
+The `query` option also accepts an object. Keys and values are URL-encoded and joined into a query string:
+
+```js
+const modules = import.meta.glob('./*.ts', {
+  query: { bar: 'foo', raw: true },
+})
+// equivalent to: { query: '?bar=foo&raw=true' }
+```
+
+The query is passed through to the module rules, it has no meaning on its own. Unlike Vite, Turbopack has no built-in `?raw` or `?url` handling, so match the query with a [rule](/docs/turbopack/configuration#module-types) to decide how those files are loaded:
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  turbopack: {
+    rules: {
+      // `import.meta.glob('./dir/*.txt', { query: '?raw' })` returns the file contents as strings
+      '*.txt': { condition: { query: '?raw' }, type: 'text' },
+    },
+  },
+}
+
+export default nextConfig
+```
+
+### Multiple patterns and negation
+
+Pass an array of glob patterns as the first argument. Prefix a pattern with `!` to exclude matching files:
+
+```js
+// Combine multiple directories
+const modules = import.meta.glob(['./dir/*.js', './other/*.js'])
+
+// Exclude specific files
+const withoutTests = import.meta.glob(['./src/**/*.js', '!**/*.test.js'])
+```
+
+### TypeScript
+
+TypeScript types for `import.meta.glob` are included in Next.js. They are available automatically when `"moduleResolution": "bundler"` (or `"node16"` / `"nodenext"`) is set in your `tsconfig.json`, which is the default for new Next.js projects.
+
+The return type differs based on the `eager` option:
+
+```ts
+// Lazy (default) — Record<string, () => Promise<unknown>>
+const lazy = import.meta.glob('./dir/*.ts')
+
+// Eager — Record<string, unknown>
+const eager = import.meta.glob('./dir/*.ts', { eager: true })
+```
+
+Pass the module type to describe what the matched files export:
+
+```ts
+interface Mod {
+  name: string
+  default: () => string
+}
+
+// Record<string, () => Promise<Mod>>
+const lazy = import.meta.glob<Mod>('./dir/*.ts')
+
+// Record<string, Mod>
+const eager = import.meta.glob<Mod>('./dir/*.ts', { eager: true })
+```
+
+### Options reference
+
+| Option          | Type                                          | Default     | Description                                                                |
+| --------------- | --------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
+| `eager`         | `boolean`                                     | `false`     | Import modules synchronously instead of returning thunks.                  |
+| `import`        | `string`                                      | `undefined` | Named export to select from each matched module (e.g. `'default'`).        |
+| `query`         | `string \| Record<string, string \| boolean>` | `undefined` | Query string (or object) to append to each import.                         |
+| `base`          | `string`                                      | `undefined` | Override the base path used for resolving patterns and keying results.     |
+| `caseSensitive` | `boolean`                                     | `true`      | Match glob patterns case-sensitively. Set to `false` to ignore ASCII case. |
+
+> **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query` together with a matching rule instead, as shown in [Query strings](#query-strings). The legacy `import.meta.globEager()` API is also not supported, use `import.meta.glob('...', { eager: true })` instead.

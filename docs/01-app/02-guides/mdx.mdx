@@ -725,7 +725,7 @@ export default withMDX(nextConfig)
 
 ### Using Plugins with Turbopack
 
-To use plugins with [Turbopack](/docs/app/api-reference/turbopack), upgrade to the latest `@next/mdx` and specify plugin names using a string:
+To use plugins with [Turbopack](/docs/turbopack), upgrade to the latest `@next/mdx` and specify plugin names using a string:
 
 ```js filename="next.config.mjs"
 import createMDX from '@next/mdx'
@@ -757,7 +757,7 @@ export default withMDX(nextConfig)
 
 > **Good to know**:
 >
-> remark and rehype plugins without serializable options cannot be used yet with [Turbopack](/docs/app/api-reference/turbopack), because JavaScript functions can't be passed to Rust.
+> remark and rehype plugins without serializable options cannot be used yet with [Turbopack](/docs/turbopack), because JavaScript functions can't be passed to Rust.
 
 ## Deep Dive: How do you transform markdown into HTML?
 

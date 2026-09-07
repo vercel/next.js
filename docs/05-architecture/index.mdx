@@ -1,0 +1,16 @@
+---
+title: Architecture
+description: How Next.js works under the hood, from the compiler through to the runtimes your code executes in.
+---
+
+This section covers how Next.js works below the level of the router. It applies to both the App Router and the Pages Router.
+
+Next.js turns your source files into a running application in a few distinct stages:
+
+- **Compiling.** Each file is transformed into JavaScript the target environment understands. The [Next.js Compiler](/docs/architecture/nextjs-compiler) uses SWC to handle TypeScript, JSX, and a set of built-in transforms.
+- **Bundling.** Modules are resolved into a dependency graph and split into chunks for each output environment. This is the bundler's job, documented in its own section: [Turbopack](/docs/turbopack) is the default, and [webpack](/docs/webpack) remains available behind the `--webpack` flag.
+- **Serving.** Your code runs in a [supported browser](/docs/architecture/supported-browsers) on the client, and on the server in either the Node.js or Edge runtime.
+
+In development, these stages run continuously rather than once. [Fast Refresh](/docs/architecture/fast-refresh) applies your edits without losing component state, and the bundler compiles only what the dev server actually requests.
+
+You do not need to configure any of this to build an application. Read these pages when you are debugging behavior that a feature-level guide does not explain, tuning build or dev performance, or deciding whether a change is safe for your setup.

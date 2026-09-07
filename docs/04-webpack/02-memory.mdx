@@ -1,0 +1,55 @@
+---
+title: Reducing webpack memory usage
+nav_title: Memory usage
+description: Options that reduce the memory webpack uses during development and builds.
+related:
+  title: Next Steps
+  description: Learn about the other ways to reduce memory usage in a Next.js application.
+  links:
+    - app/guides/memory-usage
+---
+
+These options apply only to builds that use webpack. For memory tuning that applies to any bundler, such as disabling static analysis or source maps, see [how to optimize memory usage](/docs/app/guides/memory-usage).
+
+## Try `experimental.webpackMemoryOptimizations`
+
+Starting in `v15.0.0`, you can add `experimental.webpackMemoryOptimizations: true` to your `next.config.js` file to change behavior in Webpack that reduces max memory usage but may increase compilation times by a slight amount.
+
+> **Good to know**: This feature is currently experimental to test on more projects first, but it is considered to be low-risk.
+
+## Webpack build worker
+
+The Webpack build worker allows you to run Webpack compilations inside a separate Node.js worker which will decrease memory usage of your application during builds.
+
+This option is enabled by default if your application does not have a custom Webpack configuration starting in `v14.1.0`.
+
+If you are using an older version of Next.js or you have a custom Webpack configuration, you can enable this option by setting `experimental.webpackBuildWorker: true` inside your `next.config.js`.
+
+> **Good to know**: This feature may not be compatible with all custom Webpack plugins. It is also not compatible with the `next build --experimental-debug-memory-usage` flag.
+
+## Disable Webpack cache
+
+The [Webpack cache](https://webpack.js.org/configuration/cache/) saves generated Webpack modules in memory and/or to disk to improve the speed of builds. This can
+help with performance, but it will also increase the memory usage of your application to store the cached data.
+
+You can disable this behavior by adding a [custom Webpack configuration](/docs/webpack/configuration) to your application:
+
+```js filename="next.config.mjs"
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  webpack: (
+    config,
+    { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack }
+  ) => {
+    if (config.cache && !dev) {
+      config.cache = Object.freeze({
+        type: 'memory',
+      })
+    }
+    // Important: return the modified config
+    return config
+  },
+}
+
+export default nextConfig
+```
