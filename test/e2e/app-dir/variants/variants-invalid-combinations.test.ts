@@ -53,58 +53,53 @@ const cases: ReadonlyArray<readonly [string, string]> = [
 
 // Variants are supported with Turbopack only, so a webpack build rejects the
 // config of this fixture before it reads any route.
-;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
-  'static variant combinations that are rejected',
-  () => {
-    const { next, skipped } = nextTestSetup({
-      files: __dirname + '/fixtures/invalid-combinations',
-      // Every route of this fixture declares combinations that are rejected, so
-      // a build of all of them at once cannot succeed. Both modes below drive
-      // Next.js by hand instead.
-      skipStart: true,
-      skipDeployment: true,
+// @force-gate turbopack
+describe('static variant combinations that are rejected', () => {
+  const { next, skipped } = nextTestSetup({
+    files: __dirname + '/fixtures/invalid-combinations',
+    // Every route of this fixture declares combinations that are rejected, so
+    // a build of all of them at once cannot succeed. Both modes below drive
+    // Next.js by hand instead.
+    skipStart: true,
+    skipDeployment: true,
+  })
+
+  if (skipped) {
+    return
+  }
+
+  if (isNextDev) {
+    beforeAll(async () => {
+      await next.start()
     })
 
-    if (skipped) {
-      return
-    }
+    it.each(cases)('should report %s', async (name, expected) => {
+      const response = await next.fetch(`/case/${name}/requested`)
 
-    if (isNextDev) {
-      beforeAll(async () => {
-        await next.start()
+      expect(response.status).toBe(500)
+
+      await retry(async () => {
+        expect(next.cliOutput).toContain(expected)
+      })
+    })
+  } else {
+    it('should reject a combination on a route with no dynamic segments', async () => {
+      // The dev server reads the static variant combinations of a route when
+      // it builds the static paths of that route, and it builds them for a
+      // dynamic route on request. This route has no dynamic segments, so it
+      // builds no static paths at all, and only a build reads what it
+      // declared.
+      //
+      // `--debug-build-paths` restricts the build to this one route, so no
+      // other route of the fixture can fail first.
+      const { exitCode, cliOutput } = await next.build({
+        args: ['--debug-build-paths', 'app/case/no-dynamic-segments/page.tsx'],
       })
 
-      it.each(cases)('should report %s', async (name, expected) => {
-        const response = await next.fetch(`/case/${name}/requested`)
-
-        expect(response.status).toBe(500)
-
-        await retry(async () => {
-          expect(next.cliOutput).toContain(expected)
-        })
-      })
-    } else {
-      it('should reject a combination on a route with no dynamic segments', async () => {
-        // The dev server reads the static variant combinations of a route when
-        // it builds the static paths of that route, and it builds them for a
-        // dynamic route on request. This route has no dynamic segments, so it
-        // builds no static paths at all, and only a build reads what it
-        // declared.
-        //
-        // `--debug-build-paths` restricts the build to this one route, so no
-        // other route of the fixture can fail first.
-        const { exitCode, cliOutput } = await next.build({
-          args: [
-            '--debug-build-paths',
-            'app/case/no-dynamic-segments/page.tsx',
-          ],
-        })
-
-        expect(exitCode).toBe(1)
-        expect(cliOutput).toContain(
-          '`unstable_generateStaticVariants` for /case/no-dynamic-segments did not return an array.'
-        )
-      })
-    }
+      expect(exitCode).toBe(1)
+      expect(cliOutput).toContain(
+        '`unstable_generateStaticVariants` for /case/no-dynamic-segments did not return an array.'
+      )
+    })
   }
-)
+})
