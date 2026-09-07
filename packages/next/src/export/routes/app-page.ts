@@ -11,11 +11,13 @@ import type {
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
+  NEXT_INLINE_SCRIPT_HASHES_HEADER,
   NEXT_META_SUFFIX,
   RSC_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SEGMENT_SUFFIX,
 } from '../../lib/constants'
+import { collectInlineScriptHashes } from '../../server/app-render/inline-script-hashes'
 import { hasNextSupport } from '../../server/ci-info'
 import { lazyPrerenderAppPage } from '../../server/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
@@ -188,6 +190,22 @@ export async function exportAppPage(
 
     // If we're writing the file to disk, we know it's a prerender.
     headers[NEXT_IS_PRERENDER_HEADER] = '1'
+
+    // The hashes of the inline scripts travel with the prerendered document, so
+    // the response can be served under a policy without `'unsafe-inline'`. A
+    // postponed shell is completed at request time, where the rest is hashed.
+    const inlineScriptHashes = renderOpts.experimental.inlineScriptHashes
+
+    if (inlineScriptHashes && !postponed) {
+      const hashes = collectInlineScriptHashes(
+        html,
+        inlineScriptHashes.algorithm ?? 'sha256'
+      )
+
+      if (hashes.length > 0) {
+        headers[NEXT_INLINE_SCRIPT_HASHES_HEADER] = hashes.join(' ')
+      }
+    }
 
     if (fetchTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = fetchTags

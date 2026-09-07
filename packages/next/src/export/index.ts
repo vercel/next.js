@@ -521,6 +521,7 @@ async function exportAppImpl(
       dynamicOnHover: nextConfig.experimental.dynamicOnHover ?? false,
       optimisticRouting: nextConfig.experimental.optimisticRouting ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
+      inlineScriptHashes: nextConfig.experimental.inlineScriptHashes,
       prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
       reactBrowserBailout: nextConfig.experimental.reactBrowserBailout ?? false,

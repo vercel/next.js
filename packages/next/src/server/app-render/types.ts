@@ -164,6 +164,7 @@ export interface RenderOptsPartial {
     dynamicOnHover: boolean
     optimisticRouting: boolean
     inlineCss: boolean
+    inlineScriptHashes: ExperimentalConfig['inlineScriptHashes']
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
     reactBrowserBailout: boolean

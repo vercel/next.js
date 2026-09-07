@@ -171,6 +171,7 @@ async function requestHandler(
         dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
         optimisticRouting: Boolean(nextConfig.experimental.optimisticRouting),
         inlineCss: Boolean(nextConfig.experimental.inlineCss),
+        inlineScriptHashes: nextConfig.experimental.inlineScriptHashes,
         prefetchInlining: nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
         reactBrowserBailout: Boolean(

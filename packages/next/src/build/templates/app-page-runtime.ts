@@ -68,10 +68,15 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
+  NEXT_INLINE_SCRIPT_HASHES_HEADER,
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  collectInlineScriptHashes,
+  withInlineScriptHashes,
+} from '../../server/app-render/inline-script-hashes' with { 'turbopack-transition': 'next-server-utility' }
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
@@ -938,6 +943,7 @@ export function createAppPageEntrypoint({
                 nextConfig.experimental.optimisticRouting
               ),
               inlineCss: Boolean(nextConfig.experimental.inlineCss),
+              inlineScriptHashes: nextConfig.experimental.inlineScriptHashes,
               prefetchInlining:
                 nextConfig.experimental.prefetchInlining ?? false,
               authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
@@ -1053,10 +1059,38 @@ export function createAppPageEntrypoint({
           throw err
         }
 
+        // The hashes of the inline scripts are only known once the document is
+        // complete, so a response that carries them is buffered rather than
+        // streamed. They travel in the cached headers, which keeps them with
+        // the body they belong to for every later hit.
+        const inlineScriptHashes = nextConfig.experimental.inlineScriptHashes
+        let html = result
+
+        if (
+          inlineScriptHashes &&
+          result.contentType !== RSC_CONTENT_TYPE_HEADER &&
+          metadata.postponed === undefined
+        ) {
+          const document = await result.toUnchunkedString(true)
+          const hashes = collectInlineScriptHashes(
+            document,
+            inlineScriptHashes.algorithm ?? 'sha256'
+          )
+
+          if (hashes.length > 0) {
+            headers[NEXT_INLINE_SCRIPT_HASHES_HEADER] = hashes.join(' ')
+          }
+
+          html = RenderResult.fromStatic(
+            document,
+            result.contentType ?? HTML_CONTENT_TYPE_HEADER
+          )
+        }
+
         return {
           value: {
             kind: CachedRouteKind.APP_PAGE,
-            html: result,
+            html,
             headers,
             rscData: metadata.flightData,
             postponed: metadata.postponed,
@@ -1847,6 +1881,24 @@ export function createAppPageEntrypoint({
 
           if (!isMinimalMode || !isSSG) {
             delete headers[NEXT_CACHE_TAGS_HEADER]
+          }
+
+          const inlineScriptHashes = headers[NEXT_INLINE_SCRIPT_HASHES_HEADER]
+          delete headers[NEXT_INLINE_SCRIPT_HASHES_HEADER]
+
+          if (typeof inlineScriptHashes === 'string') {
+            const hashes = inlineScriptHashes.split(' ')
+
+            for (const name of [
+              'content-security-policy',
+              'content-security-policy-report-only',
+            ]) {
+              const policy = res.getHeader(name)
+
+              if (typeof policy === 'string') {
+                res.setHeader(name, withInlineScriptHashes(policy, hashes))
+              }
+            }
           }
 
           for (let [key, value] of Object.entries(headers)) {
