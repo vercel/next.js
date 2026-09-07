@@ -415,7 +415,7 @@ export async function createHotReloaderTurbopack(
         `Only WebAssembly (WASM) bindings were loaded, and Turbopack requires native bindings.\n\n` +
         `To use Next.js on this platform, use Webpack instead:\n` +
         `  next dev --webpack\n\n` +
-        `For more information, see: https://nextjs.org/docs/app/api-reference/turbopack#supported-platforms`
+        `For more information, see: https://nextjs.org/docs/turbopack#supported-platforms`
     )
   }
 
