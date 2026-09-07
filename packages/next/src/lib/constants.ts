@@ -28,6 +28,7 @@ export const FETCH_CACHE_KEY_EXCLUDED_HEADERS = new Set([
 ])
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
+export const NEXT_INLINE_SCRIPT_HASHES_HEADER = 'x-next-inline-script-hashes'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'
