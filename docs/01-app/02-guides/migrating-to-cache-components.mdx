@@ -601,7 +601,14 @@ export async function generateStaticParams() {
 }
 ```
 
-Paths you don't return are still served. Next.js prerenders a static shell for the unknown params and streams the rest at request time. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the full prerender-a-subset workflow.
+Paths you don't return are still served at request time.
+
+### Preserve ISR for unlisted paths
+
+- Without Partial Prefetching, don't await `params` inside `<Suspense>`. Await it outside the boundary so the first request renders the complete route and stores it in the ISR cache.
+- To serve fallback UI while an unlisted path renders, enable [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) and await `params` inside `<Suspense>`.
+
+See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the complete behavior.
 
 ### `dynamicParams` is not supported
 
@@ -611,67 +618,9 @@ Paths you don't return are still served. Next.js prerenders a static shell for t
 
 Params not returned by `generateStaticParams` are rendered on request. If you used `dynamicParams: false` to reject them, call [`notFound()`](/docs/app/api-reference/functions/not-found) in the page when the param doesn't resolve to real data.
 
-### Await `params` inside `<Suspense>`
+### Wrap client route hooks in `<Suspense>`
 
-To produce the static shell, pass the `params` promise into a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary instead of awaiting it at the top of the component, so unknown params can still prerender.
-
-```tsx filename="app/blog/[slug]/page.tsx" switcher
-// Before - awaiting params at the top blocks the shell
-export default async function Page({
-  params,
-}: {
-  params: Promise<{ slug: string }>
-}) {
-  const { slug } = await params
-  return <Post slug={slug} />
-}
-```
-
-```jsx filename="app/blog/[slug]/page.js" switcher
-// Before - awaiting params at the top blocks the shell
-export default async function Page({ params }) {
-  const { slug } = await params
-  return <Post slug={slug} />
-}
-```
-
-```tsx filename="app/blog/[slug]/page.tsx" switcher
-import { Suspense } from 'react'
-
-// After - await inside Suspense so the shell can prerender
-export default function Page({ params }: PageProps<'/blog/[slug]'>) {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <Post params={params} />
-    </Suspense>
-  )
-}
-
-async function Post({ params }: Pick<PageProps<'/blog/[slug]'>, 'params'>) {
-  const { slug } = await params
-  // ...
-}
-```
-
-```jsx filename="app/blog/[slug]/page.js" switcher
-import { Suspense } from 'react'
-
-// After - await inside Suspense so the shell can prerender
-export default function Page({ params }) {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <Post params={params} />
-    </Suspense>
-  )
-}
-
-async function Post({ params }) {
-  const { slug } = await params
-  // ...
-}
-```
-
-The same applies to client hooks that read the route. When the route's pathname is fully known, they resolve during prerendering and need no boundary. When it depends on dynamic params not yet known, they suspend, wherever the component sits. A nav or breadcrumb in a shared layout, for instance, suspends while Next.js generates the static shell for any route below it that has dynamic params. Wrap the component that reads the hook in `<Suspense>` (push the read down to the smallest leaf so the rest stays prerendered), or the build fails:
+When the route's pathname is fully known, client hooks that read the route resolve during prerendering and need no boundary. When the pathname depends on dynamic params not yet known, the hooks suspend wherever the component sits. A nav or breadcrumb in a shared layout, for instance, suspends while Next.js generates the static shell for any route below it that has dynamic params. Wrap the component that reads the hook in `<Suspense>` (push the read down to the smallest leaf so the rest stays prerendered), or the build fails:
 
 - [`usePathname`](/docs/app/api-reference/functions/use-pathname)
 - [`useParams`](/docs/app/api-reference/functions/use-params)
