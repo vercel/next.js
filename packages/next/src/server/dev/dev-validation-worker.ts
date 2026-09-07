@@ -404,6 +404,9 @@ export async function runDevValidation(
       localSpans: signal.aborted ? null : (collector?.finish() ?? null),
     }
   } finally {
+    // Async work can retain the collector after this validation was aborted
+    // or threw. Close it on those paths too, before reusing the worker.
+    collector?.finish()
     cleanup()
     if (isTestLoggingEnabled) {
       console.log(

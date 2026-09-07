@@ -119,6 +119,7 @@ import {
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
 import {
   getActiveLocalSpan,
+  isLocalSpanRecordingEnabled,
   traceLocalSpan,
 } from '../lib/trace/local-span-recorder'
 import {
@@ -6769,6 +6770,9 @@ async function runValidationInDev(
   devRenderDidError: boolean,
   validationAbortSignal: AbortSignal
 ): Promise<Array<unknown> | undefined> {
+  const runSpan = isLocalSpanRecordingEnabled()
+    ? runInstantInsightsSpan
+    : runWithoutInstantInsightsSpan
   const { componentMod: ComponentMod, getDynamicParamFromSegment } = ctx
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
   const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
@@ -6791,21 +6795,26 @@ async function runValidationInDev(
     // First we warmup SSR with the runtime chunks. This ensures that when we do
     // the full prerender pass with dynamic tracking module loading won't
     // interrupt the prerender and can properly observe the entire content
-    await warmupClientModulesForStagedValidation(
-      // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
-      // otherwise, for static shell validation, we only need to warm up to the runtime stage.
-      // we also need to use a different store type, because instant validation allows more APIs to resolve.
-      needsInstantValidation ? 'validation-client' : 'prerender-client',
-      needsInstantValidation
-        ? accumulatedChunks[RenderStage.Dynamic]
-        : accumulatedChunks[RenderStage.Runtime],
-      accumulatedChunks[RenderStage.Dynamic],
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      validationSamples,
-      validationSampleTracking,
-      validationAbortSignal
+    await runSpan(
+      AppRenderSpan.instantInsightsWarmup,
+      'Warm up validation modules',
+      () =>
+        warmupClientModulesForStagedValidation(
+          // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
+          // otherwise, for static shell validation, we only need to warm up to the runtime stage.
+          // we also need to use a different store type, because instant validation allows more APIs to resolve.
+          needsInstantValidation ? 'validation-client' : 'prerender-client',
+          needsInstantValidation
+            ? accumulatedChunks[RenderStage.Dynamic]
+            : accumulatedChunks[RenderStage.Runtime],
+          accumulatedChunks[RenderStage.Dynamic],
+          rootParams,
+          fallbackRouteParams,
+          ctx,
+          validationSamples,
+          validationSampleTracking,
+          validationAbortSignal
+        )
     )
   }
 
@@ -6848,14 +6857,19 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
-    const result = await validateStaticShell(
-      inputs,
-      ctx,
-      rootParams,
-      fallbackRouteParams,
-      debugChunks,
-      hmrRefreshHash,
-      validationAbortSignal
+    const result = await runSpan(
+      AppRenderSpan.instantInsightsStaticShell,
+      'Validate static shell',
+      () =>
+        validateStaticShell(
+          inputs,
+          ctx,
+          rootParams,
+          fallbackRouteParams,
+          debugChunks,
+          hmrRefreshHash,
+          validationAbortSignal
+        )
     )
     // A newer render superseded this validation while its render ran, so its
     // result is stale. Don't surface errors for a page the user left.
@@ -6885,19 +6899,24 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
-    const result = await validateInstantConfigs(
-      prefetchMode,
-      inputs.accumulatedChunks,
-      debugChunks,
-      inputs.startTime,
-      inputs.stageEndTimes,
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      hmrRefreshHash,
-      validationSamples,
-      devRenderDidError,
-      validationAbortSignal
+    const result = await runSpan(
+      AppRenderSpan.instantInsightsValidate,
+      'Validate instant navigation',
+      () =>
+        validateInstantConfigs(
+          prefetchMode,
+          inputs.accumulatedChunks,
+          debugChunks,
+          inputs.startTime,
+          inputs.stageEndTimes,
+          rootParams,
+          fallbackRouteParams,
+          ctx,
+          hmrRefreshHash,
+          validationSamples,
+          devRenderDidError,
+          validationAbortSignal
+        )
     )
 
     // A newer render superseded this work. Don't surface stale validation

@@ -337,6 +337,22 @@ describe('request insights', () => {
           span.attributes?.['next.span_type'] ===
           'LoadComponents.loadRouteModule'
       )
+      for (const spanType of [
+        'AppRender.instantInsights.warmup',
+        'AppRender.instantInsights.staticShell',
+      ]) {
+        const phase = instantInsights?.spans.find(
+          (span) => span.attributes?.['next.span_type'] === spanType
+        )
+        expect(phase).toEqual(
+          expect.objectContaining({
+            parentSpanId: runValidationSpan?.spanId,
+            traceId: runValidationSpan?.traceId,
+            status: 'ok',
+            durationMs: expect.any(Number),
+          })
+        )
+      }
       if (isTurbopack) {
         const spansById = new Map(
           instantInsights?.spans.flatMap((span) =>

@@ -185,6 +185,16 @@ describe('request insights trace viewer', () => {
             'next.span_type': 'AppRender.instantInsights.runValidation',
           },
         },
+        ...['warmup', 'staticShell', 'validate'].map((phase, index) => ({
+          name: phase,
+          spanId: `phase-${phase}`,
+          parentSpanId: 'validate',
+          startTime: 126 + index,
+          durationMs: 1,
+          attributes: {
+            'next.span_type': `AppRender.instantInsights.${phase}`,
+          },
+        })),
       ],
     })
 
@@ -197,6 +207,9 @@ describe('request insights trace viewer', () => {
       { label: 'Instant Insights', depth: 0 },
       { label: 'Prepare validation inputs', depth: 1 },
       { label: 'Run validation', depth: 1 },
+      { label: 'warmup', depth: 2 },
+      { label: 'static shell', depth: 2 },
+      { label: 'validate', depth: 2 },
     ])
   })
 
