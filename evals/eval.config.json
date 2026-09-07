@@ -7,6 +7,10 @@
     "skills": ["next-cache-components-adoption"],
     "timeout": 1800
   },
+  "agent-051-optimize-partial-prefetching": {
+    "skills": ["next-partial-prefetching-optimizer"],
+    "timeout": 1800
+  },
   "agent-054-cache-components-empty-static-params": {
     "skills": ["next-cache-components-adoption"],
     "timeout": 1800
