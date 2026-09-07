@@ -31,10 +31,10 @@ if (dev.pid) {
 }
 
 writeFileSync(
-  'app/reports/[project]/page.tsx',
-  readFileSync('app/reports/[project]/page.tsx', 'utf8').replace(
-    'export function generateStaticParams()',
-    'export function generateStaticParams(_route: string)'
+  'lib/route-params.ts',
+  readFileSync('lib/route-params.ts', 'utf8').replace(
+    'return () =>',
+    'return (_route: string) =>'
   )
 )
 
