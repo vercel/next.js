@@ -90,6 +90,12 @@ import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { getDevOverlayFontMiddleware } from '../../next-devtools/server/font/get-dev-overlay-font-middleware'
 import { getDisableDevIndicatorMiddleware } from '../../next-devtools/server/dev-indicator-middleware'
 import getWebpackBundler from '../../shared/lib/get-webpack-bundler'
+import {
+  getActiveWebSocketRouteBundlePaths,
+  invalidateWebSocketRoutes,
+  isWebSocketRouteActive,
+  reloadWebSocketScope,
+} from '../websocket-connection-registry'
 import { getRestartDevServerMiddleware } from '../../next-devtools/server/restart-dev-server-middleware'
 import { checkFileSystemCacheInvalidationAndCleanup } from '../../build/webpack/cache-invalidation'
 import { receiveBrowserLogsWebpack } from './browser-logs/receive-logs'
@@ -262,6 +268,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private resetFetch: () => void
   private restartServer: (() => Promise<void>) | undefined
   private lockfile: Lockfile | undefined
+  private webSocketRegistryScope: object | undefined
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
     installed: '0.0.0',
@@ -295,6 +302,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       lockfile,
       onDevServerCleanup,
       restartServer,
+      webSocketRegistryScope,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -310,6 +318,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       lockfile: Lockfile | undefined
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
       restartServer?: () => Promise<void>
+      webSocketRegistryScope?: object
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -330,6 +339,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.resetFetch = resetFetch
     this.restartServer = restartServer
     this.lockfile = lockfile
+    this.webSocketRegistryScope = webSocketRegistryScope
 
     this.config = config
     this.previewProps = previewProps
@@ -1338,6 +1348,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const prevServerPageHashes = new Map<string, string>()
     const prevEdgeServerPageHashes = new Map<string, string>()
     const prevCSSImportModuleHashes = new Map<string, string>()
+    let previousWebSocketRouteOwners = new Map<string, 'server' | 'edge'>()
 
     const pageExtensionRegex = new RegExp(
       `\\.(?:${this.config.pageExtensions.join('|')})$`
@@ -1561,6 +1572,75 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       const reloadAfterInvalidation = this.reloadAfterInvalidation
       this.reloadAfterInvalidation = false
 
+      const webSocketRegistryScope = this.webSocketRegistryScope
+      if (
+        this.config.experimental.webSocketRouteHandlers &&
+        webSocketRegistryScope
+      ) {
+        if (reloadAfterInvalidation) {
+          void reloadWebSocketScope(webSocketRegistryScope)
+        }
+        const serverStats = stats.stats[1]
+        const edgeServerStats = stats.stats[2]
+        if (
+          !serverStats ||
+          serverStats.hasErrors() ||
+          edgeServerStats?.hasErrors()
+        ) {
+          // An unknown graph shape must not leave a route executing code from
+          // a generation which may have changed.
+          invalidateWebSocketRoutes(webSocketRegistryScope, 'unknown')
+        } else {
+          try {
+            // trackPageChanges fingerprints entrypoint content on both server
+            // compilers at emit time, so this covers Node-runtime routes
+            // (server compilation) and Edge-runtime routes (edge-server
+            // compilation) through one detector. A route absent from the
+            // previous compilation compares as unchanged, so a connection
+            // accepted during its first compile is not spuriously bumped.
+            const activeBundlePaths = getActiveWebSocketRouteBundlePaths(
+              webSocketRegistryScope
+            )
+            if (activeBundlePaths.size !== 0) {
+              const serverEntrypoints = serverStats.compilation.entrypoints
+              const edgeEntrypoints = edgeServerStats?.compilation.entrypoints
+              const affected = new Set<string>()
+              const currentOwners = new Map<string, 'server' | 'edge'>()
+
+              for (const bundlePath of activeBundlePaths) {
+                const owner: 'server' | 'edge' | undefined =
+                  serverEntrypoints.has(bundlePath)
+                    ? 'server'
+                    : edgeEntrypoints?.has(bundlePath)
+                      ? 'edge'
+                      : undefined
+                if (owner !== undefined) currentOwners.set(bundlePath, owner)
+                const previousOwner =
+                  previousWebSocketRouteOwners.get(bundlePath)
+
+                if (
+                  owner === undefined ||
+                  (previousOwner !== undefined && previousOwner !== owner) ||
+                  changedServerPages.has(bundlePath) ||
+                  changedEdgeServerPages.has(bundlePath)
+                ) {
+                  // Deleted, moved runtimes, or content-changed.
+                  affected.add(bundlePath)
+                }
+              }
+              previousWebSocketRouteOwners = currentOwners
+
+              invalidateWebSocketRoutes(webSocketRegistryScope, affected)
+            } else {
+              previousWebSocketRouteOwners = new Map()
+            }
+          } catch (error) {
+            console.error(error)
+            invalidateWebSocketRoutes(webSocketRegistryScope, 'unknown')
+          }
+        }
+      }
+
       const serverOnlyChanges = difference<string>(
         changedServerPages,
         changedClientPages
@@ -1686,6 +1766,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       )
     })
 
+    const webSocketRegistryScope = this.webSocketRegistryScope
     this.onDemandEntries = onDemandEntryHandler({
       hotReloader: this,
       multiCompiler: this.multiCompiler,
@@ -1693,6 +1774,12 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       appDir: this.appDir,
       rootDir: this.dir,
       nextConfig: this.config,
+      isEntryPinned:
+        this.config.experimental.webSocketRouteHandlers &&
+        webSocketRegistryScope
+          ? (bundlePath) =>
+              isWebSocketRouteActive(webSocketRegistryScope, bundlePath)
+          : undefined,
       ...(this.config.onDemandEntries as {
         maxInactiveAge: number
         pagesBufferLength: number

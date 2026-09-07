@@ -1955,6 +1955,9 @@ pub async fn project_get_server_hmr_update(
     let container = project.container;
     let turbo_tasks = project.turbopack_ctx.turbo_tasks();
     let from = from.map(|from| from.0.clone());
+    // The pull's entries double as the update's affected-entry metadata for
+    // scoped invalidation (e.g. WebSocket route reloads).
+    let affected_entries = entry_paths.clone();
 
     let (project, read) = turbo_tasks
         .run(async move {
@@ -1982,9 +1985,13 @@ pub async fn project_get_server_hmr_update(
                 issues,
                 ..
             } = &*read;
-            let update =
-                compute_server_hmr_update(chunk_lists.as_slice(), from.as_deref(), version.clone())
-                    .await?;
+            let update = compute_server_hmr_update(
+                chunk_lists.as_slice(),
+                from.as_deref(),
+                version.clone(),
+                &affected_entries,
+            )
+            .await?;
             Ok::<_, anyhow::Error>((update, issues.clone()))
         })
         .await

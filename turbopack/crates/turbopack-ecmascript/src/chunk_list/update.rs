@@ -29,6 +29,12 @@ pub struct ChunkListUpdate {
     /// List of merged updates since the last version.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub merged: Vec<EcmascriptMergedUpdate>,
+    /// Entry points whose runtime work this update carries, populated by
+    /// aggregate (multi-entry) update feeds so consumers can scope
+    /// invalidation to the entries that changed. Per-entry feeds leave this
+    /// empty. Sorted for deterministic serialization.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub affected_entries: Vec<RcStr>,
 }
 
 impl ChunkListUpdate {
@@ -168,7 +174,12 @@ pub async fn update_chunk_list(
             to: Vc::upcast::<Box<dyn Version>>(to_version)
                 .into_trait_ref()
                 .await?,
-            instruction: ChunkListUpdate { chunks, merged }.into_instruction(),
+            instruction: ChunkListUpdate {
+                chunks,
+                merged,
+                affected_entries: vec![],
+            }
+            .into_instruction(),
         })
     };
 
@@ -209,6 +220,7 @@ mod tests {
                     }),
                 )]),
             }],
+            affected_entries: vec![],
         });
 
         assert_eq!(

@@ -5,6 +5,7 @@ import type {
 import {
   closeWebSocketRoute,
   closeWebSocketScope,
+  getActiveWebSocketRouteBundlePaths,
   getWebSocketRouteBundlePath,
   isWebSocketRouteActive,
   isWebSocketRouteLeaseCurrent,
@@ -472,6 +473,25 @@ describe('WebSocket connection registry', () => {
     lease!.release()
     lease!.release()
     expect(isWebSocketRouteActive(scope, 'app/chat/route')).toBe(false)
+  })
+
+  it('returns a snapshot of routes with in-flight leases or peers', () => {
+    const scope = {}
+    const lease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')!
+
+    const activeRoutes = getActiveWebSocketRouteBundlePaths(scope)
+    expect(activeRoutes).toEqual(new Set(['app/chat/route']))
+
+    const peer = createConnection()
+    expect(registerWebSocketRoutePeer(peer.connection, lease)).toBe(true)
+    lease.release()
+    expect(getActiveWebSocketRouteBundlePaths(scope)).toEqual(
+      new Set(['app/chat/route'])
+    )
+
+    unregisterWebSocketRoutePeer(peer.connection, lease)
+    expect(getActiveWebSocketRouteBundlePaths(scope)).toEqual(new Set())
+    expect(activeRoutes).toEqual(new Set(['app/chat/route']))
   })
 
   it('keeps a registered peer active after its request lease is released', () => {
