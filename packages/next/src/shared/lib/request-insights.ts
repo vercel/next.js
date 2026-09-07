@@ -90,6 +90,18 @@ export type RequestInsightsSnapshot = {
 
 export const MAX_LIVE_COMPLETED_REQUEST_INSIGHTS = 100
 
+export function isSameRequestInsightFetch(
+  first: RequestInsightFetch,
+  second: RequestInsightFetch
+): boolean {
+  return (
+    first.url === second.url &&
+    (first.index !== undefined && second.index !== undefined
+      ? first.index === second.index
+      : first.startTime === second.startTime)
+  )
+}
+
 export function getRequestInsightKind(
   insight: Pick<RequestInsightIdentity, 'kind'>
 ): RequestInsightKind {

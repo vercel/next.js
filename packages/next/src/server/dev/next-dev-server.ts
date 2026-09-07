@@ -85,7 +85,9 @@ import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
 import {
+  appendArchivedRequestInsightUpdateToJournal,
   appendRequestInsightToJournal,
+  appendRequestInsightUpdateToJournal,
   closeRequestInsightsJournal,
   configureRequestInsightsJournal,
   getRequestInsightsHistory as getJournalHistory,
@@ -285,6 +287,8 @@ export default class DevServer extends Server {
       await configureRequestInsightsJournal(this.distDir)
       configureRequestInsightsHistoryProvider({
         append: appendRequestInsightToJournal,
+        appendUpdate: appendRequestInsightUpdateToJournal,
+        appendArchivedUpdate: appendArchivedRequestInsightUpdateToJournal,
         getHistory: (query) => getJournalHistory(this.distDir, query),
         read: (query) => readRequestInsightsJournal(this.distDir, query),
       })

@@ -10,8 +10,11 @@ import {
   subscribeRequestInsights,
 } from './request-insights'
 import {
+  appendArchivedRequestInsightUpdateToJournal,
   appendRequestInsightToJournal,
+  appendRequestInsightUpdateToJournal,
   closeRequestInsightsJournal,
+  configureRequestInsightsJournal,
   getRequestInsightsHistory,
   initializeRequestInsightsJournal,
   readRequestInsightsJournal,
@@ -465,6 +468,175 @@ describe('request insights', () => {
     await resetRequestInsightsJournalForTest()
     await rm(distDir, { recursive: true, force: true })
   })
+
+  it.each([false, true])(
+    'retains late spans and fetches without reopening a completed request, archived: %s',
+    async (archive) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+      await initializeRequestInsightsJournal(distDir)
+      configureJournalProvider(distDir)
+      recordSpan({
+        name: 'render route',
+        requestId: 'late',
+        startTime: 100,
+        durationMs: 20,
+      })
+      completeRequestInsight({ requestId: 'late' })
+      if (archive) {
+        for (let i = 0; i < 100; i++) {
+          recordSpan({ name: 'GET /', requestId: `other-${i}` })
+          completeRequestInsight({ requestId: `other-${i}` })
+        }
+      }
+      const fetch = {
+        url: 'https://example.com/data?token=secret',
+        index: 1,
+        startTime: 90,
+        durationMs: 100,
+        cacheStatus: 'miss',
+      }
+      recordRequestInsightFetch({ requestId: 'late' }, fetch)
+      recordSpan({
+        name: 'fetch',
+        requestId: 'late',
+        startTime: fetch.startTime,
+        durationMs: fetch.durationMs,
+        status: 'error',
+        attributes: {
+          'next.span_type': 'AppRender.fetch',
+          'http.url': fetch.url,
+          'http.status_code': 500,
+          'next.fetch.idx': fetch.index,
+          'next.fetch.cache_status': 'miss',
+        },
+      })
+      recordRequestInsightFetch({ requestId: 'late' }, fetch)
+      recordSpan({
+        name: 'GET /',
+        requestId: 'late',
+        startTime: 100,
+        durationMs: 20,
+        status: 'ok',
+        attributes: {
+          'next.span_type': 'BaseServer.handleRequest',
+          'http.status_code': 200,
+          'next.rsc': false,
+        },
+      })
+      const [stored] = await readRequestInsightsJournal(distDir, {
+        requestId: 'late',
+      })
+      expect(stored).toMatchObject({
+        startTime: 100,
+        durationMs: 20,
+        status: 'error',
+        spans: [
+          expect.any(Object),
+          expect.objectContaining({
+            name: 'fetch https://example.com/data?query=redacted',
+          }),
+          expect.objectContaining({ name: 'GET /' }),
+        ],
+        fetches: [
+          expect.objectContaining({
+            url: 'https://example.com/data?query=redacted',
+            index: 1,
+          }),
+        ],
+      })
+      const summary = (
+        await getRequestInsightsHistory(distDir, { limit: 200 })
+      ).requests.find((request) => request.requestId === 'late')
+      expect(summary).toMatchObject({
+        spanCount: 3,
+        fetchCount: 1,
+        statusCode: 200,
+        isRsc: false,
+        hasError: true,
+        cacheStatuses: ['miss'],
+        startTime: 100,
+        durationMs: 20,
+      })
+      expect(
+        getRequestInsightsSnapshot().requests.some(
+          (request) => request.requestId === 'late'
+        )
+      ).toBe(!archive)
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  )
+
+  it('writes late spans without serializing previously stored spans again', async () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+    await initializeRequestInsightsJournal(distDir)
+    configureJournalProvider(distDir)
+    recordSpan({ name: 'render', requestId: 'delta' })
+    const request = getRequestInsightsSnapshot().requests[0]
+    const original = { ...request.spans[0] }
+    const serialize = jest.fn(() => original)
+    Object.defineProperty(request.spans[0], 'toJSON', { value: serialize })
+    completeRequestInsight({ requestId: 'delta' })
+    await getRequestInsightsHistory(distDir)
+    serialize.mockClear()
+    for (let i = 0; i < 10; i++) {
+      recordSpan({ name: 'late work', requestId: 'delta' })
+    }
+    expect(
+      (await readRequestInsightsJournal(distDir, { requestId: 'delta' }))[0]
+        .spans
+    ).toHaveLength(11)
+    expect(
+      (await getRequestInsightsHistory(distDir)).requests[0].spanCount
+    ).toBe(11)
+    expect(serialize).not.toHaveBeenCalled()
+    await resetRequestInsightsJournalForTest()
+    await rm(distDir, { recursive: true, force: true })
+  })
+
+  it.each([false, true])(
+    'keeps a complete request when a late update rotates the journal, archived: %s',
+    async (archive) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+      await initializeRequestInsightsJournal(distDir)
+      configureJournalProvider(distDir)
+      recordSpan({ name: 'original', requestId: 'rotated' })
+      completeRequestInsight({ requestId: 'rotated' })
+      await getRequestInsightsHistory(distDir)
+      if (archive) clearRequestInsightsForTest()
+
+      const fs = require('fs/promises') as typeof import('fs/promises')
+      const currentStat = await fs.stat(
+        path.join(distDir, 'request-insights.ndjson')
+      )
+      const stat = jest.spyOn(fs, 'stat')
+      stat.mockResolvedValueOnce({ ...currentStat, size: 50 * 1024 * 1024 })
+      try {
+        await configureRequestInsightsJournal(distDir)
+      } finally {
+        stat.mockRestore()
+      }
+      recordSpan({ name: 'late one', requestId: 'rotated' })
+      recordSpan({ name: 'late two', requestId: 'rotated' })
+      const [stored] = await readRequestInsightsJournal(distDir, {
+        requestId: 'rotated',
+      })
+      expect(stored.spans.map((span) => span.name)).toEqual([
+        'original',
+        'late one',
+        'late two',
+      ])
+      const history = await getRequestInsightsHistory(distDir)
+      expect(history.truncated).toBe(true)
+      expect(history.requests).toHaveLength(1)
+      expect(history.requests[0].spanCount).toBe(3)
+      await resetRequestInsightsJournalForTest()
+      await rm(distDir, { recursive: true, force: true })
+    }
+  )
 
   it('closes the journal idempotently and flushes pending appends', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
@@ -1056,6 +1228,8 @@ describe('request insights', () => {
 function configureJournalProvider(distDir: string): void {
   configureRequestInsightsHistoryProvider({
     append: appendRequestInsightToJournal,
+    appendUpdate: appendRequestInsightUpdateToJournal,
+    appendArchivedUpdate: appendArchivedRequestInsightUpdateToJournal,
     getHistory: (query) => getRequestInsightsHistory(distDir, query),
     read: (query) => readRequestInsightsJournal(distDir, query),
   })

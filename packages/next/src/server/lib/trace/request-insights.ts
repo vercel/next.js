@@ -3,6 +3,7 @@ import {
   getRequestInsightKey,
   getRequestInsightKind,
   getRequestInsightSource,
+  isSameRequestInsightFetch,
   MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
   REQUEST_INSIGHT_PROXY_SPAN_TYPE,
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
@@ -11,6 +12,7 @@ import {
   type RequestInsightKind,
   type RequestInsightProxyStatus,
   type RequestInsightSource,
+  type RequestInsightSpan,
   type RequestInsightsSnapshot,
 } from '../../../shared/lib/request-insights'
 import type {
@@ -63,10 +65,20 @@ export type RequestInsightsJournalQuery = {
 
 export type RequestInsightsHistoryProvider = {
   append(request: RequestInsight): void
+  appendUpdate?(request: RequestInsight, update: RequestInsightUpdate): void
+  appendArchivedUpdate?(
+    identity: Pick<RequestInsight, 'requestId' | 'kind'>,
+    update: RequestInsightUpdate
+  ): boolean
   getHistory(
     query?: RequestInsightsHistoryQuery
   ): Promise<RequestInsightsHistoryPage>
   read(query?: RequestInsightsJournalQuery): Promise<RequestInsight[]>
+}
+
+export type RequestInsightUpdate = {
+  span?: RequestInsightSpan
+  fetch?: RequestInsightFetch
 }
 
 const REDACTED_VALUE = 'redacted'
@@ -107,6 +119,22 @@ class InMemoryRequestInsightsStore {
       return
     }
 
+    const recordedSpan = sanitizeRecordedSpan(span)
+    const fetch = getFetchInsight(span) ?? undefined
+    const identity = {
+      requestId: span.requestId,
+      kind: span.requestInsightKind,
+    }
+    if (
+      !this.requests.has(getRequestInsightKey(identity)) &&
+      getRequestInsightsHistoryProvider()?.appendArchivedUpdate?.(identity, {
+        span: recordedSpan,
+        fetch,
+      })
+    ) {
+      return
+    }
+
     const insight = this.getOrCreateRequest(
       {
         requestId: span.requestId,
@@ -135,7 +163,9 @@ class InMemoryRequestInsightsStore {
     insight.url = insight.url ?? sanitizeUrl(span.url)
     const spanType = span.attributes?.['next.span_type']
     const isRequestSpan = spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE
-    this.updateTiming(insight, spanStartTime, span.durationMs, isRequestSpan)
+    if (insight.completedAt === undefined) {
+      this.updateTiming(insight, spanStartTime, span.durationMs, isRequestSpan)
+    }
     insight.status =
       insight.status === 'error' || span.status === 'error'
         ? 'error'
@@ -143,23 +173,13 @@ class InMemoryRequestInsightsStore {
           ? 'ok'
           : insight.status
 
-    insight.spans.push({
-      name: sanitizeSpanName(span),
-      startTime: spanStartTime,
-      durationMs: span.durationMs,
-      status: span.status,
-      traceId: span.traceId,
-      spanId: span.spanId,
-      parentSpanId: span.parentSpanId,
-      attributes: sanitizeSpanAttributes(span.attributes),
-      links: sanitizeSpanLinks(span.links),
-      events: sanitizeSpanEvents(span.events),
-      error: span.error,
-    })
-
-    const fetch = getFetchInsight(span)
-    if (fetch) {
-      this.recordFetchForInsight(insight, fetch)
+    insight.spans.push(recordedSpan)
+    const addedFetch = fetch && this.recordFetchForInsight(insight, fetch)
+    if (insight.completedAt !== undefined) {
+      getRequestInsightsHistoryProvider()?.appendUpdate?.(insight, {
+        span: recordedSpan,
+        fetch: addedFetch ? fetch : undefined,
+      })
     }
 
     if (
@@ -193,10 +213,31 @@ class InMemoryRequestInsightsStore {
       return
     }
 
+    const sanitizedFetch = sanitizeFetchInsight(fetch)
+    const requestIdentity = {
+      requestId: identity.requestId,
+      kind: identity.kind,
+    }
+    if (
+      !this.requests.has(getRequestInsightKey(requestIdentity)) &&
+      getRequestInsightsHistoryProvider()?.appendArchivedUpdate?.(
+        requestIdentity,
+        { fetch: sanitizedFetch }
+      )
+    ) {
+      return
+    }
     const fetchStartTime = fetch.startTime ?? getCurrentTimestamp()
     const insight = this.getOrCreateRequest(identity, fetchStartTime)
-    this.updateTiming(insight, fetchStartTime, fetch.durationMs, false)
-    this.recordFetchForInsight(insight, sanitizeFetchInsight(fetch))
+    if (insight.completedAt === undefined) {
+      this.updateTiming(insight, fetchStartTime, fetch.durationMs, false)
+    }
+    const addedFetch = this.recordFetchForInsight(insight, sanitizedFetch)
+    if (addedFetch && insight.completedAt !== undefined) {
+      getRequestInsightsHistoryProvider()?.appendUpdate?.(insight, {
+        fetch: sanitizedFetch,
+      })
+    }
     this.notify(insight)
   }
 
@@ -339,7 +380,9 @@ class InMemoryRequestInsightsStore {
     this.updateClassification(insight, identity)
     insight.route = insight.route ?? identity.route
     insight.url = insight.url ?? sanitizeUrl(identity.url)
-    insight.startTime = Math.min(insight.startTime, startTime)
+    if (insight.completedAt === undefined) {
+      insight.startTime = Math.min(insight.startTime, startTime)
+    }
 
     return insight
   }
@@ -357,20 +400,17 @@ class InMemoryRequestInsightsStore {
   private recordFetchForInsight(
     insight: RequestInsight,
     fetch: RequestInsightFetch
-  ): void {
+  ): boolean {
     if (
-      insight.fetches.some(
-        (existingFetch) =>
-          existingFetch.url === fetch.url &&
-          (existingFetch.index !== undefined && fetch.index !== undefined
-            ? existingFetch.index === fetch.index
-            : existingFetch.startTime === fetch.startTime)
+      insight.fetches.some((existingFetch) =>
+        isSameRequestInsightFetch(existingFetch, fetch)
       )
     ) {
-      return
+      return false
     }
 
     insight.fetches.push(sanitizeFetchInsight(fetch))
+    return true
   }
 
   private complete(insight: RequestInsight, completedAt: number): void {
@@ -402,6 +442,22 @@ class InMemoryRequestInsightsStore {
         }
       }
     }
+  }
+}
+
+function sanitizeRecordedSpan(span: SpanStoreRecord): RequestInsightSpan {
+  return {
+    name: sanitizeSpanName(span),
+    startTime: span.startTime ?? span.timestamp,
+    durationMs: span.durationMs,
+    status: span.status,
+    traceId: span.traceId,
+    spanId: span.spanId,
+    parentSpanId: span.parentSpanId,
+    attributes: sanitizeSpanAttributes(span.attributes),
+    links: sanitizeSpanLinks(span.links),
+    events: sanitizeSpanEvents(span.events),
+    error: span.error,
   }
 }
 
