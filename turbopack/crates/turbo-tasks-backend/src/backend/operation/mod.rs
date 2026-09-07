@@ -1624,44 +1624,37 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         }
     }
 
-    /// The task type, or `None` when this guard cannot read it.
-    ///
-    /// The task type lives in the `Data` category, so reading it through a guard opened with
-    /// `Meta` only would trip `check_access`. Diagnostics must not be the thing that panics, so
-    /// this reports unavailability instead of asserting.
-    fn try_get_task_type(&self) -> Option<TaskTypeRef<'_>> {
-        // Only `debug_assertions` builds track the access level, and only they assert on it. A
-        // release build has no category recorded and the read is safe.
-        #[cfg(debug_assertions)]
-        if !matches!(
-            self.access(),
-            TaskDataCategory::Data | TaskDataCategory::All
-        ) {
-            return None;
-        }
-        Some(self.get_task_type())
-    }
-
     /// A description of this task for diagnostics: `"<id> <task type>"`.
     ///
-    /// Degrades to a placeholder for the type rather than panicking when the guard's access level
-    /// cannot read it, so a diagnostic is never the cause of a crash. In particular
-    /// [`EventDescription::new`] only invokes its closure when the `hanging_detection` feature is
-    /// enabled, so a `Meta`-guard call site here is dead code by default and would otherwise
-    /// panic the moment that feature is turned on.
+    /// Is intentionally tolerant of non-resident data.
     fn get_task_desc_fn(&self) -> impl Fn() -> String + Send + Sync + 'static {
-        let task_type = self.try_get_task_type().map(|ty| ty.to_owned());
+        // Bypass `check_access`!!
+        // Generally it is a bad idea since accessing a `Data` field like get_persistence_task_type
+        // without opening the task that way is bug But this is for diagnostics and
+        // debugging purposes only so we can cheat.
+        let task_type = self
+            .typed()
+            .get_persistent_task_type()
+            .map(|task_type| TaskTypeRef::Cached(task_type).to_owned())
+            .or_else(|| {
+                self.typed()
+                    .get_transient_task_type()
+                    .map(|task_type| TaskTypeRef::Transient(task_type).to_owned())
+            });
+
         let task_id = self.id();
         move || match &task_type {
             Some(task_type) => format!("{task_id:?} {task_type}"),
             None => format!("{task_id:?} task-type-not-available"),
         }
     }
+    // Requires the task to have been opened with Data access
     fn get_task_description(&self) -> String {
         let task_type = self.get_task_type().to_owned();
         let task_id = self.id();
         format!("{task_id:?} {task_type}")
     }
+
     #[cfg(feature = "trace_task_dirty")]
     fn get_task_name(&self) -> String {
         let task_type = self.get_task_type().to_owned();
