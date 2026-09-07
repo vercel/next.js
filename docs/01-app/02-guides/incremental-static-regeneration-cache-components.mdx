@@ -19,7 +19,7 @@ During build, Partial Prerendering splits each render into two parts:
 
 For a visit to a URL whose params were included in `generateStaticParams`, Next.js serves the fully prerendered page from the cache. For a visit to a URL whose params weren't, Next.js serves the App Shell instantly, then upgrades it in the background with the now-known params. Subsequent visits to that URL get the upgraded result from the cache, skipping the App Shell entirely.
 
-This fallback-first behavior is the Cache Components equivalent of [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) in the Pages Router.
+If you have used [ISR](/docs/app/guides/incremental-static-regeneration) or [`fallback: true`](https://nextjs.org/docs/pages/api-reference/functions/get-static-paths#fallback-true) in the Pages Router, this is the Cache Components equivalent.
 
 Enable both [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Cache Components prerenders a static shell that can contain fallback UI. Partial Prefetching lets Next.js serve that fallback for an unlisted path, then render the route with the known params and store the result in the ISR cache.
 
