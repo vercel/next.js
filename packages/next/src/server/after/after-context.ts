@@ -133,7 +133,7 @@ export class AfterContext {
                 'next.span_category': 'application',
               },
             },
-            () =>
+            async () =>
               afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
                 callback()
               )
