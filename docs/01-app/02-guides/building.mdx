@@ -20,14 +20,14 @@ Running `next build` compiles your application for production, [prerenders](/doc
 
 ## What `next build` does
 
-The build runs these phases:
+When you run `next build`, the build moves through these phases:
 
-1. **Setup.** Next.js loads [environment variables](/docs/app/guides/environment-variables) from `.env` files, validates [`next.config`](/docs/app/api-reference/config/next-config-js), and generates a [build ID](/docs/app/api-reference/config/next-config-js/generateBuildId).
-2. **Route discovery.** Next.js scans the `app/` and `pages/` directories for routes and finds root-level files such as [`proxy`](/docs/app/api-reference/file-conventions/proxy) and [`instrumentation`](/docs/app/api-reference/file-conventions/instrumentation).
-3. **Compilation.** [Turbopack](/docs/app/api-reference/turbopack), or webpack when selected, bundles the client and server code for production.
-4. **Page data collection.** Next.js runs [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) and classifies routes for prerendering or request-time rendering.
-5. **Static generation.** Next.js prerenders eligible routes. App Router routes can produce HTML and [React Server Component (RSC) payloads](/docs/app/getting-started/server-and-client-components#on-the-server).
-6. **Output.** Next.js writes the build to `.next/` and prints the route table. With [`output: 'standalone'`](/docs/app/guides/self-hosting), it creates `.next/standalone` with the files needed to run the production server. With [`output: 'export'`](/docs/app/guides/static-exports), it writes the static export to `out/`.
+1. **Setup.** Loads [environment variables](/docs/app/guides/environment-variables) (`.env` files), validates your [`next.config`](/docs/app/api-reference/config/next-config-js), and generates a [build ID](/docs/app/api-reference/config/next-config-js/generateBuildId).
+2. **Route discovery.** Scans the `app/` and `pages/` directories for routes, and detects root-level convention files like [`proxy`](/docs/app/api-reference/file-conventions/proxy) and [`instrumentation`](/docs/app/api-reference/file-conventions/instrumentation). Generates TypeScript route definitions.
+3. **Compilation.** Bundles client, server, and edge code with [Turbopack](/docs/app/api-reference/turbopack) (or webpack). Transpiles TypeScript and JSX, tree-shakes unused code, and optimizes CSS and fonts.
+4. **Static analysis.** Classifies each route for prerendering versus on-demand rendering. Collects [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) output. Checks for [prerender-blocking errors](/docs/messages/blocking-prerender-dynamic).
+5. **Prerendering.** Prerenders static pages and PPR shells to HTML. Generates [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation.
+6. **Output.** Writes the build to `.next/`. For [`output: 'standalone'`](/docs/app/guides/self-hosting), bundles only the files needed at runtime. For [`output: 'export'`](/docs/app/guides/static-exports), generates a full static site. Prints the route table.
 
 The build checks TypeScript unless [`typescript.ignoreBuildErrors`](/docs/app/api-reference/config/next-config-js/typescript) is enabled.
 
@@ -58,59 +58,61 @@ After a successful build, Next.js prints a route table with a symbol next to eac
 | Symbol | Name              | Behavior                                                                    |
 | ------ | ----------------- | --------------------------------------------------------------------------- |
 | `○`    | Static            | Fully prerendered at build time. Served without server rendering.           |
-| `◐`    | Partial Prerender | Has a PPR result and content that still renders at request time.            |
-| `●`    | SSG               | Prerendered static HTML from `generateStaticParams` or `getStaticProps`.    |
-| `ƒ`    | Dynamic           | Rendered on demand. With Cache Components, this can use an empty PPR shell. |
+| `◐`    | Partial Prerender | Prerenders what it can at build time. Remaining content renders on demand.  |
+| `●`    | SSG               | Prerendered static HTML (from `generateStaticParams` or `getStaticProps`).  |
+| `ƒ`    | Dynamic           | Rendered on demand. With Cache Components, the HTML prerender can be empty. |
 
-Next.js uses `○` Static, `●` SSG, and `ƒ` Dynamic for Pages Router routes and App Router routes without Cache Components. In those models, a route is either prerendered to static HTML or rendered on demand for each request.
+Next.js also uses `○` Static, `●` SSG, and `ƒ` Dynamic for Pages Router routes and App Router routes without Cache Components. In those models, a route is either prerendered to static HTML or rendered on demand for each request.
 
-[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) uses [Partial Prerendering](/docs/app/getting-started/caching#static-cached-and-streaming) for every App Router page, even when the build produces no HTML shell. The build can produce complete HTML, partial HTML, or an empty HTML file. The current route symbols do not distinguish all three results.
+[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) uses [Partial Prerendering](/docs/app/getting-started/caching#static-cached-and-streaming) for every App Router page, even when the build produces no HTML shell. The build can produce complete HTML, partial HTML, or an empty HTML file. Per-segment [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) may still contain static information when the HTML file is empty.
 
-For example, a blocking page with an empty HTML file can show `ƒ`. A fallback row for a dynamic route can show `◐` even when its HTML file is empty. In both cases, per-segment [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) may contain static information. An empty HTML file does not mean the build produced no static data.
+The current symbols do not distinguish complete, partial, and empty prerenders. A blocking page with an empty HTML file can show `ƒ`. A fallback row for a dynamic route can show `◐` even when its HTML file is empty.
 
 The symbol is not a direct report of route config such as [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant). Without Cache Components, or on the Pages Router, prerendered pages can also show `●` (SSG).
 
 ## Example
 
-Cache Components validates whether a route can produce a static shell. The following store app has a dynamic product page that reads the product slug and fetches uncached data:
+Cache Components validates whether a route can produce a static shell. A product page that reads runtime params and uncached data outside a Suspense boundary fails this validation.
+
+The store has a dynamic product page that loads data by id:
 
 ```txt
 app/
 ├── layout.tsx
 ├── page.tsx
 └── products/
-    └── [slug]/
+    └── [id]/
         └── page.tsx
 ```
 
-The page fetches a product from the [Recipe API](https://next-recipe-api.vercel.dev/):
+The page fetches a product by id:
 
-```tsx filename="app/products/[slug]/page.tsx" switcher
-export default async function Page(props: PageProps<'/products/[slug]'>) {
-  const { slug } = await props.params
-  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+```tsx filename="app/products/[id]/page.tsx" switcher
+export default async function Page(props: PageProps<'/products/[id]'>) {
+  const { id } = await props.params
+  const res = await fetch(`https://api.example.com/products/${id}`)
   const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
 
-```jsx filename="app/products/[slug]/page.js" switcher
+```jsx filename="app/products/[id]/page.js" switcher
 export default async function Page({ params }) {
-  const { slug } = await params
-  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+  const { id } = await params
+  const res = await fetch(`https://api.example.com/products/${id}`)
   const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
 
-During the build, Next.js prerenders as much of the route as it can. It cannot resolve URL data such as [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) while generating a shared shell. [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) provides known params for specific prerenders. Other [runtime data](/docs/app/glossary#request-time-apis), including [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers), and uncached `fetch()` calls or database queries require request-time work.
+During the build, Next.js prerenders as much of each route as it can. It cannot resolve URL data such as [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) while generating a shared shell. [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) provides known params for specific prerenders. Other [runtime data](/docs/app/glossary#request-time-apis), including [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers), and uncached `fetch()` calls or database queries require request-time work.
 
 Wrap request-time work in [`<Suspense>`](https://react.dev/reference/react/Suspense) to define where the static shell ends. Cache reusable data with [`use cache`](/docs/app/api-reference/directives/use-cache). When request-time work remains outside a Suspense boundary, the build fails with a [`blocking-prerender-runtime`](/docs/messages/blocking-prerender-runtime) or [`blocking-prerender-dynamic`](/docs/messages/blocking-prerender-dynamic) error. [Random values and timestamps](/docs/app/getting-started/caching#random-values-and-timestamps), such as `Math.random()` and `new Date()`, can also block prerendering.
 
-Run `next build`. The `params` read and uncached `fetch()` call run outside a `<Suspense>` boundary, so the build fails with this error:
+Run `next build`. It fails with a prerender-blocking error because the `params` read and the uncached `fetch` run outside a `<Suspense>` boundary:
 
-```text filename="Terminal"
-Error: Route "/products/[slug]": Next.js encountered uncached or runtime data during prerendering.
+```bash filename="Terminal"
+Error: Route "/products/[id]": Next.js encountered uncached or runtime data during prerendering.
 
 `fetch(...)`, `cookies()`, `headers()`, `params`, `searchParams`, or `connection()` accessed outside of `<Suspense>` prevents the route from being prerendered, blocking the page load and leading to a slower user experience.
 
@@ -123,9 +125,9 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
     at body (<anonymous>)
     at html (<anonymous>)
 To get a more detailed stack trace and pinpoint the issue, try one of the following:
-  - Start the app in development mode by running `next dev`, then open "/products/[slug]" in your browser to investigate the error.
+  - Start the app in development mode by running `next dev`, then open "/products/[id]" in your browser to investigate the error.
   - Rerun the production build with `next build --debug-prerender` to generate better stack traces.
-Error occurred prerendering page "/products/[slug]".
+Error occurred prerendering page "/products/[id]".
 ```
 
 ### Debugging build errors
@@ -136,7 +138,18 @@ Production builds minify server code and omit server source maps by default, so 
 next build --debug-prerender
 ```
 
-The flag disables server minification, enables server source maps, and continues after the first prerender error. This produces more readable stack traces and code frames for errors that occur while prerendering.
+The flag disables server minification, enables server source maps, and continues after the first prerender error. It helps with all errors thrown during prerendering, including blocking errors. The stack now points to the first blocked access in the page, the `params` read:
+
+```bash filename="Terminal"
+Error: Route "/products/[id]": Next.js encountered uncached or runtime data during prerendering.
+  ...
+    at Page (app/products/[id]/page.tsx:2:30)
+  1 | export default async function Page(props: PageProps<'/products/[id]'>) {
+> 2 |   const { id } = await props.params
+    |                              ^
+  3 |   const res = await fetch(`https://api.example.com/products/${id}`)
+  4 |   const product = await res.json()
+```
 
 > **Warning**: Do not deploy builds produced with `--debug-prerender`. The debugging options can affect performance.
 
@@ -144,90 +157,90 @@ The development server shows the resolved component and source line in the error
 
 ### A streaming route
 
-To stream the product lookup, add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file. Next.js wraps the segment in a `<Suspense>` boundary and prerenders the fallback as part of the static shell. The `params` read and product request continue at request time:
+The error's first suggestion, `[stream]`, is to provide a placeholder around the data access. Add a [`loading.js`](/docs/app/api-reference/file-conventions/loading) file to wrap the whole segment in a `<Suspense>` boundary. Next.js prerenders the fallback as the route's static shell, while the params and data work runs at request time. For other boundary placements, see [Streaming](/docs/app/guides/streaming):
 
-```tsx filename="app/products/[slug]/loading.tsx" switcher
+```tsx filename="app/products/[id]/loading.tsx" switcher
 export default function Loading() {
   return <div>Loading...</div>
 }
 ```
 
-```jsx filename="app/products/[slug]/loading.js" switcher
+```jsx filename="app/products/[id]/loading.js" switcher
 export default function Loading() {
   return <div>Loading...</div>
 }
 ```
 
-Run the build again. The route is now [partially prerendered](/docs/app/glossary#partial-prerendering-ppr):
+Run the build. It passes, and the route is [partially prerendered](/docs/app/glossary#partial-prerendering-ppr):
 
-```text filename="Terminal"
+```bash filename="Terminal"
 Route (app)
-┌ ○ /
+┌ ○ /                   # Prerendered at build time
 ├ ○ /_not-found
-└   /products/[slug]
-  └ ◐ /products/[slug]
+└   /products/[id]
+  └ ◐ /products/[id]    # Shell prerendered, content streams on request
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-Product URLs now serve the fallback from `loading.js` before the product content finishes. See [Streaming](/docs/app/guides/streaming) for other ways to place the `<Suspense>` boundary.
+Product URLs now serve the prerendered shell instantly, then stream the page content.
 
 ### Building specific routes
 
 Use [`--debug-build-paths`](/docs/app/api-reference/cli/next#building-specific-routes) to compile and prerender selected routes while debugging a large application:
 
 ```bash filename="Terminal"
-next build --debug-build-paths="app/products/[slug]/page.tsx"
+next build --debug-build-paths="app/products/[id]/page.tsx"
 ```
 
-The option accepts comma-separated paths and glob patterns. Prefix a pattern with `!` to exclude it. You can combine the option with `--debug-prerender`. TypeScript still checks the complete project selected by your `tsconfig` file.
+Next.js compiles and prerenders the matching routes and skips the rest. The option accepts comma-separated paths and glob patterns. Prefix a pattern with `!` to exclude it. You can combine the option with `--debug-prerender`. TypeScript still checks the complete project selected by your `tsconfig` file.
 
 ### Prerendered params
 
 The [dynamic segment](/docs/app/glossary#dynamic-route-segments) shows a single fallback row because Next.js doesn't know which param values exist. Export `generateStaticParams` to list them:
 
-```tsx filename="app/products/[slug]/page.tsx" switcher
+```tsx filename="app/products/[id]/page.tsx" switcher
 export async function generateStaticParams() {
-  const res = await fetch('https://next-recipe-api.vercel.dev/products?limit=3')
+  const res = await fetch('https://api.example.com/products')
   const products = await res.json()
-  return products.map((product) => ({ slug: product.slug }))
+  return products.map((product) => ({ id: product.id }))
 }
 
-export default async function Page(props: PageProps<'/products/[slug]'>) {
-  const { slug } = await props.params
-  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+export default async function Page(props: PageProps<'/products/[id]'>) {
+  const { id } = await props.params
+  const res = await fetch(`https://api.example.com/products/${id}`)
   const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
 
-```jsx filename="app/products/[slug]/page.js" switcher
+```jsx filename="app/products/[id]/page.js" switcher
 export async function generateStaticParams() {
-  const res = await fetch('https://next-recipe-api.vercel.dev/products?limit=3')
+  const res = await fetch('https://api.example.com/products')
   const products = await res.json()
-  return products.map((product) => ({ slug: product.slug }))
+  return products.map((product) => ({ id: product.id }))
 }
 
 export default async function Page({ params }) {
-  const { slug } = await params
-  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+  const { id } = await params
+  const res = await fetch(`https://api.example.com/products/${id}`)
   const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
 
-Running the build again adds a row for each listed param, indented under the `/products/[slug]` route:
+Running the build again adds a row for each listed param, indented under the `/products/[id]` route:
 
-```text filename="Terminal"
+```bash filename="Terminal"
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
-└   /products/[slug]
-  ├ ◐ /products/[slug]
-  ├ ◐ /products/tee
-  ├ ◐ /products/joggers
-  └ ◐ /products/tennis-shoes
+└   /products/[id]
+  ├ ◐ /products/[id]
+  ├ ◐ /products/1       # Params known, data still uncached
+  ├ ◐ /products/2       # Params known, data still uncached
+  └ ◐ /products/3       # Params known, data still uncached
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
@@ -237,61 +250,63 @@ Route (app)
 
 The new rows show `◐`, not `○`. Listing the params tells Next.js which pages exist, but their content still comes from the uncached lookup, which only runs at request time. Each page serves the static shell and streams its content.
 
+> **Good to know**: Here the `fetch` runs during prerendering, so point it at a working endpoint or an asynchronous test source. The `◐` rows appear only when the lookup performs uncached asynchronous I/O. A synchronous in-memory value is static and prerenders each param to `○` instead.
+
 ### Cached data
 
 The error's `[cache]` fix makes the product lookup reusable. Add `use cache` so Next.js can include the result when it prerenders a known product:
 
-```tsx filename="app/products/[slug]/page.tsx" switcher
+```tsx filename="app/products/[id]/page.tsx" switcher
 export async function generateStaticParams() {
-  const res = await fetch('https://next-recipe-api.vercel.dev/products?limit=3')
+  const res = await fetch('https://api.example.com/products')
   const products = await res.json()
-  return products.map((product) => ({ slug: product.slug }))
+  return products.map((product) => ({ id: product.id }))
 }
 
-async function getProduct(slug: string) {
+async function getProduct(id: string) {
   'use cache'
-  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+  const res = await fetch(`https://api.example.com/products/${id}`)
   return res.json()
 }
 
-export default async function Page(props: PageProps<'/products/[slug]'>) {
-  const { slug } = await props.params
-  const product = await getProduct(slug)
+export default async function Page(props: PageProps<'/products/[id]'>) {
+  const { id } = await props.params
+  const product = await getProduct(id)
   return <div>{product.name}</div>
 }
 ```
 
-```jsx filename="app/products/[slug]/page.js" switcher
+```jsx filename="app/products/[id]/page.js" switcher
 export async function generateStaticParams() {
-  const res = await fetch('https://next-recipe-api.vercel.dev/products?limit=3')
+  const res = await fetch('https://api.example.com/products')
   const products = await res.json()
-  return products.map((product) => ({ slug: product.slug }))
+  return products.map((product) => ({ id: product.id }))
 }
 
-async function getProduct(slug) {
+async function getProduct(id) {
   'use cache'
-  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+  const res = await fetch(`https://api.example.com/products/${id}`)
   return res.json()
 }
 
 export default async function Page({ params }) {
-  const { slug } = await params
-  const product = await getProduct(slug)
+  const { id } = await params
+  const product = await getProduct(id)
   return <div>{product.name}</div>
 }
 ```
 
 Running the build again shows the listed params as `○`. Their params are known and their data is cached, so Next.js prerenders each page in full. The `◐` row remains for unlisted params, which serve the static shell while their content streams:
 
-```text filename="Terminal"
+```bash filename="Terminal"
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
-└   /products/[slug]
-  ├ ◐ /products/[slug]
-  ├ ○ /products/tee
-  ├ ○ /products/joggers
-  └ ○ /products/tennis-shoes
+└   /products/[id]
+  ├ ◐ /products/[id]    # Unlisted params stream on demand
+  ├ ○ /products/1       # Prerendered in full at build time
+  ├ ○ /products/2       # Prerendered in full at build time
+  └ ○ /products/3       # Prerendered in full at build time
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
@@ -303,48 +318,18 @@ With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partial
 
 When there are more prerendered paths than fit in the table, Next.js prints a short list ending with `[+N more paths]`.
 
-When a prerender uses cached functions or components, the output can include `Revalidate` and `Expire` columns. A route reports the shortest `revalidate` and `expire` values across its caches. Without an explicit [`cacheLife`](/docs/app/api-reference/functions/cacheLife) call, caches use the [`default` profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles).
+Routes that contain cached functions or components can also show `Revalidate` and `Expire` columns. A route reports the shortest `revalidate` and `expire` across all the caches it contains. Caches use the [`default` profile](/docs/app/api-reference/functions/cacheLife#preset-cache-profiles) when there is no explicit [`cacheLife`](/docs/app/api-reference/functions/cacheLife) call. A `/products` listing page that renders the same cached data produces this output:
 
-Add a cached `/products` listing page:
-
-```tsx filename="app/products/page.tsx" switcher
-async function getProducts() {
-  'use cache'
-  const res = await fetch('https://next-recipe-api.vercel.dev/products?limit=3')
-  return res.json()
-}
-
-export default async function ProductsPage() {
-  const products = await getProducts()
-  return products.map((product) => <div key={product.slug}>{product.name}</div>)
-}
-```
-
-```jsx filename="app/products/page.js" switcher
-async function getProducts() {
-  'use cache'
-  const res = await fetch('https://next-recipe-api.vercel.dev/products?limit=3')
-  return res.json()
-}
-
-export default async function ProductsPage() {
-  const products = await getProducts()
-  return products.map((product) => <div key={product.slug}>{product.name}</div>)
-}
-```
-
-The next build includes the cache timing for the listing page and the prerendered product pages:
-
-```text filename="Terminal"
-Route (app)                   Revalidate  Expire
+```bash filename="Terminal"
+Route (app)           Revalidate  Expire
 ┌ ○ /
 ├ ○ /_not-found
-├ ○ /products                        15m      1y
-└   /products/[slug]
-  ├ ◐ /products/[slug]
-  ├ ○ /products/tee                  15m      1y
-  ├ ○ /products/joggers              15m      1y
-  └ ○ /products/tennis-shoes         15m      1y
+├ ○ /products                15m      1y
+└   /products/[id]
+  ├ ◐ /products/[id]
+  ├ ○ /products/1            15m      1y
+  ├ ○ /products/2            15m      1y
+  └ ○ /products/3            15m      1y
 ```
 
 The built-in `default` profile revalidates after 15 minutes and never expires. The build output represents an unbounded expiration as one year, shown as `1y`. You can override the default profile in `next.config.ts`. The table does not identify which cache produced each value, so check the route's `cacheLife` calls when it contains multiple caches.
@@ -353,23 +338,23 @@ The built-in `default` profile revalidates after 15 minutes and never expires. T
 
 Set `instant = false` when the route is allowed to block. The export opts the segment out of instant-navigation validation. When the page is the highest segment with an `instant` config, it also opts the route out of static-shell validation. The rendering model remains PPR, but the build can finish with empty HTML:
 
-```tsx filename="app/products/[slug]/page.tsx" switcher
+```tsx filename="app/products/[id]/page.tsx" switcher
 export const instant = false
 
-export default async function Page(props: PageProps<'/products/[slug]'>) {
-  const { slug } = await props.params
-  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+export default async function Page(props: PageProps<'/products/[id]'>) {
+  const { id } = await props.params
+  const res = await fetch(`https://api.example.com/products/${id}`)
   const product = await res.json()
   return <div>{product.name}</div>
 }
 ```
 
-```jsx filename="app/products/[slug]/page.js" switcher
+```jsx filename="app/products/[id]/page.js" switcher
 export const instant = false
 
 export default async function Page({ params }) {
-  const { slug } = await params
-  const res = await fetch(`https://next-recipe-api.vercel.dev/products/${slug}`)
+  const { id } = await params
+  const res = await fetch(`https://api.example.com/products/${id}`)
   const product = await res.json()
   return <div>{product.name}</div>
 }
@@ -379,18 +364,18 @@ The opt-out applies to asynchronous work such as the `params` read and product r
 
 The build passes. A fixed route whose prerender contains empty HTML shows `ƒ`. This example has a dynamic segment, so its fallback row shows `◐` even though the fallback HTML is empty:
 
-```text filename="Terminal"
+```bash filename="Terminal"
 Route (app)
 ┌ ○ /
 ├ ○ /_not-found
-└   /products/[slug]
-  └ ◐ /products/[slug]
+└   /products/[id]
+  └ ◐ /products/[id]    # Renders on demand, blocking on the lookup
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-Next.js can still prerender RSC payloads for static route segments. That static work means an empty HTML file is not equivalent to a route outside the PPR model. On an initial request, the server waits for the product lookup before returning the completed page. During a client navigation, the destination has no fallback to show while that work runs. See [Opting out](/docs/app/guides/instant-navigation#opting-out) for when this is appropriate.
+Per-segment RSC payloads may still contain static information. On an initial request, the server waits for the product lookup before returning the completed page. During a client navigation, the destination has no fallback to show while that work runs. See [Opting out](/docs/app/guides/instant-navigation#opting-out) for when this is appropriate.
 
 ## Next steps
 
