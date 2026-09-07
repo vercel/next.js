@@ -53,28 +53,31 @@ yarn build
 bun run build
 ```
 
-After a successful build, Next.js prints a route table with a symbol next to each route, showing how it is served:
+After a successful build, Next.js prints a route table with a symbol next to each route.
 
-| Symbol | Name              | Behavior                                                                        |
-| ------ | ----------------- | ------------------------------------------------------------------------------- |
-| `○`    | Static            | Fully prerendered at build time. Served without server rendering.               |
-| `◐`    | Partial Prerender | Prerenders what it can at build time. Remaining content renders on demand.      |
-| `●`    | SSG               | Prerendered static HTML. Not used by Cache Components pages.                    |
-| `ƒ`    | Dynamic           | Rendered on demand. Also used for an allowed blocking page with empty PPR HTML. |
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), [Partial Prerendering](/docs/app/getting-started/caching#static-cached-and-streaming) is the only rendering model for App Router pages. The route table currently uses:
 
-Next.js uses `○` Static, `●` SSG, and `ƒ` Dynamic for Pages Router routes, App Router routes without Cache Components, and non-page routes such as request-dependent Route Handlers. In those models, a route is either prerendered to static HTML or rendered on demand for each request.
+| Symbol | Build label       | HTML produced during the build                                               |
+| ------ | ----------------- | ---------------------------------------------------------------------------- |
+| `○`    | Static            | A complete HTML prerender.                                                   |
+| `◐`    | Partial Prerender | A static shell followed by content that renders on demand.                   |
+| `ƒ`    | Dynamic           | An empty HTML prerender for a specific pathname. The page renders on demand. |
 
-[Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) uses [Partial Prerendering](/docs/app/getting-started/caching#static-cached-and-streaming) as the only rendering model for App Router pages. At build time, Next.js prerenders static work into HTML and per-segment [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server). The HTML output can be complete, partial, or empty. Request-time work renders on demand. Static output can stay in the RSC payloads when the HTML output is empty.
+For a Cache Components page, `ƒ` means the build produced empty HTML for that specific pathname. Next.js produces the page HTML on request.
 
-For Cache Components pages, the route table uses:
+The [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) export allows a blocking route and an empty shell by opting out of instant-navigation and static-shell validation. Next.js still prerenders the route: complete HTML shows `○`, a static shell shows `◐`, and empty HTML for a specific pathname shows `ƒ`. A dynamic pathname uses `◐` for its fallback row, including when the fallback HTML is empty. A `<Suspense>` boundary above `<body>` with an empty fallback can also allow an empty shell.
 
-- `○` when the HTML output is complete
-- `◐` when the HTML output is partial, and for an empty fallback row on a dynamic pathname
-- `ƒ` when an allowed blocking page at a fixed pathname has empty HTML output
+For non-page entries, `ƒ` keeps its Dynamic meaning. It marks request-dependent [Route Handlers](/docs/app/api-reference/file-conventions/route) (API endpoints), Proxy (Middleware), and dynamic metadata routes such as `icon`, `opengraph-image`, and `twitter-image`.
 
-Request-time work outside `<Suspense>` normally fails the build. Covering the route with [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) allows it to block and can produce the `ƒ` page case above.
+### Without Cache Components
 
-Cache Components pages do not use `●`. With `generateStaticParams`, the dynamic route is a group without a symbol. Each generated pathname shows `○` or `◐` based on its HTML output.
+Without Cache Components, App Router pages and Pages Router routes use static and dynamic rendering classifications:
+
+| Symbol | Name    | Behavior                                                                 |
+| ------ | ------- | ------------------------------------------------------------------------ |
+| `○`    | Static  | Fully prerendered at build time. Served without server rendering.        |
+| `●`    | SSG     | Prerendered static HTML from `generateStaticParams` or `getStaticProps`. |
+| `ƒ`    | Dynamic | Rendered on demand.                                                      |
 
 ## Example
 
@@ -254,9 +257,9 @@ Route (app)
 
 > **Good to know**: With Cache Components, `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
-The new rows show `◐`, not `○`. Listing the params tells Next.js which pages exist, but their content still comes from the uncached lookup, which only runs at request time. Each page serves the static shell and streams its content.
+The listed params appear as `◐`. The params tell Next.js which pages exist, while the uncached lookup supplies their content at request time. Each page serves the static shell and streams its content.
 
-> **Good to know**: Here the `fetch` runs during prerendering, so point it at a working endpoint or an asynchronous test source. The `◐` rows appear only when the lookup performs uncached asynchronous I/O. A synchronous in-memory value is static and prerenders each param to `○` instead.
+> **Good to know**: Before enabling Cache Components, generated paths use `●` (SSG). After enabling Cache Components, the same paths show `◐` because Next.js postpones the uncached product lookup. Caching the lookup moves them to `○`.
 
 ### Cached data
 
@@ -342,7 +345,7 @@ The built-in `default` profile revalidates after 15 minutes and never expires. T
 
 ### A blocking route
 
-Set `instant = false` when the route is allowed to block. The export opts the segment out of instant-navigation validation. When the page is the highest segment with an `instant` config, it also opts the route out of static-shell validation. The rendering model remains PPR, but the build can finish with empty HTML:
+Set `instant = false` when the route is allowed to block. The export opts the segment out of instant-navigation validation. When it is the highest `instant` config in the route tree, it also permits an empty static shell. Cache Components continues to use PPR:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export const instant = false
@@ -366,9 +369,9 @@ export default async function Page({ params }) {
 }
 ```
 
-The opt-out applies to asynchronous work such as the `params` read and product request. Synchronous runtime values such as `Math.random()`, `new Date()`, and `crypto.randomUUID()` can still cause a prerender error.
+Next.js attempts to prerender the route. The opt-out produces empty HTML when request-time work blocks the whole page. Synchronous runtime values such as `Math.random()`, `new Date()`, and `crypto.randomUUID()` produce prerender errors.
 
-The build passes. The page still uses PPR even though its HTML prerender is empty. This example has a dynamic segment, so the route table shows `◐` on its fallback row. A page at a fixed pathname with the same empty PPR HTML output can show `ƒ` instead:
+The build passes with PPR and an empty HTML prerender. This example has a dynamic segment, so the route table shows `◐` on its fallback row. The same empty output for a specific pathname shows `ƒ`:
 
 ```bash filename="Terminal"
 Route (app)
