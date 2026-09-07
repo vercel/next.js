@@ -79,7 +79,7 @@ use crate::{
         ActivenessState, CellRef, CollectibleRef, CollectiblesRef, Dirtyness, InProgressCellState,
         InProgressState, InProgressStateInner, OutputValue, TransientTask,
     },
-    error::TaskError,
+    error::{TaskError, TaskErrorItem},
     kv_backing_storage::TurboBackingStorage,
     utils::{
         dash_map_entry::{get_in_shard, get_shard, with_entry_in_shard},
@@ -1986,6 +1986,19 @@ impl TurboTasksBackend {
                 state.event.notify(usize::MAX);
             }
         }
+
+        // Give the task a terminal output. `connect_children` treats a child with no output as
+        // "not computed yet" and marks it dirty to be scheduled, which for a canceled task means
+        // it stays a dirty container of its parent forever and any strongly consistent reader
+        // above it never settles.
+        task.set_output(OutputValue::Error(Arc::new(TaskError::Error(Box::new(
+            TaskErrorItem {
+                message: TurboTasksExecutionErrorMessage::PIISafe(std::borrow::Cow::Borrowed(
+                    "task execution was canceled by shutdown",
+                )),
+                source: None,
+            },
+        )))));
 
         // Mark the cancelled task as session-dependent dirty so it will be re-executed
         // in the next session. Without this, any reader that encounters the cancelled task

@@ -1789,8 +1789,11 @@ mod tests {
     // Schema Size Tests
     // ==========================================================================
 
+    // `hanging_detection` adds an `Arc<dyn Fn() -> String>` description to every `Event`, which
+    // grows `LazyField` past the size asserted here. The feature is diagnostic-only, so the sizes
+    // are not meaningful under it.
     #[test]
-    #[cfg(target_pointer_width = "64")]
+    #[cfg(all(target_pointer_width = "64", not(feature = "hanging_detection")))]
     fn test_schema_size() {
         assert_eq!(
             size_of::<TaskStorage>(),
