@@ -85,9 +85,7 @@ Request-dependent [Route Handlers](/docs/app/api-reference/file-conventions/rout
 
 > **Good to know**: The following example uses [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), enabled with `cacheComponents: true` in `next.config.ts`. The route symbols and prerender errors differ when Cache Components is disabled. See [Enabling Cache Components](/docs/app/getting-started/caching#enabling-cache-components) for setup.
 
-Cache Components validates whether a route can produce a static shell. A product page that reads runtime params and uncached data outside a Suspense boundary fails validation.
-
-The store has a product page with a dynamic segment that loads data by ID:
+In this example, a store application has a product page with a dynamic `[id]` segment:
 
 ```txt
 app/
@@ -98,7 +96,7 @@ app/
         └── page.tsx
 ```
 
-The page fetches a product by ID:
+The page uses the ID to fetch the product:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export default async function Page(props: PageProps<'/products/[id]'>) {
@@ -118,11 +116,7 @@ export default async function Page({ params }) {
 }
 ```
 
-During the build, Next.js prerenders as much of each route as it can. It cannot resolve URL data such as [`params`](/docs/app/api-reference/file-conventions/page#params-optional) and [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) while generating a shared shell. [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) provides known params for specific prerenders. Other [runtime data](/docs/app/glossary#request-time-apis), including [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers), and uncached `fetch()` calls or database queries require request-time work.
-
-Wrap request-time work in [`<Suspense>`](https://react.dev/reference/react/Suspense) to define where the static shell ends. Cache reusable data with [`use cache`](/docs/app/api-reference/directives/use-cache). When request-time work remains outside a Suspense boundary, the build fails with a [`blocking-prerender-runtime`](/docs/messages/blocking-prerender-runtime) or [`blocking-prerender-dynamic`](/docs/messages/blocking-prerender-dynamic) error. [Random values and timestamps](/docs/app/getting-started/caching#random-values-and-timestamps), such as `Math.random()` and `new Date()`, can also block prerendering.
-
-Run `next build`. It fails with a prerender-blocking error because the `params` read and the uncached `fetch` run outside a `<Suspense>` boundary:
+Run `next build`. Next.js prerenders as much of each route as it can before printing the build output. In this case, the build fails:
 
 ```bash filename="Terminal"
 Error: Route "/products/[id]": Next.js encountered uncached or runtime data during prerendering.
@@ -143,9 +137,13 @@ To get a more detailed stack trace and pinpoint the issue, try one of the follow
 Error occurred prerendering page "/products/[id]".
 ```
 
+With Cache Components, Next.js validates whether the route can produce a static shell.
+
+The error shows that request-time work is blocking prerendering, but the stack only points to `body` and `html`. It does not identify the source line.
+
 ### Debugging build errors
 
-Production builds minify server code and omit server source maps by default, so a stack trace may not identify the source line. Rerun the build with [`--debug-prerender`](/docs/app/api-reference/cli/next#debugging-prerender-errors):
+Production builds minify server code and omit server source maps by default. Rerun the build with [`--debug-prerender`](/docs/app/api-reference/cli/next#debugging-prerender-errors):
 
 ```bash filename="Terminal"
 next build --debug-prerender
@@ -164,9 +162,13 @@ Error: Route "/products/[id]": Next.js encountered uncached or runtime data duri
   4 |   const product = await res.json()
 ```
 
+The detailed stack identifies the [`params`](/docs/app/api-reference/file-conventions/page#params-optional) read as the first blocked access. The uncached product request below it also requires request-time work.
+
 > **Warning**: Do not deploy builds produced with `--debug-prerender`. These builds include debugging options and are not optimized for production.
 
 The development server shows the resolved component and source line in the error overlay. See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the development workflow.
+
+The error provides three options: stream the request-time work, cache the product request, or allow the route to block. The following sections show how each option changes the build output.
 
 ### A streaming route
 
