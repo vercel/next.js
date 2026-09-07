@@ -603,7 +603,7 @@ export async function generateStaticParams() {
 
 Paths you don't return are still served. Next.js prerenders a static shell for the unknown params and streams the rest at request time. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the full prerender-a-subset workflow.
 
-> **Good to know:** With Cache Components, awaiting `params` inside `<Suspense>` can unintentionally disable ISR for unlisted paths. To use ISR for these paths, either await `params` outside `<Suspense>` or enable [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Partial Prefetching lets Next.js serve the fallback and upgrade it to a full route. Learn more in [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
+> **Good to know:** Without [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), awaiting `params` inside `<Suspense>` prevents unlisted paths from creating URL-specific ISR entries. Next.js can keep serving the shared fallback, while data used by the route remains cached independently. To create an ISR entry, await `params` outside `<Suspense>` so the first request waits for the completed route. Alternatively, enable Partial Prefetching to serve the fallback immediately and upgrade it to a full route. Learn more in [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
 ### `dynamicParams` is not supported
 
@@ -613,12 +613,15 @@ Paths you don't return are still served. Next.js prerenders a static shell for t
 
 Params not returned by `generateStaticParams` are rendered on request. If you used `dynamicParams: false` to reject them, call [`notFound()`](/docs/app/api-reference/functions/not-found) in the page when the param doesn't resolve to real data.
 
-### Await `params` inside `<Suspense>`
+### Choose where to await `params`
 
-To produce the static shell, pass the `params` promise into a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary instead of awaiting it at the top of the component, so unknown params can still prerender.
+Where you await `params` determines how unlisted paths behave:
+
+- With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching), pass the `params` promise into a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary. Unknown params can produce a shared fallback, and Next.js upgrades the result into a URL-specific ISR entry.
+- Without Partial Prefetching, await `params` outside `<Suspense>`. The first request for an unlisted path blocks until the route finishes rendering, then Next.js stores the result in the ISR cache.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
-// Before - awaiting params at the top blocks the shell
+// Without Partial Prefetching - block before rendering the shell
 export default async function Page({
   params,
 }: {
@@ -630,7 +633,7 @@ export default async function Page({
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
-// Before - awaiting params at the top blocks the shell
+// Without Partial Prefetching - block before rendering the shell
 export default async function Page({ params }) {
   const { slug } = await params
   return <Post slug={slug} />
@@ -640,7 +643,7 @@ export default async function Page({ params }) {
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 import { Suspense } from 'react'
 
-// After - await inside Suspense so the shell can prerender
+// With Partial Prefetching - await inside Suspense so the shell can prerender
 export default function Page({ params }: PageProps<'/blog/[slug]'>) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
@@ -658,7 +661,7 @@ async function Post({ params }: Pick<PageProps<'/blog/[slug]'>, 'params'>) {
 ```jsx filename="app/blog/[slug]/page.js" switcher
 import { Suspense } from 'react'
 
-// After - await inside Suspense so the shell can prerender
+// With Partial Prefetching - await inside Suspense so the shell can prerender
 export default function Page({ params }) {
   return (
     <Suspense fallback={<div>Loading...</div>}>
