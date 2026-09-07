@@ -159,8 +159,6 @@ To get a more detailed stack trace and pinpoint the issue, try one of the follow
 Error occurred prerendering page "/products/[id]".
 ```
 
-With Cache Components, Next.js validates whether the route can produce a static shell.
-
 The error shows that request-time work is blocking prerendering, but the stack only points to `body` and `html`. It does not identify the source line. Rerun only the product route with both debugging options:
 
 ```bash filename="Terminal"
