@@ -190,7 +190,7 @@ Everything inside the scope shares the same lifetime. Colocate `"use cache: priv
 
 Optimizing a prefetch also means excluding content from it. Some subtrees are expensive enough to produce that you would rather not pay for them on every prefetch of the route.
 
-Awaiting [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of every prefetch of the route, so it is produced when the user navigates. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees on navigation, while the content streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
+Awaiting [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of every prefetch, so it is produced on the navigation. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees while it streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
 
 ```tsx filename="app/dashboard/recommendations.tsx" highlight={6}
 import { cookies } from 'next/headers'
@@ -209,11 +209,11 @@ async function rank(session?: string) {
 }
 ```
 
-The session is read above the call, so it resolves in the shell like any other session data. Only the ranking is left out, and it keeps its cache lifetime.
+The session is read above `unstable_navigation()`, so it resolves in the shell like any other session data. Only the ranking is left out, and it keeps its cache lifetime.
 
-Without it, keeping a subtree out of a prefetch means leaving it uncached, which gives up that lifetime on the navigation too. The call cannot sit inside a cached scope, so put the caching directive on a function called below it, as `rank` does here.
+Without it, keeping a subtree out of a prefetch means leaving it uncached, which gives up that lifetime on the navigation too. Awaiting `unstable_navigation()` inside a cached scope is not allowed, so put the caching directive on a function called below it, as `rank` does here.
 
-To keep a subtree that would otherwise sit in the App Shell out of it, while a `<Link prefetch={true}>` can still resolve it before the click, use [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) instead.
+For a subtree that would otherwise sit in the App Shell, but that a `<Link prefetch={true}>` should still resolve before the click, use [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) instead.
 
 ## Trade-offs
 
