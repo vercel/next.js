@@ -1,11 +1,21 @@
-import type { WebSocketRegistryConnection } from './websocket-connection-registry'
+import type {
+  WebSocketRegistryConnection,
+  WebSocketRouteLeaseSocket,
+} from './websocket-connection-registry'
 import {
+  closeWebSocketRoute,
   closeWebSocketScope,
-  registerWebSocketPeer,
+  getWebSocketRouteBundlePath,
+  isWebSocketRouteActive,
+  isWebSocketRouteLeaseCurrent,
+  ownWebSocketRouteLease,
+  registerWebSocketRoutePeer,
+  reloadWebSocketScope,
   settleWebSocketShutdownStages,
   trackWebSocketTask,
+  tryAcquireWebSocketRouteLease,
   tryAcquireWebSocketScopeLease,
-  unregisterWebSocketPeer,
+  unregisterWebSocketRoutePeer,
 } from './websocket-connection-registry'
 
 function deferred() {
@@ -47,6 +57,49 @@ function createConnection(initialReadyState = 1) {
   }
 }
 
+function createLeaseSocket(
+  initial: Partial<
+    Pick<
+      WebSocketRouteLeaseSocket,
+      'destroyed' | 'readableEnded' | 'writableEnded'
+    >
+  > = {}
+) {
+  const listeners = new Map<'close' | 'end', () => void>()
+  const socket: WebSocketRouteLeaseSocket = {
+    destroyed: initial.destroyed ?? false,
+    readableEnded: initial.readableEnded ?? false,
+    writableEnded: initial.writableEnded ?? false,
+    once: jest.fn((event, listener) => {
+      listeners.set(event, listener)
+      return socket
+    }),
+    off: jest.fn((event, listener) => {
+      if (listeners.get(event) === listener) listeners.delete(event)
+      return socket
+    }),
+  }
+  return {
+    listeners,
+    socket,
+    emit(event: 'close' | 'end') {
+      listeners.get(event)?.()
+    },
+  }
+}
+
+/** Registers a connection on a route of `scope` through the lease path. */
+function registerRouteConnection(
+  scope: object,
+  bundlePath = getWebSocketRouteBundlePath('/ws'),
+  connection = createConnection()
+) {
+  const lease = tryAcquireWebSocketRouteLease(scope, bundlePath)
+  expect(lease).toBeDefined()
+  expect(registerWebSocketRoutePeer(connection.connection, lease!)).toBe(true)
+  return { ...connection, lease: lease! }
+}
+
 describe('WebSocket connection registry', () => {
   afterEach(() => {
     jest.useRealTimers()
@@ -59,10 +112,10 @@ describe('WebSocket connection registry', () => {
     const first = createConnection()
     const second = createConnection()
 
-    expect(registerWebSocketPeer(first.connection, scopeA)).toBe(true)
-    expect(registerWebSocketPeer(first.connection, scopeA)).toBe(true)
-    expect(registerWebSocketPeer(second.connection, scopeB)).toBe(true)
-    unregisterWebSocketPeer(first.connection, scopeA)
+    const firstRegistered = registerRouteConnection(scopeA, undefined, first)
+    registerRouteConnection(scopeB, undefined, second)
+    unregisterWebSocketRoutePeer(first.connection, firstRegistered.lease)
+    firstRegistered.lease.release()
 
     await closeWebSocketScope(scopeA)
     expect(first.connection.close).not.toHaveBeenCalled()
@@ -78,7 +131,7 @@ describe('WebSocket connection registry', () => {
   it('closes gracefully with 1001 and waits for the close event', async () => {
     const scope = {}
     const peer = createConnection()
-    registerWebSocketPeer(peer.connection, scope)
+    registerRouteConnection(scope, undefined, peer)
 
     let settled = false
     const closing = closeWebSocketScope(scope).then(() => {
@@ -99,8 +152,8 @@ describe('WebSocket connection registry', () => {
     const scope = {}
     const closingPeer = createConnection(2)
     const closedPeer = createConnection(3)
-    registerWebSocketPeer(closingPeer.connection, scope)
-    registerWebSocketPeer(closedPeer.connection, scope)
+    registerRouteConnection(scope, undefined, closingPeer)
+    registerRouteConnection(scope, undefined, closedPeer)
 
     const closing = closeWebSocketScope(scope, 1012)
     await Promise.resolve()
@@ -117,7 +170,7 @@ describe('WebSocket connection registry', () => {
     jest.useFakeTimers()
     const scope = {}
     const peer = createConnection()
-    registerWebSocketPeer(peer.connection, scope)
+    registerRouteConnection(scope, undefined, peer)
 
     const closing = closeWebSocketScope(scope)
     await Promise.resolve()
@@ -139,8 +192,8 @@ describe('WebSocket connection registry', () => {
     ;(second.connection.close as jest.Mock).mockImplementation(() => {
       second.emitClose()
     })
-    registerWebSocketPeer(first.connection, scope)
-    registerWebSocketPeer(second.connection, scope)
+    registerRouteConnection(scope, undefined, first)
+    registerRouteConnection(scope, undefined, second)
 
     await expect(closeWebSocketScope(scope)).rejects.toBe(closeError)
     expect(first.connection.terminate).toHaveBeenCalledTimes(1)
@@ -158,7 +211,7 @@ describe('WebSocket connection registry', () => {
     ;(peer.connection.terminate as jest.Mock).mockImplementation(() => {
       throw terminateError
     })
-    registerWebSocketPeer(peer.connection, scope)
+    registerRouteConnection(scope, undefined, peer)
 
     const error = await closeWebSocketScope(scope).catch((caught) => caught)
     expect(error).toBeInstanceOf(AggregateError)
@@ -172,7 +225,7 @@ describe('WebSocket connection registry', () => {
     ;(peer.connection.close as jest.Mock).mockImplementation(() => {
       reentrantDrain = closeWebSocketScope(scope, 1012)
     })
-    registerWebSocketPeer(peer.connection, scope)
+    registerRouteConnection(scope, undefined, peer)
 
     const drain = closeWebSocketScope(scope, 1001)
     await Promise.resolve()
@@ -181,11 +234,9 @@ describe('WebSocket connection registry', () => {
     peer.emitClose()
     await drain
 
-    const late = createConnection()
-    expect(registerWebSocketPeer(late.connection, scope)).toBe(false)
-    await Promise.resolve()
-    expect(late.connection.close).toHaveBeenCalledWith(1001)
-    late.emitClose()
+    expect(
+      tryAcquireWebSocketRouteLease(scope, getWebSocketRouteBundlePath('/ws'))
+    ).toBeUndefined()
   })
 
   it('handles a synchronous close during listener installation', async () => {
@@ -195,7 +246,7 @@ describe('WebSocket connection registry', () => {
       listener()
       return jest.fn()
     })
-    registerWebSocketPeer(peer.connection, scope)
+    registerRouteConnection(scope, undefined, peer)
 
     await expect(closeWebSocketScope(scope)).resolves.toBeUndefined()
     expect(peer.connection.close).not.toHaveBeenCalled()
@@ -211,7 +262,7 @@ describe('WebSocket connection registry', () => {
       trackWebSocketTask(hookTask.promise, scope)
       peer.emitClose()
     })
-    registerWebSocketPeer(peer.connection, scope)
+    registerRouteConnection(scope, undefined, peer)
 
     let settled = false
     const closing = closeWebSocketScope(scope).then(() => {
@@ -233,6 +284,15 @@ describe('WebSocket connection registry', () => {
     const lease = tryAcquireWebSocketScopeLease(scope)
     expect(lease).toBeDefined()
 
+    // Acquired before the close starts, registered after: refused with the
+    // shutdown close code.
+    const latePeer = createConnection()
+    const lateLease = tryAcquireWebSocketRouteLease(
+      scope,
+      getWebSocketRouteBundlePath('/ws')
+    )
+    expect(lateLease).toBeDefined()
+
     let settled = false
     const closing = closeWebSocketScope(scope).then(() => {
       settled = true
@@ -243,10 +303,12 @@ describe('WebSocket connection registry', () => {
     expect(settled).toBe(false)
     expect(tryAcquireWebSocketScopeLease(scope)).toBeUndefined()
 
-    const latePeer = createConnection()
-    expect(registerWebSocketPeer(latePeer.connection, scope)).toBe(false)
+    expect(registerWebSocketRoutePeer(latePeer.connection, lateLease!)).toBe(
+      false
+    )
     await Promise.resolve()
     expect(latePeer.connection.close).toHaveBeenCalledWith(1001)
+    lateLease!.release()
 
     lease!.release()
     lease!.release()
@@ -351,7 +413,7 @@ describe('WebSocket connection registry', () => {
       trackWebSocketTask(task.promise, scope)
       throw peerFailure
     })
-    registerWebSocketPeer(peer.connection, scope)
+    registerRouteConnection(scope, undefined, peer)
 
     const closing = closeWebSocketScope(scope)
     await Promise.resolve()
@@ -376,7 +438,7 @@ describe('WebSocket connection registry', () => {
         peer.emitClose()
       }, 10)
     })
-    registerWebSocketPeer(peer.connection, scope)
+    registerRouteConnection(scope, undefined, peer)
 
     let settled = false
     const closing = closeWebSocketScope(scope).then(() => {
@@ -394,6 +456,194 @@ describe('WebSocket connection registry', () => {
     await closing
     expect(settled).toBe(true)
     expect(jest.getTimerCount()).toBe(0)
+  })
+
+  it('normalizes the App Route bundle identity shared with dev bundlers', () => {
+    expect(getWebSocketRouteBundlePath('/chat/route')).toBe('app/chat/route')
+    expect(getWebSocketRouteBundlePath('chat\\route')).toBe('app/chat/route')
+  })
+
+  it('pins and prunes a route with an opaque idempotent lease', () => {
+    const scope = {}
+    const lease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')
+
+    expect(lease).toBeDefined()
+    expect(isWebSocketRouteActive(scope, 'app/chat/route')).toBe(true)
+    lease!.release()
+    lease!.release()
+    expect(isWebSocketRouteActive(scope, 'app/chat/route')).toBe(false)
+  })
+
+  it('keeps a registered peer active after its request lease is released', () => {
+    const scope = {}
+    const lease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')!
+    const peer = createConnection()
+    registerWebSocketRoutePeer(peer.connection, lease)
+
+    lease.release()
+    expect(isWebSocketRouteActive(scope, 'app/chat/route')).toBe(true)
+    unregisterWebSocketRoutePeer(peer.connection, lease)
+    expect(isWebSocketRouteActive(scope, 'app/chat/route')).toBe(false)
+  })
+
+  it('owns disconnect listeners without leaking or replacing failures', () => {
+    const scope = {}
+    const installFailure = new Error('listener install failed')
+    const cleanupFailure = new Error('listener cleanup failed')
+    const lease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')!
+    const { listeners, socket } = createLeaseSocket()
+    ;(socket.once as jest.Mock).mockImplementationOnce(
+      (event: 'close' | 'end', listener: () => void) => {
+        listeners.set(event, listener)
+        throw installFailure
+      }
+    )
+    ;(socket.off as jest.Mock).mockImplementation(() => {
+      throw cleanupFailure
+    })
+    const consoleError = jest.spyOn(console, 'error').mockImplementation()
+
+    expect(() => ownWebSocketRouteLease(lease, socket)).toThrow(installFailure)
+    expect(isWebSocketRouteLeaseCurrent(lease)).toBe(false)
+    expect(consoleError).toHaveBeenCalledWith(
+      'Failed to release a WebSocket route lease listener:',
+      cleanupFailure
+    )
+  })
+
+  it('releases before reporting listener removal failures', () => {
+    const scope = {}
+    const cleanupFailure = new Error('listener cleanup failed')
+    const lease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')!
+    const { socket } = createLeaseSocket()
+    const ownership = ownWebSocketRouteLease(lease, socket)
+    ;(socket.off as jest.Mock).mockImplementationOnce(() => {
+      throw cleanupFailure
+    })
+
+    expect(ownership.release()).toEqual([cleanupFailure])
+    expect(ownership.release()).toEqual([])
+    expect(isWebSocketRouteLeaseCurrent(lease)).toBe(false)
+  })
+
+  it.each([
+    ['already destroyed', { destroyed: true }],
+    ['already readable-ended', { readableEnded: true }],
+  ])('releases a lease for a socket which is %s', (_label, initial) => {
+    const scope = {}
+    const lease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')!
+    const { socket } = createLeaseSocket(initial)
+    const ownership = ownWebSocketRouteLease(lease, socket)
+
+    expect(ownership.isSocketEnded()).toBe(true)
+    expect(isWebSocketRouteLeaseCurrent(lease)).toBe(false)
+    expect(ownership.release()).toEqual([])
+  })
+
+  it('handles a synchronous disconnect during listener installation', () => {
+    const scope = {}
+    const lease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')!
+    const { socket } = createLeaseSocket()
+    ;(socket.once as jest.Mock).mockImplementationOnce(
+      (_event: 'close' | 'end', listener: () => void) => {
+        listener()
+        return socket
+      }
+    )
+
+    const ownership = ownWebSocketRouteLease(lease, socket)
+    expect(isWebSocketRouteLeaseCurrent(lease)).toBe(false)
+    expect(ownership.release()).toEqual([])
+  })
+
+  it('reloads one route without closing another route', async () => {
+    const scope = {}
+    const chatLease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')!
+    const feedLease = tryAcquireWebSocketRouteLease(scope, 'app/feed/route')!
+    const chat = createConnection()
+    const feed = createConnection()
+    expect(registerWebSocketRoutePeer(chat.connection, chatLease)).toBe(true)
+    expect(registerWebSocketRoutePeer(feed.connection, feedLease)).toBe(true)
+
+    const closing = closeWebSocketRoute(scope, 'app/chat/route')
+    expect(chat.connection.close).toHaveBeenCalledWith(1012)
+    expect(feed.connection.close).not.toHaveBeenCalled()
+    expect(isWebSocketRouteActive(scope, 'app/chat/route')).toBe(false)
+    expect(isWebSocketRouteActive(scope, 'app/feed/route')).toBe(true)
+    chat.emitClose()
+    await closing
+
+    unregisterWebSocketRoutePeer(feed.connection, feedLease)
+    chatLease.release()
+    feedLease.release()
+  })
+
+  it('rejects a peer from an invalidated route generation without ABA', async () => {
+    const scope = {}
+    const staleLease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')!
+    await closeWebSocketRoute(scope, 'app/chat/route')
+    const currentLease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')!
+
+    staleLease.release()
+    expect(isWebSocketRouteActive(scope, 'app/chat/route')).toBe(true)
+
+    const stale = createConnection()
+    expect(registerWebSocketRoutePeer(stale.connection, staleLease)).toBe(false)
+    expect(stale.connection.close).toHaveBeenCalledWith(1012)
+    stale.emitClose()
+
+    const current = createConnection()
+    expect(registerWebSocketRoutePeer(current.connection, currentLease)).toBe(
+      true
+    )
+    expect(current.connection.close).not.toHaveBeenCalled()
+    unregisterWebSocketRoutePeer(current.connection, currentLease)
+    currentLease.release()
+    await Promise.resolve()
+  })
+
+  it('uses the terminal scope code for a late peer on a released lease', async () => {
+    const scope = {}
+    const lease = tryAcquireWebSocketRouteLease(scope, 'app/chat/route')!
+    lease.release()
+
+    const closing = closeWebSocketScope(scope, 1011)
+    const late = createConnection()
+    expect(registerWebSocketRoutePeer(late.connection, lease)).toBe(false)
+    expect(late.connection.close).toHaveBeenCalledWith(1011)
+    late.emitClose()
+    await closing
+  })
+
+  it('broadly reloads the current snapshot while preserving new routes', async () => {
+    const scope = {}
+    const firstLease = tryAcquireWebSocketRouteLease(scope, 'app/a/route')!
+    const secondLease = tryAcquireWebSocketRouteLease(scope, 'app/b/route')!
+    const first = createConnection()
+    const second = createConnection()
+    registerWebSocketRoutePeer(first.connection, firstLease)
+    registerWebSocketRoutePeer(second.connection, secondLease)
+
+    const reloading = reloadWebSocketScope(scope)
+    expect(first.connection.close).toHaveBeenCalledWith(1012)
+    expect(second.connection.close).toHaveBeenCalledWith(1012)
+
+    const currentLease = tryAcquireWebSocketRouteLease(scope, 'app/a/route')!
+    const current = createConnection()
+    expect(registerWebSocketRoutePeer(current.connection, currentLease)).toBe(
+      true
+    )
+    const stale = createConnection()
+    expect(registerWebSocketRoutePeer(stale.connection, firstLease)).toBe(false)
+    stale.emitClose()
+
+    first.emitClose()
+    second.emitClose()
+    await reloading
+    unregisterWebSocketRoutePeer(current.connection, currentLease)
+    firstLease.release()
+    secondLease.release()
+    currentLease.release()
   })
 
   it('settles every shutdown stage before reporting failures', async () => {

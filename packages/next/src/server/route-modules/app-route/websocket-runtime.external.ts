@@ -260,17 +260,17 @@ export function createAppRouteWebSocketEntrypoint({
     if (webSocketUpgradeTransport) return webSocketUpgradeTransport
     const { createWebSocketUpgradeTransport } =
       require('../../websocket-upgrade') as typeof import('../../websocket-upgrade')
-    const { registerWebSocketPeer, unregisterWebSocketPeer } =
+    const { registerWebSocketRoutePeer, unregisterWebSocketRoutePeer } =
       getWebSocketRegistry()
     return (webSocketUpgradeTransport = createWebSocketUpgradeTransport({
       runInHookContext: runInWebSocketHookContext,
       registerPeer(_peer, connection, context) {
-        if (!context.registryScope) return
-        return registerWebSocketPeer(connection, context.registryScope)
+        if (!context.routeLease) return false
+        return registerWebSocketRoutePeer(connection, context.routeLease)
       },
       unregisterPeer(_peer, connection, context) {
-        if (context.registryScope) {
-          unregisterWebSocketPeer(connection, context.registryScope)
+        if (context.routeLease) {
+          unregisterWebSocketRoutePeer(connection, context.routeLease)
         }
       },
     }))
@@ -357,6 +357,7 @@ export function createAppRouteWebSocketEntrypoint({
               head,
               ctx,
               getRequestMeta(req, 'webSocketRegistryScope'),
+              getRequestMeta(req, 'webSocketRouteLease'),
               (report) => {
                 reportError = report
               },
@@ -433,16 +434,23 @@ export function createAppRouteWebSocketEntrypoint({
     head: Buffer,
     ctx: AppRouteHandlerContext,
     trustedRegistryScope: object | undefined,
+    trustedRouteLease:
+      | import('../../websocket-connection-registry').WebSocketRouteLease
+      | undefined,
     setReportError: (report: (error: unknown) => Promise<void>) => void,
     setRequestSignal: (signal: AbortSignal) => void
   ): Promise<AppRouteUpgradeOutcome> {
     if (ctx.requestMeta) {
       const requestMeta = { ...ctx.requestMeta }
       delete requestMeta.webSocketRegistryScope
+      delete requestMeta.webSocketRouteLease
       setRequestMeta(req, requestMeta)
     }
     if (trustedRegistryScope) {
       addRequestMeta(req, 'webSocketRegistryScope', trustedRegistryScope)
+    }
+    if (trustedRouteLease) {
+      addRequestMeta(req, 'webSocketRouteLease', trustedRouteLease)
     }
     filterWebSocketUpgradeRequestHeaders(req)
 
@@ -572,9 +580,15 @@ export function createAppRouteWebSocketEntrypoint({
         return { statusCode: response.status, upgraded: false }
       }
 
-      if (!trustedRegistryScope) {
+      if (!trustedRegistryScope || !trustedRouteLease) {
         await writeRawHttpError(req, socket, 500, 'Internal Server Error')
         return { statusCode: 500, upgraded: false }
+      }
+      if (
+        !getWebSocketRegistry().isWebSocketRouteLeaseCurrent(trustedRouteLease)
+      ) {
+        await writeRawHttpError(req, socket, 503, 'Service Unavailable')
+        return { statusCode: 503, upgraded: false }
       }
 
       const outcome = await getWebSocketUpgradeTransport().handleUpgrade(
@@ -591,7 +605,7 @@ export function createAppRouteWebSocketEntrypoint({
               trustedRegistryScope
             )
           },
-          registryScope: trustedRegistryScope,
+          routeLease: trustedRouteLease,
         }
       )
       return outcome
