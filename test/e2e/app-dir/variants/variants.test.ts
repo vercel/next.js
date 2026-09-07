@@ -94,6 +94,7 @@ describe('variants', () => {
     expect($('#theme').text()).toBe('dark')
     expect($('#internal-variants-header').text()).toBe('absent')
   })
+
   it('should not let a client resolve the variants itself', async () => {
     const forged = encodeURIComponent(
       JSON.stringify([['theme@variants.ts', 'dark']])
@@ -428,37 +429,76 @@ describe('variants', () => {
 
   if (isNextStart || isNextDeploy) {
     it('should prefetch the combination of a param that was never enumerated', async () => {
-      // A prefetch asks for the RSC payload of the route, not for the page, so
-      // the path it requests carries a suffix. The prefixed rule of this route
-      // matches the plain shape only, and its param group can take a suffix as
-      // part of the param. A prefetch would then resolve the slug
-      // `never-enumerated.rsc`, and the payload would describe a different page
-      // than the one the link names.
-      //
-      // The assertion quotes the value, so a slug that kept the suffix does not
-      // satisfy it.
-      let page: Playwright.Page
+      const slug = `never-enumerated-${Date.now()}`
+      const pathname = `/enumerated/${slug}`
+      const expectedSlug = `"id":"slug","children":"${slug}"`
+      const suffixedSlug = `"id":"slug","children":"${slug}.rsc"`
 
-      const browser = await next.browser(url('/prefetch-hub'), {
-        beforePageLoad(p: Playwright.Page) {
-          page = p
-        },
-      })
+      async function prefetch() {
+        let page: Playwright.Page | undefined
 
-      const act = createRouterAct(page)
-
-      await act(
-        async () => {
-          const toggle = await browser.elementByCss(
-            'input[data-link-accordion="/enumerated/never-enumerated"]'
+        try {
+          const browser = await next.browser(
+            url(`/prefetch-hub?slug=${slug}`),
+            {
+              async beforePageLoad(capturedPage: Playwright.Page) {
+                page = capturedPage
+                await capturedPage.context().addCookies([
+                  { name: 'theme', value: 'light', url: next.url },
+                  { name: 'locale', value: 'en', url: next.url },
+                ])
+              },
+            }
           )
 
-          await toggle.click()
-        },
-        // Matched on the element that renders the slug, and quoted, so a slug
-        // that kept the `.rsc` suffix does not satisfy it.
-        { includes: '"id":"slug","children":"never-enumerated"' }
-      )
+          if (!page) {
+            throw new Error('The page was not captured before it loaded.')
+          }
+
+          const act = createRouterAct(page, { includeAppShellRequests: true })
+
+          // The payload matcher must separate its suffix from the dynamic
+          // param. The prefetch must describe the linked page before navigation
+          // can request more data.
+          await act(async () => {
+            const toggle = await browser.elementByCss(
+              `input[data-link-accordion="${pathname}"]`
+            )
+
+            await toggle.click()
+          }, [
+            // Match the segment-prefetch response even if a plain prefetch
+            // repeats its content.
+            { includes: expectedSlug, kind: 'static' },
+            { includes: suffixedSlug, block: 'reject' },
+          ])
+
+          return { browser, act }
+        } catch (error) {
+          if (page) {
+            await page.context().clearCookies()
+            await page.close()
+          }
+          throw error
+        }
+      }
+
+      const { browser, act } = await prefetch()
+      await using _ = defer(async () => {
+        await browser.deleteCookies()
+        await browser.close()
+      })
+
+      await act(async () => {
+        const link = await browser.elementByCss(`a[href="${url(pathname)}"]`)
+        await link.click()
+      }, 'no-requests')
+
+      await retry(async () => {
+        expect(await browser.elementByCss('#theme').text()).toBe('light')
+        expect(await browser.elementByCss('#locale').text()).toBe('en')
+        expect(await browser.elementByCss('#slug').text()).toBe(slug)
+      })
     })
   }
 
