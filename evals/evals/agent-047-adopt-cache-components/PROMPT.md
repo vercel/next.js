@@ -1,1 +1,0 @@
-Migrate this storefront to Cache Components incrementally. Prepare the first migration PR so that it preserves request-specific output, existing cache lifetimes, and the prerendering and prefetch behavior of routes that currently declare a static contract. Stop once that first PR is ready.
