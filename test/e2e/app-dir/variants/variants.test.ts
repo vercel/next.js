@@ -6,7 +6,8 @@ import { startExternalServer } from './external-server.mjs'
 
 // Variants are supported with Turbopack only, and enabling them rejects a
 // webpack build, which `variants-webpack.test.ts` covers.
-;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)('variants', () => {
+// @force-gate turbopack
+describe('variants', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
     // TODO(variants): a platform serves a variant from its build output, which
