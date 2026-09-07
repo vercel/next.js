@@ -23,11 +23,10 @@ This fallback-first behavior is the Cache Components equivalent of [`fallback: t
 
 Enable both [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching). Cache Components prerenders a static shell that can contain fallback UI. Partial Prefetching lets Next.js serve that fallback for an unlisted path, then render the route with the known params and store the result in the ISR cache.
 
-> **Good to know:** How you access `params` depends on whether Partial Prefetching is enabled:
+> **Good to know:** To create URL-specific ISR entries for paths not returned by `generateStaticParams`:
 >
 > - With Partial Prefetching, you can await `params` inside `<Suspense>`. Next.js serves the fallback while it renders and stores the completed route.
-> - Without Partial Prefetching, ISR still works, but the first request for an unlisted path must wait for the completed route. Await `params` outside any `<Suspense>` boundary, including one created by [`loading.tsx`](/docs/app/api-reference/file-conventions/loading), so Next.js can store the result in the ISR cache.
-> - If you await `params` inside `<Suspense>` without Partial Prefetching, Next.js keeps serving the shared fallback instead of creating a URL-specific ISR entry. Data used by the route can still be cached independently.
+> - Without Partial Prefetching, ISR still works, but the first request for an unlisted path must wait for the completed route. Await `params` outside any `<Suspense>` boundary, including one created by [`loading.tsx`](/docs/app/api-reference/file-conventions/loading), so Next.js can store the result in the ISR cache. If you await `params` inside `<Suspense>` instead, Next.js keeps serving the shared fallback rather than creating a URL-specific ISR entry. Data used by the route can still be cached independently.
 
 ```ts filename="next.config.ts" highlight={4-5}
 import type { NextConfig } from 'next'
