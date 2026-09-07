@@ -31,6 +31,8 @@ When you run `next build`, the build moves through these phases:
 5. **Prerendering.** Prerenders static pages and PPR shells to HTML. Generates [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation.
 6. **Output.** Writes the build to `.next/`. For [`output: 'standalone'`](/docs/app/guides/self-hosting), bundles only the files needed at runtime. For [`output: 'export'`](/docs/app/guides/static-exports), generates a full static site. Prints the route table.
 
+`next dev` keeps its active server state and incremental compilation caches in `.next/dev`. Avoid deleting or moving `.next` while the development server is running. If you need isolated production output, configure a separate [`distDir`](/docs/app/api-reference/config/next-config-js/distDir) for the build.
+
 ## Reading the build output
 
 The build command depends on your package manager:

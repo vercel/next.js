@@ -6,6 +6,7 @@ const dev = spawn('npm', ['run', 'dev'], {
   detached: true,
   stdio: ['ignore', log, log],
 })
+dev.unref()
 
 const deadline = Date.now() + 30_000
 while (Date.now() < deadline) {
@@ -24,10 +25,6 @@ if (!response.ok) {
 const reportsResponse = await fetch('http://localhost:3100/reports/acme')
 if (!reportsResponse.ok) {
   throw new Error(`reports route failed to compile: ${reportsResponse.status}`)
-}
-
-if (dev.pid) {
-  process.kill(-dev.pid, 'SIGTERM')
 }
 
 writeFileSync(

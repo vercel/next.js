@@ -1,1 +1,1 @@
-The dashboard and `/reports/acme` still work in development, but the production build now fails with a generated route type error. Fix it without changing the UI or route behavior, verify both routes in development, and run a production build.
+The dashboard and `/reports/acme` are already running correctly in development, but the production build now fails from generated `.next/types` after recent work. Verify whether the project builds without cache issues, fix the failure, and confirm that the current development session still works when you are done.
