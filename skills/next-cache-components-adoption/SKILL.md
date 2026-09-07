@@ -25,7 +25,7 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
   - `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
   - Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
-- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. **Translate, don't delete.** Each export encodes behavior the route needs to keep doing; migrate each one to its Cache Components equivalent via the [migration guide's per-key sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components#enable-cache-components). The exception is `dynamic = 'force-dynamic'`: under Cache Components every route is already dynamic by default, so the migration guide removes it outright rather than translating it. `revalidate` and `fetchCache` still need real translation. If a value can't be cleanly translated yet, leave a `// TODO: Cache Components adoption — restore revalidate = 3600` comment so the loop picks it up. The `cache-components-instant-false` codemod does not touch these.
+- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. Each export encodes behavior the route needs to keep doing, so migrate it through the [migration guide's per-key sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components#enable-cache-components). Removing `dynamic = 'force-dynamic'` is required, but it changes the route from full request-time rendering to the Partial Prerendering model. Cache reusable work, place request-time work behind `<Suspense>`, or keep the route under `instant = false` until it can be migrated. If the config was the only request-time signal and the route must wait for a real request, use `connection()`. `revalidate` and `fetchCache` also need real translation. If a value can't be cleanly translated yet, leave a `// TODO: Cache Components adoption — restore revalidate = 3600` comment so the loop picks it up. The `cache-components-instant-false` codemod does not touch these.
 
 - **Preserve static routes.** Fully migrate routes that use `dynamic = 'force-static'` or `dynamic = 'error'` in the first PR. Do not leave those routes, or a shared segment covering them, under `instant = false`.
 
@@ -114,7 +114,7 @@ If there's no user to ask, default to **Incremental** and document the choice.
 
 ### incremental
 
-Before invoking the codemod, grep for `^export const (revalidate|dynamic|fetchCache)` across the app directory. Mark routes that use `dynamic = 'force-static'` or `dynamic = 'error'` for migration in this PR, then translate each config per the `requires` note above. The codemod does not touch them.
+Before invoking the codemod, grep for `^export const (revalidate|dynamic|fetchCache)` across the app directory. Mark routes that use `dynamic = 'force-static'` or `dynamic = 'error'` for migration in this PR, then translate each config per the `requires` note above. For `dynamic = 'force-dynamic'`, remove the export and use `instant = false` when this first PR must preserve blocking behavior. The codemod does not touch these configs.
 
 The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. Common false positive: if you recently upgraded Next.js, `package.json` and the lockfile will already be dirty — commit those first.
 
@@ -152,15 +152,17 @@ Next, run `next build` to surface blockers the codemod could not handle. The bui
 
 After each fix, rerun the scoped build when available, then run `next build` again to find the next blocker. Repeat until the normal build passes.
 
-After the build passes, confirm every deferred route is still covered by an opt-out and no shared opt-out covers a previously static route. Synthetic routes like `/_not-found` have no user file, so a failure there usually points to the root layout. Client Components (`"use client"`) get no opt-out because exporting `instant` from them is a build error.
+After the build passes, confirm every deferred route is still covered by an opt-out and no shared opt-out covers a previously static route. If the app has no previously static routes and the root layout remains deferred, confirm it got an opt-out (`grep -n "export const instant" <app dir>/layout.*`). The root layout renders every route, including framework routes like `/_not-found`, so if it was missed, add `export const instant = false` to it by hand.
+
+Synthetic routes like `/_not-found` have no user file — when they block, fix the root layout's opt-out, not the synthetic route. Client Components (`"use client"`) get no opt-out (it's a build error to export `instant` from them), but they are not a rare blocker. The high-frequency case is a client component in the root layout's nav or header calling `usePathname()`/`useSearchParams()`: it blocks _every_ dynamic route with `blocking-prerender-client-hook`, and static routes pass (the pathname is known at prerender), which masks it until you reach a dynamic segment. It's not an ancestor-data fix — follow the [error's docs page](https://nextjs.org/docs/messages/blocking-prerender-client-hook) for the `<Suspense>` recipe. Only when a client route blocks on _server_ data do you fix that data in its ancestor.
 
 ### end of the pre-step: check in
 
 Incremental only. Stop here before starting step 2 — the pre-step is the shippable PR. Talk to the user in their language; don't say "Incremental" or other internal labels; talk about adoption, PRs, and what the app does now. Tell them:
 
 - What you did: turned on Cache Components, ran the codemod, migrated the previously static routes, fixed the remaining blockers, and confirmed the build passes.
-- What changed: the previously static routes still prerender. Other pages and layouts remain opted out with a `// TODO: Cache Components adoption` comment.
-- What to sanity-check: the previously static routes remain static, and the other routes retain their current request-time behavior.
+- What changed: the previously static routes still prerender. Other pages and layouts keep a `// TODO: Cache Components adoption` opt-out.
+- What to sanity-check: the previously static routes stay static, and the other routes retain their current request-time behavior.
 - The question: "Want to open this as its own PR before we start adopting Cache Components route by route? Or keep going on this branch?" Wait for the answer.
 
 Moving to step 2 without checking in defeats the point of taking the incremental path.
