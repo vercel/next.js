@@ -223,9 +223,9 @@ Route (app)
 
 The `◐` symbol shows that the route serves a static shell and streams the remaining content.
 
-### Prerender selected paths
+### Prerender product pages
 
-[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) is optional. Use it to prerender a set of dynamic pathnames known at build time. Keep `loading.js` and export the product IDs from the page:
+The route now has a shared static shell. To prerender pages for known products, keep `loading.js` and use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to provide their IDs:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export async function generateStaticParams() {
@@ -263,13 +263,13 @@ Rebuild the product route:
 next build --debug-build-paths="app/products/[id]/page.tsx"
 ```
 
-The route table now includes each generated path:
+Next.js now attempts to prerender a page for each product ID:
 
 ```bash filename="Terminal"
 Route (app)
 ┌ ○ /_not-found
-└   /products/[id]
-  ├ ◐ /products/[id]
+└   /products/[id]      # Route pattern group
+  ├ ◐ /products/[id]    # Fallback row
   ├ ◐ /products/1       # Params known, data still uncached
   ├ ◐ /products/2
   └ ◐ /products/3
@@ -278,9 +278,9 @@ Route (app)
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
 
-The generated paths remain `◐` because the product lookup is uncached. `generateStaticParams` selects pathnames to prerender, but it does not cache their data. Apps with a large, frequently changing, or unbounded set of pathnames can omit it and use the static shell for request-time params.
+The unmarked `/products/[id]` row groups the fallback and generated product paths. Each indented row shows its own build result. The generated product paths remain `◐` because their IDs are known during the build, but the product lookup is still uncached. Each page serves the static shell and streams the product data.
 
-> **Good to know**: With Cache Components, `generateStaticParams` must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
+> **Good to know**: `generateStaticParams` is optional. Use it when a set of pathnames is known at build time and worth prerendering. With Cache Components, it must return at least one param. An empty array causes a [build error](/docs/messages/empty-generate-static-params).
 
 ### Cache reusable data
 
@@ -326,22 +326,20 @@ export default async function Page({ params }) {
 }
 ```
 
-Rebuilding the product route shows the listed params as `○`. Their params are known and their data is cached, so Next.js prerenders each page in full. The `◐` row remains for unlisted params, which serve the static shell while their content streams:
+Rebuilding the product route shows the listed params as `○`. Their params are known and their data is cached, so Next.js prerenders each page in full. The fallback row remains `◐`:
 
 ```bash filename="Terminal"
 Route (app)
 ┌ ○ /_not-found
-└   /products/[id]
-  ├ ◐ /products/[id]    # Unlisted params stream on demand
+└   /products/[id]      # Route pattern group
+  ├ ◐ /products/[id]    # Fallback row
   ├ ○ /products/1       # Prerendered in full at build time
-  ├ ○ /products/2       # Prerendered in full at build time
-  └ ○ /products/3       # Prerendered in full at build time
+  ├ ○ /products/2
+  └ ○ /products/3
 
 ○  (Static)             prerendered as static content
 ◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
 ```
-
-With [Partial Prefetching](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled, the first prefetch or visit to an unlisted param serves the static shell and generates the page in the background. Later requests can reuse the completed prerender. See [Incremental Static Regeneration with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
 When there are more prerendered paths than fit in the table, Next.js prints a short list ending with `[+N more paths]`.
 
@@ -408,19 +406,32 @@ Next.js attempts to prerender each path from `generateStaticParams`. The uncache
 ```bash filename="Terminal"
 Route (app)
 ┌ ○ /_not-found
-└   /products/[id]
-  ├ ƒ /products/[id]    # Empty fallback HTML
+└   /products/[id]      # Route pattern group
+  ├ ƒ /products/[id]    # Empty fallback for unlisted IDs
   ├ ƒ /products/1       # Empty HTML. Renders on request
-  ├ ƒ /products/2       # Empty HTML. Renders on request
-  └ ƒ /products/3       # Empty HTML. Renders on request
+  ├ ƒ /products/2
+  └ ƒ /products/3
 
 ○  (Static)   prerendered as static content
 ƒ  (Dynamic)  server-rendered on demand
 ```
 
-Without `generateStaticParams`, the table has only the `/products/[id]` fallback row. That row uses `◐` because it represents the PPR fallback for the dynamic route pattern, even when its HTML is empty. When `generateStaticParams` adds child rows, each row reflects its prerender result, so an empty result uses `ƒ`.
+Here, the indented `/products/[id]` row is the fallback for IDs not returned by `generateStaticParams`. Its prerender is empty, so it uses `ƒ`.
 
-Synchronous values such as `Math.random()`, [`new Date()`](/docs/messages/blocking-prerender-current-time), and `crypto.randomUUID()` still produce prerender errors.
+Without `generateStaticParams`, the build prints only the fallback row:
+
+```bash filename="Terminal"
+Route (app)
+┌ ○ /_not-found
+└ ◐ /products/[id]
+
+○  (Static)             prerendered as static content
+◐  (Partial Prerender)  prerendered as static HTML with dynamic server-streamed content
+```
+
+The fallback uses `◐` because it represents the PPR shell for the dynamic route pattern, even when its HTML is empty.
+
+Synchronous values such as [`Math.random()`](/docs/messages/blocking-prerender-random), [`new Date()`](/docs/messages/blocking-prerender-current-time), and [`crypto.randomUUID()`](/docs/messages/blocking-prerender-crypto) still produce prerender errors.
 
 On an initial request, the server waits for the product lookup before returning the completed page. During a client navigation, the destination has no fallback to show while that work runs. See [Opting out](/docs/app/guides/instant-navigation#opting-out) for when this is appropriate.
 
