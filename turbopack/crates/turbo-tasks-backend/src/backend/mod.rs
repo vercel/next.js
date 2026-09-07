@@ -621,23 +621,6 @@ impl TurboTasksBackend {
                 );
             }
 
-            // A canceled task never runs again, so it can never become clean and nothing will
-            // ever fire its `all_clean_event`. Subscribing below would park this reader forever:
-            // `task_execution_canceled` notifies the waiters that already exist, but a reader
-            // arriving *after* the cancel re-creates the activeness state and waits on an event
-            // with no remaining notifier.
-            //
-            // Only the `Canceled` arm of `check_in_progress` is taken here, deliberately. Its
-            // `Scheduled`/`InProgress` arms return as soon as the task itself is running, which
-            // is right for the weakly consistent path below but would short-circuit the
-            // dirty-container wait that makes *this* read strongly consistent.
-            if matches!(task.get_in_progress(), Some(InProgressState::Canceled)) {
-                let description = task.get_task_description();
-                drop(task);
-                drop(reader_task);
-                anyhow::bail!("{description} was canceled");
-            }
-
             let is_dirty = task.is_dirty();
 
             // Check the dirty count of the root node
@@ -2004,28 +1987,18 @@ impl TurboTasksBackend {
             }
         }
 
-        // Record a terminal error output. A canceled task has produced no output, and
-        // `connect_children` uses `!child.has_output()` as its test for "not computed yet" and
-        // marks such a child dirty so it gets scheduled. For a canceled task that is wrong: it
-        // will never run again this session, and being marked plain `Dirty` also clears the
-        // session-clean flag set below, so it stays a dirty container of its parent forever. The
-        // parent then never reaches a clean state, and a strongly consistent reader waiting on
-        // the parent's `all_clean_event` waits forever — taking `stop_and_wait` with it, since
-        // the reader holds a foreground job.
-        //
-        // Giving the task an output makes it terminal for this session, so nothing re-dirties it
-        // and the aggregate settles. The `SessionDependent` marking below still ensures the next
-        // session re-executes it rather than trusting this error.
-        if task.get_output().is_none() {
-            task.set_output(OutputValue::Error(Arc::new(TaskError::Error(Box::new(
-                TaskErrorItem {
-                    message: TurboTasksExecutionErrorMessage::PIISafe(std::borrow::Cow::Borrowed(
-                        "task execution was canceled by shutdown",
-                    )),
-                    source: None,
-                },
-            )))));
-        }
+        // Give the task a terminal output. `connect_children` treats a child with no output as
+        // "not computed yet" and marks it dirty to be scheduled, which for a canceled task means
+        // it stays a dirty container of its parent forever and any strongly consistent reader
+        // above it never settles.
+        task.set_output(OutputValue::Error(Arc::new(TaskError::Error(Box::new(
+            TaskErrorItem {
+                message: TurboTasksExecutionErrorMessage::PIISafe(std::borrow::Cow::Borrowed(
+                    "task execution was canceled by shutdown",
+                )),
+                source: None,
+            },
+        )))));
 
         // Mark the cancelled task as session-dependent dirty so it will be re-executed
         // in the next session. Without this, any reader that encounters the cancelled task

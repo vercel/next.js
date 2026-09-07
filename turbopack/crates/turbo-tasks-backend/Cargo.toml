@@ -22,8 +22,6 @@ verify_serialization = []
 verify_aggregation_graph = []
 verify_immutable = []
 verify_determinism = ["turbo-tasks/verify_determinism"]
-# Reports an EventListener that is not notified within its timeout, printing the description and
-# note that `listen_with_note` call sites already carry. Diagnostic only.
 hanging_detection = ["turbo-tasks/hanging_detection"]
 task_dirty_cause = ["turbo-tasks/task_dirty_cause"]
 trace_aggregation_update_stats = []
