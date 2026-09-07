@@ -349,7 +349,7 @@ The built-in `default` profile revalidates after 15 minutes and never expires. T
 
 ### A blocking route
 
-Set `instant = false` when the route is allowed to block. The export opts the segment out of instant-navigation validation. When it is the highest `instant` config in the route tree, it also disables static-shell validation and allows the build to produce empty HTML. The route uses PPR:
+Set `instant = false` when the route is allowed to block. The export does not change the rendering model. It opts the segment out of instant-navigation validation. When it is the highest `instant` config in the route tree, it also disables static-shell validation, allowing the build to accept an empty HTML prerender. The route continues to use PPR:
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export const instant = false
