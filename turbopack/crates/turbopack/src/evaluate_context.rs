@@ -140,5 +140,6 @@ pub async fn config_tracing_module_context(
             .cell()
             .await?,
         true,
+        None,
     )))
 }

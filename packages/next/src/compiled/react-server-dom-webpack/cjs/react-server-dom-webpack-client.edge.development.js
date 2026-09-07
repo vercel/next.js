@@ -1719,6 +1719,7 @@
       this._children = [];
       this._debugChunk = null;
       this._debugInfo = [];
+      this._receivedDebugInfo = null;
     }
     function unwrapWeakResponse(weakResponse) {
       weakResponse = weakResponse.weak.deref();
@@ -2117,6 +2118,7 @@
             return;
           }
         }
+        chunk._receivedDebugInfo = null;
         chunk.status = "fulfilled";
         chunk.value = value;
         chunk.reason = null;
@@ -2369,7 +2371,8 @@
           var element = handler.value;
           switch (key) {
             case "3":
-              transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
+              reference.isDebug ||
+                transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
               element.props = mappedValue;
               break;
             case "4":
@@ -2379,7 +2382,8 @@
               element._debugStack = mappedValue;
               break;
             default:
-              transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
+              reference.isDebug ||
+                transferReferencedDebugInfo(handler.chunk, fulfilledChunk);
           }
         } else
           reference.isDebug ||
@@ -2394,6 +2398,7 @@
         null !== reference &&
           "blocked" === reference.status &&
           ((value = reference.value),
+          (reference._receivedDebugInfo = null),
           (reference.status = "fulfilled"),
           (reference.value = handler.value),
           (reference.reason = handler.reason),
@@ -2606,13 +2611,23 @@
       }
       return value;
     }
-    function transferReferencedDebugInfo(parentChunk, referencedChunk) {
-      if (null !== parentChunk) {
+    function transferReferencedDebugInfo(receivingChunk, referencedChunk) {
+      if (null !== receivingChunk) {
         referencedChunk = referencedChunk._debugInfo;
-        parentChunk = parentChunk._debugInfo;
-        for (var i = 0; i < referencedChunk.length; ++i) {
-          var debugInfoEntry = referencedChunk[i];
-          null == debugInfoEntry.name && parentChunk.push(debugInfoEntry);
+        var receivingDebugInfo = receivingChunk._debugInfo,
+          receivedDebugInfo = receivingChunk._receivedDebugInfo;
+        null === receivedDebugInfo &&
+          (receivedDebugInfo = receivingChunk._receivedDebugInfo = new Set());
+        for (
+          receivingChunk = 0;
+          receivingChunk < referencedChunk.length;
+          ++receivingChunk
+        ) {
+          var debugInfoEntry = referencedChunk[receivingChunk];
+          null != debugInfoEntry.name ||
+            receivedDebugInfo.has(debugInfoEntry) ||
+            (receivedDebugInfo.add(debugInfoEntry),
+            receivingDebugInfo.push(debugInfoEntry));
         }
       }
     }

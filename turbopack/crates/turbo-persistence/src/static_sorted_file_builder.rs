@@ -10,7 +10,8 @@ use byteorder::{BE, ByteOrder, WriteBytesExt};
 use fs_err::File;
 
 use crate::{
-    compression::{checksum_block, compress_into_buffer},
+    Compression,
+    compression::{Compressor, checksum_block},
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::MetaEntryFlags,
     static_sorted_file::{
@@ -339,9 +340,10 @@ pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
     file: &Path,
     flags: MetaEntryFlags,
+    compression: Compression,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
     debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
-    let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64)?;
+    let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64, compression)?;
     for entry in entries {
         writer.add(entry)?;
     }
@@ -393,9 +395,10 @@ fn write_block_to_file(
     block_offsets: &mut Vec<u32>,
     block: &[u8],
     try_compress: bool,
+    compressor: &mut Compressor,
 ) -> Result<u16> {
     let (uncompressed_size, data_to_write): (u32, &[u8]) = if try_compress {
-        compress_into_buffer(block, compress_buffer)?;
+        compressor.compress_into_buffer(block, compress_buffer)?;
         // Same threshold as LevelDB/RocksDB: require at least 12.5% savings.
         if compress_buffer.len() < block.len() - (block.len() / 8) {
             (block.len().try_into().unwrap(), compress_buffer.as_slice())
@@ -535,6 +538,7 @@ pub struct StreamingSstWriter<E: Entry> {
     file: Option<BufWriter<File>>,
     compress_buffer: Vec<u8>,
     block_offsets: Vec<u32>,
+    compressor: Compressor,
 
     /// Pending key entries waiting to be flushed as key blocks.
     ///
@@ -608,8 +612,14 @@ impl<E: Entry> StreamingSstWriter<E> {
     /// Creates a new streaming SST writer.
     ///
     /// `max_entry_count` is used to pre-allocate buffers and estimate block counts.
-    pub fn new(file: &Path, flags: MetaEntryFlags, max_entry_count: u64) -> Result<Self> {
+    pub fn new(
+        file: &Path,
+        flags: MetaEntryFlags,
+        max_entry_count: u64,
+        compression: Compression,
+    ) -> Result<Self> {
         let file = BufWriter::new(File::create(file)?);
+        let compressor = Compressor::new(compression)?;
 
         // Estimate number of key blocks based on max entry count.
         // Each key block holds up to MAX_KEY_BLOCK_ENTRIES entries.
@@ -628,6 +638,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             file: Some(file),
             compress_buffer: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE + MAX_SMALL_VALUE_SIZE),
             block_offsets: Vec::with_capacity(estimated_total_blocks),
+            compressor,
             pending_keys: VecDeque::with_capacity(entries_per_value_block),
             first_pending_small_index: 0,
             #[cfg(debug_assertions)]
@@ -711,6 +722,7 @@ impl<E: Entry> StreamingSstWriter<E> {
                     &mut self.block_offsets,
                     value,
                     true,
+                    &mut self.compressor,
                 )
                 .context("Failed to write value block")?;
                 ValueRef::Medium { block_index }
@@ -868,6 +880,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             &mut self.block_offsets,
             &self.pending_small_value_block,
             true,
+            &mut self.compressor,
         )
         .context("Failed to write small value block")?;
 
@@ -989,6 +1002,7 @@ impl<E: Entry> StreamingSstWriter<E> {
             &mut self.block_offsets,
             &self.key_buffer,
             try_compress,
+            &mut self.compressor,
         )
         .context("Failed to write key block")?;
         self.key_block_boundaries.push((first_hash, block_index));
@@ -1493,6 +1507,7 @@ mod tests {
                 sequence_number: seq,
                 block_count: meta.block_count,
             },
+            Compression::Lz4,
         )
     }
 
@@ -1504,7 +1519,8 @@ mod tests {
         flags: MetaEntryFlags,
     ) -> Result<StaticSortedFileBuilderMeta<'static>> {
         let sst_path = dir.join(format!("{seq:08}.sst"));
-        let mut writer = StreamingSstWriter::new(&sst_path, flags, entries.len() as u64)?;
+        let mut writer =
+            StreamingSstWriter::new(&sst_path, flags, entries.len() as u64, Compression::Lz4)?;
         for entry in entries {
             writer.add(entry)?;
         }
@@ -1740,7 +1756,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("test.sst");
         let mut writer =
-            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100).unwrap();
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100, Compression::Lz4)
+                .unwrap();
 
         let max_entries = 50;
         for i in 0..max_entries {
@@ -1766,7 +1783,8 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("test.sst");
         let mut writer =
-            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100).unwrap();
+            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100, Compression::Lz4)
+                .unwrap();
 
         let value = vec![0u8; 1000];
         for i in 0..10 {
@@ -1802,8 +1820,12 @@ mod tests {
 
         // Write via convenience function
         let batch_path = dir.path().join("00000001.sst");
-        let (meta1, _) =
-            write_static_stored_file(&entries, &batch_path, MetaEntryFlags::default())?;
+        let (meta1, _) = write_static_stored_file(
+            &entries,
+            &batch_path,
+            MetaEntryFlags::default(),
+            Compression::Lz4,
+        )?;
 
         // Write via streaming API
         let streaming_path = dir.path().join("00000002.sst");
@@ -1811,6 +1833,7 @@ mod tests {
             &streaming_path,
             MetaEntryFlags::default(),
             entries.len() as u64,
+            Compression::Lz4,
         )?;
         for entry in &entries {
             writer.add(entry)?;
@@ -1830,6 +1853,7 @@ mod tests {
                 sequence_number: 1,
                 block_count: meta1.block_count,
             },
+            Compression::Lz4,
         )?;
         let sst2 = StaticSortedFile::open(
             dir.path(),
@@ -1837,6 +1861,7 @@ mod tests {
                 sequence_number: 2,
                 block_count: meta2.block_count,
             },
+            Compression::Lz4,
         )?;
         let kc = make_cache();
         let vc = make_cache();
@@ -1891,8 +1916,13 @@ mod tests {
     fn close_empty_writer_panics() {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("empty.sst");
-        let writer =
-            StreamingSstWriter::<TestEntry>::new(&sst_path, MetaEntryFlags::default(), 0).unwrap();
+        let writer = StreamingSstWriter::<TestEntry>::new(
+            &sst_path,
+            MetaEntryFlags::default(),
+            0,
+            Compression::Lz4,
+        )
+        .unwrap();
         writer.close().unwrap();
     }
 

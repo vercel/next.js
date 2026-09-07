@@ -17,7 +17,7 @@ use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 
 use crate::{
-    QueryKey,
+    Compression, QueryKey,
     arc_bytes::ArcBytes,
     be,
     compression::checksum_block,
@@ -199,6 +199,7 @@ trait ValueBlockCache<B: SharedBytes> {
         mmap: &B::MmapHandle,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<B>;
 }
 
@@ -218,26 +219,39 @@ impl ValueBlockCache<ArcBytes> for ArcBlockCacheReader<'_> {
         mmap: &Arc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<ArcBytes> {
-        get_or_cache_block(mmap, meta, block_index, self.cache, self.verified_blocks)
+        get_or_cache_block(
+            mmap,
+            meta,
+            block_index,
+            self.cache,
+            self.verified_blocks,
+            compression,
+        )
     }
 }
 
 /// Iteration-path: lightweight single-entry cache for sequential reads.
-impl ValueBlockCache<RcBytes> for &mut Option<(u16, RcBytes)> {
+struct RcBlockCacheReader<'a> {
+    cache: &'a mut Option<(u16, RcBytes)>,
+}
+
+impl ValueBlockCache<RcBytes> for RcBlockCacheReader<'_> {
     fn get_or_read(
         self,
         mmap: &Rc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<RcBytes> {
-        if let Some((idx, block)) = self.as_ref()
+        if let Some((idx, block)) = self.cache.as_ref()
             && *idx == block_index
         {
             return Ok(block.clone());
         }
-        let block: RcBytes = read_block_generic(mmap, meta, block_index)?;
-        *self = Some((block_index, block.clone()));
+        let block: RcBytes = read_block_generic(mmap, meta, block_index, compression)?;
+        *self.cache = Some((block_index, block.clone()));
         Ok(block)
     }
 }
@@ -270,12 +284,17 @@ pub struct StaticSortedFile {
     /// bitmap the CRC would be re-computed on every access. `Relaxed` ordering
     /// suffices: racing first-time verifications are idempotent.
     verified_blocks: Box<[AtomicU64]>,
+    compression: Compression,
 }
 
 impl StaticSortedFile {
-    /// Opens an SST file at the given path. This memory maps the file, but does not read it yet.
-    /// It's lazy read on demand.
-    pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
+    /// Opens an SST file at the given path with the compression algorithm specified by its meta
+    /// file. This memory maps the file, but does not read it yet.
+    pub fn open(
+        db_path: &Path,
+        meta: StaticSortedFileMetaData,
+        compression: Compression,
+    ) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
         let file = File::open(&path)?;
@@ -301,6 +320,7 @@ impl StaticSortedFile {
             meta,
             mmap: Arc::new(mmap),
             verified_blocks,
+            compression,
         })
     }
 
@@ -325,6 +345,7 @@ impl StaticSortedFile {
             index_block_index,
             key_block_cache,
             &self.verified_blocks,
+            self.compression,
         )?;
         let key_block_index = self.lookup_index_block(&index_block, key_hash)?;
 
@@ -334,6 +355,7 @@ impl StaticSortedFile {
             key_block_index,
             key_block_cache,
             &self.verified_blocks,
+            self.compression,
         )?;
         let reader = ArcBlockCacheReader {
             cache: value_block_cache,
@@ -543,7 +565,15 @@ impl StaticSortedFile {
         key_block_arc: &ArcBytes,
         reader: ArcBlockCacheReader<'_>,
     ) -> Result<LookupValue> {
-        handle_key_match_generic(&self.mmap, &self.meta, ty, val, key_block_arc, reader)
+        handle_key_match_generic(
+            &self.mmap,
+            &self.meta,
+            ty,
+            val,
+            key_block_arc,
+            self.compression,
+            reader,
+        )
     }
 }
 
@@ -561,6 +591,7 @@ fn get_or_cache_block(
     block_index: u16,
     cache: &BlockCache,
     verified_blocks: &[AtomicU64],
+    compression: Compression,
 ) -> Result<ArcBytes> {
     let (uncompressed_length, checksum, block_data) = get_raw_block_slice(mmap, meta, block_index)
         .with_context(|| {
@@ -585,13 +616,15 @@ fn get_or_cache_block(
                 // A cached block may have been evicted, so re-reading still
                 // benefits from the bitmap to skip redundant CRC verification.
                 verify_checksum_once(meta, block_data, checksum, block_index, verified_blocks)?;
-                let block = ArcBytes::from_decompressed(uncompressed_length, block_data)
-                    .with_context(|| {
-                        format!(
-                            "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
-                            block_index, meta.sequence_number, uncompressed_length
-                        )
-                    })?;
+                let block =
+                    ArcBytes::from_decompressed(compression, uncompressed_length, block_data)
+                        .with_context(|| {
+                            format!(
+                                "Failed to decompress block {} from {:08}.sst ({} bytes \
+                                 uncompressed)",
+                                block_index, meta.sequence_number, uncompressed_length
+                            )
+                        })?;
                 let _ = guard.insert(block.clone());
                 block
             }
@@ -725,6 +758,7 @@ fn read_block_generic<B: SharedBytes>(
     mmap: &B::MmapHandle,
     meta: &StaticSortedFileMetaData,
     block_index: u16,
+    compression: Compression,
 ) -> Result<B> {
     let (uncompressed_length, expected_checksum, block) =
         get_raw_block_slice(mmap, meta, block_index).with_context(|| {
@@ -741,12 +775,13 @@ fn read_block_generic<B: SharedBytes>(
         return Ok(unsafe { B::from_mmap(mmap, block) });
     }
 
-    let buffer = B::from_decompressed(uncompressed_length, block).with_context(|| {
-        format!(
-            "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
-            block_index, meta.sequence_number, uncompressed_length
-        )
-    })?;
+    let buffer =
+        B::from_decompressed(compression, uncompressed_length, block).with_context(|| {
+            format!(
+                "Failed to decompress block {} from {:08}.sst ({} bytes uncompressed)",
+                block_index, meta.sequence_number, uncompressed_length
+            )
+        })?;
     Ok(buffer)
 }
 
@@ -757,6 +792,7 @@ fn handle_key_match_generic<B: SharedBytes>(
     ty: u8,
     val: &[u8],
     key_block: &B,
+    compression: Compression,
     reader: impl ValueBlockCache<B>,
 ) -> Result<LookupValue<B>> {
     Ok(match ty {
@@ -765,13 +801,13 @@ fn handle_key_match_generic<B: SharedBytes>(
             let size = be::read_u16(&val[2..]) as usize;
             let position = be::read_u32(&val[4..]) as usize;
             let value = reader
-                .get_or_read(mmap, meta, block)?
+                .get_or_read(mmap, meta, block, compression)?
                 .slice(position..position + size);
             LookupValue::Slice { value }
         }
         KEY_BLOCK_ENTRY_TYPE_MEDIUM => {
             let block = be::read_u16(val);
-            let value = read_block_generic(mmap, meta, block)?;
+            let value = read_block_generic(mmap, meta, block, compression)?;
             LookupValue::Slice { value }
         }
         KEY_BLOCK_ENTRY_TYPE_BLOB => {
@@ -815,6 +851,7 @@ pub struct StaticSortedFileIter {
     /// value blocks sequentially and don't revisit earlier blocks, so caching
     /// just the current one avoids redundant decompression.
     value_block_cache: Option<(u16, RcBytes)>,
+    compression: Compression,
 }
 
 enum CurrentKeyBlockKind {
@@ -882,10 +919,14 @@ impl Iterator for StaticSortedFileIter {
 }
 
 impl StaticSortedFileIter {
-    /// Opens an SST file for sequential iteration. Uses `MADV_SEQUENTIAL` for
-    /// read-ahead and wraps the mmap in `Rc<Mmap>` directly (no `Arc`),
-    /// eliminating all atomic refcounting during iteration.
-    pub fn open(db_path: &Path, meta: StaticSortedFileMetaData) -> Result<Self> {
+    /// Opens an SST file for sequential iteration with the compression algorithm specified by its
+    /// meta file. Uses `MADV_SEQUENTIAL` for read-ahead and wraps the mmap in `Rc<Mmap>` directly
+    /// (no `Arc`), eliminating all atomic refcounting during iteration.
+    pub fn open(
+        db_path: &Path,
+        meta: StaticSortedFileMetaData,
+        compression: Compression,
+    ) -> Result<Self> {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
         let file = File::open(&path)?;
@@ -899,13 +940,17 @@ impl StaticSortedFileIter {
         #[cfg(unix)]
         mmap.advise(memmap2::Advice::Sequential)?;
         advise_mmap_for_persistence(&mmap)?;
-        Self::new(Rc::new(mmap), meta)
+        Self::new(Rc::new(mmap), meta, compression)
             .with_context(|| format!("Unable to open static sorted file {filename}"))
     }
 
-    fn new(mmap: Rc<Mmap>, meta: StaticSortedFileMetaData) -> Result<Self> {
+    fn new(
+        mmap: Rc<Mmap>,
+        meta: StaticSortedFileMetaData,
+        compression: Compression,
+    ) -> Result<Self> {
         let root_block_index = meta.block_count - 1;
-        let block: RcBytes = read_block_generic(&mmap, &meta, root_block_index)?;
+        let block: RcBytes = read_block_generic(&mmap, &meta, root_block_index, compression)?;
         let block_type = block[0];
 
         // The builder always writes an index block as the root block.
@@ -924,7 +969,7 @@ impl StaticSortedFileIter {
             - size_of::<u16>())
             / INDEX_BLOCK_ENTRY_SIZE;
 
-        let current_key_block = Self::parse_key_block(&mmap, &meta, first_child)?;
+        let current_key_block = Self::parse_key_block(&mmap, &meta, first_child, compression)?;
         Ok(StaticSortedFileIter {
             mmap,
             meta,
@@ -933,6 +978,7 @@ impl StaticSortedFileIter {
             index_pos: 1,
             current_key_block,
             value_block_cache: None,
+            compression,
         })
     }
 
@@ -941,8 +987,9 @@ impl StaticSortedFileIter {
         mmap: &Rc<Mmap>,
         meta: &StaticSortedFileMetaData,
         block_index: u16,
+        compression: Compression,
     ) -> Result<CurrentKeyBlock> {
-        let block: RcBytes = read_block_generic(mmap, meta, block_index)?;
+        let block: RcBytes = read_block_generic(mmap, meta, block_index, compression)?;
         let data = &*block;
         ensure!(data.len() >= 4, "key block too short");
         let block_type = data[0];
@@ -1035,7 +1082,10 @@ impl StaticSortedFileIter {
                         ty,
                         val,
                         &kb.entries,
-                        &mut self.value_block_cache,
+                        self.compression,
+                        RcBlockCacheReader {
+                            cache: &mut self.value_block_cache,
+                        },
                     )?
                     .into()
                 };
@@ -1052,7 +1102,7 @@ impl StaticSortedFileIter {
                 let block_index = be::read_u16(&self.index_entries[base..]);
                 self.index_pos += 1;
                 self.current_key_block =
-                    Self::parse_key_block(&self.mmap, &self.meta, block_index)?;
+                    Self::parse_key_block(&self.mmap, &self.meta, block_index, self.compression)?;
             } else {
                 return Ok(None);
             }
