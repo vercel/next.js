@@ -2,15 +2,13 @@ import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 // Variants are supported with Turbopack only, and enabling them rejects a
-// webpack build, which `variants-webpack.test.ts` covers.
-// @force-gate turbopack
+// webpack build, which `variants-webpack.test.ts` covers. Deployments require
+// the adapter's Variants routing and prerender outputs. Self-hosted dev and
+// start do not require an adapter.
+// @force-gate turbopack && (!deploy || adapter)
 describe('variants on an upgraded fallback shell', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/fallback-upgrade',
-    // TODO(variants): enable this for a deployment. A platform serves a
-    // combination from the routing rules the adapter emits, and those do not
-    // exist yet, so every assertion here is about a self-hosted server.
-    skipDeployment: true,
   })
 
   if (skipped) {

@@ -2,8 +2,6 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
-  cacheComponents: true,
-  partialPrefetching: true,
   experimental: {
     variants: true,
     collapseAdapterRoutes: process.env.COLLAPSE_ADAPTER_ROUTES === '1',

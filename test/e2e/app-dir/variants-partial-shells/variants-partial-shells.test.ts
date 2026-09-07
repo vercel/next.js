@@ -6,13 +6,14 @@ import { createRouterAct } from 'router-act'
 import { basePath, url } from '../variants/base-path'
 
 // The assertions distinguish build-time preludes from request-time rendering.
-// TODO(variants): Add deployment coverage for partially resolved shells.
-// @force-gate start && turbopack
+// @force-gate turbopack && !dev && (!deploy || adapter)
 describe('Variants on partially resolved shells', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     env: {
       BASE_PATH: basePath,
+      COLLAPSE_ADAPTER_ROUTES:
+        process.env.COLLAPSE_ADAPTER_ROUTES === '1' ? '1' : '0',
     },
   })
 
