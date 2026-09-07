@@ -75,7 +75,7 @@ ship this scaffold.
 
 Then run the same interaction inside `instant()`:
 
-- the existing App Shell must remain visible;
+- the existing App Shell must stay visible;
 - the selected prefetch target should be absent before the optimization;
 - content chosen for the navigation stage should also be absent;
 - after the lock releases, every selected region must eventually render.
@@ -125,7 +125,7 @@ async function NavigationOnlyRelated({ id }: { id: string }) {
 ```
 
 `prefetch()` is useful only when the exact link opts into full prefetching.
-`navigation()` is useful when reusable content should remain absent even from
+`navigation()` is useful when reusable content should stay absent even from
 that full prefetch. Neither replaces a cache lifetime.
 
 Work one accepted navigation to GREEN before moving to another. Do not create
