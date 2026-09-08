@@ -33,8 +33,7 @@ test('Root layout exists and replaces _app/_document', () => {
   // Should include metadata (replacing Head in _document.js)
   expect(layoutContent).toMatch(/metadata|Metadata/)
 
-  // Should accept children using either an inline ReactNode type or the
-  // globally available LayoutProps helper.
+  // Accept both documented root-layout typing forms (next.js#98365).
   const layoutCode = stripComments(layoutContent)
   expect(layoutCode).toMatch(/children/)
   expect(layoutCode).toMatch(/(?:React\.)?ReactNode|LayoutProps\s*</)
