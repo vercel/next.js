@@ -1676,7 +1676,10 @@ export async function createHotReloaderTurbopack(
             type: HMR_MESSAGE_SENT_TO_BROWSER.SYNC,
             errors,
             warnings: [],
-            hash: '',
+            // Match the webpack hot reloader, whose sync carries the current
+            // compilation hash: report the server's latest HMR hash so a
+            // (re)connecting client can learn the current point instead of ''.
+            hash: String(hmrHash),
             versionInfo,
             debug: {
               devtoolsFrontendUrl,
