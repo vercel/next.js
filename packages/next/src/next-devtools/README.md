@@ -78,4 +78,4 @@ export function ComponentStyles() {
 
 The dev overlay implements a dark theme automatically by system preferences. Users can manually toggle between light and dark themes via the DevTools Indicator preferences panel.
 
-To make changes to the dark theme, you can edit the [`ui/styles/dark-theme.tsx`](./ui/styles/dark-theme.tsx) file.
+To make changes to the dark theme, you can edit the [`dev-overlay/styles/dark-theme.css`](./dev-overlay/styles/dark-theme.css) file.
