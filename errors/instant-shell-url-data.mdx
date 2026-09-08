@@ -26,7 +26,7 @@ During a [client-side navigation](/docs/app/glossary#client-side-navigation), a 
 
 The `params` and `searchParams` props are [URL data](/docs/app/glossary#url-data): they're specific to a single URL, so reading them outside a `<Suspense>` boundary ties the App Shell to one link. Next.js can no longer reuse it across links, and navigations to this route may not be instant.
 
-Next.js validates the route on both initial loads and client navigations, but this Insight applies to the App Shell used for client-side navigation. On initial load, the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) while Next.js validates the route's [static shell](/docs/app/glossary#static-shell). For URL data read through client hooks like [`useSearchParams`](/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
+Next.js validates the route on both initial loads and client navigations, but this insight applies to the App Shell used for client-side navigation. On initial load, the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) while Next.js validates the route's [static shell](/docs/app/glossary#static-shell). For URL data read through client hooks like [`useSearchParams`](/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
 
 ## Ways to fix this
 
@@ -123,8 +123,8 @@ The shared parts of the route are prefetched, and the URL-dependent region strea
 
 ### Gotchas
 
-- [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) don't trigger this error, even outside `<Suspense>`. They vary per session, not per link, so the App Shell stays reusable across links. The initial load's [static shell](/docs/app/glossary#static-shell) may still need them behind `<Suspense>`, and that requirement surfaces separately as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
-- Making the route static with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) does not resolve this error. A static param is still specific to one URL, so it can't be part of a prefetch shared across links.
+- [`cookies()`](/docs/app/api-reference/functions/cookies) and [`headers()`](/docs/app/api-reference/functions/headers) don't trigger this insight, even outside `<Suspense>`. They vary per session, not per link, so the App Shell stays reusable across links. The initial load's [static shell](/docs/app/glossary#static-shell) may still need them behind `<Suspense>`, and that requirement surfaces separately as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime).
+- Making the route static with [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) does not resolve this insight. A static param is still specific to one URL, so it can't be part of a prefetch shared across links.
 - The `params` and `searchParams` props are promises. Passing the promise down without awaiting it keeps the rest of the route in the shared prefetch. Awaiting it above the boundary pulls the URL data back in.
 
 ## Allow blocking route
@@ -167,7 +167,7 @@ Use either pattern when:
 - The route genuinely needs the URL data high in the tree to decide what to render, so there's no shared part worth prefetching.
 - You're adopting Partial Prefetching incrementally and want to defer this route without changing how it renders today.
 
-For this error, allowing the route to block is rarely the right answer. The route reads a small piece of URL data, and a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read keeps the rest of the route in the shared prefetch. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
+For this insight, allowing the route to block is rarely the right answer. The route reads a small piece of URL data, and a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around that read keeps the rest of the route in the shared prefetch. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when feasible.
 
 ### Trade-off
 
@@ -187,7 +187,7 @@ In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error ov
 
 ## Don't want this validation?
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and surfaces this insight.
 
 - **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.

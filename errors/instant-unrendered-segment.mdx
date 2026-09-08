@@ -138,7 +138,7 @@ The segment is always in the render tree, which means Next.js validates it on ev
 ### Gotchas
 
 - A layout that conditionally returns early without rendering `{children}` (e.g. a redirect guard) drops every segment in the subtree. Move the guard into a wrapper component inside `{children}` instead.
-- A Client Component that returns `null` during SSR also drops its children from the render tree, triggering this error. Use a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary above the Client Component so the fallback renders in place of the skipped subtree.
+- A Client Component that returns `null` during SSR also drops its children from the render tree, triggering this insight. Use a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary above the Client Component so the fallback renders in place of the skipped subtree.
 
 ## Skip validation on the segment
 
@@ -177,7 +177,7 @@ Depending on your [validation level](/docs/app/api-reference/file-conventions/ro
 
 ## Don't want this validation?
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and is what surfaces this error.
+Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and surfaces this insight.
 
 - **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
 - **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.

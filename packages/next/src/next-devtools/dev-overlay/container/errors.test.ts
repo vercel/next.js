@@ -72,32 +72,44 @@ describe('cache stage Insight messages', () => {
       detail:
         '`unstable_navigation()` called in `generateMetadata()` defers it until navigation.',
       docs: 'instant-cache-stage-metadata',
+      explanation:
+        "This route's metadata is blocked, but the rest of its content can be prefetched.",
     },
     {
       error: () => createPrefetchMetadataError(ROUTE),
       detail:
         '`unstable_prefetch()` called in `generateMetadata()` defers it until a per-link prefetch or navigation.',
       docs: 'instant-cache-stage-metadata',
+      explanation:
+        "This route's metadata is blocked, but the rest of its content can be prefetched.",
     },
     {
       error: () => createNavigationViewportError(ROUTE),
       detail:
         '`unstable_navigation()` in `generateViewport()` prevents Next.js from creating the App Shell, leading to a slower user experience.',
       docs: 'instant-cache-stage-viewport',
+      explanation:
+        'This prevents Next.js from creating the App Shell, leading to a slower user experience.',
     },
     {
       error: () => createPrefetchViewportError(ROUTE),
       detail:
         '`unstable_prefetch()` in `generateViewport()` prevents Next.js from creating the App Shell, leading to a slower user experience.',
       docs: 'instant-cache-stage-viewport',
+      explanation:
+        'This prevents Next.js from creating the App Shell, leading to a slower user experience.',
     },
   ])(
     'keeps the stage behavior and dedicated docs link',
-    ({ error, detail, docs }) => {
-      expect(error().message).toContain(detail)
-      expect(error().message).toContain(
+    ({ error, detail, docs, explanation }) => {
+      const instance = error()
+      expect(instance.message).toContain(detail)
+      expect(instance.message).toContain(
         `Learn more: https://nextjs.org/docs/messages/${docs}`
       )
+      expect(getBlockingRouteErrorDetails(instance)).toMatchObject({
+        explanation,
+      })
     }
   )
 })

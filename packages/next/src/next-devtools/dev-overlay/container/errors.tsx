@@ -37,6 +37,8 @@ import {
 import {
   BLOCKING_ROUTE_IN_NAVIGATION_EXPLANATION,
   BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION,
+  CACHE_STAGE_METADATA_EXPLANATION,
+  CACHE_STAGE_VIEWPORT_EXPLANATION,
 } from '../components/instant/instant-guidance-data'
 import { UnrenderedSegmentInfo } from '../components/instant/unrendered-segment-info'
 import { CodeFrame } from '../components/code-frame/code-frame'
@@ -172,11 +174,13 @@ type ClientHookErrorDetails = {
 type DynamicMetadataErrorDetails = {
   type: 'dynamic-metadata'
   variant: GuidanceVariant
+  explanation?: string
 }
 
 type DynamicViewportErrorDetails = {
   type: 'dynamic-viewport'
   variant: GuidanceVariant
+  explanation?: string
 }
 
 type SyncIOErrorDetails = {
@@ -474,9 +478,14 @@ export function getBlockingRouteErrorDetails(
     message.includes('/blocking-prerender-metadata-runtime') ||
     message.includes('/instant-cache-stage-metadata')
   if (isDynamicMetadataError) {
+    const variant = getGuidanceVariant(message)
     return {
       type: 'dynamic-metadata',
-      variant: getGuidanceVariant(message),
+      variant,
+      explanation:
+        variant === 'prefetch' || variant === 'navigation'
+          ? CACHE_STAGE_METADATA_EXPLANATION
+          : undefined,
     }
   }
 
@@ -485,9 +494,14 @@ export function getBlockingRouteErrorDetails(
     message.includes('/blocking-prerender-viewport-runtime') ||
     message.includes('/instant-cache-stage-viewport')
   if (isBlockingViewportError) {
+    const variant = getGuidanceVariant(message)
     return {
       type: 'dynamic-viewport',
-      variant: getGuidanceVariant(message),
+      variant,
+      explanation:
+        variant === 'prefetch' || variant === 'navigation'
+          ? CACHE_STAGE_VIEWPORT_EXPLANATION
+          : undefined,
     }
   }
 
@@ -1058,6 +1072,7 @@ export function Errors({
             <InstantHeaderExplanation
               kind="metadata"
               variant={errorDetails.variant}
+              explanation={errorDetails.explanation}
             />
           }
           renderTabBar={renderTabBar}
@@ -1142,6 +1157,7 @@ export function Errors({
             <InstantHeaderExplanation
               kind="viewport"
               variant={errorDetails.variant}
+              explanation={errorDetails.explanation}
             />
           }
           renderTabBar={renderTabBar}

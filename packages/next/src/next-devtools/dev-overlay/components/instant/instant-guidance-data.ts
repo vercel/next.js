@@ -821,6 +821,12 @@ export const BLOCKING_ROUTE_IN_NAVIGATION_EXPLANATION =
 export const BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION =
   'This may prevent the navigation from being instant, leading to a slower user experience.'
 
+export const CACHE_STAGE_METADATA_EXPLANATION =
+  "This route's metadata is blocked, but the rest of its content can be prefetched."
+
+export const CACHE_STAGE_VIEWPORT_EXPLANATION =
+  'This prevents Next.js from creating the App Shell, leading to a slower user experience.'
+
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,
   'Date.now()': syncDateCards,
