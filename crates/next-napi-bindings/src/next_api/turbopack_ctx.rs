@@ -300,7 +300,7 @@ fn duration_from_millis_f64(ms: Option<f64>) -> Option<Duration> {
         && ms.is_finite()
         && ms >= 0.0
     {
-        Some(Duration::from_secs_f64(ms / 1000.0))
+        Duration::try_from_secs_f64(ms / 1000.0).ok()
     } else {
         None
     }

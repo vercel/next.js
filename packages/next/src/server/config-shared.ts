@@ -782,17 +782,12 @@ export interface ExperimentalConfig {
   turbopackMemoryEviction?: false | 'full' | 'auto'
 
   /**
-   * Enables Turbopack's reference-counting garbage collector, which deletes
-   * unreachable tasks from the persistent cache and from memory.
+   * Enables Turbopack's garbage collector, which deletes unreachable
+   * tasks from the persistent cache and from memory.
    *
-   * Only effective in dev sessions where
-   * `experimental.turbopackFileSystemCacheForDev` is enabled (which it is by
-   * default), and where `experimental.turbopackMemoryEviction` is not disabled:
-   * the GC reclaims memory by way of eviction, so with eviction off it would
-   * leave collected tasks resident forever.
    *
    * - `false` (default): never collect.
-   * - `true`: collect, using the default timings.
+   * - `true`: collect
    * - An object: collect, overriding individual timings.
    *   - `minProgressMs`: how long a GC pass runs before it will honour an
    *     interrupt. Defaults to 100ms.
