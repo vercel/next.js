@@ -50,6 +50,40 @@ const tests = {
 
     export default myFunction
     `,
+    `
+    // named export inline, lowercase name is not a component
+    "use client"
+
+    export async function myFunction() {
+      return ''
+    }
+    `,
+    `
+    // named export specifier, lowercase name is not a component
+    "use client"
+
+    async function myFunction() {
+      return ''
+    }
+
+    export { myFunction }
+    `,
+    `
+    // named export non-async function
+    "use client"
+
+    export function MyComponent() {
+      return <></>
+    }
+    `,
+    `
+    // anonymous default async export (no name to flag, must not crash)
+    "use client"
+
+    export default async function () {
+      return <></>
+    }
+    `,
   ],
   invalid: [
     {
@@ -110,6 +144,67 @@ const tests = {
       }
 
       export default MyFunction
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // named export inline async function
+      "use client"
+
+      export async function MyComponent() {
+        return <></>
+      }
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // named export inline async arrow function
+      "use client"
+
+      export const MyComponent = async () => {
+        return <></>
+      }
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // named export specifier async function
+      "use client"
+
+      async function MyComponent() {
+        return <></>
+      }
+
+      export { MyComponent }
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // named export specifier async arrow function
+      "use client"
+
+      const MyComponent = async () => {
+        return <></>
+      }
+
+      export { MyComponent }
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // named export specifier aliased to a capitalized component name
+      "use client"
+
+      async function foo() {
+        return <></>
+      }
+
+      export { foo as MyComponent }
       `,
       errors: [{ message }],
     },
