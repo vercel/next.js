@@ -65,7 +65,7 @@ describe('getErrorTypeLabel', () => {
   })
 })
 
-describe('cache stage Insight messages', () => {
+describe('navigation stage Insight messages', () => {
   it.each([
     {
       error: () => createNavigationMetadataError(ROUTE),

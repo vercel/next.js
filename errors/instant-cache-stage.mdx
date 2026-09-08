@@ -1,5 +1,5 @@
 ---
-title: Next.js encountered a Cache Stage API outside of Suspense
+title: Next.js encountered a Navigation Stage API outside of Suspense
 kind: insight
 ---
 
@@ -22,11 +22,11 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-During prerendering or a client-side navigation, a Server Component called a [Cache Stage API](/docs/app/glossary#cache-stages) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). Cache Stage APIs include [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). Without a boundary, Next.js has no fallback to render when the API excludes the subtree from a prefetch.
+During prerendering or a client-side navigation, a Server Component called a [Navigation Stage API](/docs/app/glossary#navigation-stages) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). Navigation Stage APIs include [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). Without a boundary, Next.js has no fallback to render when the API excludes the subtree from a prefetch.
 
 For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent content until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering), and content below them remains cacheable.
 
-For the same insight in metadata or viewport code, see [Cache Stage API in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata) or [Cache Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport).
+For the same insight in metadata or viewport code, see [Navigation Stage API in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata) or [Navigation Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport).
 
 ## Ways to fix this
 
@@ -54,7 +54,7 @@ For the same insight in metadata or viewport code, see [Cache Stage API in `gene
 
 ## Wrap in or move into Suspense
 
-Choose this fix when the route has meaningful UI before the deferred content. Place [`<Suspense>`](https://react.dev/reference/react/Suspense) around the smallest region that calls the Cache Stage API.
+Choose this fix when the route has meaningful UI before the deferred content. Place [`<Suspense>`](https://react.dev/reference/react/Suspense) around the smallest region that calls the Navigation Stage API.
 
 ### Patterns
 
@@ -116,8 +116,8 @@ The earlier prefetch contains the fallback instead of the deferred content. A pe
 
 ### Gotchas
 
-- The boundary must be above the component that awaits the Cache Stage API. Adding a boundary inside that component does not catch the suspension.
-- Cache Stage APIs cannot run inside a `use cache`, `use cache: private`, or [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) scope. Put the cache directive on a function called after the stage boundary.
+- The boundary must be above the component that awaits the Navigation Stage API. Adding a boundary inside that component does not catch the suspension.
+- Navigation Stage APIs cannot run inside a `use cache`, `use cache: private`, or [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) scope. Put the cache directive on a function called after the stage boundary.
 - Static prerenders resolve both functions because the work runs once and is shared. Next.js still requires a boundary so the route remains valid if it later needs a runtime App Shell.
 
 ## Allow blocking route
@@ -128,7 +128,7 @@ Choose this fix when the route has no meaningful UI before the deferred content.
 
 #### Opt the page out
 
-Add the export to the page that calls the Cache Stage API. Only that route is allowed to block.
+Add the export to the page that calls the Navigation Stage API. Only that route is allowed to block.
 
 ```jsx filename="app/dashboard/page.js"
 import { unstable_navigation } from 'next/cache'
@@ -159,7 +159,7 @@ Learn more: [Route segment `instant` config](/docs/app/api-reference/file-conven
 
 Use either pattern when:
 
-- The segment intentionally has no meaningful UI before the point selected by the Cache Stage API.
+- The segment intentionally has no meaningful UI before the point selected by the Navigation Stage API.
 - You're migrating the route incrementally and need to preserve its current blocking behavior.
 
 Don't use this to dismiss the insight. Choose [Wrap in or move into Suspense](#wrap-in-or-move-into-suspense) when a useful fallback exists.
@@ -203,8 +203,8 @@ See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the 
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Cache Stage API in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata)
-- [Cache Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport)
+- [Navigation Stage API in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata)
+- [Navigation Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport)
 - [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
 - [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)

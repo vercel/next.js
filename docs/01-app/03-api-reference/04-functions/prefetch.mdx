@@ -36,7 +36,7 @@ With Partial Prefetching enabled, Next.js can prepare progressively more of a ro
 2. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) prefetch can also include content that depends on the link's URL.
 3. A navigation renders any content that remains.
 
-This control mechanism is called [Cache Stages](/docs/app/glossary#cache-stages).
+This control mechanism is called [Navigation Stages](/docs/app/glossary#navigation-stages).
 
 Awaiting `unstable_prefetch()` keeps content out of the App Shell, so it renders only on a per-link prefetch or on the navigation.
 

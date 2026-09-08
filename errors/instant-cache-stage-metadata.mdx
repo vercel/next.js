@@ -1,5 +1,5 @@
 ---
-title: Next.js encountered a Cache Stage API in `generateMetadata()`
+title: Next.js encountered a Navigation Stage API in `generateMetadata()`
 kind: insight
 ---
 
@@ -22,11 +22,11 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-During prerendering or a client-side navigation, [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called a [Cache Stage API](/docs/app/glossary#cache-stages). Cache Stage APIs include [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). The API can exclude subsequent metadata from an earlier prefetch while the rest of the route remains available.
+During prerendering or a client-side navigation, [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called a [Navigation Stage API](/docs/app/glossary#navigation-stages). Navigation Stage APIs include [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). The API can exclude subsequent metadata from an earlier prefetch while the rest of the route remains available.
 
 For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent metadata until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering). Because `generateMetadata()` has no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary of its own, make the metadata available earlier or mark the route as dynamic.
 
-For the same insight in the page body or viewport code, see [Cache Stage API outside of Suspense](/docs/messages/instant-cache-stage) or [Cache Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport).
+For the same insight in the page body or viewport code, see [Navigation Stage API outside of Suspense](/docs/messages/instant-cache-stage) or [Navigation Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport).
 
 ## Ways to fix this
 
@@ -54,7 +54,7 @@ For the same insight in the page body or viewport code, see [Cache Stage API out
 
 ## Use static metadata
 
-Choose this fix when the metadata should be available before the point selected by the Cache Stage API. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export.
+Choose this fix when the metadata should be available before the point selected by the Navigation Stage API. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export.
 
 ### Patterns
 
@@ -125,7 +125,7 @@ Learn more: [`connection`](/docs/app/api-reference/functions/connection).
 
 ### Trade-off
 
-The route is no longer fully static. The metadata waits until the point selected by the Cache Stage API, while the rest of the page can remain available from the earlier result.
+The route is no longer fully static. The metadata waits until the point selected by the Navigation Stage API, while the rest of the page can remain available from the earlier result.
 
 ### Gotchas
 
@@ -162,8 +162,8 @@ See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the 
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Cache Stage API outside of Suspense](/docs/messages/instant-cache-stage)
-- [Cache Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport)
+- [Navigation Stage API outside of Suspense](/docs/messages/instant-cache-stage)
+- [Navigation Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport)
 - [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
 - [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)
