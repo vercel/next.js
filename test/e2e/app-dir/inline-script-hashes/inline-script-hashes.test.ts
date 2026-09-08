@@ -84,6 +84,12 @@ describe('inline script hashes', () => {
     expect(secondPolicy).toBe(firstPolicy)
   })
 
+  it('leaves a dynamic response streaming and unhashed', async () => {
+    const res = await next.fetch('/dynamic')
+
+    expect(await policyOf(res)).toBe("default-src 'self'; script-src 'self'")
+  })
+
   it('leaves a policy that carries unsafe-inline alone', async () => {
     const res = await next.fetch('/unsafe-inline')
 
