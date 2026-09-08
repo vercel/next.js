@@ -1,5 +1,5 @@
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
- 
+/* eslint-disable import/no-extraneous-dependencies */
 import {
   renderToReadableStream,
   decodeReply,
@@ -12,7 +12,6 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client'
 import { prerender } from 'react-server-dom-webpack/static'
- 
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
@@ -52,6 +51,7 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 
 import {
   getClientReferenceManifest,
+  getRscModuleMappingForUseCache,
   getServerActionsManifest,
   getServerModuleMap,
   normalizeWorkerPageName,
@@ -349,88 +349,6 @@ const crossRequestPendingCacheInvocations = new Map<
   string,
   Promise<SharedCacheResult>
 >()
-
-/**
- * This creates a mapping so that a given client references with name `app/foo/client.tsx` is
- * serialized as
- * ```
- * {
- *  id: `app/foo/client.tsx`,
- *  name: `*`,
- *  chunks: ["stub"],
- *  async: false
- * }
- * ```
- *
- * This means that not the unstable client module id is used for the cache entry, but the stable
- * client reference name.
- */
-function createClientModulesForCache(
-  clientModules: DeepReadonly<ClientReferenceManifest['clientModules']>
-): DeepReadonly<ClientReferenceManifest['clientModules']> {
-  return new Proxy(clientModules, {
-    get(
-      target,
-      clientReferenceName,
-      receiver
-    ): ClientReferenceManifest['clientModules'][string] | undefined {
-      if (typeof clientReferenceName !== 'string') {
-        return Reflect.get(target, clientReferenceName, receiver)
-      }
-
-      const clientReferenceManifestEntry = target[clientReferenceName]
-      if (clientReferenceManifestEntry === undefined) {
-        return undefined
-      }
-
-      return {
-        // Cache entries must not depend on build-local module IDs or chunks.
-        // The stable client reference name is resolved against the current
-        // manifest when the entry is read.
-        id: clientReferenceName,
-        name: clientReferenceManifestEntry.name,
-        // Set a sentinel value just in case this does ends up being read at some point in the
-        // future, then at least we'll get "Failed to load chunk stub (404)" instead of "Failed to
-        // load module 1234".
-        chunks: ['stub'],
-        async: false,
-      }
-    },
-  })
-}
-
-/**
- * Performs the inverse of `createClientModulesForCache`.
- *
- * For cache functions, we don't do the usual rscModuleMapping lookup by module ID, but instead look
- * up by the stable client reference name. This is because cache entries must not depend on
- * build-local module IDs or chunks. So we need a second layer of indirection here to do client
- * reference name -> client module id -> rsc module mapping lookup.
- */
-function createRscModuleMappingForCache(
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
-): DeepReadonly<ClientReferenceManifest['rscModuleMapping']> {
-  return new Proxy(clientReferenceManifest.rscModuleMapping, {
-    get(
-      target,
-      key,
-      receiver
-    ): ClientReferenceManifest['rscModuleMapping'][string] | undefined {
-      if (typeof key !== 'string') {
-        return Reflect.get(target, key, receiver)
-      }
-
-      const clientReferenceManifestEntry =
-        clientReferenceManifest.clientModules[key]
-      if (clientReferenceManifestEntry === undefined) {
-        return undefined
-      }
-
-      const moduleId = clientReferenceManifestEntry.id
-      return target[moduleId]
-    },
-  })
-}
 
 // The first argument at each call site is the full directive that produced
 // the invocation, e.g. "'use cache'" or "'use cache: remote'".
@@ -1363,9 +1281,6 @@ async function generateCacheEntryImpl(
 ): Promise<GenerateCacheEntryResult> {
   const temporaryReferences = createServerTemporaryReferenceSet()
   const outerWorkUnitStore = cacheContext.outerWorkUnitStore
-  const clientModulesForCache = createClientModulesForCache(
-    clientReferenceManifest.clientModules
-  )
 
   const [, args] =
     typeof encodedArguments === 'string'
@@ -1476,7 +1391,7 @@ async function generateCacheEntryImpl(
 
       const { prelude } = await prerender(
         resultPromise,
-        clientModulesForCache,
+        clientReferenceManifest.clientModules,
         {
           environmentName: 'Cache',
           filterStackFrame,
@@ -1590,7 +1505,7 @@ async function generateCacheEntryImpl(
 
           stream = renderToReadableStream(
             resultPromise,
-            clientModulesForCache,
+            clientReferenceManifest.clientModules,
             {
               environmentName: 'Cache',
               filterStackFrame,
@@ -1666,12 +1581,16 @@ async function generateCacheEntryImpl(
     case 'private-cache':
     case 'unstable-cache':
     case 'generate-static-params':
-      stream = renderToReadableStream(resultPromise, clientModulesForCache, {
-        environmentName: 'Cache',
-        filterStackFrame,
-        temporaryReferences,
-        onError: handleError,
-      })
+      stream = renderToReadableStream(
+        resultPromise,
+        clientReferenceManifest.clientModules,
+        {
+          environmentName: 'Cache',
+          filterStackFrame,
+          temporaryReferences,
+          onError: handleError,
+        }
+      )
       break
     default:
       return outerWorkUnitStore satisfies never
@@ -3692,7 +3611,7 @@ export async function cache(
     // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
     // which themselves will handle the preloading.
     moduleLoading: null,
-    moduleMap: createRscModuleMappingForCache(clientReferenceManifest),
+    moduleMap: getRscModuleMappingForUseCache(),
     serverModuleMap: getServerModuleMap(),
   }
 
