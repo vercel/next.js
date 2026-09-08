@@ -23,6 +23,7 @@ function request(
 ): RequestInsight {
   return {
     requestId: `request-${id}`,
+    htmlRequestId: `page-${id}`,
     kind: 'request',
     source: 'page',
     startTime: id,
