@@ -79,7 +79,6 @@ import {
   CACHE_ONE_YEAR_SECONDS,
   HTML_CONTENT_TYPE_HEADER,
   NEXT_CACHE_TAGS_HEADER,
-  NEXT_INLINE_SCRIPT_HASHES_HEADER,
   NEXT_NAV_DEPLOYMENT_ID_HEADER,
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
@@ -1144,13 +1143,15 @@ export function createAppPageEntrypoint({
         // streamed. Only a cached response is: it is served again from the
         // cache with the headers it was stored with, while a dynamic one keeps
         // streaming and is admitted by a nonce instead.
-        const inlineScriptHashes = nextConfig.experimental.inlineScriptHashes
+        const inlineScriptHashesConfig =
+          nextConfig.experimental.inlineScriptHashes
         const isCached =
           isSSG && !respondsDynamically && cacheControl?.revalidate !== 0
         let html = result
+        let inlineScriptHashes: string[] | undefined
 
         if (
-          inlineScriptHashes &&
+          inlineScriptHashesConfig &&
           isCached &&
           result.contentType !== RSC_CONTENT_TYPE_HEADER &&
           metadata.postponed === undefined
@@ -1158,11 +1159,11 @@ export function createAppPageEntrypoint({
           const document = await result.toUnchunkedString(true)
           const hashes = collectInlineScriptHashes(
             document,
-            inlineScriptHashes.algorithm ?? 'sha256'
+            inlineScriptHashesConfig.algorithm
           )
 
           if (hashes.length > 0) {
-            headers[NEXT_INLINE_SCRIPT_HASHES_HEADER] = hashes.join(' ')
+            inlineScriptHashes = hashes
           }
 
           html = RenderResult.fromStatic(
@@ -1176,6 +1177,7 @@ export function createAppPageEntrypoint({
             kind: CachedRouteKind.APP_PAGE,
             html,
             headers,
+            inlineScriptHashes,
             rscData: metadata.flightData,
             postponed: metadata.postponed,
             status: metadata.statusCode,
@@ -1587,6 +1589,7 @@ export function createAppPageEntrypoint({
                 postponed,
                 segmentData: undefined,
                 headers: undefined,
+                inlineScriptHashes: undefined,
                 status: undefined,
               } satisfies CachedAppPageValue,
             }
@@ -1938,6 +1941,7 @@ export function createAppPageEntrypoint({
                   postponed: result.metadata.postponed,
                   status: 500,
                   headers: undefined,
+                  inlineScriptHashes: undefined,
                   segmentData: undefined,
                 },
                 cacheControl: { revalidate: 0, expire: undefined },
@@ -2173,29 +2177,29 @@ export function createAppPageEntrypoint({
           return null
         }
 
+        // The hashes admit the inline scripts of the body being served, so they
+        // are added to the policy of every response carrying it, cached or not.
+        if (cachedData.inlineScriptHashes) {
+          for (const name of [
+            'content-security-policy',
+            'content-security-policy-report-only',
+          ]) {
+            const policy = res.getHeader(name)
+
+            if (typeof policy === 'string') {
+              res.setHeader(
+                name,
+                withInlineScriptHashes(policy, cachedData.inlineScriptHashes)
+              )
+            }
+          }
+        }
+
         if (cachedData.headers) {
           const headers = { ...cachedData.headers }
 
           if (!isMinimalMode || !isSSG) {
             delete headers[NEXT_CACHE_TAGS_HEADER]
-          }
-
-          const inlineScriptHashes = headers[NEXT_INLINE_SCRIPT_HASHES_HEADER]
-          delete headers[NEXT_INLINE_SCRIPT_HASHES_HEADER]
-
-          if (typeof inlineScriptHashes === 'string') {
-            const hashes = inlineScriptHashes.split(' ')
-
-            for (const name of [
-              'content-security-policy',
-              'content-security-policy-report-only',
-            ]) {
-              const policy = res.getHeader(name)
-
-              if (typeof policy === 'string') {
-                res.setHeader(name, withInlineScriptHashes(policy, hashes))
-              }
-            }
           }
 
           for (let [key, value] of Object.entries(headers)) {
