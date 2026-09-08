@@ -128,10 +128,14 @@ pub enum UnnormalizedModuleFederationRemotes {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct UnnormalizedModuleFederationSharedOptions {
     pub import: Option<ModuleFederationSharedImport>,
+    pub package_name: Option<RcStr>,
+    pub required_version: Option<ModuleFederationSharedImport>,
     pub share_key: Option<RcStr>,
     pub share_scope: Option<RcStr>,
     pub version: Option<RcStr>,
     pub eager: Option<bool>,
+    pub singleton: Option<bool>,
+    pub strict_version: Option<bool>,
 }
 
 #[derive(
@@ -368,6 +372,7 @@ pub struct ModuleFederationShared {
     pub import: Option<RcStr>,
     pub package_name: Option<RcStr>,
     pub required_version: Option<RcStr>,
+    pub required_version_disabled: bool,
     pub share_key: RcStr,
     pub share_scope: RcStr,
     pub version: Option<RcStr>,
@@ -507,17 +512,26 @@ impl UnnormalizedModuleFederationConfig {
                     }
                     None => Some(request.clone()),
                 };
+                let (required_version, required_version_disabled) = match options.required_version {
+                    Some(ModuleFederationSharedImport::String(version)) => (Some(version), false),
+                    Some(ModuleFederationSharedImport::False(false)) => (None, true),
+                    None => (None, false),
+                    Some(ModuleFederationSharedImport::False(true)) => {
+                        bail!("Module Federation shared requiredVersion must be a string or false")
+                    }
+                };
                 config.shared.push(ModuleFederationShared {
                     request: request.clone(),
                     import,
-                    package_name: None,
-                    required_version: None,
+                    package_name: options.package_name,
+                    required_version,
+                    required_version_disabled,
                     share_key: options.share_key.unwrap_or_else(|| request.clone()),
                     share_scope: options.share_scope.unwrap_or_else(|| share_scope.clone()),
                     version: options.version,
                     eager: options.eager.unwrap_or(false),
-                    singleton: false,
-                    strict_version: false,
+                    singleton: options.singleton.unwrap_or(false),
+                    strict_version: options.strict_version.unwrap_or(false),
                 });
             }
         }

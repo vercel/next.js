@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
@@ -13,20 +15,30 @@ use turbopack_core::{
         parse::Request,
         pattern::Pattern,
     },
+    source::Source,
     virtual_source::VirtualSource,
 };
 
-use crate::module_federation::config::{
-    ModuleFederationConfig, ModuleFederationRemote, ModuleFederationShared,
+use crate::module_federation::{
+    config::{ModuleFederationConfig, ModuleFederationRemote, ModuleFederationShared},
+    shared::{apply_shared_import_map, resolved_fallback_request, shared_provider_version},
 };
 
-fn provider_registrations(shared: &[ModuleFederationShared], host_name: &str) -> Result<String> {
+async fn provider_registrations(
+    project_path: &FileSystemPath,
+    shared: &[ModuleFederationShared],
+    provider_requests: &[Option<RcStr>],
+    host_name: &str,
+) -> Result<String> {
     let mut registrations = Vec::new();
-    for shared in shared {
-        let Some(import) = &shared.import else {
+    for (shared, provider_request) in shared.iter().zip(provider_requests) {
+        if shared.request.ends_with('/') {
+            continue;
+        }
+        let Some(import) = provider_request else {
             continue;
         };
-        let version = shared.version.as_deref().unwrap_or("0");
+        let version = shared_provider_version(project_path, shared).await?;
         registrations.push(format!(
             r#"
     const versions_{index} = scope[{key}] ||= Object.create(null);
@@ -37,7 +49,7 @@ fn provider_registrations(shared: &[ModuleFederationShared], host_name: &str) ->
     }};"#,
             index = registrations.len(),
             key = serde_json::to_string(&shared.share_key)?,
-            version = serde_json::to_string(version)?,
+            version = serde_json::to_string(&version)?,
             import = serde_json::to_string(import)?,
             host_name = serde_json::to_string(host_name)?,
             eager = shared.eager,
@@ -46,86 +58,38 @@ fn provider_registrations(shared: &[ModuleFederationShared], host_name: &str) ->
     Ok(registrations.join("\n"))
 }
 
-/// Adds configured remote scopes to a Turbopack import map.
-pub fn apply_module_federation_import_map(
-    import_map: &mut ImportMap,
+async fn module_federation_remote_init_source(
     project_path: FileSystemPath,
-    config: &ModuleFederationConfig,
-) {
-    let host_name = config.name.clone().unwrap_or_else(|| "host".into());
-    for (index, remote) in config.remotes.iter().enumerate() {
-        let init_request: RcStr =
-            format!("__turbopack_module_federation_remote_init__/{index}").into();
-        let init_replacer = ModuleFederationRemoteInitReplacer {
-            project_path: project_path.clone(),
-            remote: remote.clone(),
-            shared: config.shared.clone(),
-            host_name: host_name.clone(),
-            init_request: init_request.clone(),
-        }
-        .resolved_cell();
-        import_map.insert_exact_alias(
-            init_request.clone(),
-            ImportMapping::Dynamic(ResolvedVc::upcast(init_replacer)).resolved_cell(),
-        );
-
-        let replacer = ModuleFederationRemoteReplacer {
-            project_path: project_path.clone(),
-            remote: remote.clone(),
-            init_request,
-        }
-        .resolved_cell();
-        let mapping = ImportMapping::Dynamic(ResolvedVc::upcast(replacer)).resolved_cell();
-        import_map.insert_exact_alias(remote.request.clone(), mapping);
-        import_map.insert_wildcard_alias(RcStr::from(format!("{}/", remote.request)), mapping);
+    remote: &ModuleFederationRemote,
+    shared: &[ModuleFederationShared],
+    host_name: &str,
+) -> Result<ResolvedVc<Box<dyn Source>>> {
+    let candidates = serde_json::to_string(
+        &remote
+            .external
+            .iter()
+            .map(|external| (&*external.global, &*external.url))
+            .collect::<Vec<_>>(),
+    )?;
+    let remote_key = serde_json::to_string(&remote.request)?;
+    let share_scope = serde_json::to_string(&remote.share_scope)?;
+    let scoped_shared = shared
+        .iter()
+        .filter(|shared| shared.share_scope == remote.share_scope)
+        .cloned()
+        .collect::<Vec<_>>();
+    let mut provider_requests = Vec::with_capacity(scoped_shared.len());
+    for shared in &scoped_shared {
+        provider_requests.push(match &shared.import {
+            Some(import) => Some(resolved_fallback_request(&project_path, import).await?),
+            None => None,
+        });
     }
-}
-
-#[turbo_tasks::value]
-#[derive(Clone)]
-struct ModuleFederationRemoteInitReplacer {
-    project_path: FileSystemPath,
-    remote: ModuleFederationRemote,
-    shared: Vec<ModuleFederationShared>,
-    host_name: RcStr,
-    init_request: RcStr,
-}
-
-#[turbo_tasks::value]
-#[derive(Clone)]
-struct ModuleFederationRemoteReplacer {
-    project_path: FileSystemPath,
-    remote: ModuleFederationRemote,
-    init_request: RcStr,
-}
-
-#[turbo_tasks::value_impl]
-impl ImportMappingReplacement for ModuleFederationRemoteInitReplacer {
-    #[turbo_tasks::function]
-    fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Dynamic(ResolvedVc::upcast(self.clone().resolved_cell())).cell()
-    }
-
-    #[turbo_tasks::function]
-    async fn result(
-        self: Vc<Self>,
-        _lookup_path: FileSystemPath,
-        _request: Vc<Request>,
-    ) -> Result<Vc<ImportMapResult>> {
-        let this = self.await?;
-        let candidates = serde_json::to_string(
-            &this
-                .remote
-                .external
-                .iter()
-                .map(|external| (&*external.global, &*external.url))
-                .collect::<Vec<_>>(),
-        )?;
-        let remote_key = serde_json::to_string(&this.remote.request)?;
-        let share_scope = serde_json::to_string(&this.remote.share_scope)?;
-        let registrations = provider_registrations(&this.shared, &this.host_name)?;
-        let code = format!(
-            r#"
+    let registrations =
+        provider_registrations(&project_path, &scoped_shared, &provider_requests, host_name)
+            .await?;
+    let code = format!(
+        r#"
 const candidates = {candidates};
 const remoteKey = {remote_key};
 const federation = __turbopack_module_federation__;
@@ -193,22 +157,67 @@ export async function get(request, fullRequest) {{
   throw error;
 }}
 "#,
-        );
-        let virtual_name = format!(
-            ".turbopack-module-federation-init-{}.js",
-            this.remote.request.replace('/', "_")
-        );
-        let source = VirtualSource::new(
-            this.project_path.join(&virtual_name)?,
+    );
+    Ok(ResolvedVc::upcast(
+        VirtualSource::new(
+            project_path.join(&format!(
+                ".turbopack-module-federation-init-{}.js",
+                remote.request.replace('/', "_")
+            ))?,
             AssetContent::file(FileContent::Content(code.into()).cell()),
         )
         .to_resolved()
-        .await?;
-        Ok(ImportMapResult::Result(
-            ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
+        .await?,
+    ))
+}
+
+pub async fn apply_module_federation_import_map(
+    import_map: &mut ImportMap,
+    project_path: FileSystemPath,
+    config: &ModuleFederationConfig,
+) -> Result<()> {
+    let host_name = config.name.clone().unwrap_or_else(|| "host".into());
+    let mut init_requests_by_scope = BTreeMap::<RcStr, Vec<RcStr>>::new();
+    for (index, remote) in config.remotes.iter().enumerate() {
+        let init_request: RcStr =
+            format!("__turbopack_module_federation_remote_init__/{index}").into();
+        init_requests_by_scope
+            .entry(remote.share_scope.clone())
+            .or_default()
+            .push(init_request.clone());
+        let init_source = module_federation_remote_init_source(
+            project_path.clone(),
+            remote,
+            &config.shared,
+            &host_name,
         )
-        .cell())
+        .await?;
+        import_map.insert_exact_alias(
+            init_request.clone(),
+            ImportMapping::Direct(ResolveResult::source(init_source).resolved_cell())
+                .resolved_cell(),
+        );
+
+        let replacer = ModuleFederationRemoteReplacer {
+            project_path: project_path.clone(),
+            remote: remote.clone(),
+            init_request,
+        }
+        .resolved_cell();
+        let mapping = ImportMapping::Dynamic(ResolvedVc::upcast(replacer)).resolved_cell();
+        import_map.insert_exact_alias(remote.request.clone(), mapping);
+        import_map.insert_wildcard_alias(RcStr::from(format!("{}/", remote.request)), mapping);
     }
+    apply_shared_import_map(import_map, project_path, config, &init_requests_by_scope);
+    Ok(())
+}
+
+#[turbo_tasks::value]
+#[derive(Clone)]
+struct ModuleFederationRemoteReplacer {
+    project_path: FileSystemPath,
+    remote: ModuleFederationRemote,
+    init_request: RcStr,
 }
 
 #[turbo_tasks::value_impl]
