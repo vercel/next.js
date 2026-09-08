@@ -143,6 +143,7 @@ Your `.env.local` file should look something like this:
 ```bash
 NEXT_PUBLIC_SANITY_PROJECT_ID="r0z1eifg"
 NEXT_PUBLIC_SANITY_DATASET="blog-vercel"
+NEXT_PUBLIC_SANITY_API_VERSION="2024-02-28"
 SANITY_API_READ_TOKEN="sk..."
 ```
 
