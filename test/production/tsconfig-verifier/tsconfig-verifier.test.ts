@@ -531,6 +531,103 @@ describe('tsconfig.json verifier', () => {
              "node_modules"
            ]
          }
+          "
+        `)
+    }
+  })
+
+  it('preserves module: node20', async () => {
+    expect(await next.hasFile('tsconfig.json')).toBe(false)
+
+    await next.patchFile(
+      'tsconfig.json',
+      `{ "compilerOptions": { "module": "node20" } }`
+    )
+    await new Promise((resolve) => setTimeout(resolve, 500))
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain('module was set to esnext')
+    expect(exitCode).toBe(0)
+
+    if (strictRouteTypes) {
+      expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "node20",
+             "moduleResolution": "node16",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
+           ],
+           "exclude": [
+             "node_modules"
+           ]
+         }
+         "
+        `)
+    } else {
+      expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
+         "{
+           "compilerOptions": {
+             "esModuleInterop": true,
+             "module": "node20",
+             "moduleResolution": "node16",
+             "target": "ES2017",
+             "lib": [
+               "dom",
+               "dom.iterable",
+               "esnext"
+             ],
+             "allowJs": true,
+             "skipLibCheck": true,
+             "strict": false,
+             "noEmit": true,
+             "incremental": true,
+             "resolveJsonModule": true,
+             "isolatedModules": true,
+             "jsx": "react-jsx",
+             "plugins": [
+               {
+                 "name": "next"
+               }
+             ],
+             "strictNullChecks": true
+           },
+           "include": [
+             "next-env.d.ts",
+             ".next/types/**/*.ts",
+             ".next/dev/types/**/*.ts",
+             "**/*.mts",
+             "**/*.ts",
+             "**/*.tsx"
+           ],
+           "exclude": [
+             "node_modules"
+           ]
+         }
          "
         `)
     }
