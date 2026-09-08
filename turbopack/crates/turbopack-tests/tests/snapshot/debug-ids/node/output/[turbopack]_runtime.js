@@ -49,6 +49,11 @@ const REEXPORTED_OBJECTS = new WeakMap();
     this.e = exports;
 }
 const contextPrototype = Context.prototype;
+contextPrototype.S = {
+    shareScopes: Object.create(null),
+    initScopes: Object.create(null),
+    remoteInitializations: Object.create(null)
+};
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -699,17 +704,14 @@ function loadChunkAsync(chunkData) {
     return entry;
 }
 contextPrototype.l = loadChunkAsync;
-function loadChunkAsyncByUrl(chunkUrl) {
+function loadChunkAsyncByUrl(chunkUrl, resolveOnLoad = false) {
+    if (resolveOnLoad) {
+        return Promise.reject(new Error(`External script loading is only supported in browser client code: ${chunkUrl}`));
+    }
     const path1 = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
     return loadChunkAsync.call(this, path1);
 }
 contextPrototype.L = loadChunkAsyncByUrl;
-function loadScriptByUrl(url) {
-    const loader = globalThis.__turbopack_test_load_script__;
-    if (loader !== undefined) return loader(url);
-    return Promise.reject(new Error(`External script loading is only supported in browser runtimes: ${url}`));
-}
-contextPrototype.o = loadScriptByUrl;
 // Shared runtime primitive: the root that on-disk chunk paths are resolved
 // against. Used by the bundled wasm helper (exposed as `__turbopack_runtime_root__`).
 contextPrototype.w = RUNTIME_ROOT;

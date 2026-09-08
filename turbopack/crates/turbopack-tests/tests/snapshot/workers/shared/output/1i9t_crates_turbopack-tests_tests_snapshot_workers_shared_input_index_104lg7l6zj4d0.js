@@ -71,6 +71,11 @@ const REEXPORTED_OBJECTS = new WeakMap();
     this.e = exports;
 }
 const contextPrototype = Context.prototype;
+contextPrototype.S = {
+    shareScopes: Object.create(null),
+    initScopes: Object.create(null),
+    remoteInitializations: Object.create(null)
+};
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -815,38 +820,16 @@ async function loadChunkInternal(sourceType, sourceData, chunkData) {
 const loadedChunk = Promise.resolve(undefined);
 const instrumentedBackendLoadChunks = new WeakMap();
 // Do not make this async. React relies on referential equality of the returned Promise.
-function loadChunkByUrl(chunkEntry) {
+function loadChunkByUrl(chunkEntry, resolveOnLoad = false) {
+    if (resolveOnLoad) {
+        if (typeof chunkEntry !== 'string') {
+            return Promise.reject(new Error('External scripts cannot use merged chunk metadata'));
+        }
+        return BACKEND.loadChunkCached(SourceType.Parent, chunkEntry, true);
+    }
     return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry);
 }
 browserContextPrototype.L = loadChunkByUrl;
-const externalScriptCache = new Map();
-function loadScriptByUrl(url) {
-    let promise = externalScriptCache.get(url);
-    if (promise !== undefined) return promise;
-    promise = new Promise((resolve, reject)=>{
-        if (typeof document === 'undefined') {
-            reject(new Error(`Cannot load external script ${url} without a document`));
-            return;
-        }
-        const script = document.createElement('script');
-        if (CROSS_ORIGIN != null) script.crossOrigin = CROSS_ORIGIN;
-        script.src = url;
-        script.onload = ()=>resolve();
-        script.onerror = ()=>{
-            script.remove();
-            reject(new Error(`Failed to load external script ${url}`));
-        };
-        document.head.appendChild(script);
-    });
-    externalScriptCache.set(url, promise);
-    void promise.catch(()=>{
-        if (externalScriptCache.get(url) === promise) {
-            externalScriptCache.delete(url);
-        }
-    });
-    return promise;
-}
-browserContextPrototype.o = loadScriptByUrl;
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrlInternal(sourceType, sourceData, chunkEntry) {
     if (SUPPORT_COMPONENT_CHUNKS) {
@@ -2190,7 +2173,7 @@ function registerChunk(registration) {
 function getAssetSuffixFromScriptSrc() {
     // TURBOPACK_ASSET_SUFFIX is set in web workers
     if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX;
-    const src = document?.currentScript?.getAttribute?.('src') ?? '';
+    const src = typeof document === 'undefined' ? '' : document.currentScript?.getAttribute?.('src') ?? '';
     const qi = src.indexOf('?');
     return qi >= 0 ? src.slice(qi) : '';
 }
@@ -2228,11 +2211,11 @@ let BACKEND;
         /**
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
-     */ loadChunkCached (sourceType, chunkUrl) {
-            return doLoadChunk(sourceType, chunkUrl);
+     */ loadChunkCached (sourceType, chunkUrl, resolveOnLoad = false) {
+            return doLoadChunk(sourceType, chunkUrl, resolveOnLoad);
         }
     };
-    function getOrCreateResolver(chunkUrl) {
+    function getOrCreateResolver(chunkUrl, resolveOnLoad = false) {
         let resolver = chunkResolvers.get(chunkUrl);
         if (!resolver) {
             let resolve;
@@ -2245,6 +2228,7 @@ let BACKEND;
                 resolved: false,
                 loadingStarted: false,
                 retryAttempts: 0,
+                registrationRequired: !resolveOnLoad,
                 promise,
                 resolve: ()=>{
                     resolver.resolved = true;
@@ -2292,15 +2276,26 @@ let BACKEND;
                 reload();
             } else {
                 resolver.loadingStarted = false;
-                doLoadChunk(sourceType, chunkUrl);
+                doLoadChunk(sourceType, chunkUrl, !resolver.registrationRequired);
             }
         }, getChunkLoadRetryDelayMs());
+    }
+    function getExistingScripts(chunkUrl) {
+        const requested = new URL(chunkUrl, document.baseURI).href;
+        return Array.from(document.scripts).filter((script)=>{
+            const src = script.getAttribute('src');
+            if (src == null) return false;
+            const existing = new URL(src, document.baseURI).href;
+            return existing === requested || existing.startsWith(`${requested}?`);
+        });
     }
     /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
-   */ function doLoadChunk(sourceType, chunkUrl) {
-        const resolver = getOrCreateResolver(chunkUrl);
+   */ function doLoadChunk(sourceType, chunkUrl, resolveOnLoad = false) {
+        const resolver = getOrCreateResolver(chunkUrl, resolveOnLoad);
+        // Normal Turbopack chunk loading wins if the same URL is also requested as an external script.
+        if (!resolveOnLoad) resolver.registrationRequired = true;
         if (resolver.loadingStarted) {
             return resolver.promise;
         }
@@ -2318,16 +2313,24 @@ let BACKEND;
             // `resolver.resolve()` in this branch.
             return resolver.promise;
         }
-        if (typeof importScripts === 'function') {
-            // We're in a web worker
+        if (typeof document === 'undefined') {
+            // We're in a web worker. Classic workers support importScripts; module workers use a
+            // native dynamic import for external scripts because importScripts is unavailable there.
             if (isCss(chunkUrl)) {
             // ignore
             } else if (isJs(chunkUrl)) {
-                self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
-                try {
-                    importScripts(chunkUrl);
-                } catch (error) {
-                    onChunkLoadError(sourceType, chunkUrl, resolver, error);
+                if (typeof importScripts === 'function') {
+                    self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
+                    try {
+                        importScripts(chunkUrl);
+                        if (!resolver.registrationRequired) resolver.resolve();
+                    } catch (error) {
+                        onChunkLoadError(sourceType, chunkUrl, resolver, error);
+                    }
+                } else if (!resolver.registrationRequired) {
+                    import(chunkUrl).then(()=>resolver.resolve(), (error)=>onChunkLoadError(sourceType, chunkUrl, resolver, error));
+                } else {
+                    onChunkLoadError(sourceType, chunkUrl, resolver, new Error(`importScripts is unavailable for chunk ${chunkUrl}`));
                 }
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
@@ -2365,9 +2368,16 @@ let BACKEND;
                     document.head.appendChild(createLink());
                 }
             } else if (isJs(chunkUrl)) {
-                const previousScripts = document.querySelectorAll(`script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`);
+                const previousScripts = getExistingScripts(chunkUrl);
                 if (previousScripts.length > 0) {
                     for (const script of Array.from(previousScripts)){
+                        if (resolveOnLoad) {
+                            script.addEventListener('load', ()=>{
+                                if (!resolver.registrationRequired) resolver.resolve();
+                            }, {
+                                once: true
+                            });
+                        }
                         script.addEventListener('error', ()=>{
                             // Drop the failed tag so a retry can re-add it cleanly.
                             script.remove();
@@ -2380,9 +2390,11 @@ let BACKEND;
                     const script = document.createElement('script');
                     script.crossOrigin = CROSS_ORIGIN;
                     script.src = chunkUrl;
-                    // We'll only mark the chunk as loaded once the script has been executed,
-                    // which happens in `registerChunk`. Hence the absence of `resolve()` in
-                    // this branch.
+                    script.onload = ()=>{
+                        // External scripts don't register as Turbopack chunks, so their load event is the
+                        // completion signal. A normal chunk request for the same URL takes precedence.
+                        if (!resolver.registrationRequired) resolver.resolve();
+                    };
                     script.onerror = ()=>{
                         // Drop the failed tag so a retry can re-add it cleanly.
                         script.remove();
