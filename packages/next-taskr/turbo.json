@@ -1,0 +1,19 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build": {
+      "cache": false,
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "$TURBO_ROOT$/Cargo.toml",
+        "$TURBO_ROOT$/Cargo.lock",
+        "$TURBO_ROOT$/rust-toolchain.toml",
+        "$TURBO_ROOT$/.cargo/**",
+        "$TURBO_ROOT$/crates/**",
+        "$TURBO_ROOT$/turbopack/**"
+      ],
+      "passThroughEnv": ["CARGO_TARGET_DIR"],
+      "outputs": ["dist/**"]
+    }
+  }
+}

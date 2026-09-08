@@ -65,7 +65,7 @@ pnpm build
 pnpm build-all
 
 # Run specific task
-pnpm --filter=next exec taskr <task>
+pnpm --filter=next exec next-taskr <task>
 ```
 
 ## Fast Local Development

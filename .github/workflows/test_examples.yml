@@ -51,6 +51,9 @@ jobs:
           corepack enable
 
       - run: pnpm install
+      - name: Install Rust for the build runner
+        uses: ./.github/actions/setup-rust
+
       - run: pnpm build
 
       - run: docker run --rm -v $(pwd):/work mcr.microsoft.com/playwright:v1.35.1-focal /bin/bash -c "cd /work && curl -s https://install-node.vercel.app/v${{ matrix.node }} | FORCE=1 bash && node -v && corepack enable > /dev/null && NEXT_TEST_JOB=1 NEXT_TEST_MODE=start xvfb-run node run-tests.js --type examples >> /proc/1/fd/1"

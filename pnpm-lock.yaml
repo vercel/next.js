@@ -50,9 +50,6 @@ patchedDependencies:
   stacktrace-parser@0.1.10:
     hash: ff70befa8ec032ce77713d8cf9b1cef70ccb047d635eddb4072bc72a6c744522
     path: patches/stacktrace-parser@0.1.10.patch
-  taskr@1.1.0:
-    hash: 1d0f571943b5d4761d4f2f39723796e402dd317f14a7c714e2021d3f12cc481c
-    path: patches/taskr@1.1.0.patch
   webpack-sources@3.2.3:
     hash: 26afc15966a3fc37a3d1d366312a95ce66723513f6a3a720e4166a37147da8bd
     path: patches/webpack-sources@3.2.3.patch
@@ -175,9 +172,6 @@ importers:
       '@swc/types':
         specifier: 0.1.7
         version: 0.1.7
-      '@taskr/esnext':
-        specifier: 1.1.0
-        version: 1.1.0
       '@testing-library/jest-dom':
         specifier: 6.1.2
         version: 6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0))
@@ -595,9 +589,6 @@ importers:
       tailwindcss:
         specifier: 3.2.7
         version: 3.2.7(postcss@8.5.23)
-      taskr:
-        specifier: 1.1.0
-        version: 1.1.0(patch_hash=1d0f571943b5d4761d4f2f39723796e402dd317f14a7c714e2021d3f12cc481c)
       tree-kill:
         specifier: 1.2.2
         version: 1.2.2
@@ -1242,6 +1233,9 @@ importers:
       '@next/swc':
         specifier: 16.4.0-canary.20
         version: link:../next-swc
+      '@next/taskr':
+        specifier: workspace:*
+        version: link:../next-taskr
       '@opentelemetry/api':
         specifier: 1.6.0
         version: 1.6.0
@@ -1284,12 +1278,6 @@ importers:
       '@swc/types':
         specifier: 0.1.7
         version: 0.1.7
-      '@taskr/clear':
-        specifier: 1.1.0
-        version: 1.1.0
-      '@taskr/esnext':
-        specifier: 1.1.0
-        version: 1.1.0
       '@types/babel__code-frame':
         specifier: 7.0.6
         version: 7.0.6
@@ -1587,6 +1575,9 @@ importers:
       lodash.curry:
         specifier: 4.1.1
         version: 4.1.1
+      lru-cache:
+        specifier: 7.18.3
+        version: 7.18.3
       mini-css-extract-plugin:
         specifier: 2.4.4
         version: 2.4.4(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))(esbuild@0.25.9))
@@ -1680,6 +1671,9 @@ importers:
       sass-loader:
         specifier: 16.0.5
         version: 16.0.5(@rspack/core@1.6.7(patch_hash=4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d)(@swc/helpers@0.5.23))(sass@1.77.8)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))(esbuild@0.25.9))
+      schema-utils:
+        specifier: 3.2.0
+        version: 3.2.0
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: schema-utils@2.7.1
@@ -1746,9 +1740,6 @@ importers:
       tar:
         specifier: 7.5.11
         version: 7.5.11
-      taskr:
-        specifier: 1.1.0
-        version: 1.1.0(patch_hash=1d0f571943b5d4761d4f2f39723796e402dd317f14a7c714e2021d3f12cc481c)
       terser:
         specifier: 5.27.0
         version: 5.27.0
@@ -1963,6 +1954,8 @@ importers:
       wasm-pack:
         specifier: 0.13.1
         version: 0.13.1
+
+  packages/next-taskr: {}
 
   packages/react-refresh-utils:
     devDependencies:
@@ -6955,13 +6948,6 @@ packages:
   '@tailwindcss/postcss@4.1.13':
     resolution: {integrity: sha512-HLgx6YSFKJT7rJqh9oJs/TkBFhxuMOfUKSBEPYwV+t78POOBsdQ7crhZLzwcH3T0UyUuOzU/GK5pk5eKr3wCiQ==}
 
-  '@taskr/clear@1.1.0':
-    resolution: {integrity: sha512-QC/zyNneQ5N2kyL4ZmiaMqXxXW7VqwqJssbbdezUs0113Y711I44tXQGKWJnxPVFOe3oGrFGNnkRESPKWq8AYw==}
-    engines: {node: '>=4.6'}
-
-  '@taskr/esnext@1.1.0':
-    resolution: {integrity: sha512-lO9JrkSt2uR/jMZHxHyEZC+K/TvusALewWbgNN3aQaVmPEOevYGNaBlmX7kK2XDNgpL1cWlC1NSVS7PHqMu8Ng==}
-
   '@testing-library/dom@10.1.0':
     resolution: {integrity: sha512-wdsYKy5zupPyLCW2Je5DLHSxSfbIp6h80WoHOQc+RPtmPGA52O9x5MJEkv92Sjonpq+poOAtUKhh1kBGAXBrNA==}
     engines: {node: '>=18'}
@@ -8491,9 +8477,6 @@ packages:
   bl@4.1.0:
     resolution: {integrity: sha512-1W07cM9gS6DcLperZfFSj+bWLtaPGSOHWhPiGzXmvVJbRLdG82sH/Kn8EtW1VqWVA54AKf2h5k5BbnIbwF3h6w==}
 
-  bluebird@3.7.2:
-    resolution: {integrity: sha512-XpNj6GDQzdfW+r2Wnn7xiSAd7TM3jzkxGXBGTtWKuSXv1xUV+azxAm8jdWZN06QTQk+2N2XB9jRDkvbmQmcRtg==}
-
   bn.js@4.11.9:
     resolution: {integrity: sha512-E6QoYqCKZfgatHTdHzs1RRKP7ip4vvm+EyRUeE2RF0NblwVvb0p6jSVeNTOFxPn26QXN2o6SMfNxKp6kU8zQaw==}
 
@@ -8986,10 +8969,6 @@ packages:
   clone@2.1.2:
     resolution: {integrity: sha512-3Pe/CF1Nn94hyhIYpjtiLhdCoEoz0DqQ+988E9gmeEdQZlojxnOb74wctFyuwWQHzqyf9X7C7MG8juUpqBJT8w==}
     engines: {node: '>=0.8'}
-
-  clor@5.2.0:
-    resolution: {integrity: sha512-Z+jjxoF4lNUJQtsdz7d9HLz7yP49hnt4CH76AB7DLusHws14gOlVMl/ShtkMPfoFculqejaiQW5EG2Gt5/cCdg==}
-    deprecated: 'Clor is now Clorox. Please upgrade: ''npm i clorox''.'
 
   clsx@1.1.1:
     resolution: {integrity: sha512-6/bPho624p3S2pMyvP5kKBPXnI3ufHLObBFCfgx+LkeR5lg2XYy2hqZqUf45ypD8COn2bhgGJSUE+l5dhNBieA==}
@@ -14062,10 +14041,6 @@ packages:
     resolution: {integrity: sha512-KZxYo1BUkWD2TVFLr0MQoM8vUUigWD3LlD83a/75BqC+4qE0Hb1Vo5v1FgcfaNXvfXzr+5EhQ6ing/CaBijTlw==}
     engines: {node: '>= 18'}
 
-  mk-dirs@1.0.0:
-    resolution: {integrity: sha512-VUhC7/wotZwooobTlBl5+ZAgHoLCdckDqGz9HqdiXeYIXeATKWiiuas4HIjzOs3/qIstv+3e0u/lYYbXACIbOQ==}
-    engines: {node: '>=4'}
-
   mkdirp-classic@0.5.3:
     resolution: {integrity: sha512-gKLcREMhtuZRwRAfqP3RFW+TK4JqApVBtOIftVgjuABpAtpxhPGaDcfvbhNvD0B8iD1oUr/txX35NjcaY6Ns/A==}
 
@@ -16409,9 +16384,6 @@ packages:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
     engines: {node: '>=0.10.0'}
 
-  require-like@0.1.2:
-    resolution: {integrity: sha512-oyrU88skkMtDdauHDuKVrgR+zuItqr6/c//FXzvmxRGMexSDc6hNvJInGW3LL46n+8b50RykrvwSUIIQH2LQ5A==}
-
   require-main-filename@2.0.0:
     resolution: {integrity: sha512-NKN5kMDylKuldxYLSUfrbo5Tuzh4hd+2E8NPPX02mZtn1VuREQToYe/ZdlJy+J3uCpfaiGF05e7B8W0iXbQHmg==}
 
@@ -16509,10 +16481,6 @@ packages:
   reusify@1.0.4:
     resolution: {integrity: sha512-U9nH88a3fc/ekCF1l0/UP1IosiuIjyTh7hBvXVMHYgVcfGvt897Xguj2UOLDeI5BG2m7/uwyaLVT6fbtCwTyzw==}
     engines: {iojs: '>=1.0.0', node: '>=0.10.0'}
-
-  rewrite-imports@1.4.0:
-    resolution: {integrity: sha512-k4pGuRsZ6UMSLW4mxpKVxqvGAwXCC81ZnLD+o+S9/7b3+fZ/pguNLHZpZ7qgi/5AmtqzuzppInhaARBjjDquOA==}
-    engines: {node: '>=4'}
 
   rfdc@1.3.0:
     resolution: {integrity: sha512-V2hovdzFbOi77/WajaSMXk2OLm+xNIeQdMMuB7icj7bk6zi2F8GGAxigcnDFpJHbNyNcgyJDiP+8nOrY5cZGrA==}
@@ -17544,11 +17512,6 @@ packages:
     engines: {node: '>=18'}
     deprecated: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
 
-  taskr@1.1.0:
-    resolution: {integrity: sha512-jELUxxTfAxR6ZRFV6S/8LRcNg/GnlhS/4x2WZjGDkfle9Bk+M/e8LutMy3GVeUcp1cJc8Oy/uuroqbDePLHunQ==}
-    engines: {node: '>= 4.6'}
-    hasBin: true
-
   teex@1.0.1:
     resolution: {integrity: sha512-eYE6iEI62Ni1H8oIa7KlDU6uQBtqr4Eajni3wX7rpfXD8ysFx8z0+dri+KWEPWpBsxXfxu58x/0jvTVT1ekOSg==}
 
@@ -17678,10 +17641,6 @@ packages:
 
   tiny-invariant@1.3.3:
     resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
-
-  tinydate@1.3.0:
-    resolution: {integrity: sha512-7cR8rLy2QhYHpsBDBVYnnWXm8uRTr38RoZakFSW7Bs7PzfMPNZthuMLkwqZv7MTu8lhQ91cOFYS5a7iFj2oR3w==}
-    engines: {node: '>=4'}
 
   tinyglobby@0.2.12:
     resolution: {integrity: sha512-qkf4trmKSIiMTs/E63cxH+ojC2unam7rJ0WrauAzpT3ECNTxGRMlaXxVbfxMUC/w0LaYk6jQ4y/nGR9uBO3tww==}
@@ -24236,16 +24195,6 @@ snapshots:
       postcss: 8.5.23
       tailwindcss: 4.1.13
 
-  '@taskr/clear@1.1.0':
-    dependencies:
-      bluebird: 3.7.2
-      rimraf: 2.7.1
-
-  '@taskr/esnext@1.1.0':
-    dependencies:
-      require-like: 0.1.2
-      rewrite-imports: 1.4.0
-
   '@testing-library/dom@10.1.0':
     dependencies:
       '@babel/code-frame': 7.26.2
@@ -25958,8 +25907,6 @@ snapshots:
       inherits: 2.0.4
       readable-stream: 3.6.0
 
-  bluebird@3.7.2: {}
-
   bn.js@4.11.9: {}
 
   bn.js@5.1.2: {}
@@ -26579,8 +26526,6 @@ snapshots:
   clone@1.0.4: {}
 
   clone@2.1.2: {}
-
-  clor@5.2.0: {}
 
   clsx@1.1.1: {}
 
@@ -33350,8 +33295,6 @@ snapshots:
     dependencies:
       minipass: 7.1.2
 
-  mk-dirs@1.0.0: {}
-
   mkdirp-classic@0.5.3: {}
 
   mkdirp@0.5.5:
@@ -36016,8 +35959,6 @@ snapshots:
 
   require-from-string@2.0.2: {}
 
-  require-like@0.1.2: {}
-
   require-main-filename@2.0.0: {}
 
   requires-port@1.0.0: {}
@@ -36121,8 +36062,6 @@ snapshots:
   rettime@0.11.11: {}
 
   reusify@1.0.4: {}
-
-  rewrite-imports@1.4.0: {}
 
   rfdc@1.3.0: {}
 
@@ -37443,15 +37382,6 @@ snapshots:
       minizlib: 3.1.0(patch_hash=587688821244aaee46680929cd869947377a284ac1b30c9ae8660a5ea7d2be67)
       yallist: 5.0.0
 
-  taskr@1.1.0(patch_hash=1d0f571943b5d4761d4f2f39723796e402dd317f14a7c714e2021d3f12cc481c):
-    dependencies:
-      bluebird: 3.7.2
-      clor: 5.2.0
-      glob: 7.1.7
-      mk-dirs: 1.0.0
-      mri: 1.2.0
-      tinydate: 1.3.0
-
   teex@1.0.1:
     dependencies:
       streamx: 2.23.0
@@ -37586,8 +37516,6 @@ snapshots:
   tiny-inflate@1.0.3: {}
 
   tiny-invariant@1.3.3: {}
-
-  tinydate@1.3.0: {}
 
   tinyglobby@0.2.12:
     dependencies:

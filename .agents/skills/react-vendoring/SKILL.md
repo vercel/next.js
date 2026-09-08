@@ -3,7 +3,7 @@ name: react-vendoring
 description: >
   React vendoring and react-server layer boundaries. Use when editing
   entry-base.ts, $$compiled.internal.d.ts, compiled/react* packages,
-  or taskfile.js copy_vendor_react. Covers the entry-base.ts boundary
+  or build-tools/recipes.js copy_vendor_react. Covers the entry-base.ts boundary
   (all react-server-dom-webpack/* imports must go through it), vendored
   React channels, type declarations, Turbopack remap to
   react-server-dom-turbopack, ComponentMod access patterns, and ESLint
@@ -18,7 +18,7 @@ Use this skill for changes touching vendored React, `react-server-dom-webpack/*`
 
 ## App Router Vendoring
 
-React is NOT resolved from `node_modules` for App Router. It's vendored into `packages/next/src/compiled/` during `pnpm build` (task: `copy_vendor_react()` in `taskfile.js`). Pages Router resolves React from `node_modules` normally.
+React is NOT resolved from `node_modules` for App Router. It's vendored into `packages/next/src/compiled/` during `pnpm build` (task: `copy_vendor_react()` in `build-tools/recipes.js`). Pages Router resolves React from `node_modules` normally.
 
 - **Two channels**: stable (`compiled/react/`) and experimental (`compiled/react-experimental/`). The runtime bundle webpack config aliases to the correct channel via `makeAppAliases({ experimental })`.
 
