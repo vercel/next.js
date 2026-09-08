@@ -75,14 +75,18 @@ const Post: React.FC<PostProps> = (props) => {
           alignItems: "stretch",
         }}
       >
+        <label htmlFor="title">Title</label>
         <input
+          id="title"
           value={patch.title}
           onChange={(e) => {
             setPatch({ ...patch, title: e.target.value });
           }}
         />
 
+        <label htmlFor="content">Content</label>
         <textarea
+          id="content"
           rows={25}
           value={patch.content || ""}
           onChange={(e) => {
@@ -92,6 +96,7 @@ const Post: React.FC<PostProps> = (props) => {
 
         <div style={{ display: "flex", flexDirection: "row" }}>
           <button
+            type="button"
             style={{ backgroundColor: "#0E61FE", color: "white" }}
             onClick={() => update(props.id, patch)}
           >
@@ -99,6 +104,7 @@ const Post: React.FC<PostProps> = (props) => {
           </button>
           {!props.publishedISO && (
             <button
+              type="button"
               style={{ backgroundColor: "#0E61FE", color: "white" }}
               onClick={() => publish(props.id)}
             >
@@ -106,6 +112,7 @@ const Post: React.FC<PostProps> = (props) => {
             </button>
           )}
           <button
+            type="button"
             style={{ border: "2px solid red", color: "red" }}
             onClick={() => destroy(props.id)}
           >
