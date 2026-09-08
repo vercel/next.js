@@ -312,6 +312,10 @@ import {
   anySegmentNeedsInstantValidationInBuild,
   resolveInstantConfigSamplesForPage,
 } from './instant-validation/instant-config'
+import {
+  resolveEnsureStaticLevel,
+  EnsureStaticLevel,
+} from './segment-config/ensure-static'
 import { warnOnce } from '../../shared/lib/utils/warn-once'
 import {
   createWebDebugChannel,
@@ -1452,6 +1456,12 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     }
 
     const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
+    // We currently don't need the `ensureStatic` level here, but
+    // we want to validate that it's correct.
+    await resolveEnsureStaticLevel(
+      loaderTree,
+      /* partialPrefetching */ prefetchMode === PrefetchingMode.Partial
+    )
 
     // A client navigation into a Partial Prefetching route extends the shell
     // through the runtime-prefetchable content: it has already settled on the
@@ -2393,12 +2403,16 @@ async function getErrorRSCPayload(
     )
   )
 
+  const partialPrefetching =
+    Boolean(ctx.renderOpts.partialPrefetching) ||
+    (await anySegmentHasPartialPrefetchingEnabled(tree))
+
   const initialTree = await createFullTransportTreeFromLoaderTree(
     tree,
     errorHints,
     errorPrefetchInliningEnabled,
     ctx.missingPrefetchHintPolicy,
-    Boolean(ctx.renderOpts.partialPrefetching),
+    partialPrefetching,
     getDynamicParamFromSegment,
     query,
     ctx.renderOpts.notFoundParams
@@ -3735,6 +3749,15 @@ async function renderToStream(
         // We only have a Prerender environment for projects opted into cacheComponents
         cacheComponents
       ) {
+        const prefetchMode = await getPrefetchingModeForPage(renderOpts, tree)
+
+        // We currently don't need the `ensureStatic` level here, but
+        // we want to validate that it's correct.
+        await resolveEnsureStaticLevel(
+          tree,
+          /* partialPrefetching */ prefetchMode === PrefetchingMode.Partial
+        )
+
         let debugChannelClientStream: ReplayableNodeStream | undefined
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -3775,12 +3798,6 @@ async function renderToStream(
           // or draft mode.
           !isBypassingCachesInDev(requestStore, workStore)
         ) {
-          const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
-          const prefetchMode = await getPrefetchingModeForPage(
-            renderOpts,
-            loaderTree
-          )
-
           const { stream: serverStream, debugChannel: returnedDebugChannel } =
             await stagedRenderWithCachesInDev({
               prefetchMode,
@@ -8817,6 +8834,20 @@ async function prerenderToStream(
 
   try {
     if (cacheComponents) {
+      const partialPrefetching =
+        Boolean(ctx.renderOpts.partialPrefetching) ||
+        (await anySegmentHasPartialPrefetchingEnabled(tree))
+
+      let ensureStaticLevel = await resolveEnsureStaticLevel(
+        tree,
+        partialPrefetching
+      )
+      if (process.env.NEXT_PRIVATE_DEBUG_RUNTIME_DATA) {
+        console.log(
+          `${workStore.route} :: ensureStatic level = ${EnsureStaticLevel[ensureStaticLevel]}`
+        )
+      }
+
       /**
        * cacheComponents with PPR
        *
