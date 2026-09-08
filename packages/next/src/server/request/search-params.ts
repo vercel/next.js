@@ -244,8 +244,6 @@ function createRuntimePrerenderSearchParams(
       ? createVaryingSearchParams(varyParamsAccumulator, underlyingSearchParams)
       : underlyingSearchParams
 
-  const result = makeUntrackedSearchParams(userspaceSearchParams)
-
   const searchParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
 
   const { stagedRendering } = workUnitStore
@@ -255,20 +253,23 @@ function createRuntimePrerenderSearchParams(
     if (workUnitStore.finalStage < searchParamsStage) {
       return makeHangingSearchParams(workStore, workUnitStore)
     } else {
-      return result
+      return makeUntrackedSearchParams(userspaceSearchParams)
     }
   }
 
-  // Unlike `createRuntimePrerenderParams`, which uses `delayUntilStage`, we
-  // resolve with `waitForStage(...).then(...)` here. Switching search params to
-  // `delayUntilStage` drops the source code frame from the instant-validation
-  // "URL data outside of Suspense" error when a page awaits `searchParams` at
-  // the top level (params, read via a nested component, is unaffected). See the
-  // `missing suspense around search params` cases in the instant-validation
-  // `suspense-boundaries` tests. The underlying reason in React's async I/O
-  // await tracking isn't understood yet. TODO: align search params with params
-  // on `delayUntilStage` once resolved.
-  return stagedRendering.waitForStage(searchParamsStage).then(() => result)
+  // If search params don't resolve in this prerender, caches need to treat them as a hanging input.
+  if (
+    stagedRendering.finalStage &&
+    stagedRendering.finalStage < searchParamsStage
+  ) {
+    return makeHangingSearchParams(workStore, workUnitStore)
+  } else {
+    return stagedRendering.delayUntilStage(
+      searchParamsStage,
+      'searchParams',
+      userspaceSearchParams
+    )
+  }
 }
 
 function createRenderSearchParams(
