@@ -276,6 +276,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         skip_code_gen: bool,
     ) {
         if skip_code_gen {
+            debug_assert!(
+                !self.analyze_mode.is_tracing_assets(),
+                "unexpected add_reference_code_gen in tracing mode"
+            );
             self.references.insert(reference.into_reference());
         } else {
             let (reference, code_gen) = reference.into_code_gen_reference(path);
