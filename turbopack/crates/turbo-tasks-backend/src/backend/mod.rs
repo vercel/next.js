@@ -2111,7 +2111,7 @@ impl TurboTasksBackend {
             return None;
         };
         let InProgressState::InProgress(in_progress) = in_progress else {
-            // Shutdown cancellation or re-scheduling won the race. Preserve that state.
+            // Another state transition won the race. Preserve that state.
             let old = task.set_in_progress(in_progress);
             debug_assert!(old.is_none(), "InProgress already exists");
             return None;
@@ -2154,21 +2154,12 @@ impl TurboTasksBackend {
             decrease_active_counts_of_new_children(new_children, &mut ctx);
             return Some(priority);
         }
-        let immutable = task.immutable();
         drop(task);
 
         decrease_active_counts_of_new_children(new_children, &mut ctx);
 
-        if immutable {
-            // An immutable result never needs to be re-executed. This can happen when losing
-            // activeness races with the final completion bookkeeping.
-            done_event.notify(usize::MAX);
-            drop(in_progress_cells);
-            return None;
-        }
-
-        // Unlike shutdown cancellation, an unneeded abortion is recoverable: discard the current
-        // execution state and make the task dirty without scheduling it while it is disconnected.
+        // Discard the aborted execution state and make the task dirty without scheduling it while
+        // it is disconnected.
         let mut queue = AggregationUpdateQueue::new();
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         make_task_dirty_internal(
@@ -2257,14 +2248,14 @@ impl TurboTasksBackend {
                     _ => None,
                 };
             }
-            let (abort_handle, registration) = AbortHandle::new_pair();
-            abort_registration = registration;
-            let abort_handle = match &task_type {
+            let (abort_handle, registration) = match &task_type {
                 TaskType::Cached(task_type) if task_type.native_fn.is_cancelable => {
-                    Some(abort_handle)
+                    let (abort_handle, registration) = AbortHandle::new_pair();
+                    (Some(abort_handle), Some(registration))
                 }
-                _ => None,
+                _ => (None, None),
             };
+            abort_registration = registration;
             let old = task.set_in_progress(InProgressState::InProgress(Box::new(
                 InProgressStateInner {
                     stale: false,
@@ -2519,6 +2510,12 @@ impl TurboTasksBackend {
         has_invalidator: bool,
     ) -> Result<TaskExecutionCompletePrepareResult, TaskPriority> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
+        if let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress_mut() {
+            // The task future completed without observing a concurrent abort request. From this
+            // point on, use the ordinary completion bookkeeping: stale tasks re-execute and
+            // inactive tasks finalize into a state a later GC pass can collect.
+            in_progress.disarm_abort();
+        }
         let is_recomputation = task.is_dirty().is_none();
         // Without dependency tracking, the SessionDependent dirty state is never read (no session
         // restore), so skip the work

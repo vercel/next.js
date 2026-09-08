@@ -1544,9 +1544,16 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                             InlineExecutionSpanSlot::set(&span);
 
                             async {
-                                let result =
-                                    Abortable::new(CaptureFuture::new(future), abort_registration)
-                                        .await;
+                                let result = match abort_registration {
+                                    Some(abort_registration) => {
+                                        Abortable::new(
+                                            CaptureFuture::new(future),
+                                            abort_registration,
+                                        )
+                                        .await
+                                    }
+                                    None => Ok(CaptureFuture::new(future).await),
+                                };
 
                                 // Wait for all spawned local tasks using `local` to finish. The
                                 // main task future has already been dropped on abort, so local work

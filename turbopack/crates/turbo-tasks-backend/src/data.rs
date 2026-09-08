@@ -273,10 +273,17 @@ impl InProgressStateInner {
     }
 
     pub fn abort_unneeded(&self) {
-        self.abort_when_unneeded.store(true, Ordering::Release);
         if let Some(abort_handle) = &self.abort_handle {
+            self.abort_when_unneeded.store(true, Ordering::Release);
             abort_handle.abort();
         }
+    }
+
+    /// Prevent new abort requests after the task future completed successfully. Invalidation may
+    /// still mark the task stale, which the ordinary completion bookkeeping handles.
+    pub fn disarm_abort(&mut self) {
+        self.abort_handle = None;
+        self.abort_when_unneeded.store(false, Ordering::Release);
     }
 }
 
