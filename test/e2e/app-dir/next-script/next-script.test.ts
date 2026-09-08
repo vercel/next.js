@@ -14,4 +14,14 @@ describe('Script component with crossOrigin props', () => {
 
     expect(crossorigin).toBe('use-credentials')
   })
+
+  it('should be set fetchPriority also in preload link tag', async () => {
+    const browser = await next.browser('/')
+
+    const fetchPriority = await browser
+      .elementByCss('link[href="https://code.jquery.com/jquery-3.7.1.min.js"]')
+      .getAttribute('fetchpriority')
+
+    expect(fetchPriority).toBe('low')
+  })
 })
