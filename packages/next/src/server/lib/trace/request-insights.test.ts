@@ -186,6 +186,30 @@ describe('request insights', () => {
     )
   })
 
+  it.each([false, true])(
+    'includes both Proxy and page passes in request timing (reverse delivery: %s)',
+    (reverse) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+
+      const passes = [
+        { startTime: 1000, durationMs: 50 },
+        { startTime: 1050, durationMs: 10 },
+      ]
+      for (const timing of reverse ? passes.reverse() : passes) {
+        recordSpan({
+          name: 'GET /dashboard',
+          requestId: 'req_proxy_timing',
+          ...timing,
+          attributes: { 'next.span_type': 'BaseServer.handleRequest' },
+        })
+      }
+
+      expect(getRequestInsightsSnapshot().requests[0]).toEqual(
+        expect.objectContaining({ startTime: 1000, durationMs: 60 })
+      )
+    }
+  )
+
   it('classifies framework request sources without letting the root span erase a specific source', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 

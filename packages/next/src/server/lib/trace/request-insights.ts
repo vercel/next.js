@@ -190,7 +190,19 @@ class InMemoryRequestInsightsStore {
   ): void {
     const insightKey = getRequestInsightKey(insight)
     if (isRequestSpan && durationMs !== undefined) {
-      const requestTiming = { startTime, durationMs }
+      const previousTiming = this.requestTimings.get(insightKey) ?? {
+        startTime,
+        durationMs,
+      }
+      const requestStart = Math.min(previousTiming.startTime, startTime)
+      const requestTiming = {
+        startTime: requestStart,
+        durationMs:
+          Math.max(
+            previousTiming.startTime + previousTiming.durationMs,
+            startTime + durationMs
+          ) - requestStart,
+      }
       this.requestTimings.set(insightKey, requestTiming)
       insight.startTime = requestTiming.startTime
       insight.durationMs = requestTiming.durationMs
