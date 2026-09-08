@@ -80,7 +80,9 @@ impl ConnectChildOperation {
             let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =
                 parent_task.get_in_progress()
             else {
-                panic!("Task is not in progress while calling another task: {parent_task:?}");
+                // The parent execution was aborted before this connect operation acquired its
+                // first guard. Ignore the child call from the dropped execution.
+                return;
             };
 
             // Quick skip if the child was already connected before
@@ -167,7 +169,18 @@ impl ConnectChildOperation {
             let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =
                 parent_task.get_in_progress_mut()
             else {
-                panic!("Task is not in progress while calling another task: {parent_task:?}");
+                // Abortion can race while the aggregation update above temporarily releases the
+                // parent guard. Undo the speculative child activeness that update added.
+                drop(parent_task);
+                if ctx.should_track_activeness() {
+                    AggregationUpdateQueue::run(
+                        AggregationUpdateJob::DecreaseActiveCount {
+                            task: child_task_id,
+                        },
+                        &mut ctx,
+                    );
+                }
+                return;
             };
 
             // Really add the child to the new children set

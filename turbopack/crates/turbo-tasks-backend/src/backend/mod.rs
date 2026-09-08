@@ -2103,8 +2103,15 @@ impl TurboTasksBackend {
     ) -> Option<TaskPriority> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let Some(InProgressState::InProgress(in_progress)) = task.take_in_progress() else {
-            panic!("Task execution aborted, but task is not in progress: {task:#?}");
+        let Some(in_progress) = task.take_in_progress() else {
+            // Completion or another abort callback won the race.
+            return None;
+        };
+        let InProgressState::InProgress(in_progress) = in_progress else {
+            // Shutdown cancellation or re-scheduling won the race. Preserve that state.
+            let old = task.set_in_progress(in_progress);
+            debug_assert!(old.is_none(), "InProgress already exists");
+            return None;
         };
         let InProgressStateInner {
             stale,
@@ -2144,9 +2151,18 @@ impl TurboTasksBackend {
             decrease_active_counts_of_new_children(new_children, &mut ctx);
             return Some(priority);
         }
+        let immutable = task.immutable();
         drop(task);
 
         decrease_active_counts_of_new_children(new_children, &mut ctx);
+
+        if immutable {
+            // An immutable result never needs to be re-executed. This can happen when losing
+            // activeness races with the final completion bookkeeping.
+            done_event.notify(usize::MAX);
+            drop(in_progress_cells);
+            return None;
+        }
 
         // Unlike shutdown cancellation, an unneeded abortion is recoverable: discard the current
         // execution state and make the task dirty without scheduling it while it is disconnected.
@@ -2154,10 +2170,13 @@ impl TurboTasksBackend {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         make_task_dirty_internal(
             &mut task,
-            true,
+            // The aborted execution's in-progress state was already taken above, so there is
+            // nothing left to mark stale.
+            /* make_stale */
             false,
+            /* schedule_when_active */ false,
             #[cfg(feature = "task_dirty_cause")]
-            TaskDirtyCause::ExecutionAborted,
+            TaskDirtyCause::BecameInactive,
             &mut queue,
             &mut ctx,
         );
@@ -2167,6 +2186,15 @@ impl TurboTasksBackend {
         // A connection may race with dropping the aborted future. Re-check liveness after the
         // dirty transition so a revived task is not left dirty but unscheduled.
         let mut task = ctx.task(task_id, TaskDataCategory::All);
+        if task.get_in_progress().is_some() {
+            // A reader/connection already scheduled (or started) the dirty task while the abort
+            // callback propagated its dirty transition. Keep that execution and only release
+            // listeners attached to the aborted execution.
+            done_event.notify(usize::MAX);
+            drop(task);
+            drop(in_progress_cells);
+            return None;
+        }
         let should_schedule = if self.should_track_activeness() {
             task.has_activeness()
         } else {
@@ -2836,7 +2864,7 @@ impl TurboTasksBackend {
             make_task_dirty_internal(
                 &mut dependent,
                 make_stale,
-                true,
+                /* schedule_when_active */ true,
                 #[cfg(feature = "task_dirty_cause")]
                 cause.clone(),
                 queue,

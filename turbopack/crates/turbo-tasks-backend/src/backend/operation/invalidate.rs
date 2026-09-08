@@ -98,7 +98,7 @@ pub fn make_task_dirty(
     make_task_dirty_internal(
         &mut task,
         true,
-        true,
+        /* schedule_when_active */ true,
         #[cfg(feature = "task_dirty_cause")]
         cause,
         queue,
