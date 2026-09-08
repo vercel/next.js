@@ -8,6 +8,8 @@ related:
     - app/api-reference/components/image
 ---
 
+> **Static Export Limitation:** The `next/image` default loader requires a running Next.js server. It is **not compatible** with `output: 'export'` (static site generation) when using the default loader. For static exports, set the [`unoptimized`](https://nextjs.org/docs/app/api-reference/components/image#unoptimized) prop on each image, or configure a [custom loader](https://nextjs.org/docs/app/api-reference/components/image#loader).
+
 The Next.js [`<Image>`](/docs/app/api-reference/components/image) component extends the HTML `<img>` element to provide:
 
 - **Size optimization:** Automatically serving correctly sized images for each device, using modern image formats like WebP.

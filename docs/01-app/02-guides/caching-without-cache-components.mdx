@@ -164,6 +164,8 @@ For non-`fetch` functions, `unstable_cache` accepts a `revalidate` option in its
 
 ### Route segment config `revalidate`
 
+> **Important:** The `revalidate` segment config export **only works in segment files**: `page.tsx`, `layout.tsx`, and `route.ts`. Exporting `revalidate` from a utility module (e.g. `utils/get-item.ts`) has no effect on caching. Only use this export at the page, layout, or route segment level.
+
 Set the default revalidation time for a layout or page. This option does not override the `revalidate` value set by individual `fetch` requests.
 
 ```tsx filename="layout.tsx | page.tsx | route.ts" switcher

@@ -1,5 +1,7 @@
 # Next.js Docker Example - Standalone Mode
 
+> **When to use standalone mode:** This example uses `output: 'standalone'`, which is recommended for **self-hosted** Docker or VM deployments where you want a minimal image without all `node_modules`. It is **not** required for Vercel deployments (Vercel optimizes automatically) and is **incompatible** with `output: 'export'` (static site generation). For static sites, see the [with-docker-export-output](../with-docker-export-output) example.
+
 A production-ready example demonstrating how to Dockerize Next.js applications using **standalone mode**. This example showcases best practices for containerizing Next.js apps with Docker.
 
 ## Features
