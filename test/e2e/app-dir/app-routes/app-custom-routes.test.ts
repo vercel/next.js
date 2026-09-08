@@ -21,10 +21,6 @@ function streamingBody(stream: Readable) {
 describe('app-custom-routes', () => {
   const { next, isNextDeploy, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      // pin with repo's version of node-fetch
-      '@types/node-fetch': '2.6.1',
-    },
   })
 
   describe('works with api prefix correctly', () => {

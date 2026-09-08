@@ -285,10 +285,9 @@ describe.each([
       serverReadyPattern: /- Local:/,
       env: {
         USE_HTTPS: useHttps,
-        POLYFILL_FETCH: 'true',
         NODE_ENV: sharedNodeEnv,
       },
-      dependencies: { ...sharedDeps, 'node-fetch': '2.6.7' },
+      dependencies: sharedDeps,
       skipDeployment: true,
       disableAutoSkewProtection: true,
     })
