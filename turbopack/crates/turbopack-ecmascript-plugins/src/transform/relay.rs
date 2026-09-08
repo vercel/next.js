@@ -15,7 +15,7 @@ use turbopack_ecmascript::{CustomTransformer, TransformContext};
 )]
 #[serde(rename_all = "camelCase")]
 pub struct RelayConfig {
-    pub src: String,
+    pub src: Option<String>,
     pub artifact_directory: Option<String>,
     pub language: Option<RelayLanguage>,
 }
