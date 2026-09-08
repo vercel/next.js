@@ -1,3 +1,4 @@
+import os from 'node:os'
 import { parseArgs } from 'node:util'
 import { InvalidArgumentError } from 'next/dist/compiled/commander'
 
@@ -344,4 +345,28 @@ export function getMaxOldSpaceSize() {
   if (!size || typeof size !== 'string') return
 
   return parseInt(size, 10)
+}
+
+/**
+ * Get the amount of memory this process is allowed to use, in bytes.
+ *
+ * @returns The cgroup memory limit when there is one, otherwise the host total.
+ */
+export function getProcessMemoryLimit(
+  constrainedMemory: () => number | undefined = () =>
+    process.constrainedMemory?.(),
+  totalMemory: () => number = () => os.totalmem()
+): number {
+  const total = totalMemory()
+  const constrained = constrainedMemory()
+
+  if (
+    typeof constrained === 'number' &&
+    constrained > 0 &&
+    constrained < total
+  ) {
+    return constrained
+  }
+
+  return total
 }

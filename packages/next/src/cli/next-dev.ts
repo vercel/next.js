@@ -8,6 +8,7 @@ import {
   getNodeDebugType,
   getParsedDebugAddress,
   getMaxOldSpaceSize,
+  getProcessMemoryLimit,
   printAndExit,
   formatNodeOptions,
   formatDebugAddress,
@@ -355,9 +356,9 @@ const nextDev = async (
 
       let maxOldSpaceSize: string | number | undefined = getMaxOldSpaceSize()
       if (!maxOldSpaceSize && !process.env.NEXT_DISABLE_MEM_OVERRIDE) {
-        const totalMem = os.totalmem()
-        const totalMemInMB = Math.floor(totalMem / 1024 / 1024)
-        maxOldSpaceSize = Math.floor(totalMemInMB * 0.5).toString()
+        const memoryLimit = getProcessMemoryLimit()
+        const memoryLimitInMB = Math.floor(memoryLimit / 1024 / 1024)
+        maxOldSpaceSize = Math.floor(memoryLimitInMB * 0.5).toString()
 
         nodeOptions['max-old-space-size'] = maxOldSpaceSize
 

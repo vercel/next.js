@@ -5,6 +5,7 @@ import {
   tokenizeArgs,
   getParsedNodeOptions,
   getMemoryRestartStats,
+  getProcessMemoryLimit,
 } from './utils'
 
 const originalNodeOptions = process.env.NODE_OPTIONS
@@ -191,5 +192,56 @@ describe('getFormattedNodeOptionsWithoutInspect', () => {
     const result = getFormattedNodeOptionsWithoutInspect()
 
     expect(result).toBe('--other --inspect-port=0.0.0.0:1234 --additional')
+  })
+})
+
+describe('getProcessMemoryLimit', () => {
+  const HOST_TOTAL = 32 * 1024 * 1024 * 1024
+
+  it('returns the cgroup limit when it is below the host total', () => {
+    const containerLimit = 2 * 1024 * 1024 * 1024
+
+    expect(
+      getProcessMemoryLimit(
+        () => containerLimit,
+        () => HOST_TOTAL
+      )
+    ).toBe(containerLimit)
+  })
+
+  it('falls back to the host total when there is no constraint', () => {
+    expect(
+      getProcessMemoryLimit(
+        () => 0,
+        () => HOST_TOTAL
+      )
+    ).toBe(HOST_TOTAL)
+  })
+
+  it('falls back to the host total when cgroup v2 reports an unlimited sentinel', () => {
+    expect(
+      getProcessMemoryLimit(
+        () => Number.MAX_SAFE_INTEGER,
+        () => HOST_TOTAL
+      )
+    ).toBe(HOST_TOTAL)
+  })
+
+  it('falls back to the host total when the constraint matches it', () => {
+    expect(
+      getProcessMemoryLimit(
+        () => HOST_TOTAL,
+        () => HOST_TOTAL
+      )
+    ).toBe(HOST_TOTAL)
+  })
+
+  it('falls back to the host total when process.constrainedMemory is unavailable', () => {
+    expect(
+      getProcessMemoryLimit(
+        () => undefined,
+        () => HOST_TOTAL
+      )
+    ).toBe(HOST_TOTAL)
   })
 })
