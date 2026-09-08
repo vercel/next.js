@@ -1,0 +1,27 @@
+diff --git a/src/index.js b/src/index.js
+index 686f880db1c4842779cc956ce0f06b0ea2e6b563..14869ff31bd621e113ab4323ef689998b3fbea2c 100644
+--- a/src/index.js
++++ b/src/index.js
+@@ -168,6 +168,22 @@ function isConflictingProp(propA, propB) {
+     // Same specificity
+     return true;
+   }
++
++  const normalizedPropA = propA.toLowerCase();
++  const normalizedPropB = propB.toLowerCase();
++  // The font shorthand resets all font longhands as well as line-height.
++  // Moving one of those declarations before the shorthand changes the
++  // computed style of the selector it was extracted from.
++  if (
++    (normalizedPropA === 'font' &&
++      (normalizedPropB.startsWith('font-') ||
++        normalizedPropB === 'line-height')) ||
++    (normalizedPropB === 'font' &&
++      (normalizedPropA.startsWith('font-') ||
++        normalizedPropA === 'line-height'))
++  ) {
++    return true;
++  }
+   const a = splitProp(propA);
+   const b = splitProp(propB);
+   // Don't resort css variables
