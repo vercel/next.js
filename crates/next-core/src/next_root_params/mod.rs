@@ -4,6 +4,7 @@ use anyhow::{Result, anyhow};
 use either::Either;
 use indoc::formatdoc;
 use itertools::Itertools;
+use swc_core::ecma::ast::Ident;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{EitherTaskInput, ResolvedVc, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
@@ -149,14 +150,36 @@ impl NextRootParamsMapper {
                     "#,
                 ))
                 .chain(collected_root_params.iter().map(|param_name| {
-                    formatdoc!(
-                        r#"
-                            export function {PARAM_NAME}() {{
-                                return getRootParam('{PARAM_NAME}');
-                            }}
-                        "#,
-                        PARAM_NAME = param_name,
-                    )
+                    // `verify_symbol` rejects anything that cannot be a
+                    // function declaration name (invalid characters, reserved
+                    // words, `eval`/`arguments`) and suggests a valid symbol.
+                    match Ident::verify_symbol(param_name) {
+                        Ok(()) => formatdoc!(
+                            r#"
+                                export function {PARAM_NAME}() {{
+                                    return getRootParam('{PARAM_NAME}');
+                                }}
+                            "#,
+                            PARAM_NAME = param_name,
+                        ),
+                        Err(safe_name) => {
+                            // Param names like `lang-country` or `default`
+                            // cannot be named function exports. Declare a
+                            // safely-named function and re-export it under
+                            // the original param name via a string module
+                            // export name.
+                            formatdoc!(
+                                r#"
+                                    function {SAFE_NAME}() {{
+                                        return getRootParam("{PARAM_NAME}");
+                                    }}
+                                    export {{ {SAFE_NAME} as "{PARAM_NAME}" }};
+                                "#,
+                                SAFE_NAME = safe_name,
+                                PARAM_NAME = param_name,
+                            )
+                        }
+                    }
                 }))
                 .join("\n")
             };
@@ -225,3 +248,4 @@ impl ImportMappingReplacement for NextRootParamsMapper {
         self.import_map_result()
     }
 }
+
