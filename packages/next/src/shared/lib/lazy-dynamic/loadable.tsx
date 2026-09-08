@@ -48,8 +48,12 @@ function Loadable(options: LoadableOptions) {
       <Loading isLoading={true} pastDelay={true} error={null} />
     ) : null
 
-    // If it's non-SSR or provided a loading component, wrap it in a suspense boundary
-    const hasSuspenseBoundary = !opts.ssr || !!opts.loading
+    // Custom loading always needs a local Suspense boundary.
+    // For `ssr: false` without loading, keep a local boundary only during SSR
+    // so BailoutToCSRError is caught for prerender; on the client skip the empty
+    // boundary so a parent Suspense can own the pending UI (avoids layout flicker).
+    const hasSuspenseBoundary =
+      !!opts.loading || (!opts.ssr && typeof window === 'undefined')
     const Wrap = hasSuspenseBoundary ? Suspense : Fragment
     const wrapProps = hasSuspenseBoundary ? { fallback: fallbackElement } : {}
     const children = opts.ssr ? (
