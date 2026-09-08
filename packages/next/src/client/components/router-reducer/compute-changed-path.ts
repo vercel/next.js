@@ -10,6 +10,7 @@ import {
   PAGE_SEGMENT_KEY,
 } from '../../../shared/lib/segment'
 import { matchSegment } from '../match-segments'
+import { getParamValueFromCacheKey } from '../../route-params'
 
 const removeLeadingSlash = (segment: string): string => {
   return segment[0] === '/' ? segment.slice(1) : segment
@@ -234,14 +235,8 @@ export function getSelectedParams(
     const segmentValue = isDynamicParameter ? segment[1] : segment
     if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
 
-    // Ensure catchAll and optional catchall are turned into an array
-    const isCatchAll =
-      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
-
-    if (isCatchAll) {
-      params[segment[0]] = segment[1].split('/')
-    } else if (isDynamicParameter) {
-      params[segment[0]] = segment[1]
+    if (isDynamicParameter) {
+      params[segment[0]] = getParamValueFromCacheKey(segment[1], segment[2])
     }
 
     params = getSelectedParams(parallelRoute, params)

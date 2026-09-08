@@ -1,8 +1,11 @@
 import {
   computeChangedPath,
+  getSelectedParams,
   segmentToSourcePagePathname,
 } from './compute-changed-path'
 import {
+  type DynamicParamTypesShort,
+  type FlightRouterState,
   type Segment,
   PrefetchHint,
 } from '../../../shared/lib/app-router-types'
@@ -85,4 +88,30 @@ describe('computeChangedPath', () => {
       )
     ).toBe('/')
   })
+})
+
+describe('getSelectedParams', () => {
+  const interceptedCatchAllTypes = [
+    'ci(.)',
+    'ci(..)',
+    'ci(..)(..)',
+    'ci(...)',
+  ] satisfies DynamicParamTypesShort[]
+
+  it.each(interceptedCatchAllTypes)(
+    'returns %s params as an array',
+    (paramType) => {
+      const tree: FlightRouterState = [
+        '',
+        {
+          children: [
+            ['slug', 'a/b', paramType, null],
+            { children: ['__PAGE__', {}] },
+          ],
+        },
+      ]
+
+      expect(getSelectedParams(tree)).toEqual({ slug: ['a', 'b'] })
+    }
+  )
 })

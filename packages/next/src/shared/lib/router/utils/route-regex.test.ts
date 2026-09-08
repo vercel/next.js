@@ -1,4 +1,4 @@
-import { getNamedRouteRegex } from './route-regex'
+import { getNamedRouteRegex, getRouteRegex } from './route-regex'
 import { parseParameter } from './get-dynamic-param'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 
@@ -852,6 +852,36 @@ describe('getNamedRouteRegex - Edge Cases', () => {
     expect(regex.re.test('/photos/(.)images/a')).toBe(true)
     expect(regex.re.test('/photos/(.)images/a/b/c')).toBe(true)
   })
+
+  it.each(['(.)', '(..)', '(...)', '(..)(..)'])(
+    'should match multi-segment catchalls adjacent to %s',
+    (marker) => {
+      // getParametrizedRoute previously ignored `repeat` in this branch.
+      const regex = getRouteRegex(`/photos/${marker}[...slug]`)
+      const namedRouteRegex = getNamedRouteRegex(`/photos/${marker}[...slug]`, {
+        prefixRouteKeys: true,
+      })
+      const namedRegex = new RegExp(namedRouteRegex.namedRegex)
+
+      expect(regex.groups.slug).toEqual({
+        pos: 1,
+        repeat: true,
+        optional: false,
+      })
+      expect(regex.re.test(`/photos/${marker}a`)).toBe(true)
+      expect(regex.re.test(`/photos/${marker}a/b/c`)).toBe(true)
+      expect(regex.re.exec(`/photos/${marker}a/b/c`)?.[1]).toBe('a/b/c')
+      expect(regex.re.test(`/photos/${marker}/`)).toBe(false)
+      expect(namedRegex.test(`/photos/${marker}a/b/c`)).toBe(true)
+      expect(namedRegex.exec(`/photos/${marker}a/b/c`)?.groups?.nxtIslug).toBe(
+        'a/b/c'
+      )
+      expect(namedRegex.test(`/photos/${marker}/`)).toBe(false)
+      expect(namedRouteRegex.pathToRegexpPattern).toBe(
+        `/photos/${marker}:nxtIslug+`
+      )
+    }
+  )
 
   it('should handle dynamic segment with interception marker prefix', () => {
     // Interception marker can be adjacent to dynamic segment
