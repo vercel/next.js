@@ -187,31 +187,18 @@ export function makeFallbackParamsHangingPromise<T>(
 
 /**
  * Constructs a promise that never resolves, standing in for data that is only
- * accessible in a later *stage* of rendering than this render reaches — e.g.
- * a prefetchable short-stale cache entry that's excluded from shells when the
- * render ends at the shell stage, or params during a runtime-prefetch render
- * that stops before the stage where params resolve.
- *
- * A render that runs through the later stage would include the data; in
- * particular a runtime prefetch renders through its later stages, so on a
- * static prerender store awaiting this promise records `runtimeDataAccessed`,
- * same as `makeRuntimeHangingPromise`.
+ * accessible in the prefetch, but not in the shell, e.g. `unstable_prefetch()`.
+ * This usage does *not* indicate that a runtime request is needed,
+ * only that the data is not available in a shell.
  *
  * @internal
  */
-export function makeStageHangingPromise<T>(
+export function makePrefetchHangingPromise<T>(
   signal: AbortSignal,
   route: string,
-  expression: string,
-  workUnitStore: WorkUnitStore
+  expression: string
 ): Promise<T> {
-  return trackPromiseUsed(
-    makeHangingPromiseWithError<T>(
-      signal,
-      new HangingPromiseRejectionError(route, expression)
-    ),
-    trackRuntimeDataAccessed.bind(null, workUnitStore, expression)
-  )
+  return makeUntrackedHangingPromise(signal, route, expression)
 }
 
 /**

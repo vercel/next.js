@@ -5,6 +5,7 @@ import {
 } from '../app-render/work-unit-async-storage.external'
 import {
   applyOwnerStack,
+  makePrefetchHangingPromise,
   makeUntrackedHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
   trackIncompatibleShellContent,
@@ -76,7 +77,7 @@ export function unstable_prefetch(): Promise<void> {
         // Prospective prerender
         // Make sure we don't unblock content that won't be reached in the final prerender.
         if (workUnitStore.finalStage < prefetchStage) {
-          return makeUntrackedHangingPromise(
+          return makePrefetchHangingPromise(
             workUnitStore.renderSignal,
             workStore.route,
             '`unstable_prefetch()`'
