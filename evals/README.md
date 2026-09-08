@@ -52,6 +52,8 @@ test('exports instant', () => {
 
 `package.json` needs a `build` script. `next.config.ts` and `tsconfig.json` stay unless your feature requires specific config.
 
+If the agent needs prepared runtime state, add an `eval:setup` script. It runs after Next.js is installed and before the agent starts.
+
 ## Running
 
 ```bash
