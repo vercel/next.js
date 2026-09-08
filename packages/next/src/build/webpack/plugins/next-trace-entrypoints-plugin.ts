@@ -236,6 +236,24 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           nodePath.join(outputPath, `${outputPrefix}${entrypoint.name}.js`)
         )
 
+        const nodeOgRequest = 'next/dist/compiled/@vercel/og/index.node.js'
+        if (
+          [...entryFiles].some((file) => {
+            const assetName = nodePath
+              .relative(outputPath, file)
+              .replace(/\\/g, '/')
+            return compilation
+              .getAsset(assetName)
+              ?.source.source()
+              .toString()
+              .includes(nodeOgRequest)
+          })
+        ) {
+          // webpack 5.109 no longer exposes this external ESM import to
+          // node-file-trace, so preserve it when an emitted chunk imports it.
+          entryFiles.add(require.resolve(nodeOgRequest))
+        }
+
         if (entrypoint.name.startsWith('app/') && this.appDir) {
           const appDirRelativeEntryPath =
             this.buildTraceContext.entriesTrace?.absolutePathByEntryName[
