@@ -740,11 +740,9 @@ export function trackDynamicHoleInNavigation(
   componentStack: string,
   dynamicValidation: InstantValidationState,
   clientDynamic: DynamicTrackingState,
-  kind: DynamicHoleKind,
+  serverHoleKind: DynamicHoleKind | null,
   boundaryState: ValidationBoundaryTracking
 ) {
-  const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
-
   if (hasOutletRegex.test(componentStack)) {
     // We don't need to track that this is dynamic. It is only so when something else is also dynamic.
     return
@@ -757,23 +755,25 @@ export function trackDynamicHoleInNavigation(
     dynamicValidation
   )
 
-  if (hasMetadataRegex.test(componentStack)) {
-    const error = addErrorContext(
-      createMetadataError(kind, workStore.route),
-      componentStack,
-      effectiveCreateInstantStack
-    )
-    dynamicValidation.dynamicMetadata = error
-    return
-  }
-  if (hasViewportRegex.test(componentStack)) {
-    const error = addErrorContext(
-      createViewportError(kind, workStore.route),
-      componentStack,
-      effectiveCreateInstantStack
-    )
-    dynamicValidation.dynamicErrors.push(error)
-    return
+  if (serverHoleKind !== null) {
+    if (hasMetadataRegex.test(componentStack)) {
+      const error = addErrorContext(
+        createMetadataError(serverHoleKind, workStore.route),
+        componentStack,
+        effectiveCreateInstantStack
+      )
+      dynamicValidation.dynamicMetadata = error
+      return
+    }
+    if (hasViewportRegex.test(componentStack)) {
+      const error = addErrorContext(
+        createViewportError(serverHoleKind, workStore.route),
+        componentStack,
+        effectiveCreateInstantStack
+      )
+      dynamicValidation.dynamicErrors.push(error)
+      return
+    }
   }
 
   const boundaryLocation =
@@ -837,6 +837,9 @@ export function trackDynamicHoleInNavigation(
     }
   }
 
+  // Check for holes that originate from the client.
+
+  const syncDynamicError = getPendingClientSyncDynamicError(clientDynamic)
   if (syncDynamicError) {
     if (
       effectiveCreateInstantStack !== null &&
@@ -860,7 +863,13 @@ export function trackDynamicHoleInNavigation(
   }
 
   const error = addErrorContext(
-    createBodyErrorInNavigation(kind, workStore.route),
+    serverHoleKind === null
+      ? // If the server data is complete, this must be client data.
+        // Report it as uncached data, which isn't really accurate,
+        // but it's probable client-side data fetching, so it's close enough.
+        // TODO(instant-validation): Get a more appropriate error for this case
+        createBodyErrorInNavigation(DynamicHoleKind.Dynamic, workStore.route)
+      : createBodyErrorInNavigation(serverHoleKind, workStore.route),
     componentStack,
     effectiveCreateInstantStack
   )

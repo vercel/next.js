@@ -7418,14 +7418,23 @@ async function validateInstantConfigs(
     )
     .reverse() as PrefetchedSegmentStage[]
 
+  debug?.(
+    'Validation order:',
+    validationSequence.stageOrder.map((stage) => RenderStage[stage])
+  )
+
   function getDynamicHoleKindForSegmentStage(
     stage: PrefetchedSegmentStage
-  ): DynamicHoleKind {
+  ): DynamicHoleKind | null {
     // We report holes in reverse order, i.e. holes in Stage N are only reported
     // if Stage N+1 didn't have any holes. That means that if we report a hole from Stage N,
     // it has to be caused by data that would've resolved in Stage N+1.
     // So, the dynamic hole kind corresponds to the *next* logical stage.
-    const { stageOrder, holeResolution } = validationSequence
+    const { stageOrder, initialStage, finalStage, holeResolution } =
+      validationSequence
+    if (stage === initialStage && initialStage === finalStage) {
+      return null
+    }
     const nextStage = stageOrder[stageOrder.indexOf(stage) + 1]
     const holeKind = holeResolution[nextStage]
     // NOTE: `defineValidationSequence` should prevent `undefined` here, because
@@ -7519,7 +7528,7 @@ async function validateInstantConfigs(
     const dynamicHoleKind = getDynamicHoleKindForSegmentStage(stage)
 
     debug?.(
-      `  trying ${RenderStage[stage]} (hole: ${DynamicHoleKind[dynamicHoleKind]})`
+      `  trying ${RenderStage[stage]} ${dynamicHoleKind ? `(hole: ${DynamicHoleKind[dynamicHoleKind]})` : '(no holes)'}`
     )
 
     const extraChunksController = new AbortController()
@@ -7760,7 +7769,15 @@ async function validateInstantConfigs(
         return []
       }
 
-      const result = await validateAtDepth(depth, currentGroupDepth)
+      const result = await validateAtDepth(depth, currentGroupDepth).catch(
+        (err) => {
+          debug?.(
+            `  ${debugKind} at depth ${depth}+${currentGroupDepth}: crashed`,
+            err
+          )
+          throw err
+        }
+      )
 
       if (Array.isArray(result)) {
         const errors: Array<Error> = result
@@ -7786,6 +7803,9 @@ async function validateInstantConfigs(
         // shallowest deferred fallback. If a high-level layout drops
         // children, everything below is unreachable; the shallowest
         // unrendered segment is closest to the actual cause.
+        debug?.(
+          `  Impaired validation at ${depth}+${currentGroupDepth}, deferring error`
+        )
         impairedValidation = result
       }
     }
