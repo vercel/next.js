@@ -153,6 +153,14 @@ export async function pipeNodeReadableToNodeResponse(
 ) {
   try {
     const { errored, destroyed } = res
+    // Observe waitUntilForEnd eagerly, before any early return below: a
+    // rejection (e.g. a failing revalidation) must never escape as an
+    // unhandled rejection — which would crash the process — regardless of
+    // how the piping path exits.
+    if (waitUntilForEnd) {
+      waitUntilForEnd.catch(() => {})
+    }
+
     if (errored || destroyed) return
 
     let started = false
@@ -238,10 +246,17 @@ export async function pipeNodeReadableToNodeResponse(
     })
 
     readable.on('end', async () => {
-      if (waitUntilForEnd) {
-        await waitUntilForEnd
+      try {
+        if (waitUntilForEnd) {
+          await waitUntilForEnd
+        }
+      } catch {
+        // The trailing background work (e.g. revalidations) failed; the
+        // rejection is already observed by the eager handler above, so this
+        // can't escape as an unhandled rejection. The body is fully written
+        // by this point, so we still end the response normally below rather
+        // than destroying it (which could truncate already-written content).
       }
-
       if (!res.writableFinished) {
         res.end()
       }
