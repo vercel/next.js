@@ -42,13 +42,13 @@ const EVAL_CONFIG = JSON.parse(fs.readFileSync(EVAL_CONFIG_PATH, 'utf-8'))
 const BASE_VARIANTS = [
   {
     suffix: 'baseline',
-    imports: `import { installNextJs } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)`,
+    imports: `import { installNextJs, installPlaywright } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)`,
   },
   {
     suffix: 'agents-md',
-    imports: `import { installNextJs, writeAgentsMd } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)\n    await writeAgentsMd(sandbox)`,
+    imports: `import { installNextJs, installPlaywright, writeAgentsMd } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await writeAgentsMd(sandbox)`,
   },
 ]
 
@@ -159,8 +159,8 @@ function getExperimentSettings(evalName) {
   const multipleSkillGroups = skillGroups.size > 1
   const skillVariants = [...skillGroups.values()].map(({ skills, evals }) => ({
     suffix: multipleSkillGroups ? `skills-${skills.join('-')}` : 'skills',
-    imports: `import { installLocalSkills, installNextJs } from '../lib/setup.js'`,
-    setup: `await installNextJs(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
+    imports: `import { installLocalSkills, installNextJs, installPlaywright } from '../lib/setup.js'`,
+    setup: `await installNextJs(sandbox)\n    await installPlaywright(sandbox)\n    await installLocalSkills(sandbox, ${JSON.stringify(skills)})`,
     evals,
   }))
 

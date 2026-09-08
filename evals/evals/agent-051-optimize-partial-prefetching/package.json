@@ -12,6 +12,8 @@
     "react-dom": "19.1.0"
   },
   "devDependencies": {
+    "@next/playwright": "canary",
+    "@playwright/test": "1.61.0",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

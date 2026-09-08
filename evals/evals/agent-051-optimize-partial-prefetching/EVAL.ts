@@ -47,9 +47,8 @@ test('adds a click-driven instant navigation regression test', () => {
   expect(source).toMatch(/\.click\s*\(/)
 })
 
-test('adds reusable cached work with an explicit lifetime', () => {
+test('adds reusable cached work', () => {
   expect(source).toMatch(/['"]use cache['"]/)
-  expect(source).toMatch(/\bcacheLife\s*\(/)
 })
 
 test('uses the navigation stage', () => {
@@ -64,7 +63,7 @@ test('optimizes only the selected featured navigation', async () => {
 
 test('assigns the destination UI to the intended stages', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The final /sessions/aurora-keynote implementation makes the public title "Aurora Keynote", speaker "Mina Park", and summary reusable through a focused use-cache function with an explicit cacheLife. The result varies by session slug, and the cache does not contain connection(), cookies(), headers(), or live audience questions. Related sessions are also reusable cached data, but an await navigation() boundary runs before that cached work is called. Live audience questions remain uncached request-time content and continue streaming after navigation.`
+    `The final /sessions/aurora-keynote implementation makes the public title "Aurora Keynote", speaker "Mina Park", and summary reusable through a focused use-cache function. An explicit cacheLife is optional because the fixture has no existing freshness contract to preserve. The result varies by session slug, and the cache does not contain connection(), cookies(), headers(), or live audience questions. Related sessions are also reusable cached data, but an await navigation() boundary runs before that cached work is called. Live audience questions remain uncached request-time content and continue streaming after navigation.`
   )
 })
 

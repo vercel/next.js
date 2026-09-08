@@ -66,6 +66,91 @@ export async function installNextJs(sandbox: Sandbox): Promise<void> {
 }
 
 /**
+ * Install Chromium and its Linux dependencies for fixtures that exercise
+ * Playwright. The fixture declares @playwright/test so unrelated evals do not
+ * pay this setup cost.
+ */
+export async function installPlaywright(sandbox: Sandbox): Promise<void> {
+  const pkg = JSON.parse(await sandbox.readFile('package.json'))
+  const usesPlaywright = Boolean(
+    pkg.dependencies?.['@playwright/test'] ??
+      pkg.devDependencies?.['@playwright/test']
+  )
+
+  if (!usesPlaywright) return
+
+  console.log('  Installing Chromium and system dependencies...')
+  const hasDnf = (await sandbox.runCommand('which', ['dnf'])).exitCode === 0
+
+  if (hasDnf) {
+    const systemDeps = [
+      'nss',
+      'nspr',
+      'libxkbcommon',
+      'atk',
+      'at-spi2-atk',
+      'at-spi2-core',
+      'libXcomposite',
+      'libXdamage',
+      'libXrandr',
+      'libXfixes',
+      'libXcursor',
+      'libXi',
+      'libXtst',
+      'libXScrnSaver',
+      'libXext',
+      'mesa-libgbm',
+      'libdrm',
+      'mesa-libGL',
+      'mesa-libEGL',
+      'cups-libs',
+      'alsa-lib',
+      'pango',
+      'cairo',
+      'gtk3',
+      'dbus-libs',
+    ]
+    const deps = await sandbox.runCommand('sudo', [
+      'dnf',
+      'install',
+      '-y',
+      '--skip-broken',
+      ...systemDeps,
+    ])
+    if (deps.exitCode !== 0) {
+      throw new Error(
+        `Chromium system dependency installation failed (exit ${deps.exitCode}):\n${deps.stderr}`
+      )
+    }
+  }
+
+  const browserArgs = [
+    'playwright',
+    'install',
+    ...(hasDnf ? [] : ['--with-deps']),
+    'chromium',
+  ]
+  const browser = await sandbox.runCommand('npx', browserArgs)
+  if (browser.exitCode !== 0) {
+    throw new Error(
+      `playwright install chromium failed (exit ${browser.exitCode}):\n${browser.stderr}`
+    )
+  }
+
+  const smoke = await sandbox.runCommand('node', [
+    '--input-type=module',
+    '--eval',
+    "import { chromium } from '@playwright/test'; const browser = await chromium.launch(); await browser.close()",
+  ])
+  if (smoke.exitCode !== 0) {
+    throw new Error(
+      `Chromium launch check failed (exit ${smoke.exitCode}):\n${smoke.stderr}`
+    )
+  }
+  console.log('  Installed Chromium and system dependencies')
+}
+
+/**
  * Write AGENTS.md (and aliases) to the sandbox root, directing agents to read
  * bundled docs from node_modules/next/dist/docs/.
  *
