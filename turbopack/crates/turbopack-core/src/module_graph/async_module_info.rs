@@ -47,7 +47,11 @@ async fn compute_async_module_info_single(
         .iter_reachable_nodes()?
         .map(async |node| {
             Ok(match node {
-                SingleModuleGraphNode::Module(node) => node.is_self_async().await?.then_some(*node),
+                SingleModuleGraphNode::Module {
+                    module: node,
+                    is_self_async,
+                    ..
+                } => is_self_async.await?.then_some(*node),
                 SingleModuleGraphNode::VisitedModule { idx: _, module } => {
                     // If a module is async in the parent then we need to mark reverse dependencies
                     // async in this graph as well.

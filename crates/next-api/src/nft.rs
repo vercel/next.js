@@ -433,7 +433,7 @@ async fn traced_module_idents_for_graph(
     Ok(Vc::cell(
         traced_modules
             .into_iter()
-            .map(async |module| Ok((module, module.ident().await?)))
+            .map(async |module| Ok((module, module_graph.module_ident_resolved(module)?.await?)))
             .try_join()
             .await?
             .into_iter()
