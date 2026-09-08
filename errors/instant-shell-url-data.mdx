@@ -26,7 +26,7 @@ During a [client-side navigation](/docs/app/glossary#client-side-navigation), a 
 
 The `params` and `searchParams` props are [URL data](/docs/app/glossary#url-data): they're specific to a single URL, so reading them outside a `<Suspense>` boundary ties the App Shell to one link. Next.js can no longer reuse it across links, and navigations to this route may not be instant.
 
-The check runs when you load the route and when you navigate to it. The App Shell itself is only used for client-side navigations: the initial load has its own validation against the route's [static shell](/docs/app/glossary#static-shell), where the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime). For URL data read through client hooks like [`useSearchParams`](/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
+Next.js validates the route on both initial loads and client navigations, but this Insight applies to the App Shell used for client-side navigation. On initial load, the same read surfaces as [runtime data during prerendering](/docs/messages/blocking-prerender-runtime) while Next.js validates the route's [static shell](/docs/app/glossary#static-shell). For URL data read through client hooks like [`useSearchParams`](/docs/app/api-reference/functions/use-search-params), see [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook).
 
 ## Ways to fix this
 
