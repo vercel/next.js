@@ -2170,6 +2170,13 @@ export async function ncc_webpack_bundle5(task, opts) {
     ...externals,
     'schema-utils': externals['schema-utils3'],
     'webpack-sources': externals['webpack-sources3'],
+    // These runtime templates are converted to strings and have placeholder
+    // identifiers replaced by webpack. Bundling/minifying them would rename
+    // the placeholders before webpack can substitute them.
+    './HotModuleReplacement.runtime':
+      'next/dist/compiled/webpack/HotModuleReplacement.runtime',
+    '../hmr/JavascriptHotModuleReplacement.runtime':
+      'next/dist/compiled/webpack/JavascriptHotModuleReplacement.runtime',
   }
   for (const pkg of Object.keys(webpackBundlePackages)) {
     delete bundleExternals[pkg]
