@@ -132,6 +132,34 @@ fn caches_batches_per_file_and_invalidates_changed_contexts() {
 }
 
 #[test]
+fn reads_inputs_created_between_recipe_actions() {
+    let directory = fixture();
+    let root = directory.path();
+    let result = run(root, "generated_inputs");
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(fs::read(root.join("dist/first")).unwrap(), b"first");
+    assert_eq!(fs::read(root.join("dist/second")).unwrap(), b"second");
+}
+
+#[test]
+fn reads_current_contents_after_recipe_writes_and_deletions() {
+    let directory = fixture();
+    let root = directory.path();
+    let result = run(root, "rewritten_inputs");
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert_eq!(fs::read(root.join("dist/before")).unwrap(), [0, 255, 10]);
+    assert_eq!(fs::read(root.join("dist/after")).unwrap(), b"rewritten");
+}
+
+#[test]
 fn propagates_errors_and_detects_cycles() {
     let directory = fixture();
     for (task, message) in [

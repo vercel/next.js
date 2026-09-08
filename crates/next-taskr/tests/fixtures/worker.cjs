@@ -96,6 +96,46 @@ async function execute(message) {
       ],
     })
   }
+  if (name === 'generated_inputs' || name === 'rewritten_inputs') {
+    // Read before creating or rewriting inputs, as vendoring recipes do.
+    const read = async (file) => {
+      const [artifact] = await call(message.id, {
+        kind: 'read',
+        artifacts: true,
+        paths: [path.resolve(file)],
+      })
+      return artifact
+    }
+    const before = await read('input/file')
+    if (name === 'generated_inputs') {
+      for (const file of ['first', 'second']) {
+        fs.writeFileSync('input/' + file, file)
+        const artifact = await read('input/' + file)
+        await call(message.id, {
+          kind: 'write',
+          files: [{ path: path.resolve('dist/' + file), artifact }],
+        })
+      }
+    } else {
+      fs.writeFileSync('input/file', 'rewritten')
+      const after = await read('input/file')
+      await call(message.id, {
+        kind: 'write',
+        files: [
+          { path: path.resolve('dist/before'), artifact: before },
+          { path: path.resolve('dist/after'), artifact: after },
+        ],
+      })
+      fs.rmSync('input/file')
+      try {
+        await read('input/file')
+        throw new Error('Deleted input was read from cache')
+      } catch (error) {
+        if (!error.message.includes('Input does not exist')) throw error
+      }
+    }
+    return null
+  }
   if (name === 'malformed') {
     process.stdout.write('__NEXT_TASKR__{broken\n')
     return new Promise(() => {})

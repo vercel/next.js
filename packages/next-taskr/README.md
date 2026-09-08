@@ -79,8 +79,9 @@ include source bytes, logical paths, options, and the compiler fingerprint.
 They include every emitted file, including JavaScript and source maps.
 Removing or corrupting an output does not make it a valid cache hit:
 each recipe materializes its results again. Unchanged files are not rewritten.
-Source and cached output contents stay in Rust. Node recipes carry artifact
-handles through to destination mapping; only JavaScript plugins and callbacks
+Each source read observes the current filesystem, including inputs created or
+rewritten by earlier recipe actions. Source and cached output contents stay in
+Rust. Node recipes carry artifact handles through to destination mapping; only JavaScript plugins and callbacks
 that receive file contents load them into Node Buffers. Handles are released
 when their recipe finishes and are never persisted in cache keys.
 

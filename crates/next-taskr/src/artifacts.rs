@@ -20,10 +20,10 @@ pub(crate) struct Artifacts {
 }
 
 impl Artifacts {
-    pub(crate) fn insert(&mut self, encoded: &str) -> Result<u64> {
+    pub(crate) fn insert(&mut self, bytes: Vec<u8>) -> u64 {
         let id = NEXT_ARTIFACT.fetch_add(1, Ordering::Relaxed);
-        self.contents.insert(id, STANDARD.decode(encoded)?.into());
-        Ok(id)
+        self.contents.insert(id, bytes.into());
+        id
     }
 
     pub(crate) fn get(&self, id: u64) -> Result<Arc<[u8]>> {
@@ -66,7 +66,7 @@ impl Artifacts {
             .as_object_mut()
             .context("Invalid artifact descriptor")?;
         if let Some(data) = file.get("data").and_then(Value::as_str) {
-            let id = self.insert(data)?;
+            let id = self.insert(STANDARD.decode(data)?);
             file.remove("data");
             file.insert("artifact".into(), json!(id));
         }

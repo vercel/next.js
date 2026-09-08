@@ -18,7 +18,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use base64::{Engine, engine::general_purpose::STANDARD};
 use clap::Parser;
-use futures::future::try_join_all;
+use futures::future::{join_all, try_join_all};
 use serde_json::{Value, json};
 use sha2::{Digest, Sha256};
 use tokio::{
@@ -34,7 +34,7 @@ use turbo_tasks_backend::{
 };
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, DiskFileSystem, FileContent, FileSystem, FileSystemEntryType,
-    FileSystemPath, RealPathErrorType,
+    FileSystemPath,
 };
 
 use crate::{
@@ -226,23 +226,21 @@ impl Bridge {
             }
             "read" => {
                 let paths: Vec<String> = serde_json::from_value(args["paths"].clone())?;
-                // Recipes consume a consistent input snapshot. Their imperative
-                // effects must only run when explicitly scheduled by the watch
-                // loop, never as a reaction to an old input dependency changing.
-                let values = try_join_all(paths.into_iter().map(|path| {
-                    read_file(path.into())
-                        .read_strongly_consistent()
-                        .untracked()
-                }))
-                .await?;
+                let values = read_files(paths).await?;
                 if args["artifacts"].as_bool().unwrap_or(false) {
-                    let handles = values
-                        .iter()
-                        .map(|value| artifacts.insert(value))
-                        .collect::<Result<Vec<_>>>()?;
-                    Ok(json!(handles))
+                    Ok(json!(
+                        values
+                            .into_iter()
+                            .map(|value| artifacts.insert(value))
+                            .collect::<Vec<_>>()
+                    ))
                 } else {
-                    Ok(json!(values.iter().map(|v| v.as_str()).collect::<Vec<_>>()))
+                    Ok(json!(
+                        values
+                            .into_iter()
+                            .map(|value| STANDARD.encode(value))
+                            .collect::<Vec<_>>()
+                    ))
                 }
             }
             "load" => {
@@ -385,38 +383,40 @@ async fn transform(input: RcStr) -> Result<Vc<RcStr>> {
     Ok(Vc::cell(serde_json::to_string(&result)?.into()))
 }
 
-#[turbo_tasks::function]
-fn input_filesystem(root: RcStr) -> Vc<DiskFileSystem> {
-    DiskFileSystem::new(root.clone(), Vc::cell(root))
-}
-
-#[turbo_tasks::function(operation, root)]
-async fn read_file(path: RcStr) -> Result<Vc<RcStr>> {
-    let path = Path::new(path.as_str());
-    let root = path.ancestors().last().context("File path has no root")?;
-    let root: RcStr = root.to_str().context("Non-UTF8 filesystem root")?.into();
-    let fs = input_filesystem(root).to_resolved().await?;
-    let fs_path = fs
-        .await?
-        .try_from_sys_path(fs, path, None)
-        .context("File outside filesystem")?;
-    let fs_path = match fs_path.realpath().await? {
-        Ok(path) => path,
-        Err(error) if matches!(error.kind(), RealPathErrorType::NotFound) => {
-            bail!("Input does not exist: {}", path.display())
-        }
-        Err(error) => bail!(error),
-    };
-    let content = fs_path.read().await?;
-    let data = match &*content {
-        FileContent::Content(file) => {
-            let mut bytes = Vec::new();
-            file.read().read_to_end(&mut bytes)?;
-            STANDARD.encode(bytes)
-        }
-        FileContent::NotFound => bail!("Input does not exist: {}", path.display()),
-    };
-    Ok(Vc::cell(data.into()))
+// A recipe may create, rewrite, or delete inputs between actions, including
+// through JavaScript or a compiler subprocess. Read fresh bytes at each action
+// boundary; a cached filesystem snapshot cannot observe those effects. Cached
+// transforms are still keyed by the bytes, and watch invalidation is separate.
+async fn read_files(paths: Vec<String>) -> Result<Vec<Vec<u8>>> {
+    if paths.is_empty() {
+        return Ok(Vec::new());
+    }
+    let workers = std::thread::available_parallelism()
+        .map_or(1, usize::from)
+        .min(8)
+        .min(paths.len());
+    let batches = paths.chunks(paths.len().div_ceil(workers)).map(|chunk| {
+        let paths = chunk.to_vec();
+        tokio::task::spawn_blocking(move || {
+            paths
+                .into_iter()
+                .map(|path| {
+                    std::fs::read(&path).map_err(|error| {
+                        if error.kind() == std::io::ErrorKind::NotFound {
+                            anyhow::anyhow!("Input does not exist: {path}")
+                        } else {
+                            anyhow::Error::new(error).context(format!("Reading input: {path}"))
+                        }
+                    })
+                })
+                .collect::<Result<Vec<_>>>()
+        })
+    });
+    let mut values = Vec::with_capacity(paths.len());
+    for result in join_all(batches).await {
+        values.extend(result??);
+    }
+    Ok(values)
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -558,12 +558,6 @@ async fn start_watch(root: RcStr) -> Result<Vc<()>> {
 #[turbo_tasks::function(operation, root)]
 async fn rebuild_watch(watch: RcStr, invocation: TransientValue<u64>) -> Result<Vc<()>> {
     let args: Value = serde_json::from_str(&watch)?;
-    // Source reads can include pnpm symlinks outside the package. Refresh the
-    // read filesystem before rerunning the recipes; unchanged transform inputs
-    // still reuse their cached results.
-    let path = Path::new(args["path"].as_str().context("Missing watch path")?);
-    let root: RcStr = path.ancestors().last().unwrap().to_str().unwrap().into();
-    input_filesystem(root).await?.invalidate();
     for name in args["names"].as_array().context("Missing watched tasks")? {
         run_task(
             name.as_str().context("Invalid task name")?.into(),

@@ -10,9 +10,14 @@ can execute arbitrary JavaScript or subprocesses. This also prevents a warm
 build from eagerly replaying old side effects across imperative serial barriers.
 
 SWC transformations are separate, persistent turbo-tasks functions keyed by all
-the inputs supplied by the worker. Files are read through turbo-tasks-fs. Each
-recipe consumes strongly consistent, untracked snapshots of those reads; source
-invalidation must not reactively replay an earlier recipe's side effects. Output
+the inputs supplied by the worker. Each recipe read action reads fresh file
+contents using bounded parallel filesystem workers. Recipes can create or
+rewrite inputs through JavaScript or compiler subprocesses between actions;
+those reads must observe the new files without waiting for watcher events.
+Source bytes stay in Rust behind artifact handles without a base64 round trip.
+Transform keys still include the contents, so unchanged inputs reuse cached
+results. turbo-tasks-fs tracks watch subscriptions separately; source invalidation
+must not reactively replay an earlier recipe's side effects. Output
 materialization runs outside the cached transformation, so a cached result can
 restore a deleted or damaged file. Write batches are serialized, skip equal
 contents, and publish complete files with a rename in the destination directory.
