@@ -19,15 +19,16 @@ import type {
   RequestInsightFilter,
   RequestInsightsHistoryPage,
 } from '../../../shared/lib/request-insights-summary'
-import type {
-  LocalSpanBatch,
-  LocalSpanParent,
-  SpanStoreRecord,
+import {
+  isRequestInsightsEnabled,
+  type LocalSpanBatch,
+  type LocalSpanParent,
+  type SpanStoreRecord,
 } from './span-store'
 import type { RequestInsightsIdentity } from './request-insights-identity'
 import { createLocalSpanId } from './local-span-recorder'
 import { AppRenderSpan } from './constants'
-export { isRequestInsightsEnabled } from './span-store'
+export { isRequestInsightsEnabled }
 
 const MAX_REQUEST_INSIGHT_URL_LENGTH = 2048
 const MAX_REQUEST_INSIGHT_RAW_URL_LENGTH = 64 * 1024
@@ -52,6 +53,7 @@ type RequestInsightIdentity = Readonly<{
 export type RequestInsightsHistoryQuery = {
   cursor?: string
   filters?: readonly RequestInsightFilter[]
+  liveRequestKeys?: readonly string[]
   limit?: number
   showInternal?: boolean
 }
@@ -102,6 +104,7 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.span_type',
 ])
 class InMemoryRequestInsightsStore {
+  private readonly activeRequests = new Set<string>()
   private readonly requests = new Map<string, RequestInsight>()
   private readonly requestTimings = new Map<
     string,
@@ -110,6 +113,19 @@ class InMemoryRequestInsightsStore {
   private readonly requestOrder: string[] = []
   private readonly completedRequestOrder: string[] = []
   private readonly listeners = new Set<RequestInsightsListener>()
+
+  startRequest(identity: RequestInsightIdentity): void {
+    if (!identity.requestId) {
+      return
+    }
+    const insightKey = getRequestInsightKey({
+      requestId: identity.requestId,
+      kind: identity.kind,
+    })
+    if (this.requests.get(insightKey)?.completedAt === undefined) {
+      this.activeRequests.add(insightKey)
+    }
+  }
 
   recordSpan(
     span: SpanStoreRecord,
@@ -147,6 +163,9 @@ class InMemoryRequestInsightsStore {
       },
       span.startTime ?? span.timestamp
     )
+    if (!insight) {
+      return
+    }
 
     const spanStartTime = span.startTime ?? span.timestamp
     insight.htmlRequestId = span.htmlRequestId ?? insight.htmlRequestId
@@ -229,6 +248,9 @@ class InMemoryRequestInsightsStore {
     }
     const fetchStartTime = fetch.startTime ?? getCurrentTimestamp()
     const insight = this.getOrCreateRequest(identity, fetchStartTime)
+    if (!insight) {
+      return
+    }
     if (insight.completedAt === undefined) {
       this.updateTiming(insight, fetchStartTime, fetch.durationMs, false)
     }
@@ -265,12 +287,12 @@ class InMemoryRequestInsightsStore {
       return
     }
 
-    const insight = this.requests.get(
-      getRequestInsightKey({
-        requestId: identity.requestId,
-        kind: identity.kind,
-      })
-    )
+    const insightKey = getRequestInsightKey({
+      requestId: identity.requestId,
+      kind: identity.kind,
+    })
+    this.activeRequests.delete(insightKey)
+    const insight = this.requests.get(insightKey)
     if (!insight || insight.completedAt !== undefined) {
       return
     }
@@ -295,6 +317,7 @@ class InMemoryRequestInsightsStore {
   }
 
   clear(): void {
+    this.activeRequests.clear()
     this.requests.clear()
     this.requestTimings.clear()
     this.requestOrder.length = 0
@@ -350,7 +373,7 @@ class InMemoryRequestInsightsStore {
   private getOrCreateRequest(
     identity: RequestInsightIdentity,
     startTime: number
-  ): RequestInsight {
+  ): RequestInsight | undefined {
     const requestId = identity.requestId!
     const insightKey = getRequestInsightKey({
       requestId,
@@ -359,6 +382,11 @@ class InMemoryRequestInsightsStore {
     let insight = this.requests.get(insightKey)
 
     if (!insight) {
+      // Only request start can authorize a new row. Missing history may have
+      // been discarded, even when a late span still carries its request ID.
+      if (!this.activeRequests.has(insightKey)) {
+        return
+      }
       insight = {
         requestId,
         kind: getRequestInsightKind(identity),
@@ -419,6 +447,7 @@ class InMemoryRequestInsightsStore {
     }
 
     const insightKey = getRequestInsightKey(insight)
+    this.activeRequests.delete(insightKey)
     insight.completedAt = completedAt
     this.completedRequestOrder.push(insightKey)
     appendCompletedRequestInsight(insight)
@@ -622,6 +651,12 @@ export function recordRequestInsightSource(
 
 export function completeRequestInsight(identity: RequestInsightIdentity): void {
   getRequestInsightsStore().completeRequest(identity)
+}
+
+export function startRequestInsight(identity: RequestInsightIdentity): void {
+  if (isRequestInsightsEnabled()) {
+    getRequestInsightsStore().startRequest(identity)
+  }
 }
 
 export function getRequestInsightsSnapshot(): RequestInsightsSnapshot {

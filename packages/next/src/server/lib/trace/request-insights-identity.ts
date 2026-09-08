@@ -40,12 +40,21 @@ export function resolveRequestInsightsIdentity({
   }
 
   const requestId = createRequestId()
-  return {
+  const identity = {
     requestId,
     debugRequestId: getValidatedDevRequestId(requestIdHeader),
     htmlRequestId:
       getValidatedDevHtmlRequestId(htmlRequestIdHeader) ?? requestId,
     url,
+  }
+
+  if (process.env.__NEXT_DEV_SERVER) {
+    const { startRequestInsight } =
+      require('./request-insights') as typeof import('./request-insights')
+    startRequestInsight(identity)
+    return identity
+  } else {
+    return identity
   }
 }
 

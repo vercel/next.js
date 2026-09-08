@@ -106,7 +106,7 @@ export function RequestInsightsPanel() {
   const [pausedRequests, setPausedRequests] = useState<
     readonly RequestInsightListItem[] | null
   >(null)
-  const requests = pausedRequests ?? history.requests
+  const requests = pausedRequests ?? history.unfilteredRequests
   const isPaused = pausedRequests !== null
   const filterResult = useMemo(
     () => getRequestInsightFilterResult(requests, activeFilters, showInternal),
@@ -176,7 +176,11 @@ export function RequestInsightsPanel() {
     internalRequests.length > 0 ||
     history.optionCounts['activity:instant-insights'] > 0
 
-  if (requests.length === 0 && !history.loading) {
+  if (
+    requests.length === 0 &&
+    history.totalRequestCount === 0 &&
+    !history.loading
+  ) {
     return (
       <div className="request-insights-empty">
         Request insights will appear after the next App Router request.
@@ -238,7 +242,7 @@ export function RequestInsightsPanel() {
                         closeOnClick={false}
                         onCheckedChange={(checked) =>
                           setPausedRequests(
-                            checked ? [...history.requests] : null
+                            checked ? [...history.unfilteredRequests] : null
                           )
                         }
                       >
@@ -307,6 +311,17 @@ export function RequestInsightsPanel() {
             </span>
             <button onClick={() => setActiveFilters([])} type="button">
               Reset
+            </button>
+          </div>
+        ) : null}
+        {!isPaused && history.hasNewer ? (
+          <div className="request-insights-filter-status">
+            <button
+              disabled={history.loading}
+              onClick={history.loadNewer}
+              type="button"
+            >
+              Load newer requests
             </button>
           </div>
         ) : null}

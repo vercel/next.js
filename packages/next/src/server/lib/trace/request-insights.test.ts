@@ -7,6 +7,7 @@ import {
   importRequestInsightSpans,
   recordRequestInsightFetch,
   recordRequestInsightSource,
+  startRequestInsight,
   subscribeRequestInsights,
 } from './request-insights'
 import {
@@ -22,9 +23,14 @@ import {
   StaleRequestInsightsHistoryCursorError,
 } from './request-insights-journal'
 import { recordSpan } from './span-store'
+import {
+  resolveRequestInsightsIdentity,
+  runWithRequestInsightsIdentity,
+} from './request-insights-identity'
 import { mkdtemp, readFile, rm } from 'fs/promises'
 import { tmpdir } from 'os'
 import path from 'path'
+import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from '../../../shared/lib/request-insights'
 
 const originalRequestInsights = process.env.__NEXT_REQUEST_INSIGHTS
 const originalDevServer = process.env.__NEXT_DEV_SERVER
@@ -52,6 +58,7 @@ describe('request insights', () => {
 
   it('derives request history from local span records', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'req_1' })
 
     recordSpan({
       name: 'render route (app) /products/[id]',
@@ -155,6 +162,7 @@ describe('request insights', () => {
 
   it('notifies subscribers when a request insight changes', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'req_2' })
     const listener = jest.fn()
     const unsubscribe = subscribeRequestInsights(listener)
 
@@ -178,6 +186,7 @@ describe('request insights', () => {
 
   it('imports a worker span batch with the main-thread identity', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'instant_1', kind: 'instant-insights' })
     const listener = jest.fn()
     const unsubscribe = subscribeRequestInsights(listener)
 
@@ -270,6 +279,7 @@ describe('request insights', () => {
 
   it('uses the HTTP request span as the end-to-end request timing', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'req_timing' })
 
     recordSpan({
       name: 'render route (app) /dashboard',
@@ -303,6 +313,7 @@ describe('request insights', () => {
     'includes both Proxy and page passes in request timing (reverse delivery: %s)',
     (reverse) => {
       process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      startRequestInsight({ requestId: 'req_proxy_timing' })
 
       const passes = [
         { startTime: 1000, durationMs: 50 },
@@ -325,6 +336,7 @@ describe('request insights', () => {
 
   it('waits for explicit outer completion after middleware and final routing', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'middleware-route' })
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     await initializeRequestInsightsJournal(distDir)
     configureJournalProvider(distDir)
@@ -370,6 +382,7 @@ describe('request insights', () => {
 
   it('keeps active requests until they finish before applying the completed request limit', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'long-running' })
 
     recordSpan({
       name: 'long-running work',
@@ -379,6 +392,7 @@ describe('request insights', () => {
     })
 
     for (let index = 0; index < 101; index++) {
+      startRequestInsight({ requestId: `completed-${index}` })
       recordSpan({
         name: `GET /completed/${index}`,
         requestId: `completed-${index}`,
@@ -417,8 +431,124 @@ describe('request insights', () => {
     ).toEqual(['long-running work', 'GET /long-running'])
   })
 
+  it('closes an untraced request without reopening it when its identity is reused', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const identity = resolveRequestInsightsIdentity({
+      previousIdentity: undefined,
+      requestIdHeader: undefined,
+      htmlRequestIdHeader: undefined,
+      url: '/',
+      createRequestId: () => 'untraced',
+    })
+    expect(getRequestInsightsSnapshot().requests).toEqual([])
+    completeRequestInsight(identity)
+
+    expect(
+      resolveRequestInsightsIdentity({
+        previousIdentity: identity,
+        requestIdHeader: undefined,
+        htmlRequestIdHeader: undefined,
+        url: '/',
+        createRequestId: () => 'unused',
+      })
+    ).toBe(identity)
+    runWithRequestInsightsIdentity(identity, () => {
+      recordSpan({ name: 'late span', requestId: identity.requestId })
+      recordRequestInsightFetch(identity, { url: 'https://example.com/data' })
+    })
+    expect(getRequestInsightsSnapshot().requests).toEqual([])
+  })
+
+  it.each(['request', 'instant-insights'] as const)(
+    'keeps an active %s eligible for its first span across completed request eviction',
+    (kind) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      startRequestInsight({ requestId: 'waiting', kind })
+      expect(getRequestInsightsSnapshot().requests).toEqual([])
+      for (let i = 0; i < 101; i++) {
+        const identity = { requestId: `completed-${i}` }
+        startRequestInsight(identity)
+        recordSpan({ name: 'GET /', requestId: identity.requestId })
+        completeRequestInsight(identity)
+      }
+
+      recordSpan({
+        name: 'first span',
+        requestId: 'waiting',
+        requestInsightKind: kind,
+      })
+      expect(getRequestInsightsSnapshot().requests).toHaveLength(101)
+      expect(getRequestInsightsSnapshot().requests.at(-1)).toMatchObject({
+        requestId: 'waiting',
+        kind,
+        spans: [{ name: 'first span' }],
+      })
+    }
+  )
+
+  it('does not restart a completed Instant Insights lifetime on a repeated start', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    const identity = { requestId: 'instant', kind: 'instant-insights' as const }
+    const span = {
+      name: 'Instant Insights',
+      requestId: identity.requestId,
+      requestInsightKind: identity.kind,
+      durationMs: 1,
+      attributes: { 'next.span_type': 'AppRender.instantInsights' },
+    }
+    startRequestInsight(identity)
+    recordSpan(span)
+    startRequestInsight(identity)
+    recordSpan(span)
+
+    for (let i = 0; i < 101; i++) {
+      const completed = { requestId: `completed-${i}` }
+      startRequestInsight(completed)
+      recordSpan({ name: 'GET /', requestId: completed.requestId })
+      completeRequestInsight(completed)
+    }
+    recordSpan({
+      name: 'late Instant work',
+      requestId: identity.requestId,
+      requestInsightKind: identity.kind,
+    })
+    expect(
+      getRequestInsightsSnapshot().requests.some(
+        (request) => request.requestId === identity.requestId
+      )
+    ).toBe(false)
+  })
+
+  it.each(['disabled', 'production'])(
+    'does not register new identities when recording is %s',
+    (mode) => {
+      process.env.__NEXT_REQUEST_INSIGHTS =
+        mode === 'disabled' ? 'false' : 'true'
+      if (mode === 'production') delete process.env.__NEXT_DEV_SERVER
+      const identity = resolveRequestInsightsIdentity({
+        previousIdentity: undefined,
+        requestIdHeader: undefined,
+        htmlRequestIdHeader: undefined,
+        url: '/',
+        createRequestId: () => 'not-recorded',
+      })
+      startRequestInsight({ ...identity, kind: 'instant-insights' })
+
+      process.env.__NEXT_DEV_SERVER = '1'
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      recordSpan({ name: 'request span', requestId: identity.requestId })
+      recordSpan({
+        name: 'Instant span',
+        requestId: identity.requestId,
+        requestInsightKind: 'instant-insights',
+      })
+      expect(getRequestInsightsSnapshot().requests).toEqual([])
+    }
+  )
+
   it('journals a completed request once with its full sanitized trace', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'journaled' })
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     await initializeRequestInsightsJournal(distDir)
     configureJournalProvider(distDir)
@@ -473,6 +603,7 @@ describe('request insights', () => {
     'retains late spans and fetches without reopening a completed request, archived: %s',
     async (archive) => {
       process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      startRequestInsight({ requestId: 'late' })
       const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
       await initializeRequestInsightsJournal(distDir)
       configureJournalProvider(distDir)
@@ -485,6 +616,7 @@ describe('request insights', () => {
       completeRequestInsight({ requestId: 'late' })
       if (archive) {
         for (let i = 0; i < 100; i++) {
+          startRequestInsight({ requestId: `other-${i}` })
           recordSpan({ name: 'GET /', requestId: `other-${i}` })
           completeRequestInsight({ requestId: `other-${i}` })
         }
@@ -568,8 +700,81 @@ describe('request insights', () => {
     }
   )
 
+  it.each(['span', 'fetch'] as const)(
+    'does not recreate a discarded request from a late %s after journal rotation',
+    async (update) => {
+      process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
+      await initializeRequestInsightsJournal(distDir)
+      configureJournalProvider(distDir)
+
+      function complete(requestId: string) {
+        const identity = resolveRequestInsightsIdentity({
+          previousIdentity: undefined,
+          requestIdHeader: undefined,
+          htmlRequestIdHeader: undefined,
+          url: '/',
+          createRequestId: () => requestId,
+        })
+        recordSpan({ name: 'original', requestId })
+        completeRequestInsight(identity)
+      }
+
+      try {
+        complete('discarded')
+        for (let i = 0; i < 101; i++) complete(`newer-${i}`)
+        expect(
+          getRequestInsightsSnapshot().requests.some(
+            (request) => request.requestId === 'discarded'
+          )
+        ).toBe(false)
+        expect(
+          await readRequestInsightsJournal(distDir, {
+            requestId: 'discarded',
+          })
+        ).toHaveLength(1)
+
+        const fs = require('fs/promises') as typeof import('fs/promises')
+        const currentStat = await fs.stat(
+          path.join(distDir, 'request-insights.ndjson')
+        )
+        const stat = jest.spyOn(fs, 'stat')
+        stat.mockResolvedValueOnce({ ...currentStat, size: 50 * 1024 * 1024 })
+        try {
+          await configureRequestInsightsJournal(distDir)
+        } finally {
+          stat.mockRestore()
+        }
+        complete('rotating')
+        expect(
+          await readRequestInsightsJournal(distDir, {
+            requestId: 'discarded',
+          })
+        ).toHaveLength(0)
+
+        if (update === 'span') {
+          recordSpan({ name: 'late work', requestId: 'discarded' })
+        } else {
+          recordRequestInsightFetch(
+            { requestId: 'discarded' },
+            { url: 'https://example.com/data' }
+          )
+        }
+        expect(
+          getRequestInsightsSnapshot().requests.some(
+            (request) => request.requestId === 'discarded'
+          )
+        ).toBe(false)
+      } finally {
+        await resetRequestInsightsJournalForTest()
+        await rm(distDir, { recursive: true, force: true })
+      }
+    }
+  )
+
   it('writes late spans without serializing previously stored spans again', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'delta' })
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     await initializeRequestInsightsJournal(distDir)
     configureJournalProvider(distDir)
@@ -600,6 +805,7 @@ describe('request insights', () => {
     'keeps a complete request when a late update rotates the journal, archived: %s',
     async (archive) => {
       process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+      startRequestInsight({ requestId: 'rotated' })
       const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
       await initializeRequestInsightsJournal(distDir)
       configureJournalProvider(distDir)
@@ -640,6 +846,7 @@ describe('request insights', () => {
 
   it('closes the journal idempotently and flushes pending appends', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'flushed' })
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     await initializeRequestInsightsJournal(distDir)
     configureJournalProvider(distDir)
@@ -675,6 +882,7 @@ describe('request insights', () => {
 
   it('resets session history on initialization and stores the journal directly in distDir', async () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'history' })
     const distDir = await mkdtemp(path.join(tmpdir(), 'request-insights-'))
     await initializeRequestInsightsJournal(distDir)
     configureJournalProvider(distDir)
@@ -711,6 +919,7 @@ describe('request insights', () => {
     configureJournalProvider(distDir)
 
     for (let index = 0; index < 3; index++) {
+      startRequestInsight({ requestId: `history-${index}` })
       recordSpan({
         name: `GET /history/${index}`,
         requestId: `history-${index}`,
@@ -735,6 +944,29 @@ describe('request insights', () => {
       'history-0',
     ])
 
+    await expect(
+      getRequestInsightsHistory(distDir, {
+        filters: ['source:api'],
+        liveRequestKeys: [
+          'request:history-0',
+          'request:history-0',
+          'request:missing',
+        ],
+      })
+    ).resolves.toMatchObject({
+      requests: [],
+      liveRequestOverlaps: [
+        expect.objectContaining({ requestId: 'history-0' }),
+      ],
+    })
+    await expect(
+      getRequestInsightsHistory(distDir, {
+        liveRequestKeys: Array(MAX_LIVE_COMPLETED_REQUEST_INSIGHTS + 1).fill(
+          'request:history-0'
+        ),
+      })
+    ).rejects.toThrow('Too many live Request Insights keys')
+
     await initializeRequestInsightsJournal(distDir)
     await expect(
       getRequestInsightsHistory(distDir, {
@@ -748,6 +980,7 @@ describe('request insights', () => {
 
   it('classifies framework request sources without letting the root span erase a specific source', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'req_source' })
 
     recordSpan({
       name: 'run app route',
@@ -775,6 +1008,7 @@ describe('request insights', () => {
     ['Middleware.execute', 'proxy'],
   ] as const)('classifies %s spans as %s requests', (spanType, source) => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: `req_${source}` })
 
     recordSpan({
       name: spanType,
@@ -794,6 +1028,7 @@ describe('request insights', () => {
     const identity: Parameters<typeof recordRequestInsightSource>[0] = {
       requestId: 'req_asset',
     }
+    startRequestInsight(identity)
 
     recordSpan({
       name: 'GET /asset.svg',
@@ -813,6 +1048,7 @@ describe('request insights', () => {
   it('does not create a request only because a source was recorded', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
 
+    startRequestInsight({ requestId: 'untraced-asset' })
     recordRequestInsightSource({ requestId: 'untraced-asset' }, 'asset')
 
     expect(getRequestInsightsSnapshot().requests).toEqual([])
@@ -824,6 +1060,7 @@ describe('request insights', () => {
       requestId: 'middleware-app-route',
       source: 'proxy' as const,
     }
+    startRequestInsight(identity)
 
     recordSpan({
       name: 'proxy POST /api/stream',
@@ -884,6 +1121,7 @@ describe('request insights', () => {
       requestId: 'middleware-page',
       source: 'proxy' as 'proxy' | undefined,
     }
+    startRequestInsight(identity)
 
     recordSpan({
       name: 'proxy GET /products',
@@ -924,6 +1162,8 @@ describe('request insights', () => {
 
   it('keeps request and Instant Insights data separate for the same request ID', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'req_shared' })
+    startRequestInsight({ requestId: 'req_shared', kind: 'instant-insights' })
     const listener = jest.fn()
     const unsubscribe = subscribeRequestInsights(listener)
 
@@ -998,6 +1238,7 @@ describe('request insights', () => {
 
   it('does not treat aggregate client component loading as a trace span', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'req_client_loading' })
 
     recordSpan({
       name: 'NextNodeServer.clientComponentLoading',
@@ -1013,6 +1254,8 @@ describe('request insights', () => {
   })
 
   it('records request fetch metrics when the OTel fetch span does not complete locally', () => {
+    process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'req_3' })
     recordRequestInsightFetch(
       {
         requestId: 'req_3',
@@ -1052,6 +1295,7 @@ describe('request insights', () => {
 
   it('redacts sensitive request insight payload fields', () => {
     process.env.__NEXT_REQUEST_INSIGHTS = 'true'
+    startRequestInsight({ requestId: 'req_4' })
 
     const secret = 'Q2_SECRET_SENTINEL'
     recordSpan({
@@ -1175,6 +1419,7 @@ describe('request insights', () => {
     ] as const
 
     for (const testCase of cases) {
+      startRequestInsight({ requestId: testCase.requestId })
       recordRequestInsightFetch(
         { requestId: testCase.requestId },
         { url: testCase.input, startTime: 100, durationMs: 1 }
@@ -1193,6 +1438,7 @@ describe('request insights', () => {
       )
     }
 
+    startRequestInsight({ requestId: 'oversized' })
     recordRequestInsightFetch(
       { requestId: 'oversized' },
       {
@@ -1207,6 +1453,7 @@ describe('request insights', () => {
       )?.fetches[0]?.url
     ).toBeUndefined()
 
+    startRequestInsight({ requestId: 'query-name' })
     recordRequestInsightFetch(
       { requestId: 'query-name' },
       {

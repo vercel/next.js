@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
+import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from 'next/dist/shared/lib/request-insights'
 import {
   retry,
   toggleDevToolsIndicatorPopover,
@@ -226,6 +227,20 @@ describe('request insights', () => {
       }
       expect(detail.request.requestId).toBe(summary.requestId)
       expect(detail.request.spans.length).toBe(summary.spanCount)
+    })
+  })
+
+  it('rejects history overlap lookups larger than the completed live window', async () => {
+    const params = new URLSearchParams({ view: 'history' })
+    for (let index = 0; index <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS; index++) {
+      params.append('liveRequestKey', `request:${index}`)
+    }
+    const response = await next.fetch(
+      `/_next/development/request-insights?${params}`
+    )
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: 'Too many live Request Insights keys',
     })
   })
 
@@ -1041,6 +1056,33 @@ describe('request insights', () => {
       })
     })
 
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    expect(
+      await browser
+        .elementByCss(
+          '.request-insights-filter-item[data-filter-value="source:page"]'
+        )
+        .getAttribute('data-disabled')
+    ).toBeNull()
+    await browser.elementByCss('.request-insights-filter-reset').click()
+    await retry(async () => {
+      const rowTypes = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-request-type') ?? []
+        ).map((type) => type.textContent?.trim())
+      })
+      expect(rowTypes.some((type) => type?.startsWith('Page'))).toBe(true)
+    })
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    await browser
+      .elementByCss(
+        '.request-insights-filter-item[data-filter-value="source:api"]'
+      )
+      .click()
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.elementByCss('.request-insights-settings-trigger').click()
     await browser
       .elementByCss('.request-insights-settings-item:has-text("Pause updates")')
       .click()

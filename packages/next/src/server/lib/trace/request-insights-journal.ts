@@ -6,6 +6,7 @@ import {
   getRequestInsightKey,
   getRequestInsightKind,
   isSameRequestInsightFetch,
+  MAX_LIVE_COMPLETED_REQUEST_INSIGHTS,
   REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsight,
 } from '../../../shared/lib/request-insights'
@@ -41,6 +42,7 @@ type JournalFilter = {
 type HistoryFilter = {
   cursor?: string
   filters?: readonly RequestInsightFilter[]
+  liveRequestKeys?: readonly string[]
   limit?: number
   showInternal?: boolean
 }
@@ -260,6 +262,12 @@ class RequestInsightsJournal {
   async getHistory(
     filter: HistoryFilter = {}
   ): Promise<RequestInsightsHistoryPage> {
+    if (
+      (filter.liveRequestKeys?.length ?? 0) >
+      MAX_LIVE_COMPLETED_REQUEST_INSIGHTS
+    ) {
+      throw new Error('Too many live Request Insights keys')
+    }
     await this.flush()
 
     const limit = Math.min(Math.max(filter.limit ?? 100, 1), 200)
@@ -316,6 +324,12 @@ class RequestInsightsJournal {
       matchingRequestCount: matching.length,
       totalRequestCount: visible.length,
       optionCounts,
+      liveRequestOverlaps: filter.liveRequestKeys
+        ? [...new Set(filter.liveRequestKeys)].flatMap((key) => {
+            const summary = this.summaries.get(key)
+            return summary ? [summary.request] : []
+          })
+        : undefined,
       nextCursor: hasMore
         ? encodeCursor({
             sessionId: this.sessionId,

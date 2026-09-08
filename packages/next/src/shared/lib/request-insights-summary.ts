@@ -72,6 +72,7 @@ export type RequestInsightsHistoryPage = {
   matchingRequestCount: number
   totalRequestCount: number
   optionCounts: Record<RequestInsightFilter, number>
+  liveRequestOverlaps?: RequestInsightSummary[]
   nextCursor?: string
   truncated: boolean
 }

@@ -88,6 +88,7 @@ import {
   REQUEST_INSIGHT_FILTERS,
   type RequestInsightFilter,
 } from '../../shared/lib/request-insights-summary'
+import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from '../../shared/lib/request-insights'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -359,6 +360,15 @@ export async function initialize(opts: {
         const view = endpointUrl.searchParams.get('view')
         if (process.env.__NEXT_DEV_SERVER) {
           if (view === 'history') {
+            const liveRequestKeys =
+              endpointUrl.searchParams.getAll('liveRequestKey')
+            if (liveRequestKeys.length > MAX_LIVE_COMPLETED_REQUEST_INSIGHTS) {
+              res.statusCode = 400
+              res.end(
+                JSON.stringify({ error: 'Too many live Request Insights keys' })
+              )
+              return
+            }
             const filterValues = endpointUrl.searchParams.getAll('filter')
             const filters = filterValues.filter(
               (filter): filter is RequestInsightFilter =>
@@ -375,6 +385,7 @@ export async function initialize(opts: {
               const history = await getRequestInsightsHistory({
                 cursor: endpointUrl.searchParams.get('cursor') ?? undefined,
                 filters,
+                liveRequestKeys,
                 limit: parseRequestInsightsHistoryLimit(
                   endpointUrl.searchParams.get('limit')
                 ),

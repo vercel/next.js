@@ -211,10 +211,6 @@ async function startWatcher(
 
   setGlobal('distDir', distDir)
   setGlobal('phase', PHASE_DEVELOPMENT_SERVER)
-  if (nextConfig.experimental.requestInsights) {
-    await initializeRequestInsightsJournal(distDir)
-  }
-
   let lockfile
   if (opts.nextConfig.experimental.lockDistDir) {
     fs.mkdirSync(distDir, { recursive: true })
@@ -239,6 +235,10 @@ async function startWatcher(
       opts.dir,
       opts.nextConfig.distDir
     )
+  }
+
+  if (nextConfig.experimental.requestInsights) {
+    await initializeRequestInsightsJournal(distDir)
   }
 
   const validFileMatcher = createValidFileMatcher(
