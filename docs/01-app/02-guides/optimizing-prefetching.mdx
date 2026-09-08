@@ -61,7 +61,11 @@ export default function Home() {
 }
 ```
 
-If only some links should use per-link prefetching, leave the others on the default `auto` behavior. A conditional such as `prefetch={isFeatured}` becomes `prefetch={false}` when the condition is false, which disables prefetching entirely. Use `prefetch={isFeatured ? true : 'auto'}` instead.
+`prefetch={false}` disables all prefetching. When a condition enables per-link prefetching for some links, return `'auto'` for the others to preserve the default behavior:
+
+```tsx
+<Link href={href} prefetch={isFeatured ? true : 'auto'} />
+```
 
 The destination renders a static heading and a `<Results>` list whose contents depend on the query. Each query is cached, computed once and reused.
 
@@ -94,7 +98,7 @@ async function search(q: string) {
 }
 ```
 
-Only put reusable work inside the cache boundary. If an existing data function calls [`connection()`](/docs/app/api-reference/functions/connection) to wait for a request, don't leave that call inside a new `"use cache"` scope. When the result can be reused, remove the request-time gate and cache the lookup. When only part of the function is reusable, split that work into a cached helper and keep request-specific work outside it. Data that must wait for a real request should stay uncached and stream from its `<Suspense>` boundary.
+[`connection()`](/docs/app/api-reference/functions/connection) marks the code that follows as request-time work, while `"use cache"` marks a scope as reusable. Because these behaviors conflict, `connection()` cannot be called inside a cached scope. A data function that needs both behaviors can use a cached helper for the reusable lookup and keep its request-specific work outside the cache boundary, where it can stream from `<Suspense>`.
 
 Without `prefetch={true}`, the App Shell renders `<h1>` and shows the `<Results>` fallback. The query resolves after the click and streams the results in.
 
@@ -221,11 +225,11 @@ For a subtree that would otherwise sit in the App Shell, but that a `<Link prefe
 
 Unlike [`connection()`](/docs/app/api-reference/functions/connection), `unstable_navigation()` does not make the subtree request-dependent. This lets reusable content keep its cache lifetime while waiting for navigation. See [How `unstable_navigation()` differs from `connection()`](/docs/app/api-reference/functions/navigation#how-unstable_navigation-differs-from-connection) for the full comparison.
 
-## Verify the prefetched UI
+## Test prefetched and deferred content
 
-Use an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test to verify both what the selected link includes in its prefetch and what still waits for navigation.
+The [Instant navigation guide](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) explains how to install and configure `@next/playwright`. For a client navigation, use `instant()` to inspect the destination's prefetched UI.
 
-All assertions about the prefetched result belong inside the `instant()` callback. Assert that the intended content is visible and navigation-only content is absent. After the callback releases the navigation, assert that the deferred content eventually renders:
+Inside the callback, click the link, wait for the destination URL, and assert which content is available. After the callback releases the navigation, assert that deferred content eventually renders:
 
 ```ts filename="e2e/product-navigation.test.ts" highlight={8-15,17}
 import { expect, test } from '@playwright/test'
@@ -249,7 +253,7 @@ test('prefetches the product summary but not reviews', async ({ page }) => {
 })
 ```
 
-The assertion after `instant()` distinguishes intentionally deferred content from content that is missing or broken. Run the locked test before changing the implementation to capture the current result, then run it against a production build after the optimization and keep the passing test as regression coverage.
+While the `instant()` callback is running, dynamic content is paused. In this example, the product summary is part of the prefetched UI, while reviews wait for navigation. The final assertion confirms that the reviews render after the pause is released.
 
 ## Trade-offs
 

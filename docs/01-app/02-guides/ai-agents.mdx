@@ -242,7 +242,7 @@ Adopt Partial Prefetching in this project using the next-partial-prefetching-ado
 
 The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill tunes what one client navigation prepares before the click:
 
-1. Agrees on the UI the navigation should prefetch, what should wait for navigation, and whether the extra prefetch should begin in the viewport or after intent.
+1. Identifies which UI should be prefetched, what should wait for navigation, and whether prefetching should begin in the viewport or after intent.
 2. Encodes that exact source-link and destination contract in an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test.
 3. Applies the [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) patterns until the test passes, then keeps it as regression coverage.
 

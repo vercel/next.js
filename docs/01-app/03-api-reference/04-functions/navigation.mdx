@@ -121,9 +121,9 @@ Put the directive on a function called below it, as `getComments` does here. Awa
 
 ## How `unstable_navigation()` differs from `connection()`
 
-The [`connection()`](/docs/app/api-reference/functions/connection) function waits for a real request. It excludes the code that follows from prerendering and prefetching, and makes that work request-dependent.
+The [`connection()`](/docs/app/api-reference/functions/connection) function waits for a real request. It excludes the code that follows from prerendering and prefetching, making that work request-dependent.
 
-`unstable_navigation()` only keeps the code that follows out of route prefetches. It resolves when the user navigates without making that work request-dependent. This means a function called after `await unstable_navigation()` can use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime while avoiding the cost of generating its result during prefetching.
+`unstable_navigation()` only excludes the code that follows from route prefetches. It resolves when the user navigates without making that work request-dependent. A function called after `await unstable_navigation()` can therefore use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime without generating its result during prefetching.
 
 Use `connection()` when the work must run for a real request. Use `unstable_navigation()` when the work is reusable but should wait until the user navigates.
 

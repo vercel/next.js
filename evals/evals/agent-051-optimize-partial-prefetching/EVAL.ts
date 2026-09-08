@@ -57,7 +57,7 @@ test('uses the navigation stage', () => {
 
 test('optimizes only the selected featured navigation', async () => {
   await expect(environment).toSatisfyCriterion(
-    `Only the featured Aurora keynote Link from /sessions opts into the stronger full prefetch using prefetch={true} or the equivalent bare prefetch prop. The other session-card Links retain the default or auto prefetch behavior. The solution does not add prefetch={false} and does not make every card use the stronger prefetch.`
+    `Only the featured Aurora keynote Link from /sessions opts into per-link prefetching with prefetch={true} or the equivalent bare prefetch prop. The other session-card Links retain the default or auto prefetch behavior. The solution does not add prefetch={false} or enable per-link prefetching for every card.`
   )
 })
 

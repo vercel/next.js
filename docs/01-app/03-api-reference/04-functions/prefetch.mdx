@@ -125,9 +125,9 @@ Put the directive on a function called below it, as `getRecommendations` does he
 
 ## How `unstable_prefetch()` differs from `connection()`
 
-The [`connection()`](/docs/app/api-reference/functions/connection) function waits for a real request. It excludes the code that follows from prerendering and prefetching, and makes that work request-dependent.
+The [`connection()`](/docs/app/api-reference/functions/connection) function waits for a real request. It excludes the code that follows from prerendering and prefetching, making that work request-dependent.
 
-`unstable_prefetch()` only keeps the code that follows out of the App Shell. It can resolve during a per-link prefetch, without making that work request-dependent. This means a function called after `await unstable_prefetch()` can use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime while avoiding the cost of generating its result for every link into the route.
+`unstable_prefetch()` only excludes the code that follows from the App Shell. It can resolve during a per-link prefetch without making that work request-dependent. A function called after `await unstable_prefetch()` can therefore use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime without generating its result for every link into the route.
 
 Use `connection()` when the work must run for a real request. Use `unstable_prefetch()` when the work is reusable but should only run for a selected per-link prefetch or a navigation.
 

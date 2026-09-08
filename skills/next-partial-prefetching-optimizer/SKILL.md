@@ -10,67 +10,63 @@ description: >
 
 # Partial Prefetching optimizer
 
-Optimize one exact source link and destination at a time. Agree on the UI that
-is valuable before the click, the UI that should wait for navigation, and the
-acceptable prefetch cost. Encode that contract in a production
+Optimize one exact source link and destination at a time. Turn the requested
+prefetched UI, navigation-only UI, and trigger into a production
 [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
-test, work it from RED to GREEN, and keep the positive test as regression
-coverage.
-
-The order is part of the verification: prepare the production rig, prove the
-unlocked route, capture the locked RED, make the optimization, and require
-GREEN. Do not edit the source Link, cache boundary, or stage before the RED is
-recorded.
+test. Record the current behavior, make the smallest optimization, verify the
+differential, and keep the passing test as regression coverage.
 
 Before making framework changes, read the bundled Optimizing prefetching guide
 at
 `node_modules/next/dist/docs/01-app/02-guides/optimizing-prefetching.md`. If the
 bundled guide is unavailable, use the [online
 guide](https://nextjs.org/docs/app/guides/optimizing-prefetching). It is the
-source of truth for prefetch stages, `prefetch={true}`, session-specific
-prefetched UI, and cost trade-offs. Do not copy those recipes into the skill
-or improvise alternatives from this file.
+source of truth for prefetch stages, `prefetch={true}`, session-specific UI,
+and cost trade-offs.
 
 When the work changes what belongs in the App Shell, follow the
 [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) and
 [Caching](https://nextjs.org/docs/app/getting-started/caching) docs for cache
-placement, Suspense boundaries, loading UI, and authorization. Do not duplicate
-those framework patterns here.
+placement, Suspense boundaries, loading UI, and authorization.
 
-Keep this skill focused on choosing one navigation, recording its product and
-cost contract, setting up a trustworthy production RED-to-GREEN loop, checking
-parity and the differential, and reporting the result. The guides own the
-framework behavior and implementation patterns.
+The guides own framework behavior and implementation patterns. This skill owns
+the navigation contract, production rig, trustworthy RED-to-GREEN loop, parity
+check, differential, and report.
 
-This is not an adoption skill. Do not enable Cache Components or Partial
-Prefetching, run their migrations, or redesign the route's App Shell as a side
-effect. If the App Shell itself cannot commit under `instant()`, stop and use
-`next-cache-components-optimizer` first.
+This is not an adoption skill. If Cache Components or Partial Prefetching are
+not adopted, use their adoption skills and return to this workflow. If the App
+Shell itself cannot commit under `instant()`, use
+`next-cache-components-optimizer` first, then resume the selected navigation.
+
+Run the workflow unattended. When the request already defines the desired UI
+and trigger, do not ask the user to confirm them again. Ask only when an
+unresolved choice would change prefetch cost, freshness, authorization, or
+user-visible behavior.
 
 ## Define the contract
 
 Inspect the source route, the exact link or interaction, the destination's
 Suspense boundaries, its data reads, existing prefetch policy, and any existing
-`instant()` test. Then confirm with the user:
+`instant()` test. Record:
 
 - which destination UI should be ready before the click;
 - which reusable UI should wait for navigation;
 - whether per-link prefetching should start in the viewport or only after
   intent.
 
-The trigger is part of the behavior. Two links to the same URL may have
+The trigger is part of the contract. Two links to the same URL may use
 different prefetch policies and need separate tests.
 
-Use the guide's cost model to confirm the trigger with the user. Do not silently
-increase the number of links that can invoke the server or cache data whose
-freshness contract is unknown.
+Use the guide's cost model when the trigger is not already specified. Do not
+silently increase the number of links that can invoke the server or cache data
+whose freshness contract is unknown.
 
 ## Reuse the production rig
 
 Read an existing `instant-nav.rig.md`. Cache Components optimization, Partial
-Prefetching adoption, and this optimizer use the same build, auth, data, and
-Playwright contract. Extend it with the exact source link, destination markers,
-and prefetch budget instead of creating a second rig.
+Prefetching adoption, and this optimizer share the same build, auth, data, and
+Playwright contract. Add the exact source link, destination markers, and
+prefetch budget instead of creating another rig.
 
 If the project has no rig, use
 [`next-cache-components-optimizer/rig-template.md`](../next-cache-components-optimizer/rig-template.md)
@@ -82,13 +78,13 @@ prefetching is production-only.
 ## Prove the current behavior
 
 Search for an existing `instant()` test for the exact source link and
-destination. Strengthen it when it already owns the same behavior; otherwise
+destination. Extend it when it already covers the same behavior. Otherwise,
 add a focused click-driven test using the guide's
 [prefetched and deferred content testing](https://nextjs.org/docs/app/guides/optimizing-prefetching#test-prefetched-and-deferred-content)
 pattern.
 
-First run an unlocked scaffold that proves the link reaches the exact pathname
-and query and that all selected UI eventually renders for the test user. Do not
+First, run an unlocked scaffold that proves the link reaches the exact pathname
+and query and that the selected UI eventually renders for the test user. Do not
 ship this scaffold.
 
 Then run the same interaction inside `instant()`. The existing App Shell must
@@ -98,8 +94,8 @@ eventually render.
 
 Read [`reference/red-test-robustness.md`](reference/red-test-robustness.md)
 before treating this failure as RED. A timeout before the URL changes, a
-missing App Shell, a redirect, missing data, or a stale preview is a broken rig
-or a different problem, not permission to change prefetching.
+missing App Shell, a redirect, missing data, or a stale preview indicates a rig
+or route problem. It does not justify changing prefetching.
 
 If the complete desired contract already passes under the lock, stop. Never
 add `prefetch={false}` merely to manufacture a RED.
@@ -117,9 +113,9 @@ follow the static-shell documentation used by
 `next-cache-components-optimizer`. Preserve the existing freshness and
 authorization behavior. Change only what the selected contract requires.
 
-When reusable UI should wait for navigation, verify that the final result
-preserves both properties. Do not accept an uncached request-time replacement
-merely because it remains absent from the prefetch.
+When reusable UI should wait for navigation, verify that it stays reusable as
+well as absent from the prefetch. Do not replace it with uncached request-time
+work merely to defer it.
 
 When the contract needs an explicit runtime stage, follow the API references
 for [`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/prefetch)
@@ -131,8 +127,8 @@ an app-wide Link or cache abstraction from a single case.
 
 ## Verify and ship
 
-Keep the guide's positive locked test for the real source link as regression
-coverage. Preserve the loaded page's content, ordering, empty and error states,
+Keep the passing locked test for the real source link as regression coverage.
+Preserve the loaded page's content, ordering, empty and error states,
 authorization, freshness, redirects, and direct-load behavior.
 
 Finally, remove only the optimization and rerun the test:
@@ -152,7 +148,8 @@ best-effort; the App Shell remains the fallback when it has not completed.
 ## Completion checklist
 
 - [ ] Cache Components and Partial Prefetching were already adopted.
-- [ ] The user selected the target UI and accepted the trigger cost.
+- [ ] The target UI and trigger are explicit, with any necessary product choice
+      confirmed.
 - [ ] The test clicks the exact source link and verifies the exact destination.
 - [ ] The unlocked baseline and locked RED used the same production artifact.
 - [ ] The App Shell stayed visible throughout the RED/GREEN loop.
@@ -160,6 +157,19 @@ best-effort; the App Shell remains the fallback when it has not completed.
 - [ ] Loaded content, freshness, authorization, and direct visits are unchanged.
 - [ ] Removing only the optimization returns the contract to RED.
 - [ ] The final positive `instant()` regression test ships.
+
+## Handoff
+
+Finish every navigation named in the request. If Cache Components or Partial
+Prefetching are not adopted, use `next-cache-components-adoption` or
+`next-partial-prefetching-adoption`, then return to this workflow. If the App
+Shell cannot commit under `instant()`, use `next-cache-components-optimizer`
+and resume the selected navigation afterward. Do not leave a build or test for
+the user to monitor.
+
+Report additional optimization candidates without changing them unless they
+are already in scope. Do not broaden a selected per-link policy into an app-wide
+Link or cache abstraction.
 
 ## Files
 

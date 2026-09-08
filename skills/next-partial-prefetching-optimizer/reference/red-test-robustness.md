@@ -1,9 +1,9 @@
 # Trustworthy RED and differential
 
-The optimizer is allowed to change code only after the RED proves a genuine
-stage-contract gap for one exact link. A failing assertion is not enough.
+Change the implementation only after the RED proves a genuine prefetch-contract
+gap for one exact link. A failing assertion alone is not enough.
 
-## The C-gate
+## Verification gate
 
 Require this sequence on the same production artifact and as the same test
 user:
@@ -15,15 +15,16 @@ user:
    target/navigation-only contract.
 3. **After release:** every marker selected from the loaded page is visible.
 
-Only then restore the selected contract assertions and begin phase D.
+Only then restore the selected contract assertions and change the
+implementation.
 
 ## What each signal rules out
 
 - **Destination URL wait** rules out matching the source page or clicking a
   nested element that never navigates. Match relevant search params too, not
   only `pathname`.
-- **Shell visible under lock** proves Cache Components/Partial Prefetching
-  already provide the reusable floor and the route is not wholly blocking.
+- **Shell visible under lock** proves the route already has an App Shell and is
+  not wholly blocking.
 - **Target visible unlocked** rules out auth, flags, empty data, typoed
   selectors, and redirects hiding the region.
 - **Target absent locked, visible after release** proves it is outside the
@@ -75,36 +76,39 @@ halves.
 Never enable this flag for real production traffic. For a remote rig, verify
 the deployed commit before trusting RED or GREEN.
 
-## Current API boundary
+## What `instant()` can verify
 
 See: [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
 
-Today the public helper is effectively:
+The public helper accepts a page, callback, and optional `baseURL`:
 
 ```ts
 instant(page, callback, { baseURL? })
 ```
 
-It does not accept a requested stage such as `shell` or `max`, and a failed
-test does not produce a framework stack locating the data read where the
-prefetch stopped. The exact-link comparison is the supported control:
+It does not accept a requested stage such as `shell` or `max`. A failed test
+also does not identify the data read where the prefetch stopped. Compare the
+same exact link before and after the optimization:
 
 - existing exact-link policy -> current committed UI;
 - accepted policy change -> the selected prefetch stages may commit.
 
-When GREEN does not advance, inspect params/searchParams usage, Suspense, cache
-directives, and the [Optimizing prefetching guide](https://nextjs.org/docs/app/guides/optimizing-prefetching).
+If the optimization does not change the locked result, inspect `params`,
+`searchParams`, Suspense boundaries, and cache directives using the
+[Optimizing prefetching guide](https://nextjs.org/docs/app/guides/optimizing-prefetching).
 Do not compensate with timing.
 
 ## Differential
 
-After GREEN:
+After the test passes:
 
 1. Record the build/commit under test.
 2. Remove only the stage, per-link prefetch trigger, and cache boundary
    introduced for the contract.
-3. Rebuild and rerun: shell must stay GREEN and the stage contract must be RED.
-4. Reapply, rebuild, and rerun: the whole contract must be GREEN.
+3. Rebuild and rerun. The shell should stay available, but the selected
+   prefetch contract should fail.
+4. Reapply the optimization, rebuild, and rerun. The complete contract should
+   pass again.
 5. Confirm the unlocked loaded page is identical in both versions.
 
 If removing the optimization also removes the shell, the change mixed Cache
