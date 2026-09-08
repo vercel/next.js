@@ -82,13 +82,13 @@ describe('cache stage Insight messages', () => {
     {
       error: () => createNavigationViewportError(ROUTE),
       detail:
-        '`unstable_navigation()` in `generateViewport()` prevents creating a shell, leading to a slower user experience.',
+        '`unstable_navigation()` in `generateViewport()` prevents Next.js from creating the App Shell, leading to a slower user experience.',
       docs: 'instant-cache-stage-viewport',
     },
     {
       error: () => createPrefetchViewportError(ROUTE),
       detail:
-        '`unstable_prefetch()` in `generateViewport()` prevents creating the App Shell, leading to a slower user experience.',
+        '`unstable_prefetch()` in `generateViewport()` prevents Next.js from creating the App Shell, leading to a slower user experience.',
       docs: 'instant-cache-stage-viewport',
     },
   ])(

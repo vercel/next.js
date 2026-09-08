@@ -30,13 +30,13 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-With Partial Prefetching enabled, Next.js can prepare different amounts of a route before navigation:
+With Partial Prefetching enabled, Next.js can prepare progressively more of a route before and during navigation:
 
-1. By default, `<Link>` prefetches the App Shell, which holds the part of the route that does not depend on the URL.
-2. [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) can also prefetch content that depends on the link's URL.
-3. When the user navigates, Next.js renders anything that remains.
+1. A default `<Link>` prefetch includes the App Shell, which holds the part of the route that does not depend on the URL.
+2. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) prefetch can also include content that depends on the link's URL.
+3. A navigation renders any content that remains.
 
-The control mechanism that determines how much of this work a prefetch includes is called [Cache Stages](/docs/app/glossary#cache-stages).
+This control mechanism is called [Cache Stages](/docs/app/glossary#cache-stages).
 
 Awaiting `unstable_prefetch()` keeps content out of the App Shell, so it renders only on a per-link prefetch or on the navigation.
 

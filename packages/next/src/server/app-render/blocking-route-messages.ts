@@ -174,7 +174,7 @@ export function createRuntimeViewportError(route: string): Error {
 export function createNavigationViewportError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_navigation()\` in \`generateViewport()\`.\n\n` +
-      `\`unstable_navigation()\` in \`generateViewport()\` prevents creating a shell, leading to a slower user experience.\n\n` +
+      `\`unstable_navigation()\` in \`generateViewport()\` prevents Next.js from creating the App Shell, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
@@ -185,7 +185,7 @@ export function createNavigationViewportError(route: string): Error {
 export function createPrefetchViewportError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_prefetch()\` in \`generateViewport()\`.\n\n` +
-      `\`unstable_prefetch()\` in \`generateViewport()\` prevents creating the App Shell, leading to a slower user experience.\n\n` +
+      `\`unstable_prefetch()\` in \`generateViewport()\` prevents Next.js from creating the App Shell, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +

@@ -22,7 +22,7 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-Next.js reported this Insight because a Server Component called a [Cache Stage API](/docs/app/glossary#cache-stages)—either [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation)—outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). Without a boundary, Next.js has no fallback to render when the API excludes the subtree from a prefetch.
+During prerendering or a client-side navigation, a Server Component called a [Cache Stage API](/docs/app/glossary#cache-stages) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). Cache Stage APIs include [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). Without a boundary, Next.js has no fallback to render when the API excludes the subtree from a prefetch.
 
 For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent content until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering), and content below them remains cacheable.
 
@@ -112,7 +112,7 @@ Learn more: [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The earlier stage contains the fallback instead of the deferred content. A per-link prefetch adds speculative server work for content below `unstable_prefetch()`, while content below `unstable_navigation()` does not begin rendering until navigation.
+The earlier prefetch contains the fallback instead of the deferred content. A per-link prefetch adds speculative server work for content below `unstable_prefetch()`, while content below `unstable_navigation()` does not begin rendering until navigation.
 
 ### Gotchas
 
@@ -166,7 +166,7 @@ Don't use this to dismiss the error. Choose [Wrap in or move into Suspense](#wra
 
 ### Trade-off
 
-Navigations through this segment are allowed to block. When they do, the destination UI waits for the server render instead of updating immediately. Use this only when that latency is the deliberate cost of the route's purpose.
+Navigations to this route are not instant. The user waits for the full server render before any HTML arrives. Use this only when that latency is the deliberate cost of the route's purpose.
 
 ### Gotchas
 
@@ -175,9 +175,9 @@ Navigations through this segment are allowed to block. When they do, the destina
 
 ## Verifying the fix
 
-After applying a fix, navigate to the route and confirm the Insight no longer appears in the dev overlay. Before the deferred content resolves, the route should paint meaningful UI, with each `<Suspense>` fallback covering only the region that streams in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the purpose of an instant navigation.
+After applying a fix, navigate to the route and confirm the error no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
-In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /products` to iterate on specific routes.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
 ## Don't want this validation?
 
@@ -195,16 +195,16 @@ See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the 
 - [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
 - [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
 - [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
-- [Cache Stage API in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata)
 - [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
 - [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [Cache Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport)
 - [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
 - [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
 - [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Cache Stage API in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata)
+- [Cache Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport)
 - [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
 - [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)
