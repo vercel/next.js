@@ -42,6 +42,19 @@ export const makeIgnoreFn = (root: string, ignores: string[]) => {
   }
 }
 
+function cacheFileOperation<T>(
+  cache: Map<string, Promise<T>>,
+  file: string,
+  operation: () => Promise<T>
+): Promise<T> {
+  let promise = cache.get(file)
+  if (!promise) {
+    promise = operation()
+    cache.set(file, promise)
+  }
+  return promise
+}
+
 function shouldIgnore(
   file: string,
   serverIgnoreFn: (file: string) => boolean,
@@ -309,48 +322,64 @@ export async function collectBuildTraces({
           ...serverEntries,
           ...minimalServerEntries,
         ]
+        const readFileCache = new Map<string, Promise<string>>()
+        const readlinkCache = new Map<string, Promise<string | null>>()
+        const statCache = new Map<string, Promise<import('fs').Stats | null>>()
+
         const result = await nodeFileTrace(chunksToTrace, {
           base: outputFileTracingRoot,
           processCwd: dir,
           mixedModules: true,
           moduleSyncCatchall: true,
-          async readFile(p) {
-            try {
-              return await fs.readFile(p, 'utf8')
-            } catch (e) {
-              if (isError(e) && (e.code === 'ENOENT' || e.code === 'EISDIR')) {
-                // since tracing runs in parallel with static generation server
-                // files might be removed from that step so tolerate ENOENT
-                // errors gracefully
-                return ''
+          readFile(p) {
+            return cacheFileOperation(readFileCache, p, async () => {
+              try {
+                return await fs.readFile(p, 'utf8')
+              } catch (e) {
+                if (
+                  isError(e) &&
+                  (e.code === 'ENOENT' || e.code === 'EISDIR')
+                ) {
+                  // since tracing runs in parallel with static generation server
+                  // files might be removed from that step so tolerate ENOENT
+                  // errors gracefully
+                  return ''
+                }
+                throw e
               }
-              throw e
-            }
+            })
           },
-          async readlink(p) {
-            try {
-              return await fs.readlink(p)
-            } catch (e) {
-              if (
-                isError(e) &&
-                (e.code === 'EINVAL' ||
-                  e.code === 'ENOENT' ||
-                  e.code === 'UNKNOWN')
-              ) {
-                return null
+          readlink(p) {
+            return cacheFileOperation(readlinkCache, p, async () => {
+              try {
+                return await fs.readlink(p)
+              } catch (e) {
+                if (
+                  isError(e) &&
+                  (e.code === 'EINVAL' ||
+                    e.code === 'ENOENT' ||
+                    e.code === 'UNKNOWN')
+                ) {
+                  return null
+                }
+                throw e
               }
-              throw e
-            }
+            })
           },
-          async stat(p) {
-            try {
-              return await fs.stat(p)
-            } catch (e) {
-              if (isError(e) && (e.code === 'ENOENT' || e.code === 'ENOTDIR')) {
-                return null
+          stat(p) {
+            return cacheFileOperation(statCache, p, async () => {
+              try {
+                return await fs.stat(p)
+              } catch (e) {
+                if (
+                  isError(e) &&
+                  (e.code === 'ENOENT' || e.code === 'ENOTDIR')
+                ) {
+                  return null
+                }
+                throw e
               }
-              throw e
-            }
+            })
           },
           // handle shared ignores at top-level as it
           // avoids over-tracing when we don't need to
