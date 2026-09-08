@@ -28,6 +28,7 @@ import type {
 import path from 'path'
 import { webpack, sources } from 'next/dist/compiled/webpack/webpack'
 import { DYNAMIC_CSS_MANIFEST } from '../../../shared/lib/constants'
+import { WEBPACK_LAYERS } from '../../../lib/constants'
 
 function getModuleId(compilation: any, module: any): string | number {
   return compilation.chunkGraph.getModuleId(module)
@@ -97,6 +98,14 @@ function buildManifest(
         )
         const originRequest: string | undefined = originModule?.resource
         if (!originRequest) return
+
+        // Only the pages router consumes this manifest. A module imported by both
+        // routers is walked once per layer under the same key below, and whichever
+        // copy is walked last wins the `id`. When that is the App Router copy, the
+        // pages server lists an id the pages client has no initializer for, so
+        // `preloadReady` skips it and hydration renders the `loading` fallback
+        // over server HTML that has the component (React #418).
+        if (originModule.layer === WEBPACK_LAYERS.appPagesBrowser) continue
 
         // We construct a "unique" key from origin module and request
         // It's not perfect unique, but that will be fine for us.
