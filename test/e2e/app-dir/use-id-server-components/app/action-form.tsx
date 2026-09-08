@@ -1,12 +1,12 @@
 'use client'
 
 import { useTransition } from 'react'
-import { noop } from './actions'
+import { revalidate } from './actions'
 
 export function ActionForm() {
   const [, startTransition] = useTransition()
   return (
-    <button id="run-action" onClick={() => startTransition(() => noop())}>
+    <button id="run-action" onClick={() => startTransition(() => revalidate())}>
       run action
     </button>
   )
