@@ -2255,7 +2255,12 @@ impl TurboTasksBackend {
             }
             let (abort_handle, registration) = AbortHandle::new_pair();
             abort_registration = registration;
-            let abort_handle = matches!(&task_type, TaskType::Cached(_)).then_some(abort_handle);
+            let abort_handle = match &task_type {
+                TaskType::Cached(task_type) if task_type.native_fn.is_cancelable => {
+                    Some(abort_handle)
+                }
+                _ => None,
+            };
             let old = task.set_in_progress(InProgressState::InProgress(Box::new(
                 InProgressStateInner {
                     stale: false,
