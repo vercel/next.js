@@ -28,7 +28,10 @@ import {
   EVENT_BUILD_FEATURE_USAGE,
   eventCliSession,
 } from '../../../telemetry/events'
-import { getSortedRoutes } from '../../../shared/lib/router/utils'
+import {
+  getSortedRoutes,
+  isDynamicRoute,
+} from '../../../shared/lib/router/utils'
 import { sortByPageExts } from '../../../build/sort-by-page-exts'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import { verifyAndRunTypeScript } from '../../../lib/verify-typescript-setup'
@@ -1200,8 +1203,25 @@ async function startWatcher(
         // dev mode so that we can match a page after a rewrite on the client
         // before it has been built and is populated in the _buildManifest
         const sortedRoutes = getSortedRoutes(routedPages)
+        const dynamicRoutes: string[] = []
+        const matcherRoutes: string[] = []
 
-        opts.fsChecker.dynamicRoutes = sortedRoutes.map(
+        for (const page of sortedRoutes) {
+          const isDynamic = isDynamicRoute(page)
+          if (isDynamic) {
+            dynamicRoutes.push(page)
+          }
+
+          // Static routes normally resolve through appFiles/pageFiles without a
+          // regex. Keep matchers for routes absent from those exact-lookup sets,
+          // such as static metadata and configurations that disable filesystem
+          // public routes, because path-based MCP tools also consume this table.
+          if (isDynamic || (!appFiles.has(page) && !pageFiles.has(page))) {
+            matcherRoutes.push(page)
+          }
+        }
+
+        opts.fsChecker.dynamicRoutes = matcherRoutes.map(
           (page): FilesystemDynamicRoute => {
             const regex = getNamedRouteRegex(page, {
               prefixRouteKeys: true,
@@ -1220,7 +1240,7 @@ async function startWatcher(
 
         const dataRoutes: typeof opts.fsChecker.dynamicRoutes = []
 
-        for (const page of sortedRoutes) {
+        for (const page of dynamicRoutes) {
           const route = buildDataRoute(page, 'development')
           const routeRegex = getNamedRouteRegex(route.page, {
             prefixRouteKeys: true,
