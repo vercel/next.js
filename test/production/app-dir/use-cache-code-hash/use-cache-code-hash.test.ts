@@ -29,6 +29,8 @@ async function getCodeHashes(
     }
   }
 
+  hashes.sort((a, b) => a.page.localeCompare(b.page))
+
   return hashes
 }
 
@@ -41,45 +43,61 @@ async function getCodeHashes(
         files: __dirname,
       })
 
-      it('emits codeHash only for use-cache functions', async () => {
+      it('emits codeHash only for eligible functions', async () => {
         const values = Object.values(await getCodeHashes(next))
-        expect(values.length).toBe(4)
+        expect(values.length).toBe(6)
 
         const valuesWithoutCodeHash = values.filter(
           (e) => typeof e.codeHash !== 'string'
         )
-        expect(valuesWithoutCodeHash.length).toBe(1)
-        expect(valuesWithoutCodeHash[0].page).toBe('app/use-server/page')
+        expect(valuesWithoutCodeHash.length).toBe(3)
+        expect(valuesWithoutCodeHash.map((v) => v.page)).toMatchInlineSnapshot(`
+         [
+           "app/deopt-custom/page",
+           "app/deopt-next-deployment-id/page",
+           "app/use-server/page",
+         ]
+        `)
       })
 
       it('lists non-inlined runtime env vars', async () => {
         const data = await getCodeHashes(next)
 
-        expect(data.find((e) => e.page === 'app/use-cache/page').runtimeEnvVars)
-          .toMatchInlineSnapshot(`
-         [
-           "BUNDLED_NON_INLINED_ENVVAR",
-           "NEXT_PRIVATE_DEBUG_CACHE",
-           "__NEXT_DEV_SERVER",
-           "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
-           "NEXT_OTEL_VERBOSE",
-           "NEXT_OTEL_PERFORMANCE_PREFIX",
-           "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
-           "EXTERNAL_ENV_VAR",
-         ]
-        `)
-
         expect(
-          data.find((e) => e.page === 'app/env-dynamic/page').runtimeEnvVars
+          Object.fromEntries(
+            data
+              .filter((d) => d.runtimeEnvVars)
+              .map((d) => [d.page, d.runtimeEnvVars])
+          )
         ).toMatchInlineSnapshot(`
-         [
-           "NEXT_PRIVATE_DEBUG_CACHE",
-           "__NEXT_DEV_SERVER",
-           "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
-           "NEXT_OTEL_VERBOSE",
-           "NEXT_OTEL_PERFORMANCE_PREFIX",
-           "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
-         ]
+         {
+           "app/env-dynamic/page": [
+             "NEXT_PRIVATE_DEBUG_CACHE",
+             "__NEXT_DEV_SERVER",
+             "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+           ],
+           "app/use-cache-client/page": [
+             "NEXT_PRIVATE_DEBUG_CACHE",
+             "__NEXT_DEV_SERVER",
+             "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+           ],
+           "app/use-cache/page": [
+             "BUNDLED_NON_INLINED_ENVVAR",
+             "NEXT_PRIVATE_DEBUG_CACHE",
+             "__NEXT_DEV_SERVER",
+             "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "EXTERNAL_ENV_VAR",
+           ],
+         }
         `)
       })
     })

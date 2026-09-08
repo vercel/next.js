@@ -301,11 +301,21 @@ describe('loadConfig', () => {
 
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
         customConfig: {
-          experimental: { durableUseCacheEntries: true },
+          experimental: {
+            durableUseCacheEntries: true,
+            durableUseCacheEntriesConfig: {
+              unstableEnvVars: ['CUSTOM_DEPLOYMENT_ID'],
+              ignoredEnvVars: ['IGNORED_TOKEN'],
+            },
+          },
         },
       })
 
       expect(result.experimental.durableUseCacheEntries).toBe(true)
+      expect(result.experimental.durableUseCacheEntriesConfig).toEqual({
+        unstableEnvVars: ['CUSTOM_DEPLOYMENT_ID', 'NEXT_DEPLOYMENT_ID'],
+        ignoredEnvVars: ['IGNORED_TOKEN'],
+      })
     })
   })
 })
