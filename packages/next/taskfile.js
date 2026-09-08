@@ -2193,6 +2193,21 @@ export async function ncc_webpack_bundle5(task, opts) {
       target: 'es5',
     })
     .target('src/compiled/webpack')
+
+  // Webpack resolves its lazy-compilation clients relative to
+  // `lib/WebpackOptionsApply.js`. ncc flattens emitted assets into the bundle
+  // directory, so also preserve the relative `../hot/` layout webpack expects.
+  await task
+    .source('src/compiled/webpack/lazy-compilation-*.js')
+    .target('src/compiled/hot')
+  await task
+    .source(
+      relative(
+        __dirname,
+        require.resolve('webpack/hot/lazy-compilation-universal.js')
+      )
+    )
+    .target('src/compiled/hot')
 }
 
 const webpackBundlePackages = {
