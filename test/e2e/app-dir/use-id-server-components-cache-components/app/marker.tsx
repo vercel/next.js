@@ -1,10 +1,11 @@
 import { connection } from 'next/server'
 import { useId } from 'react'
+import { nextRenderId } from './render-id'
 
 export function Marker({ name }: { name: string }) {
   const id = useId()
   return (
-    <span data-marker={name} data-marker-id={id}>
+    <span data-marker={name} data-marker-id={id} data-render={nextRenderId()}>
       {name}: {id}
     </span>
   )
