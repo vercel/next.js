@@ -160,31 +160,74 @@ impl ModuleFederationEndpoint {
             .clone()
             .unwrap_or_else(|| format!("{name}.js").into());
         let module = self.entry_module().to_resolved().await?;
-        let module_graph = this.project.module_graph(*module);
+        let is_production = this.project.next_mode().await?.is_production();
+        let graphs = vec![SingleModuleGraph::new_with_entry(
+            ChunkGroupEntry::Entry {
+                modules: vec![module],
+                heuristics: EntryHeuristics::high_priority(),
+            },
+            false,
+            is_production,
+        )];
+        let (module_graph, binding_usage_info) = if is_production {
+            let graph_without_usage = ModuleGraph::from_graphs(graphs.clone(), None);
+            let binding_usage_info = compute_binding_usage_info(graph_without_usage, true);
+            let resolved_binding_usage_info = binding_usage_info.resolve().await?;
+            (
+                ModuleGraph::from_graphs(graphs, Some(binding_usage_info)).connect(),
+                Some(resolved_binding_usage_info),
+            )
+        } else {
+            (ModuleGraph::from_graphs(graphs, None).connect(), None)
+        };
         let client_chunking_context = this.project.client_chunking_context().to_resolved().await?;
         let client_chunking_context =
             ResolvedVc::try_downcast_type::<BrowserChunkingContext>(client_chunking_context)
                 .context("expected a browser chunking context")?;
         // This project-global endpoint has an isolated runtime and output directory. The cloned
         // context intentionally retains production module IDs and export-usage information.
-        let federation_chunking_context = client_chunking_context
+        let remote_entry_parent_depth = filename.split('/').count().saturating_sub(1);
+        let federation_chunk_root = this
+            .project
+            .node_root()
+            .owned()
+            .await?
+            .join("static/chunks/mf")?;
+        let output_root_to_root_path = format!(
+            "../../../{}",
+            client_chunking_context.output_root_to_root_path().await?
+        )
+        .into();
+        let mut federation_chunking_context = client_chunking_context
             .await?
             .clone_builder()
+            .chunk_base_path(Some(
+                format!("__turbopack_module_federation__:{remote_entry_parent_depth}").into(),
+            ))
             .asset_suffix(AssetSuffix::None.resolved_cell())
+            .output_root(federation_chunk_root.clone(), output_root_to_root_path)
+            .chunk_root_path(federation_chunk_root.clone())
+            .asset_root_path(federation_chunk_root.join("media")?)
             .shared_runtime(false)
             .shared_runtime_chunk(false)
-            .chunk_loading_global(format!("TURBOPACK_{name}").into())
-            .single_chunk()
+            .chunk_loading_global(format!("TURBOPACK_{name}").into());
+        if let Some(binding_usage_info) = binding_usage_info {
+            federation_chunking_context = federation_chunking_context
+                .export_usage(Some(binding_usage_info))
+                .unused_references(binding_usage_info.unused_references().to_resolved().await?);
+        } else {
+            federation_chunking_context = federation_chunking_context
+                .without_module_id_strategy()
+                .export_usage(None)
+                .without_unused_references();
+        }
+        let federation_chunking_context = federation_chunking_context
+            .single_entry_chunk()
             .await?
             .build();
         let EntryChunkGroupResult { asset, .. } = *federation_chunking_context
             .entry_chunk_group(
-                this.project
-                    .node_root()
-                    .owned()
-                    .await?
-                    .join("static/chunks/mf")?
-                    .join(&filename)?,
+                federation_chunk_root.join(&filename)?,
                 ChunkGroup::Entry(vec![module]),
                 module_graph,
                 OutputAssets::empty(),

@@ -262,6 +262,26 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn output_root(
+        mut self,
+        output_root: FileSystemPath,
+        output_root_to_root_path: RcStr,
+    ) -> Self {
+        self.chunking_context.output_root = output_root;
+        self.chunking_context.output_root_to_root_path = output_root_to_root_path;
+        self
+    }
+
+    pub fn chunk_root_path(mut self, chunk_root_path: FileSystemPath) -> Self {
+        self.chunking_context.chunk_root_path = chunk_root_path;
+        self
+    }
+
+    pub fn asset_root_path(mut self, asset_root_path: FileSystemPath) -> Self {
+        self.chunking_context.asset_root_path = asset_root_path;
+        self
+    }
+
     pub fn hash_salt(mut self, salt: ResolvedVc<RcStr>) -> Self {
         self.chunking_context.hash_salt = salt;
         self
@@ -275,6 +295,24 @@ impl BrowserChunkingContextBuilder {
     pub fn chunk_load_retry(mut self, chunk_load_retry: ChunkLoadRetry) -> Self {
         self.chunking_context.chunk_load_retry = chunk_load_retry;
         self
+    }
+
+    /// Force the synchronous entry closure into one output file while preserving async chunks.
+    pub async fn single_entry_chunk(mut self) -> Result<Self> {
+        self.chunking_context.single_entry_chunk = true;
+        // Merge each ECMAScript chunk group to one chunk. Async groups remain separate.
+        let ecmascript_ty: ResolvedVc<Box<dyn ChunkType>> =
+            ResolvedVc::upcast(Vc::<EcmascriptChunkType>::default().to_resolved().await?);
+        self.chunking_context.chunking_configs.push((
+            ecmascript_ty,
+            ChunkingConfig {
+                min_chunk_size: usize::MAX,
+                max_chunk_count_per_group: 1,
+                max_merge_chunk_size: usize::MAX,
+                ..Default::default()
+            },
+        ));
+        Ok(self)
     }
 
     pub async fn single_chunk(mut self) -> Result<Self> {
@@ -412,6 +450,9 @@ pub struct BrowserChunkingContext {
     cross_origin: CrossOrigin,
     /// The retry policy for transient chunk load failures in the browser runtime.
     chunk_load_retry: ChunkLoadRetry,
+    /// Emit the synchronous entry closure as one explicit-path chunk, while preserving async
+    /// chunks.
+    single_entry_chunk: bool,
     /// When enabled, module closure is inlined into a single output chunk
     /// (no runtime chunk loading).
     single_chunk: bool,
@@ -479,6 +520,7 @@ impl BrowserChunkingContext {
                 hash_salt: ResolvedVc::cell(RcStr::default()),
                 cross_origin: Default::default(),
                 chunk_load_retry: Default::default(),
+                single_entry_chunk: false,
                 single_chunk: false,
             },
         }
@@ -1121,8 +1163,9 @@ impl ChunkingContext for BrowserChunkingContext {
         extra_referenced_assets: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
-        if !self.await?.single_chunk {
-            bail!("Browser chunking context only supports entry chunk groups in single-chunk mode");
+        let this = self.await?;
+        if !this.single_chunk && !this.single_entry_chunk {
+            bail!("Browser chunking context only supports entry chunk groups in single-entry mode");
         }
 
         if !extra_chunks.await?.is_empty() {
