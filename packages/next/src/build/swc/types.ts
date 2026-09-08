@@ -13,6 +13,7 @@ import type {
   TraceQueryOptions,
   TraceQueryResult,
   MemoryEvictionMode,
+  NapiTurbopackGcOptions,
   ServerHmrVersion as NativeServerHmrVersion,
 } from './generated-native'
 
@@ -21,6 +22,8 @@ export type { TraceServerHandle, TraceQueryOptions, TraceQueryResult }
 export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export type { MemoryEvictionMode }
+
+export type { NapiTurbopackGcOptions as TurbopackGcOptions }
 
 export type Lockfile = { __napiType: 'Lockfile' }
 

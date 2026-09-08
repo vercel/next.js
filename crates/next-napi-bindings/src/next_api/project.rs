@@ -90,7 +90,7 @@ use crate::{
         endpoint::ExternalEndpoint,
         turbopack_ctx::{
             MemoryEvictionMode, NapiNextTurbopackCallbacks, NapiNextTurbopackCallbacksJsObject,
-            NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
+            NapiTurbopackGcOptions, NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
         },
         utils::{
             DetachedVc, NapiIssue, NapiUsedFeature, SubscriptionTask, TurbopackResult, get_issues,
@@ -290,6 +290,8 @@ pub struct NapiTurboEngineOptions {
     pub skip_compaction: Option<bool>,
     /// Turbopack memory eviction mode for the persistent cache.
     pub turbopack_memory_eviction: MemoryEvictionMode,
+    /// Tuning for Turbopack's reference-counting GC. `None` disables the GC.
+    pub gc: Option<NapiTurbopackGcOptions>,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -581,7 +583,7 @@ pub fn project_new<'env>(
     env.spawn_future(
         async move {
             let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
-            let turbopack_memory_eviction = turbo_engine_options.turbopack_memory_eviction;
+
             let turbo_tasks = create_turbo_tasks(
                 PathBuf::from(&options.dist_dir),
                 &options.next_version,
@@ -592,7 +594,8 @@ pub fn project_new<'env>(
                     is_short_session: turbo_engine_options.is_short_session.unwrap_or(false),
                     skip_compaction: turbo_engine_options.skip_compaction.unwrap_or(false),
                 },
-                turbopack_memory_eviction,
+                turbo_engine_options.turbopack_memory_eviction,
+                turbo_engine_options.gc,
             )?;
             let turbopack_ctx = NextTurbopackContext::new(turbo_tasks.clone(), napi_callbacks);
 
