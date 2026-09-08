@@ -432,8 +432,8 @@ export function isSyncIOClientError(message: string): boolean {
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
-    message.includes('/instant-cache-stage-metadata') ||
-    message.includes('/instant-cache-stage-viewport') ||
+    message.includes('/instant-navigation-stage-metadata') ||
+    message.includes('/instant-navigation-stage-viewport') ||
     message.includes('Could not validate `instant`') ||
     message.includes(
       'Could not validate that a segment in your UI has instant navigation'
@@ -462,9 +462,9 @@ export function getBlockingRouteErrorDetails(
     message.includes('/blocking-prerender-runtime') ||
     message.includes('/blocking-prerender-dynamic') ||
     message.includes('/instant-shell-url-data') ||
-    (message.includes('/instant-cache-stage') &&
-      !message.includes('/instant-cache-stage-metadata') &&
-      !message.includes('/instant-cache-stage-viewport'))
+    (message.includes('/instant-navigation-stage') &&
+      !message.includes('/instant-navigation-stage-metadata') &&
+      !message.includes('/instant-navigation-stage-viewport'))
   if (isBlockingPageLoadError) {
     return {
       type: 'blocking-route',
@@ -476,7 +476,7 @@ export function getBlockingRouteErrorDetails(
   const isDynamicMetadataError =
     message.includes('/blocking-prerender-metadata-dynamic') ||
     message.includes('/blocking-prerender-metadata-runtime') ||
-    message.includes('/instant-cache-stage-metadata')
+    message.includes('/instant-navigation-stage-metadata')
   if (isDynamicMetadataError) {
     const variant = getGuidanceVariant(message)
     return {
@@ -492,7 +492,7 @@ export function getBlockingRouteErrorDetails(
   const isBlockingViewportError =
     message.includes('/blocking-prerender-viewport-dynamic') ||
     message.includes('/blocking-prerender-viewport-runtime') ||
-    message.includes('/instant-cache-stage-viewport')
+    message.includes('/instant-navigation-stage-viewport')
   if (isBlockingViewportError) {
     const variant = getGuidanceVariant(message)
     return {

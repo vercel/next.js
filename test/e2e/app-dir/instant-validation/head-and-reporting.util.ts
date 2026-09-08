@@ -1090,7 +1090,7 @@ export function registerHeadAndReportingTests(
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [block] Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/instant-cache-stage
+           Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                at main (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)
@@ -1163,7 +1163,7 @@ export function registerHeadAndReportingTests(
              - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
              - [block] Set \`export const instant = false\` to allow a blocking route
 
-           Learn more: https://nextjs.org/docs/messages/instant-cache-stage
+           Learn more: https://nextjs.org/docs/messages/instant-navigation-stage
                at main (<anonymous>)
                at body (<anonymous>)
                at html (<anonymous>)

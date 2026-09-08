@@ -26,7 +26,7 @@ During prerendering or a client-side navigation, [`generateViewport()`](/docs/ap
 
 Next.js needs the viewport before it can complete the route's [App Shell](/docs/app/glossary#app-shell). Holding the viewport until a later stage prevents Next.js from creating the App Shell and can make navigation slower. If the later timing is not intentional, remove the Navigation Stage API. If it is intentional, you can leave the behavior unchanged. To stop reporting the Insight, disable validation for the segment.
 
-For the same Insight in the page body or metadata code, see [Navigation Stage API outside of Suspense](/docs/messages/instant-cache-stage) or [Navigation Stage API in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata).
+For the same Insight in the page body or metadata code, see [Navigation Stage API outside of Suspense](/docs/messages/instant-navigation-stage) or [Navigation Stage API in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata).
 
 ## Ways to fix this
 
@@ -113,8 +113,8 @@ Child segments are still validated during client navigations.
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Navigation Stage API outside of Suspense](/docs/messages/instant-cache-stage)
-- [Navigation Stage API in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata)
+- [Navigation Stage API outside of Suspense](/docs/messages/instant-navigation-stage)
+- [Navigation Stage API in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata)
 - [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
 - [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)

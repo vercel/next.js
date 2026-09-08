@@ -11,6 +11,7 @@ export type FixCardGroup =
   | 'measure'
   | 'ignore'
   | 'render'
+  | 'mark'
   | 'remove'
   | 'upgrade'
   | 'disable'
@@ -43,6 +44,7 @@ export const FIX_CARD_GROUPS: Record<
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
   ignore: { label: 'Ignore', color: 'red', icon: 'minus-circle' },
   render: { label: 'Render', color: 'gray', icon: 'layout' },
+  mark: { label: 'Mark', color: 'amber', icon: 'pointer-click' },
   remove: { label: 'Remove', color: 'gray', icon: 'minus' },
   upgrade: { label: 'Upgrade', color: 'amber', icon: 'arrow-up' },
   disable: { label: 'Disable', color: 'gray', icon: 'minus' },
@@ -105,7 +107,7 @@ const cacheStageCards: FixCard[] = [
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    link: 'https://nextjs.org/docs/messages/instant-cache-stage#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/instant-navigation-stage#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
@@ -117,7 +119,7 @@ const cacheStageCards: FixCard[] = [
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
-    link: 'https://nextjs.org/docs/messages/instant-cache-stage#allow-blocking-route',
+    link: 'https://nextjs.org/docs/messages/instant-navigation-stage#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -321,31 +323,40 @@ const metadataRuntimeCards: FixCard[] = [
   },
 ]
 
-const metadataCacheStageCards: FixCard[] = [
-  {
-    id: 'remove-the-navigation-stage-api',
-    title: 'Remove the Navigation Stage API',
-    group: 'remove',
-    link: 'https://nextjs.org/docs/messages/instant-cache-stage-metadata#remove-the-navigation-stage-api',
-    snippets: [
-      { text: 'export async function generateMetadata() {' },
-      { text: '  return getMetadata()', highlight: true },
-      { text: '}' },
-    ],
-    copyable: true,
-  },
-  {
-    id: 'disable-validation-on-this-route',
-    title: 'Disable validation on this route',
-    group: 'ignore',
-    link: 'https://nextjs.org/docs/messages/instant-cache-stage-metadata#disable-validation-on-this-route',
-    snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
-    ],
-    copyable: true,
-  },
-]
+function getMetadataCacheStageCards(
+  variant: 'prefetch' | 'navigation'
+): FixCard[] {
+  const api =
+    variant === 'prefetch' ? 'unstable_prefetch' : 'unstable_navigation'
+
+  return [
+    {
+      id: 'remove-the-navigation-stage-api',
+      title: 'Remove the Navigation Stage API',
+      group: 'remove',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#remove-the-navigation-stage-api',
+      snippets: [
+        { text: 'export async function generateMetadata() {' },
+        { text: '  return getMetadata()', highlight: true },
+        { text: '}' },
+      ],
+      copyable: true,
+    },
+    {
+      id: 'add-the-same-api-to-the-page',
+      title: `Add ${api}() to the page`,
+      group: 'mark',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#add-the-same-api-to-the-page',
+      snippets: [
+        { text: 'async function StageMarker() {' },
+        { text: `  await ${api}()`, highlight: true },
+        { text: '  return null' },
+        { text: '}' },
+      ],
+      copyable: true,
+    },
+  ]
+}
 
 // URL data in `generateMetadata()` shares the same fixes as runtime data.
 const metadataLinkCards = metadataRuntimeCards
@@ -407,7 +418,7 @@ const viewportCacheStageCards: FixCard[] = [
     id: 'remove-the-navigation-stage-api',
     title: 'Remove the Navigation Stage API',
     group: 'remove',
-    link: 'https://nextjs.org/docs/messages/instant-cache-stage-viewport#remove-the-navigation-stage-api',
+    link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#remove-the-navigation-stage-api',
     snippets: [
       { text: 'export async function generateViewport() {' },
       { text: '  return getViewport()', highlight: true },
@@ -419,7 +430,7 @@ const viewportCacheStageCards: FixCard[] = [
     id: 'disable-validation-on-this-route',
     title: 'Disable validation on this route',
     group: 'ignore',
-    link: 'https://nextjs.org/docs/messages/instant-cache-stage-viewport#disable-validation-on-this-route',
+    link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#disable-validation-on-this-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -716,8 +727,8 @@ export const BLOCKING_ROUTE_DOCS_URLS: Record<GuidanceVariant, string> = {
   runtime: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
   link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
-  prefetch: 'https://nextjs.org/docs/messages/instant-cache-stage',
-  navigation: 'https://nextjs.org/docs/messages/instant-cache-stage',
+  prefetch: 'https://nextjs.org/docs/messages/instant-navigation-stage',
+  navigation: 'https://nextjs.org/docs/messages/instant-navigation-stage',
   dynamic: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic',
 }
 
@@ -726,8 +737,10 @@ export const BLOCKING_METADATA_DOCS_URLS: Record<GuidanceVariant, string> = {
     'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
   link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
-  prefetch: 'https://nextjs.org/docs/messages/instant-cache-stage-metadata',
-  navigation: 'https://nextjs.org/docs/messages/instant-cache-stage-metadata',
+  prefetch:
+    'https://nextjs.org/docs/messages/instant-navigation-stage-metadata',
+  navigation:
+    'https://nextjs.org/docs/messages/instant-navigation-stage-metadata',
   dynamic:
     'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic',
 }
@@ -737,8 +750,10 @@ export const BLOCKING_VIEWPORT_DOCS_URLS: Record<GuidanceVariant, string> = {
     'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
   // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
   link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
-  prefetch: 'https://nextjs.org/docs/messages/instant-cache-stage-viewport',
-  navigation: 'https://nextjs.org/docs/messages/instant-cache-stage-viewport',
+  prefetch:
+    'https://nextjs.org/docs/messages/instant-navigation-stage-viewport',
+  navigation:
+    'https://nextjs.org/docs/messages/instant-navigation-stage-viewport',
   dynamic:
     'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic',
 }
@@ -902,7 +917,7 @@ export function getCards(
           return metadataRuntimeCards
         case 'prefetch':
         case 'navigation':
-          return metadataCacheStageCards
+          return getMetadataCacheStageCards(variant)
         case 'dynamic':
           return filterCacheForConnection(metadataDynamicCards, variant, cause)
         default:

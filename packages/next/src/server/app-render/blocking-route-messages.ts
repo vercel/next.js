@@ -50,7 +50,7 @@ export function createNavigationBodyErrorInNavigation(route: string): Error {
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage`
+      `Learn more: https://nextjs.org/docs/messages/instant-navigation-stage`
   )
 }
 
@@ -61,7 +61,7 @@ export function createPrefetchBodyErrorInNavigation(route: string): Error {
       `Ways to fix this:\n` +
       `  - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access\n` +
       `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage`
+      `Learn more: https://nextjs.org/docs/messages/instant-navigation-stage`
   )
 }
 
@@ -122,8 +122,8 @@ export function createNavigationMetadataError(route: string): Error {
       `Metadata can already stream without blocking the route's UI, so delaying it until navigation may be unintentional.\n\n` +
       `Ways to fix this:\n` +
       `  - [remove] Remove \`unstable_navigation()\` from \`generateMetadata()\`\n` +
-      `  - [ignore] Set \`export const instant = false\` to disable validation for this segment\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-metadata`
+      `  - [mark] Render a marker component that calls \`await unstable_navigation()\` inside \`<Suspense>\` on the page\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/instant-navigation-stage-metadata`
   )
 }
 
@@ -133,8 +133,8 @@ export function createPrefetchMetadataError(route: string): Error {
       `Metadata can already stream without blocking the route's UI, so delaying it until a per-link prefetch or navigation may be unintentional.\n\n` +
       `Ways to fix this:\n` +
       `  - [remove] Remove \`unstable_prefetch()\` from \`generateMetadata()\`\n` +
-      `  - [ignore] Set \`export const instant = false\` to disable validation for this segment\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-metadata`
+      `  - [mark] Render a marker component that calls \`await unstable_prefetch()\` inside \`<Suspense>\` on the page\n\n` +
+      `Learn more: https://nextjs.org/docs/messages/instant-navigation-stage-metadata`
   )
 }
 
@@ -178,7 +178,7 @@ export function createNavigationViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [remove] Remove \`unstable_navigation()\` from \`generateViewport()\`\n` +
       `  - [ignore] Set \`export const instant = false\` to disable validation for this segment\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-viewport`
+      `Learn more: https://nextjs.org/docs/messages/instant-navigation-stage-viewport`
   )
 }
 
@@ -189,7 +189,7 @@ export function createPrefetchViewportError(route: string): Error {
       `Ways to fix this:\n` +
       `  - [remove] Remove \`unstable_prefetch()\` from \`generateViewport()\`\n` +
       `  - [ignore] Set \`export const instant = false\` to disable validation for this segment\n\n` +
-      `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-viewport`
+      `Learn more: https://nextjs.org/docs/messages/instant-navigation-stage-viewport`
   )
 }
 
