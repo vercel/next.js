@@ -512,9 +512,6 @@ export interface NapiTurboEngineOptions {
 /**
  * Tuning for Turbopack's reference-counting GC, mirroring the
  * `experimental.turbopackGc` config option.
- *
- * The presence of this object means GC is enabled; each field is optional and
- * falls back to the backend default when omitted.
  */
 export interface NapiTurbopackGcOptions {
   /** How long a GC pass runs before it will honour an interrupt, in milliseconds. */
