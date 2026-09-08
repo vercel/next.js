@@ -1,9 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('API body parser', () => {
-  // Deploy mode exclusion: This suite controls a local server or proxy process.
-  // Uses a custom HTTP/proxy server in front of Next.js; not applicable in deploy mode.
-  // @force-gate !deploy
   describe('without custom server', () => {
     const { next } = nextTestSetup({
       files: __dirname,
