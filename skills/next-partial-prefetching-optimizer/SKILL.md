@@ -77,7 +77,7 @@ prefetching is production-only.
 Search for an existing `instant()` test for the exact source link and
 destination. Strengthen it when it already owns the same behavior; otherwise
 add a focused click-driven test using the guide's
-[prefetched UI verification](https://nextjs.org/docs/app/guides/optimizing-prefetching#verify-the-prefetched-ui)
+[prefetched and deferred content testing](https://nextjs.org/docs/app/guides/optimizing-prefetching#test-prefetched-and-deferred-content)
 pattern.
 
 First run an unlocked scaffold that proves the link reaches the exact pathname
