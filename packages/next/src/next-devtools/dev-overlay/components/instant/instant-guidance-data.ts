@@ -337,9 +337,8 @@ function getMetadataCacheStageCards(
       group: 'remove',
       link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#remove-the-api-call',
       snippets: [
-        { text: 'export async function generateMetadata() {' },
+        { text: 'async function generateMetadata() {' },
         { text: `-  await ${api}()`, highlight: true },
-        { text: '   return getMetadata()' },
         { text: '}' },
       ],
     },
@@ -425,9 +424,8 @@ function getViewportCacheStageCards(
       group: 'remove',
       link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#remove-the-api-call',
       snippets: [
-        { text: 'export async function generateViewport() {' },
+        { text: 'async function generateViewport() {' },
         { text: `-  await ${api}()`, highlight: true },
-        { text: '   return getViewport()' },
         { text: '}' },
       ],
     },

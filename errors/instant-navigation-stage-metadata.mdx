@@ -36,9 +36,8 @@ For the same insight in the page body or viewport code, see [navigation stage AP
     title="Remove the API call"
     href="#remove-the-api-call"
     snippets={[
-      { text: 'export async function generateMetadata() {' },
+      { text: 'async function generateMetadata() {' },
       { text: '-  await unstable_navigation()', highlight: true },
-      { text: '   return getMetadata()' },
       { text: '}' },
     ]}
   />
