@@ -20,6 +20,7 @@ export function getRedirectError(
 /**
  * This function allows you to redirect the user to another URL. It can be used in
  * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
+ * [Client Components](https://nextjs.org/docs/app/building-your-application/rendering/client-components),
  * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
  * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
  *
