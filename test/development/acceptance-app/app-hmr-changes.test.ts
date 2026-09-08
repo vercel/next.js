@@ -8,7 +8,7 @@ describe('Error overlay - RSC build errors', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'app-hmr-changes')),
     dependencies: {
-      '@next/mdx': 'canary',
+      '@next/mdx': 'workspace:*',
       'react-wrap-balancer': '^0.2.4',
       'react-tweet': '^3.2.0',
       '@mdx-js/react': '^2.3.0',

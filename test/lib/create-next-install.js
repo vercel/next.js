@@ -247,7 +247,19 @@ async function createNextInstall({
         next: pkgPaths.get('next'),
         ...Object.keys(dependencies).reduce((prev, pkg) => {
           const pkgPath = pkgPaths.get(pkg)
-          prev[pkg] = pkgPath || dependencies[pkg]
+          const version = dependencies[pkg]
+          if (version === 'workspace:*') {
+            if (pkgPath) {
+              prev[pkg] = pkgPath
+            } else {
+              throw new Error(
+                `"${pkg}" is declared as "workspace:*" but no packed tarball was found for it. ` +
+                  `Only packages in this repository with a "pack-for-isolated-tests" script can be used with "workspace:*".`
+              )
+            }
+          } else {
+            prev[pkg] = pkgPath || version
+          }
           return prev
         }, {}),
       }
