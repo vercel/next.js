@@ -104,7 +104,6 @@
       "test/e2e/app-dir/modularizeimports/modularizeimports.test.ts",
       "test/e2e/app-dir/third-parties/basic.test.ts",
       "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts",
-      "test/e2e/app-dir/options-request/options-request.test.ts",
       "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts",
       "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts",
       "test/e2e/new-link-behavior/stitches.test.ts",
@@ -117,8 +116,7 @@
       "test/e2e/postcss-config-cjs/index.test.ts",
       "test/e2e/socket-io/index.test.ts",
       "test/e2e/middleware-matcher/index.test.ts",
-      "test/e2e/next-script/index.test.ts",
-      "test/production/standalone-mode/**/*"
+      "test/e2e/next-script/index.test.ts"
     ]
   }
 }
