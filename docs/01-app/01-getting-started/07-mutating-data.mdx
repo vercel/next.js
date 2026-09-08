@@ -332,6 +332,8 @@ export default function LikeButton({ initialLikes }) {
 }
 ```
 
+> **Good to know:** When you call a Server Function directly from an event handler, handle expected errors as return values or catch thrown errors yourself. If you want an unhandled error to route to the nearest [`error.js`](/docs/app/getting-started/error-handling#handling-uncaught-exceptions) boundary, invoke the action inside a Transition, for example with [`startTransition`](https://react.dev/reference/react/startTransition) or `useActionState` as shown below.
+
 ## Examples
 
 ### Showing a pending state
