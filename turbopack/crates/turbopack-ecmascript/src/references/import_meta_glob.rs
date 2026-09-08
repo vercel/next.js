@@ -756,9 +756,13 @@ impl ImportMetaGlobAsset {
         // Split every pattern once: this both validates it and produces everything
         // the globs below are built from.
         //
-        // No pattern may point outside of the project, not even a negative one:
-        // silently ignoring it would include files the user asked to exclude. A
-        // `/`-rooted pattern with no directory to resolve it from is reported
+        // An invalid pattern is always reported. A positive one is then skipped, so
+        // that the patterns around it still resolve — being left with fewer matches
+        // is easier to work with while editing than an empty object. A negative one
+        // can't be skipped: dropping an exclusion would include files the user
+        // asked to leave out, so nothing is matched at all instead.
+        //
+        // A `/`-rooted pattern with no directory to resolve it from is reported
         // separately from one that walks above that directory.
         let mut patterns = Vec::with_capacity(self.patterns.len());
         for written in &self.patterns {
@@ -774,7 +778,10 @@ impl ImportMetaGlobAsset {
                     emit_escapes_root_issue(self, &origin_dir, &format!("the pattern {written:?}"))
                         .await?;
                 }
-                return Ok(Vc::cell(Default::default()));
+                if negative {
+                    return Ok(Vc::cell(Default::default()));
+                }
+                continue;
             };
             patterns.push(SplitPattern {
                 negative,

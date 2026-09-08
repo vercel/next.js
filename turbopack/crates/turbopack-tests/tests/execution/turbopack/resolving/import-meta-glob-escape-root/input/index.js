@@ -18,9 +18,21 @@ it('should return an empty object for a pattern above the project root', () => {
   expect(escapingPattern).toEqual({})
 })
 
-// A negative pattern that escapes can't exclude anything, but ignoring it
-// silently would include files the user asked to exclude, so it is an error
-// as well.
+// A positive pattern that escapes is reported and then skipped, so the patterns
+// around it still resolve: fewer matches is easier to work with while editing
+// than nothing at all.
+const escapingAmongValid = import.meta.glob(
+  ['./dir/*.js', '../../../../../../../../../../../../*.js'],
+  { eager: true }
+)
+
+it('should still match the other patterns when one of them escapes', () => {
+  expect(Object.keys(escapingAmongValid)).toEqual(['./dir/one.js'])
+  expect(escapingAmongValid['./dir/one.js'].default).toBe('one')
+})
+
+// A negative pattern that escapes can't exclude anything, and skipping it would
+// include files the user asked to exclude, so nothing is matched at all.
 const escapingNegativePattern = import.meta.glob([
   './*.js',
   '!../../../../../../../../../../../../*.js',
