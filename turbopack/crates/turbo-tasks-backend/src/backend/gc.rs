@@ -77,14 +77,15 @@ struct GcBudget<'a> {
     started: Instant,
     /// The minimum quantum of work this pass does before any interrupt is honoured.
     min_progress: Duration,
-    /// Latched on the first trip. Re-polling per job would let a waiter that arrives and leaves
-    /// produce a ragged pass that stops and starts; once we have decided to wind down, we commit.
-    /// Also reports whether the pass was interrupted, for [`GcStats`].
+    /// Latched on the first trip.
     stopped: AtomicBool,
 }
 
 impl GcBudget<'_> {
     fn should_stop(&self) -> bool {
+        // We only stop if someone is waiting and we have already run for at least our
+        // `min_progress` To make querying the clock and phase cheaper we record it as a
+        // durable decision.
         if self.stopped.load(Ordering::Relaxed) {
             return true;
         }

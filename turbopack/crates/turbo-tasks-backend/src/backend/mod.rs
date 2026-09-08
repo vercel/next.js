@@ -1170,7 +1170,7 @@ impl TurboTasksBackend {
         (listener, true)
     }
 
-    /// Runs a GC pass (when enabled) and persists the result.
+    /// Runs a persistence cycle
     ///
     /// Returns `(snapshot_start, had_new_data, gc_stats)`. `gc_stats` is `None` when GC is
     /// disabled; it is returned rather than stashed on `self` so a test can inspect the pass it
