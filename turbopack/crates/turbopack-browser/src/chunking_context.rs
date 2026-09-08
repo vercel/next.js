@@ -154,6 +154,11 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn without_module_id_strategy(mut self) -> Self {
+        self.chunking_context.module_id_strategy = None;
+        self
+    }
+
     pub fn export_usage(mut self, export_usage: Option<ResolvedVc<BindingUsageInfo>>) -> Self {
         self.chunking_context.export_usage = export_usage;
         self
@@ -161,6 +166,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn unused_references(mut self, unused_references: ResolvedVc<UnusedReferences>) -> Self {
         self.chunking_context.unused_references = Some(unused_references);
+        self
+    }
+
+    pub fn without_unused_references(mut self) -> Self {
+        self.chunking_context.unused_references = None;
         self
     }
 
@@ -408,6 +418,12 @@ pub struct BrowserChunkingContext {
 }
 
 impl BrowserChunkingContext {
+    pub fn clone_builder(&self) -> BrowserChunkingContextBuilder {
+        BrowserChunkingContextBuilder {
+            chunking_context: self.clone(),
+        }
+    }
+
     pub fn builder(
         root_path: FileSystemPath,
         output_root: FileSystemPath,

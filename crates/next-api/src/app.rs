@@ -45,15 +45,18 @@ use turbo_tasks::{
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
+    module_federation::{ModuleFederationConfig, module_federation_container_source},
     module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
     transition::{FullContextTransition, Transition, TransitionOptions},
 };
+use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        ChunkGroupResult, ChunkingContext, ChunkingContextExt, EvaluatableAsset, EvaluatableAssets,
-        availability_info::AvailabilityInfo,
+        AssetSuffix, ChunkGroupResult, ChunkingContext, ChunkingContextExt, EntryChunkGroupResult,
+        EvaluatableAsset, EvaluatableAssets, availability_info::AvailabilityInfo,
     },
+    context::AssetContext,
     file_source::FileSource,
     ident::{AssetIdent, Layer},
     module::Module,
@@ -64,8 +67,12 @@ use turbopack_core::{
     },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::all_assets_from_entries,
-    reference_type::{CommonJsReferenceSubType, CssReferenceSubType, ReferenceTypeCondition},
+    reference_type::{
+        CommonJsReferenceSubType, CssReferenceSubType, EntryReferenceSubType, ReferenceType,
+        ReferenceTypeCondition,
+    },
     resolve::{ResolveErrorMode, origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
+    source::Source,
     virtual_output::VirtualOutputAsset,
 };
 use turbopack_ecmascript::single_file_ecmascript_output::SingleFileEcmascriptOutput;
@@ -99,6 +106,89 @@ pub struct AppProject {
 
 #[turbo_tasks::value(transparent)]
 pub struct OptionAppProject(Option<ResolvedVc<AppProject>>);
+
+#[turbo_tasks::function]
+pub async fn module_federation_output_assets(project: Vc<Project>) -> Result<Vc<OutputAssets>> {
+    let Some(app_project) = *project.app_project().await? else {
+        return Ok(OutputAssets::empty());
+    };
+    let Some(config_json) = &*project
+        .next_config()
+        .turbopack_module_federation_json()
+        .await?
+    else {
+        return Ok(OutputAssets::empty());
+    };
+    let config = ModuleFederationConfig::from_json(config_json)
+        .context("Invalid experimental.turbopackModuleFederation configuration")?;
+    if config.exposes.is_empty() {
+        return Ok(OutputAssets::empty());
+    }
+    let name = config
+        .name
+        .as_deref()
+        .context("Module Federation exposes require a container name")?;
+    let filename = config
+        .filename
+        .clone()
+        .unwrap_or_else(|| format!("{name}.js").into());
+    let source: Vc<Box<dyn Source>> =
+        *module_federation_container_source(project.project_path().owned().await?, &config).await?;
+    let module = app_project
+        .client_module_context()
+        .process(source, ReferenceType::Entry(EntryReferenceSubType::Web))
+        .module()
+        .to_resolved()
+        .await?;
+    let module_graph = ModuleGraph::from_graphs(
+        vec![SingleModuleGraph::new_with_entry(
+            ChunkGroupEntry::Entry {
+                modules: vec![module],
+                heuristics: EntryHeuristics::default(),
+            },
+            *project.should_write_nft_manifests().await?,
+            project.next_mode().await?.is_production(),
+        )],
+        None,
+    )
+    .connect();
+    let client_chunking_context = project.client_chunking_context().to_resolved().await?;
+    let client_chunking_context =
+        ResolvedVc::try_downcast_type::<BrowserChunkingContext>(client_chunking_context)
+            .context("expected a browser chunking context")?;
+    // The container is a project-global artifact, not a route: it gets its own runtime namespace
+    // so it can coexist with the host's runtime and with other containers on the same page.
+    let federation_chunking_context = client_chunking_context
+        .await?
+        .clone_builder()
+        .asset_suffix(AssetSuffix::None.resolved_cell())
+        .without_module_id_strategy()
+        .export_usage(None)
+        .without_unused_references()
+        .shared_runtime(false)
+        .shared_runtime_chunk(false)
+        .chunk_loading_global(format!("TURBOPACK_{name}").into())
+        .single_chunk()
+        .await?
+        .build();
+    let EntryChunkGroupResult { asset, .. } = *federation_chunking_context
+        .entry_chunk_group(
+            project
+                .node_root()
+                .owned()
+                .await?
+                .join("static")?
+                .join("chunks")?
+                .join(&filename)?,
+            ChunkGroup::Entry(vec![module]),
+            module_graph,
+            OutputAssets::empty(),
+            OutputAssets::empty(),
+            AvailabilityInfo::root(),
+        )
+        .await?;
+    Ok(Vc::cell(vec![asset]))
+}
 
 impl AppProject {}
 impl AppProject {
