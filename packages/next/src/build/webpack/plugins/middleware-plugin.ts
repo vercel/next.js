@@ -448,8 +448,8 @@ function getCodeAnalyzer(params: {
 
       wp.optimize.InnerGraph.getInnerGraphUtils(compilation).onUsage(
         parser.state,
-        (used = true) => {
-          const buildInfo = getModuleBuildInfo(parser.state.module)
+        (used = true, module) => {
+          const buildInfo = getModuleBuildInfo(module)
           if (buildInfo.usingIndirectEval === true || used === false) {
             return
           }
@@ -560,14 +560,17 @@ function getCodeAnalyzer(params: {
      * Handler to store original source location of static and dynamic imports into module's buildInfo.
      */
     const handleImport = (node: any) => {
-      if (isInMiddlewareLayer(parser) && node.source?.value && node?.loc) {
-        const { module, source } = parser.state
+      if (!isInMiddlewareLayer(parser) || !node.source?.value) {
+        return
+      }
+
+      const { module, source } = parser.state
+      const importedModule = node.source.value.toString()
+      if (node.loc) {
         const buildInfo = getModuleBuildInfo(module)
         if (!buildInfo.importLocByPath) {
           buildInfo.importLocByPath = new Map()
         }
-
-        const importedModule = node.source.value?.toString()
         buildInfo.importLocByPath.set(importedModule, {
           sourcePosition: {
             ...node.loc.start,
@@ -575,23 +578,26 @@ function getCodeAnalyzer(params: {
           },
           sourceContent: source.toString(),
         })
+      }
 
-        if (
-          !dev &&
-          (isNodeJsModule(importedModule) || isBunModule(importedModule)) &&
-          !SUPPORTED_NATIVE_MODULES.includes(importedModule)
-        ) {
-          const isBun = isBunModule(importedModule)
-          compilation.warnings.push(
-            buildWebpackError({
-              message: `A ${isBun ? 'Bun' : 'Node.js'} module is loaded ('${importedModule}' at line ${node.loc.start.line}) which is not supported in the Edge Runtime.
+      if (
+        !dev &&
+        (isNodeJsModule(importedModule) || isBunModule(importedModule)) &&
+        !SUPPORTED_NATIVE_MODULES.includes(importedModule)
+      ) {
+        const isBun = isBunModule(importedModule)
+        const atLine = node.loc?.start?.line
+          ? ` at line ${node.loc.start.line}`
+          : ''
+        compilation.warnings.push(
+          buildWebpackError({
+            message: `A ${isBun ? 'Bun' : 'Node.js'} module is loaded ('${importedModule}'${atLine}) which is not supported in the Edge Runtime.
 Learn More: https://nextjs.org/docs/messages/node-module-in-edge-runtime`,
-              compilation,
-              parser,
-              ...node,
-            })
-          )
-        }
+            compilation,
+            parser,
+            ...node,
+          })
+        )
       }
     }
 
@@ -914,7 +920,7 @@ export default class MiddlewarePlugin {
        */
       const metadataByEntry = new Map<string, EntryMetadata>()
       compilation.hooks.finishModules.tapPromise(
-        NAME,
+        { name: NAME, stage: 1 },
         getExtractMetadata({
           compilation,
           compiler,
