@@ -25,6 +25,8 @@ pub enum TaskDirtyCause {
     /// hard-delete: its edges were scrubbed, so it must re-execute to rebuild them.
     Resurrected,
     Unknown,
+    /// An in-flight execution was aborted because no active work needed it anymore.
+    ExecutionAborted,
 }
 
 // NOTE: `TaskDirtyCause` is formatted for tracing inside `make_task_dirty_internal`, which
@@ -86,6 +88,7 @@ impl std::fmt::Display for TaskDirtyCause {
                 )
             }
             TaskDirtyCause::Invalidator => write!(f, "invalidator"),
+            TaskDirtyCause::ExecutionAborted => write!(f, "execution aborted"),
             TaskDirtyCause::Resurrected => write!(f, "resurrected"),
             TaskDirtyCause::Unknown => write!(f, "unknown"),
         }

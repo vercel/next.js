@@ -1199,10 +1199,14 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn note_maybe_collectible(&mut self, task: &impl TaskGuard) {
-        if let ExecutePhase::Gc(collector) = self.phase
-            && task.is_gc_collectible()
-        {
-            collector(task.id());
+        if let ExecutePhase::Gc(collector) = self.phase {
+            if task.is_gc_collectible() {
+                collector(task.id());
+            } else if task.is_gc_collectible_ignoring_in_progress()
+                && let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress()
+            {
+                in_progress.abort_unneeded();
+            }
         }
     }
 
@@ -1414,6 +1418,11 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         // collected.
         self.check_access(SpecificTaskDataCategory::Meta);
         !self.id().is_transient() && self.typed().gc_maybe_collectible()
+    }
+
+    fn is_gc_collectible_ignoring_in_progress(&self) -> bool {
+        self.check_access(SpecificTaskDataCategory::Meta);
+        !self.id().is_transient() && self.typed().gc_maybe_collectible_ignoring_in_progress()
     }
 
     fn invalidate_serialization(&mut self);

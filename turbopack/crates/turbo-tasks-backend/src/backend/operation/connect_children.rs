@@ -82,6 +82,7 @@ pub fn connect_children(
                     make_task_dirty_internal(
                         &mut child,
                         false,
+                        true,
                         #[cfg(feature = "task_dirty_cause")]
                         TaskDirtyCause::InitialDirty,
                         &mut queue,

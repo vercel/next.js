@@ -1,11 +1,15 @@
 use std::{
     fmt::{self, Debug, Display},
     pin::Pin,
-    sync::Arc,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, Ordering},
+    },
 };
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use futures::future::AbortHandle;
 use parking_lot::Mutex;
 use rustc_hash::FxHashSet;
 #[cfg(feature = "task_dirty_cause")]
@@ -253,6 +257,27 @@ pub struct InProgressStateInner {
     /// Children that should be connected to the task and have their active_count decremented
     /// once the task completes.
     pub new_children: FxHashSet<TaskId>,
+    /// Aborts the currently executing native turbo-task function. Transient root/once tasks do not
+    /// have a handle because their futures cannot necessarily be recreated.
+    pub abort_handle: Option<AbortHandle>,
+    /// Set when abortion was requested because the task became unneeded rather than invalidated.
+    /// Interior mutability lets GC collectibility checks request abortion through a shared guard.
+    pub abort_when_unneeded: AtomicBool,
+}
+
+impl InProgressStateInner {
+    pub fn abort_invalidated(&self) {
+        if let Some(abort_handle) = &self.abort_handle {
+            abort_handle.abort();
+        }
+    }
+
+    pub fn abort_unneeded(&self) {
+        self.abort_when_unneeded.store(true, Ordering::Release);
+        if let Some(abort_handle) = &self.abort_handle {
+            abort_handle.abort();
+        }
+    }
 }
 
 #[derive(Debug)]

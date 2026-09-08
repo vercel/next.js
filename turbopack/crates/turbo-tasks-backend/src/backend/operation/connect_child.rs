@@ -46,6 +46,7 @@ pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
         make_task_dirty_internal(
             &mut task,
             /* make_stale */ true,
+            /* schedule_when_active */ true,
             #[cfg(feature = "task_dirty_cause")]
             turbo_tasks::TaskDirtyCause::Resurrected,
             queue,

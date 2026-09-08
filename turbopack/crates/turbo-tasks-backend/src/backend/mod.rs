@@ -24,6 +24,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
+use futures::future::AbortHandle;
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::TtlCounter;
 use hashbrown::hash_table::Entry;
@@ -110,6 +111,22 @@ fn compute_stale_priority(task: &impl TaskGuard) -> TaskPriority {
             .distance,
     )
     .in_parent(task.is_dirty().unwrap_or(TaskPriority::leaf()))
+}
+
+/// Undoes the speculative active-count increments an aborted execution made for children it
+/// connected for the first time.
+fn decrease_active_counts_of_new_children(
+    new_children: FxHashSet<TaskId>,
+    ctx: &mut impl ExecuteContext<'_>,
+) {
+    if !new_children.is_empty() {
+        AggregationUpdateQueue::run(
+            AggregationUpdateJob::DecreaseActiveCounts {
+                task_ids: new_children.into_iter().collect(),
+            },
+            ctx,
+        );
+    }
 }
 
 #[derive(PartialEq, Eq)]
@@ -2079,6 +2096,99 @@ impl TurboTasksBackend {
         drop(in_progress_cells);
     }
 
+    fn task_execution_aborted(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) -> Option<TaskPriority> {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let Some(InProgressState::InProgress(in_progress)) = task.take_in_progress() else {
+            panic!("Task execution aborted, but task is not in progress: {task:#?}");
+        };
+        let InProgressStateInner {
+            stale,
+            done_event,
+            mut new_children,
+            abort_when_unneeded,
+            ..
+        } = *in_progress;
+        let aborted_as_unneeded = abort_when_unneeded.load(Ordering::Acquire);
+
+        // Only children that were not already connected received a speculative active-count
+        // increment during this execution.
+        for child in task.iter_children() {
+            new_children.remove(&child);
+        }
+
+        let in_progress_cells = if aborted_as_unneeded {
+            task.take_in_progress_cells()
+        } else {
+            None
+        };
+        if let Some(cells) = &in_progress_cells {
+            for state in cells.values() {
+                state.event.notify(usize::MAX);
+            }
+        }
+
+        if !aborted_as_unneeded {
+            debug_assert!(stale, "only stale or unneeded executions may be aborted");
+            let priority = compute_stale_priority(&task);
+            let old = task.set_in_progress(InProgressState::Scheduled {
+                done_event,
+                reason: TaskExecutionReason::Stale,
+            });
+            debug_assert!(old.is_none(), "InProgress already exists");
+            drop(task);
+            decrease_active_counts_of_new_children(new_children, &mut ctx);
+            return Some(priority);
+        }
+        drop(task);
+
+        decrease_active_counts_of_new_children(new_children, &mut ctx);
+
+        // Unlike shutdown cancellation, an unneeded abortion is recoverable: discard the current
+        // execution state and make the task dirty without scheduling it while it is disconnected.
+        let mut queue = AggregationUpdateQueue::new();
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        make_task_dirty_internal(
+            &mut task,
+            true,
+            false,
+            #[cfg(feature = "task_dirty_cause")]
+            TaskDirtyCause::ExecutionAborted,
+            &mut queue,
+            &mut ctx,
+        );
+        drop(task);
+        queue.execute(&mut ctx);
+
+        // A connection may race with dropping the aborted future. Re-check liveness after the
+        // dirty transition so a revived task is not left dirty but unscheduled.
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let should_schedule = if self.should_track_activeness() {
+            task.has_activeness()
+        } else {
+            !task.is_gc_collectible()
+        };
+        let priority = if should_schedule {
+            let priority = compute_stale_priority(&task);
+            let old = task.set_in_progress(InProgressState::Scheduled {
+                done_event,
+                reason: TaskExecutionReason::Stale,
+            });
+            debug_assert!(old.is_none(), "InProgress already exists");
+            Some(priority)
+        } else {
+            done_event.notify(usize::MAX);
+            None
+        };
+        drop(task);
+        drop(in_progress_cells);
+        priority
+    }
+
     fn try_start_task_execution(
         &self,
         task_id: TaskId,
@@ -2087,6 +2197,7 @@ impl TurboTasksBackend {
     ) -> Option<TaskExecutionSpec<'_>> {
         let execution_reason;
         let task_type;
+        let abort_registration;
         #[cfg(feature = "task_dirty_cause")]
         let cause;
         {
@@ -2114,6 +2225,9 @@ impl TurboTasksBackend {
                     _ => None,
                 };
             }
+            let (abort_handle, registration) = AbortHandle::new_pair();
+            abort_registration = registration;
+            let abort_handle = matches!(&task_type, TaskType::Cached(_)).then_some(abort_handle);
             let old = task.set_in_progress(InProgressState::InProgress(Box::new(
                 InProgressStateInner {
                     stale: false,
@@ -2121,6 +2235,8 @@ impl TurboTasksBackend {
                     done_event,
                     marked_as_completed: false,
                     new_children: Default::default(),
+                    abort_handle,
+                    abort_when_unneeded: AtomicBool::new(false),
                 },
             )));
             debug_assert!(old.is_none(), "InProgress already exists");
@@ -2201,7 +2317,11 @@ impl TurboTasksBackend {
                 (span, future)
             }
         };
-        Some(TaskExecutionSpec { future, span })
+        Some(TaskExecutionSpec {
+            future,
+            span,
+            abort_registration,
+        })
     }
 
     /// Returns `Some(priority)` if the task became stale during execution and needs to be
@@ -2716,6 +2836,7 @@ impl TurboTasksBackend {
             make_task_dirty_internal(
                 &mut dependent,
                 make_stale,
+                true,
                 #[cfg(feature = "task_dirty_cause")]
                 cause.clone(),
                 queue,
@@ -2864,6 +2985,7 @@ impl TurboTasksBackend {
             stale,
             marked_as_completed: _,
             new_children,
+            ..
         }) = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
@@ -3818,6 +3940,14 @@ impl Backend for TurboTasksBackend {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>) {
         self.task_execution_canceled(task, turbo_tasks)
+    }
+
+    fn task_execution_aborted(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Option<TaskPriority> {
+        self.task_execution_aborted(task, turbo_tasks)
     }
 
     fn try_start_task_execution(
