@@ -12,7 +12,10 @@
 function getAssetSuffixFromScriptSrc() {
   // TURBOPACK_ASSET_SUFFIX is set in web workers
   if (self.TURBOPACK_ASSET_SUFFIX != null) return self.TURBOPACK_ASSET_SUFFIX
-  const src = document?.currentScript?.getAttribute?.('src') ?? ''
+  const src =
+    typeof document === 'undefined'
+      ? ''
+      : (document.currentScript?.getAttribute?.('src') ?? '')
   const qi = src.indexOf('?')
   return qi >= 0 ? src.slice(qi) : ''
 }
@@ -21,6 +24,7 @@ type ChunkResolver = {
   resolved: boolean
   loadingStarted: boolean
   retryAttempts: number
+  registrationRequired: boolean
   resolve: () => void
   reject: (error?: Error) => void
   promise: Promise<any>
@@ -74,12 +78,19 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
      * Loads the given chunk, and returns a promise that resolves once the chunk
      * has been loaded.
      */
-    loadChunkCached(sourceType: SourceType, chunkUrl: ChunkUrl) {
-      return doLoadChunk(sourceType, chunkUrl)
+    loadChunkCached(
+      sourceType: SourceType,
+      chunkUrl: ChunkUrl,
+      resolveOnLoad = false
+    ) {
+      return doLoadChunk(sourceType, chunkUrl, resolveOnLoad)
     },
   }
 
-  function getOrCreateResolver(chunkUrl: ChunkUrl): ChunkResolver {
+  function getOrCreateResolver(
+    chunkUrl: ChunkUrl,
+    resolveOnLoad = false
+  ): ChunkResolver {
     let resolver = chunkResolvers.get(chunkUrl)
     if (!resolver) {
       let resolve: () => void
@@ -92,6 +103,7 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         resolved: false,
         loadingStarted: false,
         retryAttempts: 0,
+        registrationRequired: !resolveOnLoad,
         promise,
         resolve: () => {
           resolver!.resolved = true
@@ -165,17 +177,33 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
         reload()
       } else {
         resolver.loadingStarted = false
-        doLoadChunk(sourceType, chunkUrl)
+        doLoadChunk(sourceType, chunkUrl, !resolver.registrationRequired)
       }
     }, getChunkLoadRetryDelayMs())
+  }
+
+  function getExistingScripts(chunkUrl: ChunkUrl): HTMLScriptElement[] {
+    const requested = new URL(chunkUrl, document.baseURI).href
+    return Array.from(document.scripts).filter((script) => {
+      const src = script.getAttribute('src')
+      if (src == null) return false
+      const existing = new URL(src, document.baseURI).href
+      return existing === requested || existing.startsWith(`${requested}?`)
+    })
   }
 
   /**
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
    */
-  function doLoadChunk(sourceType: SourceType, chunkUrl: ChunkUrl) {
-    const resolver = getOrCreateResolver(chunkUrl)
+  function doLoadChunk(
+    sourceType: SourceType,
+    chunkUrl: ChunkUrl,
+    resolveOnLoad = false
+  ) {
+    const resolver = getOrCreateResolver(chunkUrl, resolveOnLoad)
+    // Normal Turbopack chunk loading wins if the same URL is also requested as an external script.
+    if (!resolveOnLoad) resolver.registrationRequired = true
     if (resolver.loadingStarted) {
       return resolver.promise
     }
@@ -198,16 +226,33 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
       return resolver.promise
     }
 
-    if (typeof importScripts === 'function') {
-      // We're in a web worker
+    if (typeof document === 'undefined') {
+      // We're in a web worker. Classic workers support importScripts; module workers use a
+      // native dynamic import for external scripts because importScripts is unavailable there.
       if (isCss(chunkUrl)) {
         // ignore
       } else if (isJs(chunkUrl)) {
-        self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
-        try {
-          importScripts(chunkUrl)
-        } catch (error) {
-          onChunkLoadError(sourceType, chunkUrl, resolver, error as Error)
+        if (typeof importScripts === 'function') {
+          self.TURBOPACK_NEXT_CHUNK_URLS!.push(chunkUrl)
+          try {
+            importScripts(chunkUrl)
+            if (!resolver.registrationRequired) resolver.resolve()
+          } catch (error) {
+            onChunkLoadError(sourceType, chunkUrl, resolver, error as Error)
+          }
+        } else if (!resolver.registrationRequired) {
+          import(chunkUrl).then(
+            () => resolver.resolve(),
+            (error) =>
+              onChunkLoadError(sourceType, chunkUrl, resolver, error as Error)
+          )
+        } else {
+          onChunkLoadError(
+            sourceType,
+            chunkUrl,
+            resolver,
+            new Error(`importScripts is unavailable for chunk ${chunkUrl}`)
+          )
         }
       } else {
         throw new Error(
@@ -252,11 +297,18 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           document.head.appendChild(createLink())
         }
       } else if (isJs(chunkUrl)) {
-        const previousScripts = document.querySelectorAll(
-          `script[src="${chunkUrl}"],script[src^="${chunkUrl}?"],script[src="${decodedChunkUrl}"],script[src^="${decodedChunkUrl}?"]`
-        )
+        const previousScripts = getExistingScripts(chunkUrl)
         if (previousScripts.length > 0) {
           for (const script of Array.from(previousScripts)) {
+            if (resolveOnLoad) {
+              script.addEventListener(
+                'load',
+                () => {
+                  if (!resolver.registrationRequired) resolver.resolve()
+                },
+                { once: true }
+              )
+            }
             script.addEventListener(
               'error',
               () => {
@@ -271,9 +323,11 @@ const chunkResolvers: Map<ChunkUrl, ChunkResolver> = new Map()
           const script = document.createElement('script')
           script.crossOrigin = CROSS_ORIGIN
           script.src = chunkUrl
-          // We'll only mark the chunk as loaded once the script has been executed,
-          // which happens in `registerChunk`. Hence the absence of `resolve()` in
-          // this branch.
+          script.onload = () => {
+            // External scripts don't register as Turbopack chunks, so their load event is the
+            // completion signal. A normal chunk request for the same URL takes precedence.
+            if (!resolver.registrationRequired) resolver.resolve()
+          }
           script.onerror = () => {
             // Drop the failed tag so a retry can re-add it cleanly.
             script.remove()

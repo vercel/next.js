@@ -19,9 +19,12 @@ use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
 };
-use turbopack::module_options::{
-    ConditionContentType, ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem,
-    WebpackRules, module_options_context::MdxTransformOptions,
+use turbopack::{
+    module_federation::{ModuleFederationConfig, UnnormalizedModuleFederationConfig},
+    module_options::{
+        ConditionContentType, ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem,
+        WebpackRules, module_options_context::MdxTransformOptions,
+    },
 };
 use turbopack_core::{
     chunk::{CrossOrigin, SourceMapsType},
@@ -1334,7 +1337,7 @@ pub struct ExperimentalConfig {
     turbopack_chunking: Option<TurbopackChunkingConfig>,
 
     #[bincode(with = "turbo_bincode::serde_self_describing")]
-    turbopack_module_federation: Option<serde_json::Value>,
+    turbopack_module_federation: Option<UnnormalizedModuleFederationConfig>,
 
     // ---
     // UNSUPPORTED
@@ -2177,17 +2180,14 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn turbopack_module_federation_json(&self) -> Vc<Option<RcStr>> {
-        Vc::cell(
-            self.experimental
-                .turbopack_module_federation
-                .as_ref()
-                .map(|value| {
-                    serde_json::to_string(value)
-                        .expect("serializing JSON cannot fail")
-                        .into()
-                }),
-        )
+    pub fn turbopack_module_federation(&self) -> Result<Vc<ModuleFederationConfig>> {
+        Ok(self
+            .experimental
+            .turbopack_module_federation
+            .clone()
+            .unwrap_or_default()
+            .normalize()?
+            .cell())
     }
 
     #[turbo_tasks::function]
