@@ -22,7 +22,7 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-Next.js reported this Insight because [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called [`unstable_prefetch()`](/docs/app/api-reference/functions/unstable_prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/unstable_navigation). Each function makes the subsequent metadata unavailable until a later cache stage, while the rest of the route can still be prefetched.
+Next.js reported this Insight because [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). Each function makes the subsequent metadata unavailable until a later cache stage, while the rest of the route can still be prefetched.
 
 For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent metadata until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering). Because `generateMetadata()` has no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary of its own, make the metadata available earlier or mark the route as dynamic.
 
@@ -77,7 +77,7 @@ Learn more: [Static metadata](/docs/app/api-reference/functions/generate-metadat
 
 ### Trade-off
 
-Static metadata cannot depend on work intentionally deferred to a full prefetch or navigation. Use [Mark the route as dynamic](#mark-the-route-as-dynamic) when the metadata must follow that lifecycle.
+Static metadata cannot depend on work intentionally deferred to a per-link prefetch or navigation. Use [Mark the route as dynamic](#mark-the-route-as-dynamic) when the metadata must follow that lifecycle.
 
 ### Gotchas
 
@@ -92,15 +92,15 @@ Choose this fix when the metadata intentionally resolves at the selected cache s
 
 #### Add a dynamic marker component
 
-Keep the stage API in `generateMetadata()` and add the marker to the page body. This example defers metadata until navigation. Use `unstable_prefetch()` instead when a full prefetch should include it.
+Keep the stage API in `generateMetadata()` and add the marker to the page body. This example defers metadata until navigation. Use `unstable_prefetch()` instead when a per-link prefetch should include it.
 
 ```jsx filename="app/dashboard/page.js"
 import { Suspense } from 'react'
-import { unstable_navigation as navigation } from 'next/cache'
+import { unstable_navigation } from 'next/cache'
 import { connection } from 'next/server'
 
 export async function generateMetadata() {
-  await navigation()
+  await unstable_navigation()
   return { title: await getDashboardTitle() }
 }
 

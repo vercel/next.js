@@ -22,7 +22,7 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-Next.js reported this Insight because [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) called [`unstable_prefetch()`](/docs/app/api-reference/functions/unstable_prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/unstable_navigation). Viewport metadata must be ready before Next.js can create the route's shell, so it cannot wait for a later cache stage or stream behind [`<Suspense>`](https://react.dev/reference/react/Suspense).
+Next.js reported this Insight because [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). Viewport metadata must be ready before Next.js can create the route's shell, so it cannot wait for a later cache stage or stream behind [`<Suspense>`](https://react.dev/reference/react/Suspense).
 
 For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent viewport work until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering), but prevent Next.js from completing the earlier runtime shell.
 
@@ -78,7 +78,7 @@ Learn more: [Static viewport](/docs/app/api-reference/functions/generate-viewpor
 
 ### Trade-off
 
-Static viewport values cannot depend on work intentionally deferred to a full prefetch or navigation. If the viewport must follow that lifecycle, allow the route to block.
+Static viewport values cannot depend on work intentionally deferred to a per-link prefetch or navigation. If the viewport must follow that lifecycle, allow the route to block.
 
 ### Gotchas
 
@@ -93,15 +93,15 @@ Choose this fix when the viewport intentionally resolves at the selected cache s
 
 #### Opt the layout out
 
-Add the export to the layout that owns `generateViewport()`. This example defers the viewport until navigation. Use `unstable_prefetch()` instead when a full prefetch should include it.
+Add the export to the layout that owns `generateViewport()`. This example defers the viewport until navigation. Use `unstable_prefetch()` instead when a per-link prefetch should include it.
 
 ```jsx filename="app/dashboard/layout.js"
-import { unstable_navigation as navigation } from 'next/cache'
+import { unstable_navigation } from 'next/cache'
 
 export const instant = false
 
 export async function generateViewport() {
-  await navigation()
+  await unstable_navigation()
   return { themeColor: await getThemeColor() }
 }
 
@@ -121,7 +121,7 @@ Don't use this to dismiss the error. Choose [Use static viewport](#use-static-vi
 
 ### Trade-off
 
-Navigations to this route are not instant. The user waits for the full server render before any HTML arrives. Use this only when that latency is the deliberate cost of the route's purpose.
+Navigations through this segment are allowed to block. When they do, the destination UI waits for the server render instead of updating immediately. Use this only when that latency is the deliberate cost of the route's purpose.
 
 ### Gotchas
 

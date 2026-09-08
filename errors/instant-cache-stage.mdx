@@ -22,7 +22,7 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-Next.js reported this Insight because a Server Component called [`unstable_prefetch()`](/docs/app/api-reference/functions/unstable_prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/unstable_navigation) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). Each function pauses the component tree until a later cache stage. Without a boundary, Next.js has no fallback to render before that stage.
+Next.js reported this Insight because a Server Component called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). Each function pauses the component tree until a later cache stage. Without a boundary, Next.js has no fallback to render before that stage.
 
 For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent content until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering), and content below them remains cacheable.
 
@@ -58,16 +58,16 @@ Choose this fix when the route has meaningful UI before the deferred content. Pl
 
 ### Patterns
 
-#### Include content in a full prefetch
+#### Include content in a per-link prefetch
 
 Use `unstable_prefetch()` when the region should be absent from the App Shell but available to links that use `prefetch={true}`.
 
 ```jsx filename="app/products/page.js"
 import { Suspense } from 'react'
-import { unstable_prefetch as prefetch } from 'next/cache'
+import { unstable_prefetch } from 'next/cache'
 
 async function Recommendations() {
-  await prefetch()
+  await unstable_prefetch()
   return <ProductGrid products={await getRecommendations()} />
 }
 
@@ -89,10 +89,10 @@ Use `unstable_navigation()` when the region should be absent from prefetches and
 
 ```jsx filename="app/dashboard/page.js"
 import { Suspense } from 'react'
-import { unstable_navigation as navigation } from 'next/cache'
+import { unstable_navigation } from 'next/cache'
 
 async function RecentActivity() {
-  await navigation()
+  await unstable_navigation()
   return <ActivityList activity={await getRecentActivity()} />
 }
 
@@ -112,7 +112,7 @@ Learn more: [Streaming](/docs/app/guides/streaming).
 
 ### Trade-off
 
-The earlier stage contains the fallback instead of the deferred content. A full prefetch adds speculative server work for content below `unstable_prefetch()`, while content below `unstable_navigation()` does not begin rendering until navigation.
+The earlier stage contains the fallback instead of the deferred content. A per-link prefetch adds speculative server work for content below `unstable_prefetch()`, while content below `unstable_navigation()` does not begin rendering until navigation.
 
 ### Gotchas
 
@@ -131,12 +131,12 @@ Choose this fix when the route has no meaningful UI before the deferred content.
 Add the export to the page that calls the cache stage API. Only that route is allowed to block.
 
 ```jsx filename="app/dashboard/page.js"
-import { unstable_navigation as navigation } from 'next/cache'
+import { unstable_navigation } from 'next/cache'
 
 export const instant = false
 
 export default async function Page() {
-  await navigation()
+  await unstable_navigation()
   return <Dashboard />
 }
 ```
@@ -166,7 +166,7 @@ Don't use this to dismiss the error. Choose [Wrap in or move into Suspense](#wra
 
 ### Trade-off
 
-Navigations to this route are not instant. The user waits for the full server render before any HTML arrives. Use this only when that latency is the deliberate cost of the route's purpose.
+Navigations through this segment are allowed to block. When they do, the destination UI waits for the server render instead of updating immediately. Use this only when that latency is the deliberate cost of the route's purpose.
 
 ### Gotchas
 

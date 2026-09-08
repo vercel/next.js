@@ -119,7 +119,7 @@ export function createRuntimeMetadataError(route: string): Error {
 export function createNavigationMetadataError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_navigation()\` in \`generateMetadata()\`.\n\n` +
-      `This route's metadata is blocked, but the rest of its content can be prefetched. \`unstable_navigation()\` called in \`generateMetadata()\` prevents it from being prefetched.\n\n` +
+      `This route's metadata is blocked, but the rest of its content can be prefetched. \`unstable_navigation()\` defers the metadata until navigation, so it cannot be included in the App Shell or a per-link prefetch.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
       `  - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page\n\n` +
@@ -130,7 +130,7 @@ export function createNavigationMetadataError(route: string): Error {
 export function createPrefetchMetadataError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_prefetch()\` in \`generateMetadata()\`.\n\n` +
-      `This route's metadata is blocked, but the rest of its content can be prefetched. \`unstable_prefetch()\` called in \`generateMetadata()\` prevents the metadata from being included in the App Shell.\n\n` +
+      `This route's metadata is blocked, but the rest of its content can be prefetched. \`unstable_prefetch()\` defers the metadata until a per-link prefetch or navigation, so it cannot be included in the App Shell.\n\n` +
       `Ways to fix this:\n` +
       `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
       `  - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page\n\n` +

@@ -160,10 +160,8 @@ async function Stories() {
 - The function has no effect on the initial load of a page.
 - Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await unstable_navigation()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache). It also keeps its cache lifetime.
 - Reading `cookies()` or `headers()` below `unstable_navigation()` does not make the route's prefetches render per request, so they can still be served from static output. Those accesses are ignored, because they would not have resolved in a prefetch either.
-- A call outside a `<Suspense>` boundary surfaces a validation insight in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
+- A call outside a `<Suspense>` boundary surfaces a [validation insight](/docs/messages/instant-cache-stage) in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
-
-{/* TODO: link the validation insight error page from the bullet above once it merges. */}
 
 ## Reference
 

@@ -36,13 +36,13 @@ export function unstable_prefetch(): Promise<void> {
   }
   if (!process.env.__NEXT_CACHE_COMPONENTS) {
     throw new Error(
-      `Route ${workStore.route} used \`unstable_prefetch()\`, which requires Cache Components to be enabled. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents`
+      `Route "${workStore.route}": \`unstable_prefetch()\` requires Cache Components.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/prefetch`
     )
   }
 
   if (!isRequestApiAllowedInCurrentPhase(workUnitStore)) {
     throw new Error(
-      `Route ${workStore.route} used \`unstable_prefetch()\` inside \`after()\` while rendering. The \`unstable_prefetch()\` function is used to indicate the subsequent code must not run in the app shell, but \`after()\` executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+      `Route "${workStore.route}": \`unstable_prefetch()\` can't be called inside \`after()\` because \`after()\` runs after the request.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/after`
     )
   }
 
@@ -114,7 +114,7 @@ export function unstable_prefetch(): Promise<void> {
 
     case 'cache': {
       const error = new Error(
-        `Route ${workStore.route} used \`unstable_prefetch()\` inside "use cache". This is not currently supported. Instead, move the "use cache" directive to a function that's called below \`await unstable_prefetch()\`, so that the cached content is deferred to the prefetch without caching the stage boundary itself. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        `Route "${workStore.route}": \`unstable_prefetch()\` can't be called inside \`"use cache"\`. Move \`await unstable_prefetch()\` outside the cached function, then call the cached function below it.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
       )
       Error.captureStackTrace(error, unstable_prefetch)
       applyOwnerStack(error)
@@ -123,7 +123,7 @@ export function unstable_prefetch(): Promise<void> {
     }
     case 'private-cache': {
       const error = new Error(
-        `Route ${workStore.route} used \`unstable_prefetch()\` inside "use cache: private". This is not currently supported. Instead, move the "use cache" directive to a function that's called below \`await unstable_prefetch()\`, so that the cached content is deferred to the prefetch without caching the stage boundary itself. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        `Route "${workStore.route}": \`unstable_prefetch()\` can't be called inside \`"use cache: private"\`. Move \`await unstable_prefetch()\` outside the cached function, then call the cached function below it.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
       )
       Error.captureStackTrace(error, unstable_prefetch)
       applyOwnerStack(error)
@@ -132,12 +132,12 @@ export function unstable_prefetch(): Promise<void> {
     }
     case 'unstable-cache': {
       throw new Error(
-        `Route ${workStore.route} used \`unstable_prefetch()\` inside a function cached with \`unstable_cache()\`. The \`unstable_prefetch()\` function is used to indicate the subsequent code must not run in the app shell, but \`unstable_cache()\` caches must be able to be produced before a prefetch, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        `Route "${workStore.route}": \`unstable_prefetch()\` can't be called inside \`unstable_cache()\`. Call it outside the cached function.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
     }
     case 'generate-static-params': {
       throw new Error(
-        `Route ${workStore.route} used \`unstable_prefetch()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without a prefetch. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+        `Route "${workStore.route}": \`unstable_prefetch()\` can't be called inside \`generateStaticParams\` because it runs at build time, without a prefetch.\nLearn more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
       )
     }
     case 'prerender-client':
@@ -151,7 +151,7 @@ export function unstable_prefetch(): Promise<void> {
       // NOTE: Should not be reachable, because we don't use this mode in cacheComponents,
       // which we require at the top
       throw new Error(
-        `Route ${workStore.route} used \`unstable_prefetch()\`, which requires Cache Components to be enabled. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents`
+        `Route "${workStore.route}": \`unstable_prefetch()\` requires Cache Components.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/prefetch`
       )
     }
 
@@ -186,13 +186,13 @@ export function unstable_navigation(): Promise<void> {
   }
   if (!process.env.__NEXT_CACHE_COMPONENTS) {
     throw new Error(
-      `Route ${workStore.route} used \`unstable_navigation()\`, which requires Cache Components to be enabled. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents`
+      `Route "${workStore.route}": \`unstable_navigation()\` requires Cache Components.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/navigation`
     )
   }
 
   if (!isRequestApiAllowedInCurrentPhase(workUnitStore)) {
     throw new Error(
-      `Route ${workStore.route} used \`unstable_navigation()\` inside \`after()\` while rendering. The \`unstable_navigation()\` function is used to indicate the subsequent code must only run during an actual navigation, but \`after()\` executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+      `Route "${workStore.route}": \`unstable_navigation()\` can't be called inside \`after()\` because \`after()\` runs after the request.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/after`
     )
   }
 
@@ -267,7 +267,7 @@ export function unstable_navigation(): Promise<void> {
 
     case 'cache': {
       const error = new Error(
-        `Route ${workStore.route} used \`unstable_navigation()\` inside "use cache". This is not currently supported. Instead, move the "use cache" directive to a function that's called below \`await unstable_navigation()\`, so that the cached content is deferred to the navigation without caching the stage boundary itself. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        `Route "${workStore.route}": \`unstable_navigation()\` can't be called inside \`"use cache"\`. Move \`await unstable_navigation()\` outside the cached function, then call the cached function below it.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
       )
       Error.captureStackTrace(error, unstable_navigation)
       applyOwnerStack(error)
@@ -276,7 +276,7 @@ export function unstable_navigation(): Promise<void> {
     }
     case 'private-cache': {
       const error = new Error(
-        `Route ${workStore.route} used \`unstable_navigation()\` inside "use cache: private". This is not currently supported. Instead, move the "use cache" directive to a function that's called below \`await unstable_navigation()\`, so that the cached content is deferred to the navigation without caching the stage boundary itself. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        `Route "${workStore.route}": \`unstable_navigation()\` can't be called inside \`"use cache: private"\`. Move \`await unstable_navigation()\` outside the cached function, then call the cached function below it.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache`
       )
       Error.captureStackTrace(error, unstable_navigation)
       applyOwnerStack(error)
@@ -285,12 +285,12 @@ export function unstable_navigation(): Promise<void> {
     }
     case 'unstable-cache': {
       throw new Error(
-        `Route ${workStore.route} used \`unstable_navigation()\` inside a function cached with \`unstable_cache()\`. The \`unstable_navigation()\` function is used to indicate the subsequent code must only run during an actual navigation, but \`unstable_cache()\` caches must be able to be produced before a navigation, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        `Route "${workStore.route}": \`unstable_navigation()\` can't be called inside \`unstable_cache()\`. Call it outside the cached function.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
       )
     }
     case 'generate-static-params': {
       throw new Error(
-        `Route ${workStore.route} used \`unstable_navigation()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without a navigation. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
+        `Route "${workStore.route}": \`unstable_navigation()\` can't be called inside \`generateStaticParams\` because it runs at build time, without a navigation.\nLearn more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
       )
     }
     case 'prerender-client':
@@ -304,7 +304,7 @@ export function unstable_navigation(): Promise<void> {
       // NOTE: Should not be reachable, because we don't use this mode in cacheComponents,
       // which we require at the top
       throw new Error(
-        `Route ${workStore.route} used \`unstable_navigation()\`, which requires Cache Components to be enabled. Learn more: https://nextjs.org/docs/app/api-reference/config/next-config-js/cacheComponents`
+        `Route "${workStore.route}": \`unstable_navigation()\` requires Cache Components.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/navigation`
       )
     }
 

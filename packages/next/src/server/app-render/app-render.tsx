@@ -2003,7 +2003,7 @@ async function finalRuntimeServerPrerender(
       // We may not reach this stage depending on the mode.
       if (finalStage < RenderStage.PrefetchRuntime) return
 
-      finalStageController.advanceStage(RenderStage.PrefetchRuntime)
+      stageController.advanceStage(RenderStage.PrefetchRuntime)
     },
     () => {
       if (checkUnexpectedAbort()) return

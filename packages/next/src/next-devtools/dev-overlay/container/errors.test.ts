@@ -65,6 +65,43 @@ describe('getErrorTypeLabel', () => {
   })
 })
 
+describe('cache stage Insight messages', () => {
+  it.each([
+    {
+      error: () => createNavigationMetadataError(ROUTE),
+      detail:
+        '`unstable_navigation()` defers the metadata until navigation, so it cannot be included in the App Shell or a per-link prefetch.',
+      docs: 'instant-cache-stage-metadata',
+    },
+    {
+      error: () => createPrefetchMetadataError(ROUTE),
+      detail:
+        '`unstable_prefetch()` defers the metadata until a per-link prefetch or navigation, so it cannot be included in the App Shell.',
+      docs: 'instant-cache-stage-metadata',
+    },
+    {
+      error: () => createNavigationViewportError(ROUTE),
+      detail:
+        '`unstable_navigation()` in `generateViewport()` prevents creating a shell, leading to a slower user experience.',
+      docs: 'instant-cache-stage-viewport',
+    },
+    {
+      error: () => createPrefetchViewportError(ROUTE),
+      detail:
+        '`unstable_prefetch()` in `generateViewport()` prevents creating the App Shell, leading to a slower user experience.',
+      docs: 'instant-cache-stage-viewport',
+    },
+  ])(
+    'keeps the stage behavior and dedicated docs link',
+    ({ error, detail, docs }) => {
+      expect(error().message).toContain(detail)
+      expect(error().message).toContain(
+        `Learn more: https://nextjs.org/docs/messages/${docs}`
+      )
+    }
+  )
+})
+
 describe('getGuidanceVariant', () => {
   describe('classifies runtime messages as runtime', () => {
     it.each([
