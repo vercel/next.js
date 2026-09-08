@@ -27,13 +27,19 @@ at
 `node_modules/next/dist/docs/01-app/02-guides/optimizing-prefetching.md`. If the
 bundled guide is unavailable, use the [online
 guide](https://nextjs.org/docs/app/guides/optimizing-prefetching). It is the
-source of truth for App Shell behavior, `prefetch={true}`, cache and session
-patterns, and cost trade-offs. Do not copy those recipes into the skill or
-improvise alternatives from this file.
+source of truth for prefetch stages, `prefetch={true}`, session-specific
+prefetched UI, and cost trade-offs. Do not copy those recipes into the skill
+or improvise alternatives from this file.
+
+When the work changes what belongs in the App Shell, follow the
+[Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation) and
+[Caching](https://nextjs.org/docs/app/getting-started/caching) docs for cache
+placement, Suspense boundaries, loading UI, and authorization. Do not duplicate
+those framework patterns here.
 
 Keep this skill focused on choosing one navigation, recording its product and
 cost contract, setting up a trustworthy production RED-to-GREEN loop, checking
-parity and the differential, and reporting the result. The guide owns the
+parity and the differential, and reporting the result. The guides own the
 framework behavior and implementation patterns.
 
 This is not an adoption skill. Do not enable Cache Components or Partial
@@ -49,7 +55,8 @@ Suspense boundaries, its data reads, existing prefetch policy, and any existing
 
 - which destination UI should be ready before the click;
 - which reusable UI should wait for navigation;
-- whether full prefetching should start in the viewport or only after intent.
+- whether per-link prefetching should start in the viewport or only after
+  intent.
 
 The trigger is part of the behavior. Two links to the same URL may have
 different prefetch policies and need separate tests.
@@ -60,10 +67,10 @@ freshness contract is unknown.
 
 ## Reuse the production rig
 
-Read an existing `instant-nav.rig.md`. Cache Components optimization and
-Partial Prefetching adoption use the same build, auth, data, and Playwright
-contract. Extend it with the exact source link, destination markers, and
-prefetch budget instead of creating a second rig.
+Read an existing `instant-nav.rig.md`. Cache Components optimization, Partial
+Prefetching adoption, and this optimizer use the same build, auth, data, and
+Playwright contract. Extend it with the exact source link, destination markers,
+and prefetch budget instead of creating a second rig.
 
 If the project has no rig, use
 [`next-cache-components-optimizer/rig-template.md`](../next-cache-components-optimizer/rig-template.md)
@@ -104,9 +111,11 @@ same task. A written test or a build still in progress is not verification.
 
 ## Make the smallest optimization
 
-Follow the Optimizing prefetching guide for cache placement, freshness,
-session data, Suspense, and link policy. Change only what the selected contract
-requires.
+Follow the Optimizing prefetching guide for stage and link policy. If the
+contract also requires changing cache placement, Suspense, or loading UI,
+follow the static-shell documentation used by
+`next-cache-components-optimizer`. Preserve the existing freshness and
+authorization behavior. Change only what the selected contract requires.
 
 When reusable UI should wait for navigation, verify that the final result
 preserves both properties. Do not accept an uncached request-time replacement
@@ -160,4 +169,5 @@ best-effort; the App Shell remains the fallback when it has not completed.
 
 - [Optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching)
 - [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation)
+- [Caching](https://nextjs.org/docs/app/getting-started/caching)
 - [Prefetching](https://nextjs.org/docs/app/guides/prefetching)

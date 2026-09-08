@@ -49,8 +49,8 @@ do not hover: the test should prove the link's declared eager strategy.
 - A shared selector matches the source before the destination commits.
 - The test clicks a default link while the code change modified a different
   link to the same URL.
-- Session-only UI was assumed to need a full prefetch without proving the
-  default/full exact-link differential.
+- Session-only UI was assumed to need a per-link prefetch without proving the
+  default/per-link exact-link differential.
 - The pathname matches but the query or parameter-derived content is wrong.
 - The production build does not have the testing API exposed.
 - A remote test ran against a stale deployment.
@@ -101,8 +101,8 @@ Do not compensate with timing.
 After GREEN:
 
 1. Record the build/commit under test.
-2. Remove only the stage, full-prefetch trigger, and cache boundary introduced
-   for the contract.
+2. Remove only the stage, per-link prefetch trigger, and cache boundary
+   introduced for the contract.
 3. Rebuild and rerun: shell must stay GREEN and the stage contract must be RED.
 4. Reapply, rebuild, and rerun: the whole contract must be GREEN.
 5. Confirm the unlocked loaded page is identical in both versions.
