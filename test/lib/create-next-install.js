@@ -141,6 +141,35 @@ async function applyWorkspaceOverrides(installDir, isolationRoot, overrides) {
 }
 
 /**
+ * @param {import('next/dist/trace').Span} parentSpan
+ * @returns {Promise<Map<string, string>>}
+ */
+async function packPackages(parentSpan) {
+  const repositoryDirectory = path.join(__dirname, '../..')
+  await parentSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
+    execa(
+      'pnpm',
+      [
+        'turbo',
+        'run',
+        'pack-for-isolated-tests',
+        '--output-logs',
+        'new-only',
+        '--ui',
+        'stream',
+      ],
+      {
+        cwd: repositoryDirectory,
+        stdio: ['ignore', 'inherit', 'inherit'],
+      }
+    )
+  )
+  return parentSpan
+    .traceChild('linkPackages')
+    .traceAsyncFn(() => linkPackages({ repoDir: repositoryDirectory }))
+}
+
+/**
  *
  * @param {object} param0
  * @param {import('@next/telemetry').Span} param0.parentSpan
@@ -182,26 +211,7 @@ async function createNextInstall({
         pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
-        await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-          execa(
-            'pnpm',
-            [
-              'turbo',
-              'run',
-              'pack-for-isolated-tests',
-              '--output-logs',
-              'new-only',
-              // Jest tui can't handle Turborepo tui. But we're cutting off stdin
-              // so Turborepo's tui isn't interactive anyway.
-              '--ui',
-              'stream',
-            ],
-            {
-              cwd: origRepoDir,
-              stdio: ['ignore', 'inherit', 'inherit'],
-            }
-          )
-        )
+        pkgPaths = await packPackages(rootSpan)
 
         if (process.env.NEXT_TEST_WASM) {
           const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
@@ -235,12 +245,6 @@ async function createNextInstall({
           swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
           swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
         })
-
-        pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
-          linkPackages({
-            repoDir: origRepoDir,
-          })
-        )
       }
 
       const combinedDependencies = {
@@ -385,4 +389,5 @@ async function createNextInstall({
 module.exports = {
   createNextInstall,
   getPkgPaths: linkPackages,
+  packPackages,
 }
