@@ -33,7 +33,7 @@ test('uses an explicit synchronous I/O boundary', () => {
 
 test('keeps the operations frame useful while metadata loads', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The stable Operations navigation and page frame must remain outside the Suspense boundary used for request metadata. The boundary must provide visible, meaningful loading UI rather than a null or empty fallback. Accept equivalent component and file organization.`
+    `The stable Operations navigation and page frame must remain outside the Suspense boundary used for request metadata. Accept equivalent component and file organization.`
   )
 })
 
