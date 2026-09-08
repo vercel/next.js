@@ -152,6 +152,36 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
   }
 }
 
+/**
+ * Key under which `prefetch()` stores the `{ __appRouter: true }` marker in
+ * `router.components` and under which `change()` looks it up again.
+ *
+ * The client router filter (`_bfl`) is evaluated against the `as` path, so the
+ * marker has to be keyed by the `as` path as well. Keying it by the `href`
+ * pathname is only equivalent while `href` and `as` are the same URL. When
+ * they differ (for example the "route as modal" pattern where `href` stays on
+ * the current page and `as` shows a pretty URL) a filter match on `as` would
+ * otherwise mark the pages route behind `href` as an App Router path and
+ * break every later navigation to that route.
+ *
+ * Returns `null` when `as` is not a local URL (for example `mailto:` or a
+ * different origin). Such an `as` can never be an App Router path, and
+ * `change()` reports it as an invalid `href`/`as` pair further down.
+ */
+function getAppRouterMarkerKey(router: Router, as: string): string | null {
+  if (!isLocalURL(as)) {
+    return null
+  }
+
+  let { pathname } = parseRelativeUrl(hasBasePath(as) ? removeBasePath(as) : as)
+
+  if (process.env.__NEXT_I18N_SUPPORT) {
+    pathname = normalizeLocalePath(pathname, router.locales).pathname
+  }
+
+  return removeTrailingSlash(pathname)
+}
+
 function resolveDynamicRoute(pathname: string, pages: string[]) {
   const cleanPathname = removeTrailingSlash(denormalizePagePath(pathname))
   if (cleanPathname === '/404' || cleanPathname === '/_error') {
@@ -1446,9 +1476,13 @@ export default class Router implements BaseRouter {
     let route = removeTrailingSlash(pathname)
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
 
-    // if we detected the path as app route during prefetching
+    // if we detected the `as` path as app route during prefetching
     // trigger hard navigation
-    if ((this.components[pathname] as any)?.__appRouter) {
+    const appRouterMarkerKey = getAppRouterMarkerKey(this, cleanedAs)
+    if (
+      appRouterMarkerKey !== null &&
+      (this.components[appRouterMarkerKey] as any)?.__appRouter
+    ) {
       handleHardNavigation({ url: as, router: this })
       return new Promise(() => {})
     }
@@ -2416,7 +2450,6 @@ export default class Router implements BaseRouter {
       return
     }
     let parsed = parseRelativeUrl(url)
-    const urlPathname = parsed.pathname
 
     let { pathname, query } = parsed
     const originalPathname = pathname
@@ -2554,7 +2587,10 @@ export default class Router implements BaseRouter {
     const route = removeTrailingSlash(pathname)
 
     if (await this._bfl(asPath, resolvedAs, options.locale, true)) {
-      this.components[urlPathname] = { __appRouter: true } as any
+      const appRouterMarkerKey = getAppRouterMarkerKey(this, asPath)
+      if (appRouterMarkerKey !== null) {
+        this.components[appRouterMarkerKey] = { __appRouter: true } as any
+      }
     }
 
     await Promise.all([
