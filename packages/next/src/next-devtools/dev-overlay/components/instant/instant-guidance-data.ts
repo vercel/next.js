@@ -19,6 +19,7 @@ export type FixCardGroup =
 export type FixCardIcon =
   | 'align-left'
   | 'arrow-up'
+  | 'check'
   | 'database'
   | 'history'
   | 'layout'
@@ -44,7 +45,7 @@ export const FIX_CARD_GROUPS: Record<
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
   ignore: { label: 'Ignore', color: 'red', icon: 'minus-circle' },
   render: { label: 'Render', color: 'gray', icon: 'layout' },
-  mark: { label: 'Mark', color: 'amber', icon: 'pointer-click' },
+  mark: { label: 'Mark', color: 'amber', icon: 'check' },
   remove: { label: 'Remove', color: 'gray', icon: 'minus' },
   upgrade: { label: 'Upgrade', color: 'amber', icon: 'arrow-up' },
   disable: { label: 'Disable', color: 'gray', icon: 'minus' },
@@ -337,21 +338,19 @@ function getMetadataCacheStageCards(
       link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#remove-the-api-call',
       snippets: [
         { text: 'export async function generateMetadata() {' },
-        { text: '  return getMetadata()', highlight: true },
+        { text: `-  await ${api}()`, highlight: true },
+        { text: '   return getMetadata()' },
         { text: '}' },
       ],
-      copyable: true,
     },
     {
-      id: 'mark-as-intentional',
-      title: 'Mark as intentional',
+      id: 'confirm-the-metadata-delay',
+      title: 'Confirm the metadata delay',
       group: 'mark',
-      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#mark-as-intentional',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#confirm-the-metadata-delay',
       snippets: [
-        { text: 'async function StageMarker() {' },
-        { text: `  await ${api}()`, highlight: true },
-        { text: '  return null' },
-        { text: '}' },
+        { text: '// page.tsx or layout.tsx' },
+        { text: `await ${api}()`, highlight: true },
       ],
       copyable: true,
     },
@@ -413,31 +412,38 @@ const viewportRuntimeCards: FixCard[] = [
   },
 ]
 
-const viewportCacheStageCards: FixCard[] = [
-  {
-    id: 'remove-the-api-call',
-    title: 'Remove the API call',
-    group: 'remove',
-    link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#remove-the-api-call',
-    snippets: [
-      { text: 'export async function generateViewport() {' },
-      { text: '  return getViewport()', highlight: true },
-      { text: '}' },
-    ],
-    copyable: true,
-  },
-  {
-    id: 'disable-validation-on-this-route',
-    title: 'Disable validation on this route',
-    group: 'ignore',
-    link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#disable-validation-on-this-route',
-    snippets: [
-      { text: '// page.tsx or layout.tsx' },
-      { text: 'export const instant = false', highlight: true },
-    ],
-    copyable: true,
-  },
-]
+function getViewportCacheStageCards(
+  variant: 'prefetch' | 'navigation'
+): FixCard[] {
+  const api =
+    variant === 'prefetch' ? 'unstable_prefetch' : 'unstable_navigation'
+
+  return [
+    {
+      id: 'remove-the-api-call',
+      title: 'Remove the API call',
+      group: 'remove',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#remove-the-api-call',
+      snippets: [
+        { text: 'export async function generateViewport() {' },
+        { text: `-  await ${api}()`, highlight: true },
+        { text: '   return getViewport()' },
+        { text: '}' },
+      ],
+    },
+    {
+      id: 'disable-validation-on-this-route',
+      title: 'Disable validation on this route',
+      group: 'ignore',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#disable-validation-on-this-route',
+      snippets: [
+        { text: '// page.tsx or layout.tsx' },
+        { text: 'export const instant = false', highlight: true },
+      ],
+      copyable: true,
+    },
+  ]
+}
 
 // URL data in `generateViewport()` shares the same fixes as runtime data.
 const viewportLinkCards = viewportRuntimeCards
@@ -932,7 +938,7 @@ export function getCards(
           return viewportRuntimeCards
         case 'prefetch':
         case 'navigation':
-          return viewportCacheStageCards
+          return getViewportCacheStageCards(variant)
         case 'dynamic':
           return filterCacheForConnection(viewportDynamicCards, variant, cause)
         default:

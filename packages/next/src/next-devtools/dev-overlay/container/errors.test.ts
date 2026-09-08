@@ -600,18 +600,22 @@ describe('card sets for all error families', () => {
     const cards = getCards('metadata', variant)
     expect(cards.map((card) => card.id)).toEqual([
       'remove-the-api-call',
-      'mark-as-intentional',
+      'confirm-the-metadata-delay',
     ])
     expect(cards[0]).toMatchObject({
       title: 'Remove the API call',
       group: 'remove',
     })
     expect(cards[1]).toMatchObject({
-      title: 'Mark as intentional',
+      title: 'Confirm the metadata delay',
       group: 'mark',
     })
+    expect(cards[0].snippets).toContainEqual({
+      text: `-  await unstable_${variant}()`,
+      highlight: true,
+    })
     expect(cards[1].snippets).toContainEqual({
-      text: `  await unstable_${variant}()`,
+      text: `await unstable_${variant}()`,
       highlight: true,
     })
   })
@@ -637,10 +641,15 @@ describe('card sets for all error families', () => {
   })
 
   it.each(['prefetch', 'navigation'] as const)('viewport %s', (variant) => {
-    expect(getCards('viewport', variant).map((card) => card.id)).toEqual([
+    const cards = getCards('viewport', variant)
+    expect(cards.map((card) => card.id)).toEqual([
       'remove-the-api-call',
       'disable-validation-on-this-route',
     ])
+    expect(cards[0].snippets).toContainEqual({
+      text: `-  await unstable_${variant}()`,
+      highlight: true,
+    })
   })
 
   it('viewport dynamic', () => {

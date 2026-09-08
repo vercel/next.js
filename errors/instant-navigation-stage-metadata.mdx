@@ -24,7 +24,7 @@ kind: insight
 
 During prerendering or a client-side navigation, [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). These [navigation stage APIs](/docs/app/glossary#navigation-stages) delay the metadata work until a per-link prefetch or navigation, depending on which API you use.
 
-Metadata can already stream, so delaying it may be unintentional. Remove the API call if you do not need the delay. Otherwise, mark it as intentional.
+Metadata can already stream, so delaying it may be unintentional. Remove the API call if you do not need the delay. Otherwise, confirm that the metadata delay is intentional.
 
 For the same insight in the page body or viewport code, see [navigation stage API outside of Suspense](/docs/messages/instant-navigation-stage) or [navigation stage API in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport).
 
@@ -37,19 +37,18 @@ For the same insight in the page body or viewport code, see [navigation stage AP
     href="#remove-the-api-call"
     snippets={[
       { text: 'export async function generateMetadata() {' },
-      { text: '  return getMetadata()', highlight: true },
+      { text: '-  await unstable_navigation()', highlight: true },
+      { text: '   return getMetadata()' },
       { text: '}' },
     ]}
   />
   <FixCard
     group="mark"
-    title="Mark as intentional"
-    href="#mark-as-intentional"
+    title="Confirm the metadata delay"
+    href="#confirm-the-metadata-delay"
     snippets={[
-      { text: 'async function StageMarker() {' },
-      { text: '  await unstable_navigation()', highlight: true },
-      { text: '  return null' },
-      { text: '}' },
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await unstable_navigation()', highlight: true },
     ]}
   />
 </FixCardGrid>
@@ -84,7 +83,7 @@ Removing the API can increase the metadata work performed during prerendering an
 
 - You do not need to replace `generateMetadata()` with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export. Use a static export only when the values are fixed for the route segment.
 
-## Mark as intentional
+## Confirm the metadata delay
 
 Choose this fix when the page can render earlier but the metadata should remain at the selected navigation stage. Create a component that calls the same API as `generateMetadata()` and returns `null`. Render it inside [`<Suspense>`](https://react.dev/reference/react/Suspense).
 
@@ -92,7 +91,7 @@ This insight appears because metadata is the only part of the route delayed to t
 
 ### Patterns
 
-#### Mark the timing from the page
+#### Add a navigation stage marker
 
 Create the marker and render it inside [`<Suspense>`](https://react.dev/reference/react/Suspense). The existing page content remains available at its current stages.
 
