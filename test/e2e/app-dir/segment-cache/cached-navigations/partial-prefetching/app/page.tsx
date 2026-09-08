@@ -13,6 +13,11 @@ export default function Home() {
             Go to runtime-prefetchable page
           </Link>
         </li>
+        <li>
+          <Link href="/runtime-prefetch-disabled" prefetch={false}>
+            Go to prefetch-disabled page
+          </Link>
+        </li>
       </ul>
     </main>
   )

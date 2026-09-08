@@ -51,34 +51,48 @@ export function isFrameworkErrorRoute(route: string | undefined): boolean {
 }
 
 /**
- * Matches the `prefetch` config that enables Partial Prefetching for the
- * segment: 'partial'. A route with Partial Prefetching enabled also
- * runtime-caches its navigations, so this gates the runtime prefetch spawn.
+ * Whether Partial Prefetching is enabled for a route after applying explicit
+ * segment config over the app-level default. A `prefetch = 'partial'` opt-in
+ * wins if any segment exports one. Otherwise, any explicit non-partial value
+ * opts the route out of the app default.
+ *
+ * Runtime prefetch responses are generated for the whole route, so this
+ * decision must be route-wide too.
  */
-export async function anySegmentHasPartialPrefetchingEnabled(
-  tree: LoaderTree
+export async function isPartialPrefetchingEnabledForRoute(
+  tree: LoaderTree,
+  appDefault: boolean
 ): Promise<boolean> {
-  const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
+  let hasExplicitConfig = false
+  let hasPartialOptIn = false
 
-  // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
-  const prefetchConfig = layoutOrPageMod
-    ? (layoutOrPageMod as AppSegmentConfig).prefetch
-    : undefined
-  if (prefetchConfig === 'partial') {
-    return true
-  }
+  async function visit(segmentTree: LoaderTree): Promise<void> {
+    const { mod: layoutOrPageMod } = await getLayoutOrPageModule(segmentTree)
 
-  const { parallelRoutes } = parseLoaderTree(tree)
-  for (const parallelRouteKey in parallelRoutes) {
-    const parallelRoute = parallelRoutes[parallelRouteKey]
-    const hasChildPartialPrefetching =
-      await anySegmentHasPartialPrefetchingEnabled(parallelRoute)
-    if (hasChildPartialPrefetching) {
-      return true
+    // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
+    const prefetchConfig = layoutOrPageMod
+      ? (layoutOrPageMod as AppSegmentConfig).prefetch
+      : undefined
+
+    if (prefetchConfig !== undefined) {
+      hasExplicitConfig = true
+      if (prefetchConfig === 'partial') {
+        hasPartialOptIn = true
+        return
+      }
+    }
+
+    const { parallelRoutes } = parseLoaderTree(segmentTree)
+    for (const parallelRouteKey in parallelRoutes) {
+      await visit(parallelRoutes[parallelRouteKey])
+      if (hasPartialOptIn) {
+        return
+      }
     }
   }
 
-  return false
+  await visit(tree)
+  return hasPartialOptIn || (!hasExplicitConfig && appDefault)
 }
 
 export async function isPageAllowedToBlock(tree: LoaderTree): Promise<boolean> {
