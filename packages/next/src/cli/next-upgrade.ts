@@ -1,4 +1,5 @@
-import { spawn } from 'child_process'
+import spawn from 'next/dist/compiled/cross-spawn'
+import * as Log from '../build/output/log'
 import { getProjectDir } from '../lib/get-project-dir'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
 
@@ -37,5 +38,10 @@ export function spawnNextUpgrade(
 
   upgradeProcess.on('close', (code) => {
     process.exitCode = code ?? 0
+  })
+
+  upgradeProcess.on('error', (err) => {
+    Log.error(err.message || 'Failed to start upgrade process')
+    process.exitCode = 1
   })
 }
