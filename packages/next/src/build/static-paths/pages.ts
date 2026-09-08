@@ -129,6 +129,20 @@ export async function buildPagesStaticPaths({
     }
     // For the object-provided path, we must make sure it specifies all
     // required keys.
+    else if (
+      typeof entry !== 'object' ||
+      entry === null ||
+      Array.isArray(entry)
+    ) {
+      throw new Error(
+        `Invalid path "${String(entry)}" returned from \`getStaticPaths\` in ${page}.\n` +
+          `Each path must be a string or an object of shape { params: { [key: string]: string } }.\n` +
+          `Received: ${typeof entry}${
+            entry !== null ? ` (${JSON.stringify(entry)})` : ''
+          }.\n` +
+          `Did you forget to convert a number to a string? e.g. params: { id: String(id) }`
+      )
+    }
     else {
       const invalidKeys = Object.keys(entry).filter(
         (key) => key !== 'params' && key !== 'locale'
