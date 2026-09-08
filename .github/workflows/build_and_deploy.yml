@@ -3,12 +3,6 @@ name: build-and-deploy
 
 on:
   push:
-    # Same branch trigger as build_and_test.yml so that change detection
-    # (`git diff HEAD~1`) evaluates the same commits in both workflows.
-    # PR branches are covered by the `pull_request` event below, where the
-    # checkout is the merge commit and HEAD~1 covers the whole PR. On branch
-    # pushes HEAD~1 would only cover the last commit of the push.
-    # create-release-branch.js rewrites this list for release branches.
     branches: ['canary']
     # Run on release tags so publishing is driven by the tag push rather than
     # the release-commit branch push (see the deploy-target step).
