@@ -15,6 +15,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       keyArgumentUseServer: string,
       keyPrerender: string,
       keyImportUseClient: string,
+      keyImportUseClientNested: string,
       keyRoute: string,
       dataRoot: string,
       dataNested: string,
@@ -23,6 +24,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       dataArgumentUseServer: string,
       dataPrerender: string,
       dataImportUseClient: string,
+      dataImportUseClientNested: string,
       dataRoute: string
     {
       const match = next.cliOutput.match(
@@ -49,6 +51,20 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       ]
       expect(matches).not.toBeEmpty()
       keyImportUseClient = matches.map((m) => m[0]).join('\n')
+    }
+
+    {
+      const logs = next.getCliOutputFromHere()
+      const browser = await next.browser(`/import-use-client-nested`)
+      dataImportUseClientNested = await browser.elementById('data').text()
+      const matches = [
+        ...logs().matchAll(
+          /^CustomCacheHandler::get .* \[\["_N_T_\/layout","_N_T_\/import-use-client-nested\/layout","_N_T_\/import-use-client-nested\/page","_N_T_\/import-use-client-nested"\]\]$/gm
+        ),
+      ]
+      expect(matches).not.toBeEmpty()
+      // The inner cache isn't read when the outer cache entry is reused.
+      keyImportUseClientNested = matches[0][0]
     }
 
     {
@@ -129,6 +145,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       keyArgumentUseServer,
       keyPrerender,
       keyImportUseClient,
+      keyImportUseClientNested,
       keyRoute,
       dataRoot,
       dataNested,
@@ -137,6 +154,7 @@ async function execute(next: NextInstance, envKey: string, id: string) {
       dataArgumentUseServer,
       dataPrerender,
       dataImportUseClient,
+      dataImportUseClientNested,
       dataRoute,
     }
   } finally {
@@ -171,6 +189,13 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
       expect(key1.keyImportUseClient).not.toBe(key2.keyImportUseClient)
       expect(key1.dataImportUseClient).not.toBe(key2.dataImportUseClient)
+
+      expect(key1.keyImportUseClientNested).not.toBe(
+        key2.keyImportUseClientNested
+      )
+      expect(key1.dataImportUseClientNested).not.toBe(
+        key2.dataImportUseClientNested
+      )
 
       expect(key1.keyRoute).not.toBe(key2.keyRoute)
       expect(key1.dataRoute).not.toBe(key2.dataRoute)
@@ -210,6 +235,11 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
       expect(key1.keyImportUseClient).toBe(key2.keyImportUseClient)
       expect(key1.dataImportUseClient).toBe(key2.dataImportUseClient)
+
+      expect(key1.keyImportUseClientNested).toBe(key2.keyImportUseClientNested)
+      expect(key1.dataImportUseClientNested).toBe(
+        key2.dataImportUseClientNested
+      )
     })
 
     it('should recompute when transitive implementation changes', async () => {
@@ -235,6 +265,14 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
           expect(key1.keyImportUseClient).not.toBe(key2.keyImportUseClient)
           expect(key1.dataImportUseClient).not.toBe(key2.dataImportUseClient)
           expect(key2.dataImportUseClient).toBe(value)
+
+          expect(key1.keyImportUseClientNested).not.toBe(
+            key2.keyImportUseClientNested
+          )
+          expect(key1.dataImportUseClientNested).not.toBe(
+            key2.dataImportUseClientNested
+          )
+          expect(key2.dataImportUseClientNested).toBe(value)
 
           expect(key1.keyRoute).not.toBe(key2.keyRoute)
           expect(key1.dataRoute).not.toBe(key2.dataRoute)
@@ -317,6 +355,14 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
         expect(key1.keyImportUseClient).not.toContain(foobar1)
         expect(key2.keyImportUseClient).not.toContain(foobar2)
 
+        expect(key1.keyImportUseClientNested).not.toBe(
+          key2.keyImportUseClientNested
+        )
+        expect(key1.dataImportUseClientNested).toEndWith(`:${foobar1}`)
+        expect(key2.dataImportUseClientNested).toEndWith(`:${foobar2}`)
+        expect(key1.keyImportUseClientNested).not.toContain(foobar1)
+        expect(key2.keyImportUseClientNested).not.toContain(foobar2)
+
         expect(key1.keyRoute).not.toBe(key2.keyRoute)
         expect(key1.dataRoute).toEndWith(`:${foobar1}`)
         expect(key2.dataRoute).toEndWith(`:${foobar2}`)
@@ -357,6 +403,13 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
 
           expect(key1.keyImportUseClient).toBe(key2.keyImportUseClient)
           expect(key1.dataImportUseClient).toBe(key2.dataImportUseClient)
+
+          expect(key1.keyImportUseClientNested).toBe(
+            key2.keyImportUseClientNested
+          )
+          expect(key1.dataImportUseClientNested).toBe(
+            key2.dataImportUseClientNested
+          )
 
           const browser = await next.browser('/import-use-client')
           expect(await browser.elementById('title').text()).toBe(
