@@ -11,8 +11,10 @@ use turbo_tasks::{
 use crate::backend::{
     operation::{
         AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext, ExecuteContext,
-        Operation, TaskGuard, aggregation_update::InnerOfUppersHasNewFollowersJob,
-        get_aggregation_number, get_uppers, invalidate::make_task_dirty_internal,
+        Operation, TaskGuard,
+        aggregation_update::InnerOfUppersHasNewFollowersJob,
+        get_aggregation_number, get_uppers,
+        invalidate::{MakeTaskDirtyOptions, make_task_dirty_internal},
         is_aggregating_node,
     },
     storage_schema::TaskStorageAccessors,
@@ -81,10 +83,12 @@ pub fn connect_children(
                 if !child.has_output() {
                     make_task_dirty_internal(
                         &mut child,
-                        false,
-                        /* schedule_when_active */ true,
-                        #[cfg(feature = "task_dirty_cause")]
-                        TaskDirtyCause::InitialDirty,
+                        MakeTaskDirtyOptions {
+                            make_stale: false,
+                            schedule_when_active: true,
+                            #[cfg(feature = "task_dirty_cause")]
+                            cause: TaskDirtyCause::InitialDirty,
+                        },
                         &mut queue,
                         ctx,
                     );

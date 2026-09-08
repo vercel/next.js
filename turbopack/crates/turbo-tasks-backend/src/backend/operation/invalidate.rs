@@ -88,6 +88,20 @@ impl Operation for InvalidateOperation {
     }
 }
 
+/// Options for [`make_task_dirty_internal`].
+pub struct MakeTaskDirtyOptions {
+    /// Also mark an in-progress execution stale (and abort it, when it is cancelable), so the
+    /// currently running execution is discarded in favor of a fresh one.
+    pub make_stale: bool,
+    /// Schedule the task when it is (or is treated as) active. Pass `false` to record the dirty
+    /// state without scheduling, e.g. for a task whose execution was aborted because nothing needs
+    /// it anymore.
+    pub schedule_when_active: bool,
+    /// Diagnostic reason recorded with the dirty state.
+    #[cfg(feature = "task_dirty_cause")]
+    pub cause: TaskDirtyCause,
+}
+
 pub fn make_task_dirty(
     task_id: TaskId,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
@@ -97,10 +111,12 @@ pub fn make_task_dirty(
     let mut task = ctx.task(task_id, TaskDataCategory::All);
     make_task_dirty_internal(
         &mut task,
-        true,
-        /* schedule_when_active */ true,
-        #[cfg(feature = "task_dirty_cause")]
-        cause,
+        MakeTaskDirtyOptions {
+            make_stale: true,
+            schedule_when_active: true,
+            #[cfg(feature = "task_dirty_cause")]
+            cause,
+        },
         queue,
         ctx,
     );
@@ -108,16 +124,19 @@ pub fn make_task_dirty(
 
 /// Requires the guard to be allocated with [TaskDataCategory::All].
 ///
-/// `schedule_when_active` is false when an unneeded execution is aborted: the dirty transition
-/// must propagate, but the disconnected task must remain unscheduled until it becomes live again.
+/// See [`MakeTaskDirtyOptions`] for how staleness and scheduling are controlled.
 pub fn make_task_dirty_internal<'e, E: ExecuteContext<'e>>(
     task: &mut E::TaskGuardImpl,
-    make_stale: bool,
-    schedule_when_active: bool,
-    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
+    options: MakeTaskDirtyOptions,
     queue: &mut AggregationUpdateQueue,
     ctx: &mut E,
 ) {
+    let MakeTaskDirtyOptions {
+        make_stale,
+        schedule_when_active,
+        #[cfg(feature = "task_dirty_cause")]
+        cause,
+    } = options;
     // There must be no way to invalidate immutable tasks. If there would be a way the task is not
     // immutable.
     #[cfg(any(debug_assertions, feature = "verify_immutable"))]

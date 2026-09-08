@@ -1205,6 +1205,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             } else if task.is_gc_collectible_ignoring_in_progress()
                 && let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress()
             {
+                // This should be rare: activeness normally aborts disconnected work before GC
+                // reaches it. Don't enqueue collection yet; abort completion is asynchronous, so
+                // the collector's authoritative recheck would still reject the in-progress task.
+                // A later GC pass can collect it after the abort callback settles it as dirty.
                 in_progress.abort_unneeded();
             }
         }
@@ -1938,7 +1942,7 @@ pub use self::{
     },
     cleanup_old_edges::{OutdatedEdge, capture_all_outgoing_edges},
     connect_children::connect_children,
-    invalidate::make_task_dirty_internal,
+    invalidate::{MakeTaskDirtyOptions, make_task_dirty_internal},
     prepare_new_children::prepare_new_children,
     update_collectible::UpdateCollectibleOperation,
 };
