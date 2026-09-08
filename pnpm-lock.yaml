@@ -6,6 +6,7 @@ settings:
 
 overrides:
   postcss: 8.5.23
+  compressible@2.0.18>mime-db: 1.47.0
   webpack: 5.109.2
   browserslist: 4.28.1
   caniuse-lite: 1.0.30001746
@@ -13905,6 +13906,10 @@ packages:
     resolution: {integrity: sha512-BHJ/EKruNIqJf/QahvxwQZXKygOQ256myeN/Ew+THcAa5q+PjyTTMMeNQC4DZw5AwfvelsUrA6B67NKMqXDbzQ==}
     engines: {node: '>= 0.6'}
 
+  mime-db@1.47.0:
+    resolution: {integrity: sha512-QBmA/G2y+IfeS4oktet3qRZ+P5kPhCKRXxXnQEudYqUaEioAU1/Lq2us3D/t1Jfo4hE9REQPrbB7K5sOczJVIw==}
+    engines: {node: '>= 0.6'}
+
   mime-db@1.52.0:
     resolution: {integrity: sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg==}
     engines: {node: '>= 0.6'}
@@ -26720,7 +26725,7 @@ snapshots:
 
   compressible@2.0.18:
     dependencies:
-      mime-db: 1.54.0
+      mime-db: 1.47.0
 
   compression@1.7.4:
     dependencies:
@@ -33244,6 +33249,8 @@ snapshots:
       brorand: 1.1.0
 
   mime-db@1.33.0: {}
+
+  mime-db@1.47.0: {}
 
   mime-db@1.52.0: {}
 
