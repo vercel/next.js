@@ -77,7 +77,10 @@ pub struct GlobOptions {
     /// Allows glob to match any part of the given string(s).
     /// NOTE: this means that a pattern like `node_modules/package_name` with `contains:true` will
     /// match `foo_node_modules/package_name_bar` If you want to match a _directory_ named
-    /// `node_modules/package_name` you should use `**/node_modules/package_name/**`
+    /// `node_modules/package_name` you should use `**/node_modules/package_name/**`.
+    ///
+    /// A partial match cannot safely determine whether a directory might contain a match, so this
+    /// option cannot be used with [`Glob::can_match_in_directory`].
     pub contains: bool,
     /// Whether matching should ignore ASCII case differences.
     pub case_insensitive: bool,
@@ -92,6 +95,10 @@ impl Glob {
     // Returns true if the glob might match a filename underneath this `path` where the
     // path represents a directory.
     pub fn can_match_in_directory(&self, path: &str) -> bool {
+        assert!(
+            !self.opts.contains,
+            "Glob::can_match_in_directory cannot be used when GlobOptions::contains is true"
+        );
         debug_assert!(
             !path.ends_with('/'),
             "Path should be a directory name and not end with /"
@@ -380,9 +387,20 @@ mod tests {
             "node_modules/.pnpm/lightningcss-wasm@1.28.2/node_modules/lightningcss-wasm/\
              lightningcss_node.wasm"
         );
-        let anchored = Glob::parse(pattern.clone(), GlobOptions::default()).unwrap();
-        let contains = Glob::parse(
-            pattern,
+        let anchored = Glob::parse(pattern, GlobOptions::default()).unwrap();
+
+        assert!(anchored.can_match_in_directory("node_modules"));
+        assert!(anchored.can_match_in_directory("node_modules/.pnpm"));
+        assert!(!anchored.can_match_in_directory("node_modules/next"));
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Glob::can_match_in_directory cannot be used when GlobOptions::contains is true"
+    )]
+    fn contains_glob_cannot_match_in_directory() {
+        let glob = Glob::parse(
+            rcstr!("node_modules/package_name"),
             GlobOptions {
                 contains: true,
                 ..Default::default()
@@ -390,17 +408,6 @@ mod tests {
         )
         .unwrap();
 
-        assert!(anchored.can_match_in_directory("node_modules"));
-        assert!(anchored.can_match_in_directory("node_modules/.pnpm"));
-        assert!(!anchored.can_match_in_directory("node_modules/next"));
-
-        // Before the first literal segment appears, the directory regex incorrectly prunes a
-        // directory that could contain a deeper match such as `packages/app/node_modules/...`.
-        assert!(!contains.can_match_in_directory("packages"));
-
-        // Once the unanchored directory regex finds its first literal segment, its optional
-        // suffix means every descendant can contain a match that restarts later in the path.
-        assert!(contains.can_match_in_directory("node_modules/next"));
-        assert!(contains.can_match_in_directory("node_modules/next/dist/server"));
+        glob.can_match_in_directory("node_modules");
     }
 }

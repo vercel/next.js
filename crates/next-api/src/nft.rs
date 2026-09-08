@@ -181,18 +181,30 @@ pub async fn trace_endpoint(
 /// a directory (including a directory symlink) matched by the user pattern without making the
 /// original pattern an unanchored partial match.
 fn include_glob_pattern(globs: &[&str]) -> RcStr {
-    let mut alternatives = Vec::with_capacity(globs.len() * 2);
-    for glob in globs {
-        alternatives.push((*glob).to_owned());
+    if globs.contains(&"**") {
+        return rcstr!("**");
+    }
+    if let [glob] = globs
+        && glob.ends_with("/**")
+    {
+        return RcStr::from(*glob);
+    }
+
+    let mut pattern = String::new();
+    pattern.push('{');
+    for (index, glob) in globs.iter().enumerate() {
+        if index > 0 {
+            pattern.push(',');
+        }
+        pattern.push_str(glob);
         if *glob != "**" && !glob.ends_with("/**") {
-            alternatives.push(format!("{glob}/**"));
+            pattern.push(',');
+            pattern.push_str(glob);
+            pattern.push_str("/**");
         }
     }
-    if alternatives.len() == 1 {
-        alternatives.pop().unwrap().into()
-    } else {
-        format!("{{{}}}", alternatives.join(",")).into()
-    }
+    pattern.push('}');
+    pattern.into()
 }
 
 /// Apply outputFileTracingIncludes patterns to find additional files
@@ -642,13 +654,16 @@ mod include_glob_tests {
 
     #[test]
     fn include_glob_supports_braces_and_multiple_patterns() {
-        let glob = glob(&["assets/{one,two}", "config/*.json"]);
+        let combined = glob(&["assets/{one,two}", "config/*.json"]);
 
-        assert!(glob.matches("assets/one"));
-        assert!(glob.matches("assets/two/nested.txt"));
-        assert!(glob.matches("config/runtime.json"));
-        assert!(!glob.matches("config/nested/runtime.json"));
-        assert!(!glob.matches("assets/three"));
+        assert!(combined.matches("assets/one"));
+        assert!(combined.matches("assets/two/nested.txt"));
+        assert!(combined.matches("config/runtime.json"));
+        assert!(!combined.matches("config/nested/runtime.json"));
+        assert!(!combined.matches("assets/three"));
+
+        let match_all = glob(&["config/*.json", "**"]);
+        assert!(match_all.matches("any/deeply/nested/file"));
     }
 }
 
@@ -675,17 +690,8 @@ mod tests {
             .root()
             .owned()
             .await?;
-        let includes = get_glob_includes(
-            root,
-            Glob::new(
-                rcstr!("**"),
-                GlobOptions {
-                    contains: true,
-                    ..Default::default()
-                },
-            ),
-        )
-        .await?;
+        let includes =
+            get_glob_includes(root, Glob::new(rcstr!("**"), GlobOptions::default())).await?;
 
         assert_eq!(
             includes
