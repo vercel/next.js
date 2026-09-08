@@ -34,13 +34,31 @@ export default function Page() {
       <ul>
         <li>
           <DebugLinkAccordion
-            href={linkForSlug('not-prerendered-1-no-cookies-prefetch-auto')}
+            href={linkForSlug('not-prerendered_no-cookies_prefetch-auto')}
             prefetch="auto"
           />
         </li>
         <li>
           <DebugLinkAccordion
-            href={linkForSlug('not-prerendered-1-no-cookies-prefetch-true')}
+            href={linkForSlug('not-prerendered_no-cookies_prefetch-true')}
+            prefetch={true}
+          />
+        </li>
+        <li>
+          <DebugLinkAccordion
+            href={
+              linkForSlug('not-prerendered_no-cookies_ensure-static-shell') +
+              '/ensure-static/shell'
+            }
+            prefetch={true}
+          />
+        </li>
+        <li>
+          <DebugLinkAccordion
+            href={
+              linkForSlug('not-prerendered_no-cookies_ensure-static-prefetch') +
+              '/ensure-static/prefetch'
+            }
             prefetch={true}
           />
         </li>
@@ -50,13 +68,32 @@ export default function Page() {
       <ul>
         <li>
           <DebugLinkAccordion
-            href={linkForSlug('not-prerendered-2-yes-cookies-prefetch-auto')}
+            href={linkForSlug('not-prerendered_yes-cookies_prefetch-auto')}
             prefetch="auto"
           />
         </li>
         <li>
           <DebugLinkAccordion
-            href={linkForSlug('not-prerendered-2-yes-cookies-prefetch-true')}
+            href={linkForSlug('not-prerendered_yes-cookies_prefetch-true')}
+            prefetch={true}
+          />
+        </li>
+        <li>
+          <DebugLinkAccordion
+            href={
+              linkForSlug('not-prerendered_yes-cookies_ensure-static-shell') +
+              '/ensure-static/shell'
+            }
+            prefetch={true}
+          />
+        </li>
+        <li>
+          <DebugLinkAccordion
+            href={
+              linkForSlug(
+                'not-prerendered_yes-cookies_ensure-static-prefetch'
+              ) + '/ensure-static/prefetch'
+            }
             prefetch={true}
           />
         </li>

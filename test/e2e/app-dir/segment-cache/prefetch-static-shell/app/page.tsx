@@ -251,6 +251,43 @@ export default function Page() {
           </LinkAccordion>
         </li>
       </ul>
+
+      <h2>ensureStatic</h2>
+      <ul>
+        <li>
+          <LinkAccordion href="/ensure-static/false/uses-cookies">
+            Page with <code>ensureStatic = false</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/ensure-static/shell/uses-cookies">
+            Page with <code>ensureStatic = "shell"</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/ensure-static/shell/uses-cookies"
+            prefetch={true}
+          >
+            Page with <code>ensureStatic = "shell"</code> that uses cookies
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/ensure-static/prefetch/uses-cookies">
+            Page with <code>ensureStatic = "prefetch"</code> that uses cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/ensure-static/prefetch/uses-cookies"
+            prefetch={true}
+          >
+            Page with <code>ensureStatic = "prefetch"</code> that uses cookies
+            (prefetch=true)
+          </LinkAccordion>
+        </li>
+      </ul>
     </main>
   )
 }
