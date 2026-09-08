@@ -1,5 +1,5 @@
 ---
-title: Next.js encountered a cache stage API in `generateMetadata()`
+title: Next.js encountered a Cache Stage API in `generateMetadata()`
 kind: insight
 ---
 
@@ -22,11 +22,11 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-Next.js reported this Insight because [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). Each function makes the subsequent metadata unavailable until a later cache stage, while the rest of the route can still be prefetched.
+Next.js reported this Insight because [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called a [Cache Stage API](/docs/app/glossary#cache-stages)—either [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). The API can exclude the subsequent metadata from an earlier prefetch while the rest of the route can still be prefetched.
 
 For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent metadata until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering). Because `generateMetadata()` has no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary of its own, make the metadata available earlier or mark the route as dynamic.
 
-For the same error in the page body or viewport code, see [Cache stage APIs outside of Suspense](/docs/messages/instant-cache-stage) or [Cache stage APIs in `generateViewport()`](/docs/messages/instant-cache-stage-viewport).
+For the same error in the page body or viewport code, see [Cache Stage API outside of Suspense](/docs/messages/instant-cache-stage) or [Cache Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport).
 
 ## Ways to fix this
 
@@ -54,7 +54,7 @@ For the same error in the page body or viewport code, see [Cache stage APIs outs
 
 ## Use static metadata
 
-Choose this fix when the metadata should be available before the selected cache stage. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export.
+Choose this fix when the metadata should be available before the point selected by the Cache Stage API. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export.
 
 ### Patterns
 
@@ -86,7 +86,7 @@ Static metadata cannot depend on work intentionally deferred to a per-link prefe
 
 ## Mark the route as dynamic
 
-Choose this fix when the metadata intentionally resolves at the selected cache stage. Add a marker component that calls [`connection()`](/docs/app/api-reference/functions/connection) inside [`<Suspense>`](https://react.dev/reference/react/Suspense) on the page.
+Choose this fix when the metadata is intentionally excluded from an earlier prefetch. Add a marker component that calls [`connection()`](/docs/app/api-reference/functions/connection) inside [`<Suspense>`](https://react.dev/reference/react/Suspense) on the page.
 
 ### Patterns
 
@@ -125,7 +125,7 @@ Learn more: [`connection`](/docs/app/api-reference/functions/connection).
 
 ### Trade-off
 
-The route is no longer fully static. The metadata waits for the selected cache stage, while the rest of the page can remain available from the earlier result.
+The route is no longer fully static. The metadata waits until the point selected by the Cache Stage API, while the rest of the page can remain available from the earlier result.
 
 ### Gotchas
 
@@ -151,13 +151,13 @@ See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the 
 
 - [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
 - [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
-- [Cache stage APIs outside of Suspense](/docs/messages/instant-cache-stage)
+- [Cache Stage API outside of Suspense](/docs/messages/instant-cache-stage)
 - [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
 - [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
 - [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
 - [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
 - [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
-- [Cache stage APIs in `generateViewport()`](/docs/messages/instant-cache-stage-viewport)
+- [Cache Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport)
 - [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)
 - [`Math.random()` in a Client Component](/docs/messages/blocking-prerender-random-client)
 - [`Date.now()` while prerendering](/docs/messages/blocking-prerender-current-time)

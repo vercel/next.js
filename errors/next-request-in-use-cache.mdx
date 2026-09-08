@@ -8,7 +8,7 @@ A cached function tried to access the incoming request. APIs such as `cookies()`
 
 A cached function can also stall if it awaits a promise stored outside the function, such as one kept in a module-scoped `Map` for deduplication.
 
-Cache stage APIs such as `unstable_prefetch()` and `unstable_navigation()` are also unavailable inside cached functions. Move the stage boundary outside the cached function, then call the cached function below it so only the deferred work is cached.
+`unstable_prefetch()` and `unstable_navigation()` are also unavailable inside cached functions. Move the stage boundary outside the cached function, then call the cached function below it so only the deferred work is cached.
 
 ## Possible Ways to Fix It
 

@@ -30,7 +30,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-A route is then rendered in three stages, and content can arrive at any of them:
+[Cache Stages](/docs/app/glossary#cache-stages) control how much of the route each prefetch includes. With Partial Prefetching enabled, content can arrive at three points:
 
 1. The App Shell, which every `<Link>` into the route prefetches, and which holds the part of the route that does not depend on the URL.
 2. A per-link prefetch, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), which resolves the URL and adds the content that depends on it.

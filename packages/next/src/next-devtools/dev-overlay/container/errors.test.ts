@@ -799,7 +799,7 @@ describe('isInstantNavigationError', () => {
     expect(isInstantNavigationError(error)).toBe(true)
   })
 
-  it('returns true for cache stage APIs in metadata and viewport', () => {
+  it('returns true for unstable_prefetch and unstable_navigation in metadata and viewport', () => {
     expect(isInstantNavigationError(createNavigationMetadataError(ROUTE))).toBe(
       true
     )

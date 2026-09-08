@@ -1,5 +1,5 @@
 ---
-title: Next.js encountered a cache stage API in `generateViewport()`
+title: Next.js encountered a Cache Stage API in `generateViewport()`
 kind: insight
 ---
 
@@ -22,11 +22,11 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-Next.js reported this Insight because [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). Viewport metadata must be ready before Next.js can create the route's shell, so it cannot wait for a later cache stage or stream behind [`<Suspense>`](https://react.dev/reference/react/Suspense).
+Next.js reported this Insight because [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) called a [Cache Stage API](/docs/app/glossary#cache-stages)—either [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). The API can exclude the subsequent viewport metadata from an earlier prefetch. Viewport metadata must be ready before Next.js can create the route's shell, so it cannot stream behind [`<Suspense>`](https://react.dev/reference/react/Suspense).
 
 For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent viewport work until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering), but prevent Next.js from completing the earlier runtime shell.
 
-For the same error in the page body or metadata code, see [Cache stage APIs outside of Suspense](/docs/messages/instant-cache-stage) or [Cache stage APIs in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata).
+For the same error in the page body or metadata code, see [Cache Stage API outside of Suspense](/docs/messages/instant-cache-stage) or [Cache Stage API in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata).
 
 ## Ways to fix this
 
@@ -54,7 +54,7 @@ For the same error in the page body or metadata code, see [Cache stage APIs outs
 
 ## Use static viewport
 
-Choose this fix when the viewport should be available before the selected cache stage. Replace [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) with a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export.
+Choose this fix when the viewport should be available before the point selected by the Cache Stage API. Replace [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) with a static [`viewport`](/docs/app/api-reference/functions/generate-viewport#the-viewport-object) export.
 
 ### Patterns
 
@@ -87,7 +87,7 @@ Static viewport values cannot depend on work intentionally deferred to a per-lin
 
 ## Allow blocking route
 
-Choose this fix when the viewport intentionally resolves at the selected cache stage and no static value is correct. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation.
+Choose this fix when the viewport is intentionally excluded from an earlier prefetch and no static value is correct. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` exempts the segment from instant-navigation validation.
 
 ### Patterns
 
@@ -148,11 +148,11 @@ See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the 
 
 - [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
 - [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
-- [Cache stage APIs outside of Suspense](/docs/messages/instant-cache-stage)
+- [Cache Stage API outside of Suspense](/docs/messages/instant-cache-stage)
 - [URL data in a Client Component outside of Suspense](/docs/messages/blocking-prerender-client-hook)
 - [Runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime)
 - [Uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic)
-- [Cache stage APIs in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata)
+- [Cache Stage API in `generateMetadata()`](/docs/messages/instant-cache-stage-metadata)
 - [Runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime)
 - [Uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic)
 - [`Math.random()` while prerendering](/docs/messages/blocking-prerender-random)

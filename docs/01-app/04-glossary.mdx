@@ -26,6 +26,10 @@ The stage when your application is being compiled. During build time, Next.js tr
 
 A feature that enables component and function-level caching using the [`"use cache"` directive](/docs/app/api-reference/directives/use-cache). Cache Components allows you to mix static, cached, and dynamic content within a single route by prerendering a static HTML shell that's served immediately, while dynamic content streams in when ready. Configure cache duration with [`cacheLife()`](/docs/app/api-reference/functions/cacheLife), tag cached data with [`cacheTag()`](/docs/app/api-reference/functions/cacheTag), and invalidate on-demand with [`updateTag()`](/docs/app/api-reference/functions/updateTag). Learn more in the [Cache Components guide](/docs/app/getting-started/caching).
 
+## Cache Stages
+
+The control mechanism for choosing how much of a [Cache Components](#cache-components) route each prefetch includes. With [Partial Prefetching](#partial-prefetching), [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) excludes subsequent work from the [App Shell](#app-shell), while [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) excludes it from every prefetch. The work remains cacheable.
+
 ## Catch-all Segments
 
 Dynamic route segments that can match multiple URL parts using the `[...folder]/page.js` syntax. These segments capture all remaining URL segments and are useful for implementing features like documentation sites or file browsers. Learn more in [Dynamic Route Segments](/docs/app/api-reference/file-conventions/dynamic-routes#catch-all-segments).

@@ -421,9 +421,10 @@ export function isSyncIOClientError(message: string): boolean {
 }
 
 // Detects Instant Insights emitted during navigation validation. Body errors
-// identify the navigation in their message. Cache stage APIs in metadata and
-// viewport use dedicated docs URLs because their messages describe the
-// affected API instead of the validation phase.
+// identify the navigation in their message. `unstable_prefetch()` and
+// `unstable_navigation()` in metadata and viewport use dedicated docs URLs
+// because their messages describe the affected API instead of the validation
+// phase.
 export function isBlockingRouteInNavError(message: string): boolean {
   return (
     message.includes('or a navigation') ||
