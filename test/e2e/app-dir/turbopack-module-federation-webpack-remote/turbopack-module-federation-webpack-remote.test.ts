@@ -74,6 +74,9 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
   })
   let remoteServer: Server
   let sharedPackage: string
+  let remoteOrigin: string
+  let remoteContext: string
+  let remoteOutput: string
 
   beforeAll(async () => {
     const remotePort = await findPort()
@@ -91,9 +94,9 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
       join(sharedPackage, 'index.js'),
       `export const value = 'default shared fallback'`
     )
-    const remoteOrigin = `http://localhost:${remotePort}`
-    const remoteOutput = join(next.testDir, 'remote-dist')
-    const remoteContext = join(next.testDir, 'remote')
+    remoteOrigin = `http://localhost:${remotePort}`
+    remoteOutput = join(next.testDir, 'remote-dist')
+    remoteContext = join(next.testDir, 'remote')
     await buildRemote(
       remoteContext,
       join(remoteOutput, 'browser'),
@@ -164,6 +167,57 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
       )
       expect(await browser.elementByCss('#eager-value').text()).toBe(
         'eager local sharing'
+      )
+    })
+  })
+
+  it('loads a rebuilt remote after a browser reload', async () => {
+    const browser = await next.browser('/')
+    await retry(async () => {
+      expect(await browser.elementByCss('#remote-message').text()).toBe(
+        'hello from Turbopack host sharing'
+      )
+    })
+
+    await next.patchFile(
+      'remote/message.js',
+      `import { value } from 'shared-value'
+import { value as remoteShared } from 'remote-shared'
+
+export const message = \`updated from \${value}\`
+export { remoteShared }
+`
+    )
+    await buildRemote(
+      remoteContext,
+      join(remoteOutput, 'browser'),
+      remoteOrigin
+    )
+    await browser.refresh()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#remote-message').text()).toBe(
+        'updated from Turbopack host sharing'
+      )
+    })
+  })
+
+  it('rejects a federated import from server code', async () => {
+    const response = await next.fetch('/server-import')
+    expect(response.status).toBe(500)
+    await retry(() => {
+      expect(next.cliOutput).toContain(
+        'External script loading is only supported in browser client code'
+      )
+    })
+  })
+
+  it('rejects a federated import from the Edge runtime', async () => {
+    const response = await next.fetch('/edge-import')
+    expect(response.status).toBe(500)
+    await retry(() => {
+      expect(next.cliOutput).toContain(
+        'External script loading is only supported in browser client code'
       )
     })
   })

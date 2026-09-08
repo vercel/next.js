@@ -3,7 +3,7 @@ use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbopack_core::{asset::AssetContent, source::Source, virtual_source::VirtualSource};
 
-use crate::module_federation::config::ModuleFederationConfig;
+use crate::module_federation::{config::ModuleFederationConfig, shared::shared_provider_version};
 
 /// Creates the virtual entry module for a webpack-compatible global container.
 pub async fn module_federation_container_source(
@@ -31,10 +31,13 @@ pub async fn module_federation_container_source(
     }
     let mut registrations = Vec::new();
     for shared in &config.shared {
+        if shared.request.ends_with('/') {
+            continue;
+        }
         let Some(import) = &shared.import else {
             continue;
         };
-        let version = shared.version.as_deref().unwrap_or("0");
+        let version = shared_provider_version(&project_path, shared).await?;
         registrations.push(format!(
             r#"
   const versions_{index} = shareScope[{key}] ||= Object.create(null);
@@ -45,7 +48,7 @@ pub async fn module_federation_container_source(
   }};"#,
             index = registrations.len(),
             key = serde_json::to_string(&shared.share_key)?,
-            version = serde_json::to_string(version)?,
+            version = serde_json::to_string(&version)?,
             import = serde_json::to_string(import)?,
             name = serde_json::to_string(name)?,
             eager = shared.eager,
