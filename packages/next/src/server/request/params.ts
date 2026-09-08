@@ -586,7 +586,11 @@ function createStagedRenderParamsImpl(
       // If static params are accessed, we can recover a static shell or a session shell, but not both.
       return trackPromiseUsed(
         promise,
-        trackIncompatibleShellContent.bind(null, workUnitStore)
+        trackIncompatibleShellContent.bind(
+          null,
+          workUnitStore,
+          'static `params`'
+        )
       )
     } else {
       return promise

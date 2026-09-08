@@ -305,7 +305,39 @@ function trackRuntimeDataAccessedImpl(
   }
 }
 
-export function trackIncompatibleShellContent(workUnitStore: RequestStore) {
+/**
+ * Signals that we cannot recover both a runtime shell and a static (PPR) shell
+ * from the same render. Use this whenever the stage of a promise varies on
+ * `RequestStore.needsAppShell`.
+ * */
+export function trackIncompatibleShellContent(
+  workUnitStore: RequestStore,
+  reason: string
+) {
+  const { stagedRendering } = workUnitStore
+  if (!stagedRendering) {
+    return
+  }
+
+  // TODO(app-shells): optimize this to only consider stages that are relevant for validation.
+  // We should only track incompatible content when it can affect them.
+  // For now, we simply exclude everything that happens in the dynamic stage.
+  // (Note that we also need to account for cache misses that move things to a
+  // different stage -- those should also preemptively set `hasIncompatibleShellContent`
+  // because there's a chance that a render with warm caches would set it)
+  const { currentStage } = stagedRendering
+  if (
+    currentStage === RenderStage.Dynamic ||
+    currentStage === RenderStage.Abandoned
+  ) {
+    return
+  }
+  if (process.env.NEXT_PRIVATE_DEBUG_VALIDATION) {
+    const workStore = workAsyncStorage.getStore()!
+    console.log(
+      `Route ${workStore.route}: Incompatible shell content: ${reason}`
+    )
+  }
   workUnitStore.hasIncompatibleShellContent = true
 }
 

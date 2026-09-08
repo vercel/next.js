@@ -335,7 +335,10 @@ import type {
 import { ResponseCookies } from '../web/spec-extension/cookies'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
 import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
-import { RENDER_STAGES_BY_DATA_KIND } from '../dynamic-rendering-utils'
+import {
+  RENDER_STAGES_BY_DATA_KIND,
+  trackIncompatibleShellContent,
+} from '../dynamic-rendering-utils'
 import type {
   PrefetchedSegmentStage,
   SegmentStage,
@@ -5106,11 +5109,20 @@ async function prepareValidationInputsInPartialPrefetching(
   const needsInstantValidation =
     await anySegmentNeedsInstantValidationInDev(loaderTree)
 
-  // Certain APIs (static `params`, `unstable_navigation()`, `unstable_prefetch()`) resolve
-  // in either static or runtime stages depending on the context (see `needsAppShell`).
+  // Certain APIs resolve in either static or runtime stages depending on the context.
+  // (see `needsAppShell` and callsites of `trackIncompatibleShellContent`)
+  // This includes:
+  // - static `params`
+  // - `unstable_navigation()` and `unstable_prefetch()`
+  // - caches with `stale < MIN_SHELL_STALE` are excluded from app shells
+  //   but are included in static prerenders
   // If one of these APIs is used, the render can't be used for both Instant Validation and
   // Static Shell Validation and we'll need to perform a secondary render.
-  // All relevant uses are tracked on the request store.
+  //
+  // Note that a cache miss *also* sets this, because otherwise we might not
+  // have accurate tracking, especially for short-stale caches.
+  // This prevents us from using the same rerender for both validations
+  // if there's a chance that the cache miss might be hiding incompatible data.
   const areStagesCompatible = !requestStore.hasIncompatibleShellContent
 
   const LAZY_FULL_RENDER = createLazyDevValidationInputs(async () => {
@@ -5463,6 +5475,7 @@ interface StreamStagedRenderInDevOptions extends StagedDevRenderOptions {
  * the render turns out to be prod-representative.
  */
 async function streamStagedRenderInDev({
+  prefetchMode,
   ctx,
   requestStore,
   rscPayload,
@@ -5537,6 +5550,8 @@ async function streamStagedRenderInDev({
   // shell stage is flushing (see `checkForCacheMiss`).
   let reportedColdCache = false
 
+  let trackedIncompatibleShellContent = false
+
   // Runs at each stage boundary. Latches the running cache-miss verdict and
   // returns it, so a boundary can reveal the shell as soon as a miss is seen
   // (and so dev validation can later tell whether the streamed render is
@@ -5545,6 +5560,36 @@ async function streamStagedRenderInDev({
   const checkForCacheMiss = () => {
     if (cacheSignal.hasPendingReads()) {
       hadCacheMiss = true
+
+      if (prefetchMode === PrefetchingMode.Partial) {
+        // If we had a cache miss (and we'll need an app shell for validation),
+        // we *may* have content that is incompatible between an app shell and a static shell:
+        //
+        // - A cache miss might defer content to a stage where it is no longer
+        //   considered incompatible and would not be tracked as such
+        // - Caches with `stale < MIN_SHELL_STALE` should be excluded from app shells,
+        //   but included in static prerenders (which we can only do when the cache
+        //   is a hit and its cache life is known)
+        //
+        // We need to signal this to `prepareValidationInputsInPartialPrefetching`.
+        // It would not re-use a render with a cache miss anyway, but it tries to
+        // optimize the follow-up rerenders into a single one based on whether
+        // stages are compatible, and we can't do that if they *might* use incompatible
+        // data due to a cache miss.
+        //
+        // TODO(app-shells): optimize this (and other `trackIncompatibleShellContent`
+        // callsites) to only consider stages that are relevant for validation.
+
+        if (trackedIncompatibleShellContent) {
+          // It's enough to report the first miss.
+        } else {
+          trackedIncompatibleShellContent = true
+          trackIncompatibleShellContent(
+            requestStore,
+            'cache miss during main render'
+          )
+        }
+      }
 
       // The cold-cache indicator reflects the shell only. A cache read still
       // pending while a shell stage flushes (`currentStage <=
