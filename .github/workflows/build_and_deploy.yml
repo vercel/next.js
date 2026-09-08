@@ -3,9 +3,7 @@ name: build-and-deploy
 
 on:
   push:
-    # Don't run when graphite base branches are pushed
-    branches-ignore:
-      - 'graphite-base/**'
+    branches: ['canary']
     # Run on release tags so publishing is driven by the tag push rather than
     # the release-commit branch push (see the deploy-target step).
     tags:
@@ -45,9 +43,6 @@ env:
 jobs:
   deploy-target:
     runs-on: ubuntu-latest
-    # Don't trigger this job on `pull_request` events from upstream branches.
-    # Those would already run this job on the `push` event
-    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork }}
     outputs:
       value: ${{ steps.deploy-target.outputs.value }}
       release_environment: ${{ steps.deploy-target.outputs.release_environment }}
@@ -605,9 +600,14 @@ jobs:
           path: crates/wasm
 
       - name: Create tarballs
-        # github.event.after is available on push and pull_request#synchronize events.
-        # For workflow_dispatch events, github.sha is the head commit.
-        run: node scripts/create-preview-tarballs.js "${{ github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs" "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
+        # The tarballs are published under (upload_preview_tarballs.yml) and
+        # looked up by (tests via getGitInfo) the head commit of the
+        # triggering ref. For pull_request events that's
+        # pull_request.head.sha: github.event.after only exists on
+        # synchronize, and github.sha is the merge commit. For pushes,
+        # github.event.after is the pushed head commit. For
+        # workflow_dispatch, github.sha is the head commit.
+        run: node scripts/create-preview-tarballs.js "${{ github.event.pull_request.head.sha || github.event.after || github.sha }}" "${{ runner.temp }}/preview-tarballs" "${{ vars.PREVIEW_BUILDS_BASE_URL }}"
 
       - name: Persist tarballs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
