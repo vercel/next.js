@@ -27,11 +27,14 @@ export default defineRule({
         if (
           attributes.find(
             (attr) =>
-              attr.name.name === 'rel' && attr.value.value === 'stylesheet'
+              attr.name.name === 'rel' &&
+              attr.value &&
+              attr.value.value === 'stylesheet'
           ) &&
           attributes.find(
             (attr) =>
               attr.name.name === 'href' &&
+              attr.value &&
               attr.value.type === 'Literal' &&
               !/^https?/.test(attr.value.value)
           )
