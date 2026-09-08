@@ -80,7 +80,7 @@ describe('navigation stage Insight messages', () => {
         '[mark] Render a marker component that calls `await unstable_navigation()` inside `<Suspense>` on the page',
       docs: 'instant-navigation-stage-metadata',
       explanation:
-        "Metadata can already stream without blocking the route's UI, so delaying it to a later Navigation Stage may be unintentional.",
+        'Metadata can already stream, so delaying it may be unintentional.',
     },
     {
       error: () => createPrefetchMetadataError(ROUTE),
@@ -91,7 +91,7 @@ describe('navigation stage Insight messages', () => {
         '[mark] Render a marker component that calls `await unstable_prefetch()` inside `<Suspense>` on the page',
       docs: 'instant-navigation-stage-metadata',
       explanation:
-        "Metadata can already stream without blocking the route's UI, so delaying it to a later Navigation Stage may be unintentional.",
+        'Metadata can already stream, so delaying it may be unintentional.',
     },
     {
       error: () => createNavigationViewportError(ROUTE),
@@ -599,15 +599,15 @@ describe('card sets for all error families', () => {
   it.each(['prefetch', 'navigation'] as const)('metadata %s', (variant) => {
     const cards = getCards('metadata', variant)
     expect(cards.map((card) => card.id)).toEqual([
-      'remove-the-navigation-stage-api',
-      'use-a-navigation-stage-marker',
+      'remove-the-api-call',
+      'mark-as-intentional',
     ])
     expect(cards[0]).toMatchObject({
-      title: 'Remove the Navigation Stage API',
+      title: 'Remove the API call',
       group: 'remove',
     })
     expect(cards[1]).toMatchObject({
-      title: 'Use a Navigation Stage marker',
+      title: 'Mark as intentional',
       group: 'mark',
     })
     expect(cards[1].snippets).toContainEqual({
@@ -638,7 +638,7 @@ describe('card sets for all error families', () => {
 
   it.each(['prefetch', 'navigation'] as const)('viewport %s', (variant) => {
     expect(getCards('viewport', variant).map((card) => card.id)).toEqual([
-      'remove-the-navigation-stage-api',
+      'remove-the-api-call',
       'disable-validation-on-this-route',
     ])
   })

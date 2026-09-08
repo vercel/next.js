@@ -1,5 +1,5 @@
 ---
-title: Next.js encountered a Navigation Stage API in `generateMetadata()`
+title: Next.js encountered a navigation stage API in `generateMetadata()`
 kind: insight
 ---
 
@@ -22,19 +22,19 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-During prerendering or a client-side navigation, [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). These [Navigation Stage APIs](/docs/app/glossary#navigation-stages) delay the metadata work until a per-link prefetch or navigation, depending on which API you use.
+During prerendering or a client-side navigation, [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). These [navigation stage APIs](/docs/app/glossary#navigation-stages) delay the metadata work until a per-link prefetch or navigation, depending on which API you use.
 
-Metadata can already stream without blocking the route's UI, so a Navigation Stage API does not make more UI available during prefetching. It only delays when the metadata work runs. Remove the Navigation Stage API if the delay is unintentional. If the delay is intentional, use a Navigation Stage marker.
+Metadata can already stream, so delaying it may be unintentional. Remove the API call if you do not need the delay. Otherwise, mark it as intentional.
 
-For the same insight in the page body or viewport code, see [Navigation Stage API outside of Suspense](/docs/messages/instant-navigation-stage) or [Navigation Stage API in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport).
+For the same insight in the page body or viewport code, see [navigation stage API outside of Suspense](/docs/messages/instant-navigation-stage) or [navigation stage API in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport).
 
 ## Ways to fix this
 
 <FixCardGrid>
   <FixCard
     group="remove"
-    title="Remove the Navigation Stage API"
-    href="#remove-the-navigation-stage-api"
+    title="Remove the API call"
+    href="#remove-the-api-call"
     snippets={[
       { text: 'export async function generateMetadata() {' },
       { text: '  return getMetadata()', highlight: true },
@@ -43,8 +43,8 @@ For the same insight in the page body or viewport code, see [Navigation Stage AP
   />
   <FixCard
     group="mark"
-    title="Use a Navigation Stage marker"
-    href="#use-a-navigation-stage-marker"
+    title="Mark as intentional"
+    href="#mark-as-intentional"
     snippets={[
       { text: 'async function StageMarker() {' },
       { text: '  await unstable_navigation()', highlight: true },
@@ -54,13 +54,13 @@ For the same insight in the page body or viewport code, see [Navigation Stage AP
   />
 </FixCardGrid>
 
-## Remove the Navigation Stage API
+## Remove the API call
 
-Choose this fix when you do not need to control which Navigation Stage includes the metadata. Remove the Navigation Stage API from [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata). Keep `generateMetadata()` and its existing caching.
+Choose this fix when you do not need to control when the metadata is included. Remove `unstable_prefetch()` or `unstable_navigation()` from [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata). Keep `generateMetadata()` and its existing caching.
 
 ### Patterns
 
-#### Remove the Navigation Stage API
+#### Remove the API call
 
 Remove the call to `unstable_prefetch()` or `unstable_navigation()`.
 
@@ -84,15 +84,15 @@ Removing the API can increase the metadata work performed during prerendering an
 
 - You do not need to replace `generateMetadata()` with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export. Use a static export only when the values are fixed for the route segment.
 
-## Use a Navigation Stage marker
+## Mark as intentional
 
-Choose this fix when the page can render earlier but metadata should remain at the selected Navigation Stage. Create a component that calls the same API as `generateMetadata()` and returns `null`. Render it inside [`<Suspense>`](https://react.dev/reference/react/Suspense).
+Choose this fix when the page can render earlier but the metadata should remain at the selected navigation stage. Create a component that calls the same API as `generateMetadata()` and returns `null`. Render it inside [`<Suspense>`](https://react.dev/reference/react/Suspense).
 
-This insight appears because metadata is the only part of the route delayed to that stage. A Navigation Stage marker confirms that the delay is intentional.
+This insight appears because metadata is the only part of the route delayed to that stage. Calling the same API from the page confirms that the timing is intentional.
 
 ### Patterns
 
-#### Add a Navigation Stage marker component
+#### Mark the timing from the page
 
 Create the marker and render it inside [`<Suspense>`](https://react.dev/reference/react/Suspense). The existing page content remains available at its current stages.
 
@@ -127,13 +127,13 @@ export default function Page() {
 
 ### Trade-off
 
-The metadata remains cacheable, but is unavailable until the selected Navigation Stage.
+The metadata remains cacheable, but is unavailable until the selected navigation stage.
 
 ### Gotchas
 
-- The marker must call the same Navigation Stage API as `generateMetadata()`.
-- The marker must render inside [`<Suspense>`](https://react.dev/reference/react/Suspense). Without the boundary, the page surfaces [Navigation Stage API outside of Suspense](/docs/messages/instant-navigation-stage).
-- If the page already calls the same Navigation Stage API inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, you won't see this insight. The page already includes work at the same stage.
+- The marker must call the same navigation stage API as `generateMetadata()`.
+- The marker must render inside [`<Suspense>`](https://react.dev/reference/react/Suspense). Without the boundary, the page surfaces [navigation stage API outside of Suspense](/docs/messages/instant-navigation-stage).
+- If the page already calls the same navigation stage API inside a [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary, you won't see this insight. The page already includes work at the same stage.
 
 ## Verifying the fix
 
@@ -156,8 +156,8 @@ In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error ov
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
-- [Navigation Stage API outside of Suspense](/docs/messages/instant-navigation-stage)
-- [Navigation Stage API in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport)
+- [Navigation stage API outside of Suspense](/docs/messages/instant-navigation-stage)
+- [Navigation stage API in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport)
 - [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
 - [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)

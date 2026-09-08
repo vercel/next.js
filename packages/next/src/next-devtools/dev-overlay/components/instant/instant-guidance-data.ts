@@ -331,10 +331,10 @@ function getMetadataCacheStageCards(
 
   return [
     {
-      id: 'remove-the-navigation-stage-api',
-      title: 'Remove the Navigation Stage API',
+      id: 'remove-the-api-call',
+      title: 'Remove the API call',
       group: 'remove',
-      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#remove-the-navigation-stage-api',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#remove-the-api-call',
       snippets: [
         { text: 'export async function generateMetadata() {' },
         { text: '  return getMetadata()', highlight: true },
@@ -343,10 +343,10 @@ function getMetadataCacheStageCards(
       copyable: true,
     },
     {
-      id: 'use-a-navigation-stage-marker',
-      title: 'Use a Navigation Stage marker',
+      id: 'mark-as-intentional',
+      title: 'Mark as intentional',
       group: 'mark',
-      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#use-a-navigation-stage-marker',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#mark-as-intentional',
       snippets: [
         { text: 'async function StageMarker() {' },
         { text: `  await ${api}()`, highlight: true },
@@ -415,10 +415,10 @@ const viewportRuntimeCards: FixCard[] = [
 
 const viewportCacheStageCards: FixCard[] = [
   {
-    id: 'remove-the-navigation-stage-api',
-    title: 'Remove the Navigation Stage API',
+    id: 'remove-the-api-call',
+    title: 'Remove the API call',
     group: 'remove',
-    link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#remove-the-navigation-stage-api',
+    link: 'https://nextjs.org/docs/messages/instant-navigation-stage-viewport#remove-the-api-call',
     snippets: [
       { text: 'export async function generateViewport() {' },
       { text: '  return getViewport()', highlight: true },
@@ -839,7 +839,7 @@ export const BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION =
   'This may prevent the navigation from being instant, leading to a slower user experience.'
 
 export const CACHE_STAGE_METADATA_EXPLANATION =
-  "Metadata can already stream without blocking the route's UI, so delaying it to a later Navigation Stage may be unintentional."
+  'Metadata can already stream, so delaying it may be unintentional.'
 
 export const CACHE_STAGE_VIEWPORT_EXPLANATION =
   'This prevents Next.js from creating the App Shell, leading to a slower user experience.'
