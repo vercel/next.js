@@ -349,6 +349,7 @@ struct NextFontGoogleFontFileOptions {
 pub struct NextFontGoogleFontFileReplacer {
     project_path: FileSystemPath,
     fetch_client: ResolvedVc<FetchClientConfig>,
+    next_mode: ResolvedVc<NextMode>,
 }
 
 #[turbo_tasks::value_impl]
@@ -357,10 +358,12 @@ impl NextFontGoogleFontFileReplacer {
     pub fn new(
         project_path: FileSystemPath,
         fetch_client: ResolvedVc<FetchClientConfig>,
+        next_mode: ResolvedVc<NextMode>,
     ) -> Vc<Self> {
         Self::cell(NextFontGoogleFontFileReplacer {
             project_path,
             fetch_client,
+            next_mode,
         })
     }
 }
@@ -416,18 +419,26 @@ impl ImportMappingReplacement for NextFontGoogleFontFileReplacer {
 
         // doesn't seem ideal to download the font into a string, but probably doesn't
         // really matter either.
-        let Some(font) =
-            fetch_from_google_fonts(*self.fetch_client, url.into(), font_virtual_path.clone())
-                .await?
-        else {
-            return Ok(
-                ImportMapResult::Result(ResolveResult::unresolvable().resolved_cell()).cell(),
-            );
+        let severity = if matches!(*self.next_mode.await?, NextMode::Development) {
+            IssueSeverity::Warning
+        } else {
+            IssueSeverity::Error
+        };
+        let font = fetch_from_google_fonts(
+            *self.fetch_client,
+            url.into(),
+            font_virtual_path.clone(),
+            severity,
+        )
+        .await?;
+        let font = match font {
+            Some(font) => font.await?.0.as_slice().into(),
+            None => File::from(""),
         };
 
         let font_source = VirtualSource::new(
             font_virtual_path,
-            AssetContent::file(FileContent::Content(font.await?.0.as_slice().into()).cell()),
+            AssetContent::file(FileContent::Content(font).cell()),
         )
         .to_resolved()
         .await?;
@@ -654,7 +665,13 @@ async fn fetch_real_stylesheet(
     stylesheet_url: RcStr,
     css_virtual_path: FileSystemPath,
 ) -> Result<Option<Vc<RcStr>>> {
-    let body = fetch_from_google_fonts(fetch_client, stylesheet_url, css_virtual_path).await?;
+    let body = fetch_from_google_fonts(
+        fetch_client,
+        stylesheet_url,
+        css_virtual_path,
+        IssueSeverity::Warning,
+    )
+    .await?;
 
     Ok(body.map(|body| body.to_string()))
 }
@@ -663,6 +680,7 @@ async fn fetch_from_google_fonts(
     fetch_client: Vc<FetchClientConfig>,
     url: RcStr,
     virtual_path: FileSystemPath,
+    severity: IssueSeverity,
 ) -> Result<Option<Vc<HttpResponseBody>>> {
     let result = fetch_client
         .fetch(url, Some(USER_AGENT_FOR_GOOGLE_FONTS))
@@ -671,7 +689,7 @@ async fn fetch_from_google_fonts(
     Ok(match *result {
         Ok(r) => Some(*r.await?.body),
         Err(err) => {
-            err.to_issue(IssueSeverity::Warning, virtual_path)
+            err.to_issue(severity, virtual_path)
                 .to_resolved()
                 .await?
                 .emit();
