@@ -8,6 +8,10 @@ const nextConfig = {
       '*.no-options.ts': [
         require.resolve('./get-resolve-no-options-loader.js'),
       ],
+      '*.resolve-test.js': {
+        loaders: [require.resolve('./resolve-loader.js')],
+        as: '*.js',
+      },
     },
   },
   webpack(config) {
@@ -18,6 +22,10 @@ const nextConfig = {
     config.module.rules.push({
       test: /\.no-options\.ts/,
       use: require.resolve('./get-resolve-no-options-loader.js'),
+    })
+    config.module.rules.push({
+      test: /\.resolve-test\.js$/,
+      use: require.resolve('./resolve-loader.js'),
     })
     return config
   },

@@ -215,6 +215,13 @@ const transform = (
                 )
             },
           },
+          resolve(
+            lookupPath: string,
+            request: string,
+            callback: (err?: Error, result?: string) => void
+          ) {
+            return this.getResolve()(lookupPath, request, callback)
+          },
           getResolve: (options: ResolveOptions = {}) => {
             const rustOptions = {
               aliasFields: undefined as undefined | string[],
