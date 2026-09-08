@@ -373,4 +373,34 @@ mod tests {
 
         assert!(!glob.matches(path));
     }
+
+    #[test]
+    fn literal_glob_directory_pruning() {
+        let pattern = rcstr!(
+            "node_modules/.pnpm/lightningcss-wasm@1.28.2/node_modules/lightningcss-wasm/\
+             lightningcss_node.wasm"
+        );
+        let anchored = Glob::parse(pattern.clone(), GlobOptions::default()).unwrap();
+        let contains = Glob::parse(
+            pattern,
+            GlobOptions {
+                contains: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        assert!(anchored.can_match_in_directory("node_modules"));
+        assert!(anchored.can_match_in_directory("node_modules/.pnpm"));
+        assert!(!anchored.can_match_in_directory("node_modules/next"));
+
+        // Before the first literal segment appears, the directory regex incorrectly prunes a
+        // directory that could contain a deeper match such as `packages/app/node_modules/...`.
+        assert!(!contains.can_match_in_directory("packages"));
+
+        // Once the unanchored directory regex finds its first literal segment, its optional
+        // suffix means every descendant can contain a match that restarts later in the path.
+        assert!(contains.can_match_in_directory("node_modules/next"));
+        assert!(contains.can_match_in_directory("node_modules/next/dist/server"));
+    }
 }

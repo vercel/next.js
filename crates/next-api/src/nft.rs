@@ -155,13 +155,7 @@ pub async fn trace_endpoint(
             let includes = combined_includes_by_root
                 .into_iter()
                 .map(|(root, globs)| {
-                    let glob = Glob::new(
-                        format!("{{{}}}", globs.join(",")).into(),
-                        GlobOptions {
-                            contains: true,
-                            ..Default::default()
-                        },
-                    );
+                    let glob = Glob::new(include_glob_pattern(&globs), GlobOptions::default());
                     get_glob_includes(root, glob)
                 })
                 .try_join()
@@ -181,6 +175,24 @@ pub async fn trace_endpoint(
     }
     .instrument(span)
     .await
+}
+
+/// Build root-relative include alternatives. The recursive alternative preserves the contents of
+/// a directory (including a directory symlink) matched by the user pattern without making the
+/// original pattern an unanchored partial match.
+fn include_glob_pattern(globs: &[&str]) -> RcStr {
+    let mut alternatives = Vec::with_capacity(globs.len() * 2);
+    for glob in globs {
+        alternatives.push((*glob).to_owned());
+        if *glob != "**" && !glob.ends_with("/**") {
+            alternatives.push(format!("{glob}/**"));
+        }
+    }
+    if alternatives.len() == 1 {
+        alternatives.pop().unwrap().into()
+    } else {
+        format!("{{{}}}", alternatives.join(",")).into()
+    }
 }
 
 /// Apply outputFileTracingIncludes patterns to find additional files
@@ -571,6 +583,72 @@ impl Issue for ForbiddenTracedFileIssue {
             StyledString::Text(rcstr!("- remove them.")),
         ];
         Ok(Some(StyledString::Stack(stack)))
+    }
+}
+
+#[cfg(test)]
+mod include_glob_tests {
+    use turbo_rcstr::RcStr;
+    use turbo_tasks_fs::glob::{Glob, GlobOptions};
+
+    use super::include_glob_pattern;
+
+    fn glob(patterns: &[&str]) -> Glob {
+        Glob::parse(include_glob_pattern(patterns), GlobOptions::default()).unwrap()
+    }
+
+    fn plain_glob(pattern: &str) -> Glob {
+        Glob::parse(RcStr::from(pattern), GlobOptions::default()).unwrap()
+    }
+
+    #[test]
+    fn include_glob_is_root_relative() {
+        let glob = glob(&["node_modules/pkg/file.wasm"]);
+
+        assert!(glob.matches("node_modules/pkg/file.wasm"));
+        assert!(!glob.matches("nested/node_modules/pkg/file.wasm"));
+        assert!(glob.can_match_in_directory("node_modules/pkg"));
+        assert!(!glob.can_match_in_directory("node_modules/other"));
+    }
+
+    #[test]
+    fn include_glob_recurses_below_matched_directories() {
+        let glob = glob(&["assets/*"]);
+
+        assert!(glob.matches("assets/file.txt"));
+        assert!(glob.matches("assets/directory/nested.txt"));
+        assert!(!glob.matches("other/assets/file.txt"));
+    }
+
+    #[test]
+    fn include_glob_preserves_recursive_patterns() {
+        for pattern in ["assets/**/*", "assets/**", "**"] {
+            let original = plain_glob(pattern);
+            let expanded = glob(&[pattern]);
+
+            for path in [
+                "assets/file.txt",
+                "assets/directory/nested.txt",
+                "other/assets/file.txt",
+            ] {
+                assert_eq!(
+                    original.matches(path),
+                    expanded.matches(path),
+                    "pattern {pattern:?}, path {path:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn include_glob_supports_braces_and_multiple_patterns() {
+        let glob = glob(&["assets/{one,two}", "config/*.json"]);
+
+        assert!(glob.matches("assets/one"));
+        assert!(glob.matches("assets/two/nested.txt"));
+        assert!(glob.matches("config/runtime.json"));
+        assert!(!glob.matches("config/nested/runtime.json"));
+        assert!(!glob.matches("assets/three"));
     }
 }
 
