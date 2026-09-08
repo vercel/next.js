@@ -11,7 +11,6 @@ import type {
 import { isDynamicUsageError } from '../helpers/is-dynamic-usage-error'
 import {
   NEXT_CACHE_TAGS_HEADER,
-  NEXT_INLINE_SCRIPT_HASHES_HEADER,
   NEXT_META_SUFFIX,
   RSC_SUFFIX,
   RSC_SEGMENTS_DIR_SUFFIX,
@@ -191,22 +190,6 @@ export async function exportAppPage(
     // If we're writing the file to disk, we know it's a prerender.
     headers[NEXT_IS_PRERENDER_HEADER] = '1'
 
-    // The hashes of the inline scripts travel with the prerendered document, so
-    // the response can be served under a policy without `'unsafe-inline'`. A
-    // postponed shell is completed at request time, where the rest is hashed.
-    const inlineScriptHashes = renderOpts.experimental.inlineScriptHashes
-
-    if (inlineScriptHashes && !postponed) {
-      const hashes = collectInlineScriptHashes(
-        html,
-        inlineScriptHashes.algorithm ?? 'sha256'
-      )
-
-      if (hashes.length > 0) {
-        headers[NEXT_INLINE_SCRIPT_HASHES_HEADER] = hashes.join(' ')
-      }
-    }
-
     if (fetchTags) {
       headers[NEXT_CACHE_TAGS_HEADER] = fetchTags
     }
@@ -235,11 +218,23 @@ export async function exportAppPage(
       status = res.statusCode
     }
 
+    // The hashes of the inline scripts travel with the prerendered document, so
+    // the response can be served under a policy without `'unsafe-inline'`. A
+    // postponed shell is completed at request time and streams, so it stays out.
+    const inlineScriptHashesConfig = renderOpts.experimental.inlineScriptHashes
+    const inlineScriptHashes =
+      inlineScriptHashesConfig && !postponed
+        ? collectInlineScriptHashes(html, inlineScriptHashesConfig.algorithm)
+        : undefined
+
     // Writing the request metadata to a file.
     const meta: RouteMetadata = {
       status,
       headers,
       postponed,
+      inlineScriptHashes: inlineScriptHashes?.length
+        ? inlineScriptHashes
+        : undefined,
       segmentPaths,
       prefetchHints,
     }

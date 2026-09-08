@@ -250,6 +250,7 @@ export default class FileSystemCache implements CacheHandler {
                 rscData,
                 postponed: meta?.postponed,
                 headers: meta?.headers,
+                inlineScriptHashes: meta?.inlineScriptHashes,
                 status: meta?.status,
                 segmentData: maybeSegmentData,
               },
@@ -378,6 +379,7 @@ export default class FileSystemCache implements CacheHandler {
         headers: data.headers,
         status: data.status,
         postponed: undefined,
+        inlineScriptHashes: undefined,
         segmentPaths: undefined,
         prefetchHints: undefined,
       }
@@ -432,6 +434,7 @@ export default class FileSystemCache implements CacheHandler {
           headers: data.headers,
           status: data.status,
           postponed: data.postponed,
+          inlineScriptHashes: data.inlineScriptHashes,
           segmentPaths,
           prefetchHints: undefined,
         }

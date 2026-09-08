@@ -6,6 +6,7 @@ const INLINE_SCRIPT_REGEX =
   /<script(?<attributes>[^>]*)>(?<body>[\s\S]*?)<\/script\s*>/gi
 const SRC_ATTRIBUTE_REGEX = /\ssrc[\s=]/i
 const UNSAFE_INLINE_SOURCE = `'unsafe-inline'`
+const DEFAULT_ALGORITHM: SubresourceIntegrityAlgorithm = 'sha256'
 
 /**
  * Collects the CSP hash sources of every inline script of a document.
@@ -15,7 +16,7 @@ const UNSAFE_INLINE_SOURCE = `'unsafe-inline'`
  */
 export function collectInlineScriptHashes(
   html: string,
-  algorithm: SubresourceIntegrityAlgorithm
+  algorithm: SubresourceIntegrityAlgorithm = DEFAULT_ALGORITHM
 ): string[] {
   const hashes = new Set<string>()
 
