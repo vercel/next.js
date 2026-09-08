@@ -143,9 +143,22 @@ if (typeof window !== 'undefined') {
  * Fetch the flight data for the provided url. Takes in the current router state
  * to decide what to render server-side.
  */
+// How many times a failed navigation fetch is retried after connectivity
+// is restored when experimental.useOffline is enabled. The retry is only
+// reached when checkOfflineError classified the failure as a network error,
+// but that classification is by exclusion — a deterministic failure (e.g. a
+// Flight decode error) would otherwise loop forever: retry -> same error ->
+// connectivity check succeeds -> retry. After the budget is exhausted we fall
+// through to the console.error + MPA-navigation fallback below.
+const MAX_OFFLINE_RETRIES = 2
+
 export async function fetchServerResponse(
   url: URL,
-  options: FetchServerResponseOptions
+  options: FetchServerResponseOptions,
+  // Number of times this request has already been retried after connectivity
+  // was restored. Bounds the offline retry loop so a deterministic failure
+  // can never loop forever.
+  offlineRetryCount = 0
 ): Promise<FetchServerResponseResult> {
   const { flightRouterState, nextUrl } = options
 
@@ -320,7 +333,11 @@ export async function fetchServerResponse(
     // all pending retries resume simultaneously. This is mitigated in PR 3
     // by reusing back-forward cache entries during offline navigation, which
     // avoids issuing new fetches in the first place.
-    if (process.env.__NEXT_USE_OFFLINE && !isPageUnloading) {
+    if (
+      process.env.__NEXT_USE_OFFLINE &&
+      !isPageUnloading &&
+      offlineRetryCount < MAX_OFFLINE_RETRIES
+    ) {
       const { checkOfflineError, getOffline, waitForConnection } =
         require('../offline') as typeof import('../offline')
       if (checkOfflineError(err)) {
@@ -328,7 +345,10 @@ export async function fetchServerResponse(
         if (offline !== null) {
           await waitForConnection(offline)
         }
-        return fetchServerResponse(url, options)
+        // Retry from the original URL: in output-export mode `url` was
+        // rewritten to the .txt asset above, and re-deriving it from the
+        // rewritten URL would append .txt again on each retry.
+        return fetchServerResponse(originalUrl, options, offlineRetryCount + 1)
       }
     }
 
