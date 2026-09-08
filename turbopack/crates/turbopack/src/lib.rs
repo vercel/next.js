@@ -212,7 +212,8 @@ async fn apply_module_type(
                                 ModulePart::Evaluation => {
                                     Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
                                 }
-                                ModulePart::Export(_) => {
+                                ModulePart::Export(_)
+                                | ModulePart::ExportedNamespaceMember { .. } => {
                                     apply_reexport_tree_shaking(
                                         Vc::upcast(
                                             *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
@@ -311,30 +312,39 @@ async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
     part: ModulePart,
 ) -> Result<Vc<Box<dyn Module>>> {
-    if let ModulePart::Export(export) = &part {
-        let FollowExportsResult {
-            module: final_module,
-            export_name: new_export,
-            ..
-        } = &*follow_reexports(module, export.clone(), true).await?;
-        let module = if let Some(new_export) = new_export {
-            if *new_export == *export {
-                Vc::upcast(**final_module)
-            } else {
-                Vc::upcast(EcmascriptModuleRenameModule::new(
-                    **final_module,
-                    ModulePart::renamed_export(new_export.clone(), export.clone()),
-                ))
-            }
+    // The namespace member is only applied if this export resolves to a namespace object.
+    let (export, namespace_member) = match &part {
+        ModulePart::Export(export) => (export, None),
+        ModulePart::ExportedNamespaceMember { export, member } => (export, Some(member)),
+        _ => return Ok(Vc::upcast(module)),
+    };
+
+    let FollowExportsResult {
+        module: final_module,
+        export_name: new_export,
+        ..
+    } = &*follow_reexports(module, export.clone(), true).await?;
+    let module = if let Some(new_export) = new_export {
+        if *new_export == *export {
+            Vc::upcast(**final_module)
         } else {
             Vc::upcast(EcmascriptModuleRenameModule::new(
                 **final_module,
-                ModulePart::renamed_namespace(export.clone()),
+                ModulePart::renamed_export(new_export.clone(), export.clone()),
             ))
-        };
-        return Ok(module);
-    }
-    Ok(Vc::upcast(module))
+        }
+    } else {
+        Vc::upcast(EcmascriptModuleRenameModule::new(
+            **final_module,
+            match namespace_member {
+                Some(member) => {
+                    ModulePart::renamed_namespace_member(export.clone(), member.clone())
+                }
+                None => ModulePart::renamed_namespace(export.clone()),
+            },
+        ))
+    };
+    Ok(module)
 }
 
 #[turbo_tasks::value]

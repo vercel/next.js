@@ -39,7 +39,7 @@ pub struct EcmascriptModuleRenameModule {
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// The part of the module that this facade represents.
     /// ModulePart::Facade | ModulePart::RenamedExport |
-    /// ModulePart::RenamedNamespace
+    /// ModulePart::RenamedNamespace | ModulePart::RenamedNamespaceMember
     part: ModulePart,
 }
 
@@ -53,7 +53,9 @@ impl EcmascriptModuleRenameModule {
         assert!(
             matches!(
                 part,
-                ModulePart::RenamedExport { .. } | ModulePart::RenamedNamespace { .. }
+                ModulePart::RenamedExport { .. }
+                    | ModulePart::RenamedNamespace { .. }
+                    | ModulePart::RenamedNamespaceMember { .. }
             ),
             "{part:?} is unexpected for EcmascriptModuleRenameModule"
         );
@@ -87,6 +89,15 @@ impl EcmascriptModuleRenameModule {
                     *self.module,
                     self.part.clone(),
                     ExportUsage::all(),
+                )
+                .to_resolved()
+                .await
+            }
+            ModulePart::RenamedNamespaceMember { member, .. } => {
+                EcmascriptModulePartReference::new_normal(
+                    *self.module,
+                    self.part.clone(),
+                    ExportUsage::partial_namespace_object(vec![member.clone()]),
                 )
                 .to_resolved()
                 .await
@@ -231,7 +242,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleRenameModule {
                     false,
                 ),
             ),
-            ModulePart::RenamedNamespace { export } => (
+            ModulePart::RenamedNamespace { export }
+            | ModulePart::RenamedNamespaceMember { export, .. } => (
                 export.clone(),
                 EsmExport::ImportedNamespace(ResolvedVc::upcast(reference)),
             ),
