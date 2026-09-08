@@ -10831,6 +10831,7 @@ dependencies = [
  "indoc",
  "napi",
  "napi-derive",
+ "napi-sys",
  "owo-colors",
  "parking_lot",
  "regex",
