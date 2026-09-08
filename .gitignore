@@ -87,3 +87,6 @@ evals/.tarballs/
 evals/experiments/
 evals/results/
 evals/agent-results.json
+
+# Rust build runner transform cache
+packages/next/.cache/next-taskr/

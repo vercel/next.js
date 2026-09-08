@@ -1,0 +1,9 @@
+{
+  "extends": ["//"],
+  "tasks": {
+    "build:runner": {
+      "cache": false,
+      "outputs": ["dist/**"]
+    }
+  }
+}

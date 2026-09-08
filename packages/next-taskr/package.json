@@ -1,0 +1,11 @@
+{
+  "name": "@next/taskr",
+  "version": "0.1.0",
+  "private": true,
+  "bin": {
+    "next-taskr": "bin/next-taskr.js"
+  },
+  "scripts": {
+    "build:runner": "node build.js"
+  }
+}

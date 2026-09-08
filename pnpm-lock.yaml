@@ -1587,6 +1587,9 @@ importers:
       lodash.curry:
         specifier: 4.1.1
         version: 4.1.1
+      lru-cache:
+        specifier: 7.18.3
+        version: 7.18.3
       mini-css-extract-plugin:
         specifier: 2.4.4
         version: 2.4.4(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))(esbuild@0.25.9))
@@ -1680,6 +1683,9 @@ importers:
       sass-loader:
         specifier: 16.0.5
         version: 16.0.5(@rspack/core@1.6.7(patch_hash=4cf28ea116b0e27c7c80b09035905f9d16a7b18d1f2b7d312fc80d42cd57068d)(@swc/helpers@0.5.23))(sass@1.77.8)(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))(esbuild@0.25.9))
+      schema-utils:
+        specifier: 3.2.0
+        version: 3.2.0
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: schema-utils@2.7.1
@@ -1963,6 +1969,8 @@ importers:
       wasm-pack:
         specifier: 0.13.1
         version: 0.13.1
+
+  packages/next-taskr: {}
 
   packages/react-refresh-utils:
     devDependencies:
