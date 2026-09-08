@@ -22,7 +22,7 @@ existing taskfile.
 
 NCC and Rspack plugins load on their first invocation, so SWC-only recipes do
 not initialize or fingerprint unused bundlers. The SWC emitter and its loaded
-configuration remain included in compiler fingerprints.
+configuration are included in compiler fingerprints.
 
 The worker reserves stdout for complete protocol messages. JavaScript logs and
 both output streams of compiler subprocesses go to stderr, so a TypeScript

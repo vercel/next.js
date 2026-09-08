@@ -48,7 +48,7 @@ of the marginal medians. One cold run was effectively tied with Taskr, taking
 Concurrency also exposed a protocol failure: subprocess startup messages could
 interleave with a large JSON response and leave the runner waiting indefinitely.
 Worker and subprocess logs now use stderr, reserving stdout for protocol frames.
-Malformed responses and worker exits reject pending requests. Regression checks
+Malformed responses and worker exits fail pending requests. Regression checks
 exercise large protocol messages with concurrent subprocess logging and a
 malformed-response worker that stays alive.
 

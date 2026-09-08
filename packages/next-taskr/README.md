@@ -38,7 +38,7 @@ platform binary publication is not configured.
 ## Artifact compatibility
 
 `build`, `dev`, and `ncc-compiled` still select Taskr. The Rust runner is available
-through the commands above while platform validation and default cutover remain
+through the commands above while platform validation and default cutover are
 outstanding.
 
 The vendoring comparison passes for all 997 generated files. Release comparisons
@@ -114,7 +114,8 @@ pnpm exec jest --runTestsByPath test/unit/next-taskr/parity.test.ts test/unit/ne
 
 Rust integration tests execute the real runner with a small worker fixture. They
 cover persisted transforms, duplicate work, deleted and corrupted outputs, input
-changes, worker crashes, task cycles, missing inputs, watch recovery, and symlinks.
+changes, unexpected worker exits, task cycles, missing inputs, watch recovery,
+and symlinks.
 Watch tests require native filesystem events to reach the test process.
 
 Before default cutover, also run strict release and vendoring comparisons on the

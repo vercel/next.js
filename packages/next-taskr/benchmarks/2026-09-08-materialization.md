@@ -13,7 +13,7 @@ excluded from the timed work.
 
 Taskr's median in this series was 1.98 s, with `dist` emptied before each run.
 The principal gain is restoring deleted outputs. Builds with existing outputs
-remain around 0.93 seconds. These are fresh paired measurements; absolute times
+take around 0.93 seconds. These are fresh paired measurements; absolute times
 should not be compared directly with earlier benchmark sessions.
 
 Exploratory 95% paired bootstrap intervals, using 10,000 resamples of seven
@@ -40,7 +40,7 @@ profiling instrumentation was removed before the benchmark.
 - Each output batch uses up to eight blocking workers, bounded by CPU
   availability and file count. Small batches use fewer workers.
 - The outer recipe write lock remains held until the whole batch completes.
-  Batches with duplicate destination paths remain sequential. Every started
+  Batches with duplicate destination paths run sequentially. Every started
   worker finishes before an error is returned, preventing writes from leaking
   past a failed recipe into later cleanup or consumption steps.
 - Equal contents still skip writes. Changed outputs still use temporary files
@@ -48,7 +48,7 @@ profiling instrumentation was removed before the benchmark.
   not depend on file timestamps indicating whether contents changed.
 - The Node adapter loads NCC and Rspack plugins on their first invocation.
   SWC-only recipes avoid initializing those unused tools and hashing their
-  loaded dependencies. The SWC emitter and its configuration remain tracked.
+  loaded dependencies. The SWC emitter and its configuration are tracked.
 
 This change keeps the existing Rust cache representation. The profile did not
 identify its JSON/base64 processing as the largest remaining cost.
@@ -66,7 +66,7 @@ identify its JSON/base64 processing as the largest remaining cost.
   startup and shutdown, excluding binary compilation, cache preparation, output
   comparison, and removal of `dist`.
 - Cold clears only the Rust transform cache. Compiled WASM and operating-system
-  caches remain available. Cold runs process 2,669 transform inputs; warm runs
+  caches stay available. Cold runs process 2,669 transform inputs; warm runs
   execute zero transforms. Before and after have separate persistent caches.
 - Kept-output runs start with the verified outputs of the preceding build.
   Existing files are validated by contents, rather than assumed valid.

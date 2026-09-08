@@ -37,7 +37,7 @@ samples were discarded. The shared machine remained under existing load.
 Each invocation starts a new process and recreates `dist`. Timings include
 process startup and shutdown; native compilation, output checks, and cache
 preparation are excluded. Cold clears the Rust transform cache; compiled WASM
-and operating-system caches remain available. All cold builds processed 2,669
+and operating-system caches stay available. All cold builds processed 2,669
 transform inputs, and all warm builds executed zero transforms.
 
 ## Process-boundary traffic

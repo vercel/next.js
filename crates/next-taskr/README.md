@@ -4,7 +4,7 @@ The Rust scheduler for Next.js's repository build. User-facing commands and the
 artifact compatibility gate are documented in `packages/next-taskr/README.md`.
 
 Named recipes use transient turbo-tasks inputs. Serial and parallel
-recipe requests create dependencies in that graph; ancestry tracking rejects
+recipe requests create dependencies in that graph; ancestry tracking detects
 cycles. The scheduler intentionally does not persist the result of a recipe that
 can execute arbitrary JavaScript or subprocesses. This also prevents a warm
 build from eagerly replaying old side effects across imperative serial barriers.
@@ -25,7 +25,7 @@ the runner does not assume a file is valid from timestamps alone.
 
 The Node worker communicates over newline-delimited JSON on stdin/stdout.
 Responses use the `__NEXT_TASKR__` prefix. Compiler and subprocess logs use
-stderr, leaving stdout exclusively for the protocol. Malformed responses reject
+stderr, leaving stdout exclusively for the protocol. Malformed responses fail
 all pending requests instead of leaving an action waiting indefinitely.
 Rust sends `task`, `transform`, `list`, and `shutdown` requests with numeric IDs.
 The worker can make `tasks`, `read`, `load`, `transform`, `transforms`, `write`, `clear`, and `watch`
@@ -62,5 +62,5 @@ their compiler watch services. SIGINT and SIGTERM initiate worker shutdown.
 
 The test worker in `tests/fixtures` exercises the protocol without bootstrapping
 Next.js, while `test/unit/next-taskr` checks the real SWC worker and artifact
-comparator. Full-pipeline byte comparisons remain the acceptance test for emitter
+comparator. Full-pipeline byte comparisons are the acceptance test for emitter
 compatibility.
