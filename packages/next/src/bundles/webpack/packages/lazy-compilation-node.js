@@ -1,6 +1,6 @@
-/* global __resourceQuery */
-
 "use strict";
+
+/* global __resourceQuery */
 
 var urlBase = decodeURIComponent(__resourceQuery.slice(1));
 
@@ -10,29 +10,6 @@ var urlBase = decodeURIComponent(__resourceQuery.slice(1));
  */
 exports.keepAlive = function (options) {
 	var data = options.data;
-	var onError = options.onError;
-	var active = options.active;
-	var module = options.module;
-	/** @type {import("http").IncomingMessage} */
-	var response;
-	var request = (
-		urlBase.startsWith("https") ? require("https") : require("http")
-	).request(
-		urlBase + data,
-		{
-			agent: false,
-			headers: { accept: "text/event-stream" }
-		},
-		function (res) {
-			response = res;
-			response.on("error", errorHandler);
-			if (!active && !module.hot) {
-				console.log(
-					"Hot Module Replacement is not enabled. Waiting for process restart..."
-				);
-			}
-		}
-	);
 
 	/**
 	 * @param {Error} err error
@@ -40,11 +17,50 @@ exports.keepAlive = function (options) {
 	function errorHandler(err) {
 		err.message =
 			"Problem communicating active modules to the server: " + err.message;
-		onError(err);
+		options.onError(err);
 	}
-	request.on("error", errorHandler);
-	request.end();
+
+	/** @type {Promise<import("http") | import("https")>} */
+	var mod = require("./load-http")(urlBase.startsWith("https"));
+
+	/** @type {import("http").ClientRequest} */
+	var request;
+	/** @type {import("http").IncomingMessage} */
+	var response;
+
+	mod.then(function (client) {
+		request = client.request(
+			urlBase + data,
+			{
+				agent: false,
+				headers: { accept: "text/event-stream" }
+			},
+			function (res) {
+				response = res;
+				response.on("error", errorHandler);
+
+				if (!options.active && !options.module.hot) {
+					console.log(
+						"Hot Module Replacement is not enabled. Waiting for process restart..."
+					);
+				}
+			}
+		);
+
+		request.on("error", errorHandler);
+		request.end();
+	});
+
 	return function () {
-		response.destroy();
+		if (response) {
+			response.destroy();
+		}
 	};
+};
+
+/**
+ * @param {string} value new url value
+ */
+exports.setUrl = function (value) {
+	urlBase = value;
 };

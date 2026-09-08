@@ -443,22 +443,25 @@ function getCodeAnalyzer(params: {
         return
       }
 
-      wp.optimize.InnerGraph.onUsage(parser.state, (used = true) => {
-        const buildInfo = getModuleBuildInfo(parser.state.module)
-        if (buildInfo.usingIndirectEval === true || used === false) {
-          return
-        }
+      wp.optimize.InnerGraph.getInnerGraphUtils(compilation).onUsage(
+        parser.state,
+        (used = true) => {
+          const buildInfo = getModuleBuildInfo(parser.state.module)
+          if (buildInfo.usingIndirectEval === true || used === false) {
+            return
+          }
 
-        if (!buildInfo.usingIndirectEval || used === true) {
-          buildInfo.usingIndirectEval = used
-          return
-        }
+          if (!buildInfo.usingIndirectEval || used === true) {
+            buildInfo.usingIndirectEval = used
+            return
+          }
 
-        buildInfo.usingIndirectEval = new Set([
-          ...Array.from(buildInfo.usingIndirectEval),
-          ...Array.from(used),
-        ])
-      })
+          buildInfo.usingIndirectEval = new Set([
+            ...Array.from(buildInfo.usingIndirectEval),
+            ...Array.from(used),
+          ])
+        }
+      )
     }
 
     /**
