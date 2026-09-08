@@ -22,130 +22,81 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-During prerendering or a client-side navigation, [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called a [Navigation Stage API](/docs/app/glossary#navigation-stages). Navigation Stage APIs include [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). The API can exclude subsequent metadata from an earlier prefetch while the rest of the route remains available.
+During prerendering or a client-side navigation, [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). These [Navigation Stage APIs](/docs/app/glossary#navigation-stages) delay the metadata work until a per-link prefetch or navigation, depending on which API you use.
 
-For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent metadata until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering). Because `generateMetadata()` has no [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary of its own, make the metadata available earlier or mark the route as dynamic.
+Metadata can already stream without blocking the route's UI, so a Navigation Stage API does not make more UI available during prefetching. It only delays when the metadata work runs. Remove the Navigation Stage API if the delay is unintentional. If the delay is intentional, disable validation for the segment.
 
-For the same insight in the page body or viewport code, see [Navigation Stage API outside of Suspense](/docs/messages/instant-cache-stage) or [Navigation Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport).
+For the same Insight in the page body or viewport code, see [Navigation Stage API outside of Suspense](/docs/messages/instant-cache-stage) or [Navigation Stage API in `generateViewport()`](/docs/messages/instant-cache-stage-viewport).
 
 ## Ways to fix this
 
 <FixCardGrid>
   <FixCard
-    group="static"
-    title="Use static metadata"
-    href="#use-static-metadata"
+    group="remove"
+    title="Remove the Navigation Stage API"
+    href="#remove-the-navigation-stage-api"
     snippets={[
-      { text: 'export const metadata = {', highlight: true },
-      { text: '  title: "My Page"' },
+      { text: 'export async function generateMetadata() {' },
+      { text: '  return getMetadata()', highlight: true },
       { text: '}' },
     ]}
   />
   <FixCard
-    group="dynamic"
-    title="Mark the route as dynamic"
-    href="#mark-the-route-as-dynamic"
+    group="ignore"
+    title="Disable validation on this route"
+    href="#disable-validation-on-this-route"
     snippets={[
       { text: '// page.tsx or layout.tsx' },
-      { text: 'await connection()', highlight: true },
+      { text: 'export const instant = false', highlight: true },
     ]}
   />
 </FixCardGrid>
 
-## Use static metadata
+## Remove the Navigation Stage API
 
-Choose this fix when the metadata should be available before the point selected by the Navigation Stage API. Replace [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata) with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export.
-
-### Patterns
-
-#### Export a static object
-
-Use a plain object when the values are known while prerendering.
-
-```jsx filename="app/dashboard/page.js"
-export const metadata = {
-  title: 'Dashboard',
-  description: 'View your account activity.',
-}
-
-export default function Page() {
-  return <Dashboard />
-}
-```
-
-Learn more: [Static metadata](/docs/app/api-reference/functions/generate-metadata#metadata-object).
-
-### Trade-off
-
-Static metadata cannot depend on work intentionally deferred to a per-link prefetch or navigation. Use [Mark the route as dynamic](#mark-the-route-as-dynamic) when the metadata must follow that lifecycle.
-
-### Gotchas
-
-- A static export applies to every request for that route. Keep personalized values out of the object.
-- Metadata that varies by known route params can remain prerendered by combining [`generateStaticParams()`](/docs/app/api-reference/functions/generate-static-params) with cached `generateMetadata()` work.
-
-## Mark the route as dynamic
-
-Choose this fix when the metadata is intentionally excluded from an earlier prefetch. Add a marker component that calls [`connection()`](/docs/app/api-reference/functions/connection) inside [`<Suspense>`](https://react.dev/reference/react/Suspense) on the page.
+Choose this fix when you do not need to control which Navigation Stage includes the metadata. Remove the Navigation Stage API from [`generateMetadata()`](/docs/app/api-reference/functions/generate-metadata). Keep `generateMetadata()` and its existing caching.
 
 ### Patterns
 
-#### Add a dynamic marker component
+#### Remove the Navigation Stage API
 
-Keep the stage API in `generateMetadata()` and add the marker to the page body. This example defers metadata until navigation. Use `unstable_prefetch()` instead when a per-link prefetch should include it.
+Remove the call to `unstable_prefetch()` or `unstable_navigation()`.
 
 ```jsx filename="app/dashboard/page.js"
-import { Suspense } from 'react'
-import { unstable_navigation } from 'next/cache'
-import { connection } from 'next/server'
+import { getMetadata } from './data'
 
 export async function generateMetadata() {
-  await unstable_navigation()
-  return { title: await getDashboardTitle() }
-}
-
-async function DynamicMarker() {
-  await connection()
-  return null
+  return getMetadata()
 }
 
 export default function Page() {
-  return (
-    <>
-      <Dashboard />
-      <Suspense>
-        <DynamicMarker />
-      </Suspense>
-    </>
-  )
+  return <main>Dashboard</main>
 }
 ```
 
-Learn more: [`connection`](/docs/app/api-reference/functions/connection).
-
 ### Trade-off
 
-The route is no longer fully static. The metadata waits until the point selected by the Navigation Stage API, while the rest of the page can remain available from the earlier result.
+Removing the API can increase the metadata work performed during prerendering and prefetching.
 
 ### Gotchas
 
-- The marker must be inside [`<Suspense>`](https://react.dev/reference/react/Suspense). Without the boundary, the marker blocks the page body too.
-- Framework-synthesized routes such as `/_not-found` do not provide a page body for the marker. Use [static metadata](#use-static-metadata) when the root layout supplies metadata to those routes.
+- You do not need to replace `generateMetadata()` with a static [`metadata`](/docs/app/api-reference/functions/generate-metadata#metadata-object) export. Use a static export only when the values are fixed for the route segment.
 
 ## Verifying the fix
 
-After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, navigate to the route and confirm the Insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
 
 In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
 
-## Don't want this validation?
+## Disable validation on this route
 
-Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and surfaces this insight.
+Choose this fix when the later metadata timing is intentional and you do not want Next.js to report the Insight. Add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout that exports `generateMetadata()`. This disables instant-navigation validation for the segment. It does not change when the metadata becomes available.
 
-- **One segment**: add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout file. This opts out the segment itself. Child segments are still validated during client navigations.
-- **Entire app**: set [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults) to `'manual-warning'` in `next.config`. This limits validation to segments that explicitly export `instant`.
+```jsx filename="app/dashboard/page.js"
+export const instant = false
+```
 
-See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
+Child segments are still validated during client navigations.
 
 ## Related Insights
 

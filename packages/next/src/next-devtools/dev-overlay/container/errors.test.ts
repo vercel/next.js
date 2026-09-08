@@ -70,23 +70,26 @@ describe('navigation stage Insight messages', () => {
     {
       error: () => createNavigationMetadataError(ROUTE),
       detail:
-        '`unstable_navigation()` called in `generateMetadata()` defers it until navigation.',
+        "Metadata can already stream without blocking the route's UI, so delaying it until navigation may be unintentional.",
+      fix: '[remove] Remove `unstable_navigation()` from `generateMetadata()`',
       docs: 'instant-cache-stage-metadata',
       explanation:
-        "This route's metadata is blocked, but the rest of its content can be prefetched.",
+        "Metadata can already stream without blocking the route's UI, so delaying it to a later Navigation Stage may be unintentional.",
     },
     {
       error: () => createPrefetchMetadataError(ROUTE),
       detail:
-        '`unstable_prefetch()` called in `generateMetadata()` defers it until a per-link prefetch or navigation.',
+        "Metadata can already stream without blocking the route's UI, so delaying it until a per-link prefetch or navigation may be unintentional.",
+      fix: '[remove] Remove `unstable_prefetch()` from `generateMetadata()`',
       docs: 'instant-cache-stage-metadata',
       explanation:
-        "This route's metadata is blocked, but the rest of its content can be prefetched.",
+        "Metadata can already stream without blocking the route's UI, so delaying it to a later Navigation Stage may be unintentional.",
     },
     {
       error: () => createNavigationViewportError(ROUTE),
       detail:
-        '`unstable_navigation()` in `generateViewport()` prevents Next.js from creating the App Shell, leading to a slower user experience.',
+        'This prevents Next.js from creating the App Shell, leading to a slower user experience.',
+      fix: '[remove] Remove `unstable_navigation()` from `generateViewport()`',
       docs: 'instant-cache-stage-viewport',
       explanation:
         'This prevents Next.js from creating the App Shell, leading to a slower user experience.',
@@ -94,16 +97,18 @@ describe('navigation stage Insight messages', () => {
     {
       error: () => createPrefetchViewportError(ROUTE),
       detail:
-        '`unstable_prefetch()` in `generateViewport()` prevents Next.js from creating the App Shell, leading to a slower user experience.',
+        'This prevents Next.js from creating the App Shell, leading to a slower user experience.',
+      fix: '[remove] Remove `unstable_prefetch()` from `generateViewport()`',
       docs: 'instant-cache-stage-viewport',
       explanation:
         'This prevents Next.js from creating the App Shell, leading to a slower user experience.',
     },
   ])(
     'keeps the stage behavior and dedicated docs link',
-    ({ error, detail, docs, explanation }) => {
+    ({ error, detail, fix, docs, explanation }) => {
       const instance = error()
       expect(instance.message).toContain(detail)
+      expect(instance.message).toContain(fix)
       expect(instance.message).toContain(
         `Learn more: https://nextjs.org/docs/messages/${docs}`
       )
@@ -562,6 +567,13 @@ describe('card sets for all error families', () => {
     ])
   })
 
+  it.each(['prefetch', 'navigation'] as const)('metadata %s', (variant) => {
+    expect(getCards('metadata', variant).map((card) => card.id)).toEqual([
+      'remove-the-navigation-stage-api',
+      'disable-validation-on-this-route',
+    ])
+  })
+
   it('metadata dynamic', () => {
     expect(getCards('metadata', 'dynamic').map((card) => card.id)).toEqual([
       'cache-the-metadata',
@@ -579,6 +591,13 @@ describe('card sets for all error families', () => {
     expect(getCards('viewport', 'runtime').map((card) => card.id)).toEqual([
       'use-static-viewport',
       'allow-blocking-route',
+    ])
+  })
+
+  it.each(['prefetch', 'navigation'] as const)('viewport %s', (variant) => {
+    expect(getCards('viewport', variant).map((card) => card.id)).toEqual([
+      'remove-the-navigation-stage-api',
+      'disable-validation-on-this-route',
     ])
   })
 

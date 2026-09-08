@@ -119,10 +119,10 @@ export function createRuntimeMetadataError(route: string): Error {
 export function createNavigationMetadataError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_navigation()\` in \`generateMetadata()\`.\n\n` +
-      `This route's metadata is blocked, but the rest of its content can be prefetched. \`unstable_navigation()\` called in \`generateMetadata()\` defers it until navigation.\n\n` +
+      `Metadata can already stream without blocking the route's UI, so delaying it until navigation may be unintentional.\n\n` +
       `Ways to fix this:\n` +
-      `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
-      `  - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page\n\n` +
+      `  - [remove] Remove \`unstable_navigation()\` from \`generateMetadata()\`\n` +
+      `  - [ignore] Set \`export const instant = false\` to disable validation for this segment\n\n` +
       `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-metadata`
   )
 }
@@ -130,10 +130,10 @@ export function createNavigationMetadataError(route: string): Error {
 export function createPrefetchMetadataError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_prefetch()\` in \`generateMetadata()\`.\n\n` +
-      `This route's metadata is blocked, but the rest of its content can be prefetched. \`unstable_prefetch()\` called in \`generateMetadata()\` defers it until a per-link prefetch or navigation.\n\n` +
+      `Metadata can already stream without blocking the route's UI, so delaying it until a per-link prefetch or navigation may be unintentional.\n\n` +
       `Ways to fix this:\n` +
-      `  - [static] Use a static metadata export instead of \`generateMetadata()\`\n` +
-      `  - [dynamic] Render a marker component that calls \`await connection()\` inside \`<Suspense>\` on the page\n\n` +
+      `  - [remove] Remove \`unstable_prefetch()\` from \`generateMetadata()\`\n` +
+      `  - [ignore] Set \`export const instant = false\` to disable validation for this segment\n\n` +
       `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-metadata`
   )
 }
@@ -174,10 +174,10 @@ export function createRuntimeViewportError(route: string): Error {
 export function createNavigationViewportError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_navigation()\` in \`generateViewport()\`.\n\n` +
-      `\`unstable_navigation()\` in \`generateViewport()\` prevents Next.js from creating the App Shell, leading to a slower user experience.\n\n` +
+      `This prevents Next.js from creating the App Shell, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
-      `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
-      `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
+      `  - [remove] Remove \`unstable_navigation()\` from \`generateViewport()\`\n` +
+      `  - [ignore] Set \`export const instant = false\` to disable validation for this segment\n\n` +
       `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-viewport`
   )
 }
@@ -185,10 +185,10 @@ export function createNavigationViewportError(route: string): Error {
 export function createPrefetchViewportError(route: string): Error {
   return new Error(
     `Route "${route}": Next.js encountered \`unstable_prefetch()\` in \`generateViewport()\`.\n\n` +
-      `\`unstable_prefetch()\` in \`generateViewport()\` prevents Next.js from creating the App Shell, leading to a slower user experience.\n\n` +
+      `This prevents Next.js from creating the App Shell, leading to a slower user experience.\n\n` +
       `Ways to fix this:\n` +
-      `  - [static] Use a static viewport export instead of \`generateViewport()\`\n` +
-      `  - [block] Set \`export const instant = false\` to allow a blocking route\n\n` +
+      `  - [remove] Remove \`unstable_prefetch()\` from \`generateViewport()\`\n` +
+      `  - [ignore] Set \`export const instant = false\` to disable validation for this segment\n\n` +
       `Learn more: https://nextjs.org/docs/messages/instant-cache-stage-viewport`
   )
 }

@@ -11,6 +11,7 @@ export type FixCardGroup =
   | 'measure'
   | 'ignore'
   | 'render'
+  | 'remove'
   | 'upgrade'
   | 'disable'
 
@@ -42,6 +43,7 @@ export const FIX_CARD_GROUPS: Record<
   measure: { label: 'Measure', color: 'gray', icon: 'timer' },
   ignore: { label: 'Ignore', color: 'red', icon: 'minus-circle' },
   render: { label: 'Render', color: 'gray', icon: 'layout' },
+  remove: { label: 'Remove', color: 'gray', icon: 'minus' },
   upgrade: { label: 'Upgrade', color: 'amber', icon: 'arrow-up' },
   disable: { label: 'Disable', color: 'gray', icon: 'minus' },
 }
@@ -321,25 +323,25 @@ const metadataRuntimeCards: FixCard[] = [
 
 const metadataCacheStageCards: FixCard[] = [
   {
-    id: 'use-static-metadata',
-    title: 'Use static metadata',
-    group: 'static',
-    link: 'https://nextjs.org/docs/messages/instant-cache-stage-metadata#use-static-metadata',
+    id: 'remove-the-navigation-stage-api',
+    title: 'Remove the Navigation Stage API',
+    group: 'remove',
+    link: 'https://nextjs.org/docs/messages/instant-cache-stage-metadata#remove-the-navigation-stage-api',
     snippets: [
-      { text: 'export const metadata = {', highlight: true },
-      { text: '  title: "My Page"' },
+      { text: 'export async function generateMetadata() {' },
+      { text: '  return getMetadata()', highlight: true },
       { text: '}' },
     ],
     copyable: true,
   },
   {
-    id: 'mark-the-route-as-dynamic',
-    title: 'Mark the route as dynamic',
-    group: 'dynamic',
-    link: 'https://nextjs.org/docs/messages/instant-cache-stage-metadata#mark-the-route-as-dynamic',
+    id: 'disable-validation-on-this-route',
+    title: 'Disable validation on this route',
+    group: 'ignore',
+    link: 'https://nextjs.org/docs/messages/instant-cache-stage-metadata#disable-validation-on-this-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
-      { text: 'await connection()', highlight: true },
+      { text: 'export const instant = false', highlight: true },
     ],
     copyable: true,
   },
@@ -402,22 +404,22 @@ const viewportRuntimeCards: FixCard[] = [
 
 const viewportCacheStageCards: FixCard[] = [
   {
-    id: 'use-static-viewport',
-    title: 'Use static viewport',
-    group: 'static',
-    link: 'https://nextjs.org/docs/messages/instant-cache-stage-viewport#use-static-viewport',
+    id: 'remove-the-navigation-stage-api',
+    title: 'Remove the Navigation Stage API',
+    group: 'remove',
+    link: 'https://nextjs.org/docs/messages/instant-cache-stage-viewport#remove-the-navigation-stage-api',
     snippets: [
-      { text: 'export const viewport = {', highlight: true },
-      { text: '  themeColor: "#000"' },
+      { text: 'export async function generateViewport() {' },
+      { text: '  return getViewport()', highlight: true },
       { text: '}' },
     ],
     copyable: true,
   },
   {
-    id: 'allow-blocking-route',
-    title: 'Allow blocking route',
-    group: 'block',
-    link: 'https://nextjs.org/docs/messages/instant-cache-stage-viewport#allow-blocking-route',
+    id: 'disable-validation-on-this-route',
+    title: 'Disable validation on this route',
+    group: 'ignore',
+    link: 'https://nextjs.org/docs/messages/instant-cache-stage-viewport#disable-validation-on-this-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -822,7 +824,7 @@ export const BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION =
   'This may prevent the navigation from being instant, leading to a slower user experience.'
 
 export const CACHE_STAGE_METADATA_EXPLANATION =
-  "This route's metadata is blocked, but the rest of its content can be prefetched."
+  "Metadata can already stream without blocking the route's UI, so delaying it to a later Navigation Stage may be unintentional."
 
 export const CACHE_STAGE_VIEWPORT_EXPLANATION =
   'This prevents Next.js from creating the App Shell, leading to a slower user experience.'
