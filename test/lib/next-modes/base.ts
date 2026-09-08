@@ -96,7 +96,7 @@ export class NextInstance {
   protected startCommand?: string
   protected startArgs?: string[]
   protected dependencies?: PackageJson['dependencies'] = {}
-  protected resolutions?: PackageJson['resolutions']
+  protected resolutions?: { [name: string]: string }
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
   public distDir: string

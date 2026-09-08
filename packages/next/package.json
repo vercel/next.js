@@ -83,8 +83,8 @@
   "scripts": {
     "dev": "cross-env NEXT_SERVER_NO_MANGLE=1 taskr",
     "build": "taskr release",
-    "types": "tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
-    "typescript": "tsec --noEmit",
+    "types": "node node_modules/typescript7/bin/tsc --project tsconfig.build.json --declaration --emitDeclarationOnly --stripInternal --declarationDir dist",
+    "typescript": "node node_modules/typescript7/bin/tsc --noEmit && tsec --noEmit",
     "ncc-compiled": "taskr ncc",
     "storybook": "BROWSER=none storybook dev -p 6006",
     "build-storybook": "storybook build",
@@ -344,6 +344,7 @@
     "timers-browserify": "2.0.12",
     "tty-browserify": "0.0.1",
     "typescript": "6.0.2",
+    "typescript7": "npm:typescript@7.0.1-rc",
     "ua-parser-js": "1.0.35",
     "unistore": "3.4.1",
     "util": "0.12.4",

@@ -15,6 +15,11 @@
     // most of the code is untyped
     "noImplicitAny": false,
     "noImplicitThis": false,
+    // The transform emits `function fn() {}` wrappers that read `arguments`
+    // and get partially applied via `.bind(null, ...)`. TypeScript 7 no
+    // longer infers a rest parameter from `arguments` usage in JS files, so
+    // strict `bind` checking would reject these generated wrappers.
+    "strictBindCallApply": false,
 
     "target": "ESNext",
     "esModuleInterop": true,
@@ -33,6 +38,10 @@
     "./server-graph/51/output.js",
     // Excluded because of weird TS behavior around `action.bind(...)` making args optional
     // (but only if no JSDoc type annotations are present)
-    "./server-graph/24/output.js"
+    "./server-graph/24/output.js",
+    // The `@ts-expect-error` copied from the input no longer fires in the
+    // transformed output: with `strictBindCallApply` disabled (see above),
+    // the generated `.bind(null, ...)` returns `any`.
+    "./server-graph/41/output.js"
   ]
 }

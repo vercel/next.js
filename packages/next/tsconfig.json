@@ -2,6 +2,7 @@
   "extends": "../../tsconfig-tsec.json",
   "compilerOptions": {
     "strict": true,
+    "skipLibCheck": true,
     "stripInternal": true,
     "esModuleInterop": true,
     "verbatimModuleSyntax": true,
