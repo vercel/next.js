@@ -10,9 +10,7 @@ use std::sync::{
 };
 
 use anyhow::Result;
-use turbo_tasks::{
-    ResolvedVc, State, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
-};
+use turbo_tasks::{ResolvedVc, State, Vc};
 
 use crate::util::{create_tt, create_tt_with_workers};
 
@@ -24,8 +22,6 @@ async fn eviction_recompute() {
     let tt2 = tt.clone();
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-
         // Create state via operation (persistent task)
         let state_op = create_state(1);
         let state_vc = state_op.resolve().strongly_consistent().await?;
@@ -66,8 +62,6 @@ async fn eviction_deep_chain() {
     let tt2 = tt.clone();
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-
         let state_op = create_state(10);
         let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;
@@ -123,8 +117,6 @@ async fn eviction_dependency_chain() {
     let tt2 = tt.clone();
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-
         let state_op = create_state(10);
         let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;
@@ -301,8 +293,6 @@ async fn eviction_session_stateful_survives() {
     let tt2 = tt.clone();
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-
         // read_session_counter internally creates+resolves create_session_counter(42).
         // The transient run_once only reads read_session_counter, so
         // create_session_counter has no transient dependents and is eligible for
@@ -354,8 +344,6 @@ async fn eviction_transient_reader_invalidated() {
     let tt2 = tt.clone();
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-
         // Create persistent state + compute tasks
         let state_op = create_state(50);
         let state_vc = state_op.resolve().strongly_consistent().await?;
@@ -466,8 +454,6 @@ async fn eviction_stress_concurrent() {
     });
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-
         let state_op = create_state(1);
         let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;
@@ -608,8 +594,6 @@ async fn eviction_persistable_never_preserves_live_cell() {
     let tt2 = tt.clone();
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-
         let state_op = create_state(0);
         let state_vc = state_op.resolve().strongly_consistent().await?;
         let state = state_op.read_strongly_consistent().await?;
