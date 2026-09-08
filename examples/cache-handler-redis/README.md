@@ -26,6 +26,17 @@ Once you have installed the dependencies, you can begin running the example Redi
 docker compose up -d
 ```
 
+Copy the local environment example:
+
+```bash
+cp .env.local.example .env.local
+```
+
+The default values point to the Redis Stack server from `compose.yaml`:
+
+- `REDIS_URL`: The Redis connection URL used by the cache handler.
+- `REDIS_INSIGHT_URL`: The RedisInsight URL linked from the example UI.
+
 Then, build and start the Next.js app as usual.
 
 To see the cache logs use NEXT_PRIVATE_DEBUG_CACHE=1 [troubleshooting](https://caching-tools.github.io/next-shared-cache/troubleshooting)
