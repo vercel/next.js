@@ -39,8 +39,15 @@ even if a sibling `prefetch={true}` link already warmed a concrete-param cache
 entry.
 
 For an intent policy, hover or focus the exact link inside `instant()` before
-clicking. Do not warm outside the scope or add a sleep. For viewport policy,
-do not hover: the test should prove the link's declared eager strategy.
+clicking. Click without a fixed delay and assert the prefetched UI after the
+destination URL changes. Do not warm outside the scope or inspect private
+request headers to decide when the prefetch is ready. For viewport policy, do
+not hover: the test should prove the link's declared eager strategy.
+
+Reusing a browser worker does not require aggregating several contracts into
+one test. Separate tests prevent navigation cache and interaction state from
+leaking between routes, and their failures identify the exact contract that
+regressed.
 
 ## Common false REDs
 
@@ -97,6 +104,12 @@ If the optimization does not change the locked result, inspect `params`,
 `searchParams`, Suspense boundaries, and cache directives using the
 [Optimizing prefetching guide](https://nextjs.org/docs/app/guides/optimizing-prefetching).
 Do not compensate with timing.
+
+`instant()` does not expose a public request classifier for App Shell,
+per-link, and navigation requests. Internal request headers and segment URLs
+can change between Next.js versions, so do not use them as product regression
+assertions. Use `instant()` for the visible contract and record network or
+platform cost data separately when the task calls for it.
 
 ## Differential
 

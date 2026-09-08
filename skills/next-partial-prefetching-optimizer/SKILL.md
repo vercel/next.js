@@ -83,6 +83,10 @@ add a focused click-driven test using the guide's
 [prefetched and deferred content testing](https://nextjs.org/docs/app/guides/optimizing-prefetching#test-prefetched-and-deferred-content)
 pattern.
 
+Keep one production browser test per source-link, destination, and trigger
+contract. Do not loop over several destinations or collect their readiness
+results in one test. Focused tests can still run serially in one browser worker.
+
 First, run an unlocked scaffold that proves the link reaches the exact pathname
 and query and that the selected UI eventually renders for the test user. Do not
 ship this scaffold.
@@ -145,12 +149,19 @@ Shell, what extra UI is eligible before the click, what waits for navigation,
 and whether the trigger is viewport or intent. Be precise that prefetching is
 best-effort; the App Shell remains the fallback when it has not completed.
 
+Treat request counts, transferred bytes, and cache behavior as measurements,
+not as part of the `instant()` contract. Do not classify requests using private
+RSC URLs or internal headers such as `next-router-prefetch`. The public testing
+API verifies the rendered result, not the protocol stage that produced each
+request.
+
 ## Completion checklist
 
 - [ ] Cache Components and Partial Prefetching were already adopted.
 - [ ] The target UI and trigger are explicit, with any necessary product choice
       confirmed.
 - [ ] The test clicks the exact source link and verifies the exact destination.
+- [ ] Each source-link, destination, and trigger contract has its own test.
 - [ ] The unlocked baseline and locked RED used the same production artifact.
 - [ ] The App Shell stayed visible throughout the RED/GREEN loop.
 - [ ] The selected UI is present and navigation-only UI is absent under lock.
