@@ -1257,7 +1257,7 @@ export async function getProfileDTO(slug: string) {
   })
   const user = data[0]
 
-  const currentUser = await getUser(user.id)
+  const currentUser = await getUser()
 
   // Or return only what's specific to the query here
   return {
