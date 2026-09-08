@@ -13,6 +13,7 @@ import type { Segment } from '../../../shared/lib/app-router-types'
 import type {
   AppSegmentConfig,
   InstantSample,
+  Prefetch,
 } from '../../../build/segment-config/app/app-segment-config'
 import {
   workAsyncStorage,
@@ -54,25 +55,60 @@ export function isFrameworkErrorRoute(route: string | undefined): boolean {
  * Matches the `prefetch` config that enables Partial Prefetching for the
  * segment: 'partial'. A route with Partial Prefetching enabled also
  * runtime-caches its navigations, so this gates the runtime prefetch spawn.
+ *
+ * `inheritedPrefetchConfig` is the effective config inherited from this
+ * segment's ancestors — the nearest ancestor's own explicit `prefetch` value
+ * if one exists, otherwise 'partial' if the app-level `partialPrefetching`
+ * default is on, otherwise undefined. Each segment resolves its OWN
+ * effective config as
+ * `mod.prefetch ?? inheritedPrefetchConfig` (the same resolution
+ * `computeSegmentPrefetchHints` already uses in
+ * create-transport-tree-from-loader-tree.ts to compute this segment's
+ * prefetch hints), then passes that resolved value down to its own children
+ * as the new inherited default — so an explicit `prefetch` export on any
+ * segment overrides whatever default it would otherwise have inherited, for
+ * every segment below it, per the documented contract. This must be checked
+ * leaf-by-leaf rather than stopping at the first segment found to resolve to
+ * 'partial': the outermost segments are almost always unconfigured, so they
+ * trivially inherit the app-level default whenever it's on, before ever
+ * reaching whichever segment actually has an opinion.
+ *
+ * A segment that explicitly opts out (`force-disabled`, or `auto`, which
+ * behaves the same way here) simply resolves to something other than
+ * 'partial' at that segment and everything below it (unless a descendant
+ * re-opts-in) — per `PrefetchHint.PrefetchDisabled`'s own contract, the
+ * opt-out is passive: it's never the reason a runtime prefetch spawns, but
+ * it doesn't veto an unrelated sibling subtree that does want one, so the
+ * search still continues into the rest of the tree.
  */
 export async function anySegmentHasPartialPrefetchingEnabled(
-  tree: LoaderTree
+  tree: LoaderTree,
+  inheritedPrefetchConfig: Prefetch | undefined
 ): Promise<boolean> {
   const { mod: layoutOrPageMod } = await getLayoutOrPageModule(tree)
 
   // TODO(restart-on-cache-miss): Does this work correctly for client page/layout modules?
-  const prefetchConfig = layoutOrPageMod
+  const explicitPrefetchConfig = layoutOrPageMod
     ? (layoutOrPageMod as AppSegmentConfig).prefetch
     : undefined
-  if (prefetchConfig === 'partial') {
-    return true
-  }
+  const resolvedPrefetchConfig =
+    explicitPrefetchConfig ?? inheritedPrefetchConfig
 
   const { parallelRoutes } = parseLoaderTree(tree)
-  for (const parallelRouteKey in parallelRoutes) {
+  const parallelRouteKeys = Object.keys(parallelRoutes)
+  if (parallelRouteKeys.length === 0) {
+    // Leaf segment (the page) — this is where the resolved config actually
+    // takes effect, since nothing further down could still override it.
+    return resolvedPrefetchConfig === 'partial'
+  }
+
+  for (const parallelRouteKey of parallelRouteKeys) {
     const parallelRoute = parallelRoutes[parallelRouteKey]
     const hasChildPartialPrefetching =
-      await anySegmentHasPartialPrefetchingEnabled(parallelRoute)
+      await anySegmentHasPartialPrefetchingEnabled(
+        parallelRoute,
+        resolvedPrefetchConfig
+      )
     if (hasChildPartialPrefetching) {
       return true
     }
