@@ -1,0 +1,37 @@
+diff --git a/module.d.ts b/module.d.ts
+index a2d1a84c..ea119feb 100644
+--- a/module.d.ts
++++ b/module.d.ts
+@@ -172,15 +172,10 @@ declare namespace webpack {
+ 	};
+ }
+ 
+-interface ImportMetaEnv {
+-	[key: string]: string | boolean | undefined;
+-}
+-
+ interface ImportMeta {
+ 	url: string;
+ 	webpack: number;
+ 	webpackHot: webpack.Hot;
+-	env: ImportMetaEnv;
+ 	webpackContext: (
+ 		request: string,
+ 		options?: {
+@@ -196,16 +191,6 @@ interface ImportMeta {
+ 			mode?: "sync" | "eager" | "weak" | "lazy" | "lazy-once";
+ 		}
+ 	) => webpack.Context;
+-	glob: {
+-		<T = unknown>(
+-			pattern: webpack.ImportMetaGlobPattern,
+-			options?: webpack.ImportMetaGlobOptions<false>
+-		): Record<string, () => Promise<T>>;
+-		<T = unknown>(
+-			pattern: webpack.ImportMetaGlobPattern,
+-			options: webpack.ImportMetaGlobOptions<true>
+-		): Record<string, T>;
+-	};
+ }
+ 
+ declare const __resourceQuery: string;
