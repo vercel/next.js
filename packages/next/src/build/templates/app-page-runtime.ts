@@ -317,13 +317,14 @@ export function createAppPageEntrypoint({
 
     const outputPathname = toOutputPathname(resolvedPathname)
 
+    // Select the matched shell's combination-specific entry. The canonical page
+    // can name a broader fallback.
     const matchedVariantsPrerenderInfo = matchedVariants
-      ? prerenderManifest.dynamicRoutes[toOutputPathname(normalizedSrcPage)]
+      ? prerenderManifest.dynamicRoutes[
+          toOutputPathname(prerenderMatch?.source ?? normalizedSrcPage)
+        ]
       : undefined
 
-    // This reads the entry directly by key. Route matching here runs on the
-    // pathname with the prefix already removed, while this entry's key and
-    // `routeRegex` describe the prefixed path, so matching would not find it.
     const prerenderInfo =
       matchedVariantsPrerenderInfo ?? prerenderMatch?.route ?? null
 
