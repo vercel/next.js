@@ -273,18 +273,21 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         &mut self,
         reference: R,
         path: AstPath,
-        skip_code_gen: bool,
+        link_context: ValueLinkContext,
     ) {
-        if skip_code_gen {
-            debug_assert!(
-                !self.analyze_mode.is_tracing_assets(),
-                "unexpected add_reference_code_gen in tracing mode"
-            );
-            self.references.insert(reference.into_reference());
-        } else {
-            let (reference, code_gen) = reference.into_code_gen_reference(path);
-            self.references.insert(reference);
-            self.add_code_gen(code_gen);
+        match link_context {
+            ValueLinkContext::Default => {
+                let (reference, code_gen) = reference.into_code_gen_reference(path);
+                self.references.insert(reference);
+                self.add_code_gen(code_gen);
+            }
+            ValueLinkContext::InAlternative => {
+                debug_assert!(
+                    !self.analyze_mode.is_tracing_assets(),
+                    "unexpected add_reference_code_gen in tracing mode"
+                );
+                self.references.insert(reference.into_reference());
+            }
         }
     }
 
@@ -1399,7 +1402,7 @@ async fn analyze_ecmascript_module_internal(
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.to_vec().into(),
-                            /* skip_code_gen */ false,
+                            ValueLinkContext::Default,
                         )
                     } else {
                         if options.follow_reexports && !options.module_fragments_enabled {
@@ -1711,7 +1714,7 @@ async fn handle_call<'a>(
                     handle_well_known_function_call(
                         wkf,
                         new,
-                        /* in_alternative */ true,
+                        ValueLinkContext::InAlternative,
                         &linked_args,
                         handler,
                         span,
@@ -1738,7 +1741,7 @@ async fn handle_call<'a>(
             handle_well_known_function_call(
                 wkf,
                 new,
-                /* in_alternative */ false,
+                ValueLinkContext::Default,
                 &linked_args,
                 handler,
                 span,
@@ -1895,7 +1898,7 @@ async fn handle_dynamic_import_with_linked_args(
             )
             .await?,
             ast_path.to_vec().into(),
-            /* skip_code_gen */ false,
+            ValueLinkContext::Default,
         );
         return Ok(());
     }
@@ -1909,10 +1912,18 @@ async fn handle_dynamic_import_with_linked_args(
     Ok(())
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum ValueLinkContext {
+    Default,
+    // The given value/callee was linked inside an alternative. Codegen replacements probably
+    // shouldn't be performed.
+    InAlternative,
+}
+
 async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     func: WellKnownFunctionKind<'a>,
     new: bool,
-    in_alternative: bool,
+    link_context: ValueLinkContext,
     linked_args: &F,
     handler: &Handler,
     span: Span,
@@ -1943,7 +1954,7 @@ where
     let error_mode = if attributes.optional {
         // Explicitly marked optional
         ResolveErrorMode::Ignore
-    } else if in_try || in_alternative {
+    } else if in_try || link_context == ValueLinkContext::InAlternative {
         // In try-catch, or we are not certain that this function is called at runtime (e.g. in a
         // logical alternative).
         ResolveErrorMode::Warn
@@ -2012,7 +2023,7 @@ where
                             url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
                         ),
                         ast_path.to_vec().into(),
-                        /* skip_code_gen */ in_alternative,
+                        link_context,
                     );
                 }
                 return Ok(());
@@ -2057,7 +2068,7 @@ where
                                 is_shared,
                             ),
                             ast_path.to_vec().into(),
-                            /* skip_code_gen */ in_alternative,
+                            link_context,
                         );
                     }
 
@@ -2162,7 +2173,7 @@ where
                             tracing_only,
                         ),
                         ast_path.to_vec().into(),
-                        /* skip_code_gen */ in_alternative,
+                        link_context,
                     );
 
                     return Ok(());
@@ -2222,7 +2233,7 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        if !in_alternative {
+                        if link_context != ValueLinkContext::InAlternative {
                             analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
                         }
                         return Ok(());
@@ -2250,7 +2261,7 @@ where
                         state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
-                    /* skip_code_gen */ in_alternative,
+                    link_context,
                 );
                 return Ok(());
             }
@@ -2275,7 +2286,7 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        if !in_alternative {
+                        if link_context != ValueLinkContext::InAlternative {
                             analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
                         }
                         return Ok(());
@@ -2307,7 +2318,7 @@ where
                         state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
-                    /* skip_code_gen */ in_alternative,
+                    link_context,
                 );
                 return Ok(());
             }
@@ -2349,7 +2360,7 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        if !in_alternative {
+                        if link_context != ValueLinkContext::InAlternative {
                             analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
                         }
                         return Ok(());
@@ -2375,7 +2386,7 @@ where
                         resolve_override,
                     ),
                     ast_path.to_vec().into(),
-                    /* skip_code_gen */ in_alternative,
+                    link_context,
                 );
                 return Ok(());
             }
@@ -2415,7 +2426,7 @@ where
                     error_mode,
                 ),
                 ast_path.to_vec().into(),
-                /* skip_code_gen */ in_alternative,
+                link_context,
             );
         }
 
@@ -2451,7 +2462,7 @@ where
                 )
                 .await?,
                 ast_path.to_vec().into(),
-                /* skip_code_gen */ in_alternative,
+                link_context,
             );
         }
 
@@ -3248,7 +3259,7 @@ where
                             error_mode,
                         ),
                         ast_path.to_vec().into(),
-                        /* skip_code_gen */ in_alternative,
+                        link_context,
                     );
                 }
             }
@@ -3378,7 +3389,7 @@ where
                         emit_to_all_entries,
                     ),
                     ast_path.to_vec().into(),
-                    /* skip_code_gen */ in_alternative,
+                    link_context,
                 );
                 return Ok(());
             }
@@ -3431,7 +3442,7 @@ where
                 analysis.add_reference_code_gen(
                     CollectReference::new(origin, parent_module, namespace.as_rcstr()),
                     ast_path.to_vec().into(),
-                    /* skip_code_gen */ in_alternative,
+                    link_context,
                 );
                 return Ok(());
             }
