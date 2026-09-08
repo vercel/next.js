@@ -129,7 +129,7 @@ The shared parts of the route are prefetched, and the URL-dependent region strea
 
 ## Allow blocking route
 
-Choose this fix when the route genuinely can't provide a shared App Shell — it needs the URL data high in the tree to decide what to render — and you accept that navigations to it won't be instant. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` marks the segment as allowed to block: it renders per navigation instead of reusing a shared prefetch.
+Choose this fix when the route needs URL data high in the tree and cannot provide a shared App Shell. Navigations to the route will not be instant. Setting [`instant`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to `false` allows the segment to block, so it renders per navigation instead of reusing a shared prefetch.
 
 ### Patterns
 
