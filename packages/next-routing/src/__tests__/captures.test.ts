@@ -105,6 +105,79 @@ describe('Regex Captures in Destination', () => {
     expect(result.resolvedPathname).toBe('/u/alice/p/123')
   })
 
+  it('should not let a named capture consume a longer placeholder', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/users/7/admin'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/users/(?<id>[^/]+)/(?<idType>[^/]+)$',
+            destination: '/u/$id/$idType',
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/u/7/admin'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/u/7/admin')
+  })
+
+  it('should replace numbered captures above $9', async () => {
+    const segments = Array.from({ length: 10 }, (_, i) => `s${i}`)
+    const params = createBaseParams({
+      url: new URL(`https://example.com/${segments.join('/')}`),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: `^${segments.map(() => '/([^/]+)').join('')}$`,
+            destination: '/$10/$1',
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/s9/s0'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/s9/s0')
+  })
+
+  it('should not expand `$&` contained in a captured value', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/blog/a$&b'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/blog/([^/]+)$',
+            destination: '/posts/$1',
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+      pathnames: ['/posts/a$&b'],
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.resolvedPathname).toBe('/posts/a$&b')
+  })
+
   it('should mix numbered and named captures', async () => {
     const params = createBaseParams({
       url: new URL('https://example.com/api/v1/users/john'),

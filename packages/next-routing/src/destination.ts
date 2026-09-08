@@ -1,3 +1,7 @@
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 /**
  * Replaces $1, $2, etc. and $name placeholders in the destination string
  * with matches from the regex and has conditions
@@ -7,30 +11,48 @@ export function replaceDestination(
   regexMatches: RegExpMatchArray | null,
   hasCaptures: Record<string, string>
 ): string {
-  let result = destination
+  const captures = new Map<string, string>()
 
-  // Replace numbered captures from regex ($1, $2, etc.)
+  // Numbered captures from regex ($1, $2, etc.), skipping index 0 which is the
+  // full match
   if (regexMatches) {
-    // Replace numbered groups (skip index 0 which is the full match)
     for (let i = 1; i < regexMatches.length; i++) {
-      const value = regexMatches[i] ?? ''
-      result = result.replace(new RegExp(`\\$${i}`, 'g'), value)
+      captures.set(String(i), regexMatches[i] ?? '')
     }
 
-    // Replace named groups ($name)
     if (regexMatches.groups) {
       for (const [name, value] of Object.entries(regexMatches.groups)) {
-        result = result.replace(new RegExp(`\\$${name}`, 'g'), value ?? '')
+        if (!captures.has(name)) {
+          captures.set(name, value ?? '')
+        }
       }
     }
   }
 
-  // Replace named captures from has conditions
   for (const [name, value] of Object.entries(hasCaptures)) {
-    result = result.replace(new RegExp(`\\$${name}`, 'g'), value)
+    if (!captures.has(name)) {
+      captures.set(name, value)
+    }
   }
 
-  return result
+  if (captures.size === 0) {
+    return destination
+  }
+
+  // Longest name first so `$id` doesn't consume the `$id` of `$idType`, and
+  // `$1` doesn't consume the `$1` of `$10`
+  const names = Array.from(captures.keys()).sort((a, b) => b.length - a.length)
+  const placeholder = new RegExp(
+    `\\$(${names.map(escapeRegExp).join('|')})`,
+    'g'
+  )
+
+  // A replacer function keeps `$&`, `` $` `` and `$'` inside captured values
+  // from being expanded again
+  return destination.replace(
+    placeholder,
+    (_, name: string) => captures.get(name)!
+  )
 }
 
 /**
