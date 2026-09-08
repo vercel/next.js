@@ -220,6 +220,7 @@ export const experimentalSchema = {
   clientRouterFilterRedirects: z.boolean().optional(),
   clientRouterFilterAllowedRate: z.number().optional(),
   cpus: z.number().optional(),
+  staticWorkerMaxOldSpaceSize: z.number().int().positive().optional(),
   memoryBasedWorkersCount: z.boolean().optional(),
   craCompat: z.boolean().optional(),
   caseSensitiveRoutes: z.boolean().optional(),

@@ -52,6 +52,11 @@ export class Worker {
        * True if `--max-old-space-size` should not be forwarded to the worker.
        */
       isolatedMemory: boolean
+      /**
+       * If set, explicitly sets `--max-old-space-size` (in MB) for the
+       * worker, taking precedence over `isolatedMemory` stripping the flag.
+       */
+      maxOldSpaceSize?: number
       timeout?: number
       onActivity?: () => void
       onActivityAbort?: () => void
@@ -68,6 +73,7 @@ export class Worker {
       logger = console,
       debuggerPortOffset,
       isolatedMemory,
+      maxOldSpaceSize,
       onActivity,
       onActivityAbort,
       ...farmOptions
@@ -117,6 +123,11 @@ export class Worker {
     if (isolatedMemory) {
       delete nodeOptions['max-old-space-size']
       delete nodeOptions['max_old_space_size']
+    }
+
+    if (maxOldSpaceSize !== undefined) {
+      delete nodeOptions['max_old_space_size']
+      nodeOptions['max-old-space-size'] = String(maxOldSpaceSize)
     }
 
     const { nodeOptions: formattedNodeOptions, execArgv } =

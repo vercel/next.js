@@ -647,6 +647,12 @@ export interface ExperimentalConfig {
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
+  /**
+   * Sets `--max-old-space-size` (in MB) for each static generation worker
+   * spawned during `next build`. By default no explicit cap is set (any
+   * `--max-old-space-size` in `NODE_OPTIONS` is stripped for static workers).
+   */
+  staticWorkerMaxOldSpaceSize?: number
   proxyTimeout?: number
   isrFlushToDisk?: boolean
   workerThreads?: boolean
