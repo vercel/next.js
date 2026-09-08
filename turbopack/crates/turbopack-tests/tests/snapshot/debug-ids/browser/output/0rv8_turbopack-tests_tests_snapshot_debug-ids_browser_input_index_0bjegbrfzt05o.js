@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="efb43cc4-891c-674a-1022-0fb10b1b2f7e")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="51fe5bb7-d9c9-654b-632b-c9e576d5480e")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -696,7 +696,9 @@ contextPrototype.a = asyncModule;
 /// <reference path="../../../shared/runtime/runtime-utils.ts" />
 // Used in WebWorkers to tell the runtime about the chunk suffix
 const browserContextPrototype = Context.prototype;
-const RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
+const MODULE_FEDERATION_CHUNK_BASE_PREFIX = '__turbopack_module_federation__:';
+const moduleFederationChunkBaseDepth = CHUNK_BASE_PATH.startsWith(MODULE_FEDERATION_CHUNK_BASE_PREFIX) ? Number(CHUNK_BASE_PATH.slice(MODULE_FEDERATION_CHUNK_BASE_PREFIX.length)) : undefined;
+const RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : moduleFederationChunkBaseDepth !== undefined && typeof document !== 'undefined' && document.currentScript?.src ? new URL(moduleFederationChunkBaseDepth === 0 ? './' : '../'.repeat(moduleFederationChunkBaseDepth), document.currentScript.src).href : CHUNK_BASE_PATH;
 const moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 const availableModules = new Map();
@@ -2526,5 +2528,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=efb43cc4-891c-674a-1022-0fb10b1b2f7e
+//# debugId=51fe5bb7-d9c9-654b-632b-c9e576d5480e
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

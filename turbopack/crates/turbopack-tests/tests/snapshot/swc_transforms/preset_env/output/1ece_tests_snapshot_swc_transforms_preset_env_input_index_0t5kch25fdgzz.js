@@ -959,8 +959,11 @@ function _unsupported_iterable_to_array(o, minLen) {
     if (n === "Map" || n === "Set") return Array.from(n);
     if (n === "Arguments" || /^(?:Ui|I)nt(?:8|16|32)(?:Clamped)?Array$/.test(n)) return _array_like_to_array(o, minLen);
 }
+var _document_currentScript;
 var browserContextPrototype = Context.prototype;
-var RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : CHUNK_BASE_PATH;
+var MODULE_FEDERATION_CHUNK_BASE_PREFIX = '__turbopack_module_federation__:';
+var moduleFederationChunkBaseDepth = CHUNK_BASE_PATH.startsWith(MODULE_FEDERATION_CHUNK_BASE_PREFIX) ? Number(CHUNK_BASE_PATH.slice(MODULE_FEDERATION_CHUNK_BASE_PREFIX.length)) : undefined;
+var RUNTIME_CHUNK_BASE_PATH = typeof TURBOPACK_CHUNK_BASE_PATH === 'string' ? TURBOPACK_CHUNK_BASE_PATH : moduleFederationChunkBaseDepth !== undefined && typeof document !== 'undefined' && ((_document_currentScript = document.currentScript) === null || _document_currentScript === void 0 ? void 0 : _document_currentScript.src) ? new URL(moduleFederationChunkBaseDepth === 0 ? './' : '../'.repeat(moduleFederationChunkBaseDepth), document.currentScript.src).href : CHUNK_BASE_PATH;
 var moduleFactories = new Map();
 contextPrototype.M = moduleFactories;
 var availableModules = new Map();
