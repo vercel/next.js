@@ -24,8 +24,8 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
-pub use gc::TtlCounter;
-use gc::{DEFAULT_GC_ROOT_TTL, GcStats};
+use gc::DEFAULT_GC_ROOT_TTL;
+pub use gc::{GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
 use indexmap::IndexSet;
 use parking_lot::{Mutex, RwLock};
@@ -274,23 +274,24 @@ pub struct TestSnapshotOutcome {
     pub had_new_data: bool,
     /// Tasks evicted from memory at each level.
     pub eviction_counts: EvictionCounts,
-    /// `(collected, interrupted)` for the GC pass this snapshot ran, or `None` when GC is
-    /// disabled for the backend.
-    pub gc: Option<(usize, bool)>,
+    /// The [`GcStats`] of the GC pass this snapshot ran, or `None` when GC is disabled for the
+    /// backend.
+    pub gc: Option<GcStats>,
 }
 
 impl TestSnapshotOutcome {
-    /// `(collected, interrupted)` for the GC pass, panicking if GC is disabled. For tests whose
-    /// whole point is the pass, so a misconfigured backend fails loudly rather than silently
-    /// asserting nothing.
-    pub fn gc_stats(&self) -> (usize, bool) {
+    /// The [`GcStats`] for the GC pass, panicking if GC is disabled. For tests whose whole point
+    /// is the pass, so a misconfigured backend fails loudly rather than silently asserting
+    /// nothing.
+    pub fn gc_stats(&self) -> &GcStats {
         self.gc
+            .as_ref()
             .expect("no GC pass ran: the backend needs `BackendOptions::gc = Some(true)`")
     }
 
     /// Whether the GC pass wound down early. `false` when GC is disabled.
     pub fn gc_interrupted(&self) -> bool {
-        self.gc.is_some_and(|(_, interrupted)| interrupted)
+        self.gc.as_ref().is_some_and(|stats| stats.interrupted)
     }
 }
 
@@ -446,10 +447,9 @@ impl TurboTasksBackend {
     /// This is exposed for integration tests that need to verify the
     /// snapshot → evict → restore cycle works correctly.
     ///
-    /// Returns [`TestSnapshotOutcome`], which carries the GC pass's own `(collected, interrupted)`
-    /// alongside the eviction counts. A test needs the pass's numbers because the resident task
-    /// count can't distinguish "GC collected it" from "GC skipped it and eviction dropped it to
-    /// disk".
+    /// Returns [`TestSnapshotOutcome`], which carries the GC pass's own [`GcStats`] alongside the
+    /// eviction counts. A test needs the pass's numbers because the resident task count can't
+    /// distinguish "GC collected it" from "GC skipped it and eviction dropped it to disk".
     #[doc(hidden)]
     pub fn snapshot_and_evict_for_testing(
         &self,
@@ -473,7 +473,7 @@ impl TurboTasksBackend {
         TestSnapshotOutcome {
             had_new_data,
             eviction_counts,
-            gc: gc_stats.map(|s| (s.collected, s.interrupted)),
+            gc: gc_stats,
         }
     }
 

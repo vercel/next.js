@@ -108,7 +108,7 @@ impl GcBudget<'_> {
 
 /// Observability counters for one [`TurboTasksBackend::gc_collect`] pass.
 #[derive(Default, Debug)]
-pub(crate) struct GcStats {
+pub struct GcStats {
     /// Number of roots detected by the pass
     pub gc_roots: usize,
     /// Tasks collected (marked soft-deleted).

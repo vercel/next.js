@@ -40,6 +40,14 @@ async fn build_generation(tt: &Arc<TurboTasks<TurboTasksBackend>>, gen_value: u3
 }
 
 /// A waiter blocked for the whole pass must not interrupt it while the floor is unmet.
+///
+/// This *provokes* the interleaving rather than forcing it: the spawned operation may park on the
+/// exclusion while the pass is running, or it may not be scheduled until the pass is already over,
+/// in which case `operations_waiting()` is never true and there was no interrupt to suppress.
+/// Forcing it would mean reaching into the coordinator from the test, which is a bigger intrusion
+/// than the coverage is worth. Both interleavings must produce a completing pass, so the
+/// assertions below hold either way — the floor is what makes the outcome independent of the
+/// scheduling.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_min_progress_floor_beats_a_waiting_operation() {
     // A floor far longer than the pass: the interrupt must never be honoured.
@@ -66,10 +74,19 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
     let outcome = tt.backend().snapshot_and_evict_for_testing(&tt);
     waiter.await.unwrap();
 
-    let (collected, interrupted) = outcome.gc_stats();
+    let stats = outcome.gc_stats();
     assert!(
-        !interrupted,
-        "the min-progress floor must suppress the interrupt (collected={collected})"
+        !stats.interrupted,
+        "the min-progress floor must suppress the interrupt (collected={})",
+        stats.collected
+    );
+    // Generation 0 is fully disconnected by generation 1, and an uninterrupted pass must take all
+    // of it: `2 * WIDTH` tasks (an `intermediate` and a `leaf` per index). The live generation and
+    // the transient `run_once` roots are not collectible, so this is an exact count, not a floor.
+    assert_eq!(
+        stats.collected,
+        2 * WIDTH as usize,
+        "a completing pass must collect the whole disconnected generation: {stats}"
     );
 
     tt.stop_and_wait().await;
@@ -77,8 +94,14 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
 
 /// What an interrupted pass abandons must still be collectible by a later pass.
 ///
-/// A zero floor interrupts every pass deterministically, rather than a mid-range floor that might
-/// interrupt none of them and assert nothing.
+/// The two phases are sequential, not concurrent: nothing here forces a pass to overlap with an
+/// operation. Phase 1 relies only on the zero `min_progress` floor, which makes *any* waiter
+/// observed by `GcBudget::should_stop` interrupt the pass immediately, so interrupts happen
+/// readily across the rounds instead of needing a mid-range floor that might interrupt none of
+/// them and assert nothing. Because that is still scheduling-dependent, the loop asserts only
+/// that at least one round interrupted — which is the premise phase 2 needs. Phase 2 then runs a
+/// deliberately *uninterruptible* pass (`gc_for_testing`) after phase 1 is fully over, and that
+/// pass is what must recover everything the interrupted rounds abandoned.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_interrupt_is_self_healing() {
     let (tt, _persistence_dir) =
@@ -92,10 +115,11 @@ async fn gc_interrupt_is_self_healing() {
     let mut interrupted_rounds = 0usize;
     for gen_value in 1..=ROUNDS {
         build_generation(&tt, gen_value).await;
-        let (collected, interrupted) = tt.backend().snapshot_and_evict_for_testing(&tt).gc_stats();
-        println!("round {gen_value}: collected={collected} interrupted={interrupted}");
-        collected_while_interrupting += collected;
-        interrupted_rounds += usize::from(interrupted);
+        let outcome = tt.backend().snapshot_and_evict_for_testing(&tt);
+        let stats = outcome.gc_stats();
+        println!("round {gen_value}: {stats}");
+        collected_while_interrupting += stats.collected;
+        interrupted_rounds += usize::from(stats.interrupted);
     }
 
     // The premise of phase 2: without an interrupt, nothing was abandoned to heal from.
@@ -116,11 +140,13 @@ async fn gc_interrupt_is_self_healing() {
          interrupted_rounds={interrupted_rounds}/{ROUNDS}"
     );
 
-    // Every generation but the live one is garbage, so most of it must be accounted for.
-    let expected_min = produced / 2;
-    assert!(
-        total_collected >= expected_min,
-        "collected {total_collected} of ~{produced} garbage tasks ({collected_while_interrupting} \
+    // Phase 2's pass is uninterruptible and runs once phase 1 is over, so nothing is left for a
+    // later pass to pick up: every generation but the live one is garbage, and all of it must be
+    // accounted for exactly. An interrupted pass that *lost* garbage rather than leaving it would
+    // show up here as a shortfall.
+    assert_eq!(
+        total_collected, produced,
+        "collected {total_collected} of {produced} garbage tasks ({collected_while_interrupting} \
          across {interrupted_rounds} interrupted rounds, {healed} in the completing pass): \
          interrupted passes are losing garbage rather than leaving it"
     );
