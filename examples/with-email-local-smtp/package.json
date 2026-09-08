@@ -1,0 +1,26 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "email": "docker compose up"
+  },
+  "dependencies": {
+    "@auth/pg-adapter": "^1.7.0",
+    "next": "latest",
+    "next-auth": "^5.0.0-beta.4",
+    "nodemailer": "^7.0.7",
+    "pg": "^8.11.0",
+    "react": "latest",
+    "react-dom": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/nodemailer": "^6.4.17",
+    "@types/pg": "^8.11.0",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "typescript": "latest"
+  }
+}
