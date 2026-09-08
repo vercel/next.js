@@ -10,8 +10,8 @@ import { getFallbackFontOverrideMetrics } from './get-fallback-font-override-met
 import { fetchCSSFromGoogleFonts } from './fetch-css-from-google-fonts'
 import { fetchFontFile } from './fetch-font-file'
 
-const cssCache = new Map<string, string | null>()
-const fontCache = new Map<string, Buffer | null>()
+const cssCache = new Map<string, Promise<string | null>>()
+const fontCache = new Map<string, Promise<Buffer | null>>()
 
 // regexp is based on https://github.com/sindresorhus/escape-string-regexp
 const reHasRegExp = /[|\\{}()[\]^$+*?.-]/
@@ -77,17 +77,19 @@ const nextFontGoogleFontLoader: FontLoader = async ({
      * Otherwise both the client and server compiler would fetch the CSS.
      * The reason we need to return the actual CSS from both the server and client is because a hash is generated based on the CSS content.
      */
-    const hasCachedCSS = cssCache.has(url)
+    const cachedCSS = cssCache.get(url)
     // Fetch CSS from Google Fonts or get it from the cache
-    let fontFaceDeclarations = hasCachedCSS
-      ? cssCache.get(url)
-      : await fetchCSSFromGoogleFonts(url, fontFamily, isDev).catch((err) => {
-          console.error(err)
-          return null
-        })
-    if (!hasCachedCSS) {
-      cssCache.set(url, fontFaceDeclarations ?? null)
-    } else {
+    const cssPromise =
+      cachedCSS ??
+      fetchCSSFromGoogleFonts(url, fontFamily, isDev).catch((err) => {
+        console.error(err)
+        return null
+      })
+    if (!cachedCSS) {
+      cssCache.set(url, cssPromise)
+    }
+    let fontFaceDeclarations = await cssPromise
+    if (cachedCSS) {
       cssCache.delete(url)
     }
     if (fontFaceDeclarations == null) {
@@ -106,17 +108,19 @@ const nextFontGoogleFontLoader: FontLoader = async ({
     // Download the font files extracted from the CSS
     const downloadedFiles = await Promise.all(
       fontFiles.map(async ({ googleFontFileUrl, preloadFontFile }) => {
-        const hasCachedFont = fontCache.has(googleFontFileUrl)
+        const cachedFont = fontCache.get(googleFontFileUrl)
         // Download the font file or get it from cache
-        const fontFileBuffer = hasCachedFont
-          ? fontCache.get(googleFontFileUrl)
-          : await fetchFontFile(googleFontFileUrl, isDev).catch((err) => {
-              console.error(err)
-              return null
-            })
-        if (!hasCachedFont) {
-          fontCache.set(googleFontFileUrl, fontFileBuffer ?? null)
-        } else {
+        const fontPromise =
+          cachedFont ??
+          fetchFontFile(googleFontFileUrl, isDev).catch((err) => {
+            console.error(err)
+            return null
+          })
+        if (!cachedFont) {
+          fontCache.set(googleFontFileUrl, fontPromise)
+        }
+        const fontFileBuffer = await fontPromise
+        if (cachedFont) {
           fontCache.delete(googleFontFileUrl)
         }
         if (fontFileBuffer == null) {
