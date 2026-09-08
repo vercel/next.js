@@ -18,7 +18,6 @@ const pagesDirWarning = execOnce((pagesDirs) => {
 })
 
 // Cache for fs.existsSync lookup.
-// Prevent multiple blocking IO requests that have already been calculated.
 const fsExistsSyncCache = {}
 
 const memoize = <T = any>(fn: (...args: any[]) => T) => {
@@ -49,28 +48,33 @@ export default defineRule({
     type: 'problem',
     schema: [
       {
-        oneOf: [
-          {
-            type: 'string',
-          },
-          {
+        type: 'object',
+        properties: {
+          pageExtensions: {
             type: 'array',
+            items: { type: 'string' },
             uniqueItems: true,
-            items: {
-              type: 'string',
-            },
           },
-        ],
+          customPagesDirectory: { type: 'string' },
+        },
+        additionalProperties: false,
       },
     ],
   },
 
-  /**
-   * Creates an ESLint rule listener.
-   */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    // Read options from ESLint config
+    const ruleOptions: any = context.options[0] || {}
+    const pageExtensions =
+      typeof ruleOptions === 'object' && ruleOptions !== null
+        ? ruleOptions.pageExtensions || ['js', 'jsx', 'ts', 'tsx']
+        : ['js', 'jsx', 'ts', 'tsx']
+    const customPagesDirectory =
+      typeof ruleOptions === 'string'
+        ? ruleOptions
+        : typeof ruleOptions === 'object' && ruleOptions !== null
+          ? ruleOptions.customPagesDirectory
+          : undefined
 
     const rootDirs = getRootDirs(context)
 
@@ -101,56 +105,38 @@ export default defineRule({
       return fsExistsSyncCache[dir]
     })
 
-    // warn if there are no pages and app directories
     if (foundPagesDirs.length === 0 && foundAppDirs.length === 0) {
       pagesDirWarning(pagesDirs)
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    // Pass pageExtensions into URL builders
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, pageExtensions)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, pageExtensions)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
       JSXOpeningElement(node) {
-        if (node.name.name !== 'a') {
-          return
-        }
-
-        if (node.attributes.length === 0) {
-          return
-        }
+        if (node.name.name !== 'a') return
+        if (node.attributes.length === 0) return
 
         const target = node.attributes.find(
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'target'
         )
-
-        if (target && target.value.value === '_blank') {
-          return
-        }
+        if (target && target.value.value === '_blank') return
 
         const href = node.attributes.find(
           (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'href'
         )
-
-        if (!href || (href.value && href.value.type !== 'Literal')) {
-          return
-        }
+        if (!href || (href.value && href.value.type !== 'Literal')) return
 
         const hasDownloadAttr = node.attributes.find(
-          (attr) =>
-            attr.type === 'JSXAttribute' && attr.name.name === 'download'
+          (attr) => attr.type === 'JSXAttribute' && attr.name.name === 'download'
         )
-
-        if (hasDownloadAttr) {
-          return
-        }
+        if (hasDownloadAttr) return
 
         const hrefPath = normalizeURL(href.value.value)
-        // Outgoing links are ignored
-        if (/^(https?:\/\/|\/\/)/.test(hrefPath)) {
-          return
-        }
+        if (/^(https?:\/\/|\/\/)/.test(hrefPath)) return
 
         allUrlRegex.forEach((foundUrl) => {
           if (foundUrl.test(normalizeURL(hrefPath))) {
