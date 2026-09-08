@@ -22,7 +22,7 @@ use anyhow::{Result, anyhow};
 use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
 use either::Either;
-use futures::{FutureExt, future::Abortable};
+use futures::FutureExt;
 use rustc_hash::{FxBuildHasher, FxHasher};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
@@ -38,7 +38,7 @@ use crate::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
-    capture_future::CaptureFuture,
+    capture_future::{CaptureFuture, CaptureFutureOutcome},
     dyn_task_inputs::DynTaskInputsStorage,
     event::{Event, EventListener},
     id::{ExecutionId, LocalTaskId, TraitTypeId},
@@ -1544,53 +1544,44 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                             InlineExecutionSpanSlot::set(&span);
 
                             async {
-                                let result = match abort_registration {
-                                    Some(abort_registration) => {
-                                        Abortable::new(
-                                            CaptureFuture::new(future),
-                                            abort_registration,
-                                        )
-                                        .await
-                                    }
-                                    None => Ok(CaptureFuture::new(future).await),
-                                };
+                                let outcome = CaptureFuture::new(future)
+                                    .with_optional_abort(abort_registration)
+                                    .await;
 
-                                // Wait for all spawned local tasks using `local` to finish. The
-                                // main task future has already been dropped on abort, so local work
-                                // can no longer be added while this drains.
+                                // Wait for all spawned local tasks using `local` to finish.
                                 wait_for_local_tasks().await;
 
                                 let finished_state = this.finish_current_task_state();
                                 let cell_counters = CURRENT_TASK_STATE
                                     .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
 
-                                match result {
-                                    Err(_) => this.backend.task_execution_aborted(task_id, &*this),
-                                    Ok(result) => {
-                                        let result = match result {
-                                            Ok(Ok(raw_vc)) => {
-                                                // This is safe because we waited for all local
-                                                // tasks to complete above.
-                                                raw_vc
-                                                    .to_non_local_unchecked_sync(&*this)
-                                                    .map_err(|err| err.into())
-                                            }
-                                            Ok(Err(err)) => Err(err.into()),
-                                            Err(err) => {
-                                                Err(TurboTasksExecutionError::Panic(Arc::new(err)))
-                                            }
-                                        };
-                                        this.backend.task_execution_completed(
-                                            task_id,
-                                            result,
-                                            &cell_counters,
-                                            #[cfg(feature = "verify_determinism")]
-                                            finished_state.stateful,
-                                            finished_state.has_invalidator,
-                                            &*this,
-                                        )
+                                let result = match outcome {
+                                    CaptureFutureOutcome::Aborted => {
+                                        return this
+                                            .backend
+                                            .task_execution_aborted(task_id, &*this);
                                     }
-                                }
+                                    CaptureFutureOutcome::Value(raw_vc) => {
+                                        // This is safe because we waited for all local tasks to
+                                        // complete above.
+                                        raw_vc
+                                            .to_non_local_unchecked_sync(&*this)
+                                            .map_err(|err| err.into())
+                                    }
+                                    CaptureFutureOutcome::Error(err) => Err(err.into()),
+                                    CaptureFutureOutcome::Panic(err) => {
+                                        Err(TurboTasksExecutionError::Panic(Arc::new(err)))
+                                    }
+                                };
+                                this.backend.task_execution_completed(
+                                    task_id,
+                                    result,
+                                    &cell_counters,
+                                    #[cfg(feature = "verify_determinism")]
+                                    finished_state.stateful,
+                                    finished_state.has_invalidator,
+                                    &*this,
+                                )
                             }
                             .instrument(span)
                             .await
