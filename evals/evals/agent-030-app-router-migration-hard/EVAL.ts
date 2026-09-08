@@ -33,8 +33,11 @@ test('Root layout exists and replaces _app/_document', () => {
   // Should include metadata (replacing Head in _document.js)
   expect(layoutContent).toMatch(/metadata|Metadata/)
 
-  // Should accept children prop with ReactNode type
-  expect(layoutContent).toMatch(/children.*ReactNode/)
+  // Should accept children using either an inline ReactNode type or the
+  // globally available LayoutProps helper.
+  const layoutCode = stripComments(layoutContent)
+  expect(layoutCode).toMatch(/children/)
+  expect(layoutCode).toMatch(/(?:React\.)?ReactNode|LayoutProps\s*</)
 })
 
 // The "is it a Server Component fetching data" check is semantic, so it uses the
