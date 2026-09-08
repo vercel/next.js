@@ -105,20 +105,20 @@ export function getAcceptLanguageLocale(
     const languages = acceptLanguageHeader
       .split(',')
       .map((lang) => {
-        const parts = lang.trim().split(';')
-        const locale = parts[0]
+        const [locale, ...params] = lang.split(';')
         let quality = 1
 
-        if (parts[1]) {
-          const qMatch = parts[1].match(/q=([0-9.]+)/)
-          if (qMatch && qMatch[1]) {
+        for (const param of params) {
+          const qMatch = param.match(/^\s*q\s*=\s*([0-9.]+)\s*$/)
+          if (qMatch) {
             quality = parseFloat(qMatch[1])
+            break
           }
         }
 
-        return { locale, quality }
+        return { locale: locale.trim(), quality }
       })
-      .filter((lang) => lang.quality > 0)
+      .filter((lang) => lang.locale !== '' && lang.quality > 0)
       .sort((a, b) => b.quality - a.quality)
 
     // Create lowercase lookup for locales
