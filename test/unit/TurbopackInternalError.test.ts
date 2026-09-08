@@ -34,13 +34,16 @@ describe('TurbopackInternalError', () => {
 
       expect(internalError).toBeInstanceOf(TurbopackInternalError)
 
-      expect(submitRecord).toHaveBeenCalledWith({
-        eventName: 'NEXT_ERROR_THROWN',
-        payload: {
-          errorCode: 'TurbopackInternalError',
-          location: 'file.rs:120:1',
+      expect(submitRecord).toHaveBeenCalledWith(
+        {
+          eventName: 'NEXT_ERROR_THROWN',
+          payload: {
+            errorCode: 'TurbopackInternalError',
+            location: 'file.rs:120:1',
+          },
         },
-      })
+        expect.anything()
+      )
     } finally {
       setGlobal('telemetry', oldTelemetry)
     }

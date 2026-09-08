@@ -1,5 +1,6 @@
 // Import cpu-profile first to start profiling early if enabled
 import { saveCpuProfile } from '../../server/lib/cpu-profile'
+import path from 'path'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
@@ -415,7 +416,10 @@ export async function workerMain(workerData: {
 > {
   // Clone the telemetry for worker
   const telemetry = new Telemetry({
-    distDir: workerData.buildContext.config!.distDir,
+    distDir: path.join(
+      workerData.buildContext.dir!,
+      workerData.buildContext.config!.distDir
+    ),
   })
   setGlobal('telemetry', telemetry)
   // setup new build context from the serialized data passed from the parent
@@ -459,7 +463,7 @@ export async function workerMain(workerData: {
     result.buildTraceContext!.chunksTrace!.entryNameFilesMap = entryNameFilesMap
   }
   NextBuildContext.nextBuildSpan.stop()
-  await telemetry.flush()
+  telemetry.flushDetached('build', NextBuildContext.dir!)
 
   // Save CPU profile before worker exits
   await saveCpuProfile()
