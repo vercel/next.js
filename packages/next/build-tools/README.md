@@ -52,8 +52,6 @@ groups and hash them in deterministic order.
 Canary no longer uses the error-code WASM plugin. The runner does not require
 its removed WASM binary or `errors.json` input. The protocol retains support for
 replaying auxiliary artifacts; the Rust fixture and adapter tests cover it.
-The benchmark reports from the original release checkout retain their historical
-inputs and timings, including that plugin.
 
 Keep the existing emitters pinned while validating the Rust runner. Replacing
 them with other compiler versions or implementations requires a separate exact

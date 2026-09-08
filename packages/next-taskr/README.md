@@ -99,13 +99,6 @@ recipes, plugins, dependencies, the lockfile, or environment variables.
 
 ## Verification
 
-The [local release benchmark](./benchmarks/2026-09-07-optimized.md) records paired
-Taskr comparisons, output verification, and the performance changes.
-The [artifact-handle comparison](./benchmarks/2026-09-08-artifact-handles.md)
-measures isolated JavaScript compilation and traffic between Rust and Node.
-The [parallel materialization comparison](./benchmarks/2026-09-08-materialization.md)
-profiles remaining work and measures builds with deleted or retained outputs.
-
 ```sh
 cargo test -p next-taskr
 cargo clippy -p next-taskr --all-targets -- -D warnings
