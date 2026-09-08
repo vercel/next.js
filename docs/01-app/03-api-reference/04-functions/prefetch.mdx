@@ -5,6 +5,7 @@ version: experimental
 related:
   links:
     - app/api-reference/functions/navigation
+    - app/api-reference/functions/connection
     - app/guides/adopting-partial-prefetching
     - app/api-reference/functions/io
     - app/api-reference/config/next-config-js/partialPrefetching
@@ -122,6 +123,14 @@ The greeting reads the session and stays in the App Shell. The recommendations r
 
 Put the directive on a function called below it, as `getRecommendations` does here. Awaiting `unstable_prefetch()` inside a cached scope, such as [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), is not allowed.
 
+## How `unstable_prefetch()` differs from `connection()`
+
+The [`connection()`](/docs/app/api-reference/functions/connection) function waits for a real request. It excludes the code that follows from prerendering and prefetching, and makes that work request-dependent.
+
+`unstable_prefetch()` only keeps the code that follows out of the App Shell. It can resolve during a per-link prefetch, without making that work request-dependent. This means a function called after `await unstable_prefetch()` can use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime while avoiding the cost of generating its result for every link into the route.
+
+Use `connection()` when the work must run for a real request. Use `unstable_prefetch()` when the work is reusable but should only run for a selected per-link prefetch or a navigation.
+
 ## When to use it
 
 Reach for it when the content below `unstable_prefetch()` is expensive to produce, in compute, in upstream requests, or in latency, and you do not want it generated in the App Shell that every `<Link>` into the route prefetches.
@@ -139,7 +148,6 @@ When every read of [`cookies()`](/docs/app/api-reference/functions/cookies) and 
 ## Good to know
 
 - The function has no effect on the initial load of a page.
-- Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await unstable_prefetch()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache).
 - A call outside a `<Suspense>` boundary surfaces a validation insight in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
 

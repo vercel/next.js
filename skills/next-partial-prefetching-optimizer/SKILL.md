@@ -17,6 +17,11 @@ acceptable prefetch cost. Encode that contract in a production
 test, work it from RED to GREEN, and keep the positive test as regression
 coverage.
 
+The order is part of the verification: prepare the production rig, prove the
+unlocked route, capture the locked RED, make the optimization, and require
+GREEN. Do not edit the source Link, cache boundary, or stage before the RED is
+recorded.
+
 Before making framework changes, read the bundled Optimizing prefetching guide
 at
 `node_modules/next/dist/docs/01-app/02-guides/optimizing-prefetching.md`. If the
@@ -25,6 +30,11 @@ guide](https://nextjs.org/docs/app/guides/optimizing-prefetching). It is the
 source of truth for App Shell behavior, `prefetch={true}`, cache and session
 patterns, and cost trade-offs. Do not copy those recipes into the skill or
 improvise alternatives from this file.
+
+Keep this skill focused on choosing one navigation, recording its product and
+cost contract, setting up a trustworthy production RED-to-GREEN loop, checking
+parity and the differential, and reporting the result. The guide owns the
+framework behavior and implementation patterns.
 
 This is not an adoption skill. Do not enable Cache Components or Partial
 Prefetching, run their migrations, or redesign the route's App Shell as a side
@@ -44,10 +54,9 @@ Suspense boundaries, its data reads, existing prefetch policy, and any existing
 The trigger is part of the behavior. Two links to the same URL may have
 different prefetch policies and need separate tests.
 
-Use the guide's cost model. A bounded set of high-intent links may justify
-`prefetch={true}` in the viewport. Large lists and grids should normally keep
-the default App Shell prefetch and upgrade only the hovered or focused link.
-Leave must-be-fresh data streaming.
+Use the guide's cost model to confirm the trigger with the user. Do not silently
+increase the number of links that can invoke the server or cache data whose
+freshness contract is unknown.
 
 ## Reuse the production rig
 
@@ -67,18 +76,18 @@ prefetching is production-only.
 
 Search for an existing `instant()` test for the exact source link and
 destination. Strengthen it when it already owns the same behavior; otherwise
-add a focused click-driven test.
+add a focused click-driven test using the guide's
+[prefetched UI verification](https://nextjs.org/docs/app/guides/optimizing-prefetching#verify-the-prefetched-ui)
+pattern.
 
 First run an unlocked scaffold that proves the link reaches the exact pathname
 and query and that all selected UI eventually renders for the test user. Do not
 ship this scaffold.
 
-Then run the same interaction inside `instant()`:
-
-- the existing App Shell must stay visible;
-- the selected prefetch target should be absent before the optimization;
-- content chosen for the navigation stage should also be absent;
-- after the lock releases, every selected region must eventually render.
+Then run the same interaction inside `instant()`. The existing App Shell must
+stay visible, while the guide's positive and negative assertions capture the
+prefetched result. After the lock releases, every selected region must
+eventually render.
 
 Read [`reference/red-test-robustness.md`](reference/red-test-robustness.md)
 before treating this failure as RED. A timeout before the URL changes, a
@@ -88,11 +97,20 @@ or a different problem, not permission to change prefetching.
 If the complete desired contract already passes under the lock, stop. Never
 add `prefetch={false}` merely to manufacture a RED.
 
+Only test files and the configuration needed to expose the testing API may
+change before these runs finish. If the harness moves a long-running build or
+test into the background, wait for it to exit and continue the loop in the
+same task. A written test or a build still in progress is not verification.
+
 ## Make the smallest optimization
 
 Follow the Optimizing prefetching guide for cache placement, freshness,
 session data, Suspense, and link policy. Change only what the selected contract
 requires.
+
+When reusable UI should wait for navigation, verify that the final result
+preserves both properties. Do not accept an uncached request-time replacement
+merely because it remains absent from the prefetch.
 
 When the contract needs an explicit runtime stage, follow the API references
 for [`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/prefetch)
@@ -104,17 +122,9 @@ an app-wide Link or cache abstraction from a single case.
 
 ## Verify and ship
 
-The positive locked test should drive the real source link and assert:
-
-```text
-App Shell visible
-and selected prefetched UI visible
-and navigation-only UI absent
-```
-
-After the lock releases, assert that the deferred regions render. Preserve the
-loaded page's content, ordering, empty and error states, authorization,
-freshness, redirects, and direct-load behavior.
+Keep the guide's positive locked test for the real source link as regression
+coverage. Preserve the loaded page's content, ordering, empty and error states,
+authorization, freshness, redirects, and direct-load behavior.
 
 Finally, remove only the optimization and rerun the test:
 
@@ -144,7 +154,6 @@ best-effort; the App Shell remains the fallback when it has not completed.
 
 ## Files
 
-- `test-template.md`: exact-link unlocked and locked test shapes.
 - `reference/red-test-robustness.md`: trustworthy RED and differential checks.
 
 ## Further reading

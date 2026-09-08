@@ -61,6 +61,8 @@ export default function Home() {
 }
 ```
 
+If only some links should use full prefetching, leave the others on the default `auto` behavior. A conditional such as `prefetch={isFeatured}` becomes `prefetch={false}` when the condition is false, which disables prefetching entirely. Use `prefetch={isFeatured ? true : 'auto'}` instead.
+
 The destination renders a static heading and a `<Results>` list whose contents depend on the query. Each query is cached, computed once and reused.
 
 ```tsx filename="app/search/page.tsx"
@@ -91,6 +93,8 @@ async function search(q: string) {
   return db.search(q)
 }
 ```
+
+Only put reusable work inside the cache boundary. If an existing data function calls [`connection()`](/docs/app/api-reference/functions/connection) to wait for a request, don't leave that call inside a new `"use cache"` scope. When the result can be reused, remove the request-time gate and cache the lookup. When only part of the function is reusable, split that work into a cached helper and keep request-specific work outside it. Data that must wait for a real request should remain uncached and stream from its `<Suspense>` boundary.
 
 Without `prefetch={true}`, the App Shell renders `<h1>` and shows the `<Results>` fallback. The query resolves after the click and streams the results in.
 
@@ -214,6 +218,38 @@ The session is read above `unstable_navigation()`, so it resolves in the shell l
 Without it, keeping a subtree out of a prefetch means leaving it uncached, which gives up that lifetime on the navigation too. Awaiting `unstable_navigation()` inside a cached scope is not allowed, so put the caching directive on a function called below it, as `rank` does here.
 
 For a subtree that would otherwise sit in the App Shell, but that a `<Link prefetch={true}>` should still resolve before the click, use [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) instead.
+
+Unlike [`connection()`](/docs/app/api-reference/functions/connection), `unstable_navigation()` does not make the subtree request-dependent. This lets reusable content keep its cache lifetime while waiting for navigation. See [How `unstable_navigation()` differs from `connection()`](/docs/app/api-reference/functions/navigation#how-unstable_navigation-differs-from-connection) for the full comparison.
+
+## Verify the prefetched UI
+
+Use an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test to verify both what the selected link includes in its prefetch and what still waits for navigation.
+
+All assertions about the prefetched result belong inside the `instant()` callback. Assert that the intended content is visible and navigation-only content is absent. After the callback releases the navigation, assert that the deferred content eventually renders:
+
+```ts filename="e2e/product-navigation.test.ts" highlight={8-15,17}
+import { expect, test } from '@playwright/test'
+import { instant } from '@next/playwright'
+
+test('prefetches the product summary but not reviews', async ({ page }) => {
+  await page.goto('/products')
+
+  await instant(page, async () => {
+    await page.click('a[href="/products/baseball-cap"]')
+    await page.waitForURL((url) => url.pathname === '/products/baseball-cap')
+
+    await expect(
+      page.getByRole('heading', { name: 'Baseball Cap' })
+    ).toBeVisible()
+    await expect(page.getByTestId('product-summary')).toBeVisible()
+    await expect(page.getByTestId('reviews')).toHaveCount(0)
+  })
+
+  await expect(page.getByTestId('reviews')).toBeVisible()
+})
+```
+
+The assertion after `instant()` distinguishes intentionally deferred content from content that is missing or broken. Run the locked test before changing the implementation to capture the current result, then run it against a production build after the optimization and keep the passing test as regression coverage.
 
 ## Trade-offs
 
