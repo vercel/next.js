@@ -897,6 +897,12 @@ export function createAppPageEntrypoint({
         )
         const routeMatch: RouteMatch = { resolvedPathname }
         const dev: DevRenderContext | undefined = createDevRenderContext(req)
+        // A render that answers the request itself streams to the client: a
+        // dynamic response, or the resume of a postponed shell.
+        const respondsDynamically =
+          renderOperation === 'render' &&
+          (typeof postponed === 'string' || supportsDynamicResponse)
+
         const context: AppPageRouteHandlerContext = {
           query,
           params,
@@ -923,9 +929,7 @@ export function createAppPageEntrypoint({
             postponed,
             allowEmptyStaticShell,
             serveStreamingMetadata,
-            supportsDynamicResponse:
-              renderOperation === 'render' &&
-              (typeof postponed === 'string' || supportsDynamicResponse),
+            supportsDynamicResponse: respondsDynamically,
             buildManifest,
             nextFontManifest,
             reactLoadableManifest,
@@ -1141,7 +1145,8 @@ export function createAppPageEntrypoint({
         // cache with the headers it was stored with, while a dynamic one keeps
         // streaming and is admitted by a nonce instead.
         const inlineScriptHashes = nextConfig.experimental.inlineScriptHashes
-        const isCached = isSSG && cacheControl?.revalidate !== 0
+        const isCached =
+          isSSG && !respondsDynamically && cacheControl?.revalidate !== 0
         let html = result
 
         if (
