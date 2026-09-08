@@ -1,4 +1,4 @@
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
     common::BytePos,
@@ -41,6 +41,10 @@ pub struct VarGraph<'a> {
     /// calls fall back to `ExportUsage::All`.
     pub require_usage: FxHashMap<BytePos, ExportUsage>,
 
+    /// Positions of the `require("…")` calls in `module.exports = require("…")`, whose target
+    /// takes on this module's own used exports.
+    pub require_reexports: FxHashSet<BytePos>,
+
     /// Present when the module is a statically-analyzable CommonJS module (no
     /// dynamic exports); carries its named exports for scope hoisting.
     pub cjs_static_exports: Option<CjsStaticExports>,
@@ -76,6 +80,7 @@ pub fn create_graph<'a>(
             effects: Default::default(),
             code_gens: Default::default(),
             require_usage: Default::default(),
+            require_reexports: Default::default(),
             cjs_static_exports: Default::default(),
         },
         eval_context,

@@ -552,7 +552,7 @@ impl ModuleReference for ImportMetaGlobModuleReference {
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
             import: Default::default(),
-            export: self.export.clone(),
+            export: self.export.clone().into(),
         }
     }
 }

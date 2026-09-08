@@ -137,7 +137,7 @@ impl ModuleReference for EcmascriptModulePartReference {
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
             import: ImportUsage::TopLevel,
-            export: self.export_usage.clone(),
+            export: self.export_usage.clone().into(),
         }
     }
 }

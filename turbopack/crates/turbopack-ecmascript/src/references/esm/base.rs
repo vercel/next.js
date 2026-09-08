@@ -29,8 +29,9 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::{
-        BindingUsage, ExportUsage, ExternalType, ImportUsage, ModulePart, ModuleResolveResult,
-        ModuleResolveResultItem, RequestKey, ResolveErrorMode,
+        BindingUsage, ExportUsage, ExternalType, ForwardedExportUsage, ImportUsage, ModulePart,
+        ModuleResolveResult, ModuleResolveResultItem, RequestKey, ResolveErrorMode,
+        TargetExportUsage,
         origin::{ResolveOrigin, ResolveOriginExt},
         parse::Request,
         resolve,
@@ -472,6 +473,8 @@ struct EsmReferenceExtras {
     chunking_type: Option<SpecifiedChunkingType>,
     /// A module to resolve to directly, bypassing resolution (from a matched inner asset).
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    /// Whether this reference only re-exports the target's namespace (drives `binding_usage`).
+    is_namespace_reexport: bool,
 }
 
 impl EsmReferenceExtras {
@@ -490,6 +493,7 @@ impl EsmReferenceExtras {
                 .map(|m| RcStr::from(&*m.to_string_lossy())),
             chunking_type: annotations.and_then(|a| a.chunking_type()),
             resolve_override,
+            is_namespace_reexport: false,
         };
         (extras != EsmReferenceExtras::default()).then(|| Box::new(extras))
     }
@@ -591,6 +595,11 @@ impl EsmAssetReference {
             /* is_pure_import */ true,
         )
         .await
+    }
+
+    /// Marks this reference as an `export * from "…"` namespace re-export.
+    pub fn mark_namespace_reexport(&mut self) {
+        self.extras.get_or_insert_default().is_namespace_reexport = true;
     }
 
     /// Builds a copy of this reference for a single resolved namespace export
@@ -736,13 +745,23 @@ impl ModuleReference for EsmAssetReference {
     }
 
     fn binding_usage(&self) -> BindingUsage {
-        BindingUsage {
-            import: self.import_usage.clone(),
-            export: match &self.export_name {
+        let export = if self
+            .extras
+            .as_deref()
+            .is_some_and(|e| e.is_namespace_reexport)
+        {
+            TargetExportUsage::Forwarded(ForwardedExportUsage::Exports)
+        } else {
+            match &self.export_name {
                 Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
                 Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
                 _ => ExportUsage::All,
-            },
+            }
+            .into()
+        };
+        BindingUsage {
+            import: self.import_usage.clone(),
+            export,
         }
     }
 
