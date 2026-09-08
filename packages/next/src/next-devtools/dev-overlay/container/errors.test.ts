@@ -70,13 +70,13 @@ describe('cache stage Insight messages', () => {
     {
       error: () => createNavigationMetadataError(ROUTE),
       detail:
-        '`unstable_navigation()` defers the metadata until navigation, so it cannot be included in the App Shell or a per-link prefetch.',
+        '`unstable_navigation()` called in `generateMetadata()` defers it until navigation.',
       docs: 'instant-cache-stage-metadata',
     },
     {
       error: () => createPrefetchMetadataError(ROUTE),
       detail:
-        '`unstable_prefetch()` defers the metadata until a per-link prefetch or navigation, so it cannot be included in the App Shell.',
+        '`unstable_prefetch()` called in `generateMetadata()` defers it until a per-link prefetch or navigation.',
       docs: 'instant-cache-stage-metadata',
     },
     {
