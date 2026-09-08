@@ -27,7 +27,11 @@ import {
   type SyncIOApiType,
 } from '../../../server/app-render/sync-io-messages'
 import { ClientHookDynamicError } from '../../../server/dynamic-rendering-utils'
-import { getCards } from '../components/instant/instant-guidance-data'
+import {
+  CACHE_STAGE_METADATA_EXPLANATION,
+  CACHE_STAGE_VIEWPORT_EXPLANATION,
+  getCards,
+} from '../components/instant/instant-guidance-data'
 import {
   deriveCauseFromCodeFrame,
   getBlockingRouteErrorDetails,
@@ -391,13 +395,21 @@ describe('getBlockingRouteErrorDetails', () => {
   it('classifies createNavigationMetadataError as dynamic-metadata + navigation', () => {
     expect(
       getBlockingRouteErrorDetails(createNavigationMetadataError(ROUTE))
-    ).toEqual({ type: 'dynamic-metadata', variant: 'navigation' })
+    ).toEqual({
+      type: 'dynamic-metadata',
+      variant: 'navigation',
+      explanation: CACHE_STAGE_METADATA_EXPLANATION,
+    })
   })
 
   it('classifies createPrefetchMetadataError as dynamic-metadata + prefetch', () => {
     expect(
       getBlockingRouteErrorDetails(createPrefetchMetadataError(ROUTE))
-    ).toEqual({ type: 'dynamic-metadata', variant: 'prefetch' })
+    ).toEqual({
+      type: 'dynamic-metadata',
+      variant: 'prefetch',
+      explanation: CACHE_STAGE_METADATA_EXPLANATION,
+    })
   })
 
   it('classifies createDynamicMetadataError as dynamic-metadata + dynamic', () => {
@@ -427,13 +439,21 @@ describe('getBlockingRouteErrorDetails', () => {
   it('classifies createNavigationViewportError as dynamic-viewport + navigation', () => {
     expect(
       getBlockingRouteErrorDetails(createNavigationViewportError(ROUTE))
-    ).toEqual({ type: 'dynamic-viewport', variant: 'navigation' })
+    ).toEqual({
+      type: 'dynamic-viewport',
+      variant: 'navigation',
+      explanation: CACHE_STAGE_VIEWPORT_EXPLANATION,
+    })
   })
 
   it('classifies createPrefetchViewportError as dynamic-viewport + prefetch', () => {
     expect(
       getBlockingRouteErrorDetails(createPrefetchViewportError(ROUTE))
-    ).toEqual({ type: 'dynamic-viewport', variant: 'prefetch' })
+    ).toEqual({
+      type: 'dynamic-viewport',
+      variant: 'prefetch',
+      explanation: CACHE_STAGE_VIEWPORT_EXPLANATION,
+    })
   })
 
   it('classifies createDynamicViewportError as dynamic-viewport + dynamic', () => {
