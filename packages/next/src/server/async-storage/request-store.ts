@@ -167,17 +167,23 @@ function mergeMiddlewareCookies(
     typeof headers['x-middleware-set-cookie'] === 'string'
   ) {
     const setCookieValue = headers['x-middleware-set-cookie']
-    const responseHeaders = new Headers()
 
     for (const cookie of splitCookiesString(setCookieValue)) {
+      const responseHeaders = new Headers()
       responseHeaders.append('set-cookie', cookie)
-    }
 
-    const responseCookies = new ResponseCookies(responseHeaders)
+      let responseCookies: ResponseCookies
 
-    // Transfer cookies from ResponseCookies to RequestCookies
-    for (const cookie of responseCookies.getAll()) {
-      existingCookies.set(cookie)
+      try {
+        responseCookies = new ResponseCookies(responseHeaders)
+      } catch {
+        continue
+      }
+
+      // Transfer cookies from ResponseCookies to RequestCookies
+      for (const parsedCookie of responseCookies.getAll()) {
+        existingCookies.set(parsedCookie)
+      }
     }
   }
 }
