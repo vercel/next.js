@@ -19,9 +19,12 @@ use turbo_tasks_fs::{
     FileSystemPath,
     glob::{Glob, GlobOptions},
 };
-use turbopack::module_options::{
-    ConditionContentType, ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem,
-    WebpackRules, module_options_context::MdxTransformOptions,
+use turbopack::{
+    module_federation::{ModuleFederationConfig, UnnormalizedModuleFederationConfig},
+    module_options::{
+        ConditionContentType, ConditionItem, ConditionPath, ConditionQuery, LoaderRuleItem,
+        WebpackRules, module_options_context::MdxTransformOptions,
+    },
 };
 use turbopack_core::{
     chunk::{CrossOrigin, SourceMapsType},
@@ -1333,6 +1336,9 @@ pub struct ExperimentalConfig {
 
     turbopack_chunking: Option<TurbopackChunkingConfig>,
 
+    #[bincode(with = "turbo_bincode::serde_self_describing")]
+    turbopack_module_federation: Option<UnnormalizedModuleFederationConfig>,
+
     // ---
     // UNSUPPORTED
     // ---
@@ -2192,6 +2198,17 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn css_chunking(&self) -> Result<Vc<StyleGroupsAlgorithm>> {
         Ok(resolve_css_chunking_algorithm(self.experimental.css_chunking.as_ref())?.cell())
+    }
+
+    #[turbo_tasks::function]
+    pub fn turbopack_module_federation(&self) -> Result<Vc<ModuleFederationConfig>> {
+        Ok(self
+            .experimental
+            .turbopack_module_federation
+            .clone()
+            .unwrap_or_default()
+            .normalize()?
+            .cell())
     }
 
     #[turbo_tasks::function]

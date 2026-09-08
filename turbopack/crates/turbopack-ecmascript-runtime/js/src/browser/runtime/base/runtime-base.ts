@@ -83,7 +83,11 @@ interface RuntimeBackend {
   /**
    * Returns the same Promise for the same chunk URL.
    */
-  loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
+  loadChunkCached: (
+    sourceType: SourceType,
+    chunkUrl: ChunkUrl,
+    resolveOnLoad?: boolean
+  ) => Promise<void>
 }
 
 interface DevRuntimeBackend {
@@ -278,8 +282,21 @@ const instrumentedBackendLoadChunks = new WeakMap<
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(
   this: TurbopackBrowserBaseContext<Module>,
-  chunkEntry: ChunkUrlOrMerged
+  chunkEntry: ChunkUrlOrMerged,
+  resolveOnLoad = false
 ) {
+  if (resolveOnLoad) {
+    if (typeof chunkEntry !== 'string') {
+      return Promise.reject(
+        new Error('External scripts cannot use merged chunk metadata')
+      )
+    }
+    return BACKEND.loadChunkCached(
+      SourceType.Parent,
+      chunkEntry as ChunkUrl,
+      true
+    )
+  }
   return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry)
 }
 browserContextPrototype.L = loadChunkByUrl

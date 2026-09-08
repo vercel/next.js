@@ -49,6 +49,11 @@ const REEXPORTED_OBJECTS = new WeakMap();
     this.e = exports;
 }
 const contextPrototype = Context.prototype;
+contextPrototype.S = {
+    shareScopes: Object.create(null),
+    initScopes: Object.create(null),
+    remoteInitializations: Object.create(null)
+};
 const hasOwnProperty = Object.prototype.hasOwnProperty;
 const toStringTag = typeof Symbol !== 'undefined' && Symbol.toStringTag;
 function defineProp(obj, name, options) {
@@ -699,7 +704,10 @@ function loadChunkAsync(chunkData) {
     return entry;
 }
 contextPrototype.l = loadChunkAsync;
-function loadChunkAsyncByUrl(chunkUrl) {
+function loadChunkAsyncByUrl(chunkUrl, resolveOnLoad = false) {
+    if (resolveOnLoad) {
+        return Promise.reject(new Error(`External script loading is only supported in browser client code: ${chunkUrl}`));
+    }
     const path1 = url.fileURLToPath(new URL(chunkUrl, RUNTIME_ROOT));
     return loadChunkAsync.call(this, path1);
 }
