@@ -102,7 +102,13 @@ async function batchedTraceSource(
         currentSourcesByFile.delete(originalFile!)
       }, 100)
     }
-    source = await sourcePromise
+    try {
+      source = await sourcePromise
+    } catch {
+      // The frame was successfully traced; a failed source read only costs
+      // the code frame, it must not reject the mapped frame itself.
+      source = null
+    }
   }
 
   const ignorableFrame: IgnorableStackFrame = {
