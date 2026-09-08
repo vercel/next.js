@@ -546,19 +546,19 @@ describe('prefetch inlining', () => {
         )
       ).toMatchInlineSnapshot(`
        {
-         "hints": "InlinedIntoChild | ShouldAttemptStaticShell",
+         "hints": "InlinedIntoChild | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
          "slots": {
            "children": {
-             "hints": "ParentInlinedIntoSelf | InlinedIntoChild | ShouldAttemptStaticShell",
+             "hints": "ParentInlinedIntoSelf | InlinedIntoChild | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
              "slots": {
                "children": {
-                 "hints": "ParentInlinedIntoSelf | ShouldAttemptStaticShell",
+                 "hints": "ParentInlinedIntoSelf | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
                  "slots": {
                    "children": {
-                     "hints": "InlinedIntoChild | ShouldAttemptStaticShell",
+                     "hints": "InlinedIntoChild | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
                      "slots": {
                        "children": {
-                         "hints": "ParentInlinedIntoSelf | HeadInlinedIntoSelf | ShouldAttemptStaticShell",
+                         "hints": "ParentInlinedIntoSelf | HeadInlinedIntoSelf | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
                          "slots": null,
                        },
                      },
