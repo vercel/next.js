@@ -1,3 +1,4 @@
+import { mkdir, rm, writeFile } from 'fs/promises'
 import { join } from 'path'
 import type { Server } from 'http'
 import { isNextDeploy, nextTestSetup } from 'e2e-utils'
@@ -33,16 +34,18 @@ async function buildRemote(
             exposes: {
               './message': './message.js',
             },
-            shared: {
-              'shared-value': {
-                singleton: true,
-                requiredVersion: '^1.0.0',
-              },
-              'remote-shared': {
-                singleton: true,
-                version: '2.1.0',
-              },
-            },
+            shared: worker
+              ? {}
+              : {
+                  'shared-value': {
+                    singleton: true,
+                    requiredVersion: '^1.0.0',
+                  },
+                  'remote-shared': {
+                    singleton: true,
+                    version: '2.1.0',
+                  },
+                },
           }),
         ],
       },
@@ -70,9 +73,24 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
     skipDeployment: true,
   })
   let remoteServer: Server
+  let sharedPackage: string
 
   beforeAll(async () => {
     const remotePort = await findPort()
+    sharedPackage = join(next.testDir, 'node_modules', 'default-shared')
+    await mkdir(sharedPackage, { recursive: true })
+    await writeFile(
+      join(sharedPackage, 'package.json'),
+      JSON.stringify({
+        name: 'default-shared',
+        version: '1.0.0',
+        main: 'index.js',
+      })
+    )
+    await writeFile(
+      join(sharedPackage, 'index.js'),
+      `export const value = 'default shared fallback'`
+    )
     const remoteOrigin = `http://localhost:${remotePort}`
     const remoteOutput = join(next.testDir, 'remote-dist')
     const remoteContext = join(next.testDir, 'remote')
@@ -97,6 +115,7 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
     await new Promise<void>((resolve, reject) => {
       remoteServer.close((error) => (error ? reject(error) : resolve()))
     })
+    await rm(sharedPackage, { recursive: true, force: true })
     delete process.env.MF_REMOTE_ORIGIN
     delete process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN
   })
@@ -123,10 +142,10 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
         'local fallback sharing'
       )
       expect(await browser.elementByCss('#default-shared-message').text()).toBe(
-        'hoisted shared fallback'
+        'default shared fallback'
       )
       expect(await browser.elementByCss('#worker-message').text()).toBe(
-        'hello from Turbopack host sharing'
+        'hello from webpack fallback'
       )
       expect(await browser.elementByCss('#remote-script-count').text()).toBe(
         '1'

@@ -18,9 +18,11 @@ export function RemoteMessage() {
       // @ts-expect-error -- configured with a local fallback at runtime
       const fallbackModule = await import('local-fallback')
       setFallback(fallbackModule.value)
+      setMessage('fallback loaded')
       // @ts-expect-error -- default import resolved from a hoisted package
       const defaultSharedModule = await import('default-shared')
       setDefaultShared(defaultSharedModule.value)
+      setMessage('default loaded')
 
       const remoteEntry = `${process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN}/browser/remoteEntry.js`
       // Insert the remote entry first. Federation should attach to this in-flight script rather
@@ -43,6 +45,7 @@ export function RemoteMessage() {
       // @ts-expect-error -- provided by the remote share scope at runtime
       const sharedModule = await import('remote-shared')
       setShared(sharedModule.value)
+      setMessage('remote shared loaded')
       // @ts-expect-error -- provided by Module Federation at runtime
       const remote = await import('catalog/message')
       setMessage(remote.message)
@@ -61,7 +64,7 @@ export function RemoteMessage() {
         setStrictError((error as Error).message)
       }
     }
-    load()
+    load().catch((error) => setMessage(`error: ${error.stack ?? error}`))
 
     const worker = new Worker(
       new URL('./federation-worker.ts', import.meta.url),

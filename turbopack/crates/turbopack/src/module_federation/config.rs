@@ -609,7 +609,10 @@ pub fn validate_output_filename(filename: &str) -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use crate::module_federation::{UnnormalizedModuleFederationConfig, validate_output_filename};
+    use crate::module_federation::{
+        UnnormalizedModuleFederationConfig, UnnormalizedModuleFederationSharedOptions,
+        validate_output_filename,
+    };
 
     #[test]
     fn normalizes_remote_configuration() {
@@ -661,6 +664,22 @@ mod tests {
         let empty_url: UnnormalizedModuleFederationConfig =
             serde_json::from_str(r#"{"remotes":{"catalog":"catalog@"}}"#).unwrap();
         assert!(empty_url.normalize().is_err());
+    }
+
+    #[test]
+    fn deserializes_shared_consumer_options() {
+        let options = serde_json::from_str::<UnnormalizedModuleFederationSharedOptions>(
+            r#"{"import":"./fallback.js","requiredVersion":"^2.0.0","singleton":true,"strictVersion":true}"#,
+        )
+        .unwrap();
+        assert!(options.singleton.unwrap());
+        let disabled = serde_json::from_str::<UnnormalizedModuleFederationConfig>(
+            r#"{"shared":{"react":{"requiredVersion":false}}}"#,
+        )
+        .unwrap()
+        .normalize()
+        .unwrap();
+        assert!(disabled.shared[0].required_version_disabled);
     }
 
     #[test]
