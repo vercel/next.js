@@ -140,7 +140,10 @@ function createProxiedClientReferenceManifest(
             )?.clientReferenceManifest
 
             if (currentManifest?.[prop][id]) {
-              if (prop === 'clientModules') {
+              if (
+                workStore.durableUseCacheEntries &&
+                prop === 'clientModules'
+              ) {
                 const workUnitStore = workUnitAsyncStorage.getStore()
                 if (isUseCacheStore(workUnitStore)) {
                   // This creates a mapping so that a given client references with name
@@ -305,16 +308,26 @@ function createProxiedClientReferenceManifest(
     {
       get(
         _,
-        clientReferenceName: string
+        key: string
       ): ClientReferenceManifest['rscModuleMapping'][string] | undefined {
-        const clientReferenceManifestEntry =
-          proxiedClientReferenceManifest.clientModules[clientReferenceName]
-        if (clientReferenceManifestEntry === undefined) {
-          return undefined
-        }
+        const workStore = workAsyncStorage.getStore()
+        if (workStore && workStore.durableUseCacheEntries) {
+          const currentManifest = clientReferenceManifestsPerRoute.get(
+            workStore.route
+          )?.clientReferenceManifest
 
-        const clientModuleId = clientReferenceManifestEntry.id
-        return proxiedClientReferenceManifest.rscModuleMapping[clientModuleId]
+          const clientReferenceName = key
+          const clientReferenceManifestEntry =
+            currentManifest?.clientModules[clientReferenceName]
+          if (clientReferenceManifestEntry === undefined) {
+            return undefined
+          }
+
+          const clientModuleId = clientReferenceManifestEntry.id
+          return currentManifest?.rscModuleMapping[clientModuleId]
+        } else {
+          return proxiedClientReferenceManifest.rscModuleMapping[key]
+        }
       },
     }
   ) as DeepReadonly<ClientReferenceManifest['rscModuleMapping']>
