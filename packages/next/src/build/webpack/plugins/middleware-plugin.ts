@@ -479,10 +479,14 @@ function getCodeAnalyzer(params: {
         '__next_eval__(function() { return ',
         expr.range[0]
       )
-      dep1.loc = expr.loc
+      if (expr.loc) {
+        dep1.loc = expr.loc
+      }
       parser.state.module.addPresentationalDependency(dep1)
       const dep2 = new ConstDependency('})', expr.range[1])
-      dep2.loc = expr.loc
+      if (expr.loc) {
+        dep2.loc = expr.loc
+      }
       parser.state.module.addPresentationalDependency(dep2)
 
       handleExpression()
@@ -504,10 +508,14 @@ function getCodeAnalyzer(params: {
         '__next_webassembly_compile__(function() { return ',
         expr.range[0]
       )
-      dep1.loc = expr.loc
+      if (expr.loc) {
+        dep1.loc = expr.loc
+      }
       parser.state.module.addPresentationalDependency(dep1)
       const dep2 = new ConstDependency('})', expr.range[1])
-      dep2.loc = expr.loc
+      if (expr.loc) {
+        dep2.loc = expr.loc
+      }
       parser.state.module.addPresentationalDependency(dep2)
 
       handleExpression()
@@ -533,10 +541,14 @@ function getCodeAnalyzer(params: {
           '__next_webassembly_instantiate__(function() { return ',
           expr.range[0]
         )
-        dep1.loc = expr.loc
+        if (expr.loc) {
+          dep1.loc = expr.loc
+        }
         parser.state.module.addPresentationalDependency(dep1)
         const dep2 = new ConstDependency('})', expr.range[1])
-        dep2.loc = expr.loc
+        if (expr.loc) {
+          dep2.loc = expr.loc
+        }
         parser.state.module.addPresentationalDependency(dep2)
       }
     }

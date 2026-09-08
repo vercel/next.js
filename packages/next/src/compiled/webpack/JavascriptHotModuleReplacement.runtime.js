@@ -1,4 +1,3 @@
-// @ts-nocheck
 /*
 	MIT License http://www.opensource.org/licenses/mit-license.php
 	Author Tobias Koppers @sokra
@@ -6,29 +5,127 @@
 
 "use strict";
 
-var $installedChunks$ = undefined;
-var $loadUpdateChunk$ = undefined;
-var $moduleCache$ = undefined;
-var $moduleFactories$ = undefined;
-var $ensureChunkHandlers$ = undefined;
-var $hasOwnProperty$ = undefined;
-var $hmrModuleData$ = undefined;
-var $hmrDownloadUpdateHandlers$ = undefined;
-var $hmrInvalidateModuleHandlers$ = undefined;
-var __webpack_require__ = undefined;
+/** @typedef {string | number} ModuleId */
+/** @typedef {Record<string, unknown>} HotData */
+/** @typedef {(data: HotData) => void} DisposeHandler */
+/** @typedef {(outdatedDependencies: ModuleId[]) => void} AcceptCallback */
+/** @typedef {(err: unknown, context: { moduleId: ModuleId, dependencyId: ModuleId }) => void} AcceptErrorHandler */
+/** @typedef {{ type: string, moduleId: ModuleId, dependencyId?: ModuleId, error: unknown, originalError?: unknown }} HotErrorEvent */
+/** @typedef {(reportError: (err: unknown) => void) => Promise<ModuleId[]>} ApplyFn */
+
+/**
+ * @typedef {object} ApplyOptions
+ * @property {boolean=} ignoreUnaccepted ignore unaccepted modules
+ * @property {boolean=} ignoreDeclined ignore declined modules
+ * @property {boolean=} ignoreErrored ignore errors thrown while applying
+ * @property {((event: ModuleEffect) => void)=} onDeclined called for declined modules
+ * @property {((event: ModuleEffect) => void)=} onUnaccepted called for unaccepted modules
+ * @property {((event: ModuleEffect) => void)=} onAccepted called for accepted modules
+ * @property {((event: ModuleEffect) => void)=} onDisposed called for disposed modules
+ * @property {((event: HotErrorEvent) => void)=} onErrored called on apply errors
+ */
+
+/**
+ * @typedef {object} ApplyResult
+ * @property {Error=} error fatal error that aborts the update
+ * @property {(() => void)=} dispose dispose phase of the update
+ * @property {ApplyFn=} apply apply phase of the update
+ */
+
+/** @typedef {(options: ApplyOptions) => ApplyResult} ApplyHandler */
+/** @typedef {(moduleId: ModuleId, applyHandlers: ApplyHandler[]) => void} InvalidateModuleHandler */
+/** @typedef {(chunkIds: ModuleId[], removedChunks: ModuleId[], removedModules: ModuleId[], promises: Promise<unknown>[], applyHandlers: ApplyHandler[], updatedModulesList: ModuleId[], css: ModuleId[] | undefined, forceLoadChunks: ModuleId[] | undefined) => void} DownloadUpdateHandler */
+/** @typedef {(chunkId: ModuleId, promises: Promise<unknown>[]) => void} EnsureChunkHandler */
+/** @typedef {(webpackRequire: (id: ModuleId) => unknown) => void} RuntimeModuleFn */
+
+/**
+ * @typedef {object} Hot
+ * @property {Record<ModuleId, AcceptCallback>} _acceptedDependencies accept callbacks by dependency id
+ * @property {Record<ModuleId, AcceptErrorHandler | undefined>} _acceptedErrorHandlers error handlers by dependency id
+ * @property {Record<ModuleId, boolean>} _declinedDependencies declined dependency ids
+ * @property {boolean | EXPECTED_FUNCTION} _selfAccepted true or the self-accept error handler
+ * @property {boolean} _selfDeclined module declined itself
+ * @property {boolean} _selfInvalidated module invalidated itself
+ * @property {DisposeHandler[]} _disposeHandlers registered dispose handlers
+ * @property {boolean} _main module is the entry of the update
+ * @property {() => void} _requireSelf re-require the module on apply
+ * @property {boolean} active module is not disposed
+ */
+
+/**
+ * @typedef {object} HotModule
+ * @property {ModuleId} id module id
+ * @property {Hot} hot hot API of the module
+ * @property {ModuleId[]} parents ids of modules requiring this module
+ * @property {ModuleId[]} children ids of modules required by this module
+ */
+
+/**
+ * @typedef {object} ModuleEffect
+ * @property {string} type effect type
+ * @property {ModuleId} moduleId affected module id
+ * @property {ModuleId[]=} chain update propagation chain
+ * @property {ModuleId=} parentId declining parent id
+ * @property {ModuleId[]=} outdatedModules outdated module ids
+ * @property {Record<ModuleId, ModuleId[]>=} outdatedDependencies outdated dependencies by module id
+ */
+
+/** @typedef {{ chain: ModuleId[], id: ModuleId }} QueueItem */
+/** @typedef {{ module: ModuleId, require: (id?: ModuleId) => void, errorHandler: boolean | EXPECTED_FUNCTION }} SelfAcceptedModule */
+
+// Globals injected by code generation; declared here only to type the template.
+/* eslint-disable no-unassigned-vars */
+/** @type {Record<ModuleId, unknown>} */
+var $installedChunks$;
+/** @type {(chunkId: ModuleId, updatedModulesList?: ModuleId[]) => Promise<unknown>} */
+var $loadUpdateChunk$;
+/** @type {Record<ModuleId, HotModule>} */
+var $moduleCache$;
+/** @type {Record<ModuleId, EXPECTED_FUNCTION>} */
+var $moduleFactories$;
+/** @type {Record<string, EnsureChunkHandler>} */
+var $ensureChunkHandlers$;
+/** @type {(obj: object, key: ModuleId) => boolean} */
+var $hasOwnProperty$;
+/** @type {Record<ModuleId, HotData>} */
+var $hmrModuleData$;
+/** @type {Record<string, DownloadUpdateHandler>} */
+var $hmrDownloadUpdateHandlers$;
+/** @type {Record<string, InvalidateModuleHandler>} */
+var $hmrInvalidateModuleHandlers$;
+/** @type {(id: ModuleId) => unknown} */
+var __webpack_require__;
+/* eslint-enable no-unassigned-vars */
 
 module.exports = function () {
+	/** @type {Record<ModuleId, boolean>} */
 	var currentUpdateChunks;
+	/** @type {Record<ModuleId, EXPECTED_FUNCTION | false>} */
 	var currentUpdate;
+	/** @type {ModuleId[]} */
 	var currentUpdateRemovedChunks;
+	/** @type {RuntimeModuleFn[]} */
 	var currentUpdateRuntime;
+	/**
+	 * @param {ApplyOptions} options apply options
+	 * @returns {ApplyResult} dispose/apply handlers or a fatal error
+	 */
 	function applyHandler(options) {
 		if ($ensureChunkHandlers$) delete $ensureChunkHandlers$.$key$Hmr;
-		currentUpdateChunks = undefined;
+		currentUpdateChunks = /** @type {Record<ModuleId, boolean>} */ (
+			/** @type {unknown} */ (undefined)
+		);
+		/**
+		 * @param {ModuleId} updateModuleId updated module id
+		 * @returns {ModuleEffect} effect of updating the module
+		 */
 		function getAffectedModuleEffects(updateModuleId) {
+			/** @type {ModuleId[]} */
 			var outdatedModules = [updateModuleId];
+			/** @type {Record<ModuleId, ModuleId[]>} */
 			var outdatedDependencies = {};
 
+			/** @type {QueueItem[]} */
 			var queue = outdatedModules.map(function (id) {
 				return {
 					chain: [id],
@@ -36,7 +133,7 @@ module.exports = function () {
 				};
 			});
 			while (queue.length > 0) {
-				var queueItem = queue.pop();
+				var queueItem = /** @type {QueueItem} */ (queue.pop());
 				var moduleId = queueItem.id;
 				var chain = queueItem.chain;
 				var module = $moduleCache$[moduleId];
@@ -95,6 +192,11 @@ module.exports = function () {
 			};
 		}
 
+		/**
+		 * @param {ModuleId[]} a target set
+		 * @param {ModuleId[]} b items to add
+		 * @returns {void}
+		 */
 		function addAllToSet(a, b) {
 			for (var i = 0; i < b.length; i++) {
 				var item = b[i];
@@ -104,10 +206,17 @@ module.exports = function () {
 
 		// at begin all updates modules are outdated
 		// the "outdated" status can propagate to parents if they don't accept the children
+		/** @type {Record<ModuleId, ModuleId[]>} */
 		var outdatedDependencies = {};
+		/** @type {ModuleId[]} */
 		var outdatedModules = [];
+		/** @type {Record<ModuleId, EXPECTED_FUNCTION>} */
 		var appliedUpdate = {};
 
+		/**
+		 * @param {HotModule} module disposed module
+		 * @returns {void}
+		 */
 		var warnUnexpectedRequire = function warnUnexpectedRequire(module) {
 			console.warn(
 				"[HMR] unexpected require(" + module.id + ") to disposed module"
@@ -117,7 +226,7 @@ module.exports = function () {
 		for (var moduleId in currentUpdate) {
 			if ($hasOwnProperty$(currentUpdate, moduleId)) {
 				var newModuleFactory = currentUpdate[moduleId];
-				/** @type {TODO} */
+				/** @type {ModuleEffect} */
 				var result = newModuleFactory
 					? getAffectedModuleEffects(moduleId)
 					: {
@@ -177,15 +286,24 @@ module.exports = function () {
 					};
 				}
 				if (doApply) {
-					appliedUpdate[moduleId] = newModuleFactory;
-					addAllToSet(outdatedModules, result.outdatedModules);
-					for (moduleId in result.outdatedDependencies) {
-						if ($hasOwnProperty$(result.outdatedDependencies, moduleId)) {
+					appliedUpdate[moduleId] = /** @type {EXPECTED_FUNCTION} */ (
+						newModuleFactory
+					);
+					addAllToSet(
+						outdatedModules,
+						/** @type {ModuleId[]} */ (result.outdatedModules)
+					);
+					var resultOutdatedDependencies =
+						/** @type {Record<ModuleId, ModuleId[]>} */ (
+							result.outdatedDependencies
+						);
+					for (moduleId in resultOutdatedDependencies) {
+						if ($hasOwnProperty$(resultOutdatedDependencies, moduleId)) {
 							if (!outdatedDependencies[moduleId])
 								outdatedDependencies[moduleId] = [];
 							addAllToSet(
 								outdatedDependencies[moduleId],
-								result.outdatedDependencies[moduleId]
+								resultOutdatedDependencies[moduleId]
 							);
 						}
 					}
@@ -196,9 +314,12 @@ module.exports = function () {
 				}
 			}
 		}
-		currentUpdate = undefined;
+		currentUpdate = /** @type {Record<ModuleId, EXPECTED_FUNCTION | false>} */ (
+			/** @type {unknown} */ (undefined)
+		);
 
 		// Store self accepted outdated modules to require them later by the module system
+		/** @type {SelfAcceptedModule[]} */
 		var outdatedSelfAcceptedModules = [];
 		for (var j = 0; j < outdatedModules.length; j++) {
 			var outdatedModuleId = outdatedModules[j];
@@ -219,6 +340,7 @@ module.exports = function () {
 			}
 		}
 
+		/** @type {ModuleId[]} */
 		var moduleOutdatedDependencies;
 
 		return {
@@ -226,15 +348,18 @@ module.exports = function () {
 				currentUpdateRemovedChunks.forEach(function (chunkId) {
 					delete $installedChunks$[chunkId];
 				});
-				currentUpdateRemovedChunks = undefined;
+				currentUpdateRemovedChunks = /** @type {ModuleId[]} */ (
+					/** @type {unknown} */ (undefined)
+				);
 
 				var idx;
 				var queue = outdatedModules.slice();
 				while (queue.length > 0) {
-					var moduleId = queue.pop();
+					var moduleId = /** @type {ModuleId} */ (queue.pop());
 					var module = $moduleCache$[moduleId];
 					if (!module) continue;
 
+					/** @type {HotData} */
 					var data = {};
 
 					// Call dispose handlers
@@ -282,6 +407,8 @@ module.exports = function () {
 				}
 			},
 			apply: function (reportError) {
+				/** @type {Promise<unknown>[]} */
+				var acceptPromises = [];
 				// insert new code
 				for (var updateModuleId in appliedUpdate) {
 					if ($hasOwnProperty$(appliedUpdate, updateModuleId)) {
@@ -301,8 +428,11 @@ module.exports = function () {
 						if (module) {
 							moduleOutdatedDependencies =
 								outdatedDependencies[outdatedModuleId];
+							/** @type {AcceptCallback[]} */
 							var callbacks = [];
+							/** @type {(AcceptErrorHandler | undefined)[]} */
 							var errorHandlers = [];
+							/** @type {ModuleId[]} */
 							var dependenciesForCallbacks = [];
 							for (var j = 0; j < moduleOutdatedDependencies.length; j++) {
 								var dependency = moduleOutdatedDependencies[j];
@@ -318,12 +448,15 @@ module.exports = function () {
 								}
 							}
 							for (var k = 0; k < callbacks.length; k++) {
+								/** @type {unknown} */
+								var result;
 								try {
-									callbacks[k].call(null, moduleOutdatedDependencies);
+									result = callbacks[k].call(null, moduleOutdatedDependencies);
 								} catch (err) {
 									if (typeof errorHandlers[k] === "function") {
 										try {
-											errorHandlers[k](err, {
+											/** @type {AcceptErrorHandler} */
+											(errorHandlers[k])(err, {
 												moduleId: outdatedModuleId,
 												dependencyId: dependenciesForCallbacks[k]
 											});
@@ -356,54 +489,67 @@ module.exports = function () {
 										}
 									}
 								}
+								if (
+									result &&
+									typeof (/** @type {{ then?: unknown }} */ (result).then) ===
+										"function"
+								) {
+									acceptPromises.push(/** @type {Promise<unknown>} */ (result));
+								}
 							}
 						}
 					}
 				}
 
-				// Load self accepted modules
-				for (var o = 0; o < outdatedSelfAcceptedModules.length; o++) {
-					var item = outdatedSelfAcceptedModules[o];
-					var moduleId = item.module;
-					try {
-						item.require(moduleId);
-					} catch (err) {
-						if (typeof item.errorHandler === "function") {
-							try {
-								item.errorHandler(err, {
-									moduleId: moduleId,
-									module: $moduleCache$[moduleId]
-								});
-							} catch (err1) {
+				var onAccepted = function () {
+					// Load self accepted modules
+					for (var o = 0; o < outdatedSelfAcceptedModules.length; o++) {
+						var item = outdatedSelfAcceptedModules[o];
+						var moduleId = item.module;
+						try {
+							item.require(moduleId);
+						} catch (err) {
+							if (typeof item.errorHandler === "function") {
+								try {
+									item.errorHandler(err, {
+										moduleId: moduleId,
+										module: $moduleCache$[moduleId]
+									});
+								} catch (err1) {
+									if (options.onErrored) {
+										options.onErrored({
+											type: "self-accept-error-handler-errored",
+											moduleId: moduleId,
+											error: err1,
+											originalError: err
+										});
+									}
+									if (!options.ignoreErrored) {
+										reportError(err1);
+										reportError(err);
+									}
+								}
+							} else {
 								if (options.onErrored) {
 									options.onErrored({
-										type: "self-accept-error-handler-errored",
+										type: "self-accept-errored",
 										moduleId: moduleId,
-										error: err1,
-										originalError: err
+										error: err
 									});
 								}
 								if (!options.ignoreErrored) {
-									reportError(err1);
 									reportError(err);
 								}
 							}
-						} else {
-							if (options.onErrored) {
-								options.onErrored({
-									type: "self-accept-errored",
-									moduleId: moduleId,
-									error: err
-								});
-							}
-							if (!options.ignoreErrored) {
-								reportError(err);
-							}
 						}
 					}
-				}
+				};
 
-				return outdatedModules;
+				return Promise.all(acceptPromises)
+					.then(onAccepted)
+					.then(function () {
+						return outdatedModules;
+					});
 			}
 		};
 	}
@@ -424,7 +570,9 @@ module.exports = function () {
 		removedModules,
 		promises,
 		applyHandlers,
-		updatedModulesList
+		updatedModulesList,
+		css,
+		forceLoadChunks
 	) {
 		applyHandlers.push(applyHandler);
 		currentUpdateChunks = {};
@@ -432,7 +580,7 @@ module.exports = function () {
 		currentUpdate = removedModules.reduce(function (obj, key) {
 			obj[key] = false;
 			return obj;
-		}, {});
+		}, /** @type {Record<ModuleId, EXPECTED_FUNCTION | false>} */ ({}));
 		currentUpdateRuntime = [];
 		chunkIds.forEach(function (chunkId) {
 			if (
@@ -456,6 +604,15 @@ module.exports = function () {
 					currentUpdateChunks[chunkId] = true;
 				}
 			};
+			// Force-load chunks that now own modules orphaned by a removed chunk;
+			// ensure handlers skip already-installed chunks, so no guard is needed.
+			if (forceLoadChunks) {
+				forceLoadChunks.forEach(function (chunkId) {
+					Object.keys($ensureChunkHandlers$).forEach(function (key) {
+						$ensureChunkHandlers$[key](chunkId, promises);
+					});
+				});
+			}
 		}
 	};
 };
