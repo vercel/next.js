@@ -145,10 +145,22 @@ interface ScrollHandlerProps {
  */
 function InnerScrollHandler(props: ScrollHandlerProps) {
   const childrenRef = React.useRef<FragmentInstance>(null)
+  const observerRef = React.useRef<MutationObserver | null>(null)
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useLayoutEffect(
     () => {
       const { scrollRef: scrollHandlerRef, cacheNode } = props
+
+      // Disconnect any pending observer from a previous navigation commit
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+        observerRef.current = null
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
 
       const scrollRef = scrollHandlerRef.forceScroll
         ? scrollHandlerRef.scrollRef
@@ -161,11 +173,61 @@ function InnerScrollHandler(props: ScrollHandlerProps) {
       if (hashFragment) {
         instance = getHashFragmentDomNode(hashFragment)
         if (instance === null) {
-          // A missing hash target is still a handled scroll intent. Do not
-          // fall back to the route Fragment or leave the intent pending.
-          scrollRef.current = false
-          scrollHandlerRef.onlyHashChange = false
-          scrollHandlerRef.hashFragment = null
+          // If the hash target is not yet in the DOM (e.g. within a Suspense boundary),
+          // observe the document for subtree mutations to scroll once mounted.
+          if (typeof MutationObserver !== 'undefined') {
+            const observer = new MutationObserver(() => {
+              if (!scrollRef.current) {
+                observer.disconnect()
+                return
+              }
+
+              const target = getHashFragmentDomNode(hashFragment)
+              if (target) {
+                observer.disconnect()
+                observerRef.current = null
+                if (timeoutRef.current) {
+                  clearTimeout(timeoutRef.current)
+                  timeoutRef.current = null
+                }
+
+                disableSmoothScrollDuringRouteTransition(
+                  () => {
+                    scrollRef.current = false
+                    target.scrollIntoView()
+                  },
+                  {
+                    dontForceLayout: true,
+                    onlyHashChange: scrollHandlerRef.onlyHashChange,
+                  }
+                )
+
+                scrollHandlerRef.onlyHashChange = false
+                scrollHandlerRef.hashFragment = null
+              }
+            })
+
+            observer.observe(document.body, {
+              childList: true,
+              subtree: true,
+            })
+            observerRef.current = observer
+
+            timeoutRef.current = setTimeout(() => {
+              observer.disconnect()
+              if (observerRef.current === observer) {
+                observerRef.current = null
+              }
+              if (timeoutRef.current) {
+                timeoutRef.current = null
+              }
+              if (scrollRef.current) {
+                scrollRef.current = false
+                scrollHandlerRef.onlyHashChange = false
+                scrollHandlerRef.hashFragment = null
+              }
+            }, 5000)
+          }
           return
         }
       } else {
@@ -271,6 +333,19 @@ function InnerScrollHandler(props: ScrollHandlerProps) {
     // but be prepared for lots of manual testing.
     undefined
   )
+
+  useLayoutEffect(() => {
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect()
+        observerRef.current = null
+      }
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current)
+        timeoutRef.current = null
+      }
+    }
+  }, [])
 
   return <Fragment ref={childrenRef}>{props.children}</Fragment>
 }
