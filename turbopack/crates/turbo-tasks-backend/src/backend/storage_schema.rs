@@ -1104,6 +1104,12 @@ mod tests {
         ));
         assert!(!storage.gc_maybe_collectible());
         assert!(storage.gc_maybe_collectible_ignoring_in_progress());
+        assert!(storage.gc_is_root());
+        storage.gc_debug_assert_root_held_by_transient_pin();
+
+        storage.take_in_progress();
+        assert!(storage.gc_maybe_collectible());
+        assert!(!storage.gc_is_root());
 
         storage.set_parent_count(1);
         assert!(!storage.gc_maybe_collectible_ignoring_in_progress());

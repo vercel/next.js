@@ -1208,7 +1208,10 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                 // This should be rare: activeness normally aborts disconnected work before GC
                 // reaches it. Don't enqueue collection yet; abort completion is asynchronous, so
                 // the collector's authoritative recheck would still reject the in-progress task.
-                // A later GC pass can collect it after the abort callback settles it as dirty.
+                // If the final root scan runs first, `gc_is_root` temporarily classifies the task
+                // as a root and its debug validation accepts the in-progress state as the transient
+                // pin. Once the abort settles it as dirty, a later pass drops that resident root
+                // entry and collects the task.
                 in_progress.abort_unneeded();
             }
         }
