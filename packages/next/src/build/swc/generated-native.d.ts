@@ -505,6 +505,22 @@ export interface NapiTurboEngineOptions {
   skipCompaction?: boolean
   /** Turbopack memory eviction mode for the persistent cache. */
   turbopackMemoryEviction: MemoryEvictionMode
+  /** Tuning for Turbopack's reference-counting GC. `None` disables the GC. */
+  gc?: NapiTurbopackGcOptions
+}
+
+/**
+ * Tuning for Turbopack's reference-counting GC, mirroring the
+ * `experimental.turbopackGc` config option.
+ *
+ * The presence of this object means GC is enabled; each field is optional and
+ * falls back to the backend default when omitted.
+ */
+export interface NapiTurbopackGcOptions {
+  /** How long a GC pass runs before it will honour an interrupt, in milliseconds. */
+  minProgressMs?: number
+  /** How long a GC root may go un-anchored before it ages out, in milliseconds. */
+  rootTtlMs?: number
 }
 
 export interface NapiUpdateInfo {

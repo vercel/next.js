@@ -530,6 +530,7 @@ export async function createHotReloaderTurbopack(
     {
       turbopackMemoryEviction:
         opts.nextConfig.experimental.turbopackMemoryEvictionMode,
+      gc: opts.nextConfig.experimental.turbopackGcOptions,
       isShortSession: false,
     }
   )
