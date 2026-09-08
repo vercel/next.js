@@ -116,6 +116,7 @@ export interface ExportAppOptions {
   numWorkers: number
   appDirOnly: boolean
   bundler: Bundler
+  onProgress?: (done: number, total: number) => void
 }
 
 export type ExportPageMetadata = {
