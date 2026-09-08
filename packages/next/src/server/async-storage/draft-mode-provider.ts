@@ -1,12 +1,26 @@
 import type { IncomingHttpHeaders } from 'http'
 import type { ReadonlyRequestCookies } from '../web/spec-extension/adapters/request-cookies'
-import type { ResponseCookies } from '../web/spec-extension/cookies'
+import type {
+  ResponseCookie,
+  ResponseCookies,
+} from '../web/spec-extension/cookies'
 
 import {
   COOKIE_NAME_PRERENDER_BYPASS,
   checkIsOnDemandRevalidate,
 } from '../api-utils'
 import type { __ApiPreviewProps } from '../api-utils'
+
+/**
+ * Cookie attributes that can be overridden when enabling Draft Mode. This is
+ * primarily useful for supporting Draft Mode inside a cross-origin `<iframe>`
+ * (e.g. a headless CMS preview), which requires `sameSite: 'none'` and
+ * `secure: true`.
+ */
+export type EnableDraftModeOptions = Pick<
+  ResponseCookie,
+  'sameSite' | 'secure' | 'path' | 'domain'
+>
 
 export class DraftModeProvider {
   /**
@@ -56,7 +70,7 @@ export class DraftModeProvider {
     return this._isEnabled
   }
 
-  enable() {
+  enable(options?: EnableDraftModeOptions) {
     if (!this._previewModeId) {
       throw new Error(
         'Invariant: previewProps missing previewModeId this should never happen'
@@ -70,6 +84,7 @@ export class DraftModeProvider {
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
       secure: process.env.NODE_ENV !== 'development',
       path: '/',
+      ...options,
     })
 
     this._isEnabled = true
