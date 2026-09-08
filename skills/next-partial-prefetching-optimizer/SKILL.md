@@ -94,39 +94,10 @@ Follow the Optimizing prefetching guide for cache placement, freshness,
 session data, Suspense, and link policy. Change only what the selected contract
 requires.
 
-Current Next.js can also place reusable work at explicit runtime stages:
-
-- `await unstable_prefetch()` keeps following content out of the App Shell but
-  allows an explicit full prefetch to include it.
-- `await unstable_navigation()` keeps following content out of runtime
-  prefetches so it renders after the click.
-
-These APIs are not documented publicly yet. Until they are, keep the stage
-boundary in an uncached Server Component below Suspense and call cached work
-after the boundary. Do not call either API inside `"use cache"`,
-`"use cache: private"`, `unstable_cache()`, `after()`, or
-`generateStaticParams()`.
-
-```tsx
-import {
-  unstable_navigation as navigation,
-  unstable_prefetch as prefetch,
-} from 'next/cache'
-
-async function PrefetchedDetails({ id }: { id: string }) {
-  await prefetch()
-  return <CachedDetails id={id} />
-}
-
-async function NavigationOnlyRelated({ id }: { id: string }) {
-  await navigation()
-  return <CachedRelated id={id} />
-}
-```
-
-`prefetch()` is useful only when the exact link opts into full prefetching.
-`navigation()` is useful when reusable content should stay absent even from
-that full prefetch. Neither replaces a cache lifetime.
+When the contract needs an explicit runtime stage, follow the API references
+for [`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/prefetch)
+and
+[`unstable_navigation()`](https://nextjs.org/docs/app/api-reference/functions/navigation).
 
 Work one accepted navigation to GREEN before moving to another. Do not create
 an app-wide Link or cache abstraction from a single case.
