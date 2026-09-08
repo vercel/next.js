@@ -52,9 +52,9 @@ use tracing::Instrument;
 use tracing_subscriber::{Registry, layer::SubscriberExt, util::SubscriberInitExt};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Effects, FxIndexSet, OperationValue, OperationVc, PrettyPrintError, ReadRef, ResolvedVc,
-    TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo, Vc,
-    mark_top_level_task,
+    Effects, FxIndexSet, GcRoot, OperationValue, OperationVc, PrettyPrintError, ReadRef,
+    ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo,
+    Vc, mark_top_level_task,
     message_queue::{CompilationEvent, Severity},
     read_strongly_consistent_and_apply_effects, take_effects,
     trace::TraceRawVcs,
@@ -93,7 +93,7 @@ use crate::{
             NextTurboTasks, NextTurbopackContext, create_turbo_tasks,
         },
         utils::{
-            DetachedVc, NapiIssue, NapiUsedFeature, RootTask, TurbopackResult, get_issues,
+            DetachedVc, NapiIssue, NapiUsedFeature, SubscriptionTask, TurbopackResult, get_issues,
             strongly_consistent_catch_collectables, subscribe,
         },
     },
@@ -419,6 +419,8 @@ pub struct ProjectInstance {
     container: ResolvedVc<ProjectContainer>,
     // Never locked across an await point.
     exit_receiver: Mutex<Option<ExitReceiver>>,
+    // Pin the ProjectContainer for as long as this struct survives.
+    _container_gc_root: GcRoot<ProjectContainer>,
 }
 
 #[napi(ts_return_type = "Promise<{ __napiType: \"Project\" }>")]
@@ -613,14 +615,17 @@ pub fn project_new<'env>(
             let options = ProjectOptions::from(options);
             let is_dev = options.dev;
             let root_path = options.root_path.clone();
-            let container = turbo_tasks
+            let (container, container_op) = turbo_tasks
                 .run(async move {
                     let container_op = ProjectContainer::new_operation(rcstr!("next.js"), is_dev);
                     ProjectContainer::initialize(container_op, options).await?;
-                    container_op.resolve().strongly_consistent().await
+                    let container = container_op.resolve().strongly_consistent().await?;
+                    // Return the operation itself so we can pin it below
+                    Ok((container, container_op))
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
+            let container_gc_root = GcRoot::pin(turbo_tasks.clone(), container_op);
 
             if is_dev {
                 Handle::current().spawn({
@@ -661,6 +666,7 @@ pub fn project_new<'env>(
                 turbopack_ctx,
                 container,
                 exit_receiver: Mutex::new(Some(exit_receiver)),
+                _container_gc_root: container_gc_root,
             }))
         }
         .instrument(tracing::info_span!("create project")),
@@ -1766,7 +1772,7 @@ pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<Partial<NapiEntrypoints>>) => void")]
     func: FunctionRef<TurbopackResult<Option<NapiEntrypoints>>, ()>,
-) -> napi::Result<External<RootTask>> {
+) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = project.turbopack_ctx.clone();
     let container = project.container;
     subscribe(
@@ -2010,7 +2016,7 @@ pub fn project_client_hmr_events(
         TurbopackResult<Unknown<'static>>,
         (),
     >,
-) -> napi::Result<External<RootTask>> {
+) -> napi::Result<External<SubscriptionTask>> {
     let container = project.container;
     let session = TransientInstance::new(());
     subscribe(
@@ -2144,7 +2150,7 @@ pub fn project_client_hmr_chunk_names_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<HmrChunkNames>) => void")]
     func: FunctionRef<TurbopackResult<HmrChunkNames>, ()>,
-) -> napi::Result<External<RootTask>> {
+) -> napi::Result<External<SubscriptionTask>> {
     let container = project.container;
     subscribe(
         project.turbopack_ctx.clone(),

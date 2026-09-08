@@ -7,6 +7,10 @@ mod snapshot_coordinator;
 mod storage;
 pub mod storage_schema;
 
+// Only the `verify_aggregation_graph` feature still uses atomics here; `stopping` is an
+// `RwLock<bool>` so that checking it and acting on it cannot be split (see the field's docs).
+#[cfg(feature = "verify_aggregation_graph")]
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::{
     borrow::Cow,
     fmt::{self, Write},
@@ -14,18 +18,17 @@ use std::{
     hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
-    sync::{
-        Arc, LazyLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, LazyLock},
     time::SystemTime,
 };
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
+use gc::DEFAULT_GC_ROOT_TTL;
+pub use gc::TtlCounter;
 use hashbrown::hash_table::Entry;
 use indexmap::IndexSet;
-use parking_lot::Mutex;
+use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::{SmallVec, smallvec};
 use tokio::time::{Duration, Instant};
@@ -67,8 +70,8 @@ use crate::{
             AggregationUpdateJob, AggregationUpdateQueue, ChildExecuteContext,
             CleanupOldEdgesOperation, ConnectChildOperation, ExecuteContext, ExecuteContextImpl,
             LeafDistanceUpdateQueue, Operation, OutdatedEdge, TaskGuard, TaskType, TaskTypeRef,
-            connect_children, get_aggregation_number, get_uppers, make_task_dirty_internal,
-            prepare_new_children,
+            capture_all_outgoing_edges, connect_children, get_aggregation_number, get_uppers,
+            make_task_dirty_internal, prepare_new_children,
         },
         snapshot_coordinator::{OperationGuard, SnapshotCoordinator},
         storage::Storage,
@@ -147,12 +150,16 @@ pub struct BackendOptions {
 
     /// Strategy for evicting evictable tasks from in-memory storage after a snapshot.
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
-    /// This is an EXPERIMENTAL FEATURE under development
     pub eviction_mode: EvictionMode,
 
     /// Overrides whether the reference-counting GC runs for this backend. `None` (default) derives
     /// it from the `TURBO_ENGINE_GC` env var;
     pub gc: Option<bool>,
+
+    /// Overrides how long a GC root may go un-anchored before it ages out. `None` (default)
+    /// derives it from the `TURBO_ENGINE_GC_ROOT_TTL_MS` env var, falling back to
+    /// [`DEFAULT_GC_ROOT_TTL`].
+    pub gc_root_ttl: Option<Duration>,
 }
 
 impl Default for BackendOptions {
@@ -165,6 +172,7 @@ impl Default for BackendOptions {
             small_preallocation: false,
             eviction_mode: EvictionMode::Off,
             gc: None,
+            gc_root_ttl: None,
         }
     }
 }
@@ -224,7 +232,7 @@ pub struct TurboTasksBackend {
     /// Experimental feature to enable dead tasks to be deleted from storage and ram.
     gc_enabled: bool,
 
-    stopping: AtomicBool,
+    stopping: RwLock<bool>,
     stopping_event: Event,
     idle_start_event: Event,
     idle_end_event: Event,
@@ -234,6 +242,8 @@ pub struct TurboTasksBackend {
     task_statistics: TaskStatisticsApi,
 
     backing_storage: TurboBackingStorage,
+    /// How long a GC root may go un-anchored before it ages out.
+    gc_root_ttl: Duration,
 
     #[cfg(feature = "verify_aggregation_graph")]
     root_tasks: Mutex<FxHashSet<TaskId>>,
@@ -275,6 +285,22 @@ impl TurboTasksBackend {
             gc_enabled = false;
         }
 
+        let gc_root_ttl = options.gc_root_ttl.unwrap_or_else(|| {
+            match std::env::var("TURBO_ENGINE_GC_ROOT_TTL_MS") {
+                Ok(v) => match v.parse::<u64>() {
+                    Ok(ms) => Duration::from_millis(ms),
+                    Err(e) => {
+                        eprintln!(
+                            "warning: TURBO_ENGINE_GC_ROOT_TTL_MS set but is not parsable: {e}. \
+                             Using the default instead."
+                        );
+                        DEFAULT_GC_ROOT_TTL
+                    }
+                },
+                Err(_) => DEFAULT_GC_ROOT_TTL,
+            }
+        });
+
         Self {
             options,
             gc_enabled,
@@ -290,7 +316,7 @@ impl TurboTasksBackend {
             storage: Storage::new(shard_amount, small_preallocation),
             snapshot_coord: SnapshotCoordinator::new(),
             snapshot_in_progress: Mutex::new(()),
-            stopping: AtomicBool::new(false),
+            stopping: RwLock::new(false),
             stopping_event: Event::new(|| || "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| || "TurboTasksBackend::idle_start_event".to_string()),
             idle_end_event: Event::new(|| || "TurboTasksBackend::idle_end_event".to_string()),
@@ -298,6 +324,7 @@ impl TurboTasksBackend {
             is_idle: AtomicBool::new(false),
             task_statistics: TaskStatisticsApi::default(),
             backing_storage,
+            gc_root_ttl,
             #[cfg(feature = "verify_aggregation_graph")]
             root_tasks: Default::default(),
         }
@@ -308,6 +335,28 @@ impl TurboTasksBackend {
         turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
     ) -> impl ExecuteContext<'a> {
         ExecuteContextImpl::new(self, turbo_tasks)
+    }
+
+    /// Like [`TurboTasksBackend::execute_context`], but refuses to hand out a context once
+    /// shutdown has begun, and blocks shutdown for as long as the returned context is alive.
+    ///
+    /// Use this for entry points reachable from threads that `stop_and_wait` does **not** drain.
+    ///
+    /// Returns `None` once [`TurboTasksBackend::stopping`] has run, in which case the caller must
+    /// do nothing: storage teardown is imminent or already underway.
+    fn try_execute_context<'a>(
+        &'a self,
+        turbo_tasks: &'a TurboTasks<TurboTasksBackend>,
+    ) -> Option<impl ExecuteContext<'a>> {
+        let stopping = self.stopping.read();
+        if *stopping {
+            return None;
+        }
+        Some(ExecuteContextImpl::new_with_shutdown_guard(
+            self,
+            turbo_tasks,
+            stopping,
+        ))
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
@@ -384,6 +433,11 @@ impl TurboTasksBackend {
             .unwrap_or(0)
     }
 
+    /// The GC roots set as currently persisted on disk (task id -> [`TtlCounter`]).
+    #[doc(hidden)]
+    pub fn persisted_gc_roots_for_testing(&self) -> Vec<(TaskId, TtlCounter)> {
+        self.backing_storage.roots().unwrap_or_default()
+    }
     /// Opens `task` with the must-exist [`ExecuteContext::task`] and drops the guard. Test-only
     /// hook to exercise the non-fabricating existence guarantee: this panics if `task` exists in
     /// neither memory nor persistent storage (rather than fabricating a blank).
@@ -1070,19 +1124,18 @@ impl TurboTasksBackend {
         // can't be used for cross-process trace correlation.
         let wall_start = SystemTime::now();
         let mut snapshot_phase = self.snapshot_coord.begin_snapshot();
-        let gc_elapsed = if self.gc_enabled {
+        let (gc_elapsed, gc_roots_to_persist) = if self.gc_enabled {
             let gc_span = tracing::info_span!(
                 parent: parent_span.clone(),
                 "gc",
                 stats = tracing::field::Empty,
-                edges_deleted = tracing::field::Empty,
             )
             .entered();
-            let stats = self.gc_collect(turbo_tasks, &snapshot_phase);
+            let (stats, roots) = self.gc_collect(turbo_tasks, &snapshot_phase);
             gc_span.record("stats", display(stats));
-            Some(start.elapsed())
+            (Some(start.elapsed()), roots)
         } else {
-            None
+            (None, None)
         };
 
         debug_assert!(self.should_persist());
@@ -1095,7 +1148,7 @@ impl TurboTasksBackend {
         let snapshot_time = Instant::now();
         drop(snapshot_phase);
 
-        if !has_modifications {
+        if !has_modifications && gc_roots_to_persist.is_none() {
             // No tasks modified since the last snapshot — drop the guard (which
             // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
@@ -1389,9 +1442,10 @@ impl TurboTasksBackend {
         let snapshot_duration = start.elapsed();
         let task_count = task_snapshots.len();
 
-        if task_snapshots.is_empty() {
-            // This should be impossible — if we got here, modified_count was nonzero, and every
-            // modification that increments the count also failed during encoding.
+        if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
+            // This should be impossible — if we got here, modified_count was nonzero or gc_roots
+            // was present, and every modification that increments the count also failed
+            // during encoding.
             std::hint::cold_path();
             return Ok((snapshot_time, false));
         }
@@ -1407,9 +1461,11 @@ impl TurboTasksBackend {
         // Tasks were already consumed by take_snapshot, so a future snapshot
         // would not re-persist them — returning an error signals to the caller
         // that further persist attempts would corrupt the task graph in storage.
-        let snapshot_meta = self
-            .backing_storage
-            .save_snapshot(suspended_operations, task_snapshots)?;
+        let snapshot_meta = self.backing_storage.save_snapshot(
+            suspended_operations,
+            gc_roots_to_persist,
+            task_snapshots,
+        )?;
         span.record("snapshot_meta", display(snapshot_meta));
 
         #[cfg(feature = "print_cache_item_size")]
@@ -1566,7 +1622,8 @@ impl TurboTasksBackend {
     }
 
     fn stopping(&self) {
-        self.stopping.store(true, Ordering::Release);
+        // modify via a write guard so we synchronize with top level calls into try_execute_context
+        *self.stopping.write() = true;
         self.stopping_event.notify(usize::MAX);
     }
 
@@ -3029,7 +3086,7 @@ impl TurboTasksBackend {
                         let until = last_snapshot + time;
                         if until > Instant::now() {
                             let mut stop_listener = self.stopping_event.listen();
-                            if self.stopping.load(Ordering::Acquire) {
+                            if *self.stopping.read() {
                                 return;
                             }
                             let mut idle_time = if turbo_tasks.is_idle() && fresh_idle {
@@ -3407,10 +3464,17 @@ impl TurboTasksBackend {
     }
 
     fn dispose_root_task(&self, task_id: TaskId, turbo_tasks: &TurboTasks<TurboTasksBackend>) {
+        // Once stopping, it is too late to tear down tasks safely. Holding the context returned
+        // here also blocks `stop()` from tearing storage down while this runs -- this is called
+        // from JS (`root_task_dispose`, or `SubscriptionTask::drop`) on a thread that
+        // `stop_and_wait` does not drain.
+        let Some(mut ctx) = self.try_execute_context(turbo_tasks) else {
+            return;
+        };
+
         #[cfg(feature = "verify_aggregation_graph")]
         self.root_tasks.lock().remove(&task_id);
 
-        let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let is_dirty = task.is_dirty();
         let has_dirty_containers = task.has_dirty_containers();
@@ -3420,10 +3484,24 @@ impl TurboTasksBackend {
                 activeness_state.unset_root_type();
                 activeness_state.set_active_until_clean();
             };
-        } else if let Some(activeness_state) = task.take_activeness() {
-            // Technically nobody should be listening to this event, but just in case
-            // we notify it anyway
-            activeness_state.all_clean_event.notify(usize::MAX);
+        } else {
+            if let Some(activeness_state) = task.take_activeness() {
+                // Technically nobody should be listening to this event, but just in case
+                // we notify it anyway
+                activeness_state.all_clean_event.notify(usize::MAX);
+            }
+            // Remove all the outgoing edges of this task.
+            let old_edges = capture_all_outgoing_edges(&task);
+            drop(task);
+
+            if !old_edges.is_empty() {
+                CleanupOldEdgesOperation::run(
+                    task_id,
+                    old_edges,
+                    AggregationUpdateQueue::new(),
+                    &mut ctx,
+                );
+            }
         }
     }
 
