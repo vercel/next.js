@@ -600,10 +600,14 @@ describe('card sets for all error families', () => {
     const cards = getCards('metadata', variant)
     expect(cards.map((card) => card.id)).toEqual([
       'remove-the-navigation-stage-api',
-      'add-the-same-api-to-the-page',
+      'use-a-navigation-stage-marker',
     ])
+    expect(cards[0]).toMatchObject({
+      title: 'Remove the Navigation Stage API',
+      group: 'remove',
+    })
     expect(cards[1]).toMatchObject({
-      title: `Add unstable_${variant}() to the page`,
+      title: 'Use a Navigation Stage marker',
       group: 'mark',
     })
     expect(cards[1].snippets).toContainEqual({

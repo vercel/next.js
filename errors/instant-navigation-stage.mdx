@@ -14,7 +14,7 @@ kind: insight
     lineHeight: '1.6',
   }}
 >
-  This Insight is part of the [Instant
+  This insight is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide for an
@@ -22,9 +22,9 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-During prerendering or a client-side navigation, a Server Component called a [Navigation Stage API](/docs/app/glossary#navigation-stages) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). Navigation Stage APIs include [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). Without a boundary, Next.js has no fallback to render when the API excludes the subtree from a prefetch.
+During prerendering or a client-side navigation, a Server Component called a [Navigation Stage API](/docs/app/glossary#navigation-stages) outside of [`<Suspense>`](https://react.dev/reference/react/Suspense). These APIs include [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) and [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). Next.js needs a fallback when either API excludes a subtree from a prefetch.
 
-For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` defers subsequent content until a `<Link prefetch={true}>` prefetch or navigation. The `unstable_navigation()` function defers it until navigation. Both functions have no effect on initial loads or [static prerenders](/docs/app/glossary#prerendering), and content below them remains cacheable.
+For a route with a runtime [App Shell](/docs/app/glossary#app-shell), `unstable_prefetch()` excludes subsequent content from the App Shell but includes it in `<Link prefetch={true}>` prefetches and navigations. `unstable_navigation()` excludes the content from both the App Shell and per-link prefetches, then renders it during navigation. Neither API affects initial loads or [static prerenders](/docs/app/glossary#prerendering), and subsequent content remains cacheable.
 
 For the same insight in metadata or viewport code, see [Navigation Stage API in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata) or [Navigation Stage API in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport).
 
@@ -166,7 +166,7 @@ Don't use this to dismiss the insight. Choose [Wrap in or move into Suspense](#w
 
 ### Trade-off
 
-Navigations to this route are not instant. The user waits for the full server render before any HTML arrives. Use this only when that latency is the deliberate cost of the route's purpose.
+Navigations to this route are not instant. The browser waits for the full server render before receiving HTML. Use this only when the route requires that delay.
 
 ### Gotchas
 
@@ -175,11 +175,11 @@ Navigations to this route are not instant. The user waits for the full server re
 
 ## Verifying the fix
 
-After applying a fix, navigate to the route and confirm the insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, navigate to the route and confirm the insight no longer appears. The page should paint meaningful UI immediately. Keep `<Suspense>` fallbacks scoped to the regions that stream in. A boundary around the whole page can pass validation with an empty shell, which defeats instant navigation.
 
-In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay identifies the failing component with a file path and line number. The default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is shorter. Run `next build --debug-prerender` for full user-frame stack traces or `next build --debug-build-paths /dashboard /settings` to inspect specific routes.
 
-## Don't want this validation?
+## Configure validation
 
 Instant-navigation validation runs by default in [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) apps and surfaces this insight.
 
@@ -188,7 +188,7 @@ Instant-navigation validation runs by default in [Cache Components](/docs/app/ap
 
 See [Ensuring instant navigations](/docs/app/guides/instant-navigation) for the full model.
 
-## Related Insights
+## Related insights
 
 - [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
 - [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)

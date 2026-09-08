@@ -14,7 +14,7 @@ kind: insight
     lineHeight: '1.6',
   }}
 >
-  This Insight is part of the [Instant
+  This insight is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide for an
@@ -22,11 +22,11 @@ kind: insight
   come back here for the specific fix.
 </div>
 
-During prerendering or a client-side navigation, [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). These [Navigation Stage APIs](/docs/app/glossary#navigation-stages) make the viewport available during a per-link prefetch or navigation, depending on which API you use.
+During prerendering or a client-side navigation, [`generateViewport()`](/docs/app/api-reference/functions/generate-viewport) called [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) or [`unstable_navigation()`](/docs/app/api-reference/functions/navigation). `unstable_prefetch()` delays the viewport until a per-link prefetch or navigation. `unstable_navigation()` delays it until navigation.
 
-Next.js needs the viewport before it can complete the route's [App Shell](/docs/app/glossary#app-shell). Holding the viewport until a later stage prevents Next.js from creating the App Shell and can make navigation slower. If the later timing is not intentional, remove the Navigation Stage API. If it is intentional, you can leave the behavior unchanged. To stop reporting the Insight, disable validation for the segment.
+Next.js needs the viewport before it can complete the route's [App Shell](/docs/app/glossary#app-shell). Holding the viewport until a later stage prevents Next.js from creating the App Shell and can make navigation slower. If the later timing is not intentional, remove the Navigation Stage API. If it is intentional, you can leave the behavior unchanged. To stop reporting the insight, disable validation for the segment.
 
-For the same Insight in the page body or metadata code, see [Navigation Stage API outside of Suspense](/docs/messages/instant-navigation-stage) or [Navigation Stage API in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata).
+For the same insight in the page body or metadata code, see [Navigation Stage API outside of Suspense](/docs/messages/instant-navigation-stage) or [Navigation Stage API in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata).
 
 ## Ways to fix this
 
@@ -84,13 +84,13 @@ Removing the API can increase the viewport work performed during prerendering an
 
 ## Verifying the fix
 
-After applying a fix, navigate to the route and confirm the Insight no longer appears in the dev overlay and the page immediately paints meaningful UI, with any `<Suspense>` fallbacks covering only the regions that stream in. A [`<Suspense>`](https://react.dev/reference/react/Suspense) boundary around the whole page body can pass validation with an empty shell, which defeats the point of an instant navigation.
+After applying a fix, navigate to the route and confirm the insight no longer appears. The page should paint meaningful UI immediately.
 
-In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay points at the failing component with file paths and line numbers. When working from a build instead, the default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is more abbreviated. Run `next build --debug-prerender` for full user-frame stack traces and `next build --debug-build-paths /dashboard /settings` to iterate on specific routes.
+In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error overlay identifies the failing component with a file path and line number. The default [`next build`](/docs/app/api-reference/cli/next#next-build-options) output is shorter. Run `next build --debug-prerender` for full user-frame stack traces or `next build --debug-build-paths /dashboard /settings` to inspect specific routes.
 
 ## Disable validation on this route
 
-Choose this fix when the later viewport timing is intentional and you do not want Next.js to report the Insight. Add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout that exports `generateViewport()`. This disables instant-navigation validation for the segment. It does not change when the viewport becomes available.
+Choose this fix when the later viewport timing is intentional and you do not want Next.js to report the insight. Add [`export const instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) to the page or layout that exports `generateViewport()`. This disables instant-navigation validation for the segment. It does not change when the viewport becomes available.
 
 ```jsx filename="app/dashboard/layout.js"
 export const instant = false
@@ -98,7 +98,7 @@ export const instant = false
 
 Child segments are still validated during client navigations.
 
-## Related Insights
+## Related insights
 
 - [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
 - [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)

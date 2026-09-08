@@ -343,10 +343,10 @@ function getMetadataCacheStageCards(
       copyable: true,
     },
     {
-      id: 'add-the-same-api-to-the-page',
-      title: `Add ${api}() to the page`,
+      id: 'use-a-navigation-stage-marker',
+      title: 'Use a Navigation Stage marker',
       group: 'mark',
-      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#add-the-same-api-to-the-page',
+      link: 'https://nextjs.org/docs/messages/instant-navigation-stage-metadata#use-a-navigation-stage-marker',
       snippets: [
         { text: 'async function StageMarker() {' },
         { text: `  await ${api}()`, highlight: true },
