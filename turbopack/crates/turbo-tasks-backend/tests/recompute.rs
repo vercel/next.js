@@ -3,9 +3,7 @@
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use anyhow::Result;
-use turbo_tasks::{
-    ResolvedVc, State, Vc, unmark_top_level_task_may_leak_eventually_consistent_state,
-};
+use turbo_tasks::{ResolvedVc, State, Vc};
 use turbo_tasks_testing::{Registration, register, run, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -13,38 +11,37 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute() {
     run_once(&REGISTRATION, async || {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = ChangingInput {
             state: State::new(1),
         }
-        .cell();
+        .resolved_cell();
         let input2 = ChangingInput {
             state: State::new(10),
         }
-        .cell();
+        .resolved_cell();
         let output = compute(input, input2);
-        let read = output.await?;
+        let read = output.read_strongly_consistent().await?;
         assert_eq!(read.state_value, 1);
         assert_eq!(read.state_value2, 10);
         let random_value = read.random_value;
 
         println!("changing input");
         input.await?.state.set(2);
-        let read = output.strongly_consistent().await?;
+        let read = output.read_strongly_consistent().await?;
         assert_eq!(read.state_value, 2);
         assert_ne!(read.random_value, random_value);
         let random_value = read.random_value;
 
         println!("changing input2");
         input2.await?.state.set(20);
-        let read = output.strongly_consistent().await?;
+        let read = output.read_strongly_consistent().await?;
         assert_eq!(read.state_value2, 20);
         assert_ne!(read.random_value, random_value);
         let random_value = read.random_value;
 
         println!("changing input");
         input.await?.state.set(5);
-        let read = output.strongly_consistent().await?;
+        let read = output.read_strongly_consistent().await?;
         assert_eq!(read.state_value, 5);
         assert_eq!(read.state_value2, 42);
         assert_ne!(read.random_value, random_value);
@@ -52,7 +49,7 @@ async fn recompute() {
 
         println!("changing input2");
         input2.await?.state.set(30);
-        let read = output.strongly_consistent().await?;
+        let read = output.read_strongly_consistent().await?;
         assert_eq!(read.random_value, random_value);
 
         anyhow::Ok(())
@@ -64,7 +61,6 @@ async fn recompute() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn immutable_analysis() {
     run_once(&REGISTRATION, async || {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
         let input = ChangingInput {
             state: State::new(1),
         }
@@ -105,7 +101,7 @@ struct VcHolder {
 impl VcHolder {
     #[turbo_tasks::function(root)]
     fn compute(&self) -> Vc<Output> {
-        compute(*self.vc, *self.vc)
+        compute(self.vc, self.vc).connect()
     }
 }
 
@@ -116,11 +112,14 @@ struct Output {
     random_value: u32,
 }
 
-#[turbo_tasks::function(root)]
-async fn compute(input: Vc<ChangingInput>, input2: Vc<ChangingInput>) -> Result<Vc<Output>> {
+#[turbo_tasks::function(operation, root)]
+async fn compute(
+    input: ResolvedVc<ChangingInput>,
+    input2: ResolvedVc<ChangingInput>,
+) -> Result<Vc<Output>> {
     let state_value = *input.await?.state.get();
     let state_value2 = if state_value < 5 {
-        *compute2(input2).await?
+        *compute2(*input2).await?
     } else {
         42
     };
@@ -150,15 +149,17 @@ async fn compute2(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn recompute_dependency() {
     run(&REGISTRATION, async || {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        let input = *get_dependency_input().to_resolved().await?;
+        let input = get_dependency_input()
+            .resolve()
+            .strongly_consistent()
+            .await?;
         // Reset state to 1 at the start of each iteration (important for multi-run tests)
         input.await?.state.set(1);
 
         // Initial execution - establishes dependency chain:
         // outer_compute -> inner_compute -> input.state
         let output = outer_compute(input);
-        let read = output.strongly_consistent().await?;
+        let read = output.read_strongly_consistent().await?;
         println!(
             "first read: value={}, inner_random={}, outer_random={}",
             read.value, read.inner_random, read.outer_random
@@ -172,7 +173,7 @@ async fn recompute_dependency() {
         println!("changing input");
         input.await?.state.set(2);
 
-        let read = output.strongly_consistent().await?;
+        let read = output.read_strongly_consistent().await?;
         println!(
             "second read: value={}, inner_random={}, outer_random={}",
             read.value, read.inner_random, read.outer_random
@@ -201,7 +202,7 @@ async fn recompute_dependency() {
     .unwrap();
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation, root)]
 fn get_dependency_input() -> Vc<ChangingInput> {
     ChangingInput {
         state: State::new(1),
@@ -227,10 +228,10 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
 }
 
 /// Outer task - depends on inner_compute
-#[turbo_tasks::function(root)]
-async fn outer_compute(input: Vc<ChangingInput>) -> Result<Vc<DependencyOutput>> {
+#[turbo_tasks::function(operation, root)]
+async fn outer_compute(input: ResolvedVc<ChangingInput>) -> Result<Vc<DependencyOutput>> {
     println!("outer_compute()");
-    let inner_result = *inner_compute(input).await?;
+    let inner_result = *inner_compute(*input).await?;
     let value = inner_result & 0xFFFF;
     let inner_random = inner_result >> 16;
     Ok(DependencyOutput {
