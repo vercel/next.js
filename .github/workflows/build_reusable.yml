@@ -199,7 +199,7 @@ jobs:
         id: install-rust
         uses: ./.github/actions/setup-rust
         background: true
-        if: ${{ inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
       - name: Install fnm
         run: |
@@ -292,11 +292,11 @@ jobs:
         run: cargo binstall --no-confirm --locked cargo-nextest@0.9.133
 
       - run: rustc --version
-        if: ${{ inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' || inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes' }}
 
       - name: Start sccache
         uses: ./.github/actions/sccache
-        if: ${{ runner.os != 'Windows' && (inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
+        if: ${{ runner.os != 'Windows' && (inputs.skipInstallBuild != 'yes' || inputs.uploadNativeArtifact || inputs.needsNextest == 'yes' || inputs.needsRust == 'yes') }}
 
       # Infer the Rust target triple from the runner's OS/arch. napi would build
       # for the host target if `--target` were omitted, but Turborepo does not

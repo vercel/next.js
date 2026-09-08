@@ -1,26 +1,27 @@
 # Rust runner byte emitters
 
-`worker.js` adapts the existing `taskfile.js` recipes to the Rust runner's action
-protocol. It loads the existing SWC, NCC, and Rspack plugin implementations without
-loading Taskr. The small fluent adapter preserves the file objects and paths those
-implementations expect; it delegates scheduling, reads, caching, and writes to
-Rust. Configuration changes require a runner restart.
+`recipes.js` defines the build and vendoring tasks as native asynchronous
+JavaScript functions. `worker.js` supplies their file pipelines and the Rust
+runner's action protocol. SWC, NCC, and Rspack emitters are ordinary modules;
+Rust owns scheduling, reads, caching, writes, and filesystem watching.
+Configuration changes require a runner restart.
 
 `artifacts.js` keeps file contents in Rust behind recipe-scoped handles. Source
 discovery, SWC cache hits, and destination mapping exchange metadata only;
 `.target()` asks Rust to write the referenced contents directly. Before invoking
-an arbitrary JavaScript plugin or `.run()` callback, the adapter loads its file
+a JavaScript emitter or `.run()` callback, the adapter loads its file
 contents and replaces each handle with a Buffer. Discarding the handle at that
 boundary ensures in-place Buffer mutations and replacement strings are emitted
-instead of stale cached bytes. The legacy emitter interface remains unchanged.
+instead of stale cached bytes. Emitter options and logical file paths preserve
+the existing output bytes.
 
 `recipes.js` supplies the Rust runner's build dependency graph. After copying
 dependencies, file compilation and runtime bundling run alongside TypeScript
 declarations. The declaration inputs are source files and vendored dependencies;
-they do not require compiled JavaScript. Other named recipes still use the
-existing taskfile.
+they do not require compiled JavaScript. Vendoring and individual compilation
+tasks use the same recipe module.
 
-NCC and Rspack plugins load on their first invocation, so SWC-only recipes do
+NCC and Rspack emitters load on their first invocation, so SWC-only recipes do
 not initialize or fingerprint unused bundlers. The SWC emitter and its loaded
 configuration are included in compiler fingerprints.
 
@@ -53,7 +54,7 @@ Canary no longer uses the error-code WASM plugin. The runner does not require
 its removed WASM binary or `errors.json` input. The protocol retains support for
 replaying auxiliary artifacts; the Rust fixture and adapter tests cover it.
 
-Keep the existing emitters pinned while validating the Rust runner. Replacing
+Keep the compiler versions and emitter options pinned. Replacing
 them with other compiler versions or implementations requires a separate exact
 artifact comparison. See `packages/next-taskr/README.md` for the commands and
-current compatibility gate.
+artifact comparison workflow.

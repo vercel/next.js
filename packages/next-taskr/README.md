@@ -1,18 +1,18 @@
 # Next.js Rust build runner
 
 `@next/taskr` launches the `next-taskr` Rust binary. The binary uses turbo-tasks
-to run the existing Next.js build recipes and cache SWC transformations. It does
-not load Taskr or its runtime. Node.js runs the existing byte emitters so their
-compiler versions, options, source maps, and generated files stay compatible.
+to run the Next.js build recipes and cache SWC transformations. Node.js runs the
+byte emitters so their compiler versions, options, source maps, and generated
+files stay compatible.
 
 ## Commands
 
 From the repository root, after the normal workspace bootstrap:
 
 ```sh
-pnpm --filter=next build:rust
-pnpm --filter=next dev:rust
-pnpm --filter=next ncc-compiled:rust
+pnpm --filter=next build
+pnpm --filter=next dev
+pnpm --filter=next ncc-compiled
 
 # Run an individual recipe, list recipes, or bypass the persistent cache.
 node packages/next-taskr/bin/next-taskr.js --cwd packages/next bin --stats
@@ -20,14 +20,19 @@ node packages/next-taskr/bin/next-taskr.js --cwd packages/next --list
 node packages/next-taskr/bin/next-taskr.js --cwd packages/next release --no-cache
 ```
 
-The source launcher runs `cargo build -p next-taskr --release` to check binary freshness.
+Install the repository Rust toolchain before building. `pnpm build` builds the
+runner before Next.js through the workspace dependency graph. CI installs the
+toolchain for JavaScript builds as well as native binding builds.
+
+When no packaged binary is available, the source launcher runs
+`cargo build -p next-taskr --release` to check binary freshness.
 This requires the repository's Rust toolchain, but does not depend on an existing
 `next/dist` or locally built Next.js native binding.
 
 To prepare a platform-specific binary:
 
 ```sh
-pnpm --filter=@next/taskr build:runner
+pnpm --filter=@next/taskr build
 ```
 
 The launcher prefers the resulting `dist/<platform>-<arch>/next-taskr` binary.
@@ -37,10 +42,6 @@ platform binary publication is not configured.
 
 ## Artifact compatibility
 
-`build`, `dev`, and `ncc-compiled` still select Taskr. The Rust runner is available
-through the commands above while platform validation and default cutover are
-outstanding.
-
 The vendoring comparison passes for all 997 generated files. Release comparisons
 found an existing Rspack nondeterminism affecting next-server runtime bundles and
 their source maps.
@@ -48,17 +49,15 @@ their source maps.
 An external module's ID can use either `../lib/trace/tracer` or `./lib/trace/tracer`.
 This also occurs between unchanged Taskr builds and has been reported upstream.
 The strict comparator does not ignore differences or normalize artifact bytes.
-The benchmark harness accepts only this reported ID spelling difference and its
-corresponding source-map column shifts; it checks every other artifact byte.
 
-Run both builders at the **same absolute checkout path**, with the same inputs,
+Compare builds at the **same absolute checkout path**, with the same inputs,
 dependency installation, Node version, and environment. Separate worktrees can
 change emitted source maps. Wait for each build to finish before snapshotting.
 
 ```sh
-pnpm --filter=next exec taskr release
+pnpm --filter=next build --no-cache
 node scripts/taskr-parity.js snapshot packages/next/dist /tmp/taskr-reference-dist
-pnpm --filter=next build:rust
+pnpm --filter=next build
 node scripts/taskr-parity.js compare /tmp/taskr-reference-dist packages/next/dist
 ```
 
@@ -111,6 +110,5 @@ changes, unexpected worker exits, task cycles, missing inputs, watch recovery,
 and symlinks.
 Watch tests require native filesystem events to reach the test process.
 
-Before default cutover, also run strict release and vendoring comparisons on the
-supported host platforms, compare warm and cold builds, run the existing Next.js
-runtime tests, and provide the platform binaries required by CI and contributors.
+For emitter changes, run strict release and vendoring comparisons, compare warm
+and cold builds, and run the existing Next.js runtime tests.

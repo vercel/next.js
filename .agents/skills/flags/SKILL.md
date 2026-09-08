@@ -25,13 +25,13 @@ All flags need: `config-shared.ts` (type) → `config-schema.ts` (zod). If the f
 **Pre-compiled runtime bundles** (e.g. code in `app-render.tsx`): The flag must also be set as a real `process.env` var at runtime, because `app-render.tsx` runs from pre-compiled bundles where `define-env.ts` doesn't reach. Two approaches:
 
 - **Runtime env var**: Set in `next-server.ts` + `export/worker.ts`. Both code paths stay in one bundle. Simple but increases bundle size.
-- **Separate bundle variant**: Add DefinePlugin entry in `next-runtime.webpack-config.js` (scoped to `bundleType === 'app'`), new taskfile tasks, update `module.compiled.js` selector, and still set env var in `next-server.ts` + `export/worker.ts` for bundle selection. Eliminates dead code but adds build complexity.
+- **Separate bundle variant**: Add DefinePlugin entry in `next-runtime.webpack-config.js` (scoped to `bundleType === 'app'`), new build recipes, update `module.compiled.js` selector, and still set env var in `next-server.ts` + `export/worker.ts` for bundle selection. Eliminates dead code but adds build complexity.
 
 For runtime flags, also add the field to the `NextConfigRuntime` Pick type in `config-shared.ts`.
 
 ## Runtime-Bundle Model
 
-- Runtime bundles are built by `next-runtime.webpack-config.js` (rspack) via `taskfile.js` bundle tasks.
+- Runtime bundles are built by `next-runtime.webpack-config.js` (rspack) via `build-tools/recipes.js` bundle tasks.
 - Bundle selection occurs at runtime in `src/server/route-modules/app-page/module.compiled.js` based on `process.env` vars.
 - Variants: `{turbo/webpack} × {experimental/stable/nodestreams/experimental-nodestreams} × {dev/prod}` = up to 16 bundles per route type.
 - `define-env.ts` affects user bundling, not pre-compiled runtime internals.

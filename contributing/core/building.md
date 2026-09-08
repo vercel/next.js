@@ -7,9 +7,10 @@ pnpm build
 ```
 
 > [!TIP]
-> Next.js uses [taskr](https://www.npmjs.com/package/taskr) to parallelize the build tasks.
-> The tasks can be found in the [`taskfile.js`](../../packages/next/taskfile.js) file, and each task name refers to the name of the function to execute.
-> For example, `taskr release` will execute the `release()` function in the `taskfile.js` file.
+> Next.js uses a Rust task runner built on turbo-tasks to parallelize build tasks and cache SWC transforms.
+> Install the repository's [Rust toolchain](https://www.rust-lang.org/tools/install) before building; `pnpm build` builds the runner automatically.
+> Tasks are defined in [`build-tools/recipes.js`](../../packages/next/build-tools/recipes.js). Run an individual task with `pnpm --filter=next exec next-taskr <task>`, or use `--list` to list them.
+> See the [runner guide](../../packages/next-taskr/README.md) for cache, watch, and artifact comparison details.
 
 The build process consists of the three main tasks:
 

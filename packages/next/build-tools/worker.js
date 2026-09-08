@@ -6,52 +6,18 @@ const protocolWrite = process.stdout.write.bind(process.stdout)
 process.stdout.write = process.stderr.write.bind(process.stderr)
 const fs = require('fs/promises')
 const path = require('path')
-const { Module } = require('module')
 const readline = require('readline')
 const { createHash } = require('crypto')
 const { promisify } = require('util')
 const glob = promisify(require('glob'))
-const swc = require('@swc/core')
 const { SwcPool } = require('./swc-pool')
 const { serializeFile, loadFiles } = require('./artifacts')
 
 const root = path.resolve(__dirname, '..')
-const plugins = new Map()
-const pluginFiles = {
-  swc: 'taskfile-swc.js',
-  ncc: 'taskfile-ncc.js',
-  webpack: 'taskfile-webpack.js',
-}
-function loadPlugin(name) {
-  if (plugins.has(name)) return plugins.get(name)
-  const filename = pluginFiles[name]
-  if (!filename) throw new Error(`Unknown build plugin: ${name}`)
-  require(path.join(root, filename))({
-    plugin(name, options, implementation) {
-      plugins.set(name, { options, implementation })
-    },
-  })
-  return plugins.get(name)
-}
-// Track the SWC emitter and its loaded configuration in compiler fingerprints.
-// NCC and Rspack are loaded only by recipes that actually invoke those tools.
-loadPlugin('swc')
-
-// Compile only the recipe module. Its asynchronous functions remain native
-// async functions; there is no Taskr loader, runtime, or generator transpiler.
-const filename = path.join(root, 'taskfile.js')
-const config = new Module(filename, module)
-config.filename = filename
-config.paths = Module._nodeModulePaths(root)
-config._compile(
-  swc.transformSync(require('fs').readFileSync(filename, 'utf8'), {
-    filename,
-    jsc: { target: 'es2022' },
-    module: { type: 'commonjs' },
-  }).code,
-  filename
-)
-const recipes = require('./recipes')(config.exports)
+// Track the SWC emitter and its configuration in compiler fingerprints.
+// Bundlers load only when a recipe invokes them.
+require('./swc')
+const recipes = require('./recipes')
 
 let nextCall = 1
 const replies = new Map()
@@ -105,7 +71,6 @@ async function computeCompilerFingerprint() {
   )
   const files = new Set([
     ...Object.keys(require.cache),
-    filename,
     path.join(__dirname, 'swc-worker.js'),
     path.join(root, 'package.json'),
     path.join(root, '../../package.json'),
@@ -121,19 +86,6 @@ async function computeCompilerFingerprint() {
     }
   }
   return hash.digest('hex')
-}
-
-async function runGenerator(generator) {
-  if (!generator || typeof generator.next !== 'function') return generator
-  let result = generator.next()
-  while (!result.done) {
-    try {
-      result = generator.next(await result.value)
-    } catch (error) {
-      result = generator.throw(error)
-    }
-  }
-  return result.value
 }
 
 const toArray = (value) =>
@@ -153,11 +105,6 @@ class Recipe {
 
   then(resolve, reject) {
     return this.pending.then(() => resolve(), reject)
-  }
-
-  emit(event, detail) {
-    if (event.endsWith('error')) throw new Error(detail.error || String(detail))
-    console.error(detail.warning || detail)
   }
 
   source(patterns, options = {}) {
@@ -267,23 +214,22 @@ class Recipe {
     })
   }
 
-  plugin(name, options) {
+  transform(implementation, options) {
     return this.enqueue(async () => {
-      const { implementation } = loadPlugin(name)
       await loadFiles(this._.files, (args) => request(this.parent, args))
       await Promise.all(
         [...this._.files].map((file) =>
-          runGenerator(implementation.call(this, file, options))
+          implementation.call(this, file, options)
         )
       )
     })
   }
 
   ncc(options) {
-    return this.plugin('ncc', options)
+    return this.transform(require('./ncc'), options)
   }
   webpack(options) {
-    if (!options.watch) return this.plugin('webpack', options)
+    if (!options.watch) return this.transform(require('./webpack'), options)
     return this.enqueue(() => {
       const compiler = require('@rspack/core')(options.config)
       services.push(
@@ -296,13 +242,33 @@ class Recipe {
     })
   }
 
-  run(options, implementation) {
+  run(implementation) {
     return this.enqueue(async () => {
       await loadFiles(this._.files, (args) => request(this.parent, args))
       const files = [...this._.files]
-      await Promise.all(
-        files.map((file) => runGenerator(implementation.call(this, file)))
-      )
+      await Promise.all(files.map((file) => implementation.call(this, file)))
+    })
+  }
+
+  async generateTypes(options) {
+    const watch = options.dev
+    const child = require('execa')(
+      'pnpm',
+      ['run', 'types', ...(watch ? ['--watch', '--preserveWatchOutput'] : [])],
+      { stdio: ['inherit', 2, 2] }
+    )
+    if (!watch) {
+      await child
+      return
+    }
+    services.push({
+      close(callback) {
+        child.kill()
+        callback()
+      },
+    })
+    child.catch((error) => {
+      if (!error.isCanceled && !error.killed) console.error(error.message)
     })
   }
 
@@ -353,32 +319,6 @@ async function execute(message) {
       if (typeof recipe !== 'function')
         throw new Error(`Unknown task: ${message.args.name}`)
       const context = new Recipe(message.id)
-      if (message.args.name === 'generate_types') {
-        const watch = message.args.options.dev
-        const child = require('execa')(
-          'pnpm',
-          [
-            'run',
-            'types',
-            ...(watch ? ['--watch', '--preserveWatchOutput'] : []),
-          ],
-          { stdio: ['inherit', 2, 2] }
-        )
-        if (!watch) {
-          await child
-          return null
-        }
-        services.push({
-          close(callback) {
-            child.kill()
-            callback()
-          },
-        })
-        child.catch((error) => {
-          if (!error.isCanceled && !error.killed) console.error(error.message)
-        })
-        return null
-      }
       await recipe(context, { src: null, val: null, ...message.args.options })
       await context.pending
       return null

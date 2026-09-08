@@ -1,10 +1,5 @@
 const fs = require('fs')
-let transform
-require('../taskfile-swc.js')({
-  plugin(_name, _options, implementation) {
-    transform = implementation
-  },
-})
+const transform = require('./swc')
 
 process.on('message', async (input) => {
   try {
@@ -23,15 +18,7 @@ process.on('message', async (input) => {
               : Buffer.from(inputFile.data, 'base64'),
         }
         const context = { _: { files: [file] } }
-        const generator = transform.call(context, file, ...input.options)
-        let step = generator.next()
-        while (!step.done) {
-          try {
-            step = generator.next(await step.value)
-          } catch (error) {
-            step = generator.throw(error)
-          }
-        }
+        await transform.call(context, file, ...input.options)
         return context._.files
       })
     )

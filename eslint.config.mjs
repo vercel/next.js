@@ -484,7 +484,6 @@ export default defineConfig([
   {
     files: ['packages/**'],
     ignores: [
-      'packages/next/taskfile*.js',
       'packages/next/build-tools/*.js',
       'packages/next/next-devtools.webpack-config.js',
       'packages/next/next-runtime.webpack-config.js',
