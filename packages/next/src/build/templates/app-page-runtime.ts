@@ -1061,13 +1061,16 @@ export function createAppPageEntrypoint({
 
         // The hashes of the inline scripts are only known once the document is
         // complete, so a response that carries them is buffered rather than
-        // streamed. They travel in the cached headers, which keeps them with
-        // the body they belong to for every later hit.
+        // streamed. Only a cached response is: it is served again from the
+        // cache with the headers it was stored with, while a dynamic one keeps
+        // streaming and is admitted by a nonce instead.
         const inlineScriptHashes = nextConfig.experimental.inlineScriptHashes
+        const isCached = isSSG && cacheControl?.revalidate !== 0
         let html = result
 
         if (
           inlineScriptHashes &&
+          isCached &&
           result.contentType !== RSC_CONTENT_TYPE_HEADER &&
           metadata.postponed === undefined
         ) {
