@@ -1,5 +1,5 @@
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
-/* eslint-disable import/no-extraneous-dependencies */
+ 
 import {
   renderToReadableStream,
   decodeReply,
@@ -12,7 +12,7 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client'
 import { prerender } from 'react-server-dom-webpack/static'
-/* eslint-enable import/no-extraneous-dependencies */
+ 
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
@@ -389,6 +389,9 @@ function createClientModulesForCache(
         // manifest when the entry is read.
         id: clientReferenceName,
         name: clientReferenceManifestEntry.name,
+        // Set a sentinel value just in case this does ends up being read at some point in the
+        // future, then at least we'll get "Failed to load chunk stub (404)" instead of "Failed to
+        // load module 1234".
         chunks: ['stub'],
         async: false,
       }
