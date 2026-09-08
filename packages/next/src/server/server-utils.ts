@@ -250,11 +250,13 @@ export function getServerUtils({
     req: BaseNextRequest | IncomingMessage,
     parsedUrl: DeepReadonly<NextUrlWithParsedQuery>
   ) {
-    // Here we deep clone the parsedUrl to avoid mutating the original. We also
-    // cast this to a mutable type so we can mutate it within this scope.
-    const rewrittenParsedUrl = structuredClone(
-      parsedUrl
-    ) as NextUrlWithParsedQuery
+    // Clone the URL and query before applying rewrites so the original is not
+    // mutated. Rewrite processing only changes top-level query properties, so
+    // cloning nested values would be unnecessary work on every request.
+    const rewrittenParsedUrl = {
+      ...parsedUrl,
+      query: { ...parsedUrl.query },
+    } as NextUrlWithParsedQuery
     const rewriteParams: Record<string, string> = {}
     let fsPathname = rewrittenParsedUrl.pathname
 
