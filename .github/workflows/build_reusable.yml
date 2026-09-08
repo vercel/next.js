@@ -170,7 +170,16 @@ jobs:
     outputs:
       input_step_key: ${{ steps.var.outputs.input_step_key }}
 
+    permissions:
+      contents: read
+      actions: read
+
     steps:
+      # https://vercel.slack.com/archives/C01SKER9S1G/p1780960030985239?thread_ts=1780343660.304449&cid=C01SKER9S1G
+      - uses: austenstone/workflow-telemetry-action@942cbbef2291cdecf839e28e6525486ea47253c6
+        with:
+          comment_on_pr: false
+
       # enforce consistent line endings for git on windows
       - name: Configure git to use LF endings
         if: ${{ runner.os == 'Windows' }}
