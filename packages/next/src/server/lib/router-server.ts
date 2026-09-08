@@ -207,7 +207,13 @@ export async function initialize(opts: {
       require('./router-utils/setup-dev-bundler') as typeof import('./router-utils/setup-dev-bundler')
 
     const resetFetch = () => {
-      globalThis.fetch = originalFetch
+      const currentFetch = globalThis.fetch as typeof globalThis.fetch & {
+        _nextOriginalFetch?: typeof globalThis.fetch
+      }
+      // If the current fetch is patched by Next.js, restore to the
+      // original fetch it wraps (which may include OTel instrumentation)
+      // instead of reverting to the pre-instrumentation capture.
+      globalThis.fetch = currentFetch?._nextOriginalFetch ?? originalFetch
       ;(globalThis as Record<symbol, unknown>)[NEXT_PATCH_SYMBOL] = false
     }
 
