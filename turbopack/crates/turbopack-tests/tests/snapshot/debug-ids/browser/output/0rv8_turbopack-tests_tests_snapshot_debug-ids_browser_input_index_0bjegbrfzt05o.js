@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="13608c32-9c4f-3e52-56da-fd10568b28be")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="efb43cc4-891c-674a-1022-0fb10b1b2f7e")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -2190,7 +2190,7 @@ let BACKEND;
             if (chunk != null) {
                 chunkPath = getPathFromScript(chunk);
                 const resolver = getOrCreateResolver(getUrlFromScript(chunk));
-                resolver.resolve();
+                markChunkRegistered(resolver);
             }
             if (params == null) {
                 return;
@@ -2216,30 +2216,42 @@ let BACKEND;
             return doLoadChunk(sourceType, chunkUrl, resolveOnLoad);
         }
     };
-    function getOrCreateResolver(chunkUrl, resolveOnLoad = false) {
+    function getOrCreateResolver(chunkUrl) {
         let resolver = chunkResolvers.get(chunkUrl);
         if (!resolver) {
-            let resolve;
-            let reject;
-            const promise = new Promise((innerResolve, innerReject)=>{
-                resolve = innerResolve;
-                reject = innerReject;
-            });
             resolver = {
-                resolved: false,
+                loaded: false,
+                registered: false,
                 loadingStarted: false,
                 retryAttempts: 0,
-                registrationRequired: !resolveOnLoad,
-                promise,
-                resolve: ()=>{
-                    resolver.resolved = true;
-                    resolve();
-                },
-                reject: reject
+                load: {},
+                registration: {}
             };
             chunkResolvers.set(chunkUrl, resolver);
         }
         return resolver;
+    }
+    function getOrCreatePromise(state, completed) {
+        if (completed) return Promise.resolve();
+        if (!state.promise) {
+            state.promise = new Promise((resolve, reject)=>{
+                state.resolve = resolve;
+                state.reject = reject;
+            });
+        }
+        return state.promise;
+    }
+    function getResolverPromise(resolver, resolveOnLoad) {
+        return resolveOnLoad ? getOrCreatePromise(resolver.load, resolver.loaded) : getOrCreatePromise(resolver.registration, resolver.registered);
+    }
+    function markChunkLoaded(resolver) {
+        resolver.loaded = true;
+        resolver.load.resolve?.();
+    }
+    function markChunkRegistered(resolver) {
+        resolver.registered = true;
+        markChunkLoaded(resolver);
+        resolver.registration.resolve?.();
     }
     /**
    * Rejects a chunk resolver and drops it from the cache.
@@ -2249,7 +2261,8 @@ let BACKEND;
         if (chunkResolvers.get(chunkUrl) === resolver) {
             chunkResolvers.delete(chunkUrl);
         }
-        resolver.reject(error);
+        resolver.load.reject?.(error);
+        resolver.registration.reject?.(error);
     }
     function getChunkLoadRetryDelayMs() {
         const jitter = Math.floor(Math.random() * (CHUNK_LOAD_RETRY_MAX_JITTER_MS + 1));
@@ -2270,14 +2283,14 @@ let BACKEND;
             // if this chunk is being fetched multiple times, and one of those
             // attempts succeeds. or, if this chunk has another resolver
             // mapped to it - it's safe to skip retrying.
-            if (resolver.resolved || chunkResolvers.get(chunkUrl) !== resolver) {
+            if (resolver.loaded || chunkResolvers.get(chunkUrl) !== resolver) {
                 return;
             }
             if (reload) {
                 reload();
             } else {
                 resolver.loadingStarted = false;
-                doLoadChunk(sourceType, chunkUrl, !resolver.registrationRequired);
+                doLoadChunk(sourceType, chunkUrl, resolver.registration.promise == null);
             }
         }, getChunkLoadRetryDelayMs());
     }
@@ -2294,11 +2307,10 @@ let BACKEND;
    * Loads the given chunk, and returns a promise that resolves once the chunk
    * has been loaded.
    */ function doLoadChunk(sourceType, chunkUrl, resolveOnLoad = false) {
-        const resolver = getOrCreateResolver(chunkUrl, resolveOnLoad);
-        // Normal Turbopack chunk loading wins if the same URL is also requested as an external script.
-        if (!resolveOnLoad) resolver.registrationRequired = true;
+        const resolver = getOrCreateResolver(chunkUrl);
+        const promise = getResolverPromise(resolver, resolveOnLoad);
         if (resolver.loadingStarted) {
-            return resolver.promise;
+            return promise;
         }
         if (sourceType === SourceType.Runtime) {
             // We don't need to load chunks references from runtime code, as they're already
@@ -2307,36 +2319,30 @@ let BACKEND;
             if (isCss(chunkUrl)) {
                 // CSS chunks do not register themselves, and as such must be marked as
                 // loaded instantly.
-                resolver.resolve();
+                markChunkRegistered(resolver);
             }
             // We need to wait for JS chunks to register themselves within `registerChunk`
             // before we can start instantiating runtime modules, hence the absence of
-            // `resolver.resolve()` in this branch.
-            return resolver.promise;
+            // `markChunkRegistered()` in this branch.
+            return promise;
         }
-        if (typeof document === 'undefined') {
-            // We're in a web worker. Classic workers support importScripts; module workers use a
-            // native dynamic import for external scripts because importScripts is unavailable there.
+        resolver.loadingStarted = true;
+        if (typeof importScripts === 'function') {
+            // We're in a classic web worker.
             if (isCss(chunkUrl)) {
             // ignore
             } else if (isJs(chunkUrl)) {
-                if (typeof importScripts === 'function') {
-                    self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
-                    try {
-                        importScripts(chunkUrl);
-                        if (!resolver.registrationRequired) resolver.resolve();
-                    } catch (error) {
-                        onChunkLoadError(sourceType, chunkUrl, resolver, error);
-                    }
-                } else if (!resolver.registrationRequired) {
-                    import(chunkUrl).then(()=>resolver.resolve(), (error)=>onChunkLoadError(sourceType, chunkUrl, resolver, error));
-                } else {
-                    onChunkLoadError(sourceType, chunkUrl, resolver, new Error(`importScripts is unavailable for chunk ${chunkUrl}`));
+                self.TURBOPACK_NEXT_CHUNK_URLS.push(chunkUrl);
+                try {
+                    importScripts(chunkUrl);
+                    markChunkLoaded(resolver);
+                } catch (error) {
+                    onChunkLoadError(sourceType, chunkUrl, resolver, error);
                 }
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl} in worker`);
             }
-        } else {
+        } else if (typeof document !== 'undefined') {
             // TODO(PACK-2140): remove this once all filenames are guaranteed to be escaped.
             const decodedChunkUrl = decodeURI(chunkUrl);
             if (isCss(chunkUrl)) {
@@ -2344,7 +2350,7 @@ let BACKEND;
                 if (previousLinks.length > 0) {
                     // CSS chunks do not register themselves, and as such must be marked as
                     // loaded instantly.
-                    resolver.resolve();
+                    markChunkRegistered(resolver);
                 } else {
                     const createLink = ()=>{
                         const link = document.createElement('link');
@@ -2361,7 +2367,7 @@ let BACKEND;
                         link.onload = ()=>{
                             // CSS chunks do not register themselves, and as such must be marked as
                             // loaded instantly.
-                            resolver.resolve();
+                            markChunkRegistered(resolver);
                         };
                         return link;
                     };
@@ -2372,13 +2378,9 @@ let BACKEND;
                 const previousScripts = getExistingScripts(chunkUrl);
                 if (previousScripts.length > 0) {
                     for (const script of Array.from(previousScripts)){
-                        if (resolveOnLoad) {
-                            script.addEventListener('load', ()=>{
-                                if (!resolver.registrationRequired) resolver.resolve();
-                            }, {
-                                once: true
-                            });
-                        }
+                        script.addEventListener('load', ()=>markChunkLoaded(resolver), {
+                            once: true
+                        });
                         script.addEventListener('error', ()=>{
                             // Drop the failed tag so a retry can re-add it cleanly.
                             script.remove();
@@ -2391,11 +2393,7 @@ let BACKEND;
                     const script = document.createElement('script');
                     script.crossOrigin = CROSS_ORIGIN;
                     script.src = chunkUrl;
-                    script.onload = ()=>{
-                        // External scripts don't register as Turbopack chunks, so their load event is the
-                        // completion signal. A normal chunk request for the same URL takes precedence.
-                        if (!resolver.registrationRequired) resolver.resolve();
-                    };
+                    script.onload = ()=>markChunkLoaded(resolver);
                     script.onerror = ()=>{
                         // Drop the failed tag so a retry can re-add it cleanly.
                         script.remove();
@@ -2407,9 +2405,10 @@ let BACKEND;
             } else {
                 throw new Error(`can't infer type of chunk from URL ${chunkUrl}`);
             }
+        } else {
+            throw new Error('chunk loading is not supported in module workers');
         }
-        resolver.loadingStarted = true;
-        return resolver.promise;
+        return promise;
     }
 })();
 /**
@@ -2527,5 +2526,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=13608c32-9c4f-3e52-56da-fd10568b28be
+//# debugId=efb43cc4-891c-674a-1022-0fb10b1b2f7e
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
