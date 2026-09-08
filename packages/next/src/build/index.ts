@@ -1704,6 +1704,9 @@ export default async function build(
       let clientRouterFilters:
         | undefined
         | ReturnType<typeof createClientRouterFilter>
+      let pagesRouterFilters:
+        | undefined
+        | ReturnType<typeof createClientRouterFilter>
 
       if (config.experimental.clientRouterFilter) {
         const nonInternalRedirects = (config._originalRedirects || []).filter(
@@ -1717,6 +1720,20 @@ export default async function build(
           config.experimental.clientRouterFilterAllowedRate
         )
         NextBuildContext.clientRouterFilters = clientRouterFilters
+
+        // The mirror-image filter: Pages Router routes, consumed by the App
+        // Router's optimistic route matcher. A URL that may belong to the
+        // Pages Router must never be predicted from a learned App Router
+        // pattern (e.g. pages/docs.tsx shadowing app/docs/[[...slug]]).
+        const userPagesPaths = pagesPageKeys.filter((p) => !p.startsWith('/_'))
+        if (userPagesPaths.length > 0) {
+          pagesRouterFilters = createClientRouterFilter(
+            userPagesPaths,
+            [],
+            config.experimental.clientRouterFilterAllowedRate
+          )
+          NextBuildContext.pagesRouterFilters = pagesRouterFilters
+        }
       }
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
