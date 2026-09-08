@@ -563,6 +563,7 @@ export function createAppPageEntrypoint({
         hasPostponedState ||
         (routeModule.isDev === false && !isRSCRequest)) &&
       nextConfig.experimental.cachedNavigations === true &&
+      // Actions use separate fallback handling rather than this navigation path.
       !isPossibleServerAction
 
     // In development, we always want to generate dynamic HTML.
@@ -1526,6 +1527,8 @@ export function createAppPageEntrypoint({
             }
           }
 
+          // Request-specific renders must keep concrete params rather than
+          // replacing them with prerender placeholders during segment resolution.
           const fallbackRouteParams = isRequestSpecificRender
             ? null
             : // In production or when debugging the static shell for a
@@ -1569,6 +1572,9 @@ export function createAppPageEntrypoint({
           // fallbackRouteParams because that would replace actual param values
           // with opaque placeholders during segment resolution.
           if (
+            // Request-specific renders keep concrete values, but actions still
+            // need fallback metadata to skip unresolved fallback page renders,
+            // and staged navigations need it to defer params in reusable shells.
             (!isRequestSpecificRender ||
               isPossibleServerAction ||
               isStagedCachedNavigationRender) &&
@@ -2119,6 +2125,8 @@ export function createAppPageEntrypoint({
         if (
           nextConfig.cacheComponents &&
           prerenderInfo?.fallbackRouteParams &&
+          // Dynamic responses still need this metadata for action fallback
+          // handling and for deferring params in staged navigation shells.
           (!supportsDynamicResponse ||
             isPossibleServerAction ||
             isStagedCachedNavigationRender)

@@ -208,6 +208,8 @@ export function normalizeDynamicRouteParams(
       continue
     }
 
+    // When missing optional params are allowed, proxy sentinels were removed
+    // above. Preserve remaining placeholder-looking optional values as literals.
     if (
       (isDefaultValue && !(isOptional && ignoreMissingOptional)) ||
       (typeof value === 'undefined' && !(isOptional && ignoreMissingOptional))
