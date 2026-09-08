@@ -339,10 +339,10 @@ import {
   RENDER_STAGES_BY_DATA_KIND,
   trackIncompatibleShellContent,
 } from '../dynamic-rendering-utils'
-import type {
-  PrefetchedSegmentStage,
-  SegmentStage,
-  StageEndTimes,
+import {
+  getValidationSequence,
+  type PrefetchedSegmentStage,
+  type StageEndTimes,
 } from './instant-validation/instant-validation'
 
 export type GetDynamicParamFromSegment = (
@@ -7400,66 +7400,23 @@ async function validateInstantConfigs(
     ? createNodeDebugChannel
     : createWebDebugChannel
 
-  const { cache, payload: initialRscPayload } = await collectStagedSegmentData(
-    prefetchKind,
-    ctx.componentMod,
-    renderFlightStream,
-    accumulatedChunks,
-    debugChunks,
-    startTime,
-    stageEndTimes,
-    clientReferenceManifest,
-    createDebugChannel
-  )
-
   const { implicitTags, nonce, workStore, isDebugChannelEnabled } = ctx
 
-  type RetryStage = RenderStage.Runtime | RenderStage.NavigationRuntime
+  const validationSequence = getValidationSequence(
+    prefetchKind,
+    accumulatedChunks
+  )
 
-  type ValidationSequence = {
-    stageOrder: PrefetchedSegmentStage[]
-    holeResolution: Record<SegmentStage, DynamicHoleKind | null>
-  }
-  const validationSequences = {
-    [ValidationPrefetchKind.Shell]: {
-      stageOrder: [
-        RenderStage.ShellRuntime,
-        RenderStage.Runtime,
-        RenderStage.NavigationRuntime,
-        RenderStage.Dynamic,
-      ],
-      holeResolution: {
-        [RenderStage.Static]: null, // no holes resolve in the Static stage (URL data like static params goes in the Runtime stage)
-        [RenderStage.ShellRuntime]: null, // initial stage
-        [RenderStage.Runtime]: DynamicHoleKind.Link,
-        [RenderStage.NavigationRuntime]: DynamicHoleKind.Navigation,
-        [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
-      },
-    } as ValidationSequence,
-    [ValidationPrefetchKind.LegacySpeculative]: {
-      stageOrder: [
-        RenderStage.Static,
-        RenderStage.Runtime,
-        RenderStage.Dynamic,
-      ],
-      holeResolution: {
-        [RenderStage.Static]: null, // initial stage
-        [RenderStage.ShellRuntime]: null, // currently unused in static prefetch validation.
-        [RenderStage.Runtime]: DynamicHoleKind.Runtime,
-        [RenderStage.NavigationRuntime]: null, // static prefetches never have navigation() holes.
-        [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
-      },
-    } as ValidationSequence,
-  } as const
+  const initialRenderStage = validationSequence.initialStage
 
-  const validationSequence = validationSequences[prefetchKind]
-  const initialRenderStage = validationSequence
-    .stageOrder[0] as PrefetchedSegmentStage
   // When narrowing the cause of a dynamic hole, we need to find the first stage it occurs in.
   // We do this by starting at the end and eliminating later stages, so we go in reverse.
-  const retryRenderStages = validationSequences[prefetchKind].stageOrder
-    .slice(1, -1) // Exclude first stage and Dynamic
-    .reverse() as RetryStage[]
+  const retryRenderStages = validationSequence.stageOrder
+    .slice(
+      1, // skip initialStage
+      -1 // skip the final stage, which is complete.
+    )
+    .reverse() as PrefetchedSegmentStage[]
 
   function getDynamicHoleKindForSegmentStage(
     stage: PrefetchedSegmentStage
@@ -7471,13 +7428,33 @@ async function validateInstantConfigs(
     const { stageOrder, holeResolution } = validationSequence
     const nextStage = stageOrder[stageOrder.indexOf(stage) + 1]
     const holeKind = holeResolution[nextStage]
-    if (!holeKind) {
+    // NOTE: `defineValidationSequence` should prevent `undefined` here, because
+    // we asserted on the type level that each `stage` either has a `holeKind` or `null`
+    if (holeKind === undefined) {
       throw new InvariantError(
-        `${RenderStage[stage]} segments do not unblock new data in ${ValidationPrefetchKind[prefetchKind]} prefetches`
+        `${RenderStage[stage]} segments should not be used in this kind validation`
+      )
+    }
+    // The initial stage can have `null`. We should not see it here
+    if (holeKind === null) {
+      throw new InvariantError(
+        `${RenderStage[stage]} segments did not unblock new data in this render and should not be used.`
       )
     }
     return holeKind
   }
+
+  const { cache, payload: initialRscPayload } = await collectStagedSegmentData(
+    validationSequence,
+    ctx.componentMod,
+    renderFlightStream,
+    accumulatedChunks,
+    debugChunks,
+    startTime,
+    stageEndTimes,
+    clientReferenceManifest,
+    createDebugChannel
+  )
 
   async function validateAtDepth(
     depth: number,
@@ -7493,7 +7470,7 @@ async function validateInstantConfigs(
       depth,
       groupDepthForValidation,
       initialBoundaryState,
-      null
+      initialRenderStage
     )
 
     // If the prerender produced no real errors at this depth — either an
@@ -7537,11 +7514,13 @@ async function validateInstantConfigs(
     depth: number,
     groupDepthForValidation: number,
     boundaryState: ValidationBoundaryTracking,
-    overrideStageForPartialSegments: RetryStage | null = null
+    stage: PrefetchedSegmentStage
   ): Promise<NavigationValidationResult | null> {
-    // If we're not overriding the stage, we're in the first stage.
-    const stage = overrideStageForPartialSegments ?? initialRenderStage
     const dynamicHoleKind = getDynamicHoleKindForSegmentStage(stage)
+
+    debug?.(
+      `  trying ${RenderStage[stage]} (hole: ${DynamicHoleKind[dynamicHoleKind]})`
+    )
 
     const extraChunksController = new AbortController()
     const extraChunksSignal =
@@ -7550,7 +7529,8 @@ async function validateInstantConfigs(
         : AbortSignal.any([extraChunksController.signal, validationAbortSignal])
 
     const payloadResult = await createCombinedPayloadAtDepth(
-      prefetchKind,
+      validationSequence,
+      stage,
       initialRscPayload,
       cache,
       loaderTree,
@@ -7560,8 +7540,7 @@ async function validateInstantConfigs(
       groupDepthForValidation,
       extraChunksSignal,
       boundaryState,
-      clientReferenceManifest,
-      overrideStageForPartialSegments
+      clientReferenceManifest
     )
 
     if (payloadResult === null) {
