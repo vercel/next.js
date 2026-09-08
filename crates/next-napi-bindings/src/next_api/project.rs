@@ -965,6 +965,7 @@ pub struct NapiEntrypoints {
     pub routes: Vec<NapiRoute>,
     pub middleware: Option<NapiMiddleware>,
     pub instrumentation: Option<NapiInstrumentation>,
+    pub module_federation: Option<External<ExternalEndpoint>>,
     pub pages_document_endpoint: External<ExternalEndpoint>,
     pub pages_app_endpoint: External<ExternalEndpoint>,
     pub pages_error_endpoint: External<ExternalEndpoint>,
@@ -990,6 +991,12 @@ impl NapiEntrypoints {
             .as_ref()
             .map(|i| NapiInstrumentation::from_instrumentation(i, turbopack_ctx))
             .transpose()?;
+        let module_federation = entrypoints.module_federation.map(|endpoint| {
+            External::new(ExternalEndpoint(DetachedVc::new(
+                turbopack_ctx.clone(),
+                endpoint,
+            )))
+        });
         let pages_document_endpoint = External::new(ExternalEndpoint(DetachedVc::new(
             turbopack_ctx.clone(),
             entrypoints.pages_document_endpoint,
@@ -1006,6 +1013,7 @@ impl NapiEntrypoints {
             routes,
             middleware,
             instrumentation,
+            module_federation,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,

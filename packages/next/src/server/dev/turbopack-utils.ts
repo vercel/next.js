@@ -648,6 +648,24 @@ export async function handleEntrypoints({
   currentEntrypoints.global.error = entrypoints.pagesErrorEndpoint
 
   currentEntrypoints.global.instrumentation = entrypoints.instrumentation
+  currentEntrypoints.global.moduleFederation = entrypoints.moduleFederation
+
+  if (entrypoints.moduleFederation) {
+    const key = getEntryKey('assets', 'client', 'module-federation')
+    const writtenEndpoint = await entrypoints.moduleFederation.writeToDisk()
+    dev?.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    dev?.hooks.subscribeToChanges(
+      key,
+      /** includeIssues=*/ false,
+      entrypoints.moduleFederation,
+      () => ({ type: HMR_MESSAGE_SENT_TO_BROWSER.CLIENT_CHANGES }),
+      (error) => ({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in Module Federation subscription: ${error}`,
+      })
+    )
+  }
 
   currentEntrypoints.page.clear()
   currentEntrypoints.app.clear()

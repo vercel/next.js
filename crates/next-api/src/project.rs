@@ -97,7 +97,7 @@ use turbopack_nodejs::{NodeJsChunkingContext, fs::NodeModulesPathMatcher};
 
 use crate::{
     aggregate_hmr::{AggregateHmrVersion, ChunkListUpdateBuilder, DiffResult, diff_chunks_against},
-    app::{AppProject, OptionAppProject, module_federation_output_assets},
+    app::{AppProject, ModuleFederationEndpoint, OptionAppProject},
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
     instrumentation::InstrumentationEndpoint,
@@ -1316,6 +1316,13 @@ impl Project {
             ));
         }
 
+        if let Some(module_federation) = entrypoints.module_federation {
+            endpoint_groups.push((
+                EndpointGroupKey::ModuleFederation,
+                EndpointGroup::from(module_federation),
+            ));
+        }
+
         for (key, route) in entrypoints.routes.iter() {
             match route {
                 Route::Page {
@@ -2056,10 +2063,26 @@ impl Project {
             None
         };
 
+        let module_federation = {
+            let config = self.next_config().turbopack_module_federation().await?;
+            if config.exposes.is_empty() {
+                None
+            } else if let Some(app_project) = *app_project.await? {
+                Some(ResolvedVc::upcast(
+                    ModuleFederationEndpoint::new(self, *app_project)
+                        .to_resolved()
+                        .await?,
+                ))
+            } else {
+                None
+            }
+        };
+
         Ok(Entrypoints {
             routes,
             middleware,
             instrumentation,
+            module_federation,
             pages_document_endpoint,
             pages_app_endpoint,
             pages_error_endpoint,
@@ -2426,14 +2449,7 @@ impl Project {
     ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
-            let mut entries = output_assets
-                .connect()
-                .await?
-                .iter()
-                .copied()
-                .collect::<Vec<_>>();
-            entries.extend(module_federation_output_assets(self).await?.iter().copied());
-            let all_output_assets = all_assets_from_entries_operation(ResolvedVc::cell(entries));
+            let all_output_assets = all_assets_from_entries_operation(output_assets);
 
             let client_relative_path = self.client_relative_path().owned().await?;
             let node_root = self.node_root().owned().await?;
@@ -2965,7 +2981,8 @@ async fn any_output_changed(
 
 #[turbo_tasks::function(operation, root)]
 fn all_assets_from_entries_operation(
-    entries: ResolvedVc<OutputAssets>,
+    operation: OperationVc<OutputAssets>,
 ) -> Result<Vc<ExpandedOutputAssets>> {
-    Ok(all_assets_from_entries(*entries))
+    let assets = operation.connect();
+    Ok(all_assets_from_entries(assets))
 }

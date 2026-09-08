@@ -1,1 +1,3 @@
-export const message = 'hello from Next.js'
+import { used } from './dependency'
+
+export const message = used

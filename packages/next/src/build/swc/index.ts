@@ -513,6 +513,7 @@ function bindingToApi(
     routes: NapiRoute[]
     middleware?: NapiMiddleware
     instrumentation?: NapiInstrumentation
+    moduleFederation?: NapiEndpoint
     pagesDocumentEndpoint: NapiEndpoint
     pagesAppEndpoint: NapiEndpoint
     pagesErrorEndpoint: NapiEndpoint
@@ -1246,6 +1247,9 @@ function bindingToApi(
       routes,
       middleware,
       instrumentation,
+      moduleFederation: entrypoints.moduleFederation
+        ? new EndpointImpl(entrypoints.moduleFederation)
+        : undefined,
       pagesDocumentEndpoint: new EndpointImpl(
         entrypoints.pagesDocumentEndpoint
       ),
