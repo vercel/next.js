@@ -45,7 +45,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack::{
     ModuleAssetContext,
-    module_federation::{ModuleFederationConfig, module_federation_container_source},
+    module_federation::module_federation_container_source,
     module_options::{ModuleOptionsContext, RuleCondition, transition_rule::TransitionRule},
     transition::{FullContextTransition, Transition, TransitionOptions},
 };
@@ -112,15 +112,7 @@ pub async fn module_federation_output_assets(project: Vc<Project>) -> Result<Vc<
     let Some(app_project) = *project.app_project().await? else {
         return Ok(OutputAssets::empty());
     };
-    let Some(config_json) = &*project
-        .next_config()
-        .turbopack_module_federation_json()
-        .await?
-    else {
-        return Ok(OutputAssets::empty());
-    };
-    let config = ModuleFederationConfig::from_json(config_json)
-        .context("Invalid experimental.turbopackModuleFederation configuration")?;
+    let config = project.next_config().turbopack_module_federation().await?;
     if config.exposes.is_empty() {
         return Ok(OutputAssets::empty());
     }

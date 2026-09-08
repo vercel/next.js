@@ -166,6 +166,83 @@ pub enum ModuleFederationSharedImport {
     NonLocalValue,
     OperationValue,
 )]
+#[serde(deny_unknown_fields, rename_all = "camelCase")]
+pub struct UnnormalizedModuleFederationExposeOptions {
+    pub import: ModuleFederationStringOrStrings,
+    pub name: Option<RcStr>,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationExpose {
+    String(RcStr),
+    Strings(Vec<RcStr>),
+    Options(UnnormalizedModuleFederationExposeOptions),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationExposeArrayItem {
+    String(RcStr),
+    Object(BTreeMap<RcStr, UnnormalizedModuleFederationExpose>),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
+#[serde(untagged)]
+pub enum UnnormalizedModuleFederationExposes {
+    Object(BTreeMap<RcStr, UnnormalizedModuleFederationExpose>),
+    Array(Vec<UnnormalizedModuleFederationExposeArrayItem>),
+}
+
+#[derive(
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    Encode,
+    Decode,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
+)]
 #[serde(untagged)]
 pub enum UnnormalizedModuleFederationShared {
     String(RcStr),
@@ -246,7 +323,9 @@ pub enum ModuleFederationRemoteType {
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct UnnormalizedModuleFederationConfig {
     pub name: Option<RcStr>,
+    pub filename: Option<RcStr>,
     pub remotes: Option<UnnormalizedModuleFederationRemotes>,
+    pub exposes: Option<UnnormalizedModuleFederationExposes>,
     pub shared: Option<UnnormalizedModuleFederationSharedEntries>,
     pub share_scope: Option<RcStr>,
     pub remote_type: Option<ModuleFederationRemoteType>,
@@ -317,6 +396,26 @@ impl UnnormalizedModuleFederationRemotes {
     }
 }
 
+impl UnnormalizedModuleFederationExposes {
+    fn into_entries(self) -> Vec<(RcStr, UnnormalizedModuleFederationExpose)> {
+        match self {
+            Self::Object(entries) => entries.into_iter().collect(),
+            Self::Array(items) => items
+                .into_iter()
+                .flat_map(|item| match item {
+                    UnnormalizedModuleFederationExposeArrayItem::String(request) => vec![(
+                        request.clone(),
+                        UnnormalizedModuleFederationExpose::String(request),
+                    )],
+                    UnnormalizedModuleFederationExposeArrayItem::Object(entries) => {
+                        entries.into_iter().collect()
+                    }
+                })
+                .collect(),
+        }
+    }
+}
+
 impl UnnormalizedModuleFederationSharedEntries {
     fn into_entries(self) -> Vec<(RcStr, UnnormalizedModuleFederationShared)> {
         match self {
@@ -342,6 +441,7 @@ impl UnnormalizedModuleFederationConfig {
         let share_scope = self.share_scope.unwrap_or_else(|| "default".into());
         let mut config = ModuleFederationConfig {
             name: self.name,
+            filename: self.filename,
             share_scope: share_scope.clone(),
             ..Default::default()
         };
@@ -367,6 +467,23 @@ impl UnnormalizedModuleFederationConfig {
                         .map(|external| parse_remote_external(&external))
                         .collect::<Result<_>>()?,
                     share_scope: remote_share_scope,
+                });
+            }
+        }
+
+        if let Some(exposes) = self.exposes {
+            for (request, expose) in exposes.into_entries() {
+                let (imports, chunk_name) = match expose {
+                    UnnormalizedModuleFederationExpose::String(import) => (vec![import], None),
+                    UnnormalizedModuleFederationExpose::Strings(imports) => (imports, None),
+                    UnnormalizedModuleFederationExpose::Options(options) => {
+                        (options.import.into_vec(), options.name)
+                    }
+                };
+                config.exposes.push(ModuleFederationExpose {
+                    request,
+                    imports,
+                    chunk_name,
                 });
             }
         }
