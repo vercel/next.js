@@ -1,6 +1,6 @@
 {
   "name": "@next/playwright",
-  "version": "16.4.0-canary.22",
+  "version": "16.4.0-canary.24",
   "repository": {
     "url": "vercel/next.js",
     "directory": "packages/next-playwright"
@@ -14,7 +14,7 @@
   "scripts": {
     "build": "node ../../scripts/rm.mjs dist && tsc -d -p tsconfig.json",
     "dev": "tsc -d -w -p tsconfig.json",
-    "typescript": "tsec --noEmit -p tsconfig.json"
+    "typescript": "tsc --noEmit -p tsconfig.json"
   },
   "peerDependencies": {
     "@playwright/test": ">=1.0.0"
