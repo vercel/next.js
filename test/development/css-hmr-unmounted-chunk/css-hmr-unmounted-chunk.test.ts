@@ -22,13 +22,13 @@ import type * as Playwright from 'playwright'
 // surfaced as an unhandledRejection). The fix loads the chunk instead, so the
 // edit applies.
 describe('css-hmr-unmounted-chunk', () => {
-  const { next, isTurbopack, isNextDev } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     patchFileDelay: 500,
   })
 
-  if (!isTurbopack || !isNextDev) {
-    it('skipped on non-Turbopack or non-dev environments', () => {})
+  if (!isTurbopack) {
+    it('skipped on non-Turbopack environments', () => {})
     return
   }
 
