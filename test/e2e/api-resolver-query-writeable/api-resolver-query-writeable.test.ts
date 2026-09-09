@@ -1,9 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely controls the local Next.js build or server lifecycle.
+// @force-gate !deploy
 describe('api-resolver-query-writeable', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     startCommand: 'node server.js',
     serverReadyPattern: /Next mode: (production|development)/,
     dependencies: {
@@ -11,10 +13,6 @@ describe('api-resolver-query-writeable', () => {
       express: '5.1.0',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should allow req.query to be writable and reflect changes made in the API handler', async () => {
     const res = await next.fetch('/api?hello=yes', {
