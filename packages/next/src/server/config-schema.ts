@@ -196,6 +196,7 @@ export const experimentalSchema = {
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
+  parallelRouteMetadata: z.boolean().optional(),
   coldCacheBadge: z.boolean().optional(),
   collapseAdapterRoutes: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
