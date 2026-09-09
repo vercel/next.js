@@ -24,7 +24,7 @@ import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { DevServerStateUpdate } from './dev/dev-server-state'
-import type { ServerInitResult } from './lib/render-server'
+import type { ServerInitResult } from './lib/types'
 import { AsyncCallbackSet } from './lib/async-callback-set'
 import {
   RouterServerContextSymbol,
@@ -44,12 +44,19 @@ const getServerImpl = async () => {
   return ServerImpl
 }
 
-export type NextServerOptions = Omit<
-  ServerOptions | DevServerOptions,
-  // This is assigned in this server abstraction.
-  'conf'
-> &
-  Partial<Pick<ServerOptions | DevServerOptions, 'conf'>>
+type OptionalServerConfig<T extends ServerOptions | DevServerOptions> =
+  T extends ServerOptions | DevServerOptions
+    ? Omit<
+        T,
+        // This is assigned in this server abstraction.
+        'conf'
+      > &
+        Partial<Pick<T, 'conf'>>
+    : never
+
+export type NextServerOptions = OptionalServerConfig<
+  ServerOptions | DevServerOptions
+>
 
 export type NextBundlerOptions = {
   /** @deprecated Use `turbopack` instead */
@@ -621,6 +628,15 @@ class NextCustomServer implements NextWrapperServer {
 }
 
 // This file is used for when users run `require('next')`
+function createServer(
+  options: NextServerOptions &
+    NextBundlerOptions & {
+      customServer: false
+    }
+): NextServer
+function createServer(
+  options: NextServerOptions & NextBundlerOptions
+): NextWrapperServer
 function createServer(
   options: NextServerOptions & NextBundlerOptions
 ): NextWrapperServer {
