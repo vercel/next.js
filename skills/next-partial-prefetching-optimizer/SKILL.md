@@ -68,9 +68,8 @@ Prefetching adoption, and this optimizer share the same build, auth, data, and
 Playwright contract. Add the exact source link, destination markers, and
 prefetch budget instead of creating another rig.
 
-If the project has no rig, use
-[`next-cache-components-optimizer/rig-template.md`](../next-cache-components-optimizer/rig-template.md)
-to discover and record one. The measured run must be a production build or
+If the project has no rig, use [`rig-template.md`](rig-template.md) to discover
+and record one. The measured run must be a production build or
 preview where `experimental.exposeTestingApiInProductionBuild` is enabled only
 for testing. Development can help diagnose a route, but automatic link
 prefetching is production-only.
@@ -189,6 +188,8 @@ Link or cache abstraction.
 
 ## Files
 
+- `rig-template.md`: production build, test context, and unattended loop
+  discovery for projects without an existing `instant-nav.rig.md`.
 - `reference/red-test-robustness.md`: trustworthy RED and differential checks.
 
 ## Further reading
