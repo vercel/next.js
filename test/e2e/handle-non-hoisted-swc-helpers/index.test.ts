@@ -1,4 +1,4 @@
-import { isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 
 describe('handle-non-hoisted-swc-helpers', () => {
@@ -24,17 +24,8 @@ package-import-method=copy
         }
       `,
     },
-    packageJson: {
-      scripts: {
-        build: 'next build',
-        dev: 'next dev',
-        start: 'next start',
-      },
-    },
     installCommand:
       'pnpm install && mkdir -p node_modules/next/node_modules/@swc && mv node_modules/@swc/helpers node_modules/next/node_modules/@swc/',
-    buildCommand: 'pnpm run build',
-    startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
     dependencies: {},
   })
 

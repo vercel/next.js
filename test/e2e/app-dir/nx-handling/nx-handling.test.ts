@@ -4,7 +4,6 @@ describe('nx-handling', () => {
   const { next } = nextTestSetup({
     skipDeployment: true,
     files: __dirname,
-    installCommand: 'pnpm install',
     buildCommand: 'pnpm run build',
     startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
     packageJson: {
