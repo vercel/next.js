@@ -657,41 +657,36 @@ contextPrototype.f = moduleContext;
 }
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
 // Factories are usually stored in one flat array. Chunks with enough strict
-// factories instead contain separate strict and non-strict flat arrays.
+// factories append those as a nested array after the flat non-strict factories.
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
-    var strictFactories = chunkModules[offset];
+    var strictFactories = chunkModules[chunkModules.length - 1];
+    var flatFactoriesEnd = Array.isArray(strictFactories) ? chunkModules.length - 1 : chunkModules.length;
+    installFlatModuleFactories(chunkModules, offset, flatFactoriesEnd, moduleFactories, newModuleId);
     if (Array.isArray(strictFactories)) {
-        var nonStrictFactories = chunkModules[offset + 1];
-        if (!Array.isArray(nonStrictFactories) || offset + 2 !== chunkModules.length) {
-            throw new Error('malformed chunk format, expected two factory arrays');
-        }
-        installFlatModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
-        installFlatModuleFactories(nonStrictFactories, 0, moduleFactories, newModuleId);
-    } else {
-        installFlatModuleFactories(chunkModules, offset, moduleFactories, newModuleId);
+        installFlatModuleFactories(strictFactories, 0, strictFactories.length, moduleFactories, newModuleId);
     }
 }
 // The flat format alternates one or more module IDs with their factory function.
 // Walking this is a little complex, but the structure is fast to traverse and
 // `typeof` distinguishes module IDs from factories.
-function installFlatModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+function installFlatModuleFactories(chunkModules, offset, end, moduleFactories, newModuleId) {
     var i = offset;
-    while(i < chunkModules.length){
-        var end = i + 1;
+    while(i < end){
+        var factoryIndex = i + 1;
         // Find our factory function
-        while(end < chunkModules.length && typeof chunkModules[end] !== 'function'){
-            end++;
+        while(factoryIndex < end && typeof chunkModules[factoryIndex] !== 'function'){
+            factoryIndex++;
         }
-        if (end === chunkModules.length) {
+        if (factoryIndex === end) {
             throw new Error('malformed chunk format, expected a factory function');
         }
         // Install the factory for each module ID that doesn't already have one.
         // When some IDs in this group already have a factory, reuse that existing
         // group factory for the missing IDs to keep all IDs in the group consistent.
         // Otherwise, install the factory from this chunk.
-        var moduleFactoryFn = chunkModules[end];
+        var moduleFactoryFn = chunkModules[factoryIndex];
         var existingGroupFactory = undefined;
-        for(var j = i; j < end; j++){
+        for(var j = i; j < factoryIndex; j++){
             var id = chunkModules[j];
             var existingFactory = moduleFactories.get(id);
             if (existingFactory) {
@@ -701,7 +696,7 @@ function installFlatModuleFactories(chunkModules, offset, moduleFactories, newMo
         }
         var factoryToInstall = existingGroupFactory !== null && existingGroupFactory !== void 0 ? existingGroupFactory : moduleFactoryFn;
         var didInstallFactory = false;
-        for(var j1 = i; j1 < end; j1++){
+        for(var j1 = i; j1 < factoryIndex; j1++){
             var id1 = chunkModules[j1];
             if (!moduleFactories.has(id1)) {
                 if (!didInstallFactory) {
@@ -714,7 +709,7 @@ function installFlatModuleFactories(chunkModules, offset, moduleFactories, newMo
                 newModuleId === null || newModuleId === void 0 ? void 0 : newModuleId(id1);
             }
         }
-        i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
+        i = factoryIndex + 1;
     }
 }
 /**
@@ -1502,8 +1497,9 @@ function registerChunk(registration) {
         markChunkComponentsAvailable(chunk);
     }
     var runtimeParams;
-    // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
-    if (registration.length === 2) {
+    // When bootstrapping we are passed a single RuntimeParams object. An all-strict
+    // module chunk also has length 2, but its second item is the strict factory array.
+    if (registration.length === 2 && !Array.isArray(registration[1])) {
         runtimeParams = registration[1];
     } else {
         runtimeParams = undefined;

@@ -109,8 +109,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$source_maps$2f$react$2d$compiler$2f$input$2f$Component$2e$jsx__$5b$test$5d$__$28$ecmascript$29$__["Counter"]);
 }),
-]})(),[
-]
+]})(),
 ]);
 
 //# sourceMappingURL=turbopack_crates_turbopack-tests_tests_snapshot_16i0hbsemtixh._.js.map

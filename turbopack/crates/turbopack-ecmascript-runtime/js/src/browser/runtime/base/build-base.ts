@@ -96,8 +96,9 @@ function registerChunk(registration: ChunkRegistration | RuntimeParams) {
     markChunkComponentsAvailable(chunk)
   }
   let runtimeParams: RuntimeParams | undefined
-  // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
-  if (registration.length === 2) {
+  // When bootstrapping we are passed a single RuntimeParams object. An all-strict
+  // module chunk also has length 2, but its second item is the strict factory array.
+  if (registration.length === 2 && !Array.isArray(registration[1])) {
     runtimeParams = registration[1] as RuntimeParams
   } else {
     runtimeParams = undefined
