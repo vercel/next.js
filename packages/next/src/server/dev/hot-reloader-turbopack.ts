@@ -1064,9 +1064,16 @@ export async function createHotReloaderTurbopack(
     state.subscriptions.set(id, subscription)
 
     // Baseline capture and subscription setup are not atomic, so the first
-    // emission can be a real update and must go through the normal handler.
+    // emission can be a real update. Skip only an issues-only baseline.
+    let isInitial = true
     try {
       for await (const data of subscription) {
+        if (isInitial) {
+          isInitial = false
+          if (data.type === 'issues') {
+            continue
+          }
+        }
         processIssues(state.clientIssues, key, data, false, true)
         if (data.type !== 'issues') {
           sendTurbopackMessage(data as TurbopackUpdate)
