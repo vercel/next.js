@@ -12,7 +12,7 @@ related:
     - app/api-reference/functions/redirect
 ---
 
-You can mutate data in Next.js using [React Server Functions](https://react.dev/reference/rsc/server-functions), which run on the server and write directly to your database or filesystem. This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions, how to [revalidate](#revalidating-the-cache) the content that changed, and how to [show progress and errors](#making-it-feel-responsive) while the write is in flight. To handle a write from a caller that isn't your own frontend, such as a webhook, use a [Route Handler](/docs/app/api-reference/file-conventions/route).
+You can mutate data in Next.js using [React Server Functions](https://react.dev/reference/rsc/server-functions), which run on the server and write directly to your database or filesystem. This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions, how to [revalidate](#revalidating-the-cache) the content that changed, and how to [show progress and errors](#making-it-feel-responsive) while the mutation is running. To handle a write from a caller that isn't your own frontend, such as a webhook, use a [Route Handler](/docs/app/api-reference/file-conventions/route).
 
 For Next.js-specific behaviors (single-roundtrip response, sequential dispatch, security, deployment), see [Server Actions and Mutations](/docs/app/guides/server-actions).
 
@@ -213,13 +213,13 @@ export default function LikeButton({ initialLikes }) {
 }
 ```
 
-The inner `startTransition` is not a typo. React loses the transition scope across an `await`, so a state update after one has to be wrapped again to stay part of the transition. This applies after [every `await`](https://react.dev/reference/react/useTransition#react-doesnt-treat-my-state-update-after-await-as-a-transition), and it is why holding server data in local state is often more trouble than letting revalidation deliver it as a prop.
+React loses the transition scope across an `await`, so the update after it is wrapped in `startTransition` again to stay part of the transition. This applies after [every `await`](https://react.dev/reference/react/useTransition#react-doesnt-treat-my-state-update-after-await-as-a-transition), and it is why holding server data in local state is often more trouble than letting revalidation deliver it as a prop.
 
 Calling the function directly in the handler without a transition also works, but you get no pending flag and a rejected promise has nowhere to go, so the click appears to do nothing. [Making it feel responsive](#making-it-feel-responsive) covers the rest.
 
 ## Revalidating the cache
 
-The write has landed on the server, but anything [cached](/docs/app/getting-started/caching) still holds the old value. Label a cache entry with [`cacheTag`](/docs/app/getting-started/caching#cachetag), then invalidate that label after writing:
+After the mutation runs, anything [cached](/docs/app/getting-started/caching) still holds the old value until you tell Next.js to revalidate it. Label a cache entry with [`cacheTag`](/docs/app/getting-started/caching#cachetag), then invalidate that label after writing:
 
 ```tsx filename="app/lib/actions.ts" highlight={1,12} switcher
 import { updateTag } from 'next/cache'
@@ -255,7 +255,7 @@ export async function createPost(formData) {
 }
 ```
 
-[`updateTag`](/docs/app/api-reference/functions/updateTag) expires the tag immediately, so the user sees their own write rather than stale content. It is the right default after a mutation, and it works only in Server Actions.
+[`updateTag`](/docs/app/api-reference/functions/updateTag) expires the tag immediately, so the user sees the data they just changed rather than stale content. It is the right default after a mutation, and it works only in Server Actions.
 
 Three others exist for cases where that is not what you want:
 
@@ -267,11 +267,11 @@ For which one to reach for, including how each interacts with the re-render that
 
 ## Making it feel responsive
 
-A write travels to the server and back. Until it returns the interface has to say something, and if it fails someone has to hear about it.
+A Server Function call takes an unknown amount of time and may succeed or fail. While it runs, the interface needs to show that something is happening, and handle the error if one comes back.
 
 ### Pending state
 
-Wrap the call in a transition and use the flag it hands you. [`useTransition`](https://react.dev/reference/react/useTransition) is the default choice, because it works the same way for event handlers, forms, and anything else:
+Wrap the call in a transition and use the pending flag it returns. [`useTransition`](https://react.dev/reference/react/useTransition) is the default choice, because it works the same way for event handlers, forms, and anything else:
 
 ```tsx filename="app/ui/create-post-button.tsx" switcher
 'use client'
@@ -315,7 +315,7 @@ Reach for [`useActionState`](https://react.dev/reference/react/useActionState) w
 
 ### Optimistic updates
 
-A pending spinner tells the user to wait. An optimistic update skips the wait by showing the expected result immediately, then reconciling when the server answers. [`useOptimistic`](https://react.dev/reference/react/useOptimistic) handles the reverting for you if the write fails:
+A pending spinner tells the user to wait. An optimistic update skips the wait by showing the expected result immediately, then reconciling when the server responds. [`useOptimistic`](https://react.dev/reference/react/useOptimistic) handles the reverting for you if the mutation fails:
 
 ```tsx filename="app/ui/like-button.tsx" switcher
 'use client'
