@@ -89,20 +89,20 @@ Through `next-devtools-mcp`, agents can use the following tools:
 
 ## Browser tools for pausing hot updates
 
-During `next dev`, Next.js DevTools exposes two [WebMCP](https://developer.chrome.com/docs/ai/webmcp/imperative-api) tools in supporting browsers and agent harnesses. An agent can discover these tools when it opens your application, without configuring `next-devtools-mcp`:
+During `next dev` with Turbopack, Next.js DevTools exposes two [WebMCP](https://developer.chrome.com/docs/ai/webmcp/imperative-api) tools in supporting browsers and agent harnesses. An agent can discover these tools when it opens your application, without any configuration:
 
-| Tool         | Behavior                                                                                                                        |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
-| `pause_hmr`  | Hold incoming hot updates, build errors, and automatic reloads while the agent edits files. The current page stays interactive. |
-| `resume_hmr` | Resume updates after editing. If updates arrived while paused, reload once to load the latest files.                            |
+| Tool         | Behavior                                                                                                                                                             |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `pause_hmr`  | Wait for an active compilation and module update to finish, then hold incoming hot updates, build errors, and automatic reloads. The current page stays interactive. |
+| `resume_hmr` | Resume updates after editing, applying buffered updates together through normal HMR.                                                                                 |
 
-Both tools take no arguments. The agent should pause before its first edit and resume after its final edit. Intermediate versions are discarded, so temporary syntax errors or module errors from incomplete edits do not replace the current page.
+Both tools take no arguments. The agent should await `pause_hmr` before its first edit and call `resume_hmr` after its final edit. While paused, temporary errors from incomplete edits do not replace the current page. If the final source still contains errors, they appear after resuming.
 
-Resuming with pending changes performs a full reload and resets client state. Resuming without pending changes preserves the page. If the final source still contains errors, they appear after resuming.
+Resuming preserves component state where [Fast Refresh](/docs/architecture/fast-refresh) supports it. A full reload is only needed when normal HMR requires one, such as after restarting the development server.
 
-Pausing applies to the current document. It does not cancel updates already in progress, stop server compilation or application requests, or prevent manual navigation. Reloading the page also ends the pause.
+Pausing applies to the current document. Other tabs and server compilation continue normally. It does not stop application requests or prevent manual navigation. Reloading the page also ends the pause.
 
-> **Good to know**: WebMCP is experimental. Browsers without this API keep normal hot-update behavior, and these tools are only available during development.
+> **Good to know**: WebMCP is experimental. These tools are only available during development with Turbopack. Webpack and browsers without this API keep normal hot-update behavior.
 
 ## Using with agents
 

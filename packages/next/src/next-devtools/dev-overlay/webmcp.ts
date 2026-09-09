@@ -26,22 +26,58 @@ type ModelContext = {
 
 let registered = false
 let paused = false
-let pendingChanges = false
 let building = false
-let reloadTimer: ReturnType<typeof setTimeout> | undefined
+let hasErrors = false
+let reloadPending = false
+let pending: HmrMessageSentToBrowser[] = []
+let deliver: (message: HmrMessageSentToBrowser) => void
+let isHmrIdle = () => true
+let flushTimer: ReturnType<typeof setTimeout> | undefined
+let pausePromise: Promise<void> | undefined
 
-function scheduleReload() {
-  clearTimeout(reloadTimer)
-  // The final filesystem change can reach the dev server after the resume call.
-  // Wait for a quiet update stream and for any active compilation to finish.
-  reloadTimer = setTimeout(() => {
-    if (!building) window.location.reload()
-  }, 100)
+function scheduleFlush() {
+  clearTimeout(flushTimer)
+  // Coalesce messages from a compilation before delivering them to HMR.
+  flushTimer = setTimeout(flush, 100)
+}
+
+function flush() {
+  flushTimer = undefined
+  if (paused || building) return
+  if (reloadPending) {
+    window.location.reload()
+    return
+  }
+
+  if (hasErrors) {
+    // Report the final compilation error, but retain module deltas until a
+    // successful build can replace intermediate module implementations.
+    pending = pending.filter((message) => {
+      if (
+        message.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILT ||
+        message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC ||
+        message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR ||
+        message.type === HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER
+      ) {
+        deliver(message)
+        return false
+      }
+      return true
+    })
+    return
+  }
+
+  const messages = pending
+  pending = []
+  for (const message of messages) deliver(message)
 }
 
 // Keep this state in the isolated DevTools bundle. The userspace HMR clients
 // access it through the dispatcher, so both sides use the same instance.
-export function shouldDeferHmrMessage(message: HmrMessageSentToBrowser) {
+export function dispatchHmrMessage(
+  message: HmrMessageSentToBrowser,
+  onMessage: (message: HmrMessageSentToBrowser) => void
+) {
   if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILDING) {
     building = true
   } else if (
@@ -49,9 +85,13 @@ export function shouldDeferHmrMessage(message: HmrMessageSentToBrowser) {
     message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC
   ) {
     building = false
+    hasErrors = message.errors.length > 0
   }
 
-  if (!paused && reloadTimer === undefined) return false
+  if (!paused && flushTimer === undefined && pending.length === 0) {
+    onMessage(message)
+    return
+  }
 
   switch (message.type) {
     case HMR_MESSAGE_SENT_TO_BROWSER.ADDED_PAGE:
@@ -69,21 +109,55 @@ export function shouldDeferHmrMessage(message: HmrMessageSentToBrowser) {
     case HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE:
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR:
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER:
-      pendingChanges = true
-      if (reloadTimer !== undefined) scheduleReload()
-      return true
+      deliver = onMessage
+      if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILDING) {
+        pending = pending.filter(
+          (previous) =>
+            previous.type !== HMR_MESSAGE_SENT_TO_BROWSER.BUILDING &&
+            previous.type !== HMR_MESSAGE_SENT_TO_BROWSER.BUILT &&
+            previous.type !== HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR &&
+            previous.type !==
+              HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER
+        )
+        pending.unshift(message)
+      } else if (
+        message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
+      ) {
+        const previous = pending.find(
+          (entry) =>
+            entry.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE
+        )
+        if (previous) {
+          // The Turbopack runtime merges all deltas in a message before applying
+          // them, so intermediate module factories are never evaluated.
+          previous.data = [previous.data, message.data].flat()
+          previous.hmrVersion = message.hmrVersion
+        } else {
+          pending.push({ ...message })
+        }
+      } else {
+        if (
+          message.type === HMR_MESSAGE_SENT_TO_BROWSER.BUILT ||
+          message.type === HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+        ) {
+          pending = pending.filter((entry) => entry.type !== message.type)
+        }
+        pending.push(message)
+      }
+      if (!paused) scheduleFlush()
+      return
     default:
       // Keep connection handshakes, debug streams, and MCP requests working.
-      return false
+      onMessage(message)
   }
 }
 
 export function shouldDeferHmrReload() {
-  if (!paused && reloadTimer === undefined) return false
+  if (!paused && flushTimer === undefined && pending.length === 0) return false
   // A disconnected/restarted server may never finish the previous compilation.
   building = false
-  pendingChanges = true
-  if (reloadTimer !== undefined) scheduleReload()
+  reloadPending = true
+  if (!paused) scheduleFlush()
   return true
 }
 
@@ -91,7 +165,7 @@ function result(text: string) {
   return { content: [{ type: 'text' as const, text }] }
 }
 
-export async function registerHmrTools() {
+export async function registerHmrTools(checkHmrIdle = () => true) {
   if (registered) return
 
   // Chrome moved modelContext from Navigator to Document. Support browsers
@@ -102,6 +176,7 @@ export async function registerHmrTools() {
 
   if (!modelContext) return
   registered = true
+  isHmrIdle = checkHmrIdle
 
   const inputSchema = {
     type: 'object' as const,
@@ -117,18 +192,15 @@ export async function registerHmrTools() {
     {
       name: 'resume_hmr',
       description:
-        'Resume Next.js hot updates in this tab after editing files. If updates arrived while paused, reload once to load the latest files without replaying intermediate broken edits. This resets client state. If no updates arrived, preserve the current page.',
+        'Resume Next.js hot updates in this tab after editing files. Apply buffered updates together through normal HMR, preserving component state when Fast Refresh supports it. Other tabs are unaffected.',
       inputSchema,
       execute: async () => {
+        await pausePromise
         paused = false
-        if (pendingChanges && reloadTimer === undefined) {
-          // Updates can contain intermediate code that throws at module
-          // evaluation time. Reload the latest files instead of replaying them.
-          scheduleReload()
-        }
+        if (pending.length > 0 || reloadPending) scheduleFlush()
         return result(
-          pendingChanges
-            ? 'HMR resumed. Reloading the latest files; client state will reset.'
+          pending.length > 0 || reloadPending
+            ? 'HMR resumed. Applying buffered updates.'
             : 'HMR resumed. No pending changes.'
         )
       },
@@ -136,13 +208,25 @@ export async function registerHmrTools() {
     {
       name: 'pause_hmr',
       description:
-        'Pause incoming Next.js hot updates, build errors, and automatic reloads in this tab before editing files. The current page stays interactive. Call resume_hmr after all edits are complete. Does not cancel updates already in progress or prevent manual navigation.',
+        'Pause incoming Next.js hot updates, build errors, and automatic reloads in this tab before editing files. Waits for an in-progress compilation and module update before returning. The current page stays interactive; other tabs and server compilation are unaffected. Call resume_hmr after all edits are complete. Does not prevent manual navigation.',
       inputSchema,
       execute: async () => {
-        paused = true
-        if (reloadTimer !== undefined) {
-          clearTimeout(reloadTimer)
-          reloadTimer = undefined
+        if (!paused) {
+          pausePromise ??= new Promise<void>((resolve) => {
+            function pauseWhenIdle() {
+              if (building || !isHmrIdle()) {
+                setTimeout(pauseWhenIdle, 10)
+                return
+              }
+              paused = true
+              clearTimeout(flushTimer)
+              flushTimer = undefined
+              resolve()
+            }
+            pauseWhenIdle()
+          })
+          await pausePromise
+          pausePromise = undefined
         }
         return result(
           'HMR paused. Call resume_hmr after completing your edits.'

@@ -42,7 +42,12 @@ export function createWebSocket(
   }
 
   const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
-  void dispatcher.registerHmrTools()
+  if (process.env.TURBOPACK) {
+    void dispatcher.registerHmrTools(
+      () =>
+        !module.hot || ['idle', 'abort', 'fail'].includes(module.hot.status())
+    )
+  }
 
   function init() {
     if (webSocket) {
@@ -69,51 +74,60 @@ export function createWebSocket(
       }
 
       try {
-        const message: HmrMessageSentToBrowser =
+        const parsedMessage: HmrMessageSentToBrowser =
           event.data instanceof ArrayBuffer
             ? parseBinaryMessage(event.data)
             : JSON.parse(event.data)
 
-        if (dispatcher.shouldDeferHmrMessage(message)) return
+        dispatcher.dispatchHmrMessage(
+          parsedMessage,
+          (message: HmrMessageSentToBrowser) => {
+            try {
+              // Check for server restart in Turbopack mode
+              if (
+                message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+              ) {
+                if (
+                  serverSessionId !== null &&
+                  serverSessionId !== message.data.sessionId
+                ) {
+                  // Either the server's session id has changed and it's a new server, or
+                  // it's been too long since we disconnected and we should reload the page.
+                  if (dispatcher.shouldDeferHmrReload()) return
+                  window.location.reload()
+                  reloading = true
+                  return
+                }
+                serverSessionId = message.data.sessionId
+              }
 
-        // Check for server restart in Turbopack mode
-        if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
-          if (
-            serverSessionId !== null &&
-            serverSessionId !== message.data.sessionId
-          ) {
-            // Either the server's session id has changed and it's a new server, or
-            // it's been too long since we disconnected and we should reload the page.
-            if (dispatcher.shouldDeferHmrReload()) return
-            window.location.reload()
-            reloading = true
-            return
+              // Track webpack compilation hash for server restart detection
+              if (
+                message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC &&
+                'hash' in message
+              ) {
+                // If we had previously reconnected and the hash changed, the server may have restarted
+                if (
+                  mostRecentCompilationHash !== null &&
+                  mostRecentCompilationHash !== message.hash
+                ) {
+                  window.location.reload()
+                  reloading = true
+                  return
+                }
+                mostRecentCompilationHash = message.hash
+              }
+
+              processMessage(
+                message,
+                sendMessage,
+                processTurbopackMessage,
+                staticIndicatorState
+              )
+            } catch (err) {
+              reportInvalidHmrMessage(message, err)
+            }
           }
-          serverSessionId = message.data.sessionId
-        }
-
-        // Track webpack compilation hash for server restart detection
-        if (
-          message.type === HMR_MESSAGE_SENT_TO_BROWSER.SYNC &&
-          'hash' in message
-        ) {
-          // If we had previously reconnected and the hash changed, the server may have restarted
-          if (
-            mostRecentCompilationHash !== null &&
-            mostRecentCompilationHash !== message.hash
-          ) {
-            window.location.reload()
-            reloading = true
-            return
-          }
-          mostRecentCompilationHash = message.hash
-        }
-
-        processMessage(
-          message,
-          sendMessage,
-          processTurbopackMessage,
-          staticIndicatorState
         )
       } catch (err: unknown) {
         reportInvalidHmrMessage(event, err)

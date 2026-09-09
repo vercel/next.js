@@ -54,7 +54,7 @@ import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
 import { EventQueue } from './dev-overlay/event-queue'
 import {
   registerHmrTools,
-  shouldDeferHmrMessage,
+  dispatchHmrMessage,
   shouldDeferHmrReload,
 } from './dev-overlay/webmcp'
 import type {
@@ -64,7 +64,7 @@ import type {
 
 export interface Dispatcher {
   registerHmrTools: typeof registerHmrTools
-  shouldDeferHmrMessage: typeof shouldDeferHmrMessage
+  dispatchHmrMessage: typeof dispatchHmrMessage
   shouldDeferHmrReload: typeof shouldDeferHmrReload
   onBuildOk(): void
   onBuildError(message: string): void
@@ -156,7 +156,7 @@ function createQueuable<Args extends any[]>(
 // TODO: Extract into separate functions that are imported
 export const dispatcher: Dispatcher = {
   registerHmrTools,
-  shouldDeferHmrMessage,
+  dispatchHmrMessage,
   shouldDeferHmrReload,
   onBuildOk: createQueuable((dispatch: Dispatch) => {
     dispatch({ type: ACTION_BUILD_OK })

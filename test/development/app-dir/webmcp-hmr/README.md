@@ -7,17 +7,20 @@ pnpm next dev test/development/app-dir/webmcp-hmr --port 3099
 ```
 
 Open `http://localhost:3099` for App Router or `/legacy` for Pages Router in a
-WebMCP-capable browser, such as the Codex browser harness.
+WebMCP-capable browser, such as the Codex browser harness. These tools require
+Turbopack; Webpack keeps normal HMR without registering them.
 
-1. Call `pause_hmr({})` through the browser's WebMCP tools.
+1. Call `pause_hmr({})` through the browser's WebMCP tools. Await its result so
+   an active compilation and module update can finish before editing.
 2. Edit `counter.tsx`, including temporary syntax errors. The current page and
-   counter remain usable while incoming hot updates and build errors are held.
-3. Finish the edits and call `resume_hmr({})`. If updates arrived, the page reloads
-   once to load the latest files. Intermediate versions are not replayed.
+   counter stay usable while incoming hot updates and build errors are held.
+3. Finish the edits and call `resume_hmr({})`. Buffered updates are applied
+   together through normal HMR, preserving the counter state.
 
-Resuming with changes resets client state. With no pending changes, resuming does
-not reload. Pause is scoped to the current document, does not cancel updates
-already in progress, and does not prevent navigation or application requests.
+Pause is scoped to the current document. Other tabs and server compilation
+continue normally. It does not prevent navigation or application requests.
+Normal HMR limitations still apply: restarting the server or changing an
+unsupported Fast Refresh boundary can require a full reload.
 If the final files are still broken, resuming shows their errors normally.
 
 The tools use the [WebMCP imperative API](https://developer.chrome.com/docs/ai/webmcp/imperative-api),

@@ -28,7 +28,12 @@ let serverSessionId: number | null = null
 
 export function connectHMR(options: { path: string; assetPrefix: string }) {
   let timer: ReturnType<typeof setTimeout>
-  void dispatcher.registerHmrTools()
+  if (process.env.TURBOPACK) {
+    void dispatcher.registerHmrTools(
+      () =>
+        !module.hot || ['idle', 'abort', 'fail'].includes(module.hot.status())
+    )
+  }
 
   function init() {
     if (source) source.close()
@@ -46,32 +51,37 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
         return
       }
 
-      const message: HmrMessageSentToBrowser = JSON.parse(event.data)
+      const parsedMessage: HmrMessageSentToBrowser = JSON.parse(event.data)
 
-      if (dispatcher.shouldDeferHmrMessage(message)) return
+      dispatcher.dispatchHmrMessage(
+        parsedMessage,
+        (message: HmrMessageSentToBrowser) => {
+          if (
+            message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED
+          ) {
+            if (
+              serverSessionId !== null &&
+              serverSessionId !== message.data.sessionId
+            ) {
+              // Either the server's session id has changed and it's a new server, or
+              // it's been too long since we disconnected and we should reload the page.
+              // There could be 1) unhandled server errors and/or 2) stale content.
+              // Perform a hard reload of the page.
+              if (dispatcher.shouldDeferHmrReload()) return
+              window.location.reload()
 
-      if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
-        if (
-          serverSessionId !== null &&
-          serverSessionId !== message.data.sessionId
-        ) {
-          // Either the server's session id has changed and it's a new server, or
-          // it's been too long since we disconnected and we should reload the page.
-          // There could be 1) unhandled server errors and/or 2) stale content.
-          // Perform a hard reload of the page.
-          if (dispatcher.shouldDeferHmrReload()) return
-          window.location.reload()
+              reloading = true
+              return
+            }
 
-          reloading = true
-          return
+            serverSessionId = message.data.sessionId
+          }
+
+          for (const messageCallback of messageCallbacks) {
+            messageCallback(message)
+          }
         }
-
-        serverSessionId = message.data.sessionId
-      }
-
-      for (const messageCallback of messageCallbacks) {
-        messageCallback(message)
-      }
+      )
     }
 
     function handleDisconnect() {
