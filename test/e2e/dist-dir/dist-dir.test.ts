@@ -1,12 +1,13 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { BUILD_ID_FILE, BUILD_MANIFEST } from 'next/constants'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('distDir', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should render the page', async () => {
     const html = await next.render('/')
@@ -27,13 +28,14 @@ describe('distDir', () => {
 })
 
 if (isNextStart) {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('distDir config validation', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should throw error with invalid distDir', async () => {
       const origConfig = await next.readFile('next.config.js')

@@ -15,12 +15,14 @@ const reactDependencies = {
   'react-dom': '19.3.0-canary-fef12a01-20260413',
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('CLI Usage', () => {
   const { next, isNextStart } = nextTestSetup({
     files: join(__dirname, 'basic'),
     skipStart: true,
     dependencies: reactDependencies,
-    skipDeployment: true,
   })
 
   /**
@@ -1221,14 +1223,15 @@ Next.js Config:
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('CLI Usage: duplicate sass dependencies', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: join(__dirname, 'duplicate-sass'),
     skipStart: true,
     dependencies: reactDependencies,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   // The original integration test relied on pre-existing fake `sass` and
   // `node-sass` modules in `duplicate-sass/node_modules/`. In e2e mode the

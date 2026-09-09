@@ -1,18 +1,14 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // import.meta.glob is a Turbopack-only feature; skip under webpack
-const testFn =
-  process.env.IS_WEBPACK_TEST || process.env.NEXT_RSPACK
-    ? describe.skip
-    : describe
-
-testFn('import-meta-glob', () => {
-  const { next, skipped } = nextTestSetup({
+// TODO(deploy-test-completion): No deploy-specific incompatibility is
+// documented.
+// @force-gate !deploy
+// @force-gate turbopack
+describe('import-meta-glob', () => {
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should resolve lazy glob modules', async () => {
     const $ = await next.render$('/')
