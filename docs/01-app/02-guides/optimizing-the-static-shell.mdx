@@ -322,7 +322,52 @@ Keep the breakpoint logic in `SettingsShell`, then let the sidebar slot supply e
 
 Use the [Navigation Inspector](/docs/app/guides/instant-navigation#visualize-loading-states-with-the-nextjs-devtools) to pause the route before request-time content resolves. Inspect both a direct visit and a client navigation because the direct visit renders from the root while the client navigation reuses shared layouts. Check that the settings frame, heading, cached plan descriptions, and focused skeletons appear in the expected layout on desktop and mobile.
 
-The completed route should have the same settings data, redirects, error states, and interactions as the original route. For automated regression coverage of initial loads and client navigations, follow [Prevent regressions with end-to-end tests](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
+Keep important shell content as regression coverage with [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests). Test initial loads and client navigations separately because they render different parts of the route tree:
+
+```ts filename="e2e/settings-navigation.test.ts" highlight={12-18,25-32}
+import { expect, test, type Page } from '@playwright/test'
+import { instant } from '@next/playwright'
+
+async function expectSettingsShell(page: Page) {
+  await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+  await expect(page.getByTestId('plan-options')).toBeVisible()
+  await expect(page.getByTestId('team-settings-form')).toHaveCount(0)
+}
+
+test('serves the settings shell on an initial load', async ({
+  page,
+  baseURL,
+}) => {
+  await instant(
+    page,
+    async () => {
+      await page.goto('/acme/settings')
+      await expectSettingsShell(page)
+    },
+    { baseURL }
+  )
+
+  await expect(page.getByTestId('team-settings-form')).toBeVisible()
+})
+
+test('prefetches the settings shell for a client navigation', async ({
+  page,
+}) => {
+  await page.goto('/acme')
+
+  await instant(page, async () => {
+    await page.getByRole('link', { name: 'Settings' }).click()
+    await page.waitForURL((url) => url.pathname === '/acme/settings')
+    await expectSettingsShell(page)
+  })
+
+  await expect(page.getByTestId('team-settings-form')).toBeVisible()
+})
+```
+
+Inside each callback, the settings heading and cached plan options must be visible while the request-time form remains paused. The final assertion confirms that the form renders after the pause is released. Use stable selectors from your application for the shell and deferred regions.
+
+The completed route should have the same settings data, redirects, error states, and interactions as the original route.
 
 ## Next steps
 
