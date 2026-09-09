@@ -1497,6 +1497,9 @@ export interface ExperimentalConfig {
    */
   mcpServer?: boolean
 
+  /** Report runtime errors and their catching boundary over the development HMR socket. */
+  exposeRuntimeErrorsToHMR?: boolean
+
   /**
    * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
    * build`. Failing to acquire the lock causes the process to exit with an
@@ -2373,6 +2376,7 @@ export const defaultConfig = Object.freeze({
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
+    exposeRuntimeErrorsToHMR: false,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
     turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
