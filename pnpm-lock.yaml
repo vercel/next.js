@@ -601,9 +601,6 @@ importers:
       tree-kill:
         specifier: 1.2.2
         version: 1.2.2
-      tsec:
-        specifier: 0.2.1
-        version: 0.2.1(@bazel/bazelisk@1.19.0)(typescript@6.0.2)
       tsx:
         specifier: 4.19.2
         version: 4.19.2
@@ -1956,7 +1953,7 @@ importers:
     devDependencies:
       '@napi-rs/cli':
         specifier: 3.7.2
-        version: 3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
+        version: 3.7.2(@emnapi/runtime@1.11.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
@@ -2921,10 +2918,6 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
-
-  '@bazel/bazelisk@1.19.0':
-    resolution: {integrity: sha512-8PyRGRj/CN286IFHVILgYZ2lQ/JvgQ25ZEgoUAkpSnGmbPdQnKyHtTGEG+Sf0AISFqP5+PPzN162DcizZ/bR9w==}
-    hasBin: true
 
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
@@ -17839,13 +17832,6 @@ packages:
     resolution: {integrity: sha512-NoZ4roiN7LnbKn9QqE1amc9DJfzvZXxF4xDavcOWt1BPkdx+m+0gJuPM+S0vCe7zTJMYUP0R8pO2XMr+Y8oLIg==}
     engines: {node: '>=6'}
 
-  tsec@0.2.1:
-    resolution: {integrity: sha512-RP9vhbRbRI9VH4CfOlQvo5W9HdfiPKq0gdiUOWI5oKmLaZKNFN8CsPwBfT5ySmhnKNwmmAS/BtY3WoTfABwwig==}
-    hasBin: true
-    peerDependencies:
-      '@bazel/bazelisk': '>=1.7.5'
-      typescript: '>=3.9.2'
-
   tslib@1.11.1:
     resolution: {integrity: sha512-aZW88SY8kQbU7gpV19lN24LtXh/yD4ZZg6qieAJDDg+YBsJcSmLGK9QpnUjAKVG/xefmvJGd1WUmfpT/g6AJGA==}
 
@@ -20061,8 +20047,6 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.18
 
-  '@bazel/bazelisk@1.19.0': {}
-
   '@bcoe/v8-coverage@0.2.3': {}
 
   '@braintree/sanitize-url@6.0.4': {}
@@ -21874,7 +21858,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@napi-rs/cli@3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
+  '@napi-rs/cli@3.7.2(@emnapi/runtime@1.11.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
       '@napi-rs/cross-toolchain': 1.0.3
@@ -21889,7 +21873,7 @@ snapshots:
       semver: 7.8.5
       typanion: 3.14.0
     optionalDependencies:
-      '@emnapi/runtime': 1.9.2
+      '@emnapi/runtime': 1.11.2
     transitivePeerDependencies:
       - '@napi-rs/cross-toolchain-arm64-target-aarch64'
       - '@napi-rs/cross-toolchain-arm64-target-armv7'
@@ -37716,13 +37700,6 @@ snapshots:
       json5: 2.2.3
       minimist: 1.2.8
       strip-bom: 3.0.0
-
-  tsec@0.2.1(@bazel/bazelisk@1.19.0)(typescript@6.0.2):
-    dependencies:
-      '@bazel/bazelisk': 1.19.0
-      glob: 7.1.7
-      minimatch: 3.1.2
-      typescript: 6.0.2
 
   tslib@1.11.1: {}
 
