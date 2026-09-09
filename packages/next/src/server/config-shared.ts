@@ -487,6 +487,21 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
+   * Additional filesystem roots that symlinked dependencies may resolve into.
+   * Relative paths are resolved from the current working directory.
+   *
+   * Root names must contain 1-40 ASCII characters, must not be `.` or `..`,
+   * control characters, or Windows-reserved characters, must not end in a
+   * space or period, and must not be Windows device names. Names must also be
+   * unique under ASCII case-insensitive comparison. Invalid roots produce a
+   * warning and are ignored.
+   */
+  turbopackAdditionalRoots?: Record<
+    string,
+    { path: string; ignoreIfMissing?: boolean }
+  >
+
+  /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string

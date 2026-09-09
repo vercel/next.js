@@ -87,7 +87,6 @@ import {
 } from '../../../shared/lib/turbopack/utils'
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
-import { normalizePath } from '../../../lib/normalize-path'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
@@ -940,10 +939,6 @@ async function startWatcher(
             opts.fsChecker.rewrites.beforeFiles.length > 0 ||
             opts.fsChecker.rewrites.fallback.length > 0
 
-          const rootPath =
-            opts.nextConfig.turbopack?.root ||
-            opts.nextConfig.outputFileTracingRoot ||
-            opts.dir
           await hotReloader.turbopackProject.update({
             defineEnv: createDefineEnv({
               isTurbopack: true,
@@ -959,8 +954,6 @@ async function startWatcher(
               projectPath: opts.dir,
               rewrites: opts.fsChecker.rewrites,
             }),
-            rootPath,
-            projectPath: normalizePath(path.relative(rootPath, dir)),
           })
         } else {
           let tsconfigResult:

@@ -19,6 +19,17 @@ Next.js' production server is also traced for its needed files and output at `.n
 
 To leverage the `.nft.json` files emitted to the `.next` output directory, you can read the list of files in each trace that are relative to the `.nft.json` file and then copy them to your deployment location.
 
+### Turbopack NFT extensions
+
+Turbopack `.nft.json` files include `fileHashes` and `symlinks` extensions:
+
+- `fileHashes` is a parallel array with the same length and ordering as `files`. For example, `fileHashes[0]` is the hash for `files[0]`. A consumer can use the hash as a content identifier for caching or deduplicating traced assets.
+- `symlinks` maps indexes in the sibling `files` array to their immediate targets. When `symlinks` is present, files without a corresponding entry can be assumed to be normal files or directories.
+
+Traces that use [`experimental.turbopackAdditionalRoots`](/docs/app/api-reference/config/next-config-js/turbopack#additional-roots-experimental) also include the `additionalRoots` extension:
+
+- `additionalRoots` is an ordered list of named source roots. Each root has its own `files`, `fileHashes`, and `symlinks` lists. It contains an `absolutePath` representing the source location on the build machine. `additionalRoots` names match those provided in `next.config.js` and are guaranteed to be valid directory names on most operating systems and filesystems.
+
 ## Automatically Copying Traced Files
 
 Next.js can automatically create a `standalone` folder that copies only the necessary files for a production deployment including select files in `node_modules`.
@@ -32,6 +43,8 @@ module.exports = {
 ```
 
 This will create a folder at `.next/standalone` which can then be deployed on its own without installing `node_modules`.
+
+On Windows, creating directory symlinks [can require elevated privileges or Developer Mode](https://blogs.windows.com/windowsdeveloper/2016/12/02/symlinks-windows-10/). If standalone generation must fall back to a junction point, Windows stores an absolute target and that particular output is not relocatable.
 
 Additionally, a minimal `server.js` file is also output which can be used instead of `next start`. This minimal server does not copy the `public` or `.next/static` folders by default as these should ideally be handled by a CDN instead, although these folders can be copied to the `standalone/public` and `standalone/.next/static` folders manually, after which `server.js` file will serve these automatically.
 

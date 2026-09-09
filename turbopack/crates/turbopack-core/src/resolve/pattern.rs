@@ -1860,9 +1860,14 @@ pub async fn read_matches(
                                             FileSystemEntryType::Directory
                                         )
                                     {
-                                        results.push((
+                                        nested.push((
                                             pos,
-                                            PatternMatch::Directory(prefix.clone().into(), fs_path),
+                                            read_matches(
+                                                target.file_system_path().clone(),
+                                                prefix.clone().into(),
+                                                true,
+                                                pattern,
+                                            ),
                                         ));
                                     }
                                 }
