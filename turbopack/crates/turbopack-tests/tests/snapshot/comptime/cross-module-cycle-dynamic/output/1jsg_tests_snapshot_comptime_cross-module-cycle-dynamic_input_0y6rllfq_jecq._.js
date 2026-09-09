@@ -51,8 +51,7 @@ function foo1(left, right) {
 }
 ;
 }),
-]})(),[
-]
+]})(),
 ]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_comptime_cross-module-cycle-dynamic_input_0y6rllfq_jecq._.js.map

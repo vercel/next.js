@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="3310470b-deb6-d7ed-48d2-bcba79791b50")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="98a94e3a-682f-20de-6a6c-6068760eb0b7")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -439,41 +439,36 @@ contextPrototype.f = moduleContext;
 }
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
 // Factories are usually stored in one flat array. Chunks with enough strict
-// factories instead contain separate strict and non-strict flat arrays.
+// factories append those as a nested array after the flat non-strict factories.
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
-    const strictFactories = chunkModules[offset];
+    const strictFactories = chunkModules[chunkModules.length - 1];
+    const flatFactoriesEnd = Array.isArray(strictFactories) ? chunkModules.length - 1 : chunkModules.length;
+    installFlatModuleFactories(chunkModules, offset, flatFactoriesEnd, moduleFactories, newModuleId);
     if (Array.isArray(strictFactories)) {
-        const nonStrictFactories = chunkModules[offset + 1];
-        if (!Array.isArray(nonStrictFactories) || offset + 2 !== chunkModules.length) {
-            throw new Error('malformed chunk format, expected two factory arrays');
-        }
-        installFlatModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
-        installFlatModuleFactories(nonStrictFactories, 0, moduleFactories, newModuleId);
-    } else {
-        installFlatModuleFactories(chunkModules, offset, moduleFactories, newModuleId);
+        installFlatModuleFactories(strictFactories, 0, strictFactories.length, moduleFactories, newModuleId);
     }
 }
 // The flat format alternates one or more module IDs with their factory function.
 // Walking this is a little complex, but the structure is fast to traverse and
 // `typeof` distinguishes module IDs from factories.
-function installFlatModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+function installFlatModuleFactories(chunkModules, offset, end, moduleFactories, newModuleId) {
     let i = offset;
-    while(i < chunkModules.length){
-        let end = i + 1;
+    while(i < end){
+        let factoryIndex = i + 1;
         // Find our factory function
-        while(end < chunkModules.length && typeof chunkModules[end] !== 'function'){
-            end++;
+        while(factoryIndex < end && typeof chunkModules[factoryIndex] !== 'function'){
+            factoryIndex++;
         }
-        if (end === chunkModules.length) {
+        if (factoryIndex === end) {
             throw new Error('malformed chunk format, expected a factory function');
         }
         // Install the factory for each module ID that doesn't already have one.
         // When some IDs in this group already have a factory, reuse that existing
         // group factory for the missing IDs to keep all IDs in the group consistent.
         // Otherwise, install the factory from this chunk.
-        const moduleFactoryFn = chunkModules[end];
+        const moduleFactoryFn = chunkModules[factoryIndex];
         let existingGroupFactory = undefined;
-        for(let j = i; j < end; j++){
+        for(let j = i; j < factoryIndex; j++){
             const id = chunkModules[j];
             const existingFactory = moduleFactories.get(id);
             if (existingFactory) {
@@ -483,7 +478,7 @@ function installFlatModuleFactories(chunkModules, offset, moduleFactories, newMo
         }
         const factoryToInstall = existingGroupFactory ?? moduleFactoryFn;
         let didInstallFactory = false;
-        for(let j = i; j < end; j++){
+        for(let j = i; j < factoryIndex; j++){
             const id = chunkModules[j];
             if (!moduleFactories.has(id)) {
                 if (!didInstallFactory) {
@@ -496,7 +491,7 @@ function installFlatModuleFactories(chunkModules, offset, moduleFactories, newMo
                 newModuleId?.(id);
             }
         }
-        i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
+        i = factoryIndex + 1;
     }
 }
 /**
@@ -2128,8 +2123,9 @@ function registerChunk(registration) {
         markChunkComponentsAvailable(chunk);
     }
     let runtimeParams;
-    // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
-    if (registration.length === 2) {
+    // When bootstrapping we are passed a single RuntimeParams object. An all-strict
+    // module chunk also has length 2, but its second item is the strict factory array.
+    if (registration.length === 2 && !Array.isArray(registration[1])) {
         runtimeParams = registration[1];
     } else {
         let chunkPath = getPathFromScript(chunk);
@@ -2507,5 +2503,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=3310470b-deb6-d7ed-48d2-bcba79791b50
+//# debugId=98a94e3a-682f-20de-6a6c-6068760eb0b7
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

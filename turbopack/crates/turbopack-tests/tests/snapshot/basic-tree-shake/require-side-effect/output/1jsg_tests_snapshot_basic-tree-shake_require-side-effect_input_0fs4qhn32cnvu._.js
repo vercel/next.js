@@ -1,4 +1,8 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_basic-tree-shake_require-side-effect_input_0fs4qhn32cnvu._.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+
+const { cat } = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/lib.js [test] (ecmascript)");
+}),
 (function(){"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/lib.js [test] (ecmascript)", ((__turbopack_context__) => {
 
@@ -170,12 +174,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 }),
-]})(),[
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
-
-const { cat } = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/lib.js [test] (ecmascript)");
-}),
-]
+]})(),
 ]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_basic-tree-shake_require-side-effect_input_0fs4qhn32cnvu._.js.map

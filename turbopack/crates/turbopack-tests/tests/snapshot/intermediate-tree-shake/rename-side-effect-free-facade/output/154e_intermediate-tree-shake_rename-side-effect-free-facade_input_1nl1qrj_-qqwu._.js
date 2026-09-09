@@ -25,8 +25,7 @@ __turbopack_context__.s([
     ()=>__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$intermediate$2d$tree$2d$shake$2f$rename$2d$side$2d$effect$2d$free$2d$facade$2f$input$2f$node_modules$2f$lib$2f$a$2e$js__$5b$test$5d$__$28$ecmascript$29$__["a"]
 ]);
 }),
-]})(),[
-]
+]})(),
 ]);
 
 //# sourceMappingURL=154e_intermediate-tree-shake_rename-side-effect-free-facade_input_1nl1qrj_-qqwu._.js.map

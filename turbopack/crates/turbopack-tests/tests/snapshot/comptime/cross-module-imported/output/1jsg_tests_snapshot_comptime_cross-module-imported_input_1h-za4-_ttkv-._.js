@@ -43,8 +43,7 @@ __turbopack_context__.s([
 const REEXPORTED = 'reexported';
 const IMPORTED_EXPORTED = 'imported exported';
 }),
-]})(),[
-]
+]})(),
 ]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_comptime_cross-module-imported_input_1h-za4-_ttkv-._.js.map

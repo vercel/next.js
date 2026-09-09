@@ -87,12 +87,13 @@ type ModuleFactories = Map<ModuleId, Function>
  */
 type FlatCompressedModuleFactories = Array<ModuleId | Function>
 /**
- * Strict and non-strict factories can be supplied as separate arrays. Factories
- * in the first array are created by a strict-mode IIFE in the emitted chunk.
+ * Strict factories can be appended as a nested array after the flat non-strict
+ * factory sequence. The nested factories are created by a strict-mode IIFE in
+ * the emitted chunk.
  */
 type CompressedModuleFactories =
   | FlatCompressedModuleFactories
-  | [FlatCompressedModuleFactories, FlatCompressedModuleFactories]
+  | Array<ModuleId | Function | FlatCompressedModuleFactories>
 
 type RelativeURL = (inputUrl: string) => void
 type ResolvePathFromModule = (moduleId: string) => string
