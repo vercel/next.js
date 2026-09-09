@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 describe('app dir - css - experimental inline css', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
 
@@ -51,6 +51,64 @@ describe('app dir - css - experimental inline css', () => {
 
       expect(styleTags).toHaveLength(1)
       expect(linkTags).toHaveLength(0)
+    })
+
+    it('should put the stylesheet in the document once and not in the RSC payload', async () => {
+      const html = await next.render('/')
+
+      // The <style> tag holds it; the inline flight data must not repeat it.
+      expect(html.match(/\.inline-css-marker/g)).toHaveLength(1)
+
+      // The served prefetch payload, which deployed runs can check as well.
+      const prefetch = await next.fetch('/', {
+        headers: { RSC: '1', 'Next-Router-Prefetch': '1' },
+      })
+      expect(prefetch.status).toBe(200)
+      const prefetchPayload = await prefetch.text()
+      expect(prefetchPayload).toContain('__PAGE__') // sanity check
+      expect(prefetchPayload).not.toContain('.inline-css-marker')
+
+      if (!isNextDeploy) {
+        const rscPayload = await next.readFile('.next/server/app/index.rsc')
+        expect(rscPayload).toContain('__PAGE__') // sanity check
+        expect(rscPayload).not.toContain('.inline-css-marker')
+      }
+    })
+
+    it('should inline the stylesheet once on the edge runtime', async () => {
+      const html = await next.render('/edge')
+
+      expect(html).toContain('id="page-edge"')
+      expect(html.match(/\.inline-css-marker/g)).toHaveLength(1)
+    })
+
+    it('should hydrate without adding a stylesheet link', async () => {
+      const browser = await next.browser('/')
+      await browser.waitForIdleNetwork()
+
+      const p = await browser.elementByCss('p')
+      expect(await p.getComputedCss('color')).toBe('rgb(255, 255, 0)') // yellow
+
+      expect(await browser.elementsByCss('style[data-href]')).toHaveLength(1)
+      expect(
+        await browser.elementsByCss('link[rel="stylesheet"]')
+      ).toHaveLength(0)
+    })
+
+    it('should style the not-found page', async () => {
+      const browser = await next.browser('/does-not-exist')
+
+      const p = await browser.elementByCss('#not-found')
+      expect(await p.getComputedCss('color')).toBe('rgb(255, 255, 0)') // yellow
+    })
+
+    it('should apply a route stylesheet on client navigation', async () => {
+      const browser = await next.browser('/')
+
+      await browser.waitForElementByCss('#link-a').click()
+      const page = await browser.waitForElementByCss('#page-a')
+
+      expect(await page.getComputedCss('font-size')).toBe('100px')
     })
 
     it('should apply font styles correctly via className', async () => {
