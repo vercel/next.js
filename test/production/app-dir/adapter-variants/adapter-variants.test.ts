@@ -144,6 +144,112 @@ describe('adapter-variants', () => {
       `)
   })
 
+  it('should reject a client naming the combination before any file or rewrite', () => {
+    const { beforeFiles } = fourCombinations.routing
+    const rejections = beforeFiles.filter(
+      (route) => route.destination === '/__variants/not-routed'
+    )
+
+    // One rule for the artifact prefix and one for each spelling of the query
+    // parameter, and every one of them admits only a request the proxy marked.
+    expect(rejections).toHaveLength(4)
+    expect(beforeFiles.slice(0, rejections.length)).toEqual(rejections)
+    for (const route of rejections) {
+      expect(route.missing).toEqual([
+        { type: 'header', key: 'x-next-internal-variants-prefix' },
+      ])
+    }
+
+    const [prefixRule, ...queryRules] = rejections
+    const prefixRegex = new RegExp(prefixRule.sourceRegex)
+
+    // The rule matches every spelling of the prefix that decodes to the same
+    // pathname, and nothing else.
+    for (const pathname of [
+      '/__variants/1eggkwr/concrete',
+      '/%5F%5Fvariants/1eggkwr/concrete',
+      '/__%76ariants/1eggkwr/concrete',
+      '//__variants/1eggkwr/concrete',
+      '/%2F__variants/1eggkwr/concrete',
+    ]) {
+      expect(pathname).toMatch(prefixRegex)
+    }
+    for (const pathname of ['/__variants-extra/x', '/plain/__variants/x']) {
+      expect(pathname).not.toMatch(prefixRegex)
+    }
+
+    expect(queryRules.map((route) => route.has)).toEqual([
+      [{ type: 'query', key: 'nxtV' }],
+      [{ type: 'query', key: 'nxtPnxtV' }],
+      [{ type: 'query', key: 'nxtInxtV' }],
+    ])
+  })
+
+  it('should exclude the rejection pathname from every matcher and rewrite', async () => {
+    const { routing } = fourCombinations
+    const matchers = [
+      ...routing.beforeFiles.filter(
+        (route) => route.destination !== '/__variants/not-routed'
+      ),
+      ...routing.afterFiles,
+      ...routing.fallback,
+      ...routing.dynamicRoutes,
+    ]
+
+    // The fixture has a rewrite in each phase and a catch-all fallback rewrite,
+    // so this covers a rewrite that would otherwise match the pathname.
+    expect(matchers.length).toBeGreaterThanOrEqual(3)
+
+    // The prefixed matchers capture a hash after the namespace, so the pathname
+    // is also checked with a page path behind it.
+    const pathnames = [
+      '/__variants/not-routed',
+      '/__variants/not-routed/',
+      '/__variants/not-routed.rsc',
+      '/__variants/not-routed.segments/_tree.segment.rsc',
+      '/__variants/not-routed/concrete',
+      '/__variants/not-routed/dynamic/x',
+    ]
+    const matching = matchers.flatMap((route) =>
+      pathnames
+        .filter((pathname) => new RegExp(route.sourceRegex).test(pathname))
+        .map((pathname) => `${route.source} matches ${pathname}`)
+    )
+
+    expect(matching).toEqual([])
+
+    // The catch-all rewrite still matches an ordinary pathname, so the
+    // exclusion is what stops it above.
+    const fallback = routing.fallback[0]
+    expect(new RegExp(fallback.sourceRegex).test('/anything/else')).toBe(true)
+
+    // The deployment function resolves an artifact pathname to its page through
+    // the aliases in the routes manifest. Those capture a hash too, and the
+    // rejection pathname must not pass for one there either.
+    const manifest: {
+      dynamicRoutes: Array<{
+        page: string
+        regex: string
+        variantsPrefixed?: boolean
+      }>
+    } = await next.readJSON('.next/routes-manifest.json')
+    const aliases = manifest.dynamicRoutes.filter(
+      (route) => route.variantsPrefixed
+    )
+
+    expect(aliases.map((alias) => alias.page).sort()).toEqual([
+      '/concrete',
+      '/dynamic/[slug]',
+    ])
+    for (const alias of aliases) {
+      const regex = new RegExp(alias.regex)
+      const pagePath = alias.page.replace('[slug]', 'x')
+
+      expect(regex.test(`/__variants/1eggkwr${pagePath}`)).toBe(true)
+      expect(regex.test(`/__variants/not-routed${pagePath}`)).toBe(false)
+    }
+  })
+
   it('should leave prerenders unchanged by the collapse', () => {
     // This option changes routing only. It must not merge or remove the
     // per-combination prerender outputs themselves.

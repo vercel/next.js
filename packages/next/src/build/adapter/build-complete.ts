@@ -53,6 +53,7 @@ import {
   VARIANTS_PATH_PREFIX,
 } from '../../lib/constants'
 import { splitVariantsPrefix } from '../../server/variants/prefix'
+import { buildVariantsRejectionRoutes } from '../variants/rejection-routes'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
 import { getStaticMetadataPrerenderPathname } from '../../lib/metadata/get-metadata-route'
@@ -2145,6 +2146,12 @@ export async function handleBuildComplete({
     const dynamicRoutes: DynamicRouteItem[] = []
     const dynamicDataRoutes: DynamicRouteItem[] = []
     const dynamicSegmentRoutes: DynamicRouteItem[] = []
+    // Ordinary matchers exclude the artifact namespace, so a broad dynamic
+    // route cannot consume a variants prefix instead of capturing its hash. The
+    // pathname that a rejected request is rewritten to lies in the namespace as
+    // well, so no route serves such a request either. The lookahead sits before
+    // the optional slash of a matcher, so that backtracking over that slash
+    // cannot bypass it.
     const variantsPathExclusion = config.experimental.variants
       ? `(?![/]?/${VARIANTS_PATH_PREFIX}/)`
       : ''
@@ -2486,7 +2493,7 @@ export async function handleBuildComplete({
                     config.basePath,
                     `_next/data`,
                     escapeStringRegexp(buildId)
-                  )}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
+                  )}${variantsPathExclusion}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
                 ),
           destination,
           has: isFallbackFalse ? fallbackFalseHasCondition : undefined,
@@ -2495,13 +2502,26 @@ export async function handleBuildComplete({
       }
     }
 
+    // A user rewrite never matches a pathname in the artifact namespace. That
+    // leaves a prefixed request to the prefixed matchers below, and it leaves a
+    // rejected request to no route at all.
+    const rewriteRestrictedPaths = config.experimental.variants
+      ? [
+          `${escapeStringRegexp(
+            path.posix.join('/', config.basePath, VARIANTS_PATH_PREFIX)
+          )}/`,
+        ]
+      : undefined
+
     const buildRewriteItem = (route: ManifestRewriteRoute): RewriteItem => {
       const converted = convertRewrites([route], ['nextInternalLocale'])[0]
       const regex = converted.src || route.regex
 
       return {
         source: route.source,
-        sourceRegex: route.internal ? regex : modifyRouteRegex(regex),
+        sourceRegex: route.internal
+          ? regex
+          : modifyRouteRegex(regex, rewriteRestrictedPaths),
         destination: converted.dest || route.destination,
         has: route.has,
         missing: route.missing,
@@ -2531,7 +2551,15 @@ export async function handleBuildComplete({
       ] satisfies Route[]
 
       const rewrites = {
-        beforeFiles: routesManifest.rewrites.beforeFiles.map(buildRewriteItem),
+        beforeFiles: [
+          // The variants rejection rules come before every user rewrite, so a
+          // rewrite cannot admit a request that names a static variant
+          // combination itself.
+          ...(config.experimental.variants
+            ? buildVariantsRejectionRoutes(config.basePath)
+            : []),
+          ...routesManifest.rewrites.beforeFiles.map(buildRewriteItem),
+        ],
         afterFiles: routesManifest.rewrites.afterFiles.map(buildRewriteItem),
         fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
       }

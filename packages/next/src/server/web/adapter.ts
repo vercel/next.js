@@ -28,14 +28,22 @@ import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.exte
 import { createWorkStore } from '../async-storage/work-store'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { NEXT_VARIANTS_HEADER } from '../../lib/constants'
+import {
+  NEXT_VARIANTS_HEADER,
+  NEXT_VARIANTS_PREFIX_HEADER,
+} from '../../lib/constants'
 import type { VariantsManifest } from '../variants/manifest'
 
 import { getProxyTarget, getTargetRoutePathname } from '../variants/target'
 import { findVariantGroupsForPathname } from '../variants/manifest'
 import { findMatchingVariantCombination } from '../variants/combinations'
 import { decodeVariants, encodeVariants } from '../variants/encoding'
-import { insertVariantsPrefix } from '../variants/prefix'
+import {
+  getVariantsNotRoutedPathname,
+  hasVariantsPathPrefix,
+  hasVariantsSelector,
+  insertVariantsPrefix,
+} from '../variants/prefix'
 import type { ResolvedCacheLifeProfiles } from '../config-shared'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
@@ -185,6 +193,38 @@ function encodeUndeclaredVariants(
   return Object.keys(undeclared).length > 0 ? encodeVariants(undeclared) : null
 }
 
+/**
+ * Returns the URL to rewrite a request to when the request names a static
+ * variant combination itself, and null when it does not.
+ *
+ * Only the proxy writes the artifact prefix, and only routing writes the query
+ * parameter it becomes, so either one on an incoming request came from the
+ * client. The check reads the URL as it arrived, because the proxy's rewrite
+ * target can drop or normalize the client's query, and a deployment merges the
+ * incoming query back into the destination.
+ *
+ * The rejected request is rewritten rather than answered, because a rewrite is
+ * the one effect of a proxy response that a deployment's routing rules act on.
+ * Every route matcher and rewrite excludes the destination, so the deployment
+ * answers 404. A self-hosted server rejects such a request before the proxy
+ * runs, so it never reaches this code.
+ */
+function getRejectedVariantsTarget(
+  requestUrl: string,
+  basePath: string | undefined
+): URL | null {
+  const incoming = new URL(requestUrl)
+
+  if (
+    !hasVariantsPathPrefix(incoming.pathname, basePath) &&
+    !hasVariantsSelector(incoming.searchParams.keys())
+  ) {
+    return null
+  }
+
+  return new URL(getVariantsNotRoutedPathname(basePath), incoming.origin)
+}
+
 let testApisIntercepted = false
 
 function ensureTestApisIntercepted() {
@@ -209,6 +249,22 @@ export async function adapter(
   // TODO-APP: use explicit marker for this
   const isEdgeRendering =
     typeof (globalThis as any).__BUILD_MANIFEST !== 'undefined'
+
+  const isMiddleware =
+    params.page === '/middleware' ||
+    params.page === '/src/middleware' ||
+    params.page === '/proxy' ||
+    params.page === '/src/proxy'
+
+  // Read before the URL below is normalized, so that the check sees the request
+  // as the client sent it.
+  const rejectedVariantsTarget =
+    process.env.__NEXT_VARIANTS && isMiddleware && !isEdgeRendering
+      ? getRejectedVariantsTarget(
+          params.request.url,
+          params.request.nextConfig?.basePath
+        )
+      : null
 
   params.request.url = normalizeRscURL(params.request.url)
 
@@ -345,18 +401,14 @@ export async function adapter(
   let cookiesFromResponse
 
   response = await propagator(request, () => {
+    // The proxy does not run for a request that names a static variant
+    // combination itself. The rewrite below rejects it.
+    if (rejectedVariantsTarget) {
+      return NextResponse.rewrite(rejectedVariantsTarget)
+    }
+
     // we only care to make async storage available for middleware
-    const isMiddleware =
-      params.page === '/middleware' ||
-      params.page === '/src/middleware' ||
-      params.page === '/proxy' ||
-      params.page === '/src/proxy'
-
     if (isMiddleware) {
-      // if we're in an edge function, we only get a subset of `nextConfig` (no `experimental`),
-      // so we have to inject it via DefinePlugin.
-      // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
-
       const waitUntil = event.waitUntil.bind(event)
       const closeController = new CloseController()
 
@@ -556,11 +608,6 @@ export async function adapter(
       if (target && resolvedVariants) {
         const basePath = params.request.nextConfig?.basePath
 
-        // TODO(variants): reject a request whose target already carries
-        // `NEXT_VARIANTS_QUERY_PARAM`. Only this code writes that parameter, so
-        // one already present came from the client. A deployment has to reject
-        // rather than remove it, because a rewrite merges the incoming query
-        // into the destination.
         const groups = params.variantsManifest
           ? findVariantGroupsForPathname(
               params.variantsManifest,
@@ -586,9 +633,18 @@ export async function adapter(
 
           response.headers.set('x-middleware-rewrite', target.toString())
 
-          // TODO(variants): set a marker header saying this application's own
-          // proxy wrote the prefix. A deployment needs one, because its routing
-          // rules read it to tell a prefix of ours from one a client invented.
+          // The marker says that this proxy wrote the prefix. A deployment's
+          // routing rules admit a prefixed path that carries it, and reject one
+          // that does not, because a client can request an artifact path
+          // directly. A client cannot supply the marker: a deployment removes
+          // every `x-next-internal-` header from an incoming request before the
+          // proxy runs.
+          setRequestHeaderOverride(
+            response,
+            requestHeaders,
+            NEXT_VARIANTS_PREFIX_HEADER,
+            '1'
+          )
         }
 
         // The runtime tier is what travels on. The prefix carries the hash of

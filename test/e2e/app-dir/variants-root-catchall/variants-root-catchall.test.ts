@@ -2,6 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
+import { hashVariants } from 'next/dist/server/variants/encoding'
 import { basePath, url } from '../variants/base-path'
 
 // @force-gate turbopack && (!deploy || adapter)
@@ -27,6 +28,29 @@ describe('Variants on a root catch-all', () => {
     ]) {
       const $ = await next.render$(url(pathname))
       expect($('#plain').text()).toBe('plain route')
+    }
+  })
+
+  it('should reject a client naming the combination, without the catch-all serving the request', async () => {
+    // A catch-all matches any pathname, so it would render the pathname that a
+    // rejected request is rewritten to, and the client would receive a page for
+    // it. The rejection has to hold with such a route present.
+    const declared = hashVariants({ 'theme@variants.ts': 'light' })
+
+    for (const pathname of [
+      `/__variants/${declared}/built`,
+      `/__variants/${declared}/document`,
+      `/built?nxtV=${declared}`,
+      `/document?nxtV=${declared}`,
+    ]) {
+      const response = await next.fetch(url(pathname), {
+        headers: { cookie: 'theme=dark' },
+      })
+      const body = await response.text()
+
+      expect(response.status).toBe(404)
+      expect(body).not.toContain('id="slug"')
+      expect(body).not.toContain('id="theme"')
     }
   })
 

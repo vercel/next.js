@@ -67,6 +67,31 @@ export const NEXT_VARIANTS_QUERY_PARAM = 'nxtV'
  */
 export const NEXT_VARIANTS_HEADER = 'x-next-internal-variants'
 
+/**
+ * Marks a request whose variants prefix the application's own proxy wrote. A
+ * deployment's routing rules read it to admit such a prefix, and to reject a
+ * prefix or a `NEXT_VARIANTS_QUERY_PARAM` that a client supplied.
+ *
+ * The `x-next-internal-` prefix is what makes the marker trustworthy: a
+ * deployment removes such a header from an incoming client request before it
+ * runs the proxy, and `filterInternalHeaders` does the same when self-hosting.
+ */
+export const NEXT_VARIANTS_PREFIX_HEADER = 'x-next-internal-variants-prefix'
+
+/**
+ * The pathname that routing rewrites a rejected request to. A client can supply
+ * a variants prefix or a `NEXT_VARIANTS_QUERY_PARAM`, and a deployment's
+ * routing rules cannot answer such a request with a status directly. They send
+ * it here instead. Every route matcher and rewrite excludes the namespace under
+ * `VARIANTS_PATH_PREFIX`, so no output serves this pathname and the answer is a
+ * 404.
+ *
+ * The segment after the prefix contains a hyphen, which the hash alphabet
+ * `[0-9a-z]` does not. A matcher that captures a hash therefore cannot match
+ * this pathname either.
+ */
+export const VARIANTS_NOT_ROUTED_PATH = `${VARIANTS_PATH_PREFIX}/not-routed`
+
 // if these change make sure we update the related
 // documentation as well
 export const NEXT_CACHE_TAG_MAX_ITEMS = 128

@@ -2,6 +2,7 @@ import { isNextDeploy, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from '../../../lib/router-act'
 import { findPort, retry } from 'next-test-utils'
+import { hashVariants } from 'next/dist/server/variants/encoding'
 
 import { basePath, url } from './base-path'
 import { startExternalServer } from './external-server.mjs'
@@ -779,10 +780,94 @@ describe('variants', () => {
     expect(await browser.elementByCss('#slug').text()).toBe('undeclared')
   })
 
-  // TODO(variants): cover that a client cannot name the combination it is
-  // served, whether by supplying the prefix or the `nxtV` parameter. One change
-  // covers a self-hosted server and a deployment alike, so the guards and these
-  // tests belong together.
+  describe('a client naming the combination it is served', () => {
+    // `/enumerated/a` has a prerender for this combination, and it is not the
+    // one the cookies below resolve to. A request that is served it has picked
+    // its own combination.
+    const declared = hashVariants({
+      'locale@variants.ts': 'en',
+      'theme@variants.ts': 'light',
+    })
+
+    // The request is rejected before any route renders, so the response carries
+    // no variant value and no marker of the routes involved. It is answered as
+    // a 404 like any request for a pathname no route serves.
+    async function expectRejected(
+      pathname: string,
+      init: Parameters<typeof next.fetch>[1] = {
+        headers: { cookie: 'theme=dark; locale=en' },
+      }
+    ) {
+      const response = await next.fetch(url(pathname), init)
+      const body = await response.text()
+
+      expect(response.status).toBe(404)
+      expect(body).not.toContain('id="theme"')
+      expect(body).not.toContain('id="slug"')
+    }
+
+    it('should reject a supplied prefix', async () => {
+      await expectRejected(`/__variants/${declared}/enumerated/a`)
+    })
+
+    it('should reject a supplied prefix naming no combination', async () => {
+      // Every value would otherwise create a cache entry of its own.
+      await expectRejected('/__variants/zzzzz/enumerated/a')
+    })
+
+    it('should reject an encoded prefix', async () => {
+      // A server decodes a pathname before it looks an artifact up, so these
+      // spellings name the same artifact as the plain prefix.
+      await expectRejected(`/%5F%5Fvariants/${declared}/enumerated/a`)
+      await expectRejected(`/__%76ariants/${declared}/enumerated/a`)
+      await expectRejected(`//__variants/${declared}/enumerated/a`)
+    })
+
+    it('should reject a prefix on a route without dynamic segments', async () => {
+      await expectRejected(`/__variants/${declared}/paramless`)
+    })
+
+    it('should reject a supplied query parameter on a matched route', async () => {
+      // These cookies resolve a combination no group declares, so the proxy
+      // writes no prefix. The supplied parameter would be the only one present.
+      await expectRejected(`/enumerated/a?nxtV=${declared}`, {
+        headers: { cookie: 'theme=dark; locale=de' },
+      })
+
+      // These cookies resolve a declared combination. The proxy writes a prefix
+      // for it, and the supplied parameter must not travel beside it.
+      await expectRejected(`/enumerated/a?nxtV=${declared}`, {
+        headers: { cookie: 'theme=dark; locale=en' },
+      })
+    })
+
+    it('should reject every spelling of the query parameter', async () => {
+      // A route removes one `nxtP` or `nxtI` prefix from a query key before it
+      // reads the key, so these name the same parameter.
+      await expectRejected(`/enumerated/a?nxtPnxtV=${declared}`)
+      await expectRejected(`/enumerated/a?nxtInxtV=${declared}`)
+      await expectRejected('/enumerated/a?nxtV=')
+      await expectRejected('/enumerated/a?nxtV')
+    })
+
+    it('should reject the query parameter on a route the proxy does not match', async () => {
+      // The proxy runs only for the paths its `config.matcher` names, and a
+      // route can declare combinations while being left out. The rejection runs
+      // for every request, so it covers that route.
+      await expectRejected(`/unmatched-by-proxy?nxtV=${declared}`, {
+        headers: { cookie: 'theme=light; locale=en' },
+      })
+    })
+
+    it('should reject a supplied prefix on a payload request', async () => {
+      // The prefix names the artifact of a payload as it names the artifact of
+      // a document.
+      await expectRejected(`/__variants/${declared}/enumerated/a`, {
+        headers: { cookie: 'theme=dark; locale=en', rsc: '1' },
+      })
+      await expectRejected(`/__variants/${declared}/enumerated/a.rsc`)
+    })
+  })
 
   it('should not expose the internal combination query parameter to the page', async () => {
     // A combination with an output reaches the origin as a query parameter. A

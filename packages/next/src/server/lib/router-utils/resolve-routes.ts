@@ -30,7 +30,13 @@ import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-local
 import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-path'
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
-import { splitVariantsPrefix } from '../../variants/prefix'
+import {
+  getVariantsNotRoutedPathname,
+  hasVariantsPathPrefix,
+  hasVariantsSelector,
+  splitVariantsPrefix,
+  VARIANTS_SELECTOR_QUERY_KEYS,
+} from '../../variants/prefix'
 import { NEXT_VARIANTS_QUERY_PARAM } from '../../../lib/constants'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
 
@@ -141,6 +147,37 @@ export function getResolveRoutes(
     let matchedOutput: FsOutput | null = null
     let parsedUrl = parseUrl(req.url || '') as NextUrlWithParsedQuery
     let didRewrite = false
+
+    // Reject a request that names a static variant combination itself, through
+    // the artifact prefix or through the query parameter that routing derives
+    // from the prefix. Only the proxy writes the prefix, and only the rewrite
+    // branch below writes the parameter, both after this point. Either one on
+    // an incoming request therefore came from the client, and it would select
+    // an artifact that this request did not resolve to.
+    //
+    // This runs before every route, so it also covers a route that declares
+    // combinations while the proxy's `config.matcher` leaves it out. The
+    // request is answered as a 404 like any other request for a pathname that
+    // no route serves. In minimal mode the platform in front performs this
+    // check and writes the parameter itself, so this must not act there.
+    if (
+      config.experimental.variants &&
+      !opts.minimalMode &&
+      (hasVariantsPathPrefix(parsedUrl.pathname || '/', config.basePath) ||
+        hasVariantsSelector(Object.keys(parsedUrl.query)))
+    ) {
+      parsedUrl.pathname = getVariantsNotRoutedPathname(config.basePath)
+
+      for (const key of VARIANTS_SELECTOR_QUERY_KEYS) {
+        delete parsedUrl.query[key]
+      }
+
+      return {
+        parsedUrl,
+        resHeaders,
+        finished: true,
+      }
+    }
 
     const urlParts = (req.url || '').split('?', 1)
     const urlNoQuery = urlParts[0]
@@ -760,17 +797,9 @@ export function getResolveRoutes(
               // locale included.
               //
               // This is the only place the prefix is removed, and only a
-              // destination a proxy rewrote to reaches it. A prefix a client
-              // wrote therefore stays on the pathname and matches no route, so
-              // a self-hosted server answers 404.
-              //
-              // TODO(variants): reject a prefix and a
-              // `NEXT_VARIANTS_QUERY_PARAM` that arrive from a client. A
-              // deployment serves an artifact by path before any function runs,
-              // so a client reaches one there whatever this code does. The
-              // query write below overwrites a client's value only where a
-              // prefix is present, so a request the proxy matched no
-              // combination for keeps it.
+              // destination a proxy rewrote to reaches it. A prefix or a
+              // `NEXT_VARIANTS_QUERY_PARAM` that a client sent is rejected at
+              // the start of routing, before the proxy runs.
               if (config.experimental?.variants) {
                 const withoutPrefix = splitVariantsPrefix(
                   parsedUrl.pathname || '',
