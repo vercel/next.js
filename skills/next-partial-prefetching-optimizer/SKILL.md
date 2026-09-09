@@ -118,15 +118,12 @@ follow the static-shell documentation used by
 `next-cache-components-optimizer`. Preserve the existing freshness and
 authorization behavior. Change only what the selected contract requires.
 
-When reusable UI should wait for navigation, read the bundled
-`node_modules/next/dist/docs/01-app/03-api-reference/04-functions/navigation.md`
-reference, including its comparison with `connection()`, before editing. If
-the bundled reference is unavailable, use the
+When reusable UI should wait for navigation, follow the
 [`unstable_navigation()`](https://nextjs.org/docs/app/api-reference/functions/navigation)
-reference online. Then verify both properties independently. The `instant()`
-assertion proves that the UI is absent from the prefetch; it does not prove
-that the underlying work stayed reusable. Verify that reusable work remains
-cached below the stage boundary.
+reference, including its comparison with `connection()`. Then verify both
+properties independently. The `instant()` assertion proves that the UI is
+absent from the prefetch; it does not prove that the underlying work stayed
+reusable. Verify that reusable work remains cached below the stage boundary.
 
 When the contract needs an explicit runtime stage, follow the API references
 for [`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/prefetch)
