@@ -327,7 +327,7 @@ export const activityCache = {
 }
 ```
 
-Use the same key for the fallback, the Client Component read, and the mutation. With SWR, pass the write to [`mutate`](https://swr.vercel.app/docs/mutation) and provide `optimisticData`. SWR shows the optimistic value immediately and rolls it back if the write fails. This example keeps the optimistic value after the action succeeds because the final value is known:
+Use the same key for the fallback, the Client Component read, and the mutation. With SWR, pass the mutation to [`mutate`](https://swr.vercel.app/docs/mutation) and provide `optimisticData`. SWR shows the optimistic value immediately and rolls it back if the mutation fails. This example keeps the optimistic value after the action succeeds because the final value is known:
 
 ```tsx filename="app/activity/mark-read-button.tsx" switcher
 'use client'
