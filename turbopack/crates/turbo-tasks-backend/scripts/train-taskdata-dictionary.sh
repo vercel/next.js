@@ -6,6 +6,7 @@ output_root=${1:-/tmp/taskdata-dictionary-corpus}
 dictionary=${2:-$repo_root/turbopack/crates/turbo-tasks-backend/src/database/taskdata.zdict}
 shift $(( $# >= 2 ? 2 : $# ))
 jobs=${CORPUS_JOBS:-4}
+family=${CORPUS_FAMILY:-2}
 
 mkdir -p "$output_root"/{train,holdout,logs,tmp,reports,state}
 manifest="$output_root/manifest.tsv"
@@ -112,10 +113,10 @@ if [[ -f $source_dictionary ]]; then
   source_args=(--source-dictionary "$source_copy")
 fi
 cargo run -p turbo-persistence --release --bin zstd_dictionary -- train \
-  --family 2 "${source_args[@]}" --output "$dictionary" "${train_caches[@]}"
+  --family "$family" "${source_args[@]}" --output "$dictionary" "${train_caches[@]}"
 for run in 1 2 3 4 5; do
   cargo run -p turbo-persistence --release --bin zstd_dictionary -- evaluate \
-    --family 2 "${source_args[@]}" --dictionary "$dictionary" \
+    --family "$family" "${source_args[@]}" --dictionary "$dictionary" \
     --json "$output_root/reports/holdout-$run.json" \
     "${holdout_caches[@]}"
 done

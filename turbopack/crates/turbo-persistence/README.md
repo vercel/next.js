@@ -382,7 +382,7 @@ Training produces a 64 KiB dictionary from up to approximately 64 MiB of samples
 hash-ordered logical value from each cache in turn, so one large cache cannot monopolize the sample.
 The output path is overwritten directly.
 
-The no-dictionary zstd level 3 baseline is always included during evaluation. Source SSTs may use
+LZ4 and no-dictionary zstd level 3 baselines are always included during evaluation. Source SSTs may use
 LZ4 or plain zstd without extra options. Pass `--source-dictionary <path>` when any input SST records
 a nonzero dictionary ID; it is ignored for LZ4 and plain-zstd SSTs. The tool follows `CURRENT`,
 deletion files, and meta-file supersession, and uses `StaticSortedFileIter` to read slice, medium, and

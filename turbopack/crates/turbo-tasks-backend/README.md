@@ -27,5 +27,5 @@ The checked-in baseline is produced by
 [`scripts/train-taskdata-dictionary.sh`](./scripts/train-taskdata-dictionary.sh) from preserved
 `test/production` filesystem caches. Its corpus and held-out receipts are recorded in
 [`src/database/taskdata-dictionary.md`](./src/database/taskdata-dictionary.md). The script is
-resumable; set `CORPUS_JOBS` for bounded parallelism and pass an output directory plus dictionary
-path.
+resumable; set `CORPUS_JOBS` for bounded parallelism, `CORPUS_FAMILY` to select a keyspace (defaults
+to TaskData family 2), and pass an output directory plus dictionary path.
