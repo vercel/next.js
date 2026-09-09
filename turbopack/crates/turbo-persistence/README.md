@@ -389,9 +389,9 @@ deletion files, and meta-file supersession, and uses `StaticSortedFileIter` to r
 blob values. Checksums, dictionary IDs, and decompressed lengths are verified.
 
 Small values are grouped into physical blocks in production, so the report's per-value 12.5%
-minimum-savings calculation is a comparative estimate, not exact SST-size modeling. Blob estimates
-include their fixed 8-byte headers. Timing fields are single-pass diagnostics; use byte/count fields
-for repeatable comparisons of one copied cache snapshot.
+minimum-savings calculation is a comparative estimate, not exact SST-size modeling. Estimated stored
+bytes exclude fixed container headers. Timing fields are single-pass diagnostics; use byte/count
+fields for repeatable comparisons of one copied cache snapshot.
 
 ## Opening
 
