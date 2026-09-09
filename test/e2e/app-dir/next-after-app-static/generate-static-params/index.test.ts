@@ -3,14 +3,14 @@ import { nextTestSetup } from 'e2e-utils'
 import * as Log from './utils/log'
 import { waitForNoRedbox, retry } from '../../../../lib/next-test-utils'
 
+// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
+// reading CLI logs to observe after
+// @force-gate !deploy
 describe('after() in generateStaticParams', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // reading CLI logs to observe after
     skipStart: true,
   })
-
-  if (skipped) return
 
   let currentCliOutputIndex = 0
   beforeEach(() => {

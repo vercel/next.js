@@ -137,6 +137,10 @@ export const conditions: Record<string, Condition> = {
   adapter: staticCondition('running the adapter test variant', () =>
     Boolean(process.env.NEXT_ENABLE_ADAPTER === '1')
   ),
+  nodeMiddleware: staticCondition(
+    'running the Node.js middleware test variant (`TEST_NODE_MIDDLEWARE`)',
+    () => Boolean(process.env.TEST_NODE_MIDDLEWARE)
+  ),
   standaloneOutput: staticCondition(
     'running the standalone-output test variant (`TEST_OUTPUT_STANDALONE`)',
     () => process.env.TEST_OUTPUT_STANDALONE === 'true'

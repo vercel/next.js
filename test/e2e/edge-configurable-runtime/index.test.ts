@@ -1,11 +1,13 @@
-import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
 
 const pagePath = 'pages/index.jsx'
 const apiPath = 'pages/api/edge.js'
 
-;(process.env.IS_TURBOPACK_TEST ? describe.skip.each : describe.each)([
+// Deploy mode exclusion: This suite mutates fixture files and asserts local build and CLI output.
+// @force-gate !turbopack && !deploy
+describe.each([
   { appDir: join(__dirname, './app/src'), title: 'src/pages and API routes' },
   { appDir: join(__dirname, './app'), title: 'pages and API routes' },
 ])('Configurable runtime for $title', ({ appDir }) => {
@@ -88,7 +90,7 @@ const apiPath = 'pages/api/edge.js'
         expect(next.cliOutput).not.toInclude('warn')
       })
     })
-  } else if (isNextStart) {
+  } else {
     describe('In start mode', () => {
       const { next } = nextTestSetup({
         files: appDir,
@@ -138,7 +140,5 @@ const apiPath = 'pages/api/edge.js'
         )
       })
     })
-  } else {
-    it.skip('no deploy tests', () => {})
   }
 })

@@ -269,6 +269,40 @@ describe('@gate runtime', () => {
       expect(gate.needsResolvedConfig).toBe(false)
     })
 
+    it('skips only the deployed Node.js middleware variant', async () => {
+      const original = process.env.TEST_NODE_MIDDLEWARE
+      const gate = parseGate('!deploy || !nodeMiddleware', true)
+
+      try {
+        for (const [mode, nodeMiddleware, type] of [
+          ['deploy', true, 'force-pass'],
+          ['start', true, 'run'],
+          ['deploy', false, 'run'],
+        ] as const) {
+          if (nodeMiddleware) {
+            process.env.TEST_NODE_MIDDLEWARE = '1'
+          } else {
+            delete process.env.TEST_NODE_MIDDLEWARE
+          }
+          setGateTestContext({
+            mode,
+            bundler: 'webpack',
+            react18: false,
+            wasm: false,
+          })
+          await expect(__testing.decideGates([gate])).resolves.toMatchObject({
+            type,
+          })
+        }
+      } finally {
+        if (original === undefined) {
+          delete process.env.TEST_NODE_MIDDLEWARE
+        } else {
+          process.env.TEST_NODE_MIDDLEWARE = original
+        }
+      }
+    })
+
     it('skips the test for real when the condition is false', () => {
       const body = () => {}
       const fakes = withFakeTestGlobals(() => {

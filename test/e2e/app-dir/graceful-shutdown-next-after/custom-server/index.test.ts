@@ -1,22 +1,21 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
+// the tests use cli logs and a custom server
+// @force-gate !deploy
 describe('after during server shutdown - custom server', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     startCommand: 'node server.mjs',
     serverReadyPattern: /Custom server started/,
     forcedPort: 'random',
     skipStart: true,
-    skipDeployment: true, // the tests use cli logs and a custom server
     env: {
       NODE_ENV: isNextDev ? 'development' : 'production',
       DEBUG: '1',
     },
   })
-  if (skipped) {
-    return
-  }
 
   beforeEach(async () => {
     await next.start()

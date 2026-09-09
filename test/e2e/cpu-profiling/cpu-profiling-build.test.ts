@@ -2,18 +2,19 @@ import { nextTestSetup, isNextDeploy } from 'e2e-utils'
 import { pathExists, readdir, readFile } from 'fs-extra'
 import { join } from 'path'
 
+// Deploy mode exclusion: This suite invokes a local profiled build and
+// inspects the generated profile files.
+// @force-gate !deploy
 describe('CPU Profiling - next build', () => {
-  const { next, isNextDev, skipped, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     files: __dirname,
     buildCommand: 'pnpm next build --experimental-cpu-prof',
     dependencies: {},
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   // CPU profiling only works with local `next build`, not dev or deploy modes
-  if (isNextDev || isNextDeploy || skipped) {
+  if (isNextDev || isNextDeploy) {
     it('skip for development/deploy mode', () => {})
     return
   }

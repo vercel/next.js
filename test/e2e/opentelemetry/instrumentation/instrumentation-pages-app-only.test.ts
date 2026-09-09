@@ -27,6 +27,9 @@ for (const { app, src, pathname, text } of [
     text: 'Page',
   },
 ]) {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe(`instrumentation ${app ? 'app' : 'pages'}${
     src ? ' src/' : ''
   }`, () => {
@@ -38,7 +41,6 @@ for (const { app, src, pathname, text } of [
       env: {
         NEXT_PUBLIC_SIMPLE_INSTRUMENT: '1',
       },
-      skipDeployment: true,
       packageJson: {
         scripts: {
           'setup-dir': `mv instrumentation-minimal.ts instrumentation.ts; rm -rf ${oppositeDir}${

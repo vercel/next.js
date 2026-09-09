@@ -1,13 +1,11 @@
 import { findPort } from 'next-test-utils'
-import { isNextDeploy, isNextDev, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { startExternalServer } from './external-server.mjs'
 
+// This suite starts an external test server on a local port, which a deployed
+// application could not reach, and owns its production build/start lifecycle.
+// @force-gate start
 describe('middleware RSC external rewrite', () => {
-  if (isNextDev || isNextDeploy) {
-    test('should not run during dev or deploy test runs', () => {})
-    return
-  }
-
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,

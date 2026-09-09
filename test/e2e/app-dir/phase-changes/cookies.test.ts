@@ -3,11 +3,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('setting cookies', () => {
-  const { next, isNextDeploy, skipped } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
   })
-
-  if (skipped) return
 
   let currentCliOutputIndex = 0
   beforeEach(() => {

@@ -122,21 +122,21 @@ async function resolveSourceMapLikeADebugger(
   return { sourceMap: JSON.parse(data), mapURL: null }
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app-dir - server source maps - fake frame source maps', () => {
   const dependencies = {
     // `link:` simulates a package in a monorepo
     'internal-pkg': `link:./internal-pkg`,
     'external-pkg': `file:./external-pkg`,
   }
-  const { skipped, next, isNextDev, isTurbopack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack } = nextTestSetup({
     dependencies,
     files: path.join(__dirname, 'fixtures/default'),
-    skipDeployment: true,
     // Expose the inspector on a random port.
     startArgs: ['--inspect=0'],
   })
-
-  if (skipped) return
 
   async function findServerInspectorTarget(): Promise<InspectorTarget> {
     const ports = [
