@@ -694,8 +694,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         #[cfg(debug_assertions)]
         inner.debug_assert_meta_invariants();
-        self.is_empty.store(inner.is_empty(), Ordering::Relaxed);
         inner.current_sequence_number = current;
+        self.is_empty.store(inner.is_empty(), Ordering::Relaxed);
         Ok(true)
     }
 
@@ -1054,7 +1054,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         // in-memory mutations. The MetaFile in-memory optimization
         // (retain_entries) is deferred to Phase C.
         let has_delete_file;
-        let mut meta_seq_numbers_to_delete = Vec::new();
+        let mut meta_seq_numbers_to_delete = [(); FAMILIES].map(|_| Vec::new());
         let mut entries_to_remove = [(); FAMILIES].map(|_| Vec::new());
         // Deleted SST bytes: the caller knows each deleted SST's size when it decides to delete it,
         // so it's carried on `DeletedFile` and summed here (no scan, no stat).
@@ -1098,7 +1098,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     // Removal lists are newest-first while each shard is oldest-first.
                     let to_remove = &entries_to_remove[family][meta_files.len() - 1 - i];
                     if sst_filter.apply_and_get_remove_after_removing(&meta_files[i], to_remove) {
-                        meta_seq_numbers_to_delete.push(meta_files[i].sequence_number());
+                        meta_seq_numbers_to_delete[family].push(meta_files[i].sequence_number());
                         // Deleted meta bytes, read from the `MetaFile`'s mmap length (no stat).
                         stats.bytes_deleted += meta_files[i].byte_size();
                     }
@@ -1110,7 +1110,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             // delete, which consumes one extra sequence number.
             has_delete_file = !sst_files_to_delete.is_empty()
                 || !blob_seq_numbers_to_delete.is_empty()
-                || !meta_seq_numbers_to_delete.is_empty();
+                || meta_seq_numbers_to_delete
+                    .iter()
+                    .any(|seqs| !seqs.is_empty());
         }
 
         // Deleted blob bytes. Unlike SST/meta sizes (both already in memory), blob sizes aren't
@@ -1134,19 +1136,24 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         self.parallel_scheduler.block_in_place(|| {
             if has_delete_file {
                 sst_seq_numbers_to_delete.sort_unstable();
-                meta_seq_numbers_to_delete.sort_unstable();
+                for seqs in &mut meta_seq_numbers_to_delete {
+                    seqs.sort_unstable();
+                }
                 blob_seq_numbers_to_delete.sort_unstable();
                 // Write *.del file, marking the selected files as to delete
                 let mut buf = Vec::with_capacity(
                     (sst_seq_numbers_to_delete.len()
-                        + meta_seq_numbers_to_delete.len()
+                        + meta_seq_numbers_to_delete
+                            .iter()
+                            .map(Vec::len)
+                            .sum::<usize>()
                         + blob_seq_numbers_to_delete.len())
                         * size_of::<u32>(),
                 );
                 for seq in sst_seq_numbers_to_delete.iter() {
                     buf.write_u32::<BE>(*seq)?;
                 }
-                for seq in meta_seq_numbers_to_delete.iter() {
+                for seq in meta_seq_numbers_to_delete.iter().flatten() {
                     buf.write_u32::<BE>(*seq)?;
                 }
                 for seq in blob_seq_numbers_to_delete.iter() {
@@ -1232,12 +1239,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     "SST DELETED",
                     |&seq| seq,
                 )?;
-                write_seq_numbers(
-                    &mut log,
-                    &meta_seq_numbers_to_delete,
-                    "META DELETED",
-                    |&seq| seq,
-                )?;
+                for seqs in &meta_seq_numbers_to_delete {
+                    write_seq_numbers(&mut log, seqs, "META DELETED", |&seq| seq)?;
+                }
                 anyhow::Ok(())
             })() {
                 eprintln!("turbo-persistence: failed to write LOG after commit {seq:08}: {e:#}");
@@ -1270,9 +1274,13 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             for meta_file in new_meta_files.drain(..) {
                 inner.push_meta_file(meta_file);
             }
-            if !meta_seq_numbers_to_delete.is_empty() {
-                let to_delete: HashSet<u32> = meta_seq_numbers_to_delete.iter().copied().collect();
-                for meta_files in &mut inner.meta_files_by_family {
+            for (meta_files, seqs_to_delete) in inner
+                .meta_files_by_family
+                .iter_mut()
+                .zip(&meta_seq_numbers_to_delete)
+            {
+                if !seqs_to_delete.is_empty() {
+                    let to_delete: HashSet<u32> = seqs_to_delete.iter().copied().collect();
                     meta_files.retain(|meta| !to_delete.contains(&meta.sequence_number()));
                 }
             }
@@ -1280,6 +1288,8 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             inner.debug_assert_meta_invariants();
             inner.current_sequence_number = seq;
             self.is_empty.store(inner.is_empty(), Ordering::Relaxed);
+            // The write guard must be released after publishing the matching empty state.
+            drop(inner);
         }
 
         // Try to delete superseded files immediately. On Linux/macOS this always
@@ -1290,7 +1300,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             Self::try_delete_files(&self.path, &sst_seq_numbers_to_delete, "sst")
                 .map(DeferredDeletion::Sst)
                 .chain(
-                    Self::try_delete_files(&self.path, &meta_seq_numbers_to_delete, "meta")
+                    meta_seq_numbers_to_delete
+                        .iter()
+                        .flat_map(|seqs| Self::try_delete_files(&self.path, seqs, "meta"))
                         .map(DeferredDeletion::Meta),
                 )
                 .chain(
@@ -1596,7 +1608,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                             indices: SmallVec<[usize; 1]>,
                         },
                         Move {
-                            index: usize,
                             seq: u32,
                             meta: StaticSortedFileBuilderMeta<'l>,
                         },
@@ -1624,7 +1635,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     entries: 0,
                                 };
                                 return Ok(PartialMergeResult::Move {
-                                    index,
                                     seq: entry.sequence_number(),
                                     meta,
                                 });
@@ -1931,66 +1941,11 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         self.config.family_configs[family as usize].compression,
                     );
 
-                    // The selector emits newer overlapping SSTs as `Move` results. Any overlapping
-                    // SST left untouched is older and belongs before all selector-ordered results.
-                    let selected_index_count = merge_result
-                        .iter()
-                        .map(|result| match result {
-                            PartialMergeResult::Merged { indices, .. } => indices.len(),
-                            PartialMergeResult::Move { .. } => 1,
-                        })
-                        .sum::<usize>();
-                    let selected_indices = merge_result
-                        .iter()
-                        .flat_map(|result| match result {
-                            PartialMergeResult::Merged { indices, .. } => indices.iter().copied(),
-                            PartialMergeResult::Move { index, .. } => {
-                                std::slice::from_ref(index).iter().copied()
-                            }
-                        })
-                        .collect::<HashSet<_>>();
-                    debug_assert_eq!(
-                        selected_indices.len(),
-                        selected_index_count,
-                        "an SST was selected by more than one compaction segment"
-                    );
-                    debug_assert!(
-                        selected_indices
-                            .iter()
-                            .all(|&index| index < ssts_with_ranges.len()),
-                        "compaction selected an SST index outside the family shard"
-                    );
-                    debug_assert!(
-                        ssts_with_ranges
-                            .iter()
-                            .enumerate()
-                            .all(|(index, untouched)| {
-                                selected_indices.contains(&index)
-                                    || selected_indices.iter().all(|&selected_index| {
-                                        let selected = &ssts_with_ranges[selected_index];
-                                        let overlaps = untouched.range.max_hash
-                                            >= selected.range.min_hash
-                                            && untouched.range.min_hash <= selected.range.max_hash;
-                                        !overlaps || index < selected_index
-                                    })
-                            }),
-                        "an untouched SST is newer than overlapping selected compaction work"
-                    );
-
                     let mut keys_written = 0;
                     self.parallel_scheduler.block_in_place(|| {
                         let guard = log_mutex.lock();
                         let mut log = self.open_log()?;
                         writeln!(log, "{family:3} | {meta_seq:08} | Compaction:",)?;
-
-                        // Untouched overlapping SSTs are older than all selected work (asserted
-                        // above), so they must precede the selector-ordered results in this meta.
-                        for (index, sst) in ssts_with_ranges.iter().enumerate() {
-                            if !selected_indices.contains(&index) {
-                                meta_file_builder
-                                    .add_existing(&meta_files[sst.meta_index], sst.index_in_meta);
-                            }
-                        }
 
                         for result in merge_result {
                             match result {
@@ -2033,11 +1988,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                         .extend(merged_blob_seq_numbers_to_delete);
                                     keys_written += merged_keys_written;
                                 }
-                                PartialMergeResult::Move {
-                                    index: _,
-                                    seq,
-                                    meta,
-                                } => {
+                                PartialMergeResult::Move { seq, meta } => {
                                     let min = meta.min_hash;
                                     let max = meta.max_hash;
                                     writeln!(
@@ -2059,9 +2010,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     for f in sst_files_to_delete.iter() {
                         meta_file_builder.add_obsolete_sst_file(f.seq);
                     }
-                    if let Some(used_key_hashes) = used_key_hashes {
-                        meta_file_builder.set_used_key_hashes_amqf(used_key_hashes);
-                    }
+                    // Do not copy `used_key_hashes` into the new meta file. Those marks must expire
+                    // as their source meta files are retired; persisting the merged filter here
+                    // would make keys that were used once stay marked as used forever.
 
                     let new_meta_file = {
                         let _span = tracing::trace_span!("write meta file").entered();
