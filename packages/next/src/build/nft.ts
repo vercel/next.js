@@ -7,11 +7,12 @@ export interface NftFileList {
    * the current root when inside `NftAdditionalRoot`.
    *
    * When using webpack, these paths may exist outside the tracing root. The
-   * [`@vercel/next` package](https://github.com/vercel/vercel/blob/%40vercel/next%404.20.5/packages/next/src/server-build.ts#L1022-L1026)
-   * ignores these paths.
+   * [`@vercel/next` package][@vercel/next] ignores these paths.
    *
    * When using Turbopack, these paths are guaranteed to exist within the
    * `turbopack.root` specified or inferred from `next.config.js`.
+   *
+   * [@vercel/next]: https://github.com/vercel/vercel/blob/%40vercel/next%404.20.5/packages/next/src/server-build.ts#L1022-L1026
    */
   files: string[]
   /**
