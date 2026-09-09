@@ -16,6 +16,7 @@ import {
 } from '../../app-router-headers'
 import { UnrecognizedActionError } from '../../unrecognized-action-error'
 import { fetch } from '../../segment-cache/fetch'
+import { getIsPageUnloading } from '../fetch-server-response'
 
 // TODO: Explicitly import from client.browser
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -157,13 +158,16 @@ async function fetchServerAction(
       notifyOnline()
     }
   } catch (err) {
-    if (process.env.__NEXT_USE_OFFLINE) {
+    if (process.env.__NEXT_USE_OFFLINE && !getIsPageUnloading()) {
       const { checkOfflineError, getOffline, waitForConnection } =
         require('../../offline') as typeof import('../../offline')
       if (checkOfflineError(err)) {
-        // It's safe to replay the action because the fetch rejection
-        // means the request never reached the server — there are no
-        // side effects to duplicate.
+        // Best-effort replay: a fetch rejection usually means the request
+        // never reached the server, but it cannot be distinguished from
+        // "sent, response lost" — so the action may run twice server-side.
+        // Skipped entirely while the page is unloading, when the browser
+        // cancels in-flight requests (a plain TypeError, not an AbortError)
+        // and any replay would race page teardown.
         const offline = getOffline()
         if (offline !== null) {
           await waitForConnection(offline)
