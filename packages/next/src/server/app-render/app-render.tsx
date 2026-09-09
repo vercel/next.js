@@ -593,7 +593,17 @@ async function getDynamicStaleTime(tree: LoaderTree): Promise<number | null> {
   return result
 }
 
-function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
+function createNotFoundLoaderTree(
+  loaderTree: LoaderTree,
+  // Whether to keep the real root layout in the returned tree. Callers that
+  // patch an already-hydrated document (e.g. a server action response) want
+  // this omitted, since the client already has the layout rendered and
+  // re-sending it would be redundant. Callers producing a full standalone
+  // document (e.g. SSR recovery when `notFound()` is thrown while rendering)
+  // need it included so the response has `<html>`/`<body>` and the layout's
+  // metadata (lang, stylesheets, etc.), matching the unmatched-URL 404.
+  includeRootLayout: boolean
+): LoaderTree {
   const components = loaderTree[2]
   const hasGlobalNotFound = !!components['global-not-found']
   const notFoundTreeComponents: LoaderTree[2] = hasGlobalNotFound
@@ -611,11 +621,18 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
       children: [PAGE_SEGMENT_KEY, {}, notFoundTreeComponents, null],
     },
     // Always include global-error so that getGlobalErrorStyles can access it.
-    // When global-not-found is present, use full components.
-    // Otherwise, only include global-error module.
+    // When global-not-found is present, use full components (it already
+    // supplies its own `<html>`/`<body>`, replacing the root layout).
+    // Otherwise, only include global-error module, plus the root layout when
+    // the caller needs a complete document.
     hasGlobalNotFound
       ? components
-      : { 'global-error': components['global-error'] },
+      : {
+          'global-error': components['global-error'],
+          ...(includeRootLayout && components.layout
+            ? { layout: components.layout }
+            : null),
+        },
     null, // staticSiblings
   ]
 }
@@ -2317,8 +2334,33 @@ async function getErrorRSCPayload(
   ctx: AppRenderContext,
   ssrError: unknown,
   errorType: MetadataErrorType | 'redirect' | undefined,
-  shouldRenderMetadataAndViewport: boolean
+  shouldRenderMetadataAndViewport: boolean,
+  isPrerendering: boolean
 ) {
+  // When `notFound()` is thrown while rendering a Server Component, render
+  // the actual not-found page content — same as an unmatched URL — instead
+  // of falling back to the empty client-only shell below. Without this, the
+  // initial response has no not-found content in its HTML body, so it's only
+  // visible after client-side hydration takes over (bad for SEO/no-JS).
+  //
+  // Skipped when `shouldRenderMetadataAndViewport` is false: that's the
+  // Cache Components recovery shell, which intentionally defers rendering to
+  // the client so it can participate in the normal static/dynamic recovery
+  // flow instead.
+  if (errorType === 'not-found' && shouldRenderMetadataAndViewport) {
+    try {
+      const notFoundLoaderTree = createNotFoundLoaderTree(tree, true)
+      return await getRSCPayload(notFoundLoaderTree, ctx, {
+        is404: true,
+        isPrerendering,
+      })
+    } catch {
+      // Rendering the not-found page itself failed (e.g. it threw its own
+      // error, or a layout above it did). Fall through to the generic empty
+      // shell below rather than letting the failure crash the response.
+    }
+  }
+
   const {
     getDynamicParamFromSegment,
     query,
@@ -3103,7 +3145,10 @@ async function renderAppPage(
 
     if (actionRequestResult) {
       if (actionRequestResult.type === 'not-found') {
-        const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree)
+        // The client already has the root layout rendered from the initial
+        // page load; omit it here so the action response only patches in
+        // the not-found content instead of redundantly re-sending it.
+        const notFoundLoaderTree = createNotFoundLoaderTree(loaderTree, false)
         res.statusCode = 404
         metadata.statusCode = 404
         const stream = await renderToStream(
@@ -4447,7 +4492,9 @@ async function renderToStream(
             reactServerErrorsByDigest.has((err as any).digest) ? null : err,
             errorType,
             // Normal error rendering should include the error payload head.
-            true
+            true,
+            // This is a dynamic render, not a prerender.
+            false
           )
 
           errorServerStream = workUnitAsyncStorage.run(
@@ -4543,7 +4590,9 @@ async function renderToStream(
             reactServerErrorsByDigest.has((err as any).digest) ? null : err,
             errorType,
             // Normal error rendering should include the error payload head.
-            true
+            true,
+            // This is a dynamic render, not a prerender.
+            false
           )
 
           errorServerStream = workUnitAsyncStorage.run(
@@ -9956,7 +10005,9 @@ async function prerenderToStream(
         errorType,
         // The recovery shell only bootstraps the original Flight data. Avoid
         // blocking that shell on error-page metadata or viewport.
-        false
+        false,
+        // This recovery render belongs to a Cache Components prerender.
+        true
       )
 
       const errorServerResult = await createReactServerPrerenderResult(
@@ -10264,6 +10315,8 @@ async function prerenderToStream(
       reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
       errorType,
       // Legacy prerender recovery should include the error payload head.
+      true,
+      // This recovery render belongs to a (legacy) static prerender.
       true
     )
 
