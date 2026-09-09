@@ -93,37 +93,12 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
 }
 
 /// Garbage an interrupted pass abandons must still be collectible by a later pass.
-///
-/// Phase 1 runs rounds at a `min_progress` floor far shorter than a pass, so a waiter observed by
-/// `GcBudget::should_stop` interrupts the pass soon after it starts. Nothing here forces a pass to
-/// overlap with an operation, so how many rounds interrupt — and how much each collects before it
-/// stops — is up to the scheduler: in practice most interrupt partway, but a fast enough machine
-/// can drain the previous generation before a pass starts and interrupt none of them. Phase 2 then
-/// runs a deliberately *uninterruptible* pass (`gc_for_testing`) once phase 1 is over.
-///
-/// The assertion is deliberately independent of that split. Whatever phase 1 collected, phase 2
-/// must collect exactly the remainder — every generation but the live one is garbage, and all of
-/// it has to be accounted for. That holds when every round interrupts, when none do, and
-/// everywhere in between, so this test cannot fail for scheduling reasons; it fails only if an
-/// interrupted pass *loses* garbage instead of leaving it for the next pass.
-///
-/// Do not add an assertion on `interrupted_rounds`. An earlier version required at least one
-/// interrupt, on the theory that phase 2 was vacuous without one. It is not: with zero interrupts
-/// phase 1 simply collects everything and phase 2 collects nothing, and the totals still have to
-/// match. That assertion bought no coverage and failed in CI on a fast runner.
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn gc_interrupt_is_self_healing() {
     // A floor short enough that passes still interrupt readily, but long enough that each one
     // collects something first. At a zero floor `should_stop` trips on the very first job, before
     // any shard is scanned, so rounds routinely collect nothing and phase 2 does all the work.
     //
-    // This is a diagnostic choice, not a correctness one: the assertion below holds for any split,
-    // so no value here can make the test pass or fail. Measured at this graph size (8 runs each):
-    // 100us leaves phase 1 collecting anywhere from tens to thousands of tasks with 8-10 of 10
-    // rounds interrupting; 50us still bottoms out at zero; 250us starts letting whole passes
-    // complete; 500us and above are longer than a pass, so nothing interrupts at all. The useful
-    // band is roughly 50-250us. It needs no retuning if machines get faster — a drifted value only
-    // makes the phase 1 / phase 2 split less interesting to read, never wrong.
     let (tt, _persistence_dir) =
         create_tt_with_gc_min_progress("gc_interrupt_is_self_healing", Duration::from_micros(100));
 
