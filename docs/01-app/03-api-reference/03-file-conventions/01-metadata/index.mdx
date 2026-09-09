@@ -14,3 +14,18 @@ Once a file is defined, Next.js will automatically serve the file (with hashes i
 >
 > - Special Route Handlers like [`sitemap.ts`](/docs/app/api-reference/file-conventions/metadata/sitemap), [`opengraph-image.tsx`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and [`icon.tsx`](/docs/app/api-reference/file-conventions/metadata/app-icons), and other [metadata files](/docs/app/api-reference/file-conventions/metadata) are cached by default.
 > - If using along with [`proxy.ts`](/docs/app/api-reference/file-conventions/proxy), [configure the matcher](/docs/app/api-reference/file-conventions/proxy#matcher) to exclude the metadata files.
+
+## Route groups and parallel routes
+
+[Route groups](/docs/app/api-reference/file-conventions/route-groups) and [parallel routes](/docs/app/api-reference/file-conventions/parallel-routes) do not appear in the URL. Without a distinguishing suffix, two image files in different groups would resolve to the same path. Next.js therefore appends a six-character suffix to the file name whenever a segment above the file is a route group or a parallel route slot:
+
+| File                                        | Served at                       |
+| ------------------------------------------- | ------------------------------- |
+| `app/about/opengraph-image.tsx`             | `/about/opengraph-image`        |
+| `app/(marketing)/about/opengraph-image.tsx` | `/about/opengraph-image-1v42b1` |
+
+Next.js derives the suffix from the path of the parent segment, so it stays the same across builds unless that path changes.
+
+Read the URL from the generated `<head>` element instead of constructing it by hand: the suffix is an implementation detail, and requesting the unsuffixed path returns a 404.
+
+The suffix applies to [`opengraph-image` and `twitter-image`](/docs/app/api-reference/file-conventions/metadata/opengraph-image), and to [`icon` and `apple-icon`](/docs/app/api-reference/file-conventions/metadata/app-icons). [`sitemap`](/docs/app/api-reference/file-conventions/metadata/sitemap) is exempt: it lists the URLs of its whole subtree, so it stays at `/sitemap.xml` in every route group.
