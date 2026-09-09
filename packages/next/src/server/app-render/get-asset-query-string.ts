@@ -4,7 +4,7 @@ const isDev = process.env.NODE_ENV === 'development'
 const isTurbopack = !!process.env.TURBOPACK
 
 export function getAssetQueryString(
-  ctx: AppRenderContext,
+  ctx: Pick<AppRenderContext, 'requestTimestamp' | 'sharedContext'>,
   addTimestamp: boolean
 ) {
   let qs = ''
