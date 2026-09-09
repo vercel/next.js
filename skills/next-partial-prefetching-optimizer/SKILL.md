@@ -105,9 +105,10 @@ If the complete desired contract already passes under the lock, stop. Never
 add `prefetch={false}` merely to manufacture a RED.
 
 Only test files and the configuration needed to expose the testing API may
-change before these runs finish. If the harness moves a long-running build or
-test into the background, wait for it to exit and continue the loop in the
-same task. A written test or a build still in progress is not verification.
+change before these runs finish. Run builds and tests in the foreground. If the
+harness moves one into the background, wait for it to exit and continue the
+loop in the same task. A written test or a build still in progress is not
+verification.
 
 ## Make the smallest optimization
 
@@ -117,13 +118,15 @@ follow the static-shell documentation used by
 `next-cache-components-optimizer`. Preserve the existing freshness and
 authorization behavior. Change only what the selected contract requires.
 
-When reusable UI should wait for navigation, read the
+When reusable UI should wait for navigation, read the bundled
+`node_modules/next/dist/docs/01-app/03-api-reference/04-functions/navigation.md`
+reference, including its comparison with `connection()`, before editing. If
+the bundled reference is unavailable, use the
 [`unstable_navigation()`](https://nextjs.org/docs/app/api-reference/functions/navigation)
-reference, including its comparison with `connection()`, before editing. Then
-verify both properties independently. The `instant()` assertion proves that
-the UI is absent from the prefetch; it does not prove that the underlying work
-stayed reusable. Verify that reusable work remains cached below the stage
-boundary.
+reference online. Then verify both properties independently. The `instant()`
+assertion proves that the UI is absent from the prefetch; it does not prove
+that the underlying work stayed reusable. Verify that reusable work remains
+cached below the stage boundary.
 
 When the contract needs an explicit runtime stage, follow the API references
 for [`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/prefetch)
