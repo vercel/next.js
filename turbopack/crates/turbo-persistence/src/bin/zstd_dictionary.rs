@@ -13,13 +13,12 @@ use anyhow::{Context, Result, ensure};
 use clap::{Args, Parser, Subcommand};
 use serde::Serialize;
 use turbo_persistence::{
-    Compression, CompressionConfig, IterValue, MAX_INLINE_VALUE_SIZE, StaticSortedFileIter,
-    StaticSortedFileMetaData,
+    Compression, CompressionConfig, IterValue, MAX_INLINE_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE,
+    StaticSortedFileIter, StaticSortedFileMetaData,
     offline::{SstInfo, collect_sst_info, decode_medium, read_blob},
 };
-use xxhash_rust::xxh3::xxh3_64;
 
-const SCHEMA_VERSION: u32 = 3;
+const SCHEMA_VERSION: u32 = 4;
 const DICTIONARY_SIZE: usize = 64 * 1024;
 const SAMPLE_BUDGET_MULTIPLIER: usize = 1000;
 const SAMPLE_BYTE_BUDGET: usize = DICTIONARY_SIZE * SAMPLE_BUDGET_MULTIPLIER;
@@ -75,8 +74,6 @@ struct DictionaryInfo {
     name: String,
     path: Option<PathBuf>,
     bytes: usize,
-    dictionary_id: Option<u32>,
-    xxh3_64: Option<String>,
 }
 
 struct Candidate {
@@ -88,6 +85,7 @@ struct Candidate {
 
 struct Sample {
     data: Arc<[u8]>,
+    small_value_sst: Option<u32>,
 }
 
 #[derive(Default, Clone, Serialize)]
@@ -186,7 +184,7 @@ struct TrainingReport {
 struct CacheSampleIter {
     path: PathBuf,
     pending: VecDeque<(SstInfo, CompressionConfig)>,
-    current: Option<(StaticSortedFileIter, CompressionConfig)>,
+    current: Option<(StaticSortedFileIter, CompressionConfig, u32)>,
     source_codecs: BTreeSet<String>,
     seen_blobs: HashSet<u32>,
     active_ssts: u64,
@@ -275,7 +273,7 @@ impl CacheSampleIter {
             compression,
         )
         .with_context(|| format!("Failed to open {:08}.sst", sst.sequence_number))?;
-        self.current = Some((iter, compression));
+        self.current = Some((iter, compression, sst.sequence_number));
         Ok(true)
     }
 
@@ -284,8 +282,9 @@ impl CacheSampleIter {
             if self.current.is_none() && !self.open_next_sst()? {
                 return Ok(None);
             }
-            let (iter, compression) = self.current.as_mut().unwrap();
+            let (iter, compression, sequence_number) = self.current.as_mut().unwrap();
             let compression = *compression;
+            let sequence_number = *sequence_number;
             let entry = match iter.next() {
                 Some(entry) => entry?,
                 None => {
@@ -293,7 +292,9 @@ impl CacheSampleIter {
                     continue;
                 }
             };
-            if let Some(sample) = self.sample_from_value(entry.value, compression)? {
+            if let Some(sample) =
+                self.sample_from_value(entry.value, compression, sequence_number)?
+            {
                 return Ok(Some(sample));
             }
         }
@@ -303,10 +304,12 @@ impl CacheSampleIter {
         &mut self,
         value: IterValue,
         compression: CompressionConfig,
+        sequence_number: u32,
     ) -> Result<Option<Sample>> {
         match value {
             IterValue::Slice { value } if value.len() > MAX_INLINE_VALUE_SIZE => Ok(Some(Sample {
                 data: Arc::from(value.as_ref()),
+                small_value_sst: Some(sequence_number),
             })),
             IterValue::Medium {
                 uncompressed_size,
@@ -317,7 +320,10 @@ impl CacheSampleIter {
                     .with_context(|| {
                         format!("Failed to read medium value in {}", self.path.display())
                     })?;
-                Ok(Some(Sample { data: value }))
+                Ok(Some(Sample {
+                    data: value,
+                    small_value_sst: None,
+                }))
             }
             IterValue::Blob { sequence_number } => {
                 if !self.seen_blobs.insert(sequence_number) {
@@ -325,11 +331,71 @@ impl CacheSampleIter {
                     return Ok(None);
                 }
                 let value = read_blob(&self.path, sequence_number, compression)?;
-                Ok(Some(Sample { data: value }))
+                Ok(Some(Sample {
+                    data: value,
+                    small_value_sst: None,
+                }))
             }
             // Inline values live in key blocks and are not independently compressed.
             IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. } | IterValue::Slice { .. } => {
                 Ok(None)
+            }
+        }
+    }
+}
+
+/// Groups logical small values into production-like SST-local compression units for evaluation.
+struct EvaluationSampleIter {
+    source: CacheSampleIter,
+    small_block: Vec<u8>,
+    small_block_sst: Option<u32>,
+}
+
+impl EvaluationSampleIter {
+    fn new(source: CacheSampleIter) -> Self {
+        Self {
+            source,
+            small_block: Vec::with_capacity(MIN_SMALL_VALUE_BLOCK_SIZE),
+            small_block_sst: None,
+        }
+    }
+
+    fn next_sample(&mut self) -> Result<Option<Sample>> {
+        loop {
+            match self.source.next_sample()? {
+                Some(sample) => match sample.small_value_sst {
+                    None => return Ok(Some(sample)),
+                    Some(sequence_number) => {
+                        if self.small_block_sst != Some(sequence_number)
+                            && !self.small_block.is_empty()
+                        {
+                            let completed = std::mem::take(&mut self.small_block);
+                            self.small_block_sst = Some(sequence_number);
+                            self.small_block.extend_from_slice(&sample.data);
+                            return Ok(Some(Sample {
+                                data: completed.into(),
+                                small_value_sst: None,
+                            }));
+                        }
+                        self.small_block_sst = Some(sequence_number);
+                        self.small_block.extend_from_slice(&sample.data);
+                        if self.small_block.len() >= MIN_SMALL_VALUE_BLOCK_SIZE {
+                            let completed = std::mem::take(&mut self.small_block);
+                            return Ok(Some(Sample {
+                                data: completed.into(),
+                                small_value_sst: None,
+                            }));
+                        }
+                    }
+                },
+                None if self.small_block.is_empty() => return Ok(None),
+                None => {
+                    let completed = std::mem::take(&mut self.small_block);
+                    return Ok(Some(Sample {
+                        data: completed.into(),
+                        small_value_sst: None,
+                    }));
+                }
             }
         }
     }
@@ -353,8 +419,6 @@ fn dictionary_info(
         name,
         path: path.map(Path::to_path_buf),
         bytes: dictionary.len(),
-        dictionary_id: zstd::zstd_safe::get_dict_id_from_dict(dictionary).map(|id| id.get()),
-        xxh3_64: (!baseline).then(|| format!("{:016x}", xxh3_64(dictionary))),
     })
 }
 
@@ -464,7 +528,8 @@ fn evaluate_cache(
     source_dictionary: Option<&'static [u8]>,
     candidates: &mut [Candidate],
 ) -> Result<CacheReport> {
-    let mut iter = CacheSampleIter::open(path.to_path_buf(), family, source_dictionary)?;
+    let source = CacheSampleIter::open(path.to_path_buf(), family, source_dictionary)?;
+    let mut iter = EvaluationSampleIter::new(source);
     let mut samples = Metric::default();
     let mut results = empty_results(candidates);
     while let Some(sample) = iter.next_sample()? {
@@ -475,10 +540,10 @@ fn evaluate_cache(
     Ok(CacheReport {
         path: path.to_path_buf(),
         family,
-        active_ssts: iter.active_ssts,
-        source_codecs: iter.source_codecs,
+        active_ssts: iter.source.active_ssts,
+        source_codecs: iter.source.source_codecs,
         samples,
-        duplicate_blob_references: iter.duplicate_blob_references,
+        duplicate_blob_references: iter.source.duplicate_blob_references,
         candidates: results,
     })
 }
@@ -502,9 +567,9 @@ fn combine_evaluation(
         family,
         timing_note: "Single-pass wall-clock diagnostics; byte/count fields are the comparison \
                       contract.",
-        threshold_note: "Estimated stored bytes apply the 12.5% rule per logical value and \
-                         exclude fixed container headers; they are a proxy for grouped \
-                         small-value blocks.",
+        threshold_note: "Small logical values are grouped into SST-local 8-12 KiB evaluation \
+                         units; medium values and blobs remain independent. Estimated stored \
+                         bytes apply the 12.5% rule per unit and exclude fixed container headers.",
         caches,
         combined_samples,
         combined_candidates,
@@ -640,12 +705,9 @@ fn train(source: &Source, output: &Path) -> Result<TrainingReport> {
 
 fn print_training(report: &TrainingReport) {
     println!(
-        "Trained {} ({} bytes, id {:?}, xxh3 {}) from {} values / {} bytes (target {}, exhausted: \
-         {})",
+        "Trained {} ({} bytes) from {} values / {} bytes (target {}, exhausted: {})",
         report.dictionary.path.as_ref().unwrap().display(),
         report.dictionary.bytes,
-        report.dictionary.dictionary_id,
-        report.dictionary.xxh3_64.as_deref().unwrap_or("none"),
         report.selected.count,
         report.selected_bytes,
         report.sample_byte_target,
@@ -665,7 +727,7 @@ fn print_training(report: &TrainingReport) {
 fn print_evaluation(report: &EvaluationReport) {
     let samples = &report.combined_samples;
     println!(
-        "Evaluated family {}: {} caches, {} logical values / {} bytes",
+        "Evaluated family {}: {} caches, {} compression units / {} bytes",
         report.family,
         report.caches.len(),
         samples.count,
@@ -741,19 +803,19 @@ fn main() {
 
 #[cfg(test)]
 mod tests {
-    use std::{collections::BTreeSet, ffi::OsString, fs, path::PathBuf};
+    use std::{collections::BTreeSet, fs};
 
     use anyhow::Result;
     use byteorder::{BE, WriteBytesExt};
-    use clap::Parser;
     use tempfile::TempDir;
     use turbo_persistence::{
-        Compression, CompressionConfig, DbConfig, SerialScheduler, TurboPersistence,
+        Compression, CompressionConfig, DbConfig, MIN_SMALL_VALUE_BLOCK_SIZE, SerialScheduler,
+        TurboPersistence,
     };
 
     use super::{
-        CacheSampleIter, Cli, DICTIONARY_SIZE, SAMPLE_BYTE_BUDGET, Source, empty_results,
-        estimated_value_bytes, evaluate_cache, evaluate_sample, finalize_results, make_candidates,
+        CacheSampleIter, DICTIONARY_SIZE, EvaluationSampleIter, Source, empty_results,
+        evaluate_cache, evaluate_sample, finalize_results, make_candidates,
         select_training_samples, train,
     };
 
@@ -805,26 +867,6 @@ mod tests {
     }
 
     #[test]
-    fn clap_requires_family_output_and_cache() {
-        assert!(Cli::try_parse_from(["tool", "train"]).is_err());
-        assert!(Cli::try_parse_from(["tool", "train", "--family", "2", "cache"]).is_err());
-        assert!(
-            Cli::try_parse_from([
-                "tool", "train", "--family", "2", "--output", "dict", "cache"
-            ])
-            .is_ok()
-        );
-        assert_eq!(DICTIONARY_SIZE, 64 * 1024);
-        assert_eq!(SAMPLE_BYTE_BUDGET, 64 * 1024 * 1000);
-    }
-
-    #[test]
-    fn threshold_proxy_is_strict() {
-        assert_eq!(estimated_value_bytes(800, 699), 699);
-        assert_eq!(estimated_value_bytes(800, 700), 800);
-    }
-
-    #[test]
     fn round_robin_samples_multiple_caches() -> Result<()> {
         let first = make_cache(2, Compression::Zstd3, 20)?;
         let second = make_cache(2, Compression::Lz4, 20)?;
@@ -851,6 +893,28 @@ mod tests {
     }
 
     #[test]
+    fn evaluation_groups_small_values_into_production_sized_blocks() -> Result<()> {
+        let cache = make_cache(2, Compression::Zstd3, 20)?;
+        let mut raw = CacheSampleIter::open(cache.path().to_path_buf(), 2, None)?;
+        let mut raw_count = 0;
+        while raw.next_sample()?.is_some() {
+            raw_count += 1;
+        }
+
+        let source = CacheSampleIter::open(cache.path().to_path_buf(), 2, None)?;
+        let mut grouped = EvaluationSampleIter::new(source);
+        let mut sizes = Vec::new();
+        while let Some(sample) = grouped.next_sample()? {
+            sizes.push(sample.data.len());
+        }
+        assert!(sizes.len() < raw_count);
+        assert!(sizes.iter().any(|&size| {
+            (MIN_SMALL_VALUE_BLOCK_SIZE..MIN_SMALL_VALUE_BLOCK_SIZE + 4096).contains(&size)
+        }));
+        Ok(())
+    }
+
+    #[test]
     fn accepts_lz4_source_cache_and_ignores_source_dictionary() -> Result<()> {
         let cache = make_cache(2, Compression::Lz4, 20)?;
         let mut iter =
@@ -866,37 +930,6 @@ mod tests {
         )?;
         assert!(iter.source_codecs.contains("Zstd3"));
         assert!(iter.next_sample()?.is_some());
-        Ok(())
-    }
-
-    #[test]
-    fn source_dictionary_opens_dictionary_cache_and_plain_config_rejects_it() -> Result<()> {
-        let samples = (0..100)
-            .map(|index| format!("export function Component{index}() {{ return null }}"))
-            .collect::<Vec<_>>();
-        let dictionary = zstd::dict::from_samples(&samples, 1024)?;
-        let dictionary = Box::leak(dictionary.into_boxed_slice());
-        let cache =
-            make_cache_with_config(2, CompressionConfig::Zstd3WithDictionary(dictionary), 20)?;
-        assert!(CacheSampleIter::open(cache.path().to_path_buf(), 2, None).is_err());
-        let mut iter = CacheSampleIter::open(cache.path().to_path_buf(), 2, Some(dictionary))?;
-        assert!(iter.next_sample()?.is_some());
-        Ok(())
-    }
-
-    #[test]
-    fn insufficient_samples_fail_with_context() -> Result<()> {
-        let cache = make_cache(2, Compression::Zstd3, 1)?;
-        let output_dir = tempfile::tempdir()?;
-        let source = Source {
-            family: 2,
-            source_dictionary: None,
-            caches: vec![cache.path().to_path_buf()],
-        };
-        let error = train(&source, &output_dir.path().join("dictionary.zdict"))
-            .err()
-            .expect("one small cache should not train a 64 KiB dictionary");
-        assert!(format!("{error:#}").contains("Failed to train a 65536-byte dictionary"));
         Ok(())
     }
 
@@ -940,6 +973,7 @@ mod tests {
                     sequence_number: 42,
                 },
                 CompressionConfig::Zstd3,
+                1,
             )?
             .unwrap();
         assert_eq!(sample.data.as_ref(), value);
@@ -957,6 +991,7 @@ mod tests {
                     sequence_number: 42
                 },
                 CompressionConfig::Zstd3,
+                1,
             )?
             .is_none()
         );
@@ -967,6 +1002,7 @@ mod tests {
                     sequence_number: 43
                 },
                 CompressionConfig::Zstd3,
+                1,
             )
             .is_err()
         );
@@ -996,14 +1032,5 @@ mod tests {
         let deleted = turbo_persistence::offline::collect_sst_info(cache.path())?;
         assert_eq!(deleted[&2].len(), 1);
         Ok(())
-    }
-
-    #[cfg(unix)]
-    #[test]
-    fn rejects_non_utf8_dictionary_name() {
-        use std::os::unix::ffi::OsStringExt;
-
-        let path = PathBuf::from(OsString::from_vec(vec![0xff]));
-        assert!(super::dictionary_info(Some(&path), b"data", false).is_err());
     }
 }

@@ -54,7 +54,7 @@ Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BL
 A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
 
 - Header
-  - 4 bytes magic number (0xFE4ADA4B)
+  - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
   - 1 byte compression algorithm, which must match the configuration used to open the database
   - 4 bytes zstd dictionary ID (zero when no dictionary is configured)
@@ -388,10 +388,11 @@ a nonzero dictionary ID; it is ignored for LZ4 and plain-zstd SSTs. The tool fol
 deletion files, and meta-file supersession, and uses `StaticSortedFileIter` to read slice, medium, and
 blob values. Checksums, dictionary IDs, and decompressed lengths are verified.
 
-Small values are grouped into physical blocks in production, so the report's per-value 12.5%
-minimum-savings calculation is a comparative estimate, not exact SST-size modeling. Estimated stored
-bytes exclude fixed container headers. Timing fields are single-pass diagnostics; use byte/count
-fields for repeatable comparisons of one copied cache snapshot.
+Evaluation groups small logical values into SST-local 8–12 KiB units, while medium values and blobs
+remain independent. The 12.5% minimum-savings rule is applied per approximated unit, so this remains
+comparative rather than exact SST-size modeling. Estimated stored bytes exclude fixed container
+headers. Timing fields are single-pass diagnostics; use byte/count fields for repeatable comparisons
+of one copied cache snapshot.
 
 ## Opening
 
