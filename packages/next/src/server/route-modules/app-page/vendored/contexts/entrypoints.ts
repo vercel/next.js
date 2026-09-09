@@ -4,3 +4,4 @@ export * as AppRouterContext from '../../../../../shared/lib/app-router-context.
 export * as HooksClientContext from '../../../../../shared/lib/hooks-client-context.shared-runtime'
 export * as RouterContext from '../../../../../shared/lib/router-context.shared-runtime'
 export * as ImageConfigContext from '../../../../../shared/lib/image-config-context.shared-runtime'
+export * as InlinedCssContext from '../../../../../shared/lib/inlined-css-context.shared-runtime'

@@ -313,6 +313,11 @@ import {
 } from '../../shared/lib/router/utils/get-dynamic-param'
 import type { Params } from '../request/params'
 import { ImageConfigContext } from '../../shared/lib/image-config-context.shared-runtime'
+import {
+  InlinedCssContext,
+  type InlinedCssLookup,
+} from '../../shared/lib/inlined-css-context.shared-runtime'
+import { createInlinedCssLookup, NO_INLINED_CSS } from './render-css-resource'
 import { imageConfigDefault } from '../../shared/lib/image-config'
 import {
   getNextStage,
@@ -435,6 +440,8 @@ export type AppRenderContext = {
   assetPrefix: string
   isNotFoundPath: boolean
   nonce: string | undefined
+  /** Resolves an inlined stylesheet's href to its text, for the SSR layer. */
+  lookupInlinedCss: InlinedCssLookup
   res: BaseNextResponse
   /**
    * For now, the implicit tags are common for the whole route. If we ever start
@@ -2480,6 +2487,7 @@ function App<T>({
   debugEndTime,
   preinitScripts,
   ServerInsertedHTMLProvider,
+  lookupInlinedCss,
   nonce,
   images,
 }: {
@@ -2491,6 +2499,7 @@ function App<T>({
   ServerInsertedHTMLProvider: ComponentType<{
     children: JSX.Element
   }>
+  lookupInlinedCss: InlinedCssLookup
   images: RenderOpts['images']
   nonce?: string
 }): JSX.Element {
@@ -2527,9 +2536,14 @@ function App<T>({
       }}
     >
       <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
-        <ServerInsertedHTMLProvider>
-          <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
-        </ServerInsertedHTMLProvider>
+        <InlinedCssContext.Provider value={lookupInlinedCss}>
+          <ServerInsertedHTMLProvider>
+            <AppRouter
+              actionQueue={actionQueue}
+              globalErrorState={response.G}
+            />
+          </ServerInsertedHTMLProvider>
+        </InlinedCssContext.Provider>
       </ImageConfigContext.Provider>
     </HeadManagerContext.Provider>
   )
@@ -2543,6 +2557,7 @@ function ErrorApp<T>({
   reactServerStream,
   preinitScripts,
   ServerInsertedHTMLProvider,
+  lookupInlinedCss,
   nonce,
   images,
 }: {
@@ -2551,6 +2566,7 @@ function ErrorApp<T>({
   ServerInsertedHTMLProvider: ComponentType<{
     children: JSX.Element
   }>
+  lookupInlinedCss: InlinedCssLookup
   nonce?: string
   images: RenderOpts['images']
 }): JSX.Element {
@@ -2579,9 +2595,11 @@ function ErrorApp<T>({
 
   return (
     <ImageConfigContext.Provider value={images ?? imageConfigDefault}>
-      <ServerInsertedHTMLProvider>
-        <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
-      </ServerInsertedHTMLProvider>
+      <InlinedCssContext.Provider value={lookupInlinedCss}>
+        <ServerInsertedHTMLProvider>
+          <AppRouter actionQueue={actionQueue} globalErrorState={response.G} />
+        </ServerInsertedHTMLProvider>
+      </InlinedCssContext.Provider>
     </ImageConfigContext.Provider>
   )
   /* eslint-enable @next/internal/no-ambiguous-jsx -- React Client */
@@ -2877,6 +2895,11 @@ async function prepareAppPageRender(
     assetPrefix,
     isNotFoundPath,
     nonce,
+    lookupInlinedCss: createInlinedCssLookup({
+      assetPrefix,
+      requestTimestamp,
+      sharedContext,
+    }),
     res,
     sharedContext,
     implicitTags,
@@ -4292,6 +4315,7 @@ async function renderToStream(
                 debugEndTime={undefined}
                 preinitScripts={preinitScripts}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                lookupInlinedCss={ctx.lookupInlinedCss}
                 nonce={nonce}
                 images={ctx.renderOpts.images}
               />
@@ -4349,6 +4373,7 @@ async function renderToStream(
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            lookupInlinedCss={ctx.lookupInlinedCss}
             nonce={nonce}
             images={ctx.renderOpts.images}
           />
@@ -4427,6 +4452,7 @@ async function renderToStream(
                 debugEndTime={undefined}
                 preinitScripts={preinitScripts}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                lookupInlinedCss={ctx.lookupInlinedCss}
                 nonce={nonce}
                 images={ctx.renderOpts.images}
               />
@@ -4483,6 +4509,7 @@ async function renderToStream(
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            lookupInlinedCss={ctx.lookupInlinedCss}
             nonce={nonce}
             images={ctx.renderOpts.images}
           />
@@ -4655,6 +4682,7 @@ async function renderToStream(
             <ErrorApp
               reactServerStream={errorServerStream}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              lookupInlinedCss={ctx.lookupInlinedCss}
               preinitScripts={errorPreinitScripts}
               nonce={nonce}
               images={ctx.renderOpts.images}
@@ -4748,6 +4776,7 @@ async function renderToStream(
               <ErrorApp
                 reactServerStream={errorServerStream}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                lookupInlinedCss={ctx.lookupInlinedCss}
                 preinitScripts={errorPreinitScripts}
                 nonce={nonce}
                 images={ctx.renderOpts.images}
@@ -7364,6 +7393,7 @@ async function warmupClientModulesForStagedValidation(
       debugEndTime={undefined}
       preinitScripts={preinitScripts}
       ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+      lookupInlinedCss={NO_INLINED_CSS}
       nonce={nonce}
       images={ctx.renderOpts.images}
     />,
@@ -7537,6 +7567,7 @@ async function validateStaticShellAtStage(
             debugEndTime={stageEndTimes[stage]}
             preinitScripts={preinitScripts}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            lookupInlinedCss={NO_INLINED_CSS}
             nonce={nonce}
             images={ctx.renderOpts.images}
           />,
@@ -8012,6 +8043,7 @@ async function validateInstantConfigs(
               debugEndTime={undefined}
               preinitScripts={preinitScripts}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              lookupInlinedCss={NO_INLINED_CSS}
               nonce={nonce}
               images={ctx.renderOpts.images}
             />,
@@ -8737,6 +8769,7 @@ async function validateInstantConfigInBuildWithSample(
       assetPrefix: outerCtx.assetPrefix,
       isNotFoundPath: outerCtx.isNotFoundPath,
       nonce: outerCtx.nonce,
+      lookupInlinedCss: outerCtx.lookupInlinedCss,
       res: outerCtx.res,
       sharedContext: outerCtx.sharedContext,
       implicitTags: outerCtx.implicitTags,
@@ -9542,6 +9575,7 @@ async function prerenderToStream(
             debugEndTime={undefined}
             preinitScripts={preinitScripts}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            lookupInlinedCss={ctx.lookupInlinedCss}
             nonce={nonce}
             images={ctx.renderOpts.images}
           />,
@@ -10007,6 +10041,7 @@ async function prerenderToStream(
                 debugEndTime={debugEndTime}
                 preinitScripts={preinitScripts}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                lookupInlinedCss={ctx.lookupInlinedCss}
                 nonce={nonce}
                 images={ctx.renderOpts.images}
               />,
@@ -10214,6 +10249,7 @@ async function prerenderToStream(
             debugEndTime={undefined}
             preinitScripts={() => {}}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            lookupInlinedCss={ctx.lookupInlinedCss}
             nonce={nonce}
             images={ctx.renderOpts.images}
           />,
@@ -10315,6 +10351,7 @@ async function prerenderToStream(
           debugEndTime={undefined}
           preinitScripts={preinitScripts}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+          lookupInlinedCss={ctx.lookupInlinedCss}
           nonce={nonce}
           images={ctx.renderOpts.images}
         />,
@@ -10641,6 +10678,7 @@ async function prerenderToStream(
               <ErrorApp
                 reactServerStream={errorServerResult.asUnclosingStream()}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                lookupInlinedCss={ctx.lookupInlinedCss}
                 preinitScripts={errorPreinitScripts}
                 nonce={nonce}
                 images={ctx.renderOpts.images}
@@ -10769,6 +10807,7 @@ async function prerenderToStream(
             <ErrorApp
               reactServerStream={foreverStream}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              lookupInlinedCss={ctx.lookupInlinedCss}
               preinitScripts={() => {}}
               nonce={nonce}
               images={ctx.renderOpts.images}
@@ -10890,6 +10929,7 @@ async function prerenderToStream(
         <ErrorApp
           reactServerStream={errorServerStream}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+          lookupInlinedCss={ctx.lookupInlinedCss}
           preinitScripts={errorPreinitScripts}
           nonce={nonce}
           images={ctx.renderOpts.images}
