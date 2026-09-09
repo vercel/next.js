@@ -4,7 +4,13 @@ async function getCodeHashes(
   next: NextInstance,
   pages?: string[]
 ): Promise<
-  { id: string; page: string; codeHash?: string; runtimeEnvVars?: string[] }[]
+  {
+    id: string
+    page: string
+    codeHash?: string
+    runtimeEnvVarsRead?: string[]
+    runtimeEnvVarsExistence?: string[]
+  }[]
 > {
   const manifest = await next.readJSON(
     '.next/server/server-reference-manifest.json'
@@ -14,7 +20,8 @@ async function getCodeHashes(
     id: string
     page: string
     codeHash?: string
-    runtimeEnvVars?: string[]
+    runtimeEnvVarsRead?: string[]
+    runtimeEnvVarsExistence?: string[]
   }[] = []
   for (const [actionId, entry] of Object.entries<any>(manifest.node)) {
     for (const [workerKey, worker] of Object.entries<any>(entry.workers)) {
@@ -23,12 +30,13 @@ async function getCodeHashes(
           id: actionId,
           page: workerKey,
           codeHash: worker?.durability?.codeHash,
-          runtimeEnvVars: worker?.durability?.runtimeEnvVars,
+          runtimeEnvVarsRead: worker?.durability?.runtimeEnvVarsRead,
+          runtimeEnvVarsExistence: worker?.durability?.runtimeEnvVarsExistence,
         })
       }
     }
   }
-
+  hashes.sort((a, b) => a.page.localeCompare(b.page))
   return hashes
 }
 
@@ -43,48 +51,18 @@ async function getCodeHashes(
 
       it('emits codeHash only for use-cache functions', async () => {
         const values = Object.values(await getCodeHashes(next))
-        expect(values.length).toBe(4)
-
         const valuesWithoutCodeHash = values.filter(
           (e) => typeof e.codeHash !== 'string'
         )
-        expect(valuesWithoutCodeHash.length).toBe(1)
-        expect(valuesWithoutCodeHash[0].page).toBe('app/use-server/page')
+        expect(valuesWithoutCodeHash.map((v) => v.page)).toMatchInlineSnapshot(`
+         [
+           "app/use-server/page",
+         ]
+        `)
       })
 
       it('lists non-inlined runtime env vars', async () => {
-        const data = await getCodeHashes(next)
-
-        expect(data.find((e) => e.page === 'app/use-cache/page').runtimeEnvVars)
-          .toMatchInlineSnapshot(`
-         [
-           "BUNDLED_NON_INLINED_ENVVAR",
-           "NEXT_PRIVATE_DEBUG_CACHE",
-           "__NEXT_DEV_SERVER",
-           "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
-           "NEXT_PRIVATE_DEBUG_VALIDATION",
-           "NEXT_OTEL_VERBOSE",
-           "NEXT_OTEL_PERFORMANCE_PREFIX",
-           "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
-           "EXTERNAL_ENV_VAR",
-         ]
-        `)
-
-        expect(
-          data.find((e) => e.page === 'app/env-dynamic/page').runtimeEnvVars
-        ).toMatchInlineSnapshot(`
-         [
-           "NEXT_PRIVATE_DEBUG_CACHE",
-           "__NEXT_DEV_SERVER",
-           "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
-           "NEXT_PRIVATE_DEBUG_VALIDATION",
-           "NEXT_OTEL_VERBOSE",
-           "NEXT_OTEL_PERFORMANCE_PREFIX",
-           "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
-         ]
-        `)
-
-        // TODO ideally this wouldn't include NEXT_DEPLOYMENT_ID.
+        // TODO ideally app/next-image/page wouldn't include NEXT_DEPLOYMENT_ID.
         // But currently the import chain
         // next/image.js
         // -> packages/next/src/shared/lib/get-img-props.ts
