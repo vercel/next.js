@@ -433,8 +433,21 @@ export function mergeErrorEvent(
         getStackIgnoringStrictMode(pendingEvent.error.stack)) &&
     getOwnerStack(event.error) === getOwnerStack(pendingEvent.error)
 
-  const duplicateIndex = events.findIndex(matchesError)
+  let duplicateIndex = events.findIndex(
+    (event) =>
+      matchesError(event) &&
+      event.boundary?.kind === pendingEvent.boundary?.kind &&
+      event.boundary?.name === pendingEvent.boundary?.name
+  )
 
+  if (duplicateIndex === -1 && pendingEvent.isFatal) {
+    // A previous console report may become a fatal render error. Preserve its
+    // ID while attaching the catcher, without merging different caught paths.
+    duplicateIndex = events.findIndex(
+      (event) =>
+        matchesError(event) && !event.isFatal && event.boundary === undefined
+    )
+  }
   if (duplicateIndex === -1) {
     return [...events, pendingEvent]
   }
@@ -483,6 +496,7 @@ export function useErrorOverlayReducer(
         {
           ...pendingEvent,
           isFatal: metadata?.fatal ?? false,
+          boundary: metadata?.boundary,
         },
         getOwnerStack
       )
