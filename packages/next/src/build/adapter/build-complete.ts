@@ -62,6 +62,7 @@ import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { __ApiPreviewProps } from '../../server/api-utils'
+import { mapNftFileEntries, type NftJson } from '../nft'
 
 interface SharedRouteFields {
   /**
@@ -99,6 +100,12 @@ interface SharedRouteFields {
    * Hashes of the contents of each `assets` entry (not including the output path!)
    */
   assetsHashes: Record<string, string>
+
+  /**
+   * Symlink targets keyed by destination asset path. Values are destination
+   * asset paths too, so adapters can materialize relocatable relative links.
+   */
+  assetSymlinks?: Record<string, string>
 
   /**
    * wasmAssets are bundled wasm files. The key is the (opaque) name of asset
@@ -711,6 +718,7 @@ export async function handleBuildComplete({
       const {
         sharedNodeAssets,
         sharedNodeAssetsHashes,
+        sharedNodeAssetSymlinks,
         pagesSharedNodeAssets,
         pagesSharedNodeAssetsHashes,
         appPagesSharedNodeAssets,
@@ -732,7 +740,7 @@ export async function handleBuildComplete({
       ) {
         const assets: Record<string, string> = {}
         const assetsHashes: Record<string, string> = {}
-        const { entryHash } = await loadNFT(
+        let { entryHash, assetSymlinks } = await loadNFT(
           assets,
           assetsHashes,
           repoRoot,
@@ -750,10 +758,16 @@ export async function handleBuildComplete({
           type === 'pages' ? pagesSharedNodeAssetsHashes : {},
           type === 'app' ? appPagesSharedNodeAssetsHashes : {}
         )
+        if (sharedNodeAssetSymlinks) {
+          assetSymlinks = {
+            ...sharedNodeAssetSymlinks,
+            ...assetSymlinks,
+          }
+        }
         if (entryHash) {
           assetsHashes[path.relative(repoRoot, entryFilePath)] = entryHash
         }
-        return { assets, assetsHashes, entryHash }
+        return { assets, assetsHashes, assetSymlinks, entryHash }
       }
 
       async function handleEdgeFunction(
@@ -988,14 +1002,14 @@ export async function handleBuildComplete({
           }
         }
 
-        const { assets, assetsHashes } = await handleTraceFiles(
+        const { assets, assetsHashes, assetSymlinks } = await handleTraceFiles(
           pageFile,
           'pages'
         ).catch((err) => {
           if (err.code !== 'ENOENT' || (page !== '/404' && page !== '/500')) {
             Log.warn(`Failed to locate traced assets for ${pageFile}`, err)
           }
-          return { assets: {}, assetsHashes: {} }
+          return { assets: {}, assetsHashes: {}, assetSymlinks: undefined }
         })
         const functionConfig = functionsConfigManifest.functions[route] || {}
         let sourcePage = route.replace(/^\//, '')
@@ -1012,6 +1026,7 @@ export async function handleBuildComplete({
           sourcePage,
           assets,
           assetsHashes,
+          assetSymlinks,
           runtime: 'nodejs',
           config: {
             maxDuration: functionConfig.maxDuration,
@@ -1088,7 +1103,7 @@ export async function handleBuildComplete({
 
       if (hasNodeMiddleware) {
         const middlewareFile = path.join(distDir, 'server', 'middleware.js')
-        const { assets, assetsHashes } = await handleTraceFiles(
+        const { assets, assetsHashes, assetSymlinks } = await handleTraceFiles(
           middlewareFile,
           'neutral'
         )
@@ -1101,6 +1116,7 @@ export async function handleBuildComplete({
           sourcePage: 'middleware',
           assets,
           assetsHashes,
+          assetSymlinks,
           type: AdapterOutputType.MIDDLEWARE,
           runtime: 'nodejs',
           filePath: middlewareFile,
@@ -1159,12 +1175,12 @@ export async function handleBuildComplete({
             continue
           }
           const pageFile = path.join(appDistDir, `${page}.js`)
-          let { assets, assetsHashes } = await handleTraceFiles(
+          let { assets, assetsHashes, assetSymlinks } = await handleTraceFiles(
             pageFile,
             'app'
           ).catch((err) => {
             Log.warn(`Failed to copy traced files for ${pageFile}`, err)
-            return { assets: {}, assetsHashes: {} }
+            return { assets: {}, assetsHashes: {}, assetSymlinks: undefined }
           })
 
           // If this is a parallel route we just need to merge
@@ -1173,6 +1189,12 @@ export async function handleBuildComplete({
           if (existingOutput) {
             Object.assign(existingOutput.assets, assets)
             Object.assign(existingOutput.assetsHashes, assetsHashes)
+            if (assetSymlinks) {
+              existingOutput.assetSymlinks = {
+                ...existingOutput.assetSymlinks,
+                ...assetSymlinks,
+              }
+            }
             await pushAsset(
               existingOutput.assets,
               existingOutput.assetsHashes,
@@ -1194,6 +1216,7 @@ export async function handleBuildComplete({
               sourcePage: page,
               assets,
               assetsHashes,
+              assetSymlinks,
               type: page.endsWith('/route')
                 ? AdapterOutputType.APP_ROUTE
                 : AdapterOutputType.APP_PAGE,
@@ -2474,6 +2497,7 @@ async function getSharedNodeAssets({
 }) {
   const sharedNodeAssets: Record<string, string> = {}
   const sharedNodeAssetsHashes: Record<string, string> = {}
+  let sharedNodeAssetSymlinks: Record<string, string> | undefined
   const pagesSharedNodeAssets: Record<string, string> = {}
   const pagesSharedNodeAssetsHashes: Record<string, string> = {}
   const appPagesSharedNodeAssets: Record<string, string> = {}
@@ -2667,12 +2691,18 @@ async function getSharedNodeAssets({
   }
 
   if (hasInstrumentationHook) {
-    const { entryHash: instrumentationEntryHash } = await loadNFT(
+    const {
+      entryHash: instrumentationEntryHash,
+      assetSymlinks: instrumentationAssetSymlinks,
+    } = await loadNFT(
       sharedNodeAssets,
       sharedNodeAssetsHashes,
       repoRoot,
       path.join(distDir, 'server', 'instrumentation.js.nft.json')
     )
+    if (instrumentationAssetSymlinks) {
+      sharedNodeAssetSymlinks = instrumentationAssetSymlinks
+    }
 
     const fileOutputPath = path.relative(
       repoRoot,
@@ -2707,6 +2737,7 @@ async function getSharedNodeAssets({
   return {
     sharedNodeAssets,
     sharedNodeAssetsHashes,
+    sharedNodeAssetSymlinks,
     pagesSharedNodeAssets,
     pagesSharedNodeAssetsHashes,
     appPagesSharedNodeAssets,
@@ -2737,27 +2768,24 @@ async function loadNFT(
   assetsHashes: Record<string, string>,
   repoRoot: string,
   traceFilePath: string
-): Promise<{ entryHash?: string }> {
-  const { files, fileHashes, entryHash } = (await JSON.parse(
-    await fs.readFile(traceFilePath, 'utf8')
-  )) as {
-    files: string[]
-    fileHashes?: string[]
-    entryHash?: string
-  }
+): Promise<{
+  entryHash?: string
+  assetSymlinks?: Record<string, string>
+}> {
+  const nft = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as NftJson
+  const assetSymlinks: Record<string, string> | undefined =
+    nft.symlinks !== undefined ? {} : undefined
 
-  const traceFileDir = path.dirname(traceFilePath)
-  for (let i = 0; i < files.length; i++) {
-    const relativeFile = files[i]
-    const contentHash = fileHashes?.[i]
-    const tracedFilePath = path.join(traceFileDir, relativeFile)
-    const fileOutputPath = path.relative(repoRoot, tracedFilePath)
-    assets[fileOutputPath] = tracedFilePath
-    if (contentHash) {
-      assetsHashes[fileOutputPath] = contentHash
+  for (const entry of mapNftFileEntries(nft, traceFilePath, repoRoot)) {
+    assets[entry.destination] = entry.source
+    if (entry.hash) {
+      assetsHashes[entry.destination] = entry.hash
+    }
+    if (entry.symlinkTarget !== undefined && assetSymlinks) {
+      assetSymlinks[entry.destination] = entry.symlinkTarget
     }
   }
-  return { entryHash }
+  return { entryHash: nft.entryHash, assetSymlinks }
 }
 
 async function hashFile(salt: string, filePath: string): Promise<string> {

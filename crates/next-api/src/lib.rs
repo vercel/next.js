@@ -18,6 +18,7 @@ mod module_graph;
 pub mod next_server_nft;
 mod nft;
 mod nft_json;
+mod nft_json_builder;
 pub mod operation;
 mod pages;
 pub mod paths;
