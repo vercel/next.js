@@ -46,6 +46,7 @@ type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 const CACHE_VERSION = 4
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
+const INTERNAL_IMAGE_RESPONSE_TIMEOUT_MS = 30_000
 
 async function initCacheEntries(
   cacheDir: string
@@ -629,6 +630,34 @@ export async function fetchExternalImage(
   return { buffer, contentType, cacheControl, etag }
 }
 
+async function waitForInternalResponse(
+  hasStreamed: Promise<boolean>,
+  href: string
+): Promise<void> {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+  try {
+    await Promise.race([
+      hasStreamed,
+      new Promise<never>((_resolve, reject) => {
+        timeout = setTimeout(() => {
+          Log.error(
+            'internal image response never finished streaming for',
+            href
+          )
+          reject(
+            new ImageError(
+              504,
+              '"url" parameter is valid but internal response never finished streaming'
+            )
+          )
+        }, INTERNAL_IMAGE_RESPONSE_TIMEOUT_MS)
+      }),
+    ])
+  } finally {
+    if (timeout) clearTimeout(timeout)
+  }
+}
+
 export async function fetchInternalImage(
   href: string,
   _req: IncomingMessage,
@@ -641,18 +670,16 @@ export async function fetchInternalImage(
   ) => Promise<void>
 ): Promise<ImageUpstream> {
   try {
-    // Coerce HEAD to GET to avoid issues with the image optimizer
     const method = !_req.method || _req.method === 'HEAD' ? 'GET' : _req.method
 
     const mocked = createRequestResponseMocks({
       url: href,
       method,
-      socket: _req.socket,
       maximumResponseBody,
     })
 
     await handleRequest(mocked.req, mocked.res, parseReqUrl(href))
-    await mocked.res.hasStreamed
+    await waitForInternalResponse(mocked.res.hasStreamed, href)
 
     if (
       !mocked.res.statusCode ||
