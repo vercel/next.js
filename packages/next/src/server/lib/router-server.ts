@@ -614,7 +614,11 @@ export async function initialize(opts: {
         )
       }
 
-      if (matchedOutput?.fsPath && matchedOutput.itemPath) {
+      if (
+        matchedOutput?.type === 'nextStaticFolder' ||
+        matchedOutput?.type === 'legacyStaticFolder' ||
+        matchedOutput?.type === 'publicFolder'
+      ) {
         if (
           opts.dev &&
           (fsChecker.appFiles.has(matchedOutput.itemPath) ||
@@ -729,39 +733,57 @@ export async function initialize(opts: {
       if (matchedOutput) {
         invokedOutputs.add(matchedOutput.itemPath)
 
-        // fsChecker preserves compilation errors from its dev ensure step so
-        // the route remains matched. Log the compiler diagnostic, then render
-        // the matched route as a 500 instead of falling through to a 404.
-        if (matchedOutput.error && development) {
-          development.bundler.logErrorWithOriginalStack(
-            matchedOutput.error,
-            matchedOutput.type === 'appFile' ? 'app-dir' : undefined
+        if (
+          matchedOutput.type === 'appFile' ||
+          matchedOutput.type === 'pageFile'
+        ) {
+          // fsChecker preserves compilation errors from its dev ensure step so
+          // the route remains matched. Log the compiler diagnostic, then render
+          // the matched route as a 500 instead of falling through to a 404.
+          if (matchedOutput.error && development) {
+            development.bundler.logErrorWithOriginalStack(
+              matchedOutput.error,
+              matchedOutput.type === 'appFile' ? 'app-dir' : undefined
+            )
+          }
+
+          return await invokeRender(
+            parsedUrl,
+            parsedUrl.pathname || '/',
+            handleIndex,
+            {
+              invokeOutput: matchedOutput.itemPath,
+              ...(matchedOutput.error
+                ? {
+                    invokeStatus: 500,
+                    invokeError: matchedOutput.error,
+                  }
+                : undefined),
+              // fsChecker owns the route match for filesystem requests. Forward
+              // it so BaseServer does not need the removed matcher manager.
+              match: {
+                definition: matchedOutput.route,
+                params: matchedOutput.params,
+              },
+            }
           )
         }
 
-        return await invokeRender(
-          parsedUrl,
-          parsedUrl.pathname || '/',
-          handleIndex,
-          {
-            invokeOutput: matchedOutput.itemPath,
-            ...(matchedOutput.error
-              ? {
-                  invokeStatus: 500,
-                  invokeError: matchedOutput.error,
-                }
-              : undefined),
-            // fsChecker owns the route match for filesystem requests. Forward
-            // it so BaseServer does not need the removed matcher manager.
-            ...(matchedOutput.route
-              ? {
-                  match: {
-                    definition: matchedOutput.route,
-                    params: matchedOutput.params,
-                  },
-                }
-              : undefined),
-          }
+        if (matchedOutput.type === 'nextImage') {
+          // Image optimization is handled by NextNodeServer, so forward the
+          // request to the render server without a page route match.
+          return await invokeRender(
+            parsedUrl,
+            parsedUrl.pathname || '/',
+            handleIndex,
+            {
+              invokeOutput: matchedOutput.itemPath,
+            }
+          )
+        }
+
+        throw new Error(
+          'Invariant: dev virtual filesystem item was not handled by the development bundler'
         )
       }
 
