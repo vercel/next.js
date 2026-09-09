@@ -21,8 +21,10 @@ guide at
 If it is unavailable, use the [online
 guide](https://nextjs.org/docs/app/guides/optimizing-the-static-shell). The
 guide owns Cache Components, Suspense, loading UI, caching, and authorization
-patterns. This skill owns the production test rig, trustworthy RED-to-GREEN
-loop, parity check, differential, and reporting.
+patterns and is the source of truth for the framework behavior. Follow its
+links to the relevant API references and error pages when choosing and applying
+the fix. This skill owns the production test rig, trustworthy RED-to-GREEN loop,
+parity check, differential, and reporting.
 
 This is not an adoption or Partial Prefetching skill. If Cache Components are
 not adopted, use `next-cache-components-adoption` first. If the static shell is
