@@ -52,6 +52,13 @@ for (const cacheEnabled of [false, true]) {
 
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
+      overrideFiles: {
+        '.npmrc': `# The default pnpm symlinks trigger a kernel bug in this test. Use an
+# npm-style layout with copied package files instead.
+node-linker=hoisted
+package-import-method=copy
+`,
+      },
       packageJson: {
         scripts: {
           build: `${envVars} next build`,
@@ -59,8 +66,6 @@ for (const cacheEnabled of [false, true]) {
           start: 'next start',
         },
       },
-      // Use pnpm's hoisted linker with copied packages because its default
-      // symlinks trigger a kernel bug in this test (configured in .npmrc).
       installCommand: 'pnpm install',
       // Next is always started with caching, but this can disable it for the followup restarts
       buildCommand: `pnpm run build`,

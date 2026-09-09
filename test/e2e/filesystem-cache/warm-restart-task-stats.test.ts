@@ -48,6 +48,13 @@ describe('warm-restart task statistics', () => {
 
   const { next } = nextTestSetup({
     files: __dirname,
+    overrideFiles: {
+      '.npmrc': `# The default pnpm symlinks trigger a kernel bug in this test. Use an
+# npm-style layout with copied package files instead.
+node-linker=hoisted
+package-import-method=copy
+`,
+    },
     packageJson: {
       scripts: {
         build: `${env} next build`,
