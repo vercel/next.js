@@ -76,13 +76,27 @@ async function main() {
     })
   )
 
-  const lernaListJson = await execa('pnpm', [
+  // `--depth -1` limits the output to the workspace projects themselves,
+  // without their dependency trees. The filter matches the `packages/*` glob
+  // the release only ever publishes from.
+  const pnpmListJson = await execa('pnpm', [
     '--silent',
-    'lerna',
     'list',
+    '--recursive',
+    '--depth',
+    '-1',
     '--json',
+    '--filter',
+    './packages/**',
   ])
-  const packages = JSON.parse(lernaListJson.stdout)
+  const packages = JSON.parse(pnpmListJson.stdout)
+  for (const packageInfo of packages) {
+    if (!packageInfo.path) {
+      throw new Error(
+        `Unexpected \`pnpm list\` output: no \`path\` for ${packageInfo.name}`
+      )
+    }
+  }
   const packagesByVersion = new Map()
   // vercel-packages finds GH artifacts via the head SHA because that's the only
   // API GitHub offers.
@@ -101,13 +115,15 @@ async function main() {
 
   console.info(`Creating tarballs for regular packages`)
   for (const packageInfo of packages) {
-    if (packageInfo.private) {
-      continue
-    }
-
-    const packageJsonPath = path.join(packageInfo.location, 'package.json')
+    const packageJsonPath = path.join(packageInfo.path, 'package.json')
     const packageJson = await fs.readFile(packageJsonPath, 'utf8')
     const manifest = JSON.parse(packageJson)
+
+    // Read `private` from the manifest rather than from the `pnpm list` entry,
+    // so this does not depend on pnpm surfacing that field.
+    if (manifest.private) {
+      continue
+    }
 
     manifest.version = version
 
@@ -149,7 +165,7 @@ async function main() {
       'npm',
       ['pack', '--pack-destination', packDestination],
       {
-        cwd: packageInfo.location,
+        cwd: packageInfo.path,
       }
     )
     // tarball name is printed as the last line of npm-pack
