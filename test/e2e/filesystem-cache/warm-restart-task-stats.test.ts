@@ -49,16 +49,15 @@ describe('warm-restart task statistics', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     packageJson: {
-      packageManager: 'npm@10.9.2',
       scripts: {
         build: `${env} next build`,
         dev: `${env} next dev`,
         start: 'next start',
       },
     },
-    installCommand: 'npm i',
-    buildCommand: 'npm run build',
-    startCommand: isNextDev ? 'npm run dev' : 'npm run start',
+    installCommand: 'pnpm install',
+    buildCommand: 'pnpm run build',
+    startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
   })
 
   beforeAll(() => {

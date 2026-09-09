@@ -4,6 +4,10 @@ import { renderViaHTTP } from 'next-test-utils'
 describe('handle-non-hoisted-swc-helpers', () => {
   const { next } = nextTestSetup({
     files: {
+      '.npmrc': `# The helper move below needs real package directories, not pnpm symlinks.
+node-linker=hoisted
+package-import-method=copy
+`,
       'pages/index.js': `
         export default function Page() {
           return <p>hello world</p>
@@ -21,7 +25,6 @@ describe('handle-non-hoisted-swc-helpers', () => {
       `,
     },
     packageJson: {
-      packageManager: 'npm@10.9.2',
       scripts: {
         build: 'next build',
         dev: 'next dev',
@@ -29,9 +32,9 @@ describe('handle-non-hoisted-swc-helpers', () => {
       },
     },
     installCommand:
-      'npm install; mkdir -p node_modules/next/node_modules/@swc; mv node_modules/@swc/helpers node_modules/next/node_modules/@swc/',
-    buildCommand: 'npm run build',
-    startCommand: isNextDev ? 'npm run dev' : 'npm run start',
+      'pnpm install && mkdir -p node_modules/next/node_modules/@swc && mv node_modules/@swc/helpers node_modules/next/node_modules/@swc/',
+    buildCommand: 'pnpm run build',
+    startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
     dependencies: {},
   })
 
