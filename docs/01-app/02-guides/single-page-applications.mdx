@@ -216,17 +216,30 @@ const ClientOnlyComponent = dynamic(() => import('./component'), {
 
 This can be useful for third-party libraries that rely on browser APIs like `window` or `document`. You can also add a `useEffect` that checks for the existence of these APIs, and if they do not exist, return `null` or a loading state which would be prerendered.
 
-React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Call `browser` inside `use` in a Client Component that needs browser APIs:
+React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Use `use(browser())` only when a Client Component's first browser render cannot match server-rendered HTML.
+
+During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The fallback becomes the component's initial HTML, so crawlers that don't execute JavaScript see the fallback instead of the component. Keep content that should be indexed outside the browser-only boundary.
+
+For example, this editor reads a saved draft from `localStorage`:
 
 ```jsx filename="app/browser-only-editor.jsx"
 'use client'
 
-import { use } from 'react'
+import { use, useState } from 'react'
 import { browser } from 'react-dom'
 
 export default function BrowserOnlyEditor() {
-  use(browser('The editor requires browser APIs.'))
-  return <Editor />
+  use(browser('The saved draft is stored in localStorage.'))
+
+  const [draft, setDraft] = useState(() => localStorage.getItem('draft') ?? '')
+
+  function handleChange(event) {
+    const nextDraft = event.target.value
+    setDraft(nextDraft)
+    localStorage.setItem('draft', nextDraft)
+  }
+
+  return <textarea value={draft} onChange={handleChange} />
 }
 ```
 
@@ -238,16 +251,16 @@ import BrowserOnlyEditor from './browser-only-editor'
 
 export default function Page() {
   return (
-    <Suspense fallback={<p>Loading editor...</p>}>
+    <Suspense fallback={<p>Loading editor…</p>}>
       <BrowserOnlyEditor />
     </Suspense>
   )
 }
 ```
 
-During prerendering, `use(browser())` suspends to the closest `<Suspense>` boundary. The component then renders normally in the browser.
+In the browser, `browser()` returns `undefined`, and the editor renders with the saved draft.
 
-See both approaches in the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only) and its [source code](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/browser-only).
+See both approaches in the [live demo](https://next-spa-patterns.labs.vercel.dev/browser-only). The [demo source](https://github.com/vercel-labs/next-spa-patterns/tree/main/app/browser-only) contains the complete examples.
 
 ### Shallow routing on the client
 
