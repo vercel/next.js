@@ -262,7 +262,11 @@ impl RuleCondition {
                     }
                     RuleCondition::ResourcePathGlob { glob, base } => {
                         return Ok(if let Some(rel_path) = base.get_relative_path_to(path) {
-                            glob.matches(&rel_path)
+                            if rel_path.starts_with("../") {
+                                glob.matches(&rel_path)
+                            } else {
+                                glob.matches(&format!("./{rel_path}"))
+                            }
                         } else {
                             glob.matches(&path.path)
                         });

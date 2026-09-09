@@ -444,8 +444,8 @@ async function readNormalizedNFT(next, name) {
 
         expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
                 [
-                  "./page/react-loadable-manifest.json",
-                  "./page_client-reference-manifest.js",
+                  "page/react-loadable-manifest.json",
+                  "page_client-reference-manifest.js",
                 ]
               `)
       })
@@ -564,8 +564,8 @@ async function readNormalizedNFT(next, name) {
 
         expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
          [
-           "./page/react-loadable-manifest.json",
-           "./page_client-reference-manifest.js",
+           "page/react-loadable-manifest.json",
+           "page_client-reference-manifest.js",
          ]
         `)
       })

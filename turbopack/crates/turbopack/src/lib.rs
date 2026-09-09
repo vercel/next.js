@@ -723,8 +723,13 @@ async fn process_default_internal(
             .project_path
             .get_relative_path_to(&loader.loader)
             .context("Loader path must be on project filesystem")?;
+        let loader_request = if loader_relative_path.starts_with("../") {
+            loader_relative_path
+        } else {
+            RcStr::from(format!("./{loader_relative_path}"))
+        };
         let webpack_loader_item = WebpackLoaderItem {
-            loader: loader_relative_path,
+            loader: loader_request,
             options: loader.options.clone(),
         };
         let loaders_vc = WebpackLoaderItems(vec![webpack_loader_item]).cell();
