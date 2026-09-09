@@ -216,7 +216,7 @@ const ClientOnlyComponent = dynamic(() => import('./component'), {
 
 This can be useful for third-party libraries that rely on browser APIs like `window` or `document`. You can also add a `useEffect` that checks for the existence of these APIs, and if they do not exist, return `null` or a loading state which would be prerendered.
 
-The App Router uses React Canary releases, which include the new [`browser`](https://react.dev/reference/react-dom/browser) API. Call `browser` inside `use` in a Client Component that needs browser APIs:
+React 19.3 includes the [`browser`](https://react.dev/reference/react-dom/browser) API. Call `browser` inside `use` in a Client Component that needs browser APIs:
 
 ```jsx filename="app/browser-only-editor.jsx"
 'use client'
