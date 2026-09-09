@@ -24,12 +24,18 @@ describe('outputFileTracingIncludes read glob', () => {
     expect(exitCode).toBe(0)
 
     const traceDirectory = path.join(next.testDir, 'app/.next/server/app')
-    const expectedTracePath = path
-      .relative(traceDirectory, wasmPath)
-      .replaceAll(path.sep, '/')
+    const toTracePath = (filePath: string) =>
+      path.relative(traceDirectory, filePath).replaceAll(path.sep, '/')
     const trace = JSON.parse(
       await next.readFile('app/.next/server/app/page.js.nft.json')
     )
-    expect(trace.files).toContain(expectedTracePath)
+
+    expect(trace.files).toContain(toTracePath(wasmPath))
+    expect(trace.files).toContain(
+      toTracePath(path.join(next.testDir, 'app/include-me/file.txt'))
+    )
+    expect(trace.files).not.toContain(
+      toTracePath(path.join(next.testDir, 'app/nested/include-me/file.txt'))
+    )
   })
 })

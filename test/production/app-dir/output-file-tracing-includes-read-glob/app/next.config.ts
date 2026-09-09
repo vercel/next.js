@@ -10,7 +10,7 @@ const wasmPath = path
 
 const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
-    '/*': [wasmPath],
+    '/*': [wasmPath, 'include-me/file.txt'],
   },
 }
 
