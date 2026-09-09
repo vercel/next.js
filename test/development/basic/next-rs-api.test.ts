@@ -206,7 +206,7 @@ async function main() {
   });
 
   const entrypointsSubscription = project.entrypointsSubscribe();
-  const entrypoints = (await entrypointsSubscription.next()).value;
+  const entrypoints = (await entrypointsSubscription.next()).value.value;
 
   const RUNS = 1000;
   async function compileRoute(route) {
@@ -363,7 +363,8 @@ describe('next.rs api', () => {
     )
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
-      (update) => (update.updateType === 'end' ? update.value : undefined)
+      (update) =>
+        update.value.updateType === 'end' ? update.value.value : undefined
     )
   })
 
@@ -371,11 +372,11 @@ describe('next.rs api', () => {
     const entrypointsSubscription = project.entrypointsSubscribe()
     const entrypoints = await entrypointsSubscription.next()
     expect(entrypoints.done).toBe(false)
-    if (!('routes' in entrypoints.value)) {
+    if (!('routes' in entrypoints.value.value)) {
       throw new Error('Entrypoints not available due to compilation errors')
     }
 
-    expect(Array.from(entrypoints.value.routes.keys()).sort()).toEqual([
+    expect(Array.from(entrypoints.value.value.routes.keys()).sort()).toEqual([
       '/',
       '/_not-found',
       '/api/edge',
@@ -464,11 +465,11 @@ describe('next.rs api', () => {
       const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
         await entrypointsSubscribtion.next()
       ).value
-      if (!('routes' in entrypoints)) {
+      if (!('routes' in entrypoints.value)) {
         throw new Error('Entrypoints not available due to compilation errors')
       }
 
-      const route = entrypoints.routes.get(path)
+      const route = entrypoints.value.routes.get(path)
       entrypointsSubscribtion.return()
 
       expect(route.type).toBe(type)
@@ -477,32 +478,32 @@ describe('next.rs api', () => {
         case 'page-api':
         case 'app-route': {
           const result = await route.endpoint.writeToDisk()
-          expect(result.type).toBe(runtime)
-          expect(result.config).toEqual(config)
+          expect(result.value.type).toBe(runtime)
+          expect(result.value.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
           break
         }
         case 'page': {
           const result = await route.htmlEndpoint.writeToDisk()
-          expect(result.type).toBe(runtime)
-          expect(result.config).toEqual(config)
+          expect(result.value.type).toBe(runtime)
+          expect(result.value.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
 
           const result2 = await route.dataEndpoint.writeToDisk()
-          expect(result2.type).toBe(runtime)
-          expect(result2.config).toEqual(config)
+          expect(result2.value.type).toBe(runtime)
+          expect(result2.value.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('data issues')
           break
         }
         case 'app-page': {
           const result = await route.pages[0].htmlEndpoint.writeToDisk()
-          expect(result.type).toBe(runtime)
-          expect(result.config).toEqual(config)
+          expect(result.value.type).toBe(runtime)
+          expect(result.value.config).toEqual(config)
           expect(normalizeIssues(result.issues)).toMatchSnapshot('issues')
 
           const result2 = await route.pages[0].rscHmrEndpoint.writeToDisk()
-          expect(result2.type).toBe(runtime)
-          expect(result2.config).toEqual(config)
+          expect(result2.value.type).toBe(runtime)
+          expect(result2.value.config).toEqual(config)
           expect(normalizeIssues(result2.issues)).toMatchSnapshot('rsc issues')
 
           break
@@ -588,11 +589,11 @@ describe('next.rs api', () => {
         const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
           await entrypointsSubscribtion.next()
         ).value
-        if (!('routes' in entrypoints)) {
+        if (!('routes' in entrypoints.value)) {
           throw new Error('Entrypoints not available due to compilation errors')
         }
 
-        const route = entrypoints.routes.get(path)
+        const route = entrypoints.value.routes.get(path)
         entrypointsSubscribtion.return()
 
         expect(route.type).toBe(type)
@@ -620,7 +621,7 @@ describe('next.rs api', () => {
 
         const result = await project.clientHmrChunkNamesSubscribe().next()
         expect(result.done).toBe(false)
-        const chunkNames = result.value.chunkNames
+        const chunkNames = result.value.value.chunkNames
         expect(chunkNames).toHaveProperty('length', expect.toBePositive())
 
         const subscriptions = chunkNames.map((chunkName) =>
@@ -630,8 +631,11 @@ describe('next.rs api', () => {
           subscriptions.map(async (subscription) => {
             const result = await subscription.next()
             expect(result.done).toBe(false)
-            expect(result.value).toHaveProperty('resource', expect.toBeObject())
-            expect(result.value).toHaveProperty('type', 'issues')
+            expect(result.value.value).toHaveProperty(
+              'resource',
+              expect.toBeObject()
+            )
+            expect(result.value.value).toHaveProperty('type', 'issues')
             expect(normalizeIssues(result.value.issues)).toEqual([])
           })
         )
@@ -652,8 +656,8 @@ describe('next.rs api', () => {
                 const merged = raceIterators(subscriptions)
                 for await (const item of merged) {
                   if (done) return
-                  if (item.type === 'partial') {
-                    expect(item.instruction).toEqual({
+                  if (item.value.type === 'partial') {
+                    expect(item.value.instruction).toEqual({
                       type: 'ChunkListUpdate',
                       merged: [
                         expect.objectContaining({
@@ -663,13 +667,13 @@ describe('next.rs api', () => {
                       ],
                     })
                     const updates = Object.keys(
-                      item.instruction.merged[0].entries
+                      item.value.instruction.merged[0].entries
                     )
                     expect(updates).not.toBeEmpty()
 
                     foundUpdates = foundUpdates || []
                     foundUpdates.push(
-                      ...Object.keys(item.instruction.merged[0].entries)
+                      ...Object.keys(item.value.instruction.merged[0].entries)
                     )
                   }
                 }
@@ -728,11 +732,11 @@ describe('next.rs api', () => {
     const entrypoints: TurbopackResult<RawEntrypoints | {}> = (
       await entrypointsSubscribtion.next()
     ).value
-    if (!('routes' in entrypoints)) {
+    if (!('routes' in entrypoints.value)) {
       throw new Error('Entrypoints not available due to compilation errors')
     }
 
-    const route = entrypoints.routes.get('/')
+    const route = entrypoints.value.routes.get('/')
     entrypointsSubscribtion.return()
 
     if (route.type !== 'page') throw new Error('unknown route type')
@@ -740,7 +744,7 @@ describe('next.rs api', () => {
 
     const result = await project.clientHmrChunkNamesSubscribe().next()
     expect(result.done).toBe(false)
-    const chunkNames = result.value.chunkNames
+    const chunkNames = result.value.value.chunkNames
 
     const subscriptions = chunkNames.map((chunkName) =>
       project.clientHmrEvents(chunkName)
@@ -749,8 +753,11 @@ describe('next.rs api', () => {
       subscriptions.map(async (subscription) => {
         const result = await subscription.next()
         expect(result.done).toBe(false)
-        expect(result.value).toHaveProperty('resource', expect.toBeObject())
-        expect(result.value).toHaveProperty('type', 'issues')
+        expect(result.value.value).toHaveProperty(
+          'resource',
+          expect.toBeObject()
+        )
+        expect(result.value.value).toHaveProperty('type', 'issues')
       })
     )
     const merged = raceIterators(subscriptions)
@@ -769,7 +776,7 @@ describe('next.rs api', () => {
       while (true) {
         const { value, done } = await merged.next()
         expect(done).toBe(false)
-        if (value.type === 'partial') {
+        if (value.value.type === 'partial') {
           break
         }
       }

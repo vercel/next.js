@@ -721,12 +721,13 @@ function bindingToApi(
         appDirOnly
       )) as TurbopackResult<Partial<NapiEntrypoints>>
 
-      if ('routes' in napiEndpoints) {
+      if ('routes' in napiEndpoints.value) {
         return napiEntrypointsToRawEntrypoints(
           napiEndpoints as TurbopackResult<NapiEntrypoints>
         )
       } else {
         return {
+          value: {},
           issues: napiEndpoints.issues,
         }
       }
@@ -746,12 +747,15 @@ function bindingToApi(
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
-          if ('routes' in (entrypoints as TurbopackResult<NapiEntrypoints>)) {
+          if (
+            'routes' in (entrypoints as TurbopackResult<NapiEntrypoints>).value
+          ) {
             yield napiEntrypointsToRawEntrypoints(
               entrypoints as TurbopackResult<NapiEntrypoints>
             )
           } else {
             yield {
+              value: {},
               issues: entrypoints.issues,
             } as TurbopackResult<{}>
           }
@@ -1182,7 +1186,7 @@ function bindingToApi(
     entrypoints: TurbopackResult<NapiEntrypoints>
   ): TurbopackResult<RawEntrypoints> {
     const routes = new Map()
-    for (const { pathname, ...nativeRoute } of entrypoints.routes) {
+    for (const { pathname, ...nativeRoute } of entrypoints.value.routes) {
       let route: Route
       const routeType = nativeRoute.type
       switch (routeType) {
@@ -1236,8 +1240,8 @@ function bindingToApi(
       endpoint: new EndpointImpl(middleware.endpoint),
       isProxy: middleware.isProxy,
     })
-    const middleware = entrypoints.middleware
-      ? napiMiddlewareToMiddleware(entrypoints.middleware)
+    const middleware = entrypoints.value.middleware
+      ? napiMiddlewareToMiddleware(entrypoints.value.middleware)
       : undefined
     const napiInstrumentationToInstrumentation = (
       instrumentation: NapiInstrumentation
@@ -1245,19 +1249,23 @@ function bindingToApi(
       nodeJs: new EndpointImpl(instrumentation.nodeJs),
       edge: new EndpointImpl(instrumentation.edge),
     })
-    const instrumentation = entrypoints.instrumentation
-      ? napiInstrumentationToInstrumentation(entrypoints.instrumentation)
+    const instrumentation = entrypoints.value.instrumentation
+      ? napiInstrumentationToInstrumentation(entrypoints.value.instrumentation)
       : undefined
 
     return {
-      routes,
-      middleware,
-      instrumentation,
-      pagesDocumentEndpoint: new EndpointImpl(
-        entrypoints.pagesDocumentEndpoint
-      ),
-      pagesAppEndpoint: new EndpointImpl(entrypoints.pagesAppEndpoint),
-      pagesErrorEndpoint: new EndpointImpl(entrypoints.pagesErrorEndpoint),
+      value: {
+        routes,
+        middleware,
+        instrumentation,
+        pagesDocumentEndpoint: new EndpointImpl(
+          entrypoints.value.pagesDocumentEndpoint
+        ),
+        pagesAppEndpoint: new EndpointImpl(entrypoints.value.pagesAppEndpoint),
+        pagesErrorEndpoint: new EndpointImpl(
+          entrypoints.value.pagesErrorEndpoint
+        ),
+      },
       issues: entrypoints.issues,
     }
   }

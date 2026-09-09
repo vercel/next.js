@@ -177,7 +177,8 @@ export interface BuildFeatureUsage {
   invocationCount: number
 }
 
-export type TurbopackResult<T = {}> = T & {
+export type TurbopackResult<T = {}> = {
+  value: T
   issues: Issue[]
 }
 
