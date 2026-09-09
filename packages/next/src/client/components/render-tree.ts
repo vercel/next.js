@@ -138,6 +138,9 @@ export type NavigationRequestAccumulation = {
    * during a refresh where the route structure didn't change).
    */
   scrollRef: ScrollRef | null
+  // Route-level signal used by page leaves while constructing their head.
+  // Initialized on every accumulation object to keep its shape stable.
+  shouldWaitForStaticHead: boolean
 }
 
 /**
@@ -166,6 +169,7 @@ export function createInitialCacheNodeForHydration(
   const accumulation: NavigationRequestAccumulation = {
     separateRefreshUrls: null,
     scrollRef: null,
+    shouldWaitForStaticHead: false,
   }
   const restrictToShell = false
   const task = createCacheNodeOnNavigation(
@@ -233,6 +237,10 @@ export function startPPRNavigation(
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
 ): NavigationTask | null {
+  accumulation.shouldWaitForStaticHead =
+    (newRouteTree.prefetchHints &
+      PrefetchHint.HeadShouldAttemptStaticPrefetch) !==
+    0
   const parentNeedsDynamicRequest = false
   const parentRefreshState = null
   const oldRootRefreshState: RefreshState = {
@@ -409,6 +417,7 @@ function updateCacheNodeOnNavigation(
         ? oldCacheNode.bfcacheId
         : generateBFCacheId(freshness),
       map,
+      accumulation.shouldWaitForStaticHead,
       restrictToShell
     )
     newCacheNode = result.cacheNode
@@ -696,6 +705,7 @@ function createCacheNodeOnNavigation(
     // bfcacheId.
     generateBFCacheId(freshness),
     map,
+    accumulation.shouldWaitForStaticHead,
     restrictToShell
   )
   const newCacheNode = result.cacheNode
@@ -960,6 +970,7 @@ function createCacheNodeForSegment(
   dynamicStaleAt: number,
   bfcacheId: number,
   map: CacheMap<SegmentCacheEntry>,
+  shouldWaitForStaticHead: boolean,
   // Instant Navigation Testing API only — restricts segment reads to shell
   // entries. Always false outside the testing API. See navigation-testing-lock.
   restrictToShell: boolean
@@ -1248,7 +1259,11 @@ function createCacheNodeForSegment(
       }
     }
 
-    if (process.env.__NEXT_OPTIMISTIC_ROUTING && isCachedHeadPartial) {
+    if (
+      process.env.__NEXT_OPTIMISTIC_ROUTING &&
+      isCachedHeadPartial &&
+      !shouldWaitForStaticHead
+    ) {
       // TODO: When optimistic routing is enabled, don't block on waiting for
       // the viewport to resolve. This is a temporary workaround until Vary
       // Params are tracked when rendering the metadata. We'll fix it before
@@ -1260,6 +1275,10 @@ function createCacheNodeForSegment(
       // it's unlikely that many people are relying on this behavior. Still,
       // will be fixed before stable. It's the very next step in the sequence of
       // work on this project.
+      //
+      // If the build-time head probe proved the head is static, keep the
+      // cached promise instead. Suspending on it retains the previous head
+      // until the destination head arrives, making that transition atomic.
       //
       // This line of code works because the App Router treats `null` as
       // "no renderable head available", rather than an empty head. React treats

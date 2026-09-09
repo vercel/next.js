@@ -366,16 +366,18 @@ export async function collectSegmentData(
  *
  * `shouldAttemptStaticPrefetch` (computed by the caller from the prerender's
  * runtime-data tracking) is folded onto every node of the result, so the
- * manifest delivers it to every response like the other hint bits. It's
- * independent of the inlining feature: when `inlining` is false the sizing
- * pass is skipped entirely — no inlining bits are emitted — and only the
- * tree shape carrying the static-prefetch hint is built.
+ * manifest delivers it to every response like the other hint bits. The head
+ * is probed independently and its corresponding hint is stored on the root.
+ * Both are independent of the inlining feature: when `inlining` is false no
+ * inlining bits are emitted, but the head is still rendered to measure its
+ * completeness before the tree shape is returned.
  *
- * Both kinds of hint have the same structure and the same lifetime — one
- * bitmask per node of the route tree, measured once per build and constant
- * for the deployment. They differ only in what they're derived from: the
- * inlining bits from the size of each segment's encoded response, the
- * static-prefetch bit from what the decoded body turned out to access.
+ * All these hints have the same structure and lifetime — one bitmask per node
+ * of the route tree, measured once per build and constant for the deployment.
+ * They differ only in what they're derived from: the inlining bits come from
+ * encoded response sizes, the route static-prefetch bit comes from runtime
+ * data access tracking, and the head bit comes from its own completeness
+ * probe.
  */
 export async function collectPrefetchHints(
   isCacheComponentsEnabled: boolean,
@@ -417,15 +419,6 @@ export async function collectPrefetchHints(
     ? PrefetchHint.ShouldAttemptStaticPrefetch
     : 0
 
-  if (inlining === false) {
-    // Prefetch inlining is disabled: nothing to measure, and no inlining
-    // bits may be emitted (the client would act on them even though the
-    // responses aren't bundled). Just mirror the route tree's shape with
-    // the base hints on every node.
-    return createUniformHintTree(rootNode, baseHints)
-  }
-  const { maxSize, maxBundleSize } = inlining
-
   // Root params are forwarded once at the top level of each segment
   // response, same as the page response's own root vary params; the client
   // unions them into each segment's set at read time.
@@ -466,6 +459,7 @@ export async function collectPrefetchHints(
 
   // Measure the head (metadata/viewport) gzip size so the main traversal
   // can decide whether to inline it into a page's bundle.
+  let isHeadPartial = true
   const [, headBuffer] = await renderSegmentPrefetch(
     buildId,
     staleTimeIterable,
@@ -479,13 +473,38 @@ export async function collectPrefetchHints(
     // Fallback-ness doesn't affect size, so pass false.
     false,
     needsRuntimeRequest,
-    shellStageRelease
+    shellStageRelease,
+    (value) => {
+      isHeadPartial = value
+    }
   )
+
+  const headStaticPrefetchHint = !isHeadPartial
+    ? PrefetchHint.HeadShouldAttemptStaticPrefetch
+    : 0
+
+  if (inlining === false) {
+    // Prefetch inlining is disabled: no inlining bits may be emitted (the
+    // client would act on them even though the responses aren't bundled).
+    // Mirror the route tree's shape with the route-wide hints, then attach
+    // the independently measured head hint to the root.
+    const node = createUniformHintTree(rootNode, baseHints)
+    node.hints |= headStaticPrefetchHint
+    return node
+  }
+  const { maxSize, maxBundleSize } = inlining
   const headGzipSize = await getGzipSize(headBuffer)
 
   // Mutable accumulator: the first segment that accepts the head sets this
-  // to true. Once set, subsequent segments skip the check.
-  const headInlineState = { inlined: false }
+  // to true. Once set, subsequent segments skip the check. If the route body
+  // requires a runtime prefetch but the head is independently static, keep
+  // the head outlined: otherwise it could be bundled into a page response
+  // that the scheduler intentionally never requests statically.
+  const shouldKeepStaticHeadOutlined =
+    !shouldAttemptStaticPrefetch &&
+    !isHeadPartial &&
+    ((rootNode.h ?? 0) & PrefetchHint.SubtreeHasPartialPrefetching) !== 0
+  const headInlineState = { inlined: shouldKeepStaticHeadOutlined }
 
   // Walk the tree with the parent-first, child-decides algorithm.
   const { node } = await collectPrefetchHintsImpl(
@@ -507,9 +526,12 @@ export async function collectPrefetchHints(
     shellStageRelease
   )
 
-  if (!headInlineState.inlined) {
-    // No page could accept the head. Set HeadOutlined on the root so the
-    // client knows to fetch the head separately.
+  node.hints |= headStaticPrefetchHint
+
+  if (shouldKeepStaticHeadOutlined || !headInlineState.inlined) {
+    // No page accepted the head, either because it did not fit or because it
+    // was deliberately kept independent of the dynamic route body. Mark the
+    // root so the client fetches it separately.
     node.hints |= PrefetchHint.HeadOutlined
   }
 
@@ -1205,7 +1227,8 @@ async function renderSegmentPrefetch(
   clientModules: ManifestNode,
   isUpgradeableISRFallback: boolean,
   needsRuntimeRequest: Promise<boolean>,
-  shellStageRelease: Promise<boolean>
+  shellStageRelease: Promise<boolean>,
+  onCompleted?: (isPartial: boolean) => void
 ): Promise<[SegmentRequestKey, Buffer]> {
   const streamInfoStage = createPromiseWithResolvers<void>()
 
@@ -1219,6 +1242,8 @@ async function renderSegmentPrefetch(
   // entry is created). Every node carries the same prefetch hints the /_tree
   // response emits for it, so the tree is decodable like any other transport
   // tree (see SegmentSpine).
+  const requestedContentState =
+    onCompleted !== undefined ? { isComplete: false } : null
   let node: PartialTransportNode = { s: spine.segment }
   if (spine.prefetchHints !== 0) {
     node.h = spine.prefetchHints
@@ -1228,7 +1253,8 @@ async function renderSegmentPrefetch(
       terminal,
       staleTime,
       clientModules,
-      streamInfoStage.promise
+      streamInfoStage.promise,
+      requestedContentState
     )
   }
   let edgeParallelRouteKey = spine.parallelRouteKey
@@ -1247,7 +1273,8 @@ async function renderSegmentPrefetch(
           bundleNode.data,
           staleTime,
           clientModules,
-          streamInfoStage.promise
+          streamInfoStage.promise,
+          null
         )
       }
       bundleNode = bundleNode.next
@@ -1263,7 +1290,8 @@ async function renderSegmentPrefetch(
       head,
       staleTime,
       clientModules,
-      streamInfoStage.promise
+      streamInfoStage.promise,
+      terminal === null ? requestedContentState : null
     )
   }
 
@@ -1386,6 +1414,9 @@ async function renderSegmentPrefetch(
 
   // We're done writing, so we can abort the stream.
   abortController.abort()
+  if (onCompleted !== undefined && requestedContentState !== null) {
+    onCompleted(!requestedContentState.isComplete)
+  }
   return [responseKey, Buffer.concat(await chunksPromise)]
 }
 
@@ -1401,7 +1432,8 @@ function createStagedSegmentData(
   clientModules: ManifestNode,
   // The response's streamInfoStage gate; the completeness probe must not
   // start until it resolves, i.e. until the input stream is fully unblocked.
-  streamInfoStage: Promise<void>
+  streamInfoStage: Promise<void>,
+  requestedContentState: { isComplete: boolean } | null
 ): TransportSegmentData {
   const contentIsComplete = new Promise<void>(async (resolve) => {
     // Wait for the input stream to be fully unblocked before checking if
@@ -1415,6 +1447,9 @@ function createStagedSegmentData(
       filterStackFrame,
       onError() {},
     })
+    if (requestedContentState !== null) {
+      requestedContentState.isComplete = true
+    }
     resolve()
   })
   return {
