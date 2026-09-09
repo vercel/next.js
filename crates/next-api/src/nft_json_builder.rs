@@ -1,10 +1,10 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use rustc_hash::FxHashMap;
 use serde::{Serialize, Serializer, ser::SerializeTuple};
 use turbo_rcstr::RcStr;
 use turbo_tasks::ResolvedVc;
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
-use turbo_unix_path::get_relative_path_to;
+use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
+use turbo_unix_path::{get_relative_path_to, sys_to_unix};
 use turbopack_core::asset::AssetContent;
 
 use crate::project::Project;
@@ -88,8 +88,8 @@ pub(crate) struct NftJson {
     version: u8,
     #[serde(skip_serializing_if = "Option::is_none")]
     entry_hash: Option<RcStr>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    additional_roots: Option<Vec<NftAdditionalRoot>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    additional_roots: Vec<NftAdditionalRoot>,
 }
 
 pub(crate) struct NftJsonBuilder {
@@ -102,6 +102,7 @@ pub(crate) struct NftJsonBuilder {
 
 impl NftJsonBuilder {
     pub async fn new(project: ResolvedVc<Project>, nft_path: &FileSystemPath) -> Result<Self> {
+        let project_ref = project.await?;
         let mut root_configs = FxHashMap::default();
 
         // Files not listed under `additionalRoots` have paths relative to the nft.json file, which
@@ -109,6 +110,14 @@ impl NftJsonBuilder {
         // their paths can be compared directly even when the output is outside the project.
         let project_root = project.project_fs().root().owned().await?;
         let output_base = nft_path.parent();
+        let output_file_system = ResolvedVc::try_downcast_type::<DiskFileSystem>(output_base.fs)
+            .context("NFT path must use a disk filesystem")?;
+        let output_base_path = output_file_system.await?.to_sys_path_raw(&output_base);
+        let output_base_path = sys_to_unix(
+            output_base_path
+                .to_str()
+                .context("NFT path must be valid Unicode")?,
+        );
         root_configs.insert(
             project_root.fs,
             RootConfig {
@@ -127,9 +136,26 @@ impl NftJsonBuilder {
             },
         );
 
+        let mut additional_roots = Vec::with_capacity(project_ref.additional_roots.len());
+        for (name, root) in &project_ref.additional_roots {
+            let file_system = root.file_system.connect().to_resolved().await?;
+            root_configs.insert(
+                ResolvedVc::upcast(file_system),
+                RootConfig {
+                    base: file_system.root().owned().await?.path,
+                    additional_root_index: Some(additional_roots.len()),
+                },
+            );
+            let root_path = sys_to_unix(&root.canonical_path);
+            additional_roots.push(AdditionalRootConfig {
+                name: name.clone(),
+                path: get_relative_path_to(&output_base_path, &root_path).into(),
+            });
+        }
+
         Ok(Self {
             root_configs,
-            additional_roots: Vec::new(),
+            additional_roots,
             asset_refs: Vec::new(),
         })
     }
@@ -200,21 +226,16 @@ impl NftJsonBuilder {
             }
         }
 
-        let additional_roots = if !self.additional_roots.is_empty() {
-            Some(
-                self.additional_roots
-                    .into_iter()
-                    .zip(roots)
-                    .map(|(root, list)| NftAdditionalRoot {
-                        file_list: list,
-                        name: root.name,
-                        path: root.path,
-                    })
-                    .collect(),
-            )
-        } else {
-            None
-        };
+        let additional_roots = self
+            .additional_roots
+            .into_iter()
+            .zip(roots)
+            .map(|(root, list)| NftAdditionalRoot {
+                file_list: list,
+                name: root.name,
+                path: root.path,
+            })
+            .collect();
         NftJson {
             file_list: base,
             version: 1,

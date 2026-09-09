@@ -121,7 +121,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
 
   const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
-  const project = await bindings.turbo.createProject(
+  const projectResult = await bindings.turbo.createProject(
     {
       ...sharedProjectOptions,
       debugBuildPaths: NextBuildContext.debugBuildPaths,
@@ -142,6 +142,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
         }
       : undefined
   )
+  const project = projectResult.value
   const shutdownController = new AbortController()
   const compilationEvents = backgroundLogCompilationEvents(project, {
     // Compilation events carry their own timestamps, so they hang directly off
@@ -161,6 +162,8 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
   }
 
   try {
+    printBuildErrors(projectResult, dev)
+
     // Write an empty file in a known location to signal this was built with Turbopack
     await fs.writeFile(path.join(distDir, 'turbopack'), '')
 
