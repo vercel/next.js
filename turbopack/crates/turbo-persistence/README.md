@@ -380,12 +380,13 @@ cargo run -p turbo-persistence --release --bin zstd_dictionary -- evaluate \
 
 Training produces a 64 KiB dictionary from up to approximately 64 MiB of samples. It takes one
 hash-ordered logical value from each cache in turn, so one large cache cannot monopolize the sample.
-The output path is replaced atomically.
+The output path is overwritten directly.
 
-The no-dictionary zstd level 3 baseline is always included during evaluation. Pass
-`--source-dictionary <path>` when the input caches were written with a dictionary. The tool follows
-`CURRENT`, deletion files, and meta-file supersession, and uses `StaticSortedFileIter` to read slice,
-medium, and blob values. Checksums, dictionary IDs, and decompressed lengths are verified.
+The no-dictionary zstd level 3 baseline is always included during evaluation. Source SSTs may use
+LZ4 or plain zstd without extra options. Pass `--source-dictionary <path>` when any input SST records
+a nonzero dictionary ID; it is ignored for LZ4 and plain-zstd SSTs. The tool follows `CURRENT`,
+deletion files, and meta-file supersession, and uses `StaticSortedFileIter` to read slice, medium, and
+blob values. Checksums, dictionary IDs, and decompressed lengths are verified.
 
 Small values are grouped into physical blocks in production, so the report's per-value 12.5%
 minimum-savings calculation is a comparative estimate, not exact SST-size modeling. Blob estimates
