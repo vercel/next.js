@@ -1,0 +1,16 @@
+{
+  "payments": [
+    {
+      "id": "pay_seed_h2k1x9",
+      "invoiceId": "inv-1043",
+      "amount": 480.5,
+      "capturedAt": 1755600000000
+    },
+    {
+      "id": "pay_seed_p8m3q2",
+      "invoiceId": "inv-1044",
+      "amount": 25,
+      "capturedAt": 1755700000000
+    }
+  ]
+}

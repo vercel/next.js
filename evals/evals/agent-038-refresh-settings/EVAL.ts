@@ -1,11 +1,21 @@
 /**
- * Refresh Page via revalidatePath
+ * Refresh Page via refresh() from next/cache
  *
- * Tests whether the agent uses revalidatePath() from next/cache inside a
- * Server Action to refresh the current page after a mutation.
+ * Tests whether the agent uses refresh() from next/cache inside a Server
+ * Action to re-render the current page after a mutation. The prompt rules
+ * out cache invalidation as a side effect, which is what distinguishes
+ * refresh() from revalidatePath()/revalidateTag() — those also expire
+ * cached data for every visitor, while refresh() only re-renders the
+ * calling client's current page.
  *
  * Tricky because agents use redirect() to the same page (loses scroll/state),
- * return data for manual refresh, or use client-side router.refresh().
+ * return data for manual refresh, use client-side router.refresh(), or reach
+ * for revalidatePath() out of habit (which the prompt's no-invalidation
+ * constraint excludes).
+ *
+ * (2026-08-31: header rewritten — it previously said "revalidatePath()"
+ * while the tests required refresh(), and the prompt didn't justify the
+ * distinction. The prompt now states the constraint explicitly.)
  */
 
 import { expect, test } from 'vitest'

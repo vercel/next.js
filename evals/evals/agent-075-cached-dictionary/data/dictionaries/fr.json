@@ -1,0 +1,12 @@
+{
+  "greeting": "DICT_FR_GREETING Bonjour, bienvenue chez Polyglot Press",
+  "tagline": "Des histoires qui méritent d'être traduites.",
+  "nav": {
+    "home": "Accueil",
+    "about": "À propos"
+  },
+  "about": {
+    "heading": "À propos de nous",
+    "body": "DICT_FR_ABOUT Nous publions des essais dans toutes les langues pour lesquelles nous trouvons des rédacteurs."
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "greeting": "DICT_EN_GREETING Hello, welcome to Polyglot Press",
+  "tagline": "Stories worth translating.",
+  "nav": {
+    "home": "Home",
+    "about": "About"
+  },
+  "about": {
+    "heading": "About us",
+    "body": "DICT_EN_ABOUT We publish essays in every language we can hire editors for."
+  }
+}

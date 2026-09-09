@@ -1,0 +1,5 @@
+Our deals grid (the home page) shows 50 deal cards; each links to its deal page. Each deal page shows a per-user price we already cache, but clicking a card still shows the price skeleton for about a second while it computes. We can't just warm prices for everything on the grid — if all 50 visible cards fire pricing requests our pricing service falls over (it must stay at zero pricing requests when the grid loads and sits idle).
+
+What we want: when a user shows intent by hovering a card, start warming that deal so the price is there instantly by the time they click. After a hover, the click must show the price immediately — no skeleton, no fresh pricing request after the click. A click on a card that was never hovered should keep working like it does today (skeleton, then the correct price).
+
+The pricing client in lib/pricing-core.ts is owned by the pricing team — it mirrors the pricing service's real latency and request accounting, so don't modify it. Keep the grid using real Links and keep the data-testids.

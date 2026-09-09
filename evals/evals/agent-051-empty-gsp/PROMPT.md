@@ -1,0 +1,1 @@
+CI builds fail on the docs route whenever the content source is empty — fresh environments and review apps have no CMS entries yet. Locally with content it builds fine. Make the build robust to an empty content set, without giving up prerendering when content exists and without opting the route out of validation.

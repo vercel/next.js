@@ -1,0 +1,1 @@
+This data layer was written for an older Next.js and we're seeing deprecation warnings at runtime — it's still on the legacy caching APIs. Modernize the caching here to the current model: keep the hourly refresh, keep tag-based invalidation, and the admin action must make the new prices visible to the very next request.

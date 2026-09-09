@@ -1,0 +1,1 @@
+Editors click Preview in the CMS, which opens /api/preview?secret=cms-secret&redirect=/articles. They need to see draft articles on the articles page immediately — while normal visitors keep getting the fast cached page without drafts. Wire it up.

@@ -1,0 +1,1 @@
+The stats widget on /dashboard crashes now and then when the metrics service hiccups, and it takes the whole page down. Give the widget its own error card with a "Try again" button that actually re-runs the widget on the server — not just remounts client state. The rest of the page must stay up, and a route-level error page is too coarse for this.

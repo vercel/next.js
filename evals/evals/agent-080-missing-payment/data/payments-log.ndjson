@@ -1,0 +1,4 @@
+{"phase":"start","ts":1755599998500,"invoiceId":"inv-1043","amount":480.5}
+{"phase":"end","ts":1755600000000,"invoiceId":"inv-1043","amount":480.5}
+{"phase":"start","ts":1755699998500,"invoiceId":"inv-1044","amount":25}
+{"phase":"end","ts":1755700000000,"invoiceId":"inv-1044","amount":25}

@@ -1,0 +1,1 @@
+Product wants every cached helper in this app to be fresh per-request by default — the cached values in lib/data.ts are serving stale prices. There will be dozens more helpers like these, so do NOT edit each helper one by one; a helper must still be able to opt into a longer lifetime later. The build must stay green.

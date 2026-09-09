@@ -1,0 +1,1 @@
+Hovering the Account link on the home page fires a prefetch whose response includes the signed-in user's balance. Personalized data must never be included in prefetch responses for /account, while the static parts of the page should still arrive early on hover. Keep the link eagerly prefetching.

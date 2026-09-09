@@ -1,0 +1,12 @@
+[
+  {
+    "id": "alice",
+    "name": "Alice Zhang",
+    "billingEmail": "billing-alice@example.test"
+  },
+  {
+    "id": "bob",
+    "name": "Bob Ferreira",
+    "billingEmail": "billing-bob@example.test"
+  }
+]

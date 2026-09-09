@@ -1,0 +1,1 @@
+Our internal link-preview service (it identifies itself as 'AcmePreview/1.0' and can't run JavaScript or read streamed HTML) shows the wrong title for product links — including products added after the last deploy — while Google renders them fine. Make previews correct for that service without making the page slower for real users.

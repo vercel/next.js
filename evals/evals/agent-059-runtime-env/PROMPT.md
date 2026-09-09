@@ -1,0 +1,1 @@
+We build one Docker image and promote it from staging to production, but the support email and API endpoint in the footer are stuck on the staging values no matter what the container's environment says. They must come from the environment the container starts with.

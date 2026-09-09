@@ -1,0 +1,113 @@
+/* Global styles for the Acme SDK docs site. The smooth scroll makes the
+   table-of-contents anchor links glide down to their section. */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  font-family:
+    -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  color: #1a2029;
+  background: #ffffff;
+  line-height: 1.6;
+}
+
+.site-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: #101828;
+  z-index: 10;
+}
+
+.brand {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.site-nav {
+  display: flex;
+  gap: 1.25rem;
+}
+
+.site-nav a {
+  color: #cbd5e1;
+  text-decoration: none;
+  font-size: 0.95rem;
+}
+
+.site-nav a:hover {
+  color: #ffffff;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 5rem 1.5rem 4rem;
+}
+
+.hero {
+  min-height: 320px;
+}
+
+.toc {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 1rem 1.5rem;
+  background: #f8fafc;
+}
+
+.toc ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.toc a {
+  color: #175cd3;
+}
+
+.doc-section {
+  min-height: 1350px;
+  scroll-margin-top: 80px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 2rem;
+  padding-top: 1rem;
+}
+
+.release {
+  min-height: 240px;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 0;
+}
+
+.release h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.pager {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 2rem 0;
+}
+
+.pager a {
+  color: #175cd3;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.support-note {
+  min-height: 900px;
+  border-top: 1px solid #e2e8f0;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  color: #475467;
+}

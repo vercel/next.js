@@ -1,0 +1,1 @@
+Sorting is broken in production: /shop?sort=price and /shop?sort=featured show the catalog in the same order. Sorting must actually work, each sort order must be cacheable separately, and the catalog fetch must stay cached — don't trade the fix for a cache regression.
