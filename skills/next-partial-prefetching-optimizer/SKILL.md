@@ -38,10 +38,10 @@ not adopted, use their adoption skills and return to this workflow. If the App
 Shell itself cannot commit under `instant()`, use
 `next-cache-components-optimizer` first, then resume the selected navigation.
 
-Run the workflow unattended. When the request already defines the desired UI
-and trigger, do not ask the user to confirm them again. Ask only when an
-unresolved choice would change prefetch cost, freshness, authorization, or
-user-visible behavior.
+Run the workflow unattended. Resolve the contract from the request and the
+existing application. Stop for user input only when a product decision is
+genuinely blocked and cannot be inferred safely without changing cost,
+freshness, authorization, or user-visible behavior.
 
 ## Define the contract
 
@@ -158,8 +158,8 @@ request.
 ## Completion checklist
 
 - [ ] Cache Components and Partial Prefetching were already adopted.
-- [ ] The target UI and trigger are explicit, with any necessary product choice
-      confirmed.
+- [ ] The target UI, trigger, freshness, and authorization constraints were
+      resolved from the request and existing application.
 - [ ] The test clicks the exact source link and verifies the exact destination.
 - [ ] Each source-link, destination, and trigger contract has its own test.
 - [ ] The unlocked baseline and locked RED used the same production artifact.

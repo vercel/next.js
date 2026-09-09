@@ -240,9 +240,9 @@ Adopt Partial Prefetching in this project using the next-partial-prefetching-ado
 
 ### `next-partial-prefetching-optimizer`
 
-The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill implements and verifies a prefetch contract for one client navigation:
+The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill optimizes one client navigation:
 
-1. Starts from the source link, destination, prefetched UI, navigation-only UI, and prefetch trigger you specify. It asks when a missing choice would change cost, freshness, authorization, or user-visible behavior.
+1. Turns the requested user-visible result into an explicit contract for what is prefetched, what waits for navigation, and when prefetching begins.
 2. Encodes that exact source-link and destination contract in an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test.
 3. Applies the [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) patterns until the test passes, then keeps it as regression coverage.
 
@@ -255,5 +255,5 @@ npx skills add vercel/next.js --skill next-partial-prefetching-optimizer
 Then give the agent a prompt like:
 
 ```prompt
-Optimize the navigation from the featured product on /products to /products/[id]. The product title should be prefetched. Related products should stay reusable but wait for navigation, and inventory should stay fresh. Prefetch on intent. Use the next-partial-prefetching-optimizer Skill.
+Make the product title instant when navigating from /products to /products/[id]. Use the next-partial-prefetching-optimizer Skill.
 ```
