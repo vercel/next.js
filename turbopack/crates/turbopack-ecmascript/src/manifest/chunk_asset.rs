@@ -95,14 +95,18 @@ impl ManifestAsyncModule {
                 .cell());
             }
         }
-        // The manifest module is synthesized while chunking, so it is not a member of
-        // `this.module_graph` and has to be placed in a graph of its own.
-        Ok(this.chunking_context.chunk_group_assets(
-            self.ident(),
-            ChunkGroup::Async(ResolvedVc::upcast(self)),
-            ModuleGraph::isolated_async_entry(*ResolvedVc::upcast(self)),
-            this.availability_info,
-        ))
+        let chunk_item = self.as_chunk_item(*this.module_graph, *this.chunking_context);
+        let chunk = this
+            .chunking_context
+            .standalone_chunk(chunk_item)
+            .to_resolved()
+            .await?;
+        Ok(OutputAssetsWithReferenced {
+            assets: ResolvedVc::cell(vec![chunk]),
+            referenced_assets: ResolvedVc::cell(vec![]),
+            references: ResolvedVc::cell(vec![]),
+        }
+        .cell())
     }
 
     /// Without a chunk list of its own, modules that are only reachable through this dynamic

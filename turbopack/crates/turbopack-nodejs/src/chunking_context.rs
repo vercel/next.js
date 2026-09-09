@@ -9,10 +9,11 @@ use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
-        EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
-        UrlBehavior, WorkerConfigurationOptions,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
+        ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, ContentHashing, EntryChunkGroupResult, EvaluatableAsset, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -737,6 +738,36 @@ impl ChunkingContext for NodeJsChunkingContext {
             let module = AsyncLoaderModule::new(module, *chunking_context, availability_info);
             module.as_chunk_item(module_graph, *chunking_context)
         })
+    }
+
+    #[turbo_tasks::function]
+    async fn standalone_chunk(
+        self: Vc<Self>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let chunk_type = chunk_item
+            .into_trait_ref()
+            .await?
+            .ty()
+            .to_resolved()
+            .await?;
+        let chunk = chunk_type
+            .chunk(
+                Vc::upcast(self),
+                vec![ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                    ChunkItemWithAsyncModuleInfo {
+                        chunk_item,
+                        chunk_type,
+                        module: None,
+                        async_info: None,
+                    },
+                )],
+                Vec::new(),
+                Vec::new(),
+            )
+            .to_resolved()
+            .await?;
+        Ok(*self.generate_chunk(chunk).await?)
     }
 
     #[turbo_tasks::function]
