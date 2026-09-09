@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     io::{self, BufWriter, Write},
     path::Path,
 };
@@ -11,7 +12,7 @@ use zerocopy::IntoBytes;
 
 use crate::{
     Compression,
-    meta_file::{EntryHeader, META_FILE_MAGIC},
+    meta_file::{EntryHeader, META_FILE_MAGIC, MetaFile},
     static_sorted_file_builder::StaticSortedFileBuilderMeta,
 };
 
@@ -39,6 +40,25 @@ impl<'a> MetaFileBuilder<'a> {
 
     pub fn add(&mut self, sequence_number: u32, sst: StaticSortedFileBuilderMeta<'a>) {
         self.entries.push((sequence_number, sst));
+    }
+
+    /// Copies an existing SST's metadata (including its serialized AMQF, borrowed from
+    /// `meta_file`'s mmap) into this builder, so a compaction can carry untouched SST metadata
+    /// into its replacement meta file without rewriting the SST.
+    pub fn add_existing(&mut self, meta_file: &'a MetaFile, index_in_meta: u32) {
+        let entry = meta_file.entry(index_in_meta);
+        self.add(
+            entry.sequence_number(),
+            StaticSortedFileBuilderMeta {
+                min_hash: entry.min_hash(),
+                max_hash: entry.max_hash(),
+                amqf: Cow::Borrowed(entry.raw_amqf(meta_file.amqf_data())),
+                block_count: entry.block_count(),
+                size: entry.size(),
+                flags: entry.flags(),
+                entries: 0,
+            },
+        );
     }
 
     pub fn add_obsolete_sst_file(&mut self, sequence_number: u32) {
