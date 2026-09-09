@@ -58,7 +58,7 @@ test('enables Partial Prefetching globally or for the project route', () => {
 })
 
 test('opts the project link into per-link prefetching', () => {
-  expect(source).toMatch(/<Link\b[^>]*\bprefetch\s*=\s*\{true\}/)
+  expect(source).toMatch(/<Link\b[^>]*\bprefetch(?:\s*=\s*\{true\})?(?:\s|>)/)
 })
 
 test('uses the navigation cache stage', () => {

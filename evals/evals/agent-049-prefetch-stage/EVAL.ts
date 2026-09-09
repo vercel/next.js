@@ -57,7 +57,7 @@ test('enables Partial Prefetching globally or for the product route', () => {
 })
 
 test('opts the featured product link into per-link prefetching', () => {
-  expect(source).toMatch(/<Link\b[^>]*\bprefetch\s*=\s*\{true\}/)
+  expect(source).toMatch(/<Link\b[^>]*\bprefetch(?:\s*=\s*\{true\})?(?:\s|>)/)
 })
 
 test('uses the prefetch cache stage', () => {
