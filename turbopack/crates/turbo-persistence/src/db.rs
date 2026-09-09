@@ -33,7 +33,7 @@ use crate::{
     AccessMode, CompressionConfig, DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
-    compression::{Compression, checksum_block, decompress_into_arc},
+    compression::{checksum_block, decompress_into_arc},
     constants::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
@@ -1531,6 +1531,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         "merge files",
                         family = self.config.family_configs[family as usize].name
                     );
+                    let compression = self.config.family_configs[family as usize].compression;
                     enum PartialMergeResult<'l> {
                         Merged {
                             new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
@@ -1617,7 +1618,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     StaticSortedFileIter::open(
                                         path,
                                         entry.sst_metadata(),
-                                        meta_file.compression(),
+                                        compression,
                                         self.config.access_mode,
                                     )
                                 })

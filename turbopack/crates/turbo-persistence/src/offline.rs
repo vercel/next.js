@@ -11,7 +11,7 @@ use byteorder::{BE, ReadBytesExt};
 use fs_err as fs;
 
 use crate::{
-    Compression, CompressionConfig, checksum_block, compression::decompress_into_arc,
+    AccessMode, Compression, CompressionConfig, checksum_block, compression::decompress_into_arc,
     meta_file::MetaFile, read_current_version, sst_filter::SstFilter,
 };
 
@@ -68,7 +68,7 @@ pub fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
     let mut meta_files: Vec<MetaFile> = meta_seqs
         .iter()
         .map(|&sequence| {
-            MetaFile::open(db_path, sequence, None)
+            MetaFile::open(db_path, sequence, None, AccessMode::Mmap)
                 .with_context(|| format!("Failed to open {sequence:08}.meta"))
         })
         .collect::<Result<_>>()?;

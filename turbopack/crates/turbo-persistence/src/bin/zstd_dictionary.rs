@@ -14,8 +14,8 @@ use clap::{Args, Parser, Subcommand};
 use lzzzz::lz4;
 use serde::Serialize;
 use turbo_persistence::{
-    Compression, CompressionConfig, IterValue, MAX_INLINE_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE,
-    StaticSortedFileIter, StaticSortedFileMetaData,
+    AccessMode, Compression, CompressionConfig, IterValue, MAX_INLINE_VALUE_SIZE,
+    MIN_SMALL_VALUE_BLOCK_SIZE, StaticSortedFileIter, StaticSortedFileMetaData,
     offline::{SstInfo, collect_sst_info, decode_medium, read_blob},
 };
 
@@ -279,6 +279,7 @@ impl CacheSampleIter {
                 block_count: sst.block_count,
             },
             compression,
+            AccessMode::Mmap,
         )
         .with_context(|| format!("Failed to open {:08}.sst", sst.sequence_number))?;
         self.current = Some((iter, compression, sst.sequence_number));
