@@ -154,12 +154,15 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     signal: shutdownController.signal,
   })
   const runShutdown = async () => {
-    // Shutdown may trigger final compilation events (e.g. persistence,
-    // compaction trace spans).  This is the last chance to capture them.
-    // After shutdown resolves we abort the signal to close the iterator
-    // and drain any remaining buffered events.
-
     await project.shutdown()
+    // Shutdown flushes and closes the compilation event queue, so the
+    // subscription ends once final events (e.g. persistence, compaction trace
+    // spans) have been delivered. The timeout is only a backstop against a
+    // subscription that never closes.
+    await Promise.race([
+      compilationEvents,
+      new Promise((resolve) => setTimeout(resolve, 10_000).unref()),
+    ])
     shutdownController.abort()
     await compilationEvents
   }
