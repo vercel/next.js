@@ -1,4 +1,5 @@
 import { logQueue } from '../../../../next-devtools/userspace/app/forward-logs'
+import { dispatcher } from 'next/dist/compiled/next-devtools'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
@@ -27,6 +28,7 @@ let serverSessionId: number | null = null
 
 export function connectHMR(options: { path: string; assetPrefix: string }) {
   let timer: ReturnType<typeof setTimeout>
+  void dispatcher.registerHmrTools()
 
   function init() {
     if (source) source.close()
@@ -46,6 +48,8 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
 
       const message: HmrMessageSentToBrowser = JSON.parse(event.data)
 
+      if (dispatcher.shouldDeferHmrMessage(message)) return
+
       if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
         if (
           serverSessionId !== null &&
@@ -55,6 +59,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
           // it's been too long since we disconnected and we should reload the page.
           // There could be 1) unhandled server errors and/or 2) stale content.
           // Perform a hard reload of the page.
+          if (dispatcher.shouldDeferHmrReload()) return
           window.location.reload()
 
           reloading = true
@@ -75,7 +80,10 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
       source.close()
       reconnections++
       // After WEB_SOCKET_MAX_RECONNECTIONS reconnects we'll want to reload the page as it indicates the dev server is no longer running.
-      if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
+      if (
+        reconnections > WEB_SOCKET_MAX_RECONNECTIONS &&
+        !dispatcher.shouldDeferHmrReload()
+      ) {
         reloading = true
         window.location.reload()
         return

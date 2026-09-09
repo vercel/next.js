@@ -87,6 +87,23 @@ Through `next-devtools-mcp`, agents can use the following tools:
 - **`get_compilation_issues`**: Retrieve compilation warnings and errors for the whole project from the bundler. Turbopack only.
 - **`compile_route`**: Trigger on-demand compilation of a specific route without making an HTTP request to it. Accepts either a `routeSpecifier` (e.g. `/blog/[slug]`, as returned by `get_routes`) or a `path` (e.g. `/blog/hello-world`) which is resolved to the matching route using the dev router's live route table. Returns any compilation issues for the route. Turbopack only.
 
+## Browser tools for pausing hot updates
+
+During `next dev`, Next.js DevTools exposes two [WebMCP](https://developer.chrome.com/docs/ai/webmcp/imperative-api) tools in supporting browsers and agent harnesses. An agent can discover these tools when it opens your application, without configuring `next-devtools-mcp`:
+
+| Tool         | Behavior                                                                                                                        |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `pause_hmr`  | Hold incoming hot updates, build errors, and automatic reloads while the agent edits files. The current page stays interactive. |
+| `resume_hmr` | Resume updates after editing. If updates arrived while paused, reload once to load the latest files.                            |
+
+Both tools take no arguments. The agent should pause before its first edit and resume after its final edit. Intermediate versions are discarded, so temporary syntax errors or module errors from incomplete edits do not replace the current page.
+
+Resuming with pending changes performs a full reload and resets client state. Resuming without pending changes preserves the page. If the final source still contains errors, they appear after resuming.
+
+Pausing applies to the current document. It does not cancel updates already in progress, stop server compilation or application requests, or prevent manual navigation. Reloading the page also ends the pause.
+
+> **Good to know**: WebMCP is experimental. Browsers without this API keep normal hot-update behavior, and these tools are only available during development.
+
 ## Using with agents
 
 MCP-compatible Coding Agents can automatically discover and connect to your Next.js development server, providing them with rich context about your project.

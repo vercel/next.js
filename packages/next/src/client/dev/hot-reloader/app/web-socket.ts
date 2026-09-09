@@ -1,4 +1,5 @@
 import { useContext, useEffect } from 'react'
+import { dispatcher } from 'next/dist/compiled/next-devtools'
 import { GlobalLayoutRouterContext } from '../../../../shared/lib/app-router-context.shared-runtime'
 import { getSocketUrl } from '../get-socket-url'
 import {
@@ -41,6 +42,7 @@ export function createWebSocket(
   }
 
   const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
+  void dispatcher.registerHmrTools()
 
   function init() {
     if (webSocket) {
@@ -72,6 +74,8 @@ export function createWebSocket(
             ? parseBinaryMessage(event.data)
             : JSON.parse(event.data)
 
+        if (dispatcher.shouldDeferHmrMessage(message)) return
+
         // Check for server restart in Turbopack mode
         if (message.type === HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED) {
           if (
@@ -80,6 +84,7 @@ export function createWebSocket(
           ) {
             // Either the server's session id has changed and it's a new server, or
             // it's been too long since we disconnected and we should reload the page.
+            if (dispatcher.shouldDeferHmrReload()) return
             window.location.reload()
             reloading = true
             return
@@ -122,7 +127,10 @@ export function createWebSocket(
       reconnections++
 
       // After WEB_SOCKET_MAX_RECONNECTIONS reconnects we'll want to reload the page as it indicates the dev server is no longer running.
-      if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
+      if (
+        reconnections > WEB_SOCKET_MAX_RECONNECTIONS &&
+        !dispatcher.shouldDeferHmrReload()
+      ) {
         reloading = true
         window.location.reload()
         return
