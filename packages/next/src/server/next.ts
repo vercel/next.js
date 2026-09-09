@@ -23,7 +23,7 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
+import type { DevServerStateUpdate } from './dev/dev-server-state'
 import type { ServerInitResult } from './lib/render-server'
 import { AsyncCallbackSet } from './lib/async-callback-set'
 import {
@@ -122,7 +122,7 @@ interface NextWrapperServer {
   port: number | undefined
 
   getRequestHandler(): RequestHandler
-  prepare(serverFields?: ServerFields): Promise<void>
+  prepare(): Promise<void>
   /** @deprecated Configure `assetPrefix` in `next.config.js` instead. */
   setAssetPrefix(assetPrefix: string): void
   close(): Promise<void>
@@ -301,17 +301,26 @@ export class NextServer implements NextWrapperServer {
     return server.render404(...args)
   }
 
-  async prepare(serverFields?: ServerFields) {
+  async prepare() {
     const server = await this.getServer()
 
-    if (serverFields) {
-      Object.assign(server, serverFields)
-    }
     // We shouldn't prepare the server in production,
     // because this code won't be executed when deployed
     if (this.options.dev) {
       await server.prepare()
     }
+  }
+
+  /** @internal */
+  async updateDevServerState(update: DevServerStateUpdate) {
+    const server = await this.getServer()
+    server.updateDevServerState(update)
+  }
+
+  /** @internal */
+  async reloadEnv() {
+    const server = await this.getServer()
+    server.reloadEnv()
   }
 
   async close() {

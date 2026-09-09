@@ -253,6 +253,15 @@ export interface Options {
    * The HTTP Server that Next.js is running behind
    */
   httpServer?: HTTPServer
+  /**
+   * The router server handler used for internal requests.
+   *
+   * @internal
+   */
+  routerServerHandler?: (
+    req: IncomingMessage,
+    res: HTTPServerResponse
+  ) => Promise<void> | void
 }
 
 export type RenderOpts = PagesRenderOptsPartial & AppRenderOptsPartial
@@ -346,7 +355,7 @@ export default abstract class Server<
   protected readonly minimalMode: boolean
   protected readonly renderOpts: BaseRenderOpts
   protected readonly serverOptions: Readonly<ServerOptions>
-  protected readonly appPathRoutes?: Record<string, string[]>
+  protected appPathRoutes?: Record<string, string[]>
   protected readonly clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
   protected interceptionRoutePatterns: RegExp[]
   protected nextFontManifest?: DeepReadonly<NextFontManifest>
