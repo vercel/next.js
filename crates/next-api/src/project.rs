@@ -2844,15 +2844,13 @@ async fn whole_app_module_graph_operation(
     }
     .instrument(span_clone)
     .await;
-    if result.is_ok() {
-        // Forward the span to the JS side for inclusion in `.next/trace`.
-        turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
-            "whole_app_module_graphs",
-            wall_start,
-            start.elapsed(),
-            serde_json::json!([]),
-        )));
-    }
+    // Forward the span to the JS side for inclusion in `.next/trace`, on success or failure.
+    turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
+        "whole_app_module_graphs",
+        wall_start,
+        start.elapsed(),
+        serde_json::json!([]),
+    )));
     result
 }
 

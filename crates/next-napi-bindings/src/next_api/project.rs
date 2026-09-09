@@ -1598,17 +1598,19 @@ pub async fn all_entrypoints_write_to_disk_operation(
     let wall_start = SystemTime::now();
     // Compute all outputs for this phase but do not emit to disk yet.
     let output_assets_operation = output_assets_operation(project, app_dir_only, write_phase);
-    let _ = output_assets_operation.connect().await?;
+    let result = output_assets_operation
+        .connect()
+        .await
+        .map(|_| project.entrypoints());
 
-    let entrypoints = project.entrypoints();
-    // Forward the span to the JS side for inclusion in `.next/trace`.
+    // Forward the span to the JS side for inclusion in `.next/trace`, on success or failure.
     turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
         "all_entrypoints_write_to_disk_operation",
         wall_start,
         start.elapsed(),
         serde_json::json!([]),
     )));
-    Ok(entrypoints)
+    result
 }
 
 #[turbo_tasks::function(operation)]
@@ -1667,23 +1669,28 @@ async fn emit_all_output_assets_once_with_issues_operation(
 ) -> Result<Vc<OperationResult>> {
     let start = Instant::now();
     let wall_start = SystemTime::now();
-    let entrypoints_operation = EntrypointsOperation::new(emit_all_output_assets_once_operation(
-        container,
-        app_dir_only,
-        has_deferred_entrypoints,
-    ));
-    let filter = container.project().issue_filter().await?;
-    let (_, issues, effects) =
-        strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+    let result = async {
+        let entrypoints_operation =
+            EntrypointsOperation::new(emit_all_output_assets_once_operation(
+                container,
+                app_dir_only,
+                has_deferred_entrypoints,
+            ));
+        let filter = container.project().issue_filter().await?;
+        let (_, issues, effects) =
+            strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
+        Ok(OperationResult { issues, effects }.cell())
+    }
+    .await;
 
-    // Forward the span to the JS side for inclusion in `.next/trace`.
+    // Forward the span to the JS side for inclusion in `.next/trace`, on success or failure.
     turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
         "emitting",
         wall_start,
         start.elapsed(),
         serde_json::json!([]),
     )));
-    Ok(OperationResult { issues, effects }.cell())
+    result
 }
 
 #[turbo_tasks::function(operation)]
