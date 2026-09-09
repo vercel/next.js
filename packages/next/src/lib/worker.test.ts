@@ -156,12 +156,20 @@ describe('lib/worker shutdown', () => {
     latestKill = undefined
   })
 
-  it('waits for stdout and stderr to drain without interrupting the worker', async () => {
+  it('retains interrupt-driven shutdown by default', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+    const worker = new Worker(__filename, noopOptions)
+
+    await expect(worker.end()).resolves.toEqual({ forceExited: false })
+    expect(latestKill).toHaveBeenCalledWith('SIGINT')
+  })
+
+  it('gracefully waits for stdout and stderr to drain', async () => {
     const { Worker } = require('./worker') as typeof import('./worker')
     const worker = new Worker(__filename, noopOptions)
 
     let didEnd = false
-    const endPromise = worker.end().then((result) => {
+    const endPromise = worker.endGracefully().then((result) => {
       didEnd = true
       return result
     })
@@ -179,16 +187,16 @@ describe('lib/worker shutdown', () => {
     await expect(endPromise).resolves.toEqual({ forceExited: false })
   })
 
-  it('bounds the output drain wait', async () => {
+  it('bounds the graceful output drain wait', async () => {
     jest.useFakeTimers()
     const { Worker } = require('./worker') as typeof import('./worker')
     const worker = new Worker(__filename, noopOptions)
 
-    const endPromise = worker.end()
+    const endPromise = worker.endGracefully()
     await Promise.resolve()
 
     jest.advanceTimersByTime(1000)
     await expect(endPromise).resolves.toEqual({ forceExited: false })
-    expect(latestKill).toHaveBeenCalledWith('SIGINT')
+    expect(latestKill).not.toHaveBeenCalled()
   })
 })

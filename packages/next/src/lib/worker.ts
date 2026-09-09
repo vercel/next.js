@@ -24,28 +24,23 @@ const cleanupWorkers = (worker: JestWorker) => {
 
 const WORKER_STDIO_DRAIN_TIMEOUT_MS = 1000
 
-const waitForStreamEnd = (
-  stream: NodeJS.ReadableStream,
-  signal: AbortSignal
-): Promise<boolean> => {
+const waitForStreamEnd = (stream: NodeJS.ReadableStream): Promise<void> => {
   const readable = stream as Readable
   if (readable.readableEnded || readable.destroyed) {
-    return Promise.resolve(true)
+    return Promise.resolve()
   }
 
   return new Promise((resolve) => {
-    const finish = (didDrain: boolean) => {
-      stream.off('end', onEnd)
-      stream.off('close', onEnd)
-      signal.removeEventListener('abort', onAbort)
-      resolve(didDrain)
+    const finish = () => {
+      clearTimeout(timeout)
+      stream.off('end', finish)
+      stream.off('close', finish)
+      resolve()
     }
-    const onEnd = () => finish(true)
-    const onAbort = () => finish(false)
+    const timeout = setTimeout(finish, WORKER_STDIO_DRAIN_TIMEOUT_MS)
 
-    stream.once('end', onEnd)
-    stream.once('close', onEnd)
-    signal.addEventListener('abort', onAbort, { once: true })
+    stream.once('end', finish)
+    stream.once('close', finish)
   })
 }
 
@@ -319,42 +314,31 @@ export class Worker {
     this._onActivityAbort = onActivityAbort
   }
 
-  async end(): ReturnType<JestWorker['end']> {
+  end(): ReturnType<JestWorker['end']> {
+    const worker = this._worker
+    if (!worker) {
+      throw new Error('Farm is ended, no more calls can be done to it')
+    }
+    cleanupWorkers(worker)
+    this._worker = undefined
+    return worker.end()
+  }
+
+  /**
+   * Shuts down without interrupting the worker so a failed build can preserve
+   * its trailing diagnostics. Successful builds use `end()` to retain their
+   * existing shutdown behavior.
+   */
+  async endGracefully(): ReturnType<JestWorker['end']> {
     const worker = this._worker
     if (!worker) {
       throw new Error('Farm is ended, no more calls can be done to it')
     }
 
-    // Worker method results and stdio use separate IPC channels. A method can
-    // resolve before its final output reaches the parent, so start observing
-    // both streams before asking jest-worker to shut down.
     const outputStreams = [worker.getStdout(), worker.getStderr()]
-    const drainController = new AbortController()
-    const outputEnded = Promise.all(
-      outputStreams.map((stream) =>
-        waitForStreamEnd(stream, drainController.signal)
-      )
-    )
-
     this._worker = undefined
-    let result: Awaited<ReturnType<JestWorker['end']>>
-    try {
-      result = await worker.end()
-    } catch (error) {
-      drainController.abort()
-      throw error
-    }
-
-    const drainTimeout = setTimeout(
-      () => drainController.abort(),
-      WORKER_STDIO_DRAIN_TIMEOUT_MS
-    )
-    const didDrain = await outputEnded
-    clearTimeout(drainTimeout)
-
-    if (didDrain.includes(false)) {
-      cleanupWorkers(worker)
-    }
+    const result = await worker.end()
+    await Promise.all(outputStreams.map(waitForStreamEnd))
     return result
   }
 
