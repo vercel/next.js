@@ -34,7 +34,7 @@ export function formatUrl(urlObj: UrlObject) {
   let query = urlObj.query || ''
   let host: string | false = false
 
-  auth = auth ? encodeURIComponent(auth).replace(/%3A/i, ':') + '@' : ''
+  auth = auth ? encodeURIComponent(auth).replace(/%3A/gi, ':') + '@' : ''
 
   if (urlObj.host) {
     host = auth + urlObj.host
