@@ -49,14 +49,38 @@ impl EcmascriptChunkContent {
 }
 
 impl EcmascriptChunkContent {
+    pub async fn strict_module_factory_count(&self) -> Result<usize> {
+        let counts = self
+            .chunk_items
+            .iter()
+            .map(async |item| match item {
+                EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(item) => {
+                    Ok(usize::from(item.is_strict().await?))
+                }
+                EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => Ok(batch
+                    .await?
+                    .chunk_items
+                    .iter()
+                    .map(async |item| Ok(usize::from(item.is_strict().await?)))
+                    .try_join()
+                    .await?
+                    .into_iter()
+                    .sum()),
+            })
+            .try_join()
+            .await?;
+        Ok(counts.into_iter().sum())
+    }
+
     pub async fn chunk_item_code_module_ids_and_paths(
         &self,
+        omit_use_strict: bool,
     ) -> Result<Vec<ReadRef<CodeModuleIdsAndPaths>>> {
         batch_info(
             &self.batch_groups,
             &self.chunk_items,
-            |batch| batch_group_code_module_ids_and_paths(batch).into_future(),
-            |item| item_code_module_ids_and_paths(item.clone()).into_future(),
+            |batch| batch_group_code_module_ids_and_paths(batch, omit_use_strict).into_future(),
+            |item| item_code_module_ids_and_paths(item.clone(), omit_use_strict).into_future(),
         )
         .await
     }

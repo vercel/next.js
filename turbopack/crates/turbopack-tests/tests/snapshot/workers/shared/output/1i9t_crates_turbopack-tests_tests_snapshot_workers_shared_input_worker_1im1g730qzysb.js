@@ -436,13 +436,26 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
-// The CompressedModuleFactories format is
-// - 1 or more module ids
-// - a module factory function
-// So walking this is a little complex but the flat structure is also fast to
-// traverse, we can use `typeof` operators to distinguish the two cases.
+// Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
+// Factories are usually stored in one flat array. Chunks with enough strict
+// factories instead contain separate strict and non-strict flat arrays.
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
+    const strictFactories = chunkModules[offset];
+    if (Array.isArray(strictFactories)) {
+        const nonStrictFactories = chunkModules[offset + 1];
+        if (!Array.isArray(nonStrictFactories) || offset + 2 !== chunkModules.length) {
+            throw new Error('malformed chunk format, expected two factory arrays');
+        }
+        installFlatModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
+        installFlatModuleFactories(nonStrictFactories, 0, moduleFactories, newModuleId);
+    } else {
+        installFlatModuleFactories(chunkModules, offset, moduleFactories, newModuleId);
+    }
+}
+// The flat format alternates one or more module IDs with their factory function.
+// Walking this is a little complex, but the structure is fast to traverse and
+// `typeof` distinguishes module IDs from factories.
+function installFlatModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     let i = offset;
     while(i < chunkModules.length){
         let end = i + 1;
