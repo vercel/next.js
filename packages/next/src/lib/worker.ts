@@ -1,6 +1,6 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-import { Transform } from 'stream'
+import { Transform, type Readable } from 'stream'
 import {
   formatDebugAddress,
   formatNodeOptions,
@@ -20,6 +20,33 @@ const cleanupWorkers = (worker: JestWorker) => {
   }[]) {
     curWorker._child?.kill('SIGINT')
   }
+}
+
+const WORKER_STDIO_DRAIN_TIMEOUT_MS = 1000
+
+const waitForStreamEnd = (
+  stream: NodeJS.ReadableStream,
+  signal: AbortSignal
+): Promise<boolean> => {
+  const readable = stream as Readable
+  if (readable.readableEnded || readable.destroyed) {
+    return Promise.resolve(true)
+  }
+
+  return new Promise((resolve) => {
+    const finish = (didDrain: boolean) => {
+      stream.off('end', onEnd)
+      stream.off('close', onEnd)
+      signal.removeEventListener('abort', onAbort)
+      resolve(didDrain)
+    }
+    const onEnd = () => finish(true)
+    const onAbort = () => finish(false)
+
+    stream.once('end', onEnd)
+    stream.once('close', onEnd)
+    signal.addEventListener('abort', onAbort, { once: true })
+  })
 }
 
 export function getNextBuildDebuggerPortOffset(_: {
@@ -292,14 +319,43 @@ export class Worker {
     this._onActivityAbort = onActivityAbort
   }
 
-  end(): ReturnType<JestWorker['end']> {
+  async end(): ReturnType<JestWorker['end']> {
     const worker = this._worker
     if (!worker) {
       throw new Error('Farm is ended, no more calls can be done to it')
     }
-    cleanupWorkers(worker)
+
+    // Worker method results and stdio use separate IPC channels. A method can
+    // resolve before its final output reaches the parent, so start observing
+    // both streams before asking jest-worker to shut down.
+    const outputStreams = [worker.getStdout(), worker.getStderr()]
+    const drainController = new AbortController()
+    const outputEnded = Promise.all(
+      outputStreams.map((stream) =>
+        waitForStreamEnd(stream, drainController.signal)
+      )
+    )
+
     this._worker = undefined
-    return worker.end()
+    let result: Awaited<ReturnType<JestWorker['end']>>
+    try {
+      result = await worker.end()
+    } catch (error) {
+      drainController.abort()
+      throw error
+    }
+
+    const drainTimeout = setTimeout(
+      () => drainController.abort(),
+      WORKER_STDIO_DRAIN_TIMEOUT_MS
+    )
+    const didDrain = await outputEnded
+    clearTimeout(drainTimeout)
+
+    if (didDrain.includes(false)) {
+      cleanupWorkers(worker)
+    }
+    return result
   }
 
   /**
