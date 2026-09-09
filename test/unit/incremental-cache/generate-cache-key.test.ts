@@ -14,11 +14,6 @@ function createCache() {
       routes: {},
       dynamicRoutes: {},
       notFoundRoutes: [],
-      preview: {
-        previewModeId: 'id',
-        previewModeSigningKey: 'key',
-        previewModeEncryptionKey: 'key',
-      },
     },
   })
 }

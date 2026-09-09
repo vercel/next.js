@@ -3,7 +3,7 @@ import type RenderResult from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
 import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
-import type { PrerenderManifest } from '../../../build'
+import type { PrerenderManifestRuntime } from '../../../build'
 
 import {
   prerenderToHTMLOrFlight,
@@ -90,12 +90,12 @@ export class AppPageRouteModule extends RouteModule<
   AppPageUserlandModule
 > {
   private matchers = new WeakMap<
-    DeepReadonly<PrerenderManifest>,
+    DeepReadonly<PrerenderManifestRuntime>,
     PrerenderManifestMatcher
   >()
   public match(
     pathname: string,
-    prerenderManifest: DeepReadonly<PrerenderManifest>
+    prerenderManifest: DeepReadonly<PrerenderManifestRuntime>
   ) {
     // Lazily create the matcher based on the provided prerender manifest.
     let matcher = this.matchers.get(prerenderManifest)

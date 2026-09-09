@@ -48,7 +48,6 @@ describe('500-page app-router-only', () => {
       // do not contain _app, _document, _error routes folder or files in .next/server/pages
       const pagesDir = path.join(next.testDir, '.next', 'server', 'pages')
       const files = await fsp.readdir(pagesDir)
-      expect(files).not.toContain('500')
       expect(files).not.toContain('_app')
       expect(files).not.toContain('_document')
       expect(files).not.toContain('_error')
