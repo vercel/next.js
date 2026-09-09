@@ -54,7 +54,7 @@ This keeps the rest of the page available. If rendering cannot continue after an
 
 Uncaught exceptions are unexpected errors that indicate bugs or issues that should not occur during the normal flow of your application. Throw these errors so the nearest error boundary can render a fallback.
 
-### Route-segment error boundaries
+### Nested error boundaries
 
 Next.js uses error boundaries to handle uncaught exceptions. Error boundaries catch errors in their child components and display a fallback UI instead of the component tree that crashed.
 
@@ -422,7 +422,7 @@ export function SaveButton({ postId }) {
 
 The `toast` import represents your application's notification API because Next.js does not include a toast component. Use a notification implementation with an ARIA live region so assistive technology announces the error.
 
-Place the mutating interface beneath a [component-level](#component-level-error-boundaries) or [route-segment](#route-segment-error-boundaries) error boundary. The returned result handles the expected save failure. If `savePost` throws an unexpected error, leave it uncaught. Because the Server Function runs inside a Transition, React forwards the error to the nearest boundary, which displays its fallback.
+Place the mutating interface beneath a [component-level](#component-level-error-boundaries) or [route-segment](#nested-error-boundaries) error boundary. The returned result handles the expected save failure. If `savePost` throws an unexpected error, leave it uncaught. Because the Server Function runs inside a Transition, React forwards the error to the nearest boundary, which displays its fallback.
 
 ## Not found
 
