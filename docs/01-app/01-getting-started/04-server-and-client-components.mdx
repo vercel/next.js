@@ -9,31 +9,86 @@ related:
     - app/guides/server-and-client-boundary
 ---
 
-By default, layouts and pages are [Server Components](https://react.dev/reference/rsc/server-components), which lets you fetch data and render parts of your UI on the server, optionally cache the result, and stream it to the client. When you need interactivity or browser APIs, you can use [Client Components](https://react.dev/reference/rsc/use-client) to layer in functionality.
+By default, every component you write is a [Server Component](https://react.dev/reference/rsc/server-components) and runs on the server. You add the [`use client`](https://react.dev/reference/rsc/use-client) directive to the components that need browser features, such as state, effects, and event handlers.
 
-This page explains how Server and Client Components work in Next.js and when to use them, with examples of how to compose them together in your application.
+This page explains that boundary, when to cross it, and how to compose the two kinds of component together.
 
-> **Good to know:** For an explanation of where each component type runs and how the boundary works, see [The Server and Client Boundary](/docs/app/guides/server-and-client-boundary).
+## Start with Server Components
 
-## When to use Server and Client Components?
+You don't opt in to Server Components. Write a component and it is one already.
 
-The client and server environments have different capabilities. Server and Client Components allow you to run logic in each environment depending on your use case.
+Because it runs on the server, it can be `async`, and it can read data directly rather than through an endpoint you have to write:
 
-Use **Client Components** when you need:
+```tsx filename="app/page.tsx" switcher
+import { getPosts } from '@/lib/data'
 
-- [State](https://react.dev/learn/managing-state) and [event handlers](https://react.dev/learn/responding-to-events). E.g. `onClick`, `onChange`.
-- [Lifecycle logic](https://react.dev/learn/lifecycle-of-reactive-effects). E.g. `useEffect`.
-- Browser-only APIs. E.g. `localStorage`, `window`, `navigator.geolocation`, etc.
-- [Custom hooks](https://react.dev/learn/reusing-logic-with-custom-hooks).
+export default async function Page() {
+  const posts = await getPosts()
 
-Use **Server Components** when you need:
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
 
-- Fetch data from databases or APIs close to the source.
-- Use API keys, tokens, and other secrets without exposing them to the client.
-- Reduce the amount of JavaScript sent to the browser.
-- Improve the [First Contentful Paint (FCP)](https://web.dev/fcp/), and stream content progressively to the client.
+```jsx filename="app/page.js" switcher
+import { getPosts } from '@/lib/data'
 
-For example, the `<Page>` component is a Server Component that fetches data about a post, and passes it as props to the `<LikeButton>` which handles client-side interactivity.
+export default async function Page() {
+  const posts = await getPosts()
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+Database credentials and API keys used here stay on the server, and none of this component's code is sent to the browser. [Fetching Data](/docs/app/getting-started/fetching-data) covers reads in depth.
+
+You can build a lot this way. Keep going until you hit something the server cannot do.
+
+## Add interactivity where you need it
+
+Eventually you want a button that responds to a click, a value that persists between renders, or something only the browser knows. None of that can happen on the server, because there is no user in front of it yet.
+
+That is the moment to reach for a Client Component. Put `use client` at the top of the file:
+
+```tsx filename="app/ui/like-button.tsx" highlight={1} switcher
+'use client'
+
+import { useState } from 'react'
+
+export default function LikeButton({ likes }: { likes: number }) {
+  // ...
+}
+```
+
+```jsx filename="app/ui/like-button.js" highlight={1} switcher
+'use client'
+
+import { useState } from 'react'
+
+export default function LikeButton({ likes }) {
+  // ...
+}
+```
+
+You will know you need one when you find yourself wanting:
+
+- **State or an event handler**, such as `useState`, `onClick`, or `onChange`
+- **Lifecycle logic**, such as `useEffect`
+- **A browser-only API**, such as `localStorage`, `window`, or `navigator.geolocation`
+- **A custom hook** that uses any of the above
+
+Nothing else has to change. The rest of your tree stays on the server, and a Server Component can render a Client Component as a child, passing data down as props:
 
 ```tsx filename="app/[id]/page.tsx" highlight={1,17} switcher
 import LikeButton from '@/app/ui/like-button'
@@ -79,61 +134,27 @@ export default async function Page({ params }) {
 }
 ```
 
-```tsx filename="app/ui/like-button.tsx" highlight={1} switcher
-'use client'
+`<Page>` fetches on the server and hands `likes` to `<LikeButton>`, which handles the click in the browser.
 
-import { useState } from 'react'
+Two consequences are worth knowing early, because they are the ones that surprise people:
 
-export default function LikeButton({ likes }: { likes: number }) {
-  // ...
-}
-```
+- **`use client` applies to the whole file, and to what it imports.** It marks an entry point into the browser bundle, not a single component.
+- **Props crossing the boundary must be serializable.** A number or an object is fine; a function is not, apart from a [Server Function](/docs/app/getting-started/mutating-data), which crosses as a reference.
 
-```jsx filename="app/ui/like-button.js" highlight={1} switcher
-'use client'
+> **Good to know:** "Client" describes where code _may_ run, not where it does run. A Client Component is still rendered on the server for the initial HTML, then hydrated in the browser. See [The Server and Client Boundary](/docs/app/guides/server-and-client-boundary).
 
-import { useState } from 'react'
+## When to use Server and Client Components?
 
-export default function LikeButton({ likes }) {
-  // ...
-}
-```
+A quick reference once you know the model. The two environments have different capabilities, so each component runs where its work belongs.
 
-## How do Server and Client Components work in Next.js?
+| Use a **Client Component** for               | Use a **Server Component** for                                                               |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| State and event handlers                     | Fetching data close to its source                                                            |
+| Lifecycle logic such as `useEffect`          | Using API keys, tokens, and other secrets without exposing them                              |
+| Browser-only APIs                            | Keeping JavaScript out of the browser bundle                                                 |
+| Custom hooks that depend on any of the above | Improving [First Contentful Paint](https://web.dev/fcp/) and streaming content progressively |
 
-### On the server
-
-On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks, by individual route segments ([layouts and pages](/docs/app/getting-started/layouts-and-pages)), including [parallel route slots](/docs/app/api-reference/file-conventions/parallel-routes) whether or not they are displayed:
-
-- **Server Components** are rendered into a special data format called the React Server Component Payload (RSC Payload).
-- **Client Components** and the RSC Payload are used to [prerender](/docs/app/glossary#prerendering) HTML.
-
-> **What is the React Server Component Payload (RSC)?**
->
-> The RSC Payload is a compact, serialized representation of the rendered React Server Components tree. It's used by React on the client to update the browser's DOM. The RSC Payload contains:
->
-> - The rendered result of Server Components
-> - Placeholders for where Client Components should be rendered and references to their JavaScript files
-> - Any props passed from a Server Component to a Client Component
-
-### On the client (first load)
-
-Then, on the client:
-
-1. **HTML** is used to immediately show a fast non-interactive preview of the route to the user.
-2. **RSC Payload** is used to reconcile the Client and Server Component trees.
-3. **JavaScript** is used to hydrate Client Components and make the application interactive.
-
-> **What is hydration?**
->
-> Hydration is React's process for attaching [event handlers](https://react.dev/learn/responding-to-events) to the DOM, to make the static HTML interactive.
-
-### Subsequent Navigations
-
-On subsequent navigations:
-
-- The **RSC Payload** is prefetched and cached for instant navigation.
-- **Client Components** are rendered entirely on the client, without the server-rendered HTML.
+When both would work, prefer a Server Component, and move the boundary as far down the tree as you can. [Reducing JS bundle size](#reducing-js-bundle-size) shows what that buys you.
 
 ## Examples
 
@@ -602,3 +623,41 @@ bun add server-only
 Next.js handles `server-only` and `client-only` imports internally to provide clearer error messages when a module is used in the wrong environment. The contents of these packages from NPM are not used by Next.js.
 
 Next.js also provides its own type declarations for `server-only` and `client-only`, for TypeScript configurations where [`noUncheckedSideEffectImports`](https://www.typescriptlang.org/tsconfig/#noUncheckedSideEffectImports) is active.
+
+## How do Server and Client Components work in Next.js?
+
+You do not need this section to build with Server and Client Components. It is here for when the boundary behaves in a way you want to explain, and for the vocabulary that appears in error messages and tooling.
+
+### On the server
+
+On the server, Next.js uses React's APIs to orchestrate rendering. The rendering work is split into chunks, by individual route segments ([layouts and pages](/docs/app/getting-started/layouts-and-pages)), including [parallel route slots](/docs/app/api-reference/file-conventions/parallel-routes) whether or not they are displayed:
+
+- **Server Components** are rendered into a special data format called the React Server Component Payload (RSC Payload).
+- **Client Components** and the RSC Payload are used to [prerender](/docs/app/glossary#prerendering) HTML.
+
+> **What is the React Server Component Payload (RSC)?**
+>
+> The RSC Payload is a compact, serialized representation of the rendered React Server Components tree. It's used by React on the client to update the browser's DOM. The RSC Payload contains:
+>
+> - The rendered result of Server Components
+> - Placeholders for where Client Components should be rendered and references to their JavaScript files
+> - Any props passed from a Server Component to a Client Component
+
+### On the client (first load)
+
+Then, on the client:
+
+1. **HTML** is used to immediately show a fast non-interactive preview of the route to the user.
+2. **RSC Payload** is used to reconcile the Client and Server Component trees.
+3. **JavaScript** is used to hydrate Client Components and make the application interactive.
+
+> **What is hydration?**
+>
+> Hydration is React's process for attaching [event handlers](https://react.dev/learn/responding-to-events) to the DOM, to make the static HTML interactive.
+
+### Subsequent Navigations
+
+On subsequent navigations:
+
+- The **RSC Payload** is prefetched and cached for instant navigation.
+- **Client Components** are rendered entirely on the client, without the server-rendered HTML.
