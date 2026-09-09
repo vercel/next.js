@@ -80,12 +80,25 @@ export function createFormSubmitDestinationUrl(
   const formData = new FormData(formElement)
 
   for (let [name, value] of formData) {
+    // Native form submissions normalize line endings in entry names and values
+    // to CRLF before URL-encoding them. The `FormData` API does not do this,
+    // so we have to match it ourselves:
+    //
+    //  "Let name be entry's name, with every occurrence of U+000D (CR) not
+    //   followed by U+000A (LF), and every occurrence of U+000A (LF) not
+    //   preceded by U+000D (CR), replaced by a string consisting of U+000D
+    //   (CR) and U+000A (LF)."
+    //   https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#converting-an-entry-list-to-a-list-of-name-value-pairs
+    //
+    name = normalizeFormEntryNewlines(name)
+
     if (typeof value !== 'string') {
       // For file inputs, the native browser behavior is to use the filename as the value instead:
       //
       //   "If entry's value is a File object, then let value be entry's value's name. Otherwise, let value be entry's value."
       //   https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#converting-an-entry-list-to-a-list-of-name-value-pairs
       //
+      // (note that the File's name is used as-is, without newline normalization)
       if (process.env.NODE_ENV === 'development') {
         console.warn(
           `<Form> only supports file inputs if \`action\` is a function. File inputs cannot be used if \`action\` is a string, ` +
@@ -93,11 +106,23 @@ export function createFormSubmitDestinationUrl(
         )
       }
       value = value.name
+    } else {
+      // "Replace every occurrence of U+000D (CR) not followed by U+000A (LF),
+      //  and every occurrence of U+000A (LF) not preceded by U+000D (CR), in
+      //  value, by a string consisting of U+000D (CR) and U+000A (LF)."
+      value = normalizeFormEntryNewlines(value)
     }
 
     targetUrl.searchParams.append(name, value)
   }
   return targetUrl
+}
+
+function normalizeFormEntryNewlines(value: string): string {
+  // `CR LF` pairs are left as-is, while lone `CR`s and `LF`s are replaced with
+  // `CR LF`. (Matching `CR LF` first prevents the `LF` of a `CR LF` pair from
+  // being replaced on its own.)
+  return value.replace(/\r\n|\r|\n/g, '\r\n')
 }
 
 export function checkFormActionUrl(
