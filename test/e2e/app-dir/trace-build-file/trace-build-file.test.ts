@@ -90,16 +90,16 @@ describe('trace-build-file', () => {
 
         expect([...foundEvents].sort()).toMatchInlineSnapshot(`
                 [
-                  "all_entrypoints_write_to_disk_operation",
-                  "emitting",
                   "next-build",
                   "run-turbopack",
                   "run-typescript",
                   "static-check",
                   "static-generation",
                   "telemetry-flush",
+                  "turbopack-emit",
+                  "turbopack-module-graph",
                   "turbopack-persistence",
-                  "whole_app_module_graphs",
+                  "turbopack-write-entrypoints",
                 ]
               `)
       } else {

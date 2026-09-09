@@ -1605,7 +1605,7 @@ pub async fn all_entrypoints_write_to_disk_operation(
 
     // Forward the span to the JS side for inclusion in `.next/trace`, on success or failure.
     turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
-        "all_entrypoints_write_to_disk_operation",
+        "turbopack-write-entrypoints",
         wall_start,
         start.elapsed(),
         serde_json::json!([]),
@@ -1685,7 +1685,7 @@ async fn emit_all_output_assets_once_with_issues_operation(
 
     // Forward the span to the JS side for inclusion in `.next/trace`, on success or failure.
     turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
-        "emitting",
+        "turbopack-emit",
         wall_start,
         start.elapsed(),
         serde_json::json!([]),

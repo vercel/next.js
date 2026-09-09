@@ -17,9 +17,9 @@ const allowlistedEvents = new Set([
   'telemetry-flush',
   'turbopack-persistence',
   'turbopack-compaction',
-  'whole_app_module_graphs',
-  'all_entrypoints_write_to_disk_operation',
-  'emitting',
+  'turbopack-module-graph',
+  'turbopack-write-entrypoints',
+  'turbopack-emit',
 ])
 
 export default createJsonReporter({
