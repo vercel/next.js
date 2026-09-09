@@ -61,13 +61,15 @@ export default function Home() {
 }
 ```
 
-`prefetch={false}` disables all prefetching. When a condition enables per-link prefetching for some links, return `'auto'` for the others to preserve the default behavior:
+If only some links should resolve URL data before navigation, return `'auto'` for the rest to keep the default App Shell prefetch:
 
-```tsx
+```tsx filename="app/page.tsx"
 <Link href={href} prefetch={isFeatured ? true : 'auto'} />
 ```
 
-The destination renders a static heading and a `<Results>` list whose contents depend on the query. Each query is cached, computed once and reused.
+Use `prefetch={false}` only when you want to disable prefetching for a link.
+
+The `/search` page renders a static heading and a `<Results>` list based on the query. The `search()` function caches results by query so later requests can reuse them.
 
 ```tsx filename="app/search/page.tsx"
 import { Suspense } from 'react'
