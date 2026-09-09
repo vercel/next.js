@@ -136,7 +136,17 @@ impl ModuleReference for EcmascriptModulePartReference {
 
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
-            import: ImportUsage::TopLevel,
+            // A synthesized named facade -> locals edge implements the facade export of the same
+            // name. It is only needed when that facade export is used; telling the graph this lets
+            // it propagate the facade's per-name usage into locals instead of keeping every local
+            // export alive. Normal (non-synthesized) references and structural evaluation edges
+            // are top-level dependencies.
+            import: match (&self.mode, &self.export_usage) {
+                (EcmascriptModulePartReferenceMode::Synthesize, ExportUsage::Named(export)) => {
+                    ImportUsage::Exports(std::iter::once(export.clone()).collect())
+                }
+                _ => ImportUsage::TopLevel,
+            },
             export: self.export_usage.clone(),
         }
     }
@@ -149,6 +159,17 @@ impl EcmascriptModulePartReference {
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let this = self.await?;
+
+        // Skip generation for unused references, similar to `EsmAssetReference::code_generation`.
+        // Chunking may completely skip the target so we cannot reference it.
+        if chunking_context
+            .unused_references()
+            .contains_key(&ResolvedVc::upcast(self.to_resolved().await?))
+            .await?
+        {
+            return Ok(CodeGeneration::empty());
+        }
+
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
 

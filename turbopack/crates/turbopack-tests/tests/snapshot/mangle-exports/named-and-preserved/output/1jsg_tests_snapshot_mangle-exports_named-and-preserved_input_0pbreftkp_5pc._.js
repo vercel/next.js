@@ -1,3 +1,0 @@
-(()=>{"use strict";module.exports=["[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/named-and-preserved/input/index.js [test] (ecmascript)",t=>{var e=t.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/named-and-preserved/input/lib.js [test] (ecmascript)");console.log(e.a,e.$,e.z,e.T,(0,e.X)()),t.s([])},"[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/named-and-preserved/input/lib.js [test] (ecmascript)",t=>{t.s(["a",0,"a","X",0,function(){return"fn"},"T",0,"long-2","$",0,"bb","z",0,"long-1"])}]})();
-
-//# sourceMappingURL=1jsg_tests_snapshot_mangle-exports_named-and-preserved_input_0pbreftkp_5pc._.js.map

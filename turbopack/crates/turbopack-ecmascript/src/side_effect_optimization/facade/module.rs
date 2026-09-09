@@ -81,19 +81,41 @@ impl EcmascriptModuleFacadeModule {
             );
         };
         let result = module.analyze().await?;
-        Ok((
-            vec![
-                // TODO skip if side effect free and no local exports
-                EcmascriptModulePartReference::new_part(
-                    *self.module,
-                    ModulePart::locals(),
-                    ExportUsage::all(),
-                )
-                .to_resolved()
-                .await?,
-            ],
-            result.esm_reexport_references,
-        ))
+
+        // The locals module has to be *evaluated* for its side effects and ordering, which this
+        // reference is what guarantees. `evaluation()` rather than `all()`: the latter would also
+        // claim every export is used, widening the locals module's usage to `All` unconditionally
+        // and defeating both export mangling and tree shaking of its unused exports.
+        // TODO skip if side effect free and no local exports
+        let mut part_references = vec![
+            EcmascriptModulePartReference::new_part(
+                *self.module,
+                ModulePart::locals(),
+                ExportUsage::evaluation(),
+            )
+            .to_resolved()
+            .await?,
+        ];
+        // Then one reference per export that comes from the locals module, so the module graph
+        // carries *which* names this facade needs from it. Without these the evaluation reference
+        // would be the only facade -> locals edge, and it would have to claim `all()`.
+        if let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? {
+            for (name, export) in &esm_exports.await?.exports {
+                if matches!(export, EsmExport::LocalBinding(..)) {
+                    part_references.push(
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            ModulePart::locals(),
+                            ExportUsage::named(name.clone()),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                }
+            }
+        }
+
+        Ok((part_references, result.esm_reexport_references))
     }
 }
 

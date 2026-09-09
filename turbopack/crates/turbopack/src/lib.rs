@@ -205,35 +205,32 @@ async fn apply_module_type(
                         *module,
                         part.cloned().unwrap_or(ModulePart::facade()),
                     ))
-                } else if follow_reexports {
-                    if *module.get_exports().split_locals_and_reexports().await? {
-                        if let Some(part) = part {
-                            match part {
-                                ModulePart::Evaluation => {
-                                    Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
-                                }
-                                ModulePart::Export(_) => {
-                                    apply_reexport_tree_shaking(
-                                        Vc::upcast(
-                                            *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
-                                                .to_resolved()
-                                                .await?,
-                                        ),
-                                        part.clone(),
-                                    )
-                                    .await?
-                                }
-                                _ => bail!(
-                                    "Invalid module part \"{}\" for reexports only tree shaking \
-                                     mode",
-                                    part
-                                ),
+                } else if follow_reexports
+                    && *module.get_exports().split_locals_and_reexports().await?
+                {
+                    if let Some(part) = part {
+                        match part {
+                            ModulePart::Evaluation => {
+                                Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
                             }
-                        } else {
-                            Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
+                            ModulePart::Export(_) => {
+                                apply_reexport_tree_shaking(
+                                    Vc::upcast(
+                                        *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
+                                            .to_resolved()
+                                            .await?,
+                                    ),
+                                    part.clone(),
+                                )
+                                .await?
+                            }
+                            _ => bail!(
+                                "Invalid module part \"{}\" for reexports only tree shaking mode",
+                                part
+                            ),
                         }
                     } else {
-                        Vc::upcast(*module)
+                        Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
                     }
                 } else {
                     Vc::upcast(*module)
