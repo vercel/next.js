@@ -187,10 +187,16 @@ export interface RequestCurrentErrorStateMessage {
   requestId: string
 }
 
+export interface RuntimeErrorMetadata {
+  fatal: boolean
+}
+
 export interface FormattedRuntimeError {
   type: string
   errorName: string
   message: string
+  /** A React root failure or a Next.js unrecoverable rendering path. */
+  fatal: boolean
   stack: Array<{
     file: string
     methodName: string
@@ -214,6 +220,7 @@ export interface RuntimeErrorStateError {
     column1: number | null
   }[]
   type: 'runtime' | 'recoverable' | 'console'
+  fatal: boolean
 }
 
 export interface RuntimeErrorStateUpdate {

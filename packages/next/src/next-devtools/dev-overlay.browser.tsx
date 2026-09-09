@@ -1,5 +1,9 @@
-import type { RuntimeErrorStateUpdate } from '../server/dev/hot-reloader-types'
+import type {
+  RuntimeErrorMetadata,
+  RuntimeErrorStateUpdate,
+} from '../server/dev/hot-reloader-types'
 import { getErrorSource } from '../shared/lib/error-source'
+import type { RuntimeErrorEvent } from './dev-overlay/container/runtime-error/render-error'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
@@ -70,8 +74,8 @@ export interface Dispatcher {
   onStaticIndicator(status: 'pending' | 'static' | 'dynamic' | 'disabled'): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
   onDevToolsConfig(config: DevToolsConfig): void
-  onUnhandledError(reason: Error): void
-  onUnhandledRejection(reason: Error): void
+  onUnhandledError(reason: Error, metadata?: RuntimeErrorMetadata): void
+  onUnhandledRejection(reason: Error, metadata?: RuntimeErrorMetadata): void
   openErrorOverlay(): void
   closeErrorOverlay(): void
   toggleErrorOverlay(): void
@@ -135,9 +139,10 @@ function serializeRuntimeErrorState(
   return {
     routerType: state.routerType,
     errors: state.errors.map((event) => {
-      const { error, ...details } = event
+      const { error, isFatal, ...details } = event as RuntimeErrorEvent
       return {
         ...details,
+        fatal: isFatal,
         error: {
           name: error.name,
           message: error.message,
@@ -235,18 +240,32 @@ export const dispatcher: Dispatcher = {
       dispatch({ type: ACTION_DEVTOOLS_CONFIG, devToolsConfig })
     }
   ),
-  onUnhandledError: createQueuable((dispatch: Dispatch, error: Error) => {
-    dispatch({
-      type: ACTION_UNHANDLED_ERROR,
-      reason: error,
-    })
-  }),
-  onUnhandledRejection: createQueuable((dispatch: Dispatch, error: Error) => {
-    dispatch({
-      type: ACTION_UNHANDLED_REJECTION,
-      reason: error,
-    })
-  }),
+  onUnhandledError: createQueuable(
+    (
+      dispatch: Dispatch,
+      error: Error,
+      metadata: RuntimeErrorMetadata | undefined = undefined
+    ) => {
+      dispatch({
+        type: ACTION_UNHANDLED_ERROR,
+        reason: error,
+        ...(metadata === undefined ? {} : { metadata }),
+      })
+    }
+  ),
+  onUnhandledRejection: createQueuable(
+    (
+      dispatch: Dispatch,
+      error: Error,
+      metadata: RuntimeErrorMetadata | undefined = undefined
+    ) => {
+      dispatch({
+        type: ACTION_UNHANDLED_REJECTION,
+        reason: error,
+        ...(metadata === undefined ? {} : { metadata }),
+      })
+    }
+  ),
   openErrorOverlay: createQueuable((dispatch: Dispatch) => {
     dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
   }),
@@ -319,7 +338,8 @@ function DevOverlayRoot({
     routerType,
     getOwnerStack,
     isRecoverableError,
-    enableCacheIndicator
+    enableCacheIndicator,
+    enableRuntimeErrorReporting
   )
 
   useEffect(() => {

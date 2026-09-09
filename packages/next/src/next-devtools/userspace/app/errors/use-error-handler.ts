@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import type { RuntimeErrorMetadata } from '../../../../server/dev/hot-reloader-types'
 import { isNextRouterError } from '../../../../client/components/is-next-router-error'
 import {
   formatConsoleArgs,
@@ -51,13 +52,19 @@ export function handleConsoleError(
   }
 }
 
-export function handleClientError(error: Error) {
+export function handleClientError(
+  error: Error,
+  metadata: RuntimeErrorMetadata | undefined = undefined
+) {
   if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
     const { dispatcher } =
       require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
+    const { takeRuntimeErrorMetadata } =
+      require('./runtime-error-metadata') as typeof import('./runtime-error-metadata')
+    const occurrence = metadata ?? takeRuntimeErrorMetadata(error)
     // The overlay queues events until its own root mounts. Do not depend on
     // HotReload committing: an initial application failure can prevent that.
-    queueMicroTask(() => dispatcher.onUnhandledError(error))
+    queueMicroTask(() => dispatcher.onUnhandledError(error, occurrence))
   } else {
     errorQueue.push(error)
     for (const handler of errorHandlers) {
@@ -109,7 +116,19 @@ function onUnhandledError(event: WindowEventMap['error']): void | boolean {
   if (thrownValue) {
     const error = coerceError(thrownValue)
     setOwnerStackIfAvailable(error)
-    handleClientError(error)
+    if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+      const { takeRuntimeErrorMetadata } =
+        require('./runtime-error-metadata') as typeof import('./runtime-error-metadata')
+      const { isRecoverableError } =
+        require('../../../../client/react-client-callbacks/on-recoverable-error') as typeof import('../../../../client/react-client-callbacks/on-recoverable-error')
+      handleClientError(
+        error,
+        takeRuntimeErrorMetadata(error) ??
+          (isRecoverableError(error) ? undefined : { fatal: false })
+      )
+    } else {
+      handleClientError(error)
+    }
     forwardUnhandledError(error)
   }
 }
@@ -127,7 +146,7 @@ function onUnhandledRejection(ev: WindowEventMap['unhandledrejection']): void {
   if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
     const { dispatcher } =
       require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
-    dispatcher.onUnhandledRejection(error)
+    dispatcher.onUnhandledRejection(error, { fatal: false })
   } else {
     rejectionQueue.push(error)
     for (const handler of rejectionHandlers) {
