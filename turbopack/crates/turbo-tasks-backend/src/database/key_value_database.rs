@@ -1,4 +1,4 @@
-use turbo_persistence::{FamilyConfig, FamilyKind};
+use turbo_persistence::{Compression, FamilyConfig, FamilyKind};
 
 #[derive(Debug, Clone, Copy)]
 pub enum KeySpace {
@@ -35,14 +35,21 @@ impl KeySpace {
     /// Returns the persistence configuration for this keyspace.
     pub const fn family_config(&self) -> FamilyConfig {
         match self {
-            KeySpace::Infra | KeySpace::TaskMeta | KeySpace::TaskData => FamilyConfig {
+            KeySpace::Infra | KeySpace::TaskMeta => FamilyConfig {
                 name: self.name(),
                 kind: FamilyKind::SingleValue,
+                compression: Compression::Lz4,
+            },
+            KeySpace::TaskData => FamilyConfig {
+                name: self.name(),
+                kind: FamilyKind::SingleValue,
+                compression: Compression::Zstd3,
             },
             KeySpace::TaskCache => FamilyConfig {
                 name: self.name(),
                 // TaskCache uses hash-based lookups with potential collisions.
                 kind: FamilyKind::MultiValue,
+                compression: Compression::Lz4,
             },
         }
     }

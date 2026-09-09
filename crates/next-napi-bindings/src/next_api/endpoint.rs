@@ -23,8 +23,8 @@ use turbo_tasks::{
 use turbopack_core::issue::{IssueFilter, PlainIssue};
 
 use crate::next_api::utils::{
-    DetachedVc, NapiIssue, RootTask, TurbopackResult, strongly_consistent_catch_collectables,
-    subscribe,
+    DetachedVc, NapiIssue, SubscriptionTask, TurbopackResult,
+    strongly_consistent_catch_collectables, subscribe,
 };
 
 #[napi(object)]
@@ -195,7 +195,7 @@ pub fn endpoint_server_changed_subscribe(
         TurbopackResult<()>,
         (),
     >,
-) -> napi::Result<External<RootTask>> {
+) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint = ****endpoint;
     subscribe(
@@ -282,7 +282,7 @@ pub fn endpoint_client_changed_subscribe(
         TurbopackResult<()>,
         (),
     >,
-) -> napi::Result<External<RootTask>> {
+) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint_op = ****endpoint;
     subscribe(

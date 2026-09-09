@@ -14,6 +14,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use parking_lot::RwLockReadGuard;
 use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
@@ -231,6 +232,9 @@ pub struct ExecuteContextImpl<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     phase: ExecutePhase<'e>,
+    /// Held by contexts built through `TurboTasksBackend::try_execute_context`, so that storage
+    /// teardown in `stop()` waits for this context to be dropped.
+    _shutdown_guard: Option<RwLockReadGuard<'e, bool>>,
     task_lock_counter: TaskLockCounter,
 }
 
@@ -245,6 +249,26 @@ impl<'e> ExecuteContextImpl<'e> {
             phase: ExecutePhase::Normal {
                 _guard: backend.start_operation(),
             },
+            _shutdown_guard: None,
+            task_lock_counter: TaskLockCounter::new(),
+        }
+    }
+
+    /// Like [`ExecuteContextImpl::new`], but owns the shutdown read guard that
+    /// [`TurboTasksBackend::try_execute_context`] acquired, keeping `stop()` out until this
+    /// context is dropped.
+    pub(super) fn new_with_shutdown_guard(
+        backend: &'e TurboTasksBackend,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+        shutdown_guard: RwLockReadGuard<'e, bool>,
+    ) -> Self {
+        Self {
+            backend,
+            turbo_tasks,
+            phase: ExecutePhase::Normal {
+                _guard: backend.start_operation(),
+            },
+            _shutdown_guard: Some(shutdown_guard),
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -265,6 +289,7 @@ impl<'e> ExecuteContextImpl<'e> {
             backend,
             turbo_tasks,
             phase: ExecutePhase::Gc(gc_collectible),
+            _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -1243,6 +1268,9 @@ impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
             phase: ExecutePhase::Child,
+            // A child context runs inside its parent's execution, which the foreground drain
+            // already waits for, so it needs no shutdown guard of its own.
+            _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -1624,16 +1652,37 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         }
     }
 
+    /// A description of this task for diagnostics: `"<id> <task type>"`.
+    ///
+    /// Is intentionally tolerant of non-resident data.
     fn get_task_desc_fn(&self) -> impl Fn() -> String + Send + Sync + 'static {
-        let task_type = self.get_task_type().to_owned();
+        // Bypass `check_access`!!
+        // Generally it is a bad idea since accessing a `Data` field like get_persistence_task_type
+        // without opening the task that way is bug But this is for diagnostics and
+        // debugging purposes only so we can cheat.
+        let task_type = self
+            .typed()
+            .get_persistent_task_type()
+            .map(|task_type| TaskTypeRef::Cached(task_type).to_owned())
+            .or_else(|| {
+                self.typed()
+                    .get_transient_task_type()
+                    .map(|task_type| TaskTypeRef::Transient(task_type).to_owned())
+            });
+
         let task_id = self.id();
-        move || format!("{task_id:?} {task_type}")
+        move || match &task_type {
+            Some(task_type) => format!("{task_id:?} {task_type}"),
+            None => format!("{task_id:?} task-type-not-available"),
+        }
     }
+    // Requires the task to have been opened with Data access
     fn get_task_description(&self) -> String {
         let task_type = self.get_task_type().to_owned();
         let task_id = self.id();
         format!("{task_id:?} {task_type}")
     }
+
     #[cfg(feature = "trace_task_dirty")]
     fn get_task_name(&self) -> String {
         let task_type = self.get_task_type().to_owned();

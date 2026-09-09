@@ -447,7 +447,16 @@ function createRuntimePrerenderParams(
     }
   }
 
-  return stagedRendering.delayUntilStage(paramsStage, 'params', userspaceParams)
+  // If params don't resolve in this prerender, caches need to treat them as a hanging input.
+  if (stagedRendering.finalStage && stagedRendering.finalStage < paramsStage) {
+    return makeHangingParams(underlyingParams, workStore, workUnitStore)
+  } else {
+    return stagedRendering.delayUntilStage(
+      paramsStage,
+      'params',
+      userspaceParams
+    )
+  }
 }
 
 function createRenderParamsForPage(
@@ -577,7 +586,11 @@ function createStagedRenderParamsImpl(
       // If static params are accessed, we can recover a static shell or a session shell, but not both.
       return trackPromiseUsed(
         promise,
-        trackIncompatibleShellContent.bind(null, workUnitStore)
+        trackIncompatibleShellContent.bind(
+          null,
+          workUnitStore,
+          'static `params`'
+        )
       )
     } else {
       return promise

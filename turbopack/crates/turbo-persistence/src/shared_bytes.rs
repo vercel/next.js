@@ -2,6 +2,8 @@ use std::ops::{Deref, Range};
 
 use memmap2::Mmap;
 
+use crate::Compression;
+
 /// Trait abstracting over `ArcBytes` and `RcBytes`.
 ///
 /// Both types are owned byte slices backed by either a ref-counted heap
@@ -36,7 +38,11 @@ pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
     unsafe fn from_mmap(mmap: &Self::MmapHandle, subslice: &[u8]) -> Self;
 
     /// Creates an instance from a decompressed block.
-    fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self>;
+    fn from_decompressed(
+        compression: Compression,
+        uncompressed_length: u32,
+        block: &[u8],
+    ) -> anyhow::Result<Self>;
 }
 
 /// Returns `true` if `subslice` lies entirely within `backing`.
