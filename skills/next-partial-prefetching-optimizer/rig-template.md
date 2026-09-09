@@ -154,9 +154,10 @@ Place this file at the repository root or next to the end-to-end configuration:
 - WALLS: <project-specific obstacles and their resolutions>
 ```
 
-`CONTRACTS` may list more than one focused navigation, but each contract needs its own test. Every field needs a concrete value. `n/a` is valid only with a reason, such as
-`TEST USER: public; no authentication` or `LIVENESS: n/a; local build and
-start`.
+`CONTRACTS` may list more than one focused navigation, but each contract needs
+its own test. Every field needs a concrete value. `n/a` is valid only with a
+reason, such as `TEST USER: public; no authentication` or
+`LIVENESS: n/a; local build and start`.
 
 ## Check the rig before writing the baseline
 

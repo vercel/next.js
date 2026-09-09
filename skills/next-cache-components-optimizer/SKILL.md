@@ -167,9 +167,8 @@ yours. On first use in a repository, discover how the project builds, deploys,
 authenticates, and tests (inspect the repository first, and ask the user only
 what it cannot answer), then write the answers to a committed
 `instant-nav.rig.md`. Every later run reads that file instead of
-rediscovering. The six questions (BUILD / EXPOSE / RUN / TEST USER / DRIFT /
-LOOP), the file template, and filled examples (local-only, generic CI +
-container, preview deploy) are in **`rig-template.md`**.
+rediscovering. The required build, test context, navigation contracts,
+iteration loop, and file template are in **`rig-template.md`**.
 
 If the repo has no Playwright e2e harness yet, standing up a minimal one
 (`@next/playwright`, a config with `baseURL`, one authenticated path) is part
@@ -206,12 +205,12 @@ every platform:
 The rig is any production-like build that exposes the testing API: a local
 `next build && next start`, a CI/staging container, and a preview deploy are
 all equally valid; the verdict comes from the build, not the platform. See
-`rig-template.md` for filled examples.
+`rig-template.md` for the setup requirements.
 
 For any deployed or remote build, poll the rig's LIVENESS probe to confirm the
 artifact contains `HEAD` before trusting a verdict (a stale deploy reads as a
 false RED or GREEN); a local `next build && next start` needs none. The probe
-mechanism is in `rig-template.md` (question 6).
+mechanism is in `rig-template.md`.
 
 ## B. BASELINE (unlocked): development scaffold, do not ship
 
@@ -435,9 +434,8 @@ three hold, you are not done.
 
 ## Files
 
-- `rig-template.md`: phase 0, the six-question rig discovery, the
-  `instant-nav.rig.md` template, and filled examples (local-only, generic CI,
-  preview deploy).
+- `rig-template.md`: phase 0 production build, test context, navigation
+  contract, and unattended loop discovery.
 - `test-template.md`: the shipped `instant()` specs for both navigation
   types (phase C), and the delete-before-PR baseline scaffold (phase B).
 - `reference/red-test-robustness.md`: the C-gate and phase F. The taxonomy of

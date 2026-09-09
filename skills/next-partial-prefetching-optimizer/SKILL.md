@@ -188,8 +188,9 @@ Link or cache abstraction.
 
 ## Files
 
-- `rig-template.md`: production build, test context, and unattended loop
-  discovery for projects without an existing `instant-nav.rig.md`.
+- `rig-template.md`: production build, test context, navigation contract, and
+  unattended loop discovery for projects without an existing
+  `instant-nav.rig.md`.
 - `reference/red-test-robustness.md`: trustworthy RED and differential checks.
 
 ## Further reading
