@@ -16,6 +16,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use byteorder::{BE, ReadBytesExt};
+use clap::Parser;
 use fs_err::File;
 use lzzzz::lz4::decompress;
 use memmap2::Mmap;
@@ -792,89 +793,60 @@ fn print_family_summary(family: u32, sst_count: usize, stats: &SstStats) {
     println!();
 }
 
+fn entry_type_help() -> String {
+    format!(
+        "Entry types:\n  {KEY_BLOCK_ENTRY_TYPE_SMALL}: Small value (stored in separate value \
+         block)\n  {KEY_BLOCK_ENTRY_TYPE_BLOB}: Blob reference\n  \
+         {KEY_BLOCK_ENTRY_TYPE_KEY_DELETED}: Key tombstone (deletes all values for the key)\n  \
+         {KEY_BLOCK_ENTRY_TYPE_MEDIUM}: Medium value\n  {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN}-{}: \
+         Inline value (size = type - {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN})\n  \
+         {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN}-{}: Key-value tombstone (deleted value size \
+         = type - {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN})\n\nFor TaskCache (family 3), \
+         values are 4-byte TaskIds. Expected entry type is {} ({KEY_BLOCK_ENTRY_TYPE_INLINE_MIN} \
+         + 4) for inline optimization.",
+        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8,
+        KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + MAX_INLINE_VALUE_SIZE as u8,
+        KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + 4,
+    )
+}
+
+#[derive(Parser)]
+#[command(about = "Inspect turbo-persistence SST files", after_long_help = entry_type_help())]
+struct Cli {
+    /// Show per-SST file details (default: family totals only).
+    #[arg(short, long)]
+    verbose: bool,
+    /// Dictionary used by zstd input SSTs. May be supplied multiple times; IDs are read from the
+    /// dictionaries.
+    #[arg(long)]
+    source_dictionary: Vec<PathBuf>,
+    /// Database directory containing CURRENT, meta, SST, and blob files.
+    db_path: PathBuf,
+}
+
 fn main() -> Result<()> {
-    let args: Vec<String> = std::env::args().collect();
-
-    // Parse arguments
-    let mut db_path: Option<PathBuf> = None;
-    let mut verbose = false;
-    let mut source_dictionary: Option<PathBuf> = None;
-
-    let mut i = 1;
-    while i < args.len() {
-        match args[i].as_str() {
-            "--verbose" | "-v" => verbose = true,
-            "--source-dictionary" => {
-                i += 1;
-                source_dictionary = Some(PathBuf::from(
-                    args.get(i).context("--source-dictionary requires a path")?,
-                ));
-            }
-            arg if !arg.starts_with('-') => {
-                if db_path.is_none() {
-                    db_path = Some(PathBuf::from(arg));
-                }
-            }
-            _ => {
-                eprintln!("Unknown option: {}", args[i]);
-                std::process::exit(1);
-            }
-        }
-        i += 1;
-    }
-
-    let db_path = match db_path {
-        Some(p) => p,
-        None => {
-            eprintln!("Usage: {} [OPTIONS] <db_directory>", args[0]);
-            eprintln!();
-            eprintln!("Inspects turbo-persistence SST files to report entry type statistics.");
-            eprintln!();
-            eprintln!("Options:");
-            eprintln!("  -v, --verbose    Show per-SST file details (default: family totals only)");
-            eprintln!("      --source-dictionary <PATH>  Dictionary used by zstd input caches");
-            eprintln!();
-            eprintln!("Entry types:");
-            eprintln!(
-                "  {KEY_BLOCK_ENTRY_TYPE_SMALL}: Small value (stored in separate value block)"
-            );
-            eprintln!("  {KEY_BLOCK_ENTRY_TYPE_BLOB}: Blob reference");
-            eprintln!(
-                "  {KEY_BLOCK_ENTRY_TYPE_KEY_DELETED}: Key tombstone (deletes all values for the \
-                 key)"
-            );
-            eprintln!("  {KEY_BLOCK_ENTRY_TYPE_MEDIUM}: Medium value");
-            eprintln!(
-                "  {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN}-{}: Inline value (size = type - \
-                 {KEY_BLOCK_ENTRY_TYPE_INLINE_MIN})",
-                KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + MAX_INLINE_VALUE_SIZE as u8
-            );
-            eprintln!(
-                "  {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN}-{}: Key-value tombstone (deleted \
-                 value size = type - {KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN})",
-                KEY_BLOCK_ENTRY_TYPE_KEY_VALUE_DELETED_MIN + MAX_INLINE_VALUE_SIZE as u8
-            );
-            eprintln!();
-            eprintln!("For TaskCache (family 3), values are 4-byte TaskIds.");
-            eprintln!(
-                "Expected entry type is {} ({KEY_BLOCK_ENTRY_TYPE_INLINE_MIN} + 4) for inline \
-                 optimization.",
-                KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + 4
-            );
-            std::process::exit(1);
-        }
-    };
+    let Cli {
+        verbose,
+        source_dictionary,
+        db_path,
+    } = Cli::parse();
 
     if !db_path.is_dir() {
         bail!("Not a directory: {}", db_path.display());
     }
 
-    let source_dictionary = source_dictionary
-        .map(|path| {
-            fs_err::read(&path).with_context(|| format!("Failed to read {}", path.display()))
-        })
-        .transpose()?
-        .map(|bytes| Box::leak(bytes.into_boxed_slice()) as &'static [u8]);
+    let mut source_dictionaries = BTreeMap::new();
+    for path in source_dictionary {
+        let bytes =
+            fs_err::read(&path).with_context(|| format!("Failed to read {}", path.display()))?;
+        let dictionary = Box::leak(bytes.into_boxed_slice()) as &'static [u8];
+        let id = CompressionConfig::Zstd3WithDictionary(dictionary)
+            .dictionary_id()
+            .with_context(|| format!("Dictionary {} has no zstd dictionary ID", path.display()))?;
+        if source_dictionaries.insert(id, dictionary).is_some() {
+            bail!("Duplicate source dictionary ID {id}");
+        }
+    }
 
     // Collect SST info grouped by family
     let family_sst_info = collect_sst_info(&db_path)?;
@@ -892,19 +864,22 @@ fn main() -> Result<()> {
         let mut sst_stats_list: Vec<(u32, SstStats)> = Vec::new();
 
         for info in sst_list {
-            let compression = match (info.compression, info.dictionary_id, source_dictionary) {
-                (Compression::Lz4, 0, _) => CompressionConfig::Lz4,
-                (Compression::Zstd3, 0, _) => CompressionConfig::Zstd3,
-                (Compression::Zstd3, id, Some(dictionary))
-                    if Some(id)
-                        == CompressionConfig::Zstd3WithDictionary(dictionary).dictionary_id() =>
-                {
-                    CompressionConfig::Zstd3WithDictionary(dictionary)
-                }
-                (_, id, _) => {
+            let compression = match (info.compression, info.dictionary_id) {
+                (Compression::Lz4, 0) => CompressionConfig::Lz4,
+                (Compression::Zstd3, 0) => CompressionConfig::Zstd3,
+                (Compression::Zstd3, id) => match source_dictionaries.get(&id) {
+                    Some(dictionary) => CompressionConfig::Zstd3WithDictionary(dictionary),
+                    None => {
+                        eprintln!(
+                            "Warning: Missing source dictionary ID {id} for {:08}.sst",
+                            info.sequence_number
+                        );
+                        continue;
+                    }
+                },
+                (Compression::Lz4, id) => {
                     eprintln!(
-                        "Warning: Missing or wrong source dictionary for {:08}.sst (dictionary ID \
-                         {id})",
+                        "Warning: LZ4 SST {:08}.sst has unexpected dictionary ID {id}",
                         info.sequence_number
                     );
                     continue;
@@ -940,4 +915,39 @@ fn main() -> Result<()> {
     }
 
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn clap_help_keeps_entry_type_reference() {
+        let help = Cli::try_parse_from(["sst_inspect", "--help"])
+            .err()
+            .expect("--help should exit through clap")
+            .to_string();
+        assert!(help.contains("Entry types:"));
+        assert!(help.contains("For TaskCache (family 3)"));
+        assert!(help.contains(&format!(
+            "{} ({} + 4)",
+            KEY_BLOCK_ENTRY_TYPE_INLINE_MIN + 4,
+            KEY_BLOCK_ENTRY_TYPE_INLINE_MIN
+        )));
+    }
+
+    #[test]
+    fn clap_accepts_multiple_source_dictionaries() {
+        let cli = Cli::try_parse_from([
+            "sst_inspect",
+            "--source-dictionary",
+            "first.zdict",
+            "--source-dictionary",
+            "second.zdict",
+            "database",
+        ])
+        .unwrap();
+        assert_eq!(cli.source_dictionary.len(), 2);
+        assert_eq!(cli.db_path, PathBuf::from("database"));
+    }
 }
