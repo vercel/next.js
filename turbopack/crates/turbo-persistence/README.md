@@ -362,6 +362,28 @@ Configuration options for compactions are:
 - max number of SST files that are merged at once
 - coverage when compaction is triggered (otherwise calling compact is a noop)
 
+## Evaluating zstd dictionaries offline
+
+`taskdata_dictionary` compares zstd dictionaries against active blocks from existing database
+copies without modifying them or running the application that created them:
+
+```sh
+cargo run -p turbo-persistence --bin taskdata_dictionary -- \
+  --dictionary candidate-a.zdict \
+  --dictionary candidate-b.zdict \
+  --json report.json \
+  path/to/database-a path/to/database-b
+```
+
+The no-dictionary zstd level 3 baseline is always included. Family 2 (TaskData) is selected by
+default; `--family <id>` overrides it. The evaluator follows `CURRENT`, deletion files, and meta-file
+supersession, verifies checksums, and models the same 12.5% minimum-savings threshold used by the
+writer. Index blocks and ineligible key blocks remain unchanged in modeled SST sizes.
+
+Only SST blocks are evaluated. External blob references are counted and reported, but `.blob`
+payloads are not read. Timing fields are single-pass diagnostics; use the byte/count fields for
+repeatable comparisons of a copied cache snapshot.
+
 ## Opening
 
 - Read the `CURRENT` file
