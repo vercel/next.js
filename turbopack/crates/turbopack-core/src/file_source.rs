@@ -1,9 +1,9 @@
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
-    FileContent, FileSystemEntryType, FileSystemPath, LinkContent, LinkTarget, WriteLinkContent,
-    WriteLinkTarget, WriteLinkTargetType,
+    DiskFileSystem, FileContent, FileSystemEntryType, FileSystemPath, LinkContent, LinkTarget,
+    WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
 };
 
 use crate::{
@@ -70,13 +70,21 @@ impl Asset for FileSource {
         match file_type {
             FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
                 LinkContent::Link { target } => {
-                    let write_target = match target {
-                        LinkTarget::Absolute { resolved } => {
-                            WriteLinkTarget::Absolute(resolved.path.clone())
-                        }
-                        LinkTarget::Relative { raw, .. } => WriteLinkTarget::Relative(raw.clone()),
-                    };
                     let target_fs_path = target.file_system_path();
+                    let write_target = match target {
+                        LinkTarget::Relative { raw, resolved } if resolved.fs == self.path.fs => {
+                            WriteLinkTarget::Relative(raw.clone())
+                        }
+                        LinkTarget::Absolute { resolved, .. }
+                        | LinkTarget::Relative { resolved, .. } => {
+                            let root = ResolvedVc::try_downcast_type::<DiskFileSystem>(resolved.fs)
+                                .context("symlink target must be in a disk filesystem")?;
+                            WriteLinkTarget::Absolute {
+                                root,
+                                path: resolved.path.clone(),
+                            }
+                        }
+                    };
                     let write_target_type = match *target_fs_path.get_type().await? {
                         FileSystemEntryType::Directory => {
                             WriteLinkTargetType::DirectoryOrJunctionPoint
@@ -94,7 +102,10 @@ impl Asset for FileSource {
                     })
                     .cell())
                 }
-                _ => bail!("Invalid symlink"),
+                LinkContent::NotFound => {
+                    Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
+                }
+                LinkContent::Invalid { reason } => bail!("Invalid symlink: {reason}"),
             },
             FileSystemEntryType::File => {
                 Ok(AssetContent::File(self.path.read().to_resolved().await?).cell())
