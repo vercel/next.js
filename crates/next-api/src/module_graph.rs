@@ -837,9 +837,25 @@ async fn validate_pages_css_imports_individual(
         false,
     )?;
 
+    // The `_app` module can reach this traversal under more than one module identity: the
+    // `app_module` above is produced by its own `process()` call (see the comment at that call
+    // site), and export-name mangling / reexport tree shaking additionally split a module into
+    // facade and locals submodules, so the module that actually *contains* the CSS import may be
+    // `_app.js <locals>` rather than `_app.js` itself. Comparing by identity therefore
+    // under-matches, and the rule here is about the *file* anyway — global CSS is allowed from
+    // `pages/_app`, whichever submodule of it the import ends up in. So candidates whose parent
+    // shares the app module's path are dropped. Note every submodule keeps the original file path
+    // in its ident (only the `part` differs), which is what makes this comparison work.
+    let app_module_path = app_module.ident().await?.path.clone();
+
     candidates
         .into_iter()
         .map(async |issue| {
+            let parent_ident = issue.parent_module.ident().await?;
+            if parent_ident.path == app_module_path {
+                return Ok(None);
+            }
+
             let ident = issue.module.ident().await?;
             let path = &ident.path;
             // We allow imports of global CSS files which are inside of `node_modules`.

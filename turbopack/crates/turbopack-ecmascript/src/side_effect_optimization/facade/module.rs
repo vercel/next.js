@@ -81,17 +81,48 @@ impl EcmascriptModuleFacadeModule {
             );
         };
         let result = module.analyze().await?;
+
+        // One reference per export that comes from the locals module, so the module graph carries
+        // *which* names this facade needs from it. Without these the only facade -> locals edge is
+        // the structural one below, which then has to claim `all()` and widens the locals module's
+        // usage to `All` unconditionally.
+        let mut part_references = Vec::new();
+        if let EcmascriptExports::EsmExports(esm_exports) = &*self.module.get_exports().await? {
+            for (name, export) in &esm_exports.await?.exports {
+                if matches!(export, EsmExport::LocalBinding(..)) {
+                    part_references.push(
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            ModulePart::locals(),
+                            ExportUsage::named(name.clone()),
+                        )
+                        .to_resolved()
+                        .await?,
+                    );
+                }
+            }
+        }
+
         Ok((
             vec![
+                // This reference exists so the locals module is *evaluated* (side effects and
+                // ordering). Declaring `all()` here would also claim every export is used, which
+                // widens the locals module's usage to `All` unconditionally — defeating both
+                // export mangling and tree shaking of its unused exports. `evaluation()` keeps the
+                // ordering guarantee and lets the per-export references below describe what is
+                // actually used.
                 // TODO skip if side effect free and no local exports
                 EcmascriptModulePartReference::new_part(
                     *self.module,
                     ModulePart::locals(),
-                    ExportUsage::all(),
+                    ExportUsage::evaluation(),
                 )
                 .to_resolved()
                 .await?,
-            ],
+            ]
+            .into_iter()
+            .chain(part_references)
+            .collect(),
             result.esm_reexport_references,
         ))
     }
