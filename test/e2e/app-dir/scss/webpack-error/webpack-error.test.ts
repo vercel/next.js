@@ -1,11 +1,13 @@
 /* eslint-env jest */
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('SCSS Support', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
   // Production only test
   ;(isNextDev ? describe.skip : describe)('Friendly Webpack Error', () => {
