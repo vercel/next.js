@@ -50,7 +50,7 @@ use turbopack_css::{CssModule, EcmascriptCssModule};
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
     EcmascriptOptions,
-    async_chunk::proxy::{LazyCompilationProxyModule, LazyCompilationTarget},
+    async_chunk::proxy::LazyCompilationProxyModule,
     module_canonicalization::{EcmascriptModuleCanonicalization, canonicalize_ecmascript_module},
     references::external_module::{
         CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
@@ -209,11 +209,8 @@ async fn apply_module_type(
                 };
 
                 if is_lazy_dynamic_import {
-                    let target = LazyCompilationTarget::deferred(*module, canonicalization)
-                        .to_resolved()
-                        .await?;
                     ResolvedVc::upcast(
-                        LazyCompilationProxyModule::new(*target)
+                        LazyCompilationProxyModule::new_deferred(*module, canonicalization)
                             .to_resolved()
                             .await?,
                     )

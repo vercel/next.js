@@ -24,7 +24,7 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
-    async_chunk::proxy::{LazyCompilationProxyModule, LazyCompilationTarget},
+    async_chunk::proxy::LazyCompilationProxyModule,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
@@ -98,8 +98,7 @@ impl ModuleReference for EsmAsyncAssetReference {
                 && let Some(module) =
                     ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(resolved)
             {
-                let target = LazyCompilationTarget::direct(*module).to_resolved().await?;
-                let proxy = LazyCompilationProxyModule::new(*target)
+                let proxy = LazyCompilationProxyModule::new_direct(*module)
                     .to_resolved()
                     .await?;
                 return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(proxy)));
