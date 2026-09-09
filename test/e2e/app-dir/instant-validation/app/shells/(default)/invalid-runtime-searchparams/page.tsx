@@ -4,7 +4,7 @@ export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [{ searchParams: {} }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page({ searchParams }) {
   return (

@@ -1,0 +1,12 @@
+{
+  "name": "worker-package",
+  "version": "1.0.0",
+  "type": "module",
+  "exports": {
+    "./*": {
+      "import": "./*",
+      "require": "./*",
+      "default": "./*"
+    }
+  }
+}

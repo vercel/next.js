@@ -1,7 +1,6 @@
 import React, {
   useEffect,
   useMemo,
-  startTransition,
   useInsertionEffect,
   useDeferredValue,
 } from 'react'
@@ -11,7 +10,6 @@ import {
   GlobalLayoutRouterContext,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type { CacheNode } from '../../shared/lib/app-router-types'
-import { ACTION_RESTORE } from './router-reducer/router-reducer-types'
 import type {
   AppHistoryState,
   AppRouterState,
@@ -24,7 +22,7 @@ import {
   NavigationPromisesContext,
   type NavigationPromises,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
-import { dispatchAppRouterAction, useActionQueue } from './use-action-queue'
+import { useActionQueue } from './use-action-queue'
 import { setLastCommittedTree } from './router-reducer/reducers/committed-state'
 import { AppRouterAnnouncer } from './app-router-announcer'
 import { RedirectBoundary } from './redirect-boundary'
@@ -38,11 +36,11 @@ import {
 } from './router-reducer/compute-changed-path'
 import { useNavFailureHandler } from './nav-failure-handler'
 import {
-  dispatchTraverseAction,
   publicAppRouterInstance,
   type AppRouterActionQueue,
   type GlobalErrorState,
 } from './app-router-instance'
+import { legacyUrgentBFCacheRestore, restore, traverse } from './navigator'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError } from './redirect-error'
 import { pingVisibleLinks } from './links'
@@ -55,6 +53,52 @@ import { getAssetTokenQuery } from '../../shared/lib/deployment-id'
 const globalMutable: {
   pendingMpaPath?: string
 } = {}
+
+// A Back/Forward press before the router's popstate listener exists moves the
+// browser to a different history entry than the one the document was activated
+// on, and the resulting popstate fires with nobody listening. The activation
+// entry is fixed for the document's lifetime and entry keys are stable across
+// replaceState, so until the listener is installed a key mismatch means a
+// traversal went unobserved.
+function hasMissedTraversal(): boolean {
+  if (typeof window.navigation === 'undefined') {
+    return false
+  }
+  const activationEntry = window.navigation.activation?.entry
+  const currentEntry = window.navigation.currentEntry
+  return (
+    activationEntry != null &&
+    currentEntry != null &&
+    activationEntry.key !== currentEntry.key &&
+    // Only entries written by the app router can be restored; on any other
+    // entry the traversal is left unhandled, as before.
+    window.history.state?.__NA === true
+  )
+}
+
+let checkedMissedTraversalBeforeHistoryWrite = false
+let checkedMissedTraversalBeforeReplay = false
+
+/**
+ * Handles a popstate event (or one that was missed before hydration).
+ * By default dispatches ACTION_RESTORE, however if the history entry was not
+ * pushed/replaced by app-router it will reload the page.
+ * That case can happen when the old router injected the history entry.
+ */
+function handlePopState(state: PopStateEvent['state']): void {
+  if (!state) {
+    // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
+    return
+  }
+
+  // This case happens when the history entry was pushed by the `pages` router.
+  if (!state.__NA) {
+    window.location.reload()
+    return
+  }
+
+  traverse(window.location.href, state.__PRIVATE_NEXTJS_INTERNALS_TREE)
+}
 
 function HistoryUpdater({
   appRouterState,
@@ -69,6 +113,16 @@ function HistoryUpdater({
     }
 
     const { tree, pushRef, canonicalUrl, renderedSearch } = appRouterState
+
+    if (!checkedMissedTraversalBeforeHistoryWrite) {
+      checkedMissedTraversalBeforeHistoryWrite = true
+      if (hasMissedTraversal()) {
+        // Skip the write: it would overwrite the traversed-to entry's state.
+        // The tree was rendered even though the history write is skipped.
+        setLastCommittedTree(tree)
+        return
+      }
+    }
 
     const appHistoryState: AppHistoryState = {
       tree,
@@ -225,11 +279,10 @@ function Router({
       // of the last MPA navigation.
       globalMutable.pendingMpaPath = undefined
 
-      dispatchAppRouterAction({
-        type: ACTION_RESTORE,
-        url: new URL(window.location.href),
-        historyState: window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE,
-      })
+      legacyUrgentBFCacheRestore(
+        new URL(window.location.href),
+        window.history.state.__PRIVATE_NEXTJS_INTERNALS_TREE
+      )
     }
 
     window.addEventListener('pageshow', handlePageShow)
@@ -314,13 +367,7 @@ function Router({
       const appHistoryState: AppHistoryState | undefined =
         window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
 
-      startTransition(() => {
-        dispatchAppRouterAction({
-          type: ACTION_RESTORE,
-          url: new URL(url ?? href, href),
-          historyState: appHistoryState,
-        })
-      })
+      restore(new URL(url ?? href, href), appHistoryState)
     }
 
     /**
@@ -371,35 +418,17 @@ function Router({
       return originalReplaceState(data, _unused, url)
     }
 
-    /**
-     * Handle popstate event, this is used to handle back/forward in the browser.
-     * By default dispatches ACTION_RESTORE, however if the history entry was not pushed/replaced by app-router it will reload the page.
-     * That case can happen when the old router injected the history entry.
-     */
-    const onPopState = (event: PopStateEvent) => {
-      if (!event.state) {
-        // TODO-APP: this case only happens when pushState/replaceState was called outside of Next.js. It should probably reload the page in this case.
-        return
-      }
+    const onPopState = (event: PopStateEvent) => handlePopState(event.state)
 
-      // This case happens when the history entry was pushed by the `pages` router.
-      if (!event.state.__NA) {
-        window.location.reload()
-        return
-      }
+    window.addEventListener('popstate', onPopState)
 
-      // TODO-APP: Ideally the back button should not use startTransition as it should apply the updates synchronously
-      // Without startTransition works if the cache is there for this path
-      startTransition(() => {
-        dispatchTraverseAction(
-          window.location.href,
-          event.state.__PRIVATE_NEXTJS_INTERNALS_TREE
-        )
-      })
+    if (!checkedMissedTraversalBeforeReplay) {
+      checkedMissedTraversalBeforeReplay = true
+      if (hasMissedTraversal()) {
+        handlePopState(window.history.state)
+      }
     }
 
-    // Register popstate event to call onPopstate.
-    window.addEventListener('popstate', onPopState)
     return () => {
       window.history.pushState = originalPushState
       window.history.replaceState = originalReplaceState
@@ -407,7 +436,7 @@ function Router({
     }
   }, [])
 
-  const { cache, tree, nextUrl, focusAndScrollRef, previousNextUrl } = state
+  const { cache, tree, nextUrl, scrollRef, previousNextUrl } = state
 
   const matchingHead = useMemo(() => {
     return findHeadInCache(cache, tree[1])
@@ -455,11 +484,11 @@ function Router({
   const globalLayoutRouterContext = useMemo(() => {
     return {
       tree,
-      focusAndScrollRef,
+      scrollRef,
       nextUrl,
       previousNextUrl,
     }
-  }, [tree, focusAndScrollRef, nextUrl, previousNextUrl])
+  }, [tree, scrollRef, nextUrl, previousNextUrl])
 
   let head
   if (matchingHead !== null) {

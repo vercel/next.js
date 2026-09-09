@@ -418,9 +418,9 @@ impl AppPath {
         true
     }
 
-    /// Returns true if ANY segment in the entire path is an interception route.
-    /// This is different from `is_intercepting()` which only checks the last
-    /// segment.
+    /// Returns true if any segment in the path is an interception route.
+    /// Unlike `AppPage::is_intercepting()`, this also identifies descendants
+    /// below the interception marker.
     pub fn contains_interception(&self) -> bool {
         self.iter().any(|segment| {
             matches!(

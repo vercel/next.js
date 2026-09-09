@@ -266,7 +266,9 @@ impl EffectStateStorage {
 /// # #![feature(arbitrary_self_types_pointers)]
 /// #
 /// # use anyhow::Result;
-/// # use turbo_tasks::{Effects, ReadRef, Vc, run_once, take_effects};
+/// # use turbo_tasks::{
+/// #     Effects, ReadRef, Vc, read_strongly_consistent_and_apply_effects, take_effects,
+/// # };
 /// #
 /// # async fn _wrapper() -> Result<()> {
 /// # type Example = ();
@@ -292,13 +294,13 @@ impl EffectStateStorage {
 ///     Ok(OutputWithEffects { output, effects }.cell())
 /// }
 ///
-/// // every operation must be read with strong consistency at the top-level
-/// let result_with_effects = some_turbo_tasks_operation_with_effects(args)
-///     .read_strongly_consistent()
-///     .await?;
-///
-/// // apply the effects once outside of a turbo_tasks::function at the top-level (e.g. `run_once`)
-/// result_with_effects.effects.apply().await?;
+/// // read with strong consistency and apply the effects once at the top-level
+/// // (e.g. in a `run_once` closure)
+/// let _result_with_effects = read_strongly_consistent_and_apply_effects(
+///     some_turbo_tasks_operation_with_effects(args),
+///     |result| &result.effects,
+/// )
+/// .await?;
 /// # Ok(())
 /// # }
 /// ```

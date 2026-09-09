@@ -7,9 +7,9 @@ import type {
 import {
   completeHardNavigation,
   navigate as navigateUsingSegmentCache,
-} from '../../segment-cache/navigation'
+} from '../../app-router-state'
 import { getStaleTimeMs } from '../../segment-cache/cache'
-import { FreshnessPolicy } from '../ppr-navigations'
+import { FreshnessPolicy } from '../../render-tree'
 
 // These values are set by `define-env-plugin` (based on `nextConfig.experimental.staleTimes`)
 // and default to 5 minutes (static) / 0 seconds (dynamic)

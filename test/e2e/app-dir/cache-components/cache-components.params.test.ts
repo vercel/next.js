@@ -1,15 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // cSpell:words lowcard highcard
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('cache-components', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let cliIndex = 0
   beforeEach(() => {

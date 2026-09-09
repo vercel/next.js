@@ -45,13 +45,11 @@ describe('browser-chunks', () => {
     )
   })
 
-  // These snapshots document which matching modules currently reach browser
-  // chunks. Some of these we don't intend to act on yet, so we snapshot the
-  // normalized paths (rather than hard-fail) to surface regressions on review.
   it('must not bundle any server modules into browser chunks', () => {
     const serverSources = Array.from(
       new Set(
         sources
+          // normalizing in case we regress and want to keep track of the regression
           .map(normalizeSource)
           .filter(
             (source) =>
@@ -63,46 +61,7 @@ describe('browser-chunks', () => {
       )
     ).sort()
 
-    // This set varies along two axes, so snapshot each combination separately
-    // rather than forcing them to agree:
-    //   - bundler: webpack's browser chunks contain none of these; Turbopack
-    //     still pulls in a set we haven't acted on yet.
-    //   - cache components: enabling it pulls additional server modules
-    //     (instant-validation, async storage, dynamic rendering) into the
-    //     client render path. CI runs this suite both with and without it
-    //     (see test/cache-components-tests-manifest.json).
-    const cacheComponents = process.env.__NEXT_CACHE_COMPONENTS === 'true'
-    if (process.env.IS_TURBOPACK_TEST) {
-      if (cacheComponents) {
-        expect(serverSources).toMatchInlineSnapshot(`
-         [
-           "src/server/app-render/async-local-storage.ts",
-           "src/server/app-render/instant-validation/boundary-constants.ts",
-           "src/server/app-render/instant-validation/boundary-impl.tsx",
-           "src/server/app-render/instant-validation/instant-samples-client.ts",
-           "src/server/app-render/instant-validation/instant-samples.ts",
-           "src/server/app-render/instant-validation/instant-validation-error.ts",
-           "src/server/app-render/staged-rendering.ts",
-           "src/server/app-render/work-async-storage-instance.ts",
-           "src/server/app-render/work-async-storage.external.ts",
-           "src/server/app-render/work-unit-async-storage-instance.ts",
-           "src/server/app-render/work-unit-async-storage.external.ts",
-           "src/server/web/spec-extension/adapters/headers.ts",
-           "src/server/web/spec-extension/adapters/reflect.ts",
-           "src/server/web/spec-extension/adapters/request-cookies.ts",
-           "src/server/web/spec-extension/cookies.ts",
-         ]
-        `)
-      } else {
-        expect(serverSources).toMatchInlineSnapshot(`[]`)
-      }
-    } else {
-      if (cacheComponents) {
-        expect(serverSources).toMatchInlineSnapshot(`[]`)
-      } else {
-        expect(serverSources).toMatchInlineSnapshot(`[]`)
-      }
-    }
+    expect(serverSources).toEqual([])
   })
 
   it('must not bundle any dev overlay into browser chunks', () => {

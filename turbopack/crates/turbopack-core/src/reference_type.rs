@@ -61,6 +61,7 @@ pub enum EcmaScriptModulesReferenceSubType {
         module_type: Option<RcStr>,
     },
     DynamicImport,
+    Emit,
     Custom(u8),
     #[default]
     Undefined,

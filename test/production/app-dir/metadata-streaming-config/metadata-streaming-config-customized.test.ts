@@ -14,6 +14,11 @@ describe('app-dir - metadata-streaming-config-customized', () => {
   })
 
   it('should have the customized streaming metadata config output in routes-manifest.json', async () => {
+    const requiredServerFiles = JSON.parse(
+      await next.readFile('.next/required-server-files.json')
+    )
+    expect(requiredServerFiles.config.htmlLimitedBots).toBe('MyBot')
+
     const prerenderManifest = JSON.parse(
       await next.readFile('.next/prerender-manifest.json')
     )
@@ -32,22 +37,22 @@ describe('app-dir - metadata-streaming-config-customized', () => {
        "/": {
          "key": "user-agent",
          "type": "header",
-         "value": "MyBot",
+         "value": ".*(?:MyBot).*",
        },
        "/_global-error": {
          "key": "user-agent",
          "type": "header",
-         "value": "MyBot",
+         "value": ".*(?:MyBot).*",
        },
        "/_not-found": {
          "key": "user-agent",
          "type": "header",
-         "value": "MyBot",
+         "value": ".*(?:MyBot).*",
        },
        "/ppr": {
          "key": "user-agent",
          "type": "header",
-         "value": "MyBot",
+         "value": ".*(?:MyBot).*",
        },
      }
     `)

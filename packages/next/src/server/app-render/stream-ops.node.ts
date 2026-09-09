@@ -41,13 +41,19 @@ import {
   ReplayableNodeStream,
   type AnyStream as AnyStreamType,
 } from './app-render-prerender-utils'
-import { DetachedPromise } from '../../lib/detached-promise'
+import { createPromiseWithResolvers } from '../../shared/lib/promise-with-resolvers'
 import { getTracer } from '../lib/trace/tracer'
 import { AppRenderSpan } from '../lib/trace/constants'
 import {
   atLeastOneTask,
   waitAtLeastOneReactRenderTask,
 } from '../../lib/scheduler'
+import { ResponseAborted } from '../web/spec-extension/adapters/next-request'
+import type {
+  FlightPayload,
+  FlightClientModules,
+  FlightRenderOptions,
+} from './stream-ops.web'
 
 // ---------------------------------------------------------------------------
 // Re-export shared types from the web module
@@ -536,21 +542,50 @@ export { renderToWebFlightStream } from './stream-ops.web'
 
 export function renderToNodeFlightStream(
   ComponentMod: FlightComponentMod,
-  payload: any,
-  clientModules: any,
-  opts: any
+  payload: FlightPayload,
+  clientModules: FlightClientModules,
+  opts: FlightRenderOptions
 ): AnyStream {
   if (!ComponentMod.renderToPipeableStream) {
     throw new Error('renderToPipeableStream is not implemented')
   }
 
+  // `renderToPipeableStream` has no `signal` option (unlike the Web
+  // `renderToReadableStream`), so pull `signal` out of the options and abort
+  // the returned pipeable ourselves when it fires. We drop the listener when
+  // the passthrough closes so a finished render's `pipeable` isn't retained by
+  // the request signal, which can outlive it.
+  const { signal, ...renderOptions } = opts ?? {}
+
   const pt = new PassThrough()
   const pipeable = ComponentMod.renderToPipeableStream!(
     payload,
     clientModules,
-    opts
+    renderOptions
   )
+
+  // If the destination is destroyed before the render ended, React aborts with a
+  // generic "The destination stream closed early." error that `onError` can't
+  // tell apart from a real render error. Abort first with the reason we already
+  // know; the listener is registered before piping so it runs before React's.
+  pt.once('close', () => {
+    if (!pt.writableEnded) {
+      pipeable.abort(new ResponseAborted())
+    }
+  })
+
   pipeable.pipe(pt)
+
+  if (signal) {
+    if (signal.aborted) {
+      pipeable.abort(signal.reason)
+    } else {
+      const onAbort = () => pipeable.abort(signal.reason)
+      signal.addEventListener('abort', onAbort, { once: true })
+      pt.on('close', () => signal.removeEventListener('abort', onAbort))
+    }
+  }
+
   return pt
 }
 
@@ -562,8 +597,8 @@ export async function renderToNodeFizzStream(
   options?: { waitForAllReady?: boolean }
 ): Promise<FizzStreamResult> {
   const pt = new PassThrough()
-  const shellReady = new DetachedPromise<void>()
-  const allReady = new DetachedPromise<void>()
+  const shellReady = createPromiseWithResolvers<void>()
+  const allReady = createPromiseWithResolvers<void>()
   const deferPipe = options?.waitForAllReady === true
 
   const pipeable = getTracer().trace(AppRenderSpan.renderToReadableStream, () =>
@@ -615,8 +650,8 @@ export async function resumeToFizzStream(
   const run: <T>(fn: () => T) => T = runInContext ?? ((fn) => fn())
 
   const pt = new PassThrough()
-  const shellReady = new DetachedPromise<void>()
-  const allReady = new DetachedPromise<void>()
+  const shellReady = createPromiseWithResolvers<void>()
+  const allReady = createPromiseWithResolvers<void>()
 
   const pipeable = await run(() =>
     resumeToPipeableStream(element, postponedState, {
@@ -672,7 +707,7 @@ export async function continueFizzStream(
   {
     suffix,
     inlinedDataStream,
-    isStaticGeneration,
+    waitForAllReady,
     allReady,
     deploymentId,
     getServerInsertedHTML,
@@ -683,7 +718,7 @@ export async function continueFizzStream(
   // Suffix itself might contain close tags at the end, so we need to split it.
   const suffixUnclosed = suffix ? suffix.split(CLOSE_TAG, 1)[0] : null
 
-  if (isStaticGeneration) {
+  if (waitForAllReady) {
     if (allReady) {
       await allReady
     }

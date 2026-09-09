@@ -9,9 +9,10 @@ import {
 import {
   completeHardNavigation,
   navigateToKnownRoute,
-} from '../../segment-cache/navigation'
+} from '../../app-router-state'
+import { segmentCacheMap } from '../../segment-cache/cache'
 import { refreshReducer } from './refresh-reducer'
-import { getCurrentNavigationLock } from '../ppr-navigations'
+import { getCurrentNavigationLock } from '../../render-tree'
 
 export function serverPatchReducer(
   state: ReadonlyReducerState,
@@ -65,10 +66,14 @@ export function serverPatchReducer(
     scrollBehavior,
     navigateType,
     navigationLock,
+    // A server-patch retry navigation is bound to the shared map.
+    segmentCacheMap,
     null,
     // Server patch (retry) navigations don't use route prediction. This is
     // typically a retry after a previous mismatch, so the route was already
     // marked as having a dynamic rewrite when the mismatch was detected.
-    null
+    null,
+    // Not an HMR refresh, so there's no request generation to cancel.
+    undefined
   )
 }

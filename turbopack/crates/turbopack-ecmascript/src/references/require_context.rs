@@ -313,6 +313,10 @@ impl ModuleReference for RequireContextAssetReference {
 }
 
 impl IntoCodeGenReference for RequireContextAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         path: AstPath,
@@ -488,6 +492,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
                 chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
+                None,
             )
             .await?;
 

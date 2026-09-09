@@ -61,3 +61,30 @@ describe('next/head', () => {
     )
   })
 })
+
+describe('next/head dev route discovery', () => {
+  if (!(global as any).isNextDev) {
+    return
+  }
+
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      components: new FileRef(join(__dirname, 'app/components')),
+      'inject-readdir-delay.cjs': new FileRef(
+        join(__dirname, 'app/inject-readdir-delay.cjs')
+      ),
+    },
+    env: { NODE_OPTIONS: '--require ./inject-readdir-delay.cjs' },
+  })
+
+  it('waits for the initial route scan before serving pages', async () => {
+    const response = await next.fetch('/')
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('index page')
+    expect(next.cliOutput).toContain(
+      '[next-head] delaying initial Watchpack pages scan'
+    )
+  })
+})

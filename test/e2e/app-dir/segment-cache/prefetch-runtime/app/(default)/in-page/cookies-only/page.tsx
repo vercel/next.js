@@ -5,7 +5,7 @@ import { cachedDelay, DebugRenderKind } from '../../../shared'
 export const instant = {
   unstable_samples: [{ cookies: [{ name: 'testCookie', value: 'testValue' }] }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

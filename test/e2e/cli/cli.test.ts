@@ -4,6 +4,7 @@ import path, { join } from 'path'
 // @ts-expect-error
 import pkg from 'next/package'
 import http from 'http'
+import { promises as fs } from 'fs'
 import stripAnsi from 'strip-ansi'
 import type { ChildProcess } from 'child_process'
 
@@ -1149,6 +1150,44 @@ Next.js Config:
 
       expect((info.stderr || '').toLowerCase()).not.toContain('error')
       matchInfoOutput(info.stdout)
+    })
+
+    test('should not leak package manager command errors', async () => {
+      const marker = 'next-info-yarn-command-not-found'
+      const binDir = await fs.mkdtemp(join(next.testDir, 'next-info-bin-'))
+      const pathKey =
+        Object.keys(process.env).find((key) => key.toLowerCase() === 'path') ??
+        'PATH'
+      const yarnPath = join(
+        binDir,
+        process.platform === 'win32' ? 'yarn.cmd' : 'yarn'
+      )
+
+      try {
+        await fs.writeFile(
+          yarnPath,
+          process.platform === 'win32'
+            ? `@echo off\r\necho ${marker} 1>&2\r\nexit /b 1\r\n`
+            : `#!/bin/sh\necho ${marker} >&2\nexit 1\n`
+        )
+        if (process.platform !== 'win32') {
+          await fs.chmod(yarnPath, 0o755)
+        }
+
+        const info = await next.runCommand(['info'], {
+          env: {
+            [pathKey]: `${binDir}${path.delimiter}${process.env[pathKey] ?? ''}`,
+            // Match issue #97932's npm project so the fake Yarn only exercises
+            // binary version detection, not registry discovery.
+            npm_config_user_agent: 'npm',
+          },
+        })
+
+        expect(info.stdout).toContain('Yarn: N/A')
+        expect(info.stderr).not.toContain(marker)
+      } finally {
+        await fs.rm(binDir, { recursive: true, force: true })
+      }
     })
 
     test('should print output with next.config.mjs', async () => {

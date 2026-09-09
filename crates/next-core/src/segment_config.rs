@@ -1361,9 +1361,7 @@ async fn parse_segment_config_from_loader_tree_internal(
     let parallel_configs = loader_tree
         .parallel_routes
         .values()
-        .map(|loader_tree| async move {
-            Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)).await
-        })
+        .map(|loader_tree| Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)))
         .try_join()
         .await?;
 

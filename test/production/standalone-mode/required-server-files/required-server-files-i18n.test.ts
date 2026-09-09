@@ -934,6 +934,70 @@ describe('required server files i18n', () => {
     expect($('#index').text()).toBe('index page')
   })
 
+  it('should remove a locale captured as a dynamic route param', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/fr',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/[slug]',
+          'x-now-route-matches': createNowRouteMatches(
+            {
+              slug: 'fr',
+            },
+            {
+              nextLocale: 'fr',
+            }
+          ).toString(),
+        },
+        redirect: 'manual',
+      })
+    )
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#index').text()).toBe('index page')
+    expect(JSON.parse($('#router').text())).toMatchObject({
+      locale: 'fr',
+      query: {},
+    })
+  })
+
+  it('should preserve a route param that looks like another locale', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/fr/nl-NL',
+      undefined,
+      withInvocationId({
+        headers: {
+          'x-matched-path': '/fr/[slug]',
+          'x-now-route-matches': createNowRouteMatches(
+            {
+              slug: 'nl-NL',
+            },
+            {
+              nextLocale: 'fr',
+            }
+          ).toString(),
+        },
+        redirect: 'manual',
+      })
+    )
+
+    expect(res.status).toBe(200)
+    const html = await res.text()
+    const $ = cheerio.load(html)
+    expect($('#slug-page').text()).toBe('[slug] page')
+    expect(JSON.parse($('#router').text())).toMatchObject({
+      locale: 'fr',
+      query: {
+        slug: 'nl-NL',
+      },
+    })
+  })
+
   it('should match the root dyanmic page correctly', async () => {
     const res = await fetchViaHTTP(
       appPort,

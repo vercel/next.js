@@ -48,6 +48,7 @@ export interface NextAdapter {
   onBuildComplete?: (ctx: {
     routing: {
       beforeMiddleware: Array<Route>
+      middlewareMatchers: Array<Route>
       beforeFiles: Array<Route>
       afterFiles: Array<Route>
       dynamicRoutes: Array<Route>

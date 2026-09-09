@@ -12,13 +12,14 @@ pub mod transition;
 
 use anyhow::{Context as _, Result, bail};
 use module_options::{
-    ConfiguredModuleType, ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType,
+    ConfiguredModuleType, ModuleOptions, ModuleOptionsContext, ModuleRule, ModuleRuleEffect,
+    ModuleType, RuleCondition,
 };
 pub use runtime_asset_context::get_runtime_asset_context;
 use tracing::{Instrument, field::Empty};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
-use turbo_tasks_fs::FileSystemPath;
+use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
@@ -48,8 +49,9 @@ use turbopack_core::{
 use turbopack_css::{CssModule, EcmascriptCssModule};
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
-    EcmascriptOptions, TreeShakingMode,
+    EcmascriptOptions,
     chunk::EcmascriptChunkPlaceable,
+    module_fragments::part::module::EcmascriptModulePartAsset,
     references::{
         FollowExportsResult,
         external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
@@ -59,7 +61,6 @@ use turbopack_ecmascript::{
     side_effect_optimization::{
         facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
     },
-    tree_shake::part::module::EcmascriptModulePartAsset,
 };
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
 use turbopack_resolve::{
@@ -85,10 +86,9 @@ async fn apply_module_type(
     reference_type: ReferenceType,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
 ) -> Result<Vc<ProcessResult>> {
-    let tree_shaking_mode = module_asset_context
-        .module_options_context()
-        .await?
-        .tree_shaking_mode;
+    let module_options = module_asset_context.module_options_context().await?;
+    let follow_reexports = module_options.follow_reexports;
+    let module_fragments_enabled = module_options.module_fragments_enabled;
     let part = match &reference_type {
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
             Some(part)
@@ -192,7 +192,7 @@ async fn apply_module_type(
                 // This can skip the module earlier and could skip more modules than only doing it
                 // at the end. Also we avoid parsing/analyzing the module in this
                 // case, because we would need to parse/analyze it for reexports.
-                if tree_shaking_mode.is_some() && is_evaluation {
+                if (follow_reexports || module_fragments_enabled) && is_evaluation {
                     // If we are tree shaking, skip the evaluation part if the module is marked as
                     // side effect free.
                     if *module.side_effects().await? == ModuleSideEffects::SideEffectFree {
@@ -200,47 +200,43 @@ async fn apply_module_type(
                     }
                 }
 
-                match tree_shaking_mode {
-                    Some(TreeShakingMode::ModuleFragments) => {
-                        Vc::upcast(EcmascriptModulePartAsset::select_part(
-                            *module,
-                            part.cloned().unwrap_or(ModulePart::facade()),
-                        ))
-                    }
-                    Some(TreeShakingMode::ReexportsOnly) => {
-                        if *module.get_exports().split_locals_and_reexports().await? {
-                            if let Some(part) = part {
-                                match part {
-                                    ModulePart::Evaluation => {
-                                        Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
-                                    }
-                                    ModulePart::Export(_) => {
-                                        apply_reexport_tree_shaking(
-                                            Vc::upcast(
-                                                *EcmascriptModuleFacadeModule::new(Vc::upcast(
-                                                    *module,
-                                                ))
+                if module_fragments_enabled {
+                    Vc::upcast(EcmascriptModulePartAsset::select_part(
+                        *module,
+                        part.cloned().unwrap_or(ModulePart::facade()),
+                    ))
+                } else if follow_reexports {
+                    if *module.get_exports().split_locals_and_reexports().await? {
+                        if let Some(part) = part {
+                            match part {
+                                ModulePart::Evaluation => {
+                                    Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
+                                }
+                                ModulePart::Export(_) => {
+                                    apply_reexport_tree_shaking(
+                                        Vc::upcast(
+                                            *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
                                                 .to_resolved()
                                                 .await?,
-                                            ),
-                                            part.clone(),
-                                        )
-                                        .await?
-                                    }
-                                    _ => bail!(
-                                        "Invalid module part \"{}\" for reexports only tree \
-                                         shaking mode",
-                                        part
-                                    ),
+                                        ),
+                                        part.clone(),
+                                    )
+                                    .await?
                                 }
-                            } else {
-                                Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
+                                _ => bail!(
+                                    "Invalid module part \"{}\" for reexports only tree shaking \
+                                     mode",
+                                    part
+                                ),
                             }
                         } else {
-                            Vc::upcast(*module)
+                            Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
                         }
+                    } else {
+                        Vc::upcast(*module)
                     }
-                    None => Vc::upcast(*module),
+                } else {
+                    Vc::upcast(*module)
                 }
                 .to_resolved()
                 .await?
@@ -260,6 +256,7 @@ async fn apply_module_type(
             ty,
             environment,
             lightningcss_features,
+            module_css_debuggable_idents,
         } => ResolvedVc::upcast(
             CssModule::new(
                 *source,
@@ -268,6 +265,7 @@ async fn apply_module_type(
                 css_import_context.map(|c| *c),
                 environment.as_deref().copied(),
                 *lightningcss_features,
+                *module_css_debuggable_idents,
             )
             .to_resolved()
             .await?,
@@ -298,7 +296,7 @@ async fn apply_module_type(
         }
     };
 
-    if tree_shaking_mode.is_some() && is_evaluation {
+    if (follow_reexports || module_fragments_enabled) && is_evaluation {
         // If we are tree shaking, skip the evaluation part if the module is marked as
         // side effect free.
         if *module.side_effects().await? == ModuleSideEffects::SideEffectFree {
@@ -734,6 +732,7 @@ async fn process_default_internal(
             *evaluate_context,
             *execution_context,
             loaders_vc,
+            *webpack_loaders_options.target,
             rename_as.clone(),
             *resolve_options_context,
             source_maps,
@@ -913,15 +912,29 @@ async fn process_default_internal(
     Ok(module)
 }
 
+/// `prune` skips matching files as the graph is walked, rather than filtering them out of the
+/// result afterwards.
 #[turbo_tasks::function]
 pub async fn externals_tracing_module_context(
     compile_time_info: Vc<CompileTimeInfo>,
     resolve_typescript: bool,
+    prune: Option<(FileSystemPath, ResolvedVc<Glob>)>,
 ) -> Result<Vc<ModuleAssetContext>> {
     let mut extensions = vec![rcstr!(".js"), rcstr!(".node"), rcstr!(".json")];
     if resolve_typescript {
         extensions.insert(0, rcstr!(".ts"));
     }
+
+    let prune_rules = match prune {
+        Some((base, glob)) => vec![ModuleRule::new(
+            RuleCondition::ResourcePathGlob {
+                base,
+                glob: glob.await?,
+            },
+            vec![ModuleRuleEffect::Ignore],
+        )],
+        None => vec![],
+    };
 
     let resolve_options = ResolveOptionsContext {
         custom_extensions: Some(extensions),
@@ -960,9 +973,9 @@ pub async fn externals_tracing_module_context(
             // node-file-trace.
             environment: None,
             analyze_mode: AnalyzeMode::Tracing,
+            module_rules: prune_rules,
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
-            tree_shaking_mode: None,
             ..Default::default()
         }
         .cell(),
@@ -1116,6 +1129,7 @@ impl AssetContext for ModuleAssetContext {
                                         Vc::upcast(externals_tracing_module_context(
                                             *options.compile_time_info,
                                             false,
+                                            None,
                                         )),
                                         // If target is specified, a symlink will be created to
                                         // make the folder

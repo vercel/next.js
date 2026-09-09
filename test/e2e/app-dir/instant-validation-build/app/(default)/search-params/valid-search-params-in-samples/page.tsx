@@ -16,7 +16,7 @@ export const instant: Instant = {
     },
   ],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 type SearchParams = Record<string, string | string[]>
 

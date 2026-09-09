@@ -54,20 +54,30 @@ export function getPnpmMajorVersion(): number | null {
 
 export function getPkgManager(baseDir: string): PackageManager {
   try {
+    const userAgent = process.env.npm_config_user_agent
+    if (userAgent) {
+      if (userAgent.startsWith('yarn')) {
+        return 'yarn'
+      } else if (userAgent.startsWith('pnpm')) {
+        return 'pnpm'
+      } else if (userAgent.startsWith('bun')) {
+        return 'bun'
+      } else if (userAgent.startsWith('npm')) {
+        return 'npm'
+      }
+    }
     const lockFile = findUp.sync(
       [
-        'package-lock.json',
         'yarn.lock',
         'pnpm-lock.yaml',
         'bun.lock',
         'bun.lockb',
+        'package-lock.json',
       ],
       { cwd: baseDir }
     )
     if (lockFile) {
       switch (basename(lockFile)) {
-        case 'package-lock.json':
-          return 'npm'
         case 'yarn.lock':
           return 'yarn'
         case 'pnpm-lock.yaml':
@@ -75,6 +85,8 @@ export function getPkgManager(baseDir: string): PackageManager {
         case 'bun.lock':
         case 'bun.lockb':
           return 'bun'
+        case 'package-lock.json':
+          return 'npm'
         default:
           return 'npm'
       }

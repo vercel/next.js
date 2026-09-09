@@ -21,7 +21,7 @@ export const ENCODED_TAGS = {
     ]),
   },
   META: {
-    // Only the match the prefix cause the suffix can be different wether it's xml compatible or not ">" or "/>"
+    // Only the match the prefix cause the suffix can be different whether it's xml compatible or not ">" or "/>"
     // <meta name="«nxt-icon»"
     // This is a special mark that will be replaced by the icon insertion script tag.
     ICON_MARK: new Uint8Array([
