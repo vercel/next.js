@@ -37,5 +37,5 @@ which builds the packages and publishes them to npm under the dist-tag matching
 the channel.
 
 Version bumps are restricted to the release branches listed in
-`command.version.allowBranch` in `lerna.json`. `scripts/create-release-branch.js`
-adds a new release branch to that list when one is created.
+`scripts/release-branches.json`. `scripts/create-release-branch.js` adds a new
+release branch to that list when one is created.

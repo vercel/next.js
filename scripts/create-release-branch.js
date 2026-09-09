@@ -84,15 +84,18 @@ async function main() {
   await execa('git', ['reset', '--hard', tagName], {
     stdio: 'inherit',
   })
-  const lernaPath = path.join(__dirname, '..', 'lerna.json')
-  const existingLerna = JSON.parse(
-    await fs.promises.readFile(lernaPath, 'utf8')
+  // Release branches need to be added here or `scripts/version-bump.js`
+  // refuses to run on them.
+  const releaseBranchesPath = path.join(__dirname, 'release-branches.json')
+  const releaseBranches = JSON.parse(
+    await fs.promises.readFile(releaseBranchesPath, 'utf8')
   )
-  // `allowBranch` gates `lerna version`, so it lives under `command.version`.
-  // Release branches need to be added here or the version bump refuses to run.
-  existingLerna.command.version.allowBranch.push(branchName)
+  releaseBranches.push(branchName)
 
-  await fs.promises.writeFile(lernaPath, JSON.stringify(existingLerna, null, 2))
+  await fs.promises.writeFile(
+    releaseBranchesPath,
+    JSON.stringify(releaseBranches, null, 2) + '\n'
+  )
 
   const buildAndDeployPath = path.join(
     __dirname,
