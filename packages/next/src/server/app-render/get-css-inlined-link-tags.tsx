@@ -1,6 +1,8 @@
 import type { CssResource } from '../../build/webpack/plugins/flight-manifest-plugin'
 import { getClientReferenceManifest } from './manifests-singleton'
 
+const EMPTY_SET: ReadonlySet<never> = new Set()
+
 /**
  * Get external stylesheet link hrefs based on server CSS manifest.
  */
@@ -11,8 +13,8 @@ export function getLinkAndScriptTags(
   collectNewImports?: boolean
 ): { styles: ReadonlySet<CssResource>; scripts: ReadonlySet<string> } {
   const filePathWithoutExt = filePath.replace(/\.[^.]+$/, '')
-  const cssChunks = new Set<CssResource>()
-  const jsChunks = new Set<string>()
+  let cssChunks: Set<CssResource> | undefined
+  let jsChunks: Set<string> | undefined
   const { entryCSSFiles, entryJSFiles } = getClientReferenceManifest()
   const cssFiles = entryCSSFiles[filePathWithoutExt]
   const jsFiles = entryJSFiles?.[filePathWithoutExt]
@@ -22,6 +24,9 @@ export function getLinkAndScriptTags(
       if (!injectedCSS.has(css.path)) {
         if (collectNewImports) {
           injectedCSS.add(css.path)
+        }
+        if (!cssChunks) {
+          cssChunks = new Set()
         }
         cssChunks.add(css)
       }
@@ -34,10 +39,16 @@ export function getLinkAndScriptTags(
         if (collectNewImports) {
           injectedScripts.add(file)
         }
+        if (!jsChunks) {
+          jsChunks = new Set()
+        }
         jsChunks.add(file)
       }
     }
   }
 
-  return { styles: cssChunks, scripts: jsChunks }
+  return {
+    styles: cssChunks ?? EMPTY_SET,
+    scripts: jsChunks ?? EMPTY_SET,
+  }
 }
