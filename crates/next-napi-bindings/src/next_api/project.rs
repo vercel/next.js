@@ -5,7 +5,7 @@ use std::{
     path::{Path, PathBuf},
     sync::{Arc, LazyLock, Mutex},
     thread,
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use anyhow::{Context, Result, anyhow, bail};
@@ -55,10 +55,10 @@ use turbo_tasks::{
     Effects, FxIndexSet, GcRoot, OperationValue, OperationVc, PrettyPrintError, ReadRef,
     ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasksApi, TurboTasksCallApi, UpdateInfo,
     Vc, mark_top_level_task,
-    message_queue::{CompilationEvent, Severity},
+    message_queue::{CompilationEvent, Severity, TraceEvent},
     read_strongly_consistent_and_apply_effects, take_effects,
     trace::TraceRawVcs,
-    unmark_top_level_task_may_leak_eventually_consistent_state,
+    turbo_tasks, unmark_top_level_task_may_leak_eventually_consistent_state,
 };
 use turbo_tasks_backend::{BackingStorageOptions, db_invalidation::invalidation_reasons};
 #[cfg(windows)]
@@ -1594,11 +1594,21 @@ pub async fn all_entrypoints_write_to_disk_operation(
     app_dir_only: bool,
     write_phase: EntrypointsWritePhase,
 ) -> Result<Vc<Entrypoints>> {
+    let start = Instant::now();
+    let wall_start = SystemTime::now();
     // Compute all outputs for this phase but do not emit to disk yet.
     let output_assets_operation = output_assets_operation(project, app_dir_only, write_phase);
     let _ = output_assets_operation.connect().await?;
 
-    Ok(project.entrypoints())
+    let entrypoints = project.entrypoints();
+    // Forward the span to the JS side for inclusion in `.next/trace`.
+    turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
+        "all_entrypoints_write_to_disk_operation",
+        wall_start,
+        start.elapsed(),
+        serde_json::json!([]),
+    )));
+    Ok(entrypoints)
 }
 
 #[turbo_tasks::function(operation)]
@@ -1655,6 +1665,8 @@ async fn emit_all_output_assets_once_with_issues_operation(
     app_dir_only: bool,
     has_deferred_entrypoints: bool,
 ) -> Result<Vc<OperationResult>> {
+    let start = Instant::now();
+    let wall_start = SystemTime::now();
     let entrypoints_operation = EntrypointsOperation::new(emit_all_output_assets_once_operation(
         container,
         app_dir_only,
@@ -1664,6 +1676,13 @@ async fn emit_all_output_assets_once_with_issues_operation(
     let (_, issues, effects) =
         strongly_consistent_catch_collectables(entrypoints_operation, &filter).await?;
 
+    // Forward the span to the JS side for inclusion in `.next/trace`.
+    turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
+        "emitting",
+        wall_start,
+        start.elapsed(),
+        serde_json::json!([]),
+    )));
     Ok(OperationResult { issues, effects }.cell())
 }
 
