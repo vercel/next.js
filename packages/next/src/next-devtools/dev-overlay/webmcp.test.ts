@@ -118,26 +118,37 @@ describe('DevTools WebMCP HMR controls', () => {
     expect(received).toHaveBeenCalledTimes(1)
   })
 
-  it('waits for an active compilation and module update before acknowledging pause', async () => {
-    let idle = true
-    await controls.registerHmrTools(() => idle)
+  it('waits for an active compilation before acknowledging pause', async () => {
+    await controls.registerHmrTools()
     receive(message(HMR.BUILDING))
     const done = jest.fn()
     const pause = call('pause_hmr').then(done)
-    jest.advanceTimersByTime(20)
-    await Promise.resolve()
+    // Drain promise callbacks too: otherwise an early acknowledgement can be
+    // queued behind this assertion and make the test pass incorrectly.
+    await jest.advanceTimersByTimeAsync(20)
     expect(done).not.toHaveBeenCalled()
-    idle = false
     receive(message(HMR.BUILT))
-    jest.advanceTimersByTime(20)
-    await Promise.resolve()
+    await jest.advanceTimersByTimeAsync(10)
+    await pause
+    expect(done).toHaveBeenCalledTimes(1)
+    expect(received).toHaveBeenCalledTimes(2)
+    receive(message(HMR.BUILT))
+    expect(received).toHaveBeenCalledTimes(2)
+  })
+
+  it('waits for an active module update before acknowledging pause', async () => {
+    let idle = false
+    await controls.registerHmrTools(() => idle)
+    const done = jest.fn()
+    const pause = call('pause_hmr').then(done)
+    await jest.advanceTimersByTimeAsync(20)
     expect(done).not.toHaveBeenCalled()
     idle = true
-    jest.advanceTimersByTime(10)
+    await jest.advanceTimersByTimeAsync(10)
     await pause
-    expect(received).toHaveBeenCalledTimes(2)
+    expect(done).toHaveBeenCalledTimes(1)
     receive(message(HMR.BUILT))
-    expect(received).toHaveBeenCalledTimes(2)
+    expect(received).not.toHaveBeenCalled()
   })
 
   it('combines Turbopack deltas and reports only the latest build', async () => {
