@@ -219,7 +219,6 @@ struct CacheReport {
     path: PathBuf,
     family: u32,
     active_ssts: u64,
-    recorded_codecs: BTreeSet<String>,
     samples: KindMetrics,
     duplicate_blob_references: u64,
     candidates: Vec<CandidateResult>,
@@ -260,10 +259,8 @@ struct CacheSampleIter {
     path: PathBuf,
     pending: VecDeque<SstInfo>,
     current: Option<StaticSortedFileIter>,
-    current_compression: Option<Compression>,
     seen_blobs: HashSet<u32>,
     active_ssts: u64,
-    recorded_codecs: BTreeSet<String>,
     duplicate_blob_references: u64,
 }
 
@@ -277,19 +274,23 @@ impl CacheSampleIter {
                 path.display()
             )
         })?;
+        for sst in &ssts {
+            ensure!(
+                sst.compression == Compression::Zstd3,
+                "Cache {} family {family} SST {:08}.sst uses {:?}; zstd_dictionary requires Zstd3",
+                path.display(),
+                sst.sequence_number,
+                sst.compression
+            );
+        }
+        // A stable SST order makes repeated runs against one unchanged cache snapshot comparable.
         ssts.sort_by_key(|sst| sst.sequence_number);
-        let recorded_codecs = ssts
-            .iter()
-            .map(|sst| format!("{:?}", sst.compression))
-            .collect();
         Ok(Self {
             path,
             active_ssts: ssts.len() as u64,
             pending: ssts.into(),
             current: None,
-            current_compression: None,
             seen_blobs: HashSet::new(),
-            recorded_codecs,
             duplicate_blob_references: 0,
         })
     }
@@ -305,11 +306,10 @@ impl CacheSampleIter {
                     sequence_number: sst.sequence_number,
                     block_count: sst.block_count,
                 },
-                sst.compression,
+                Compression::Zstd3,
             )
             .with_context(|| format!("Failed to open {:08}.sst", sst.sequence_number))?,
         );
-        self.current_compression = Some(sst.compression);
         Ok(true)
     }
 
@@ -318,26 +318,20 @@ impl CacheSampleIter {
             if self.current.is_none() && !self.open_next_sst()? {
                 return Ok(None);
             }
-            let compression = self.current_compression.expect("set with current SST");
             let entry = match self.current.as_mut().unwrap().next() {
                 Some(entry) => entry?,
                 None => {
                     self.current = None;
-                    self.current_compression = None;
                     continue;
                 }
             };
-            if let Some(sample) = self.sample_from_value(entry.value, compression)? {
+            if let Some(sample) = self.sample_from_value(entry.value)? {
                 return Ok(Some(sample));
             }
         }
     }
 
-    fn sample_from_value(
-        &mut self,
-        value: IterValue,
-        compression: Compression,
-    ) -> Result<Option<Sample>> {
+    fn sample_from_value(&mut self, value: IterValue) -> Result<Option<Sample>> {
         match value {
             IterValue::Slice { value } if value.len() > MAX_INLINE_VALUE_SIZE => Ok(Some(Sample {
                 kind: SampleKind::Slice,
@@ -348,7 +342,7 @@ impl CacheSampleIter {
                 checksum,
                 block,
             } => {
-                let value = decode_medium(compression, uncompressed_size, checksum, &block)
+                let value = decode_medium(Compression::Zstd3, uncompressed_size, checksum, &block)
                     .with_context(|| {
                         format!("Failed to read medium value in {}", self.path.display())
                     })?;
@@ -362,12 +356,13 @@ impl CacheSampleIter {
                     self.duplicate_blob_references += 1;
                     return Ok(None);
                 }
-                let value = read_blob(&self.path, sequence_number, compression)?;
+                let value = read_blob(&self.path, sequence_number, Compression::Zstd3)?;
                 Ok(Some(Sample {
                     kind: SampleKind::Blob,
                     data: value,
                 }))
             }
+            // Inline values live in key blocks and are not independently compressed.
             IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. } | IterValue::Slice { .. } => {
                 Ok(None)
             }
@@ -516,7 +511,6 @@ fn evaluate_cache(path: &Path, family: u32, candidates: &mut [Candidate]) -> Res
         path: path.to_path_buf(),
         family,
         active_ssts: iter.active_ssts,
-        recorded_codecs: iter.recorded_codecs,
         samples,
         duplicate_blob_references: iter.duplicate_blob_references,
         candidates: results,
@@ -555,6 +549,8 @@ struct TrainingSelection {
     samples: Vec<Box<[u8]>>,
     caches: Vec<TrainingCacheReport>,
     inputs_exhausted: bool,
+    #[cfg(test)]
+    selected_cache_indices: Vec<usize>,
 }
 
 fn select_training_samples(
@@ -579,6 +575,8 @@ fn select_training_samples(
     let mut selected_bytes = 0_usize;
     let mut active = vec![true; iterators.len()];
     let mut active_count = iterators.len();
+    #[cfg(test)]
+    let mut selected_cache_indices = Vec::new();
 
     while active_count > 0 && selected_bytes < byte_budget {
         for index in 0..iterators.len() {
@@ -593,6 +591,8 @@ fn select_training_samples(
                         .get_mut(sample.kind)
                         .add(sample.data.len());
                     samples.push(Box::from(sample.data.as_ref()));
+                    #[cfg(test)]
+                    selected_cache_indices.push(index);
                     if selected_bytes >= byte_budget {
                         break;
                     }
@@ -608,6 +608,8 @@ fn select_training_samples(
         samples,
         caches: per_cache,
         inputs_exhausted: active_count == 0,
+        #[cfg(test)]
+        selected_cache_indices,
     })
 }
 
@@ -647,6 +649,7 @@ fn train(source: &Source, output: &Path) -> Result<TrainingReport> {
         samples,
         caches,
         inputs_exhausted,
+        ..
     } = select_training_samples(&source.caches, source.family, SAMPLE_BYTE_BUDGET)?;
     ensure!(!samples.is_empty(), "No eligible values found for training");
     let selected = caches
@@ -853,18 +856,32 @@ mod tests {
     #[test]
     fn round_robin_samples_multiple_caches() -> Result<()> {
         let first = make_cache(2, Compression::Zstd3, 20)?;
-        let second = make_cache(2, Compression::Lz4, 20)?;
+        let second = make_cache(2, Compression::Zstd3, 20)?;
         let paths = [first.path().to_path_buf(), second.path().to_path_buf()];
         let selection = select_training_samples(&paths, 2, 10_000)?;
         assert!(!selection.samples.is_empty());
         assert!(!selection.inputs_exhausted);
         assert_eq!(selection.caches.len(), 2);
+        assert_eq!(&selection.selected_cache_indices[..2], &[0, 1]);
         assert!(
             selection
                 .caches
                 .iter()
                 .all(|report| report.samples.total().count > 0)
         );
+        Ok(())
+    }
+
+    #[test]
+    fn rejects_non_zstd_families_before_sampling() -> Result<()> {
+        let cache = make_cache(2, Compression::Lz4, 20)?;
+        let error = CacheSampleIter::open(cache.path().to_path_buf(), 2)
+            .err()
+            .expect("LZ4 family must be rejected");
+        let message = format!("{error:#}");
+        assert!(message.contains("00000001.sst"));
+        assert!(message.contains("Lz4"));
+        assert!(message.contains("requires Zstd3"));
         Ok(())
     }
 
@@ -918,12 +935,9 @@ mod tests {
 
         let mut iter = CacheSampleIter::open(cache.path().to_path_buf(), 2)?;
         let sample = iter
-            .sample_from_value(
-                turbo_persistence::IterValue::Blob {
-                    sequence_number: 42,
-                },
-                Compression::Zstd3,
-            )?
+            .sample_from_value(turbo_persistence::IterValue::Blob {
+                sequence_number: 42,
+            })?
             .unwrap();
         assert_eq!(sample.data.as_ref(), value);
         let mut candidates = make_candidates(&[])?;
@@ -935,22 +949,16 @@ mod tests {
             results[0].by_kind.blob.raw_compressed_bytes + 8
         );
         assert!(
-            iter.sample_from_value(
-                turbo_persistence::IterValue::Blob {
-                    sequence_number: 42,
-                },
-                Compression::Zstd3,
-            )?
+            iter.sample_from_value(turbo_persistence::IterValue::Blob {
+                sequence_number: 42,
+            })?
             .is_none()
         );
         assert_eq!(iter.duplicate_blob_references, 1);
         assert!(
-            iter.sample_from_value(
-                turbo_persistence::IterValue::Blob {
-                    sequence_number: 43,
-                },
-                Compression::Zstd3,
-            )
+            iter.sample_from_value(turbo_persistence::IterValue::Blob {
+                sequence_number: 43,
+            })
             .is_err()
         );
         Ok(())
