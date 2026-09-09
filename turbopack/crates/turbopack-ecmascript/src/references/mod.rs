@@ -282,11 +282,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 self.add_code_gen(code_gen);
             }
             ValueLinkContext::InAlternative => {
-                debug_assert!(
-                    !self.analyze_mode.is_tracing_assets(),
-                    "unexpected add_reference_code_gen in tracing mode"
-                );
-                self.references.insert(reference.into_reference());
+                if self.analyze_mode.is_tracing_assets() {
+                    // We only care about these references when tracing assets.
+                    self.references.insert(reference.into_reference());
+                }
             }
         }
     }
