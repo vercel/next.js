@@ -1,4 +1,4 @@
-import { isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import type * as Playwright from 'playwright'
 import { createRouterAct } from '../../../lib/router-act'
 import { findPort, retry } from 'next-test-utils'
@@ -144,6 +144,76 @@ describe('variants', () => {
 
     expect(await browser.elementByCss('#theme').text()).toBe('light')
     expect(await browser.eval('location.pathname')).toBe(url('/rewrite-source'))
+  })
+
+  it('should keep the combination on a navigation the proxy rewrote without its query', async () => {
+    // The client router requests a payload with `_rsc`. The proxy's target
+    // drops the query, so Next.js adds the parameter to the rewritten
+    // destination again. It has to add it to the prefixed destination, or the
+    // combination is lost and the route renders without the values it was
+    // resolved for.
+    let page: Playwright.Page | undefined
+
+    const browser = await next.browser(url('/prefetch-hub'), {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+
+        await p
+          .context()
+          .addCookies([{ name: 'theme', value: 'dark', url: next.url }])
+      },
+    })
+
+    if (!page) {
+      throw new Error('The page was not captured before it loaded.')
+    }
+
+    // The value is baked into the artifact of the combination, so it is in the
+    // shell of the route, which arrives in an app-shell prefetch where the
+    // router prefetches at all.
+    const act = createRouterAct(page, { includeAppShellRequests: true })
+
+    // A value behind a boundary reaches the payload as a row the boundary
+    // refers to, rather than inline, so this matches the row.
+    const combination = { includes: '"dark"\n' }
+
+    const toggle = async () => {
+      const checkbox = await browser.elementByCss(
+        'input[data-link-accordion="/rewrite-without-query"]'
+      )
+
+      await checkbox.click()
+    }
+
+    const navigate = async () => {
+      const link = await browser.elementByCss(
+        `a[href="${url('/rewrite-without-query')}"]`
+      )
+
+      await link.click()
+    }
+
+    if (isNextDev) {
+      // A link does not prefetch in development, so the navigation is the one
+      // request that carries the value.
+      await act(async () => {
+        await toggle()
+        await navigate()
+      }, combination)
+    } else {
+      // The prefetch carries the value. The route has no dynamic hole for this
+      // combination, so the navigation is served from what the prefetch cached
+      // and requests nothing.
+      await act(toggle, combination)
+      await act(navigate, 'no-requests')
+    }
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#theme').text()).toBe('dark')
+    })
+    expect(await browser.eval('location.pathname')).toBe(
+      url('/rewrite-without-query')
+    )
   })
 
   it('should resolve enumerated variants on a prerendered route', async () => {

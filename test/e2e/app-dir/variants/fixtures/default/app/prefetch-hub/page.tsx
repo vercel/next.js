@@ -12,6 +12,9 @@ export default function Page({
         <UnenumeratedParamLink searchParams={searchParams} />
       </Suspense>
       <LinkAccordion href="/on-demand/built">Enumerated param</LinkAccordion>
+      <LinkAccordion href="/rewrite-without-query">
+        Rewritten without query
+      </LinkAccordion>
     </>
   )
 }

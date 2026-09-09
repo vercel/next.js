@@ -620,9 +620,14 @@ export async function adapter(
    * the external server does not have access to the original URL or its search parameters.
    * In these cases, forwarding the `_rsc` parameter is essential so that the external server
    * can perform the correct RSC hash validation.
+   *
+   * This reads the rewrite header again rather than the value captured above,
+   * because the variants code above can replace the destination with a prefixed
+   * one.
    */
-  if (response && rewrite && isRSCRequest && rscHash) {
-    const rewriteURL = new URL(rewrite)
+  const finalRewrite = response?.headers.get('x-middleware-rewrite')
+  if (response && finalRewrite && isRSCRequest && rscHash) {
+    const rewriteURL = new URL(finalRewrite)
     if (!rewriteURL.searchParams.has(NEXT_RSC_UNION_QUERY)) {
       rewriteURL.searchParams.set(NEXT_RSC_UNION_QUERY, rscHash)
       response.headers.set('x-middleware-rewrite', rewriteURL.toString())

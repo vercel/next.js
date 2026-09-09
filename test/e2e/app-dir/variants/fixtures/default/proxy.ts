@@ -37,6 +37,17 @@ export const proxy = wrapProxy(variantsByRoute, (request: NextRequest) => {
     return NextResponse.rewrite(target)
   }
 
+  if (pathname === '/rewrite-without-query') {
+    // The target drops the query, and `/paramless` declares combinations. A
+    // payload request then makes Next.js add its `_rsc` parameter to the
+    // rewritten destination after the variants prefix went on.
+    const target = request.nextUrl.clone()
+    target.pathname = '/paramless'
+    target.search = ''
+
+    return NextResponse.rewrite(target)
+  }
+
   if (pathname === '/external') {
     const port = process.env.EXTERNAL_SERVER_PORT
 
@@ -54,6 +65,7 @@ export const config = {
   matcher: [
     '/',
     '/rewrite-source',
+    '/rewrite-without-query',
     '/external',
     '/conditional-runtime/:slug',
     '/enumerated/:slug',
