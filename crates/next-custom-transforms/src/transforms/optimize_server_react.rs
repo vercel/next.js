@@ -202,9 +202,9 @@ impl Fold for OptimizeServerReact {
                                 Some(
                                     Expr::Arrow(ArrowExpr {
                                         span: DUMMY_SP,
-                                        body: Box::new(BlockStmtOrExpr::Expr(Box::new(Expr::Lit(
-                                            Lit::Null(Null { span: DUMMY_SP }),
-                                        )))),
+                                        body: Box::new(ArrowFunctionBody::Expr(Box::new(
+                                            Expr::Lit(Lit::Null(Null { span: DUMMY_SP })),
+                                        ))),
                                         is_async: false,
                                         is_generator: false,
                                         params: vec![],

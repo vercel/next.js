@@ -414,7 +414,7 @@ impl<C: Comments> ServerActions<C> {
     // and remove any server function directive.
     fn get_directive_for_function(
         &mut self,
-        maybe_body: Option<&mut BlockStmt>,
+        maybe_body: Option<&mut FunctionBody>,
     ) -> Option<Directive> {
         let mut directive: Option<Directive> = None;
 
@@ -520,14 +520,14 @@ impl<C: Comments> ServerActions<C> {
                 .swap_remove(&arrow_ident.to_id());
         }
 
-        if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
+        if let ArrowFunctionBody::FunctionBody(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
                 private_ctxt: self.private_ctxt,
             });
         }
 
-        let mut new_body: BlockStmtOrExpr = *arrow.body.clone();
+        let mut new_body: ArrowFunctionBody = *arrow.body.clone();
 
         if !ids_from_closure.is_empty() {
             // Prepend the decryption declaration to the body.
@@ -555,11 +555,11 @@ impl<C: Comments> ServerActions<C> {
             };
 
             match &mut new_body {
-                BlockStmtOrExpr::BlockStmt(body) => {
+                ArrowFunctionBody::FunctionBody(body) => {
                     body.stmts.insert(0, decryption_decl.into());
                 }
-                BlockStmtOrExpr::Expr(body_expr) => {
-                    new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
+                ArrowFunctionBody::Expr(body_expr) => {
+                    new_body = ArrowFunctionBody::FunctionBody(FunctionBody {
                         span: DUMMY_SP,
                         stmts: vec![
                             decryption_decl.into(),
@@ -568,7 +568,6 @@ impl<C: Comments> ServerActions<C> {
                                 arg: Some(body_expr.take()),
                             }),
                         ],
-                        ..Default::default()
                     });
                 }
             }
@@ -591,14 +590,13 @@ impl<C: Comments> ServerActions<C> {
                             function: Box::new(Function {
                                 params: new_params,
                                 body: match new_body {
-                                    BlockStmtOrExpr::BlockStmt(body) => Some(body),
-                                    BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                                    ArrowFunctionBody::FunctionBody(body) => Some(body),
+                                    ArrowFunctionBody::Expr(expr) => Some(FunctionBody {
                                         span: DUMMY_SP,
                                         stmts: vec![Stmt::Return(ReturnStmt {
                                             span: DUMMY_SP,
                                             arg: Some(expr),
                                         })],
-                                        ..Default::default()
                                     }),
                                 },
                                 is_async: true,
@@ -691,7 +689,7 @@ impl<C: Comments> ServerActions<C> {
             private_ctxt: self.private_ctxt,
         });
 
-        let mut new_body: Option<BlockStmt> = function.body.clone();
+        let mut new_body: Option<FunctionBody> = function.body.clone();
 
         if !ids_from_closure.is_empty() {
             // Prepend the decryption declaration to the body.
@@ -720,10 +718,9 @@ impl<C: Comments> ServerActions<C> {
             if let Some(body) = &mut new_body {
                 body.stmts.insert(0, decryption_decl.into());
             } else {
-                new_body = Some(BlockStmt {
+                new_body = Some(FunctionBody {
                     span: DUMMY_SP,
                     stmts: vec![decryption_decl.into()],
-                    ..Default::default()
                 });
             }
         }
@@ -828,7 +825,7 @@ impl<C: Comments> ServerActions<C> {
                 .swap_remove(&arrow_ident.to_id());
         }
 
-        if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
+        if let ArrowFunctionBody::FunctionBody(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
                 private_ctxt: self.private_ctxt,
@@ -836,8 +833,8 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let inner_fn_body = match *arrow.body.take() {
-            BlockStmtOrExpr::BlockStmt(body) => Some(body),
-            BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+            ArrowFunctionBody::FunctionBody(body) => Some(body),
+            ArrowFunctionBody::Expr(expr) => Some(FunctionBody {
                 stmts: vec![Stmt::Return(ReturnStmt {
                     span: DUMMY_SP,
                     arg: Some(expr),
@@ -1414,7 +1411,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
         let directive = self.get_directive_for_function(
-            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+            if let ArrowFunctionBody::FunctionBody(block) = &mut *a.body {
                 Some(block)
             } else {
                 None
@@ -3046,7 +3043,7 @@ fn create_cache_wrapper(
     let wrapper_fn_expr = Box::new(Expr::Fn(FnExpr {
         ident: fn_ident,
         function: Box::new(Function {
-            body: Some(BlockStmt {
+            body: Some(FunctionBody {
                 stmts: vec![Stmt::Return(ReturnStmt {
                     span: DUMMY_SP,
                     arg: Some(Box::new(Expr::Call(cache_call))),
@@ -3073,7 +3070,7 @@ fn create_and_hoist_cache_function(
     cache_name: Atom,
     fn_ident: Option<Ident>,
     params: Vec<Param>,
-    body: Option<BlockStmt>,
+    body: Option<FunctionBody>,
     original_span: Span,
     hoisted_extra_items: &mut Vec<ModuleItem>,
     unresolved_ctxt: SyntaxContext,
@@ -3293,7 +3290,7 @@ fn detect_similar_strings(a: &str, b: &str) -> bool {
 // without mutating the function body or erroring out.
 // This is used to quickly determine if we need to use the module-level
 // directives for this function or not.
-fn has_body_directive(maybe_body: &Option<BlockStmt>) -> (bool, bool) {
+fn has_body_directive(maybe_body: &Option<FunctionBody>) -> (bool, bool) {
     let mut is_action_fn = false;
     let mut is_cache_fn = false;
 

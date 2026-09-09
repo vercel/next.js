@@ -38,11 +38,13 @@ smallvec = { workspace = true }
 thread_local = { workspace = true }
 tracing = { workspace = true }
 xxhash-rust = { workspace = true }
+zstd = { workspace = true }
 
 [dev-dependencies]
 criterion = { workspace = true }
 rand = { workspace = true }
 rayon = { workspace = true }
+rstest = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
 

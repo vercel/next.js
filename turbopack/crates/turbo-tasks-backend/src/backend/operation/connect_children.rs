@@ -79,10 +79,8 @@ pub fn connect_children(
                     }
                 }
                 if !child.has_output() {
-                    let child_id = child.id();
                     make_task_dirty_internal(
-                        child,
-                        child_id,
+                        &mut child,
                         false,
                         #[cfg(feature = "task_dirty_cause")]
                         TaskDirtyCause::InitialDirty,

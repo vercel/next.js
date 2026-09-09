@@ -28,13 +28,14 @@
 
 /**
  * A pragma block is one or more consecutive `// @gate` lines *immediately*
- * followed by an `it` / `test` / `fit` / `describe` call. Anything else (a
- * pragma in a JSDoc block, a pragma with a blank line under it, a pragma over
- * `it.each`) is not matched, and is reported as an error by `rewrite()` rather
- * than silently ignored.
+ * followed by an `it` / `test` / `fit` / `describe` call. `describe.each` has
+ * a dedicated runtime helper because its table is bound before the suite name.
+ * Anything else (a pragma in a JSDoc block, a pragma with a blank line under
+ * it, a pragma over `it.each`) is not matched, and is reported as an error by
+ * `rewrite()` rather than silently ignored.
  */
 const PRAGMA_BLOCK =
-  /((?:^[ \t]*\/\/[ \t]*@(?:force-)?gate\b[^\n]*\n)+)([ \t]*)(it|test|fit|describe)((?:\.only)?)([ \t]*\()/gm
+  /((?:^[ \t]*\/\/[ \t]*@(?:force-)?gate\b[^\n]*\n)+)([ \t]*)(?:(it|test|fit|describe)((?:\.only)?)([ \t]*\()|(describe)\.each[ \t]*\()/gm
 
 /** Matches a single pragma line and captures `force` + the condition source. */
 const PRAGMA_LINE = /^[ \t]*\/\/[ \t]*@(force-)?gate\b[ \t]*([^\n]*)$/
@@ -108,9 +109,19 @@ function rewrite(src, filename) {
      * @param {string} callee
      * @param {string} only
      * @param {string} openParen
+     * @param {string | undefined} describeEach
      * @param {number} offset
      */
-    (_all, pragmaLines, indent, callee, only, openParen, offset) => {
+    (
+      _all,
+      pragmaLines,
+      indent,
+      callee,
+      only,
+      openParen,
+      describeEach,
+      offset
+    ) => {
       const firstLine = getLineNumber(lineStarts, offset)
       const gates = []
       const lines = pragmaLines.split('\n')
@@ -133,14 +144,17 @@ function rewrite(src, filename) {
         gates.push({ force: Boolean(match[1]), source })
       }
 
-      return (
-        pragmaLines +
-        indent +
-        `_test_gate(${JSON.stringify(gates)},${JSON.stringify(
-          callee + only
-        )})` +
-        openParen
-      )
+      if (describeEach) {
+        return (
+          pragmaLines +
+          indent +
+          `_test_gate_describe_each(${JSON.stringify(gates)},`
+        )
+      }
+
+      return `${pragmaLines}${indent}_test_gate(${JSON.stringify(
+        gates
+      )},${JSON.stringify(callee + only)})${openParen}`
     }
   )
 
@@ -181,9 +195,10 @@ function assertNoInertPragmas(src, consumed, filename) {
         `effect.\n\n` +
         `  ${lines[i].trim()}\n\n` +
         `A pragma must sit on the line(s) immediately above an ` +
-        `\`it(\`, \`test(\`, \`fit(\`, \`describe(\`, \`it.only(\`, ` +
-        `\`test.only(\` or \`describe.only(\` call — with no blank line in ` +
-        `between. \`it.each\` and \`it.failing\` are not supported. If this ` +
+        `\`it(\`, \`test(\`, \`fit(\`, \`describe(\`, \`describe.each(\`, ` +
+        `\`it.only(\`, \`test.only(\` or \`describe.only(\` call — with no ` +
+        `blank line in between. \`it.each\` and \`it.failing\` are not ` +
+        `supported. If this ` +
         `comment is prose rather than a pragma, reword it so it does not ` +
         `start with \`@gate\`.`
     )

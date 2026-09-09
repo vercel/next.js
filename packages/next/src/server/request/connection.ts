@@ -16,6 +16,11 @@ import { isRequestApiAllowedInCurrentPhase } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { RenderStage } from '../app-render/staged-rendering'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  createConnectionInPublicUseCacheError,
+  createConnectionInPrivateUseCacheError,
+  createConnectionInUnstableCacheError,
+} from '../use-cache/use-cache-messages'
 
 /**
  * This function allows you to indicate that you require an actual user Request before continuing.
@@ -49,9 +54,7 @@ export function connection(): Promise<void> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'cache': {
-          const error = new Error(
-            `Route ${workStore.route} used \`connection()\` inside "use cache". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual request, but caches must be able to be produced before a request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-          )
+          const error = createConnectionInPublicUseCacheError(workStore.route)
           Error.captureStackTrace(error, connection)
           applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
@@ -61,18 +64,14 @@ export function connection(): Promise<void> {
           // It might not be intuitive to throw for private caches as well, but
           // we don't consider runtime prefetches as "actual requests" (in the
           // navigation sense), despite allowing them to read cookies.
-          const error = new Error(
-            `Route ${workStore.route} used \`connection()\` inside "use cache: private". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual navigation request, but caches must be able to be produced before a navigation request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-          )
+          const error = createConnectionInPrivateUseCacheError(workStore.route)
           Error.captureStackTrace(error, connection)
           applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         }
         case 'unstable-cache':
-          throw new Error(
-            `Route ${workStore.route} used \`connection()\` inside a function cached with \`unstable_cache()\`. The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but caches must be able to be produced before a Request so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-          )
+          throw createConnectionInUnstableCacheError(workStore.route)
         case 'generate-static-params':
           throw new Error(
             `Route ${workStore.route} used \`connection()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`

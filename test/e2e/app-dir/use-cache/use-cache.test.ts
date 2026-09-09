@@ -1064,7 +1064,7 @@ describe('use-cache', () => {
           const expectedErrorMessage = disableJavaScript
             ? 'Failed to load resource: the server responded with a status of 500 (Internal Server Error)'
             : isNextDev
-              ? 'Route /draft-mode/[mode] used `cookies()` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use `cookies()` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache'
+              ? 'Route "/draft-mode/[mode]": `cookies()` can\'t be read inside `"use cache"`. Read it outside the cached function and pass what you need as an argument.\nLearn more: https://nextjs.org/docs/messages/next-request-in-use-cache'
               : GENERIC_RSC_ERROR
 
           expect(logs).toMatchObject(

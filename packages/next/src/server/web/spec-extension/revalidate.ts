@@ -14,6 +14,7 @@ import {
 } from '../../../shared/lib/action-revalidation-kind'
 import { removeTrailingSlash } from '../../../shared/lib/router/utils/remove-trailing-slash'
 import { encodeHeaderSafe } from '../../lib/encode-header-safe'
+import { createRevalidateDuringRenderError } from '../../use-cache/use-cache-messages'
 import { validateAndNormalizeCacheLifeProfile } from '../../use-cache/cache-life-profile'
 
 type CacheLifeConfig = {
@@ -37,7 +38,11 @@ export function revalidateTag(tag: string, profile: string | CacheLifeConfig) {
   } else if (typeof profile === 'object') {
     profile = validateAndNormalizeCacheLifeProfile(profile, { kind: 'inline' })
   }
-  return revalidate([encodeHeaderSafe(tag)], `revalidateTag ${tag}`, profile)
+  return revalidate(
+    [encodeHeaderSafe(tag)],
+    `revalidateTag(${JSON.stringify(tag)})`,
+    profile
+  )
 }
 
 /**
@@ -59,7 +64,11 @@ export function updateTag(tag: string) {
     )
   }
   // updateTag uses immediate expiration (no profile) without deprecation warning
-  return revalidate([encodeHeaderSafe(tag)], `updateTag ${tag}`, undefined)
+  return revalidate(
+    [encodeHeaderSafe(tag)],
+    `updateTag(${JSON.stringify(tag)})`,
+    undefined
+  )
 }
 
 /**
@@ -119,7 +128,7 @@ export function revalidatePath(originalPath: string, type?: 'layout' | 'page') {
     tags.push(`${NEXT_CACHE_IMPLICIT_TAG_ID}/`)
   }
 
-  return revalidate(tags, `revalidatePath ${originalPath}`)
+  return revalidate(tags, `revalidatePath(${JSON.stringify(originalPath)})`)
 }
 
 function revalidate(
@@ -137,25 +146,15 @@ function revalidate(
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (workUnitStore) {
     if (workUnitStore.phase === 'render') {
-      throw new Error(
-        `Route ${store.route} used "${expression}" during render which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-      )
+      throw createRevalidateDuringRenderError(store.route, expression)
     }
 
     switch (workUnitStore.type) {
       case 'cache':
       case 'private-cache':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a "use cache" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-        )
       case 'unstable-cache':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)" which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-        )
       case 'generate-static-params':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside \`generateStaticParams\` which is unsupported. To ensure revalidation is performed consistently it must always happen outside of renders and cached functions. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
-        )
+        throw createRevalidateDuringRenderError(store.route, expression)
       case 'prerender':
       case 'prerender-runtime':
         // cacheComponents Prerender

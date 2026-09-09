@@ -2259,35 +2259,48 @@ function pingSegmentBundle(
         // entry itself — nothing ever pings a Rejected entry.
         break
       case EntryStatus.Fulfilled: {
-        const runtimeWouldProvideMore = wouldRuntimeRequestProvideMore(
-          nodeEntry,
-          fetchStrategy
-        )
-
-        // An eligible shell-tier entry takes the static attempt path below
-        // (the revalidation) instead of deopting straight to a runtime
-        // request; see isShellEntryEligibleForStaticAttempt. The attempt
-        // can't recur: its response records at least the concrete static
-        // tier, which fails the shell-tier check on the re-run pass — and an
-        // attempt that already settled without healing the entry reads as
-        // ineligible, so the deopt proceeds after all.
-        const shellEntryEligibleForStaticAttempt =
-          isShellEntryEligibleForStaticAttempt(
-            now,
-            task.segmentCacheMap,
+        let willBeSupersededByRuntimeRequest = false
+        if (walkRequiresRuntimeCompleteness(fetchStrategy, route)) {
+          const runtimeWouldProvideMore = wouldRuntimeRequestProvideMore(
             nodeEntry,
-            nodeTree,
             fetchStrategy
           )
 
-        if (runtimeWouldProvideMore && !shellEntryEligibleForStaticAttempt) {
-          // A runtime request would return more content for this segment
-          // than the entry contains. Surface it via the return value, so the
-          // caller can deopt this subtree to a runtime prefetch. (An
-          // eligible shell-tier entry withholds the signal for this pass:
-          // the static attempt spawned below blocks the task, and the re-run
-          // pass reads the attempt's result instead.)
-          needsRuntimeRequest = true
+          // An eligible shell-tier entry takes the static attempt path below
+          // (the revalidation) instead of deopting straight to a runtime
+          // request; see isShellEntryEligibleForStaticAttempt. The attempt
+          // can't recur: its response records at least the concrete static
+          // tier, which fails the shell-tier check on the re-run pass — and an
+          // attempt that already settled without healing the entry reads as
+          // ineligible, so the deopt proceeds after all.
+          const shellEntryEligibleForStaticAttempt =
+            isShellEntryEligibleForStaticAttempt(
+              now,
+              task.segmentCacheMap,
+              nodeEntry,
+              nodeTree,
+              fetchStrategy
+            )
+
+          if (runtimeWouldProvideMore && !shellEntryEligibleForStaticAttempt) {
+            // A runtime request would return more content for this segment
+            // than the entry contains. Surface it via the return value, so the
+            // caller can deopt this subtree to a runtime prefetch. (An
+            // eligible shell-tier entry withholds the signal for this pass:
+            // the static attempt spawned below blocks the task, and the re-run
+            // pass reads the attempt's result instead.)
+
+            needsRuntimeRequest = true
+
+            // If a runtime request would return more content skip the static path
+            // entirely — unless the entry is an eligible shell-tier entry (see above),
+            // whose static attempt IS this upgrade.
+            // Otherwise the runtime request covers this segment and supersedes
+            // anything a static fetch could add, so a static upgrade would at best
+            // duplicate it — delivering the same content twice — and at worst replace
+            // runtime content with static content.
+            willBeSupersededByRuntimeRequest = true
+          }
         }
 
         // For entries below this phase's tier, upgrade during the phase
@@ -2295,23 +2308,8 @@ function pingSegmentBundle(
         // Speculative phase is to bring the cache up to the
         // per-link-concrete tier. `isPartial` ensures a complete entry isn't
         // re-fetched.
-        //
-        // Exception: when a runtime request would return more AND this walk
-        // permits one, skip the static path entirely — unless the entry is
-        // an eligible shell-tier entry (see above), whose static attempt IS
-        // this upgrade. Otherwise the runtime request covers this segment
-        // and supersedes anything a static fetch could add, so a static
-        // upgrade would at best duplicate it — delivering the same content
-        // twice — and at worst replace runtime content with static content.
-        //
-        // When no runtime request is permitted, the signal is irrelevant:
-        // nothing can act on it, so it must not suppress the static upgrade.
-        // That's what keeps a link prefetching static content on top of a
-        // cached shell.
-        const willBeSupersededByRuntimeRequest =
-          runtimeWouldProvideMore &&
-          !shellEntryEligibleForStaticAttempt &&
-          walkRequiresRuntimeCompleteness(fetchStrategy, route)
+        // If we can use runtime requests and a runtime request would provide more
+        // data, we also skip the upgrade (see `willBeSupersededByRuntimeRequest`)
 
         // Check if we should attempt to upgrade a fallback ISR response to
         // a concrete version.

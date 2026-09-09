@@ -138,7 +138,7 @@ type ResolveOptions = {
   conditionNames?: string[]
   descriptionFiles?: string[]
   enforceExtension?: boolean
-  extensionAlias: Record<string, string[]>
+  extensionAlias?: Record<string, string[]>
   extensions?: string[]
   fallback?: Record<string, string[]>
   mainFields?: string[]
@@ -183,6 +183,7 @@ const transform = (
       {
         resource: resource + query,
         context: {
+          version: 2,
           _module: {
             // For debugging purpose, if someone find context is not full compatible to
             // webpack they can guess this comes from turbopack
@@ -215,7 +216,14 @@ const transform = (
                 )
             },
           },
-          getResolve: (options: ResolveOptions) => {
+          resolve(
+            lookupPath: string,
+            request: string,
+            callback: (err?: Error, result?: string) => void
+          ) {
+            return this.getResolve()(lookupPath, request, callback)
+          },
+          getResolve: (options: ResolveOptions = {}) => {
             const rustOptions = {
               aliasFields: undefined as undefined | string[],
               conditionNames: undefined as undefined | string[],

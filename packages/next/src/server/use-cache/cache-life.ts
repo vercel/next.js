@@ -1,5 +1,6 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import { createCacheLifeOutsideUseCacheError } from './use-cache-messages'
 import { validateAndNormalizeCacheLifeProfile } from './cache-life-profile'
 import type { CacheLife } from './cache-life-profile'
 
@@ -42,8 +43,8 @@ export function cacheLife(profile: CacheLifeProfiles | CacheLife): void {
     case 'unstable-cache':
     case 'generate-static-params':
     case undefined:
-      throw new Error(
-        '`cacheLife()` can only be called inside a "use cache" function.'
+      throw createCacheLifeOutsideUseCacheError(
+        workAsyncStorage.getStore()?.route
       )
     case 'cache':
     case 'private-cache':

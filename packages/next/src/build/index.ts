@@ -1208,7 +1208,7 @@ export default async function build(
       if (experimentalBuildMode === 'generate-env') {
         if (bundler === Bundler.Turbopack) {
           Log.warn('generate-env is not needed with turbopack')
-          process.exit(0)
+          return
         }
         Log.info('Inlining static env ...')
         await nextBuildSpan
@@ -1221,9 +1221,7 @@ export default async function build(
           })
 
         Log.info('Complete')
-        flushAllTraces()
-        teardownTraceSubscriber()
-        process.exit(0)
+        return
       }
 
       // when using compile mode static env isn't inlined so we
@@ -1793,11 +1791,7 @@ export default async function build(
             shutdownPromise: p,
             warnings,
             ...rest
-          } = await turbopackBuild(
-            process.env.NEXT_TURBOPACK_USE_WORKER === undefined ||
-              process.env.NEXT_TURBOPACK_USE_WORKER !== '0',
-            telemetry
-          )
+          } = await turbopackBuild(telemetry)
           shutdownPromise = p
           deferredTurbopackWarnings = warnings
           traceMemoryUsage('Finished build', nextBuildSpan)
