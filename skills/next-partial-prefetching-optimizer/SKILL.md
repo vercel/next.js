@@ -1,17 +1,17 @@
 ---
 name: next-partial-prefetching-optimizer
 description: >
-  Optimize what one Next.js client navigation includes before the click under
-  Partial Prefetching. Use after Cache Components and Partial Prefetching are
-  adopted when the user wants selected URL-specific UI to be instant, wants
-  reusable content to wait for navigation, or needs to choose between default,
-  viewport, and intent prefetching. Requires Next.js 16.3+.
+  Optimize what selected Next.js client navigations include before the click
+  under Partial Prefetching. Use after Cache Components and Partial Prefetching
+  are adopted when the user wants selected URL-specific UI to be instant,
+  wants reusable content to wait for navigation, or needs to choose between
+  default, viewport, and intent prefetching. Requires Next.js 16.3+.
 ---
 
 # Partial Prefetching optimizer
 
-Optimize one exact source link and destination at a time. Turn the requested
-prefetched UI, navigation-only UI, and trigger into a production
+Optimize each requested source link and destination as its own contract. Turn
+the requested prefetched UI, navigation-only UI, and trigger into a production
 [`instant()`](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests)
 test. Record the current behavior, make the smallest optimization, verify the
 differential, and keep the passing test as regression coverage.

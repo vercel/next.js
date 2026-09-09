@@ -240,11 +240,11 @@ Adopt Partial Prefetching in this project using the next-partial-prefetching-ado
 
 ### `next-partial-prefetching-optimizer`
 
-The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill optimizes one client navigation:
+The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill takes a target navigation or set of navigations and works toward the UI you want ready before each click:
 
-1. Turns the requested user-visible result into an explicit contract for what is prefetched, what waits for navigation, and when prefetching begins.
-2. Encodes that exact source-link and destination contract in an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test.
-3. Applies the [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) patterns until the test passes, then keeps it as regression coverage.
+1. Turns the requested behavior for each navigation into a contract for what is prefetched, what waits for navigation, and when prefetching begins.
+2. Captures each contract in an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test.
+3. Applies the [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) patterns and keeps the passing tests as regression coverage.
 
 It needs Cache Components and Partial Prefetching already adopted.
 
