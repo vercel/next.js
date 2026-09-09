@@ -45,6 +45,26 @@ import { join } from 'path'
       }
     })
 
+    it('keeps App Router-only dynamic() entries and their CSS in the manifest', async () => {
+      const manifest = JSON.parse(
+        await next.readFile('.next/react-loadable-manifest.json')
+      )
+      const key = Object.keys(manifest).find((k) =>
+        k.endsWith('app/app-only/ClientEntry.jsx -> ./AppOnlyLazy')
+      )
+      expect(key).toBeDefined()
+      expect(
+        manifest[key].files.some((file: string) => file.endsWith('.css'))
+      ).toBe(true)
+
+      // PreloadChunks turns that entry into a stylesheet during SSR.
+      const $ = await next.render$('/app-only')
+      expect($('#app-only-lazy').text()).toBe('app-only lazy component')
+      expect($('link[rel="stylesheet"][href*=".css"]').length).toBeGreaterThan(
+        0
+      )
+    })
+
     it('records the pages-layer module id in react-loadable-manifest.json', () => {
       expect(pagesIds.size).toBeGreaterThan(0)
       expect(pagesIds.has(manifestId)).toBe(true)

@@ -99,14 +99,6 @@ function buildManifest(
         const originRequest: string | undefined = originModule?.resource
         if (!originRequest) return
 
-        // Only the pages router consumes this manifest. A module imported by both
-        // routers is walked once per layer under the same key below, and whichever
-        // copy is walked last wins the `id`. When that is the App Router copy, the
-        // pages server lists an id the pages client has no initializer for, so
-        // `preloadReady` skips it and hydration renders the `loading` fallback
-        // over server HTML that has the component (React #418).
-        if (originModule.layer === WEBPACK_LAYERS.appPagesBrowser) continue
-
         // We construct a "unique" key from origin module and request
         // It's not perfect unique, but that will be fine for us.
         // We also need to construct the same in the babel plugin.
@@ -154,7 +146,19 @@ function buildManifest(
         // next/dynamic so they are loaded by the same technique
 
         // add the id and files to the manifest
-        const id = dev ? key : getModuleId(compilation, module)
+        // A module imported by both routers is walked once per client layer under
+        // the same key. The App Router only ever reads `files` (PreloadChunks), while
+        // the pages router also relies on `id` (`dynamicIds` -> `preloadReady`), so
+        // an App Router walk must not overwrite the id a pages walk recorded: the
+        // pages client would then never preload the component and hydrate its
+        // `loading` fallback over server HTML that has it (React #418).
+        const existing = manifest[key]
+        const id =
+          existing && originModule.layer === WEBPACK_LAYERS.appPagesBrowser
+            ? existing.id
+            : dev
+              ? key
+              : getModuleId(compilation, module)
         manifest[key] = { id, files: Array.from(files) }
       }
     }
