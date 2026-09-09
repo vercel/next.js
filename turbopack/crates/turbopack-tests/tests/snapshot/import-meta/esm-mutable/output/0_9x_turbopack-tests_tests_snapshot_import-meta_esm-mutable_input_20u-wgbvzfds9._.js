@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_import-meta_esm-mutable_input_20u-wgbvzfds9._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_import-meta_esm-mutable_input_20u-wgbvzfds9._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/import-meta/esm-mutable/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -24,6 +24,6 @@ var __TURBOPACK__import$2e$meta__ = {
 };
 __TURBOPACK__import$2e$meta__.foo = 1;
 }),
-]);
+]);})()
 
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_import-meta_esm-mutable_input_20u-wgbvzfds9._.js.map

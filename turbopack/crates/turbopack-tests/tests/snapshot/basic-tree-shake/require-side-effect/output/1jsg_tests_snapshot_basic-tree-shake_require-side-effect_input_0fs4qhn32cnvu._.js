@@ -3,6 +3,7 @@
 
 const { cat } = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/lib.js [test] (ecmascript)");
 }),
+(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/lib.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -184,6 +185,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 }),
+]})(),
 ]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_basic-tree-shake_require-side-effect_input_0fs4qhn32cnvu._.js.map

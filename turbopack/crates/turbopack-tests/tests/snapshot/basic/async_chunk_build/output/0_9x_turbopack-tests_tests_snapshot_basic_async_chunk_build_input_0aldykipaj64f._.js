@@ -1,4 +1,4 @@
-module.exports = [
+(()=>{"use strict";module.exports = [
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/async_chunk_build/input/import.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -23,6 +23,6 @@ function foo(value) {
     console.assert(value);
 }
 }),
-];
+];})()
 
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_basic_async_chunk_build_input_0aldykipaj64f._.js.map

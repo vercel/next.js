@@ -13,8 +13,37 @@ use crate::chunk::{
     EcmascriptChunkItemWithAsyncInfo,
 };
 
+#[turbo_tasks::value(shared, serialization = "skip")]
+#[derive(Clone, Copy, Debug)]
+pub struct ModuleFactoryMode(bool);
+
+impl ModuleFactoryMode {
+    pub fn is_strict(self) -> bool {
+        self.0
+    }
+}
+
+async fn item_code_and_mode(
+    item: &EcmascriptChunkItemWithAsyncInfo,
+) -> Result<(ReadRef<Code>, ModuleFactoryMode)> {
+    let async_module_info = item.async_info.map(|info| *info);
+    let strict = item
+        .chunk_item
+        .into_trait_ref()
+        .await?
+        .content_with_async_module_info(async_module_info, false)
+        .await?
+        .await?
+        .options
+        .strict;
+    let code = item.chunk_item.code(async_module_info);
+    Ok((code.await?, ModuleFactoryMode(strict)))
+}
+
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct CodeModuleIdsAndPaths(SmallVec<[(ModuleId, ReadRef<Code>, RcStr); 1]>);
+pub struct CodeModuleIdsAndPaths(
+    SmallVec<[(ModuleId, ReadRef<Code>, RcStr, ModuleFactoryMode); 1]>,
+);
 
 #[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct BatchGroupCodeModuleIdsAndPaths(
@@ -48,27 +77,26 @@ pub async fn item_code_module_ids_and_paths(
     item: EcmascriptChunkItemOrBatchWithAsyncInfo,
 ) -> Result<Vc<CodeModuleIdsAndPaths>> {
     Ok(Vc::cell(match item {
-        EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(EcmascriptChunkItemWithAsyncInfo {
-            chunk_item,
-            async_info,
-            ..
-        }) => {
-            let id = chunk_item.id().await?;
-            let code = chunk_item.code(async_info.map(|info| *info));
-            let path = chunk_item.asset_ident().to_string().owned().await?;
-            smallvec![(id, code.await?, path)]
+        EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(item) => {
+            let (code, mode) = item_code_and_mode(&item).await?;
+            smallvec![(
+                item.chunk_item.id().await?,
+                code,
+                item.chunk_item.asset_ident().to_string().owned().await?,
+                mode
+            )]
         }
         EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => batch
             .await?
             .chunk_items
             .iter()
             .map(async |item| {
+                let (code, mode) = item_code_and_mode(item).await?;
                 Ok((
                     item.chunk_item.id().await?,
-                    item.chunk_item
-                        .code(item.async_info.map(|info| *info))
-                        .await?,
+                    code,
                     item.chunk_item.asset_ident().to_string().owned().await?,
+                    mode,
                 ))
             })
             .try_join()

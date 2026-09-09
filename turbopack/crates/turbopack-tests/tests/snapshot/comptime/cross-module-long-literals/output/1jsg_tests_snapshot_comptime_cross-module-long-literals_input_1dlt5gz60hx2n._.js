@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_comptime_cross-module-long-literals_input_1dlt5gz60hx2n._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_comptime_cross-module-long-literals_input_1dlt5gz60hx2n._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-long-literals/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -52,6 +52,6 @@ const REGEX = /ab/i;
 const NAN = NaN;
 const INFINITY = Infinity;
 }),
-]);
+]);})()
 
 //# sourceMappingURL=1jsg_tests_snapshot_comptime_cross-module-long-literals_input_1dlt5gz60hx2n._.js.map

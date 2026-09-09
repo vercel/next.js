@@ -24,6 +24,7 @@ console.log(/*TURBOPACK member replacement*/ __turbopack_context__.t);
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/dep.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 }),
+(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -85,6 +86,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 }),
+]})(),
 ]);
 
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_comptime_typeof_input_1y4b353ijz1yk._.js.map

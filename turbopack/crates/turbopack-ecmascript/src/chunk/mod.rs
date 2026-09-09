@@ -4,6 +4,7 @@ pub(crate) mod code_module_ids_and_paths;
 pub(crate) mod content;
 pub(crate) mod content_entry;
 pub(crate) mod data;
+pub(crate) mod factory_group;
 pub(crate) mod item;
 pub(crate) mod placeable;
 
@@ -31,12 +32,16 @@ pub use self::{
     },
     chunk_type::EcmascriptChunkType,
     code_module_ids_and_paths::{
-        BatchGroupCodeModuleIdsAndPaths, CodeModuleIdsAndPaths,
+        BatchGroupCodeModuleIdsAndPaths, CodeModuleIdsAndPaths, ModuleFactoryMode,
         batch_group_code_module_ids_and_paths, item_code_module_ids_and_paths,
     },
     content::EcmascriptChunkContent,
     content_entry::{EcmascriptChunkContentEntries, EcmascriptChunkContentEntry},
     data::EcmascriptChunkData,
+    factory_group::{
+        StrictFactoryMode, sort_chunk_items_by_path, strict_chunk_wrapper, strict_factory_mode,
+        write_module_factories,
+    },
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
         EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo, ecmascript_chunk_item,
