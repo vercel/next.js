@@ -2,13 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 
 describe('Production Config Usage', () => {
   describe('production mode', () => {
+    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+    // No deploy-specific incompatibility is documented.
+    // @force-gate !deploy
     describe('with generateBuildId', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname + '/fixture-generateBuildId',
         disableAutoSkewProtection: true,
-        skipDeployment: true,
       })
-      if (skipped) return
 
       it('should add the custom buildid', async () => {
         const browser = await next.browser('/')
@@ -21,13 +22,13 @@ describe('Production Config Usage', () => {
       })
     })
 
+    // This suite controls the local build lifecycle directly, which deployment tests cannot reproduce.
+    // @force-gate !deploy
     describe('env', () => {
-      const { next, skipped } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: __dirname,
         skipStart: true,
-        skipDeployment: true,
       })
-      if (skipped) return
 
       it('should fail with leading __ in env key', async () => {
         const start = next.cliOutput.length
