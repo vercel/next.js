@@ -22,9 +22,8 @@ export function generateRootParamsTypes(
 ): string {
   const exports = Array.from(rootParams.entries())
     .sort(([a], [b]) => a.localeCompare(b))
-    .map(
-      ([paramName, info]) =>
-        `  export function ${paramName}(): ${getRootParamReturnType(info)}`
+    .map(([paramName, info], index) =>
+      generateRootParamExport(paramName, getRootParamReturnType(info), index)
     )
 
   return `// Type definitions for Next.js root params (next/root-params)
@@ -33,6 +32,22 @@ declare module 'next/root-params' {
 ${exports.join('\n')}
 }
 `
+}
+
+const JS_IDENTIFIER_REGEX = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+
+function generateRootParamExport(
+  paramName: string,
+  returnType: string,
+  index: number
+) {
+  if (JS_IDENTIFIER_REGEX.test(paramName)) {
+    return `  export function ${paramName}(): ${returnType}`
+  }
+
+  const safeName = `__next_root_param_${index}`
+  return `  function ${safeName}(): ${returnType}
+  export { ${safeName} as ${JSON.stringify(paramName)} }`
 }
 
 function getRootParamReturnType(valueTypes: RootParamInfo): string {

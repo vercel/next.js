@@ -33,8 +33,8 @@ const rootParamsLoader: webpack.LoaderDefinitionFunction<RootParamsLoaderOpts> =
     const sortedRootParamNames = Array.from(allRootParams).sort()
     const content = [
       `import { getRootParam } from 'next/dist/server/request/root-params';`,
-      ...sortedRootParamNames.map((paramName) => {
-        return `export function ${paramName}() { return getRootParam('${paramName}'); }`
+      ...sortedRootParamNames.map((paramName, index) => {
+        return generateRootParamExport(paramName, index)
       }),
     ].join('\n')
 
@@ -42,6 +42,20 @@ const rootParamsLoader: webpack.LoaderDefinitionFunction<RootParamsLoaderOpts> =
   }
 
 export default rootParamsLoader
+
+const JS_IDENTIFIER_REGEX = /^[A-Za-z_$][A-Za-z0-9_$]*$/
+
+function generateRootParamExport(paramName: string, index: number) {
+  const paramNameString = JSON.stringify(paramName)
+
+  if (JS_IDENTIFIER_REGEX.test(paramName)) {
+    return `export function ${paramName}() { return getRootParam(${paramNameString}); }`
+  }
+
+  const safeName = `__next_root_param_${index}`
+  return `function ${safeName}() { return getRootParam(${paramNameString}); }
+export { ${safeName} as ${paramNameString} };`
+}
 
 async function collectRootParamsFromFileSystem(
   opts: Parameters<typeof findRootLayouts>[0]
