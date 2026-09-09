@@ -18,14 +18,18 @@ export interface CacheComponentsErrorsContext {
 export function runCacheComponentsErrorsTests(
   registerTests: (ctx: CacheComponentsErrorsContext) => void
 ) {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // No deploy-specific incompatibility is documented.
-  // @force-gate !deploy
   describe('Cache Components Errors', () => {
-    const { next, isTurbopack, isNextStart, isRspack } = nextTestSetup({
-      files: __dirname + '/fixtures/default',
-      skipStart: !isNextDev,
-    })
+    const { next, isTurbopack, isNextStart, isRspack, skipped } = nextTestSetup(
+      {
+        files: __dirname + '/fixtures/default',
+        skipStart: !isNextDev,
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // No deploy-specific incompatibility is documented.
+        skipDeployment: true,
+      }
+    )
+
+    if (skipped) return
 
     afterEach(async () => {
       if (isNextStart) {
