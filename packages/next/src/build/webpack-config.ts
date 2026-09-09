@@ -2303,6 +2303,7 @@ export default async function getBaseWebpackConfig(
     cacheUnaffected: true,
     // Webpack 5.109 enables these experiments in "auto" mode by default.
     // Keep Next.js loaders authoritative and preserve the previous behavior.
+    // Custom webpack callbacks run after this and can explicitly enable them.
     ...(!isRspack
       ? {
           asyncWebAssembly: false,
