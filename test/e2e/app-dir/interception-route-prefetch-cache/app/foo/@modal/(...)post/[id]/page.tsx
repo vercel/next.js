@@ -1,5 +1,9 @@
 import { Modal } from '../../../../Modal'
 
+export function generateStaticParams() {
+  return [{ id: '1' }]
+}
+
 export default async function FooPagePostInterceptSlot({
   params,
 }: {

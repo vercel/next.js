@@ -1,3 +1,7 @@
+export function generateStaticParams() {
+  return [{ ids: ['1'] }]
+}
+
 export default async function Page({
   params,
 }: {

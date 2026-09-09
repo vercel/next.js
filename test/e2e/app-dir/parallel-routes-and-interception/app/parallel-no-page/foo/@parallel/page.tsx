@@ -1,4 +1,8 @@
-export default function ParallelPage() {
+import { connection } from 'next/server'
+
+export default async function ParallelPage() {
+  // connection() required for Date.now() with Cache Components
+  await connection()
   return (
     <>
       <p>Hello from parallel page!</p>

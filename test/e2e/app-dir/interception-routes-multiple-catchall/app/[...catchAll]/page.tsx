@@ -1,6 +1,14 @@
 import Link from 'next/link'
 import React from 'react'
 
+export function generateStaticParams() {
+  return [
+    { catchAll: ['single'] },
+    { catchAll: ['multi', 'slug'] },
+    { catchAll: ['another', 'slug'] },
+  ]
+}
+
 async function Page({ params }: { params: Promise<{ catchAll: string[] }> }) {
   const { catchAll } = await params
   return (

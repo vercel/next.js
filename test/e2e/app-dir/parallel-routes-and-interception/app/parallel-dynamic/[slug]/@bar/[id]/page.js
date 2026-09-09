@@ -1,6 +1,8 @@
-'use client'
-import { useParams } from 'next/navigation'
+export function generateStaticParams() {
+  return [{ slug: 'foo', id: 'bar' }]
+}
 
-export default function Page() {
-  return <div id="bar">{JSON.stringify(useParams())}</div>
+export default async function Page({ params }) {
+  const resolvedParams = await params
+  return <div id="bar">{JSON.stringify(resolvedParams)}</div>
 }

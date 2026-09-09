@@ -64,7 +64,9 @@ describe('interception-route-prefetch-cache', () => {
       nextTestSetup({
         files: {
           app: new FileRef(join(__dirname, 'app')),
-          'app/layout.tsx': new FileRef(join(__dirname, 'app/layout-edge.tsx')),
+          'app/layout.tsx': new FileRef(
+            join(__dirname, 'app/layout.fixture-edge.tsx')
+          ),
         },
       })
     )
