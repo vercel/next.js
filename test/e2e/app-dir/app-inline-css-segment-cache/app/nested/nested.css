@@ -1,12 +1,8 @@
-p {
-  color: yellow;
-}
-
-body {
-  font-family: var(--font-1);
+.nested {
+  font-size: 100px;
 }
 
 /* A selector no minifier rewrites, to count copies of this stylesheet in output. */
-.inline-css-marker {
+.nested-css-marker {
   display: block;
 }
