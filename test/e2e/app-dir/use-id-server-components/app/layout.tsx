@@ -1,16 +1,15 @@
-import { ReactNode } from 'react'
-import { Marker } from './marker'
-
-// Rendered per request, like any route that reads cookies() or headers(). A
-// fully static prerender renders layout and page in a single Flight pass and
-// does not expose the collision.
-export const dynamic = 'force-dynamic'
+import { ReactNode, Suspense } from 'react'
+import { DynamicMarker, Marker } from './marker'
 
 export default function Root({ children }: { children: ReactNode }) {
   return (
     <html>
       <body>
-        <Marker name="layout" />
+        {/* Minted in the static shell rather than in a runtime render. */}
+        <Marker name="shell" />
+        <Suspense fallback={<span>layout loading</span>}>
+          <DynamicMarker name="layout" />
+        </Suspense>
         {children}
       </body>
     </html>
