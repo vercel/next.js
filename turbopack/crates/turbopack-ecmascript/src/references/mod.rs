@@ -282,10 +282,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 self.add_code_gen(code_gen);
             }
             ValueLinkContext::InAlternative => {
-                if self.analyze_mode.is_tracing_assets() {
-                    // We only care about these references when tracing assets.
-                    self.references.insert(reference.into_reference());
-                }
+                debug_assert!(
+                    self.analyze_mode.is_tracing_assets(),
+                    "unexpected add_reference_code_gen InAlternative in non-tracing mode"
+                );
+                self.references.insert(reference.into_reference());
             }
         }
     }
@@ -1133,6 +1134,7 @@ async fn analyze_ecmascript_module_internal(
                         in_try,
                         eval_context.imports.get_attributes(span),
                         export_usage,
+                        ValueLinkContext::Default,
                     )
                     .await?;
                 }
@@ -1776,6 +1778,7 @@ async fn handle_dynamic_import<'a>(
     in_try: bool,
     attributes: &ImportAttributes,
     export_usage: ExportUsage,
+    link_context: ValueLinkContext,
 ) -> Result<()> {
     // If the import has a webpackIgnore/turbopackIgnore comment, skip processing
     // so the import expression is preserved as-is in the output.
@@ -1819,6 +1822,7 @@ async fn handle_dynamic_import<'a>(
         error_mode,
         state.import_externals,
         export_usage,
+        link_context,
     )
     .await
 }
@@ -1836,6 +1840,7 @@ async fn handle_dynamic_import_with_linked_args(
     error_mode: ResolveErrorMode,
     import_externals: bool,
     export_usage: ExportUsage,
+    link_context: ValueLinkContext,
 ) -> Result<()> {
     if linked_args.len() == 1 || linked_args.len() == 2 {
         let pat = js_value_to_pattern(&linked_args[0]);
@@ -1870,7 +1875,9 @@ async fn handle_dynamic_import_with_linked_args(
                 ),
             );
             if ignore_dynamic_requests {
-                analysis.add_code_gen(DynamicExpression::new_promise(ast_path.to_vec().into()));
+                if link_context != ValueLinkContext::InAlternative {
+                    analysis.add_code_gen(DynamicExpression::new_promise(ast_path.to_vec().into()));
+                }
                 return Ok(());
             }
         }
@@ -1897,7 +1904,7 @@ async fn handle_dynamic_import_with_linked_args(
             )
             .await?,
             ast_path.to_vec().into(),
-            ValueLinkContext::Default,
+            link_context,
         );
         return Ok(());
     }
@@ -1948,6 +1955,13 @@ where
 {
     fn explain_args(args: &[JsValue<'_>]) -> (String, String) {
         JsValue::explain_args(args, 10, 2)
+    }
+
+    if link_context == ValueLinkContext::InAlternative && !analysis.analyze_mode.is_tracing_assets()
+    {
+        // We are in an alternative (can't do any replacement anyway) and are not tracing assets, so
+        // we can skip further processing.
+        return Ok(());
     }
 
     let error_mode = if attributes.optional {
@@ -2215,6 +2229,7 @@ where
                 error_mode,
                 state.import_externals,
                 export_usage,
+                link_context,
             )
             .await?;
         }
