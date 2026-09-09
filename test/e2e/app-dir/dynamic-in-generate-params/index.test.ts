@@ -11,10 +11,12 @@ function assertSitemapResponse(res: Response) {
   expect(res.headers.get('content-type')).toContain('application/xml')
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('app-dir - dynamic in generate params', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should render sitemap with generateSitemaps in force-dynamic config dynamically', async () => {
