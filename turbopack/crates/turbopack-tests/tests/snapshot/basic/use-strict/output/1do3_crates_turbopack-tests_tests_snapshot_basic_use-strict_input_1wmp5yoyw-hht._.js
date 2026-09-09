@@ -7,6 +7,7 @@ module.exports = function() {
 }),
 (()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+"use strict";
 
 const strictA = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/strict-a.js [test] (ecmascript)");
 const strictB = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/strict-b.js [test] (ecmascript)").default;
@@ -21,10 +22,12 @@ console.log('this is CJS', strictA, strictB, sloppy);
 module.exports = strictA + strictB + sloppy;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/strict-a.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+"use strict";
 
 module.exports = 1000;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/strict-b.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([
     "default",

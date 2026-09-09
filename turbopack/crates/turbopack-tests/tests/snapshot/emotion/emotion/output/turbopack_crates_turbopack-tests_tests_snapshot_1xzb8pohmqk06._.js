@@ -6,6 +6,7 @@
 }),
 (()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$node_modules$2f40$emotion$2f$react$2f$jsx$2d$dev$2d$runtime$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/jsx-dev-runtime.js [test] (ecmascript)");
@@ -32,6 +33,7 @@ function ClassNameButton({ children }) {
 console.log(StyledButton, ClassNameButton);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([
     "jsx",
@@ -42,6 +44,7 @@ function jsx() {
 }
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/node_modules/@emotion/react/jsx-dev-runtime.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([
     "jsxDEV",

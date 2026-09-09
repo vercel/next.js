@@ -26,6 +26,7 @@ console.log(/*TURBOPACK member replacement*/ __turbopack_context__.t);
 }),
 (()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$typeof$2f$input$2f$dep$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/dep.js [test] (ecmascript)");
@@ -51,6 +52,7 @@ console.log('typeof exports', ("TURBOPACK compile-time value", "undefined"));
 console.log(/*TURBOPACK member replacement*/ __turbopack_context__.z);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([]);
 var __TURBOPACK__import$2e$meta__ = {
@@ -74,6 +76,7 @@ console.log('typeof exports', ("TURBOPACK compile-time value", "undefined"));
 console.log(/*TURBOPACK member replacement*/ __turbopack_context__.z);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$comptime$2f$typeof$2f$input$2f$cjs$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js [test] (ecmascript)");

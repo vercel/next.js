@@ -28,10 +28,7 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptModuleContent,
-    chunk::{
-        chunk_type::EcmascriptChunkType, factory_group::STRICT_MODE_DIRECTIVE,
-        placeable::EcmascriptChunkPlaceable,
-    },
+    chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::StringifyJs,
@@ -127,7 +124,7 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(&self, omit_use_strict: bool) -> Result<ResolvedVc<PersistedCode>> {
+    async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
         let mut code = CodeBuilder::default();
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
@@ -149,8 +146,8 @@ impl EcmascriptChunkItemContent {
             code += "){\n";
         }
 
-        if self.options.strict && !omit_use_strict {
-            code += STRICT_MODE_DIRECTIVE;
+        if self.options.strict {
+            code += "\"use strict\";\n\n";
         } else {
             code += "\n";
         }
@@ -224,18 +221,6 @@ pub struct EcmascriptChunkItemWithAsyncInfo {
 }
 
 impl EcmascriptChunkItemWithAsyncInfo {
-    pub async fn is_strict(&self) -> Result<bool> {
-        Ok(self
-            .chunk_item
-            .into_trait_ref()
-            .await?
-            .content_with_async_module_info(self.async_info.map(|info| *info), false)
-            .await?
-            .await?
-            .options
-            .strict)
-    }
-
     pub fn from_chunk_item(
         chunk_item: &ChunkItemWithAsyncModuleInfo,
     ) -> Result<EcmascriptChunkItemWithAsyncInfo> {
@@ -274,13 +259,6 @@ pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
 pub trait EcmascriptChunkItemExt {
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code>;
-
-    /// Generates a module factory without its strict-mode directive. The caller must create the
-    /// factory in a strict context when the chunk item is strict.
-    fn code_without_use_strict(
-        self: Vc<Self>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<Code>;
 }
 
 impl<T> EcmascriptChunkItemExt for T
@@ -289,24 +267,8 @@ where
 {
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
-        module_factory_with_code_generation_issue(
-            Vc::upcast_non_strict(self),
-            async_module_info,
-            false,
-        )
-        .to_code()
-    }
-
-    fn code_without_use_strict(
-        self: Vc<Self>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<Code> {
-        module_factory_with_code_generation_issue(
-            Vc::upcast_non_strict(self),
-            async_module_info,
-            true,
-        )
-        .to_code()
+        module_factory_with_code_generation_issue(Vc::upcast_non_strict(self), async_module_info)
+            .to_code()
     }
 }
 
@@ -314,21 +276,19 @@ where
 async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
-    omit_use_strict: bool,
 ) -> Result<Vc<PersistedCode>> {
     async fn get_content(
         chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-        omit_use_strict: bool,
     ) -> Result<ResolvedVc<PersistedCode>> {
         let chunk_item_ref = chunk_item.into_trait_ref().await?;
         let content = chunk_item_ref
             .content_with_async_module_info(async_module_info, false)
             .await?
             .await?;
-        content.module_factory(omit_use_strict).await
+        content.module_factory().await
     }
-    let content = get_content(chunk_item, async_module_info, omit_use_strict).await;
+    let content = get_content(chunk_item, async_module_info).await;
     Ok(match content {
         Ok(factory) => *factory,
         Err(error) => {

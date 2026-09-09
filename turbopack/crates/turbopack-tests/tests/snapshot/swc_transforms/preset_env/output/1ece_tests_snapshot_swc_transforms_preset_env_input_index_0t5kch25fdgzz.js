@@ -656,37 +656,28 @@ contextPrototype.f = moduleContext;
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
-// Factories are usually stored in one flat array. Chunks with enough strict
-// factories append those as a nested array after the flat non-strict factories.
+// The flat format alternates one or more module IDs with their factory function.
+// Strict factories can be appended as a nested array.
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     var strictFactories = chunkModules[chunkModules.length - 1];
-    var flatFactoriesEnd = Array.isArray(strictFactories) ? chunkModules.length - 1 : chunkModules.length;
-    installFlatModuleFactories(chunkModules, offset, flatFactoriesEnd, moduleFactories, newModuleId);
-    if (Array.isArray(strictFactories)) {
-        installFlatModuleFactories(strictFactories, 0, strictFactories.length, moduleFactories, newModuleId);
-    }
-}
-// The flat format alternates one or more module IDs with their factory function.
-// Walking this is a little complex, but the structure is fast to traverse and
-// `typeof` distinguishes module IDs from factories.
-function installFlatModuleFactories(chunkModules, offset, end, moduleFactories, newModuleId) {
+    var length = Array.isArray(strictFactories) ? chunkModules.length - 1 : chunkModules.length;
     var i = offset;
-    while(i < end){
-        var factoryIndex = i + 1;
+    while(i < length){
+        var end = i + 1;
         // Find our factory function
-        while(factoryIndex < end && typeof chunkModules[factoryIndex] !== 'function'){
-            factoryIndex++;
+        while(end < length && typeof chunkModules[end] !== 'function'){
+            end++;
         }
-        if (factoryIndex === end) {
+        if (end === length) {
             throw new Error('malformed chunk format, expected a factory function');
         }
         // Install the factory for each module ID that doesn't already have one.
         // When some IDs in this group already have a factory, reuse that existing
         // group factory for the missing IDs to keep all IDs in the group consistent.
         // Otherwise, install the factory from this chunk.
-        var moduleFactoryFn = chunkModules[factoryIndex];
+        var moduleFactoryFn = chunkModules[end];
         var existingGroupFactory = undefined;
-        for(var j = i; j < factoryIndex; j++){
+        for(var j = i; j < end; j++){
             var id = chunkModules[j];
             var existingFactory = moduleFactories.get(id);
             if (existingFactory) {
@@ -696,7 +687,7 @@ function installFlatModuleFactories(chunkModules, offset, end, moduleFactories, 
         }
         var factoryToInstall = existingGroupFactory !== null && existingGroupFactory !== void 0 ? existingGroupFactory : moduleFactoryFn;
         var didInstallFactory = false;
-        for(var j1 = i; j1 < factoryIndex; j1++){
+        for(var j1 = i; j1 < end; j1++){
             var id1 = chunkModules[j1];
             if (!moduleFactories.has(id1)) {
                 if (!didInstallFactory) {
@@ -709,7 +700,10 @@ function installFlatModuleFactories(chunkModules, offset, end, moduleFactories, 
                 newModuleId === null || newModuleId === void 0 ? void 0 : newModuleId(id1);
             }
         }
-        i = factoryIndex + 1;
+        i = end + 1;
+    }
+    if (Array.isArray(strictFactories)) {
+        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
     }
 }
 /**

@@ -6,6 +6,7 @@ exports.hello = 'World';
 }),
 (()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([], undefined, true);
 // b.js
@@ -15,6 +16,7 @@ __turbopack_context__.j(__TURBOPACK__imported__module__$5b$project$5d2f$turbopac
 ;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/c.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([], undefined, true);
 // c.js
@@ -23,6 +25,7 @@ __turbopack_context__.j(__TURBOPACK__imported__module__$5b$project$5d2f$turbopac
 ;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([]);
 // a.js

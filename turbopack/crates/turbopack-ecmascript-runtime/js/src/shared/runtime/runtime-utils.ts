@@ -582,8 +582,8 @@ function getChunkPath(chunkData: ChunkData): ChunkPath {
 }
 
 // Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
-// Factories are usually stored in one flat array. Chunks with enough strict
-// factories append those as a nested array after the flat non-strict factories.
+// The flat format alternates one or more module IDs with their factory function.
+// Strict factories can be appended as a nested array.
 function installCompressedModuleFactories(
   chunkModules: CompressedModuleFactories,
   offset: number,
@@ -591,49 +591,17 @@ function installCompressedModuleFactories(
   newModuleId?: (id: ModuleId) => void
 ) {
   const strictFactories = chunkModules[chunkModules.length - 1]
-  const flatFactoriesEnd = Array.isArray(strictFactories)
+  const length = Array.isArray(strictFactories)
     ? chunkModules.length - 1
     : chunkModules.length
-
-  installFlatModuleFactories(
-    chunkModules as FlatCompressedModuleFactories,
-    offset,
-    flatFactoriesEnd,
-    moduleFactories,
-    newModuleId
-  )
-  if (Array.isArray(strictFactories)) {
-    installFlatModuleFactories(
-      strictFactories,
-      0,
-      strictFactories.length,
-      moduleFactories,
-      newModuleId
-    )
-  }
-}
-
-// The flat format alternates one or more module IDs with their factory function.
-// Walking this is a little complex, but the structure is fast to traverse and
-// `typeof` distinguishes module IDs from factories.
-function installFlatModuleFactories(
-  chunkModules: FlatCompressedModuleFactories,
-  offset: number,
-  end: number,
-  moduleFactories: ModuleFactories,
-  newModuleId?: (id: ModuleId) => void
-) {
   let i = offset
-  while (i < end) {
-    let factoryIndex = i + 1
+  while (i < length) {
+    let end = i + 1
     // Find our factory function
-    while (
-      factoryIndex < end &&
-      typeof chunkModules[factoryIndex] !== 'function'
-    ) {
-      factoryIndex++
+    while (end < length && typeof chunkModules[end] !== 'function') {
+      end++
     }
-    if (factoryIndex === end) {
+    if (end === length) {
       throw new Error('malformed chunk format, expected a factory function')
     }
 
@@ -641,9 +609,9 @@ function installFlatModuleFactories(
     // When some IDs in this group already have a factory, reuse that existing
     // group factory for the missing IDs to keep all IDs in the group consistent.
     // Otherwise, install the factory from this chunk.
-    const moduleFactoryFn = chunkModules[factoryIndex] as Function
+    const moduleFactoryFn = chunkModules[end] as Function
     let existingGroupFactory: Function | undefined = undefined
-    for (let j = i; j < factoryIndex; j++) {
+    for (let j = i; j < end; j++) {
       const id = chunkModules[j] as ModuleId
       const existingFactory = moduleFactories.get(id)
       if (existingFactory) {
@@ -654,7 +622,7 @@ function installFlatModuleFactories(
     const factoryToInstall = existingGroupFactory ?? moduleFactoryFn
 
     let didInstallFactory = false
-    for (let j = i; j < factoryIndex; j++) {
+    for (let j = i; j < end; j++) {
       const id = chunkModules[j] as ModuleId
       if (!moduleFactories.has(id)) {
         if (!didInstallFactory) {
@@ -667,7 +635,15 @@ function installFlatModuleFactories(
         newModuleId?.(id)
       }
     }
-    i = factoryIndex + 1
+    i = end + 1
+  }
+  if (Array.isArray(strictFactories)) {
+    installCompressedModuleFactories(
+      strictFactories,
+      0,
+      moduleFactories,
+      newModuleId
+    )
   }
 }
 

@@ -1,5 +1,6 @@
 (()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_basic_use-strict_input_1fuq2pc5luz9r._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/all-strict-a.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([
     "a",
@@ -8,6 +9,7 @@ __turbopack_context__.s([
 const a = 1;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/all-strict-b.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([
     "b",
@@ -16,6 +18,7 @@ __turbopack_context__.s([
 const b = 2;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/all-strict.js [test] (ecmascript)", ((__turbopack_context__) => {
+"use strict";
 
 __turbopack_context__.s([
     "value",
