@@ -12,4 +12,5 @@ export const browserVariantModules = [
   'client/components/navigation-dynamic-rendering',
   'client/components/server-async-storage',
   'client/components/unstable-rethrow',
+  'client/image-placeholder-bootstrap',
 ] as const

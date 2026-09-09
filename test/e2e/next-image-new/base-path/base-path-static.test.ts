@@ -162,7 +162,7 @@ describe('Static Image Component Tests for basePath', () => {
     if (isNextDev) {
       if (isTurbopack) {
         expect(style).toContain(
-          `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:url("data:image/svg+xml`
+          `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:var(--next-image-image, revert-layer);--next-image-image:url("data:image/svg+xml`
         )
       } else {
         expect(style).toBe(
@@ -172,7 +172,7 @@ describe('Static Image Component Tests for basePath', () => {
     } else {
       if (isTurbopack) {
         expect(style).toContain(
-          `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:url("data:image/svg+xml`
+          `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:var(--next-image-image, revert-layer);--next-image-image:url("data:image/svg+xml`
         )
       } else {
         expect(style).toBe(
@@ -187,7 +187,7 @@ describe('Static Image Component Tests for basePath', () => {
     if (isNextDev) {
       if (isTurbopack) {
         expect(style).toContain(
-          `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:url("data:image/svg+xml`
+          `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:var(--next-image-image, revert-layer);--next-image-image:url("data:image/svg+xml`
         )
       } else {
         expect(style).toBe(
@@ -197,7 +197,7 @@ describe('Static Image Component Tests for basePath', () => {
     } else {
       if (isTurbopack) {
         expect(style).toContain(
-          `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:url("data:image/svg+xml`
+          `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:var(--next-image-image, revert-layer);--next-image-image:url("data:image/svg+xml`
         )
       } else {
         expect(style).toBe(

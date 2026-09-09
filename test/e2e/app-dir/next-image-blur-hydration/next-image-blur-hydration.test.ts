@@ -61,11 +61,17 @@ describe('next-image-blur-hydration', () => {
       await before(page)
       expect(await page.locator('#hydration').textContent()).toBe('server')
       release()
+      // Releasing the requests starts downloading and evaluating the client
+      // bundles. Development compilation on CI can exceed retry's 3s default.
       await retry(async () => {
+        expect(hydrationErrors).toEqual([])
         expect(await page.locator('#hydration').textContent()).toBe('hydrated')
-      })
+      }, 30000)
       await after(page)
       expect(hydrationErrors).toEqual([])
+    } catch (error) {
+      console.error('Hydration errors:', hydrationErrors)
+      throw error
     } finally {
       release()
       cleanup?.()
@@ -106,6 +112,20 @@ describe('next-image-blur-hydration', () => {
     const $ = await next.render$('/empty')
     expect($('#__next-image-blur').length).toBe(0)
     expect($('#image').attr('data-nimg-placeholder')).toBeUndefined()
+  })
+
+  it('keeps the bootstrap implementation out of browser chunks', async () => {
+    const $ = await next.render$('/')
+    const scripts = $('script[src]')
+      .map((_, script) => $(script).attr('src'))
+      .get()
+      .filter((src) => src.startsWith('/_next/static/'))
+    expect(scripts.length).toBeGreaterThan(0)
+    for (const src of scripts) {
+      const response = await next.fetch(src)
+      expect(response.status).toBe(200)
+      expect(await response.text()).not.toContain('data-next-image-blur')
+    }
   })
 
   it.each(['complete', 'unmount'])(
@@ -760,6 +780,9 @@ describe('next-image-blur-hydration', () => {
           naturalWidth: (img as HTMLImageElement).naturalWidth,
           background: getComputedStyle(img).backgroundImage,
         }))
+        expect(before.complete).toBe(true)
+        expect(before.naturalWidth).toBeGreaterThan(0)
+        expect(before.background).toBe('none')
         if (
           process.env.NEXT_IMAGE_BLUR_SCREENSHOT &&
           (pathname === '/' || pathname === '/pages-image')
@@ -771,6 +794,38 @@ describe('next-image-blur-hydration', () => {
         releaseHydration()
         if (pathname === '/stream')
           await page.evaluate(() => window.releaseImageHydration?.())
+        if (
+          pathname === '/csp' &&
+          !isNextDev &&
+          (await next.getResolvedConfig()).cacheComponents
+        ) {
+          // A prerendered shell cannot carry a request nonce, so nonce-only
+          // CSP blocks its hydration scripts. The image bootstrap is streamed
+          // with the nonce and must still remove the blur independently.
+          // The fully dynamic nonce/hydration path is covered by /csp-pages.
+          await page.waitForLoadState('load')
+          expect(
+            await page
+              .locator('script[src^="/_next/static/"]')
+              .evaluateAll((scripts: HTMLScriptElement[]) =>
+                scripts.some((script) => !script.nonce)
+              )
+          ).toBe(true)
+          expect(errors.length).toBeGreaterThan(0)
+          expect(
+            errors.every((error) =>
+              /content[- ]security[- ]policy/i.test(error)
+            )
+          ).toBe(true)
+          expect(await page.locator('#hydration').textContent()).toBe('server')
+          expect(await page.locator('#loads').textContent()).toBe('0')
+          expect(
+            await page
+              .locator('#image')
+              .evaluate((img) => getComputedStyle(img).backgroundImage)
+          ).toBe('none')
+          return
+        }
         await retry(async () => {
           expect(await page.locator('#hydration').textContent()).toBe(
             'hydrated'
@@ -781,7 +836,7 @@ describe('next-image-blur-hydration', () => {
               .locator('#image')
               .evaluate((img) => getComputedStyle(img).backgroundImage)
           ).toBe('none')
-        })
+        }, 30000)
         await page.locator('#rerender').click()
         expect(await page.locator('#loads').textContent()).toBe('1')
         expect(
@@ -794,9 +849,6 @@ describe('next-image-blur-hydration', () => {
           expect(await page.locator('#loads').textContent()).toBe('2')
         })
         expect(errors).toEqual([])
-        expect(before.complete).toBe(true)
-        expect(before.naturalWidth).toBeGreaterThan(0)
-        expect(before.background).toBe('none')
       } finally {
         releaseHydration()
         releaseImage()

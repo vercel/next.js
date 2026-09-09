@@ -175,7 +175,7 @@ import cheerio from 'cheerio'
       if (isNextDev) {
         if (isTurbopack) {
           expect(style).toContain(
-            `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:url("data:image/svg+xml`
+            `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:var(--next-image-image, revert-layer);--next-image-image:url("data:image/svg+xml`
           )
         } else {
           expect(style).toBe(
@@ -185,7 +185,7 @@ import cheerio from 'cheerio'
       } else {
         if (isTurbopack) {
           expect(style).toContain(
-            `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:url("data:image/svg+xml`
+            `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:var(--next-image-image, revert-layer);--next-image-image:url("data:image/svg+xml`
           )
         } else {
           expect(style).toBe(
@@ -200,7 +200,7 @@ import cheerio from 'cheerio'
       if (isNextDev) {
         if (isTurbopack) {
           expect(style).toContain(
-            `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:url("data:image/svg+xml`
+            `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:var(--next-image-image, revert-layer);--next-image-image:url("data:image/svg+xml`
           )
         } else {
           expect(style).toBe(
@@ -210,7 +210,7 @@ import cheerio from 'cheerio'
       } else {
         if (isTurbopack) {
           expect(style).toContain(
-            `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:url("data:image/svg+xml`
+            `color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:var(--next-image-image, revert-layer);--next-image-image:url("data:image/svg+xml`
           )
         } else {
           expect(style).toBe(
@@ -225,7 +225,7 @@ import cheerio from 'cheerio'
       if (isNextDev) {
         if (isTurbopack) {
           expect(style).toContain(
-            `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:url("data:image/svg+xml`
+            `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:var(--next-image-image, revert-layer);--next-image-image:url("data:image/svg+xml`
           )
         } else {
           expect(style).toBe(
@@ -235,7 +235,7 @@ import cheerio from 'cheerio'
       } else {
         if (isTurbopack) {
           expect(style).toContain(
-            `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:url("data:image/svg+xml`
+            `position:absolute;height:100%;width:100%;left:0;top:0;right:0;bottom:0;color:transparent;background-size:var(--next-image-size, revert-layer);background-position:var(--next-image-position, revert-layer);background-repeat:var(--next-image-repeat, revert-layer);background-image:var(--next-image-image, revert-layer);--next-image-image:url("data:image/svg+xml`
           )
         } else {
           expect(style).toBe(

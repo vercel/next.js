@@ -16,4 +16,5 @@ pub static BROWSER_VARIANT_MODULES: &[&str] = &[
     "client/components/navigation-dynamic-rendering",
     "client/components/server-async-storage",
     "client/components/unstable-rethrow",
+    "client/image-placeholder-bootstrap",
 ];

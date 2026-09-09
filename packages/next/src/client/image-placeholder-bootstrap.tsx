@@ -3,14 +3,7 @@
 import { useContext } from 'react'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
 import { ServerInsertedHTMLContext } from '../shared/lib/server-inserted-html.shared-runtime'
-
-// An explicit server-only branch lets bundlers exclude the serialized program.
-const imageBlurBootstrap =
-  typeof window === 'undefined'
-    ? (
-        require('./image-blur-bootstrap') as typeof import('./image-blur-bootstrap')
-      ).imageBlurBootstrap
-    : undefined
+import { imageBlurBootstrap } from './image-blur-bootstrap'
 
 // The keys belong to an individual SSR request, not to an Image instance. Weak
 // references avoid retaining requests after their HTML has finished rendering.
@@ -29,7 +22,7 @@ export function ImagePlaceholderBootstrap() {
     id: '__next-image-blur',
     nonce: headManager.nonce,
     dangerouslySetInnerHTML: {
-      __html: `(${imageBlurBootstrap!.toString()})()`,
+      __html: `(${imageBlurBootstrap.toString()})()`,
     },
   }
   if (insertHTML) {

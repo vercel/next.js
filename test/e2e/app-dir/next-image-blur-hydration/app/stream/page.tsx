@@ -5,6 +5,7 @@ import HydrationGate from '../../components/hydration-gate'
 import { streamControl } from '../../components/stream-control'
 
 async function StreamedImages() {
+  await connection()
   await new Promise<void>((resolve) => {
     streamControl.releaseImageStream = resolve
   })
@@ -15,8 +16,7 @@ async function StreamedImages() {
   )
 }
 
-export default async function Page() {
-  await connection()
+export default function Page() {
   return (
     <Suspense
       fallback={
