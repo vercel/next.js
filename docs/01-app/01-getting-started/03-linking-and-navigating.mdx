@@ -1,6 +1,6 @@
 ---
 title: Linking and Navigating
-description: Learn how to navigate between routes with the Link component and useRouter, and how prefetching, streaming, and client-side transitions keep navigation fast.
+description: Learn how to navigate between routes with the Link component, how to do programmatic navigation with useRouter, and how prefetching, streaming, and client-side transitions keep navigation fast.
 related:
   links:
     - app/api-reference/components/link
@@ -10,11 +10,11 @@ related:
     - app/guides/prefetching
 ---
 
-You navigate between routes with the [`<Link>` component](/docs/app/getting-started/layouts-and-pages#linking-between-pages), or with [`useRouter`](/docs/app/api-reference/functions/use-router) when the navigation happens from code. Both perform a client-side transition instead of a full page load.
+You navigate between routes with the [`<Link>` component](/docs/app/getting-started/layouts-and-pages#linking-between-pages), or with [`useRouter`](/docs/app/api-reference/functions/use-router) when you need to navigate programmatically. Both perform a client-side transition instead of a full page load.
 
 This page explains how navigation works in Next.js, and what to do when a transition still feels slow.
 
-## Navigating from code
+## Programmatic navigation
 
 When a navigation is the result of something other than a click on a link, such as a successful form submission or a redirect after checking a condition, use the [`useRouter`](/docs/app/api-reference/functions/use-router) hook from a Client Component:
 
