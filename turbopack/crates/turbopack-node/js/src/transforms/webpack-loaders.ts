@@ -183,6 +183,7 @@ const transform = (
       {
         resource: resource + query,
         context: {
+          version: 2,
           _module: {
             // For debugging purpose, if someone find context is not full compatible to
             // webpack they can guess this comes from turbopack
@@ -214,6 +215,13 @@ const transform = (
                   }
                 )
             },
+          },
+          resolve(
+            lookupPath: string,
+            request: string,
+            callback: (err?: Error, result?: string) => void
+          ) {
+            return this.getResolve()(lookupPath, request, callback)
           },
           getResolve: (options: ResolveOptions = {}) => {
             const rustOptions = {

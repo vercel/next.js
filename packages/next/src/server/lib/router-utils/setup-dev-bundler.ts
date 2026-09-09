@@ -88,6 +88,7 @@ import {
 import { getDefineEnv } from '../../../build/define-env'
 import { TurbopackInternalError } from '../../../shared/lib/turbopack/internal-error'
 import { normalizePath } from '../../../lib/normalize-path'
+import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
   MIDDLEWARE_FILENAME,
@@ -384,24 +385,37 @@ async function startWatcher(
   let prevSortedRoutes: string[] = []
   let hasComputedSortedRoutes = false
 
-  await new Promise<void>(async (resolve, reject) => {
-    if (pagesDir) {
-      // Watchpack doesn't emit an event for an empty directory
-      fs.readdir(pagesDir, (_, files) => {
-        if (files?.length) {
-          return
-        }
+  const pages = pagesDir ? [pagesDir] : []
+  const app = appDir ? [appDir] : []
+  const directories = [...pages, ...app]
 
-        if (!resolved) {
-          resolve()
-          resolved = true
+  // Snapshot the route directories before watching starts. Watchpack can report
+  // its first aggregation while a directory scan is still in flight, so route
+  // discovery needs this snapshot to avoid observing a partial filesystem.
+  const initialFiles = (
+    await Promise.all(
+      directories.map(async (directory) => {
+        try {
+          return await recursiveReadDir(directory, {
+            relativePathnames: false,
+          })
+        } catch (err: any) {
+          // The directory can be removed while the dev server boots. Watchpack
+          // reports that as a removal later on.
+          if (err.code !== 'ENOENT') throw err
+          return []
         }
       })
-    }
+    )
+  ).flat()
+  const initialPageFiles = initialFiles.filter(validFileMatcher.isPageFile)
 
-    const pages = pagesDir ? [pagesDir] : []
-    const app = appDir ? [appDir] : []
-    const directories = [...pages, ...app]
+  await new Promise<void>(async (resolve, reject) => {
+    if (initialFiles.length === 0) {
+      // Watchpack doesn't emit an event when all route directories are empty.
+      resolve()
+      resolved = true
+    }
 
     const rootDir = pagesDir || appDir
     const files = [
@@ -455,14 +469,32 @@ async function startWatcher(
     const validatorFilePath = path.join(distDir, 'types', 'validator.ts')
 
     let initialWatchTime = performance.now() + performance.timeOrigin
+    // Startup only waits this long for Watchpack to observe the files found by
+    // the snapshot above, so a file it never reports cannot stall the server.
+    const initialScanDeadline = initialWatchTime + 30_000
     wp.on('aggregated', async () => {
       const isInitialScan = !hadInitialScan
-      hadInitialScan = true
       let writeEnvDefinitions = false
       let typescriptStatusFromLastAggregation = enabledTypeScript
       let middlewareMatchers: ProxyMatcher[] | undefined
       const routedPages: string[] = []
       const knownFiles = wp.getTimeInfoEntries()
+
+      // Watchpack can emit an aggregation while its initial directory scan is
+      // still in flight. Ignore partial startup passes so route definitions and
+      // errors are not published until every initial page file is observable.
+      // Bounded by a deadline so an unwatchable file can never block startup.
+      if (
+        !resolved &&
+        performance.now() + performance.timeOrigin < initialScanDeadline &&
+        initialPageFiles.some(
+          (file) => fs.existsSync(file) && !knownFiles.has(file)
+        )
+      ) {
+        return
+      }
+      hadInitialScan = true
+
       const appPaths: Record<string, string[]> = {}
       const defaultAppPaths = new Set<string>()
       const pageNameSet = new Set<string>()
