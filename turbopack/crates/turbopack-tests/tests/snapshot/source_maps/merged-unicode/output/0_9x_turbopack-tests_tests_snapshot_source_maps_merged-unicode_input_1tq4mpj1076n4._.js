@@ -20,7 +20,7 @@ if (Date.now() > 0) {
     __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/index2.js [test] (ecmascript)");
 }
 }),
-(function(){"use strict";return[
+(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.s([], "[project]/turbopack/crates/turbopack-tests/tests/snapshot/source_maps/merged-unicode/input/entry-base.js [test] (ecmascript)");

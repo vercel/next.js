@@ -24,7 +24,7 @@ console.log(/*TURBOPACK member replacement*/ __turbopack_context__.t);
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/dep.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 }),
-(function(){"use strict";return[
+(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.s([]);
