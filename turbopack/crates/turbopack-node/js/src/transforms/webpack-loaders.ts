@@ -3,7 +3,6 @@ declare const __turbopack_external_require__: {
 } & ((id: string, thunk: () => any, esm?: boolean) => any)
 
 import type { Channel as Ipc } from '../types'
-import { dirname, resolve as pathResolve, relative } from 'path'
 import {
   StackFrame,
   parse as parseStackTrace,
@@ -69,7 +68,7 @@ const {
   runLoaders,
 }: typeof import('loader-runner') = require('@vercel/turbopack/loader-runner')
 
-const contextDir = process.cwd()
+const projectDir = process.cwd()
 
 const LogType = Object.freeze({
   error: 'error',
@@ -165,8 +164,8 @@ const transform = (
   sourceMap: boolean
 ) => {
   return new Promise((resolve, reject) => {
-    const resource = pathResolve(contextDir, name)
-    const resourceDir = dirname(resource)
+    const resource = path.resolve(projectDir, name)
+    const resourceDir = path.dirname(resource)
 
     const loadersWithOptions = loaders.map((loader) =>
       typeof loader === 'string' ? { loader, options: {} } : loader
@@ -190,7 +189,7 @@ const transform = (
             __reserved: 'TurbopackContext',
           },
           currentTraceSpan: new DummySpan(),
-          rootContext: contextDir,
+          rootContext: projectDir,
           sourceMap,
           getOptions() {
             const entry = this.loaders[this.loaderIndex]
@@ -203,7 +202,7 @@ const transform = (
               ipc
                 .sendRequest({
                   type: 'trackFileRead',
-                  file: relative(contextDir, pathResolve(p)),
+                  file: path.relative(projectDir, path.resolve(p)),
                 })
                 .then(
                   () => {
@@ -529,7 +528,7 @@ const transform = (
 
         loaders: loadersWithOptions.map((loader) => ({
           loader: __turbopack_external_require__.resolve(loader.loader, {
-            paths: [contextDir, resourceDir],
+            paths: [projectDir],
           }),
           options: loader.options,
         })),
@@ -562,7 +561,7 @@ const transform = (
           const loaderPathList = loadersWithOptions.map((l) => {
             try {
               return __turbopack_external_require__.resolve(l.loader, {
-                paths: [contextDir, resourceDir],
+                paths: [projectDir],
               })
             } catch {
               return l.loader
