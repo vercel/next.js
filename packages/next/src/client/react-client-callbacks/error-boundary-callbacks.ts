@@ -89,7 +89,11 @@ export function onCaughtError(
     // Log and report the error with location but without modifying the error stack
     devToolErrorMod.originConsoleError('%o\n\n%s', thrownValue, errorLocation)
 
-    devToolErrorMod.handleClientError(error)
+    if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+      devToolErrorMod.handleClientError(error, { fatal: false })
+    } else {
+      devToolErrorMod.handleClientError(error)
+    }
   } else {
     devToolErrorMod.originConsoleError(thrownValue)
   }
@@ -101,6 +105,11 @@ export function onUncaughtError(thrownValue: unknown) {
 
   if (process.env.NODE_ENV !== 'production') {
     const error = devToolErrorMod.decorateDevError(thrownValue)
+    if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+      const { setRuntimeErrorMetadata } =
+        require('../../next-devtools/userspace/app/errors/runtime-error-metadata') as typeof import('../../next-devtools/userspace/app/errors/runtime-error-metadata')
+      setRuntimeErrorMetadata(error, { fatal: true })
+    }
 
     // TODO: Add an adendum to the overlay telling people about custom error boundaries.
     reportGlobalError(error)

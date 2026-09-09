@@ -15,6 +15,11 @@ export type SupportedErrorEvent = {
   type: 'runtime' | 'recoverable' | 'console'
 }
 
+export type RuntimeErrorEvent = SupportedErrorEvent & {
+  /** A React root failure or a Next.js unrecoverable rendering path. */
+  isFatal: boolean
+}
+
 type Props = {
   children: (params: {
     runtimeErrors: ReadyRuntimeError[]
@@ -41,7 +46,12 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
   const { errors } = state
 
   const [lookups, setLookups] = useState<{
-    [eventId: string]: ReadyRuntimeError
+    [eventId: string]:
+      | ReadyRuntimeError
+      | {
+          event: RuntimeErrorEvent
+          resolved: ReadyRuntimeError
+        }
   }>({})
 
   const [runtimeErrors, nextError] = useMemo<
@@ -55,11 +65,30 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
       const e = errors[idx]
       const { id } = e
       if (id in lookups) {
-        ready.push(lookups[id])
+        const lookup = lookups[id]
+        if (!('event' in lookup)) {
+          ready.push(lookup)
+          continue
+        }
+        const resolved = lookup.resolved
+        if (lookup.event !== e) {
+          // Dedupe promotion preserves the ID while replacing the event.
+          // Keep the overlay mounted while resolving the replacement frames.
+          if (next === null) {
+            next = e
+          }
+          ready.push(
+            resolved.type === e.type ? resolved : { ...resolved, type: e.type }
+          )
+          continue
+        }
+        ready.push(resolved)
         continue
       }
 
-      next = e
+      if (next === null) {
+        next = e
+      }
       break
     }
 
@@ -73,7 +102,13 @@ const RenderRuntimeError = ({ children, state, isAppDir }: Props) => {
 
     const resolved = getErrorByType(nextError, isAppDir)
     // eslint-disable-next-line react-hooks/set-state-in-effect -- TODO: fetch-while-rendering
-    setLookups((m) => ({ ...m, [resolved.id]: resolved }))
+    setLookups((m) => ({
+      ...m,
+      [resolved.id]:
+        'isFatal' in nextError
+          ? { event: nextError as RuntimeErrorEvent, resolved }
+          : resolved,
+    }))
   }, [nextError, isAppDir])
 
   const totalErrorCount = errors.length
