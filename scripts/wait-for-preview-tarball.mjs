@@ -479,11 +479,14 @@ export async function waitForPreviewTarball({
       const producerDescription = `build-and-deploy run ${producerRun.runId} attempt ${producerRun.attempt}`
       if (producerRun.state === 'failure') {
         const failureKey = `${producerRun.runId}:${producerRun.attempt}`
-        if (producerFailureKey !== failureKey) {
-          producerFailureKey = failureKey
-          producerFailureObservedAt = checkedAt
-        }
-        deadline = producerFailureObservedAt + producerRetryGraceMs
+        const failureObservedAt =
+          producerFailureKey === failureKey &&
+          producerFailureObservedAt !== null
+            ? producerFailureObservedAt
+            : checkedAt
+        producerFailureKey = failureKey
+        producerFailureObservedAt = failureObservedAt
+        deadline = failureObservedAt + producerRetryGraceMs
         if (checkedAt >= deadline) {
           throw new Error(
             `Preview tarball for commit ${commitSha} was not published because ${producerDescription} ` +
