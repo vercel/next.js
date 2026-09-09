@@ -10321,6 +10321,7 @@ name = "turbo-unix-path"
 version = "0.0.1"
 dependencies = [
  "rstest",
+ "smallvec",
 ]
 
 [[package]]
