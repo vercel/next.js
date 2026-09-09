@@ -82,7 +82,7 @@ pub fn lazy_compilation_state(key: RcStr) -> Vc<LazyCompilationState> {
 #[turbo_tasks::value]
 #[derive(ValueToString)]
 #[value_to_string("lazy compilation target")]
-pub enum LazyCompilationTarget {
+enum LazyCompilationTarget {
     Deferred {
         module: ResolvedVc<EcmascriptModuleAsset>,
         canonicalization: EcmascriptModuleCanonicalization,
@@ -93,7 +93,7 @@ pub enum LazyCompilationTarget {
 #[turbo_tasks::value_impl]
 impl LazyCompilationTarget {
     #[turbo_tasks::function]
-    pub fn deferred(
+    fn deferred(
         module: ResolvedVc<EcmascriptModuleAsset>,
         canonicalization: EcmascriptModuleCanonicalization,
     ) -> Vc<Self> {
@@ -104,12 +104,12 @@ impl LazyCompilationTarget {
     }
 
     #[turbo_tasks::function]
-    pub fn direct(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
+    fn direct(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
         Self::cell(Self::Direct(module))
     }
 
     #[turbo_tasks::function]
-    pub async fn proxy_ident(&self) -> Result<Vc<AssetIdent>> {
+    async fn proxy_ident(&self) -> Result<Vc<AssetIdent>> {
         let ident = match self {
             Self::Deferred {
                 module,
@@ -170,7 +170,26 @@ pub struct LazyCompilationProxyModule {
 #[turbo_tasks::value_impl]
 impl LazyCompilationProxyModule {
     #[turbo_tasks::function]
-    pub async fn new(target: ResolvedVc<LazyCompilationTarget>) -> Result<Vc<Self>> {
+    pub async fn new_deferred(
+        module: ResolvedVc<EcmascriptModuleAsset>,
+        canonicalization: EcmascriptModuleCanonicalization,
+    ) -> Result<Vc<Self>> {
+        let target = LazyCompilationTarget::deferred(*module, canonicalization)
+            .to_resolved()
+            .await?;
+        Ok(Self::new(*target))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn new_direct(
+        module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    ) -> Result<Vc<Self>> {
+        let target = LazyCompilationTarget::direct(*module).to_resolved().await?;
+        Ok(Self::new(*target))
+    }
+
+    #[turbo_tasks::function]
+    async fn new(target: ResolvedVc<LazyCompilationTarget>) -> Result<Vc<Self>> {
         let ident = target.proxy_ident().to_resolved().await?;
         let key = activation_key(&ident.to_string().await?);
         Ok(Self::cell(Self { target, ident, key }))
