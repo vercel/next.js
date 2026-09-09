@@ -57,6 +57,38 @@ The `global-not-found.js` file bypasses your app's normal rendering, which means
 - Your app has multiple root layouts (e.g. `app/(admin)/layout.tsx` and `app/(shop)/layout.tsx`), so there's no single layout to compose a global 404 from.
 - Your root layout is defined using top-level dynamic segments (e.g. `app/[country]/layout.tsx`), which makes composing a consistent 404 page harder.
 
+### Root layouts in a dynamic segment
+
+The root `app/not-found.js` file also provides UI for globally unmatched URLs. If your only root layout is nested under a dynamic segment, such as `app/[lang]/layout.js`, a globally unmatched URL has no `lang` value, so the root not-found UI renders without that localized layout.
+
+The root `not-found.js` file can coexist with a catch-all route inside the dynamic segment. Use the catch-all when the not-found UI needs to inherit the resolved layout, or use `global-not-found.js` when you want to define the complete document for routing-level 404s:
+
+|                                      | `global-not-found.js`                             | Catch-all route with `notFound()`                                   |
+| ------------------------------------ | ------------------------------------------------- | ------------------------------------------------------------------- |
+| **Inherits the dynamic root layout** | No. Import shared styles and components directly. | Yes. The dynamic segment is resolved before `notFound()` is called. |
+| **Handles**                          | All globally unmatched URLs.                      | URLs that match the catch-all route.                                |
+| **HTTP status**                      | `404`                                             | `404` for non-streamed responses and `200` for streamed responses.  |
+
+To use the localized pattern, place the localized not-found UI at `app/[lang]/not-found.js`, and add a catch-all page that calls `notFound()`:
+
+```tsx filename="app/[lang]/[...rest]/page.tsx" switcher
+import { notFound } from 'next/navigation'
+
+export default function UnmatchedRoute() {
+  notFound()
+}
+```
+
+```jsx filename="app/[lang]/[...rest]/page.js" switcher
+import { notFound } from 'next/navigation'
+
+export default function UnmatchedRoute() {
+  notFound()
+}
+```
+
+Use `global-not-found.js` when you need a global hard `404`. Use a catch-all route when rendering the not-found UI inside the dynamic root layout is more important. For streamed responses, Next.js injects a `noindex` meta tag even though the status code is `200`. See [Status Codes](/docs/app/api-reference/file-conventions/loading#status-codes) for details.
+
 To enable it, add the `globalNotFound` flag in `next.config.ts`:
 
 ```tsx filename="next.config.ts"
