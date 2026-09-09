@@ -231,6 +231,7 @@ pub async fn get_server_resolve_options_context(
         ServerContextType::Pages { .. } | ServerContextType::PagesApi { .. } => {
             vec![
                 ResolvedVc::upcast(next_node_shared_runtime_plugin),
+                ResolvedVc::upcast(server_external_packages_plugin),
                 ResolvedVc::upcast(external_cjs_modules_plugin),
                 ResolvedVc::upcast(next_external_plugin),
             ]
