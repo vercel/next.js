@@ -139,6 +139,8 @@ Insights don't show up in the HTTP response. An offending route still returns `2
 
 **Remove the config.** Without Cache Components, `dynamic = 'force-dynamic'` rendered the entire route for every request and made its `fetch` requests uncached. With Cache Components, uncached data and [Request-time APIs](/docs/app/glossary#request-time-apis) already run at request time. Next.js prerenders any static or cached UI around them.
 
+After removing the config, [follow any validation errors or insights](#following-validation) that appear.
+
 ```tsx filename="app/page.tsx" switcher
 // Before
 export const dynamic = 'force-dynamic'
@@ -229,7 +231,7 @@ After removing the config, `fetch` no longer inherits that cached default. To pr
 
 ## `revalidate`
 
-**Replace positive revalidation times with `cacheLife`.** Without Cache Components, `revalidate` set the default revalidation time for an entire route. With Cache Components, place [`use cache`](/docs/app/api-reference/directives/use-cache) around the data or UI that should be cached, then set its lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
+**Replace revalidation times greater than zero with `cacheLife`.** Without Cache Components, `revalidate` set the default revalidation time for an entire route. With Cache Components, place [`use cache`](/docs/app/api-reference/directives/use-cache) around the data or UI that should be cached, then set its lifetime with [`cacheLife`](/docs/app/api-reference/functions/cacheLife).
 
 ```tsx filename="app/page.tsx" switcher
 // Before
