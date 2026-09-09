@@ -1690,6 +1690,20 @@ function assignDefaultsAndValidate(
 
   if (phase === PHASE_DEVELOPMENT_SERVER) {
     result.distDir = join(result.distDir, 'dev')
+
+    // In development, let `experimental.serverActions.allowedOrigins` inherit
+    // `allowedDevOrigins`. This way trusted dev hosts only need to be
+    // configured once (via `allowedDevOrigins`) to both bypass the cross-site
+    // dev request block and the Server Action CSRF check.
+    if (result.allowedDevOrigins?.length) {
+      const serverActions = (result.experimental.serverActions ??= {})
+      serverActions.allowedOrigins = Array.from(
+        new Set([
+          ...(serverActions.allowedOrigins ?? []),
+          ...result.allowedDevOrigins,
+        ])
+      )
+    }
   }
 
   // Derive the `'use cache'` fill timeout from `staticPageGenerationTimeout`
