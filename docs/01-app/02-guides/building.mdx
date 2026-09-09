@@ -18,7 +18,7 @@ Running `next build` compiles your application for production. It bundles and op
 
 This guide will show you how to read the build output, including the route table and prerender-blocking errors.
 
-> The output and errors on this page show [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, set with `cacheComponents: true` in your `next.config.ts` file. Much of the guide applies without it, but the route table symbols and the prerender-blocking errors differ. See [Enabling Cache Components](/docs/app/getting-started/caching#enabling-cache-components) for setup.
+> The output and errors on this page show [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents) enabled, set with `cacheComponents: true` in your `next.config.ts` file. Much of the guide applies without it, but the route table symbols and the prerender-blocking errors differ. See [Enabling Cache Components](/docs/app/getting-started/rendering-model#enabling-cache-components) for setup.
 
 ## What `next build` does
 
@@ -103,7 +103,7 @@ export default async function Page({ params }) {
 }
 ```
 
-During the build, Next.js prerenders as much of each route as it can at [build time](/docs/app/glossary#build-time). [Runtime data](/docs/app/glossary#request-time-apis) ([`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional), [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers)) and uncached data (`fetch()`, database calls) are not available during that pass. Wrap runtime reads in [`<Suspense>`](https://react.dev/reference/react/Suspense), and cache data accesses with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrap them in `<Suspense>` too. Otherwise, the build fails with a [`blocking-prerender-runtime`](/docs/messages/blocking-prerender-runtime) or [`blocking-prerender-dynamic`](/docs/messages/blocking-prerender-dynamic) error. [Random values and timestamps](/docs/app/getting-started/caching#random-values-and-timestamps) such as `Math.random()` or `new Date()` can also fail the build.
+During the build, Next.js prerenders as much of each route as it can at [build time](/docs/app/glossary#build-time). [Runtime data](/docs/app/glossary#request-time-apis) ([`params`](/docs/app/api-reference/file-conventions/page#params-optional), [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional), [`cookies()`](/docs/app/api-reference/functions/cookies), [`headers()`](/docs/app/api-reference/functions/headers)) and uncached data (`fetch()`, database calls) are not available during that pass. Wrap runtime reads in [`<Suspense>`](https://react.dev/reference/react/Suspense), and cache data accesses with [`use cache`](/docs/app/api-reference/directives/use-cache) or wrap them in `<Suspense>` too. Otherwise, the build fails with a [`blocking-prerender-runtime`](/docs/messages/blocking-prerender-runtime) or [`blocking-prerender-dynamic`](/docs/messages/blocking-prerender-dynamic) error. [Random values and timestamps](/docs/app/getting-started/rendering-model#random-values-and-timestamps) such as `Math.random()` or `new Date()` can also fail the build.
 
 Run `next build`. It fails with a prerender-blocking error because the `params` read and the uncached `fetch` run outside a `<Suspense>` boundary:
 
@@ -330,7 +330,7 @@ Route (app)           Revalidate  Expire
   └ ○ /products/3            15m      1y
 ```
 
-The routes [revalidate](/docs/app/getting-started/revalidating) after 15 minutes, the value of the `default` profile. The profile never expires, and the `Expire` column caps at one year, shown as `1y`. The table doesn't show which cache produced the values, so with multiple caches in a route, check their `cacheLife` calls.
+The routes [revalidate](/docs/app/getting-started/caching#cachelife) after 15 minutes, the value of the `default` profile. The profile never expires, and the `Expire` column caps at one year, shown as `1y`. The table doesn't show which cache produced the values, so with multiple caches in a route, check their `cacheLife` calls.
 
 ### A blocking route
 

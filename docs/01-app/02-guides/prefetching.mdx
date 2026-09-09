@@ -377,3 +377,12 @@ export function HoverPrefetchLink({ href, children }) {
   )
 }
 ```
+
+### Prefetching has not started yet
+
+`<Link>` is a Client Component and must be hydrated before it can prefetch. On the initial visit, large JavaScript bundles can delay hydration, so prefetching does not begin right away.
+
+React mitigates this with Selective Hydration, and you can help by:
+
+- Using the [`@next/bundle-analyzer`](/docs/app/guides/package-bundling#nextbundle-analyzer-for-webpack) plugin to find and remove large dependencies.
+- Moving logic from the client to the server where possible. See [Server and Client Components](/docs/app/getting-started/server-and-client-components).

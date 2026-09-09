@@ -50,7 +50,7 @@ Reading the current user reads the session cookie, then looks the user up. A req
 
 Because a user session is valid for a period of time, adding a cache lifetime lets the framework prefetch that content ahead of time.
 
-The server-side directives can't give it that lifetime, though: neither a plain [`use cache`](/docs/app/api-reference/directives/use-cache) nor [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) can call `cookies()`, and you can't [extract the value and pass it in](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions) either, because:
+The server-side directives can't give it that lifetime, though: neither a plain [`use cache`](/docs/app/api-reference/directives/use-cache) nor [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) can call `cookies()`, and you can't [extract the value and pass it in](/docs/app/guides/cache-components#passing-runtime-values-to-cached-functions) either, because:
 
 - A session helper reads the cookie deep inside its own code, so there's nothing to lift out.
 - Validating it compares a token's expiry against the current time (iron-session's `unsealData` rejects an expired seal), so the read is request- and time-dependent.
@@ -114,7 +114,7 @@ The `redirect()` calls throw to interrupt rendering rather than return a value, 
 
 ## Step 2: Show the user without blocking the page
 
-A component that reads the session must sit behind a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary. With Cache Components, reading `cookies()` outside a boundary is a build error. The boundary is also what keeps the rest of the page fast. Anything outside it prerenders into the [static shell](/docs/app/getting-started/caching#prerendering) and loads instantly, as long as it's static or wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache) and doesn't read runtime data of its own. Only the section behind the boundary waits for the request.
+A component that reads the session must sit behind a [`<Suspense>`](/docs/app/api-reference/file-conventions/loading) boundary. With Cache Components, reading `cookies()` outside a boundary is a build error. The boundary is also what keeps the rest of the page fast. Anything outside it prerenders into the [static shell](/docs/app/getting-started/rendering-model#the-static-shell) and loads instantly, as long as it's static or wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache) and doesn't read runtime data of its own. Only the section behind the boundary waits for the request.
 
 ```tsx filename="app/page.tsx"
 import { Suspense } from 'react'

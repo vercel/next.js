@@ -773,7 +773,7 @@ module.exports = {
 
 #### `minimumCacheTTL`
 
-`minimumCacheTTL` allows you to configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/app/getting-started/images#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
+`minimumCacheTTL` allows you to configure the Time to Live (TTL) in seconds for cached optimized images. In many cases, it's better to use a [Static Image Import](/docs/app/getting-started/styling-and-assets/images#local-images) which will automatically hash the file contents and cache the image forever with a `Cache-Control` header of `immutable`.
 
 If no configuration is provided, the default below is used.
 
@@ -1049,7 +1049,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 Styling the Image component is similar to styling a normal `<img>` element, but there are a few guidelines to keep in mind:
 
-Use `className` or `style`, not `styled-jsx`. In most cases, we recommend using the `className` prop. This can be an imported [CSS Module](/docs/app/getting-started/css), a [global stylesheet](/docs/app/getting-started/css#global-css), etc.
+Use `className` or `style`, not `styled-jsx`. In most cases, we recommend using the `className` prop. This can be an imported [CSS Module](/docs/app/getting-started/styling-and-assets/css), a [global stylesheet](/docs/app/getting-started/styling-and-assets/css#global-css), etc.
 
 ```jsx
 import styles from './styles.module.css'
