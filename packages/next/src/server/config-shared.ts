@@ -2290,7 +2290,7 @@ export const defaultConfig = Object.freeze({
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
     dynamicOnHover: false,
-    reactBrowserBailout: false,
+    reactBrowserBailout: true,
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
