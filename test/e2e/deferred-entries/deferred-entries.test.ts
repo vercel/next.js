@@ -6,6 +6,10 @@ import { Response } from 'node-fetch'
 
 const isCacheComponentsEnabled = process.env.__NEXT_CACHE_COMPONENTS === 'true'
 
+// Webpack's HMR cycle waits for all compilers, which can exceed retry's
+// default duration under load.
+const HMR_RETRY_DURATION = 10_000
+
 interface LogEntry {
   timestamp: number
   entry: string
@@ -523,14 +527,14 @@ describe('deferred-entries', () => {
         expect(newTimestamp).not.toBeNull()
         // The callback should have been called again with a newer timestamp
         expect(newTimestamp).toBeGreaterThan(initialTimestamp!)
-      })
+      }, HMR_RETRY_DURATION)
 
       // Verify the home page was updated
       await retry(async () => {
         const homeRes = await next.fetch('/')
         expect(homeRes.status).toBe(200)
         expect(await homeRes.text()).toContain('Home Page Updated')
-      })
+      }, HMR_RETRY_DURATION)
     })
 
     it('should update deferred rendered timestamp during HMR when non-deferred entry changes', async () => {
@@ -567,7 +571,7 @@ describe('deferred-entries', () => {
         expect(updatedCallbackTimestamp).toBeGreaterThan(
           initialCallbackTimestamp!
         )
-      })
+      }, HMR_RETRY_DURATION)
 
       // Deferred page should now render the new callback-written timestamp.
       await retry(async () => {
@@ -588,7 +592,7 @@ describe('deferred-entries', () => {
         expect(updatedRenderedTimestamp).toBeGreaterThan(
           initialRenderedTimestamp!
         )
-      })
+      }, HMR_RETRY_DURATION)
     })
 
     it('should handle successive non-deferred edits without callback looping', async () => {
@@ -640,7 +644,7 @@ describe('deferred-entries', () => {
           expect(callbackAfterEdit).toBeGreaterThan(
             previousCallbackTimestampForIteration
           )
-        })
+        }, HMR_RETRY_DURATION)
 
         let renderedAfterEdit: number | null = null
         await retry(async () => {
@@ -660,7 +664,7 @@ describe('deferred-entries', () => {
           expect(renderedAfterEdit).toBeGreaterThan(
             previousRenderedTimestampForIteration
           )
-        })
+        }, HMR_RETRY_DURATION)
 
         // No runaway callback loop: timestamp should settle when idle.
         const stabilizedTimestamp =
