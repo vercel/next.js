@@ -862,6 +862,7 @@ fn bench_family_sharding(c: &mut Criterion) {
                     compression: Compression::Lz4,
                 }
             }),
+            ..TpDbConfig::new()
         };
         let db = TurboPersistence::<SerialScheduler, FAMILIES>::open_with_config(
             tempdir.path().to_path_buf(),
