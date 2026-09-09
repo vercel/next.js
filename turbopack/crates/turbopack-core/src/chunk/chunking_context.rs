@@ -478,6 +478,14 @@ pub trait ChunkingContext {
     fn async_loader_chunk_item_ident(&self, module: Vc<Box<dyn ChunkableModule>>)
     -> Vc<AssetIdent>;
 
+    /// Places a synthesized chunk item into a standalone output chunk without module graph
+    /// traversal.
+    #[turbo_tasks::function]
+    fn standalone_chunk_item(
+        self: Vc<Self>,
+        chunk_item: Vc<Box<dyn ChunkItem>>,
+    ) -> Vc<Box<dyn OutputAsset>>;
+
     #[turbo_tasks::function]
     fn chunk_group(
         self: Vc<Self>,
