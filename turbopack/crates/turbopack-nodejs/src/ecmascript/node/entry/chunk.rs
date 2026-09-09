@@ -2,6 +2,7 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
@@ -84,6 +85,11 @@ impl EcmascriptBuildNodeEntryChunk {
                      chunk ({runtime_path})",
                 );
             };
+        let runtime_request = if runtime_relative_path.starts_with("../") {
+            runtime_relative_path
+        } else {
+            RcStr::from(format!("./{runtime_relative_path}"))
+        };
         let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
             path
         } else {
@@ -97,7 +103,7 @@ impl EcmascriptBuildNodeEntryChunk {
             r#"
                 var R=require({})({})
             "#,
-            StringifyJs(&*runtime_relative_path),
+            StringifyJs(&*runtime_request),
             StringifyJs(chunk_public_path),
         )?;
 

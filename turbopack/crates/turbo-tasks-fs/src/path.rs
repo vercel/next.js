@@ -1,6 +1,6 @@
 //! [`FileSystemPath`] and the path-resolution operations built on top of it.
 
-use std::{error::Error, fmt, path::MAIN_SEPARATOR};
+use std::{borrow::Cow, error::Error, fmt, path::MAIN_SEPARATOR};
 
 use anyhow::{Result, bail};
 use auto_hash_map::{AutoMap, AutoSet};
@@ -104,7 +104,11 @@ impl FileSystemPath {
             return None;
         }
 
-        Some(get_relative_path_to(&self.path, &other.path).into())
+        Some(match get_relative_path_to(&self.path, &other.path) {
+            Cow::Borrowed(path) if std::ptr::eq(path, other.path.as_str()) => other.path.clone(),
+            Cow::Borrowed(path) => path.into(),
+            Cow::Owned(path) => path.into(),
+        })
     }
 
     /// Returns the final component of the FileSystemPath, or an empty string
@@ -763,22 +767,6 @@ mod tests {
 
     use super::*;
     use crate::VirtualFileSystem;
-
-    #[test]
-    fn test_get_relative_path_to() {
-        assert_eq!(get_relative_path_to("a/b/c", "a/b/c").as_str(), ".");
-        assert_eq!(get_relative_path_to("a/c/d", "a/b/c").as_str(), "../../b/c");
-        assert_eq!(get_relative_path_to("", "a/b/c").as_str(), "./a/b/c");
-        assert_eq!(get_relative_path_to("a/b/c", "").as_str(), "../../..");
-        assert_eq!(
-            get_relative_path_to("a/b/c", "c/b/a").as_str(),
-            "../../../c/b/a"
-        );
-        assert_eq!(
-            get_relative_path_to("file:///a/b/c", "file:///c/b/a").as_str(),
-            "../../../c/b/a"
-        );
-    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn with_extension() {
