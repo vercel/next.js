@@ -22,7 +22,8 @@ appBootstrap((assetPrefix) => {
       renderAppDevOverlay(
         getOwnerStack,
         isRecoverableError,
-        enableCacheIndicator
+        enableCacheIndicator,
+        !!process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR
       )
     }
   }
