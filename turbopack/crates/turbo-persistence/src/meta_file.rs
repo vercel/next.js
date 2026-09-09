@@ -15,7 +15,7 @@ use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
 use crate::{
-    AccessMode, Compression, FamilyConfig, QueryKey,
+    AccessMode, Compression, CompressionConfig, FamilyConfig, QueryKey,
     lookup_entry::LookupValue,
     mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
@@ -51,7 +51,7 @@ impl Display for MetaEntryFlags {
 }
 
 /// Magic number identifying a `.meta` file.
-pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4A;
+pub(crate) const META_FILE_MAGIC: u32 = 0xFE4ADA4B;
 
 /// On-disk layout of a single entry header in the `.meta` file.
 ///
@@ -119,7 +119,7 @@ pub struct MetaEntry {
     /// The `'static` lifetime is transmuted — the actual borrow is from `MetaFile::backing`.
     amqf: qfilter::FilterRef<'static>,
     /// Compression recorded in this entry's meta file.
-    compression: Compression,
+    compression: CompressionConfig,
     /// The static sorted file that is lazily loaded
     sst: OnceLock<StaticSortedFile>,
 }
@@ -268,8 +268,10 @@ pub struct MetaFile {
     sequence_number: u32,
     /// The key family of the SST files in this meta file.
     family: u32,
-    /// Compression recorded for this family.
+    /// Compression algorithm recorded for this family.
     compression: Compression,
+    /// Zstd dictionary ID recorded for this family, or zero without a dictionary.
+    dictionary_id: u32,
     /// The entries of the file. Dropped before `backing` (field declaration order).
     entries: Vec<MetaEntry>,
     /// The entries that have been marked as obsolete.
@@ -341,17 +343,22 @@ impl MetaFile {
             value if value == Compression::Zstd3 as u8 => Compression::Zstd3,
             value => bail!("Invalid compression algorithm {value}"),
         };
-        if let Some(configs) = family_configs {
+        let dictionary_id = reader.read_u32::<BE>()?;
+        let compression_config = if let Some(configs) = family_configs {
             let configured = configs
                 .get(family as usize)
                 .with_context(|| format!("No configuration for family {family}"))?
                 .compression;
             ensure!(
-                compression == configured,
+                compression == configured.algorithm()
+                    && dictionary_id == configured.dictionary_id().unwrap_or(0),
                 "Compression configuration mismatch for family {family}: meta file uses \
-                 {compression:?}, runtime config uses {configured:?}"
+                 {compression:?} dictionary {dictionary_id}, runtime config uses {configured:?}"
             );
-        }
+            configured
+        } else {
+            CompressionConfig::from(compression)
+        };
         let obsolete_count = reader.read_u32::<BE>()?;
         let mut obsolete_sst_files = Vec::with_capacity(obsolete_count as usize);
         for _ in 0..obsolete_count {
@@ -409,7 +416,7 @@ impl MetaFile {
                 flags,
                 amqf_data_offset: start_of_amqf_data_offset..end_of_amqf_data_offset,
                 amqf,
-                compression,
+                compression: compression_config,
                 sst: OnceLock::new(),
             });
             start_of_amqf_data_offset = end_of_amqf_data_offset;
@@ -423,6 +430,7 @@ impl MetaFile {
             sequence_number,
             family,
             compression,
+            dictionary_id,
             entries,
             obsolete_entries: Vec::new(),
             obsolete_sst_files,
@@ -456,6 +464,10 @@ impl MetaFile {
 
     pub fn compression(&self) -> Compression {
         self.compression
+    }
+
+    pub fn dictionary_id(&self) -> u32 {
+        self.dictionary_id
     }
 
     /// The on-disk size of this meta file in bytes (the length of its memory map).

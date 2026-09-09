@@ -11,8 +11,8 @@ use byteorder::{BE, ReadBytesExt};
 use fs_err as fs;
 
 use crate::{
-    Compression, checksum_block, compression::decompress_into_arc, meta_file::MetaFile,
-    read_current_version, sst_filter::SstFilter,
+    Compression, CompressionConfig, checksum_block, compression::decompress_into_arc,
+    meta_file::MetaFile, read_current_version, sst_filter::SstFilter,
 };
 
 /// Information about an active SST recorded by a meta file.
@@ -21,6 +21,7 @@ pub struct SstInfo {
     pub sequence_number: u32,
     pub block_count: u16,
     pub compression: Compression,
+    pub dictionary_id: u32,
 }
 
 /// Collects active SSTs by family, mirroring database open logic.
@@ -83,6 +84,7 @@ pub fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
                 sequence_number: entry.sequence_number(),
                 block_count: entry.block_count(),
                 compression: meta.compression(),
+                dictionary_id: meta.dictionary_id(),
             });
         }
     }
@@ -91,7 +93,7 @@ pub fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
 
 /// Verifies and reconstructs a raw medium-value block from an SST iterator.
 pub fn decode_medium(
-    compression: Compression,
+    compression: CompressionConfig,
     uncompressed_length: u32,
     expected_checksum: u32,
     stored: &[u8],
@@ -109,7 +111,7 @@ pub fn decode_medium(
 pub fn read_blob(
     db_path: &Path,
     sequence_number: u32,
-    compression: Compression,
+    compression: CompressionConfig,
 ) -> Result<Arc<[u8]>> {
     let path = db_path.join(format!("{sequence_number:08}.blob"));
     let content = fs::read(&path).with_context(|| format!("Failed to read {}", path.display()))?;
@@ -149,22 +151,22 @@ mod tests {
     use byteorder::{BE, WriteBytesExt};
 
     use super::{decode_medium, read_blob};
-    use crate::{Compression, checksum_block, compression::Compressor};
+    use crate::{CompressionConfig, checksum_block, compression::Compressor};
 
     #[test]
     fn decodes_compressed_and_uncompressed_medium_values() -> anyhow::Result<()> {
         let value = b"function component() { return null; }".repeat(100);
         let mut compressed = Vec::new();
-        Compressor::new(Compression::Zstd3)?.compress_into_buffer(&value, &mut compressed)?;
+        Compressor::new(CompressionConfig::Zstd3)?.compress_into_buffer(&value, &mut compressed)?;
         let decoded = decode_medium(
-            Compression::Zstd3,
+            CompressionConfig::Zstd3,
             value.len() as u32,
             checksum_block(&compressed),
             &compressed,
         )?;
         assert_eq!(decoded.as_ref(), value);
 
-        let decoded = decode_medium(Compression::Zstd3, 0, checksum_block(&value), &value)?;
+        let decoded = decode_medium(CompressionConfig::Zstd3, 0, checksum_block(&value), &value)?;
         assert_eq!(decoded.as_ref(), value);
         Ok(())
     }
@@ -180,13 +182,13 @@ mod tests {
         file.extend_from_slice(&compressed);
         fs_err::write(directory.path().join("00000001.blob"), &file)?;
         assert_eq!(
-            read_blob(directory.path(), 1, Compression::Zstd3)?.as_ref(),
+            read_blob(directory.path(), 1, CompressionConfig::Zstd3)?.as_ref(),
             value
         );
 
         file[4] ^= 1;
         fs_err::write(directory.path().join("00000001.blob"), file)?;
-        assert!(read_blob(directory.path(), 1, Compression::Zstd3).is_err());
+        assert!(read_blob(directory.path(), 1, CompressionConfig::Zstd3).is_err());
         Ok(())
     }
 }

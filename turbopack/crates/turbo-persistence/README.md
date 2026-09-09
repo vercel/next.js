@@ -54,9 +54,10 @@ Small value blocks are emitted once they accumulate at least `MIN_SMALL_VALUE_BL
 A meta file can contain metadata about multiple SST files. The metadata is stored in a single file to avoid having too many small files.
 
 - Header
-  - 4 bytes magic number (0xFE4ADA4A)
+  - 4 bytes magic number (0xFE4ADA4B)
   - 4 bytes key family
   - 1 byte compression algorithm, which must match the configuration used to open the database
+  - 4 bytes zstd dictionary ID (zero when no dictionary is configured)
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
@@ -368,11 +369,11 @@ Configuration options for compactions are:
 copies without modifying them or running the application that created them:
 
 ```sh
-cargo run -p turbo-persistence --bin zstd_dictionary -- train \
+cargo run -p turbo-persistence --release --bin zstd_dictionary -- train \
   --family <id> --output candidate.zdict \
   path/to/database-a path/to/database-b
 
-cargo run -p turbo-persistence --bin zstd_dictionary -- evaluate \
+cargo run -p turbo-persistence --release --bin zstd_dictionary -- evaluate \
   --family <id> --dictionary candidate.zdict --json report.json \
   path/to/database-a path/to/database-b
 ```
@@ -381,9 +382,10 @@ Training produces a 64 KiB dictionary from up to approximately 64 MiB of samples
 hash-ordered logical value from each cache in turn, so one large cache cannot monopolize the sample.
 The output path is replaced atomically.
 
-The no-dictionary zstd level 3 baseline is always included during evaluation. The tool follows
+The no-dictionary zstd level 3 baseline is always included during evaluation. Pass
+`--source-dictionary <path>` when the input caches were written with a dictionary. The tool follows
 `CURRENT`, deletion files, and meta-file supersession, and uses `StaticSortedFileIter` to read slice,
-medium, and blob values. Checksums and decompressed lengths are verified.
+medium, and blob values. Checksums, dictionary IDs, and decompressed lengths are verified.
 
 Small values are grouped into physical blocks in production, so the report's per-value 12.5%
 minimum-savings calculation is a comparative estimate, not exact SST-size modeling. Blob estimates

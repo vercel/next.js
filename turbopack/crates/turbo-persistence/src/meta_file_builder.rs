@@ -10,14 +10,14 @@ use qfilter::Filter;
 use zerocopy::IntoBytes;
 
 use crate::{
-    Compression,
+    CompressionConfig,
     meta_file::{EntryHeader, META_FILE_MAGIC},
     static_sorted_file_builder::StaticSortedFileBuilderMeta,
 };
 
 pub struct MetaFileBuilder<'a> {
     family: u32,
-    compression: Compression,
+    compression: CompressionConfig,
     /// Entries in the meta file, tuples of (sequence_number, StaticSortedFileBuilderMetaResult)
     entries: Vec<(u32, StaticSortedFileBuilderMeta<'a>)>,
     /// Obsolete SST files, represented by their sequence numbers
@@ -27,7 +27,7 @@ pub struct MetaFileBuilder<'a> {
 }
 
 impl<'a> MetaFileBuilder<'a> {
-    pub fn new(family: u32, compression: Compression) -> Self {
+    pub fn new(family: u32, compression: CompressionConfig) -> Self {
         Self {
             family,
             compression,
@@ -62,7 +62,8 @@ impl<'a> MetaFileBuilder<'a> {
         let mut file = CountingWriter::new(BufWriter::new(File::create(file)?));
         file.write_u32::<BE>(META_FILE_MAGIC)?; // Magic number
         file.write_u32::<BE>(self.family)?;
-        file.write_u8(self.compression as u8)?;
+        file.write_u8(self.compression.algorithm() as u8)?;
+        file.write_u32::<BE>(self.compression.dictionary_id().unwrap_or(0))?;
 
         self.obsolete_sst_files.sort();
         file.write_u32::<BE>(self.obsolete_sst_files.len() as u32)?;
