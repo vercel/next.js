@@ -170,6 +170,15 @@ impl Module for EcmascriptModuleFacadeModule {
         Ok(*is_self_async)
     }
 
+    /// A facade only ever re-exposes another module's bindings; evaluating the facade itself runs
+    /// none of the original module's top-level code, so it is unconditionally side-effect free.
+    ///
+    /// This is load-bearing for whoever decides to *create* a facade: the original module's real
+    /// side effects live in the locals module, and are only still reachable because the locals
+    /// module is part of the split. Splitting a module that has no exports would leave its side
+    /// effects behind a facade claiming to have none, and tree shaking would drop them — which is
+    /// exactly why `EcmascriptExports::split_locals_and_reexports` refuses to split an
+    /// export-less module.
     #[turbo_tasks::function]
     fn side_effects(&self) -> Vc<ModuleSideEffects> {
         ModuleSideEffects::ModuleEvaluationIsSideEffectFree.cell()
