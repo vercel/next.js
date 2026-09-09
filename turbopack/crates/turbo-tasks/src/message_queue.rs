@@ -73,11 +73,13 @@ impl CompilationEventQueue {
         let message_clone = message.clone();
         let pending_deliveries = self.pending_deliveries.clone();
         let deliveries_idle = self.deliveries_idle.clone();
-        // Captured at send time: events sent before the queue closes are still delivered, even
-        // if the delivery task runs after `flush_and_close`.
-        let deliver = !self.closed.load(Ordering::Acquire);
 
+        // Register the in-flight delivery before checking `closed`: a concurrent
+        // `flush_and_close` sets `closed` and then waits for `pending_deliveries` to reach
+        // zero, so this order guarantees that a send is either awaited before the close or
+        // observes the closed queue (and only records history).
         self.pending_deliveries.fetch_add(1, Ordering::AcqRel);
+        let deliver = !self.closed.load(Ordering::Acquire);
 
         // Spawn a task to handle the async operations
         tokio::spawn(async move {
