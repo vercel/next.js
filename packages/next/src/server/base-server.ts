@@ -2762,8 +2762,21 @@ export default abstract class Server<
           let perUrlFallbackRouteParams: NonNullable<
             (typeof pathsResults.prerenderedRoutes)[number]['fallbackRouteParams']
           > | null = null
+          // Validation checks the most-specific shape generated for the route,
+          // independently of which literal values this request contains. If gSP
+          // supplies only `top: 't1'`, both `/t1/b1` and `/t2/b2` validate with
+          // only `bottom` unknown. The foreground selection remains per-URL.
+          let validationFallbackRouteParams:
+            | PrerenderedRoute['fallbackRouteParams']
+            | undefined
           for (const route of pathsResults.prerenderedRoutes) {
             const fallbackRouteParams = route.fallbackRouteParams ?? []
+            if (
+              validationFallbackRouteParams === undefined ||
+              fallbackRouteParams.length < validationFallbackRouteParams.length
+            ) {
+              validationFallbackRouteParams = fallbackRouteParams
+            }
             if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
               continue
             }
@@ -2782,6 +2795,13 @@ export default abstract class Server<
               req,
               'fallbackParams',
               createOpaqueFallbackRouteParams(perUrlFallbackRouteParams)!
+            )
+          }
+          if (validationFallbackRouteParams) {
+            addRequestMeta(
+              req,
+              'devPrerenderValidationFallbackParams',
+              createOpaqueFallbackRouteParams(validationFallbackRouteParams)
             )
           }
         }

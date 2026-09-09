@@ -324,6 +324,9 @@ export interface RequestMeta {
    */
   fallbackParams?: OpaqueFallbackRouteParams
 
+  /** DEV only: params made unknown while validating the build-time shell shape. */
+  devPrerenderValidationFallbackParams?: OpaqueFallbackRouteParams | null
+
   /**
    * DEV only: Request timings in process.hrtime.bigint()
    */

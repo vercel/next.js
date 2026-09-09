@@ -1273,7 +1273,10 @@ type RenderToReadableStreamServerOptions = NonNullable<
 async function stagedRenderWithoutCachesInDevNode(
   ctx: AppRenderContext,
   requestStore: RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  getPayload: (
+    ctx: AppRenderContext,
+    requestStore: RequestStore
+  ) => Promise<RSCPayload>,
   options: Omit<RenderToReadableStreamServerOptions, 'environmentName'>
 ) {
   // We're rendering while bypassing caches,
@@ -1305,7 +1308,7 @@ async function stagedRenderWithoutCachesInDevNode(
   )
 
   const { clientModules } = getClientReferenceManifest()
-  const rscPayload = await getPayload(requestStore)
+  const rscPayload = await getPayload(ctx, requestStore)
 
   return await runInSequentialTasks(
     () => {
@@ -1350,6 +1353,37 @@ function getEnvironmentNameForStageWithoutCaches(stage: RenderStage) {
   }
 }
 
+function getDevValidationFallbackRouteParams(
+  req: BaseNextRequest,
+  requestFallbackRouteParams: OpaqueFallbackRouteParams | null
+) {
+  const validationFallbackRouteParams = getRequestMeta(
+    req,
+    'devPrerenderValidationFallbackParams'
+  )
+
+  // Keep the foreground's opaque tokens when the two shapes agree.
+  return validationFallbackRouteParams === undefined ||
+    hasSameFallbackRouteParams(
+      validationFallbackRouteParams,
+      requestFallbackRouteParams
+    )
+    ? requestFallbackRouteParams
+    : validationFallbackRouteParams
+}
+
+function hasSameFallbackRouteParams(
+  left: OpaqueFallbackRouteParams | null,
+  right: OpaqueFallbackRouteParams | null
+): boolean {
+  if (left === right) return true
+  if (left === null || right === null || left.size !== right.size) return false
+  for (const key of left.keys()) {
+    if (!right.has(key)) return false
+  }
+  return true
+}
+
 /**
  * Fork of `generateDynamicFlightRenderResult` that renders using `renderWithRestartOnCacheMissInDev`
  * to ensure correct separation of environments Prerender/Server (for use in Cache Components)
@@ -1374,7 +1408,6 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     },
     url,
   } = ctx
-
   const {
     onInstrumentationRequestError,
     setReactDebugChannel,
@@ -1409,13 +1442,16 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     (initialRequestStore.isHmrRefresh === true ||
       (await anySegmentNeedsInstantValidationInDev(loaderTree)))
 
-  const getPayload = async (requestStore: RequestStore) => {
+  const getPayload = async (
+    payloadCtx: AppRenderContext,
+    requestStore: RequestStore
+  ) => {
     const payload: RSCPayload &
       RSCPayloadDevProperties &
       RSCInitialPayloadPartialDev = await workUnitAsyncStorage.run(
       requestStore,
       generateDynamicRSCPayload,
-      ctx,
+      payloadCtx,
       undefined
     )
 
@@ -1512,7 +1548,10 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
       getPayload,
       onError,
       shouldValidate,
-      fallbackRouteParams: fallbackParams,
+      validationFallbackRouteParams: getDevValidationFallbackRouteParams(
+        req,
+        fallbackParams
+      ),
       getDevRenderDidError: () => didErrorObservably,
       navigationKind: {
         type: 'prefetched-client',
@@ -3547,7 +3586,6 @@ async function renderToStream(
     requestId,
     workStore,
   } = ctx
-
   const {
     basePath,
     buildManifest,
@@ -3729,18 +3767,20 @@ async function renderToStream(
       ) {
         let debugChannelClientStream: ReplayableNodeStream | undefined
 
-        // eslint-disable-next-line @typescript-eslint/no-shadow
-        const getPayload = async (requestStore: RequestStore) => {
+        const getPayload = async (
+          payloadCtx: AppRenderContext,
+          payloadRequestStore: RequestStore
+        ) => {
           const payload: InitialRSCPayload & RSCPayloadDevProperties =
             await workUnitAsyncStorage.run(
-              requestStore,
+              payloadRequestStore,
               getRSCPayload,
               tree,
-              ctx,
+              payloadCtx,
               { is404: res.statusCode === 404, isPrerendering: false }
             )
 
-          if (isBypassingCachesInDev(requestStore, workStore)) {
+          if (isBypassingCachesInDev(payloadRequestStore, workStore)) {
             // Mark the RSC payload to indicate that caches were bypassed in dev.
             // This lets the client know not to cache anything based on this render.
             if (renderOpts.setCacheStatus) {
@@ -3782,7 +3822,8 @@ async function renderToStream(
               getPayload,
               onError: serverComponentsErrorHandler,
               shouldValidate: true,
-              fallbackRouteParams: fallbackParams,
+              validationFallbackRouteParams:
+                getDevValidationFallbackRouteParams(req, fallbackParams),
               getDevRenderDidError: () => didErrorObservably,
               // An initial HTML load serves the static shell; runtime and
               // dynamic content stream in afterward.
@@ -4757,11 +4798,58 @@ function runDevValidationInBackground(
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   getDevRenderDidError: () => boolean,
   createRequestStore: () => RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  getPayload: (
+    ctx: AppRenderContext,
+    requestStore: RequestStore
+  ) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   validationGeneration: DevValidationGeneration
 ): void {
   const validationAbortSignal = validationGeneration.signal
+  let validationCtx = ctx
+  let validationRequestStore = requestStore
+  let createValidationRequestStore = createRequestStore
+
+  // Depending on how the foreground render was entered, its fallback params
+  // may be stored on the render context, the request store, or both.
+  const hasSameParamShape =
+    hasSameFallbackRouteParams(ctx.fallbackRouteParams, fallbackRouteParams) &&
+    hasSameFallbackRouteParams(
+      requestStore.fallbackParams ?? null,
+      fallbackRouteParams
+    )
+  if (!hasSameParamShape) {
+    const validationInterpolatedParams = interpolateParallelRouteParams(
+      ctx.componentMod.routeModule.userland.loaderTree,
+      ctx.renderOpts.params ?? {},
+      ctx.pagePath,
+      fallbackRouteParams
+    )
+    const getDynamicParamFromSegment = makeGetDynamicParamFromSegment(
+      validationInterpolatedParams,
+      fallbackRouteParams,
+      ctx.renderOpts.experimental.optimisticRouting
+    )
+    validationCtx = {
+      ...ctx,
+      getDynamicParamFromSegment,
+      interpolatedParams: validationInterpolatedParams,
+      fallbackRouteParams,
+    }
+    const validationRootParams = getRootParams(
+      ctx.componentMod.routeModule.userland.loaderTree,
+      getDynamicParamFromSegment
+    )
+    createValidationRequestStore = () =>
+      Object.assign(createRequestStore(), {
+        rootParams: validationRootParams,
+        fallbackParams: fallbackRouteParams,
+      })
+    validationRequestStore = createValidationRequestStore()
+    // This new shape has not been staged yet. Do not assume that its static
+    // shell and app shell resolve data in the same stages.
+    validationRequestStore.hasIncompatibleShellContent = true
+  }
 
   void consoleAsyncStorage
     .run({ dim: true }, async () => {
@@ -4795,14 +4883,15 @@ function runDevValidationInBackground(
               prefetchMode,
               navigationKind,
               result,
-              requestStore,
+              validationRequestStore,
               validationDebugChannel,
-              ctx,
+              validationCtx,
               prerenderResumeDataCache,
-              createRequestStore,
+              createValidationRequestStore,
               getPayload,
               onError,
-              validationAbortSignal
+              validationAbortSignal,
+              hasSameParamShape
             )
 
             // If we need to do multiple renders, do them in parallel.
@@ -4848,7 +4937,7 @@ function runDevValidationInBackground(
 
             if (devValidationWorker) {
               const snapshot = await buildDevValidationSnapshot(
-                ctx,
+                validationCtx,
                 instantInputs,
                 staticInputs,
                 prefetchMode,
@@ -4892,7 +4981,7 @@ function runDevValidationInBackground(
                     prefetchMode,
                     instantInputs,
                     staticInputs,
-                    toValidationRenderContext(ctx),
+                    toValidationRenderContext(validationCtx),
                     fallbackRouteParams,
                     devRenderDidError,
                     validationAbortSignal
@@ -5049,13 +5138,21 @@ async function prepareValidationInputs(
   ctx: AppRenderContext,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   createRequestStore: () => RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  getPayload: (
+    ctx: AppRenderContext,
+    requestStore: RequestStore
+  ) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
-  validationAbortSignal: AbortSignal
+  validationAbortSignal: AbortSignal,
+  hasSameParamShape: boolean
 ): Promise<PrepareValidationInputsResult> {
   // Check if we can re-use the main render for validation.
   let inputsFromNavigation: ResolvedValidationInputs | null
-  if (!result.hadCacheMiss && !('syncInterruptReason' in result.outcome)) {
+  if (
+    hasSameParamShape &&
+    !result.hadCacheMiss &&
+    !('syncInterruptReason' in result.outcome)
+  ) {
     inputsFromNavigation = {
       accumulatedChunks: result.outcome.accumulatedChunks,
       startTime: result.outcome.startTime,
@@ -5064,7 +5161,8 @@ async function prepareValidationInputs(
       debugChannelClient: validationDebugChannel,
     }
   } else {
-    // Cache miss or sync IO. We can't re-use the main render.
+    // Cache miss, sync IO, or a different param shape. The foreground Flight
+    // chunks cannot seed validation; use the existing warm-render path instead.
     dropValidationDebugChannel(validationDebugChannel)
     inputsFromNavigation = null
   }
@@ -5100,7 +5198,10 @@ async function prepareValidationInputsInPartialPrefetching(
   ctx: AppRenderContext,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   createRequestStore: () => RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  getPayload: (
+    ctx: AppRenderContext,
+    requestStore: RequestStore
+  ) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   inputsFromNavigation: ResolvedValidationInputs | null,
   validationAbortSignal: AbortSignal
@@ -5202,7 +5303,10 @@ async function prepareValidationInputsInLegacyPrefetching(
   ctx: AppRenderContext,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   createRequestStore: () => RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  getPayload: (
+    ctx: AppRenderContext,
+    requestStore: RequestStore
+  ) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   inputsFromNavigation: ResolvedValidationInputs | null,
   validationAbortSignal: AbortSignal
@@ -5759,7 +5863,10 @@ function getStageEndTimes(
 async function renderWithWarmCachesForValidationInDev(
   ctx: AppRenderContext,
   createRequestStore: () => RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  getPayload: (
+    ctx: AppRenderContext,
+    requestStore: RequestStore
+  ) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   prefetchMode: PrefetchingMode,
@@ -5795,7 +5902,7 @@ async function renderWithWarmCachesForValidationInDev(
   const environmentName = () =>
     getEnvironmentNameForStage(stageController.currentStage)
 
-  const rscPayload = await getPayload(requestStore)
+  const rscPayload = await getPayload(ctx, requestStore)
 
   let startTime = -Infinity
   const accumulatedChunks = await runInSequentialTasks(
@@ -5854,16 +5961,22 @@ async function renderWithWarmCachesForValidationInDev(
 
 interface StagedRenderWithCachesInDevOptions extends StagedDevRenderOptions {
   createRequestStore: () => RequestStore
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>
+  getPayload: (
+    ctx: AppRenderContext,
+    requestStore: RequestStore
+  ) => Promise<RSCPayload>
   shouldValidate: boolean
-  fallbackRouteParams: OpaqueFallbackRouteParams | null
+  validationFallbackRouteParams: OpaqueFallbackRouteParams | null
   getDevRenderDidError: () => boolean
 }
 
 async function prerenderWithWarmCachesForStaticValidationInDev(
   ctx: AppRenderContext,
   createRequestStore: () => RequestStore,
-  getPayload: (requestStore: RequestStore) => Promise<RSCPayload>,
+  getPayload: (
+    ctx: AppRenderContext,
+    requestStore: RequestStore
+  ) => Promise<RSCPayload>,
   onError: (error: unknown) => void,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   validationAbortSignal: AbortSignal
@@ -5914,7 +6027,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
   const environmentName = () =>
     getEnvironmentNameForStage(stageController.currentStage)
 
-  const rscPayload = await getPayload(requestStore)
+  const rscPayload = await getPayload(ctx, requestStore)
 
   let startTime = -Infinity
   const collectedChunksByStage = createStageChunksAccumulator()
@@ -6045,7 +6158,7 @@ async function stagedRenderWithCachesInDev({
   getPayload,
   onError,
   shouldValidate,
-  fallbackRouteParams,
+  validationFallbackRouteParams,
   getDevRenderDidError,
   navigationKind,
   requestAbortSignal,
@@ -6079,7 +6192,7 @@ async function stagedRenderWithCachesInDev({
 
     // The stage controller starts in the `Before` stage, where sync IO doesn't
     // abort, so it's fine if it happens while creating the payload.
-    const rscPayload = await getPayload(requestStore)
+    const rscPayload = await getPayload(ctx, requestStore)
 
     const { stream, resultPromise } = await streamStagedRenderInDev({
       prefetchMode,
@@ -6137,7 +6250,7 @@ async function stagedRenderWithCachesInDev({
           requestStore,
           validationDebugChannel,
           ctx,
-          fallbackRouteParams,
+          validationFallbackRouteParams,
           prerenderResumeDataCache,
           getDevRenderDidError,
           createRequestStore,
