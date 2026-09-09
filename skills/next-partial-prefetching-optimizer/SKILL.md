@@ -117,9 +117,13 @@ follow the static-shell documentation used by
 `next-cache-components-optimizer`. Preserve the existing freshness and
 authorization behavior. Change only what the selected contract requires.
 
-When reusable UI should wait for navigation, verify that it stays reusable as
-well as absent from the prefetch. Do not replace it with uncached request-time
-work merely to defer it.
+When reusable UI should wait for navigation, read the
+[`unstable_navigation()`](https://nextjs.org/docs/app/api-reference/functions/navigation)
+reference, including its comparison with `connection()`, before editing. Then
+verify both properties independently. The `instant()` assertion proves that
+the UI is absent from the prefetch; it does not prove that the underlying work
+stayed reusable. Verify that reusable work remains cached below the stage
+boundary.
 
 When the contract needs an explicit runtime stage, follow the API references
 for [`unstable_prefetch()`](https://nextjs.org/docs/app/api-reference/functions/prefetch)
@@ -165,6 +169,7 @@ request.
 - [ ] The unlocked baseline and locked RED used the same production artifact.
 - [ ] The App Shell stayed visible throughout the RED/GREEN loop.
 - [ ] The selected UI is present and navigation-only UI is absent under lock.
+- [ ] Reusable navigation-only work remains cached below its navigation stage.
 - [ ] Loaded content, freshness, authorization, and direct visits are unchanged.
 - [ ] Removing only the optimization returns the contract to RED.
 - [ ] The final positive `instant()` regression test ships.
