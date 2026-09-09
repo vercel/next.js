@@ -184,12 +184,6 @@ fn include_glob_pattern(globs: &[&str]) -> RcStr {
     if globs.contains(&"**") {
         return rcstr!("**");
     }
-    if let [glob] = globs
-        && glob.ends_with("/**")
-    {
-        return RcStr::from(*glob);
-    }
-
     let mut pattern = String::new();
     pattern.push('{');
     for (index, glob) in globs.iter().enumerate() {
@@ -197,7 +191,9 @@ fn include_glob_pattern(globs: &[&str]) -> RcStr {
             pattern.push(',');
         }
         pattern.push_str(glob);
-        if *glob != "**" && !glob.ends_with("/**") {
+        // A recursive suffix must remain at the end of its alternative. Appending another suffix
+        // would produce e.g. `assets/**/**`, which is invalid in the glob parser.
+        if !glob.ends_with("/**") {
             pattern.push(',');
             pattern.push_str(glob);
             pattern.push_str("/**");
@@ -639,8 +635,10 @@ mod include_glob_tests {
             let expanded = glob(&[pattern]);
 
             for path in [
+                "assets",
                 "assets/file.txt",
                 "assets/directory/nested.txt",
+                "assets/directory/deeply/nested.txt",
                 "other/assets/file.txt",
             ] {
                 assert_eq!(
@@ -661,6 +659,10 @@ mod include_glob_tests {
         assert!(combined.matches("config/runtime.json"));
         assert!(!combined.matches("config/nested/runtime.json"));
         assert!(!combined.matches("assets/three"));
+
+        let recursive = glob(&["assets/**", "config/*.json"]);
+        assert!(recursive.matches("assets/any/deeply/nested/file"));
+        assert!(recursive.matches("config/runtime.json"));
 
         let match_all = glob(&["config/*.json", "**"]);
         assert!(match_all.matches("any/deeply/nested/file"));
