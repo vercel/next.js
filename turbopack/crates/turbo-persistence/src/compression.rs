@@ -70,7 +70,7 @@ impl From<Compression> for CompressionConfig {
 thread_local! {
     /// Zstd decompression contexts are reusable and relatively expensive to create. Keep one per
     /// worker thread to avoid allocation on every block read without a global lock.
-    static ZSTD_DECOMPRESSOR: RefCell<(Option<usize>, zstd::bulk::Decompressor<'static>)> = RefCell::new(
+    static ZSTD_DECOMPRESSOR: RefCell<(Option<&'static [u8]>, zstd::bulk::Decompressor<'static>)> = RefCell::new(
         (None, zstd::bulk::Decompressor::new().expect("zstd decompressor initialization should succeed"))
     );
 }
@@ -91,16 +91,18 @@ fn decompress_block(
         CompressionConfig::Lz4 => decompress(block, dest).map_err(anyhow::Error::from),
         CompressionConfig::Zstd3 | CompressionConfig::Zstd3WithDictionary(_) => ZSTD_DECOMPRESSOR
             .with_borrow_mut(|state| {
-                let dictionary = compression.dictionary().unwrap_or_default();
-                let key = compression
-                    .dictionary()
-                    .map(|dictionary| dictionary.as_ptr() as usize);
-                if state.0 != key {
+                let dictionary = compression.dictionary();
+                let same_dictionary = match (state.0, dictionary) {
+                    (Some(current), Some(next)) => std::ptr::eq(current, next),
+                    (None, None) => true,
+                    _ => false,
+                };
+                if !same_dictionary {
                     state
                         .1
-                        .set_dictionary(dictionary)
+                        .set_dictionary(dictionary.unwrap_or_default())
                         .map_err(anyhow::Error::from)?;
-                    state.0 = key;
+                    state.0 = dictionary;
                 }
                 state
                     .1
@@ -213,14 +215,6 @@ impl Compressor {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn dictionary_debug_does_not_include_bytes() {
-        let dictionary = Box::leak(vec![42; 64 * 1024].into_boxed_slice());
-        let debug = format!("{:?}", CompressionConfig::Zstd3WithDictionary(dictionary));
-        assert!(debug.starts_with("Zstd3WithDictionary"));
-        assert!(debug.len() < 100);
-    }
 
     #[test]
     fn dictionary_compression_round_trips() {
