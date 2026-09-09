@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/below-threshold.js"],"sourcesContent":["import { small } from './small-strict'\n\nexport const value = small + 1\n"],"names":["value"],"mappings":";;;;AAAA;;AAEO,MAAMA,QAAQ,uNAAK,GAAG"}},
+    {"offset": {"line": 15, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/small-strict.js"],"sourcesContent":["export const small = 1\n"],"names":["small"],"mappings":";;;;AAAO,MAAMA,QAAQ"}}]
+}

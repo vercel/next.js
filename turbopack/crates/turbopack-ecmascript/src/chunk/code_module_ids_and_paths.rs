@@ -13,8 +13,47 @@ use crate::chunk::{
     EcmascriptChunkItemWithAsyncInfo,
 };
 
+#[turbo_tasks::value(shared, serialization = "skip")]
+#[derive(Clone, Copy, Debug)]
+pub enum ModuleFactoryMode {
+    Strict,
+    NonStrict,
+}
+
+impl ModuleFactoryMode {
+    fn from_strict(strict: bool) -> Self {
+        if strict {
+            Self::Strict
+        } else {
+            Self::NonStrict
+        }
+    }
+
+    pub fn is_strict(self) -> bool {
+        matches!(self, Self::Strict)
+    }
+}
+
+/// Generates the factory code of a single chunk item, omitting its strict-mode directive when the
+/// chunk emits the item inside a strict factory group.
+async fn item_code_and_mode(
+    item: &EcmascriptChunkItemWithAsyncInfo,
+    omit_use_strict: bool,
+) -> Result<(ReadRef<Code>, ModuleFactoryMode)> {
+    let strict = item.is_strict().await?;
+    let async_module_info = item.async_info.map(|info| *info);
+    let code = if omit_use_strict && strict {
+        item.chunk_item.code_without_use_strict(async_module_info)
+    } else {
+        item.chunk_item.code(async_module_info)
+    };
+    Ok((code.await?, ModuleFactoryMode::from_strict(strict)))
+}
+
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct CodeModuleIdsAndPaths(SmallVec<[(ModuleId, ReadRef<Code>, RcStr); 1]>);
+pub struct CodeModuleIdsAndPaths(
+    SmallVec<[(ModuleId, ReadRef<Code>, RcStr, ModuleFactoryMode); 1]>,
+);
 
 #[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct BatchGroupCodeModuleIdsAndPaths(
@@ -24,6 +63,7 @@ pub struct BatchGroupCodeModuleIdsAndPaths(
 #[turbo_tasks::function]
 pub async fn batch_group_code_module_ids_and_paths(
     batch_group: Vc<EcmascriptChunkItemBatchGroup>,
+    omit_use_strict: bool,
 ) -> Result<Vc<BatchGroupCodeModuleIdsAndPaths>> {
     Ok(Vc::cell(
         batch_group
@@ -33,7 +73,7 @@ pub async fn batch_group_code_module_ids_and_paths(
             .map(async |item| {
                 Ok((
                     item.clone(),
-                    item_code_module_ids_and_paths(item.clone()).await?,
+                    item_code_module_ids_and_paths(item.clone(), omit_use_strict).await?,
                 ))
             })
             .try_join()
@@ -46,29 +86,29 @@ pub async fn batch_group_code_module_ids_and_paths(
 #[turbo_tasks::function]
 pub async fn item_code_module_ids_and_paths(
     item: EcmascriptChunkItemOrBatchWithAsyncInfo,
+    omit_use_strict: bool,
 ) -> Result<Vc<CodeModuleIdsAndPaths>> {
     Ok(Vc::cell(match item {
-        EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(EcmascriptChunkItemWithAsyncInfo {
-            chunk_item,
-            async_info,
-            ..
-        }) => {
-            let id = chunk_item.id().await?;
-            let code = chunk_item.code(async_info.map(|info| *info));
-            let path = chunk_item.asset_ident().to_string().owned().await?;
-            smallvec![(id, code.await?, path)]
+        EcmascriptChunkItemOrBatchWithAsyncInfo::ChunkItem(item) => {
+            let (code, mode) = item_code_and_mode(&item, omit_use_strict).await?;
+            smallvec![(
+                item.chunk_item.id().await?,
+                code,
+                item.chunk_item.asset_ident().to_string().owned().await?,
+                mode
+            )]
         }
         EcmascriptChunkItemOrBatchWithAsyncInfo::Batch(batch) => batch
             .await?
             .chunk_items
             .iter()
             .map(async |item| {
+                let (code, mode) = item_code_and_mode(item, omit_use_strict).await?;
                 Ok((
                     item.chunk_item.id().await?,
-                    item.chunk_item
-                        .code(item.async_info.map(|info| *info))
-                        .await?,
+                    code,
                     item.chunk_item.asset_ident().to_string().owned().await?,
+                    mode,
                 ))
             })
             .try_join()

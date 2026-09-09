@@ -88,11 +88,18 @@ type ModuleCache<M> = Record<ModuleId, M>
 // TODO properly type values here
 type ModuleFactories = Map<ModuleId, Function>
 /**
- * This is an alternating, non-empty arrow of module factory functions and module ids
- * `[id1, id2..., factory1, id3, factory2, id4, id5, factory3]`
- * There can be multiple ids to support scope hoisted merged modules
+ * This is an alternating array of module IDs and module factory functions:
+ * `[id1, id2..., factory1, id3, factory2, id4, id5, factory3]`.
+ * There can be multiple IDs to support scope-hoisted merged modules.
  */
-type CompressedModuleFactories = Array<ModuleId | Function>
+type FlatCompressedModuleFactories = Array<ModuleId | Function>
+/**
+ * Strict and non-strict factories can be supplied as separate arrays. Factories
+ * in the first array are created by a strict-mode IIFE in the emitted chunk.
+ */
+type CompressedModuleFactories =
+  | FlatCompressedModuleFactories
+  | [FlatCompressedModuleFactories, FlatCompressedModuleFactories]
 
 type RelativeURL = (inputUrl: string) => void
 type ResolvePathFromModule = (moduleId: string) => string

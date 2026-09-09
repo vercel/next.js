@@ -10,13 +10,15 @@ use turbopack_core::{
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    chunk::{
+        EcmascriptChunkContent, EcmascriptChunkContentEntries, should_group_strict_factories,
+        sort_chunk_items_by_path, write_module_factories,
+    },
     hmr::{
         EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
         version::EcmascriptChunkVersion,
     },
     minify::minify,
-    utils::StringifyJs,
 };
 
 use super::chunk::EcmascriptBuildNodeChunk;
@@ -64,12 +66,13 @@ impl EcmascriptNodeChunkContent {
         write!(code, "module.exports = [")?;
 
         let content = self.content.await?;
-        let chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
-        for (id, item_code, _) in &chunk_items {
-            write!(code, "\n{}, ", StringifyJs(id))?;
-            code.push_code(item_code);
-            write!(code, ",")?;
-        }
+        let group_strict_factories =
+            should_group_strict_factories(content.strict_module_factory_count().await?);
+        let mut chunk_items = content
+            .chunk_item_code_module_ids_and_paths(group_strict_factories)
+            .await?;
+        sort_chunk_items_by_path(&mut chunk_items);
+        write_module_factories(&mut code, &chunk_items, group_strict_factories)?;
 
         write!(code, "\n];")?;
 
