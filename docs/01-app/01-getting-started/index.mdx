@@ -18,4 +18,28 @@ Our documentation assumes some familiarity with web development. Before getting 
 
 If you're new to React or need a refresher, we recommend starting with our [React Foundations course](/learn/react-foundations), and the [Next.js Foundations course](/learn/dashboard-app) that has you building an application as you learn.
 
+## What you'll learn
+
+| Page                                                                                   | What it covers                                                  | APIs                             |
+| -------------------------------------------------------------------------------------- | --------------------------------------------------------------- | -------------------------------- |
+| **Get an app on screen**                                                               |                                                                 |                                  |
+| [Installation](/docs/app/getting-started/installation)                                 | a project on disk, and a dev server                             | `create-next-app`                |
+| [Layouts and Pages](/docs/app/getting-started/layouts-and-pages)                       | a URL resolves to a response                                    | `page`, `layout`, `<Link>`       |
+| [Linking and Navigating](/docs/app/getting-started/linking-and-navigating)             | moving between responses without a full page load               | `<Link>`, `useRouter`            |
+| **Learn the model**                                                                    |                                                                 |                                  |
+| [Server and Client Components](/docs/app/getting-started/server-and-client-components) | which code runs on the server, and which runs in the browser    | `use client`                     |
+| [Fetching Data](/docs/app/getting-started/fetching-data)                               | reading data while the response is being built                  | `async` components, `<Suspense>` |
+| [Rendering model](/docs/app/getting-started/rendering-model)                           | whether a response is built ahead of the request or per request | Partial Prerendering             |
+| [Caching](/docs/app/getting-started/caching)                                           | reusing work instead of repeating it for every request          | `use cache`, `cacheLife`         |
+| [Mutating Data](/docs/app/getting-started/mutating-data)                               | the write that goes back to the server                          | `use server`, `updateTag`        |
+| **Ship it**                                                                            |                                                                 |                                  |
+| [Error handling](/docs/app/getting-started/error-handling)                             | what the response is when something fails                       | `error.js`, `catchError`         |
+| [Styling and assets](/docs/app/getting-started/styling-and-assets)                     | what ships alongside the HTML                                   | CSS, `next/image`, `next/font`   |
+| [Metadata and OG images](/docs/app/getting-started/metadata-and-og-images)             | the document head, and what crawlers and social cards read      | `generateMetadata`               |
+| [Deploying](/docs/app/getting-started/deploying)                                       | getting it onto a server                                        | `next build`                     |
+
+Each page in **Learn the model** depends on the one before it, so read those in order.
+
+The [guides](/docs/app/guides) cover specific tasks, like authentication or testing. The [API reference](/docs/app/api-reference) documents every signature, option, and default.
+
 ## Next Steps
