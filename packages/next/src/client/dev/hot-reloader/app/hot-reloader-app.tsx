@@ -15,9 +15,9 @@ import {
 } from 'next/dist/compiled/next-devtools'
 import { ReplaySsrOnlyErrors } from '../../../../next-devtools/userspace/app/errors/replay-ssr-only-errors'
 import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/app/app-dev-overlay-error-boundary'
-import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../runtime-error-handler'
 import { useWebSocketPing } from './web-socket'
+import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   HMR_MESSAGE_SENT_TO_SERVER,
@@ -527,6 +527,10 @@ export function processMessage(
 
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS: {
+      // Runtime error state is consumed by external HMR observers.
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE: {
       const errorState = getSerializedOverlayState()
       const response: McpErrorStateResponse = {
@@ -604,12 +608,28 @@ export default function HotReload({
   webSocket: WebSocket | undefined
   staticIndicatorState: StaticIndicatorState | undefined
 }) {
-  useErrorHandler(dispatcher.onUnhandledError, dispatcher.onUnhandledRejection)
   useWebSocketPing(webSocket)
 
   // We don't want access of the pathname for the dev tools to trigger a dynamic
   // access (as the dev overlay will never be present in production).
   const pathname = useUntrackedPathname()
+
+  if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+    // Republish after navigation commits so HMR observers receive the current
+    // pathname even when the captured errors haven't changed.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      const { reportCurrentRuntimeErrorState } =
+        require('../runtime-error-state') as typeof import('../runtime-error-state')
+      reportCurrentRuntimeErrorState()
+    }, [pathname])
+  } else {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useErrorHandler(
+      dispatcher.onUnhandledError,
+      dispatcher.onUnhandledRejection
+    )
+  }
 
   if (process.env.__NEXT_DEV_INDICATOR) {
     // this conditional is only for dead-code elimination which

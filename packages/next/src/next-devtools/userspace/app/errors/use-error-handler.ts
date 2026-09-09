@@ -35,24 +35,38 @@ export function handleConsoleError(
   }
   setOwnerStackIfAvailable(error)
 
-  errorQueue.push(error)
-  for (const handler of errorHandlers) {
-    // Delayed the error being passed to React Dev Overlay,
-    // avoid the state being synchronously updated in the component.
-    queueMicroTask(() => {
-      handler(error)
-    })
+  if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+    const { dispatcher } =
+      require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
+    queueMicroTask(() => dispatcher.onUnhandledError(error))
+  } else {
+    errorQueue.push(error)
+    for (const handler of errorHandlers) {
+      // Delayed the error being passed to React Dev Overlay,
+      // avoid the state being synchronously updated in the component.
+      queueMicroTask(() => {
+        handler(error)
+      })
+    }
   }
 }
 
 export function handleClientError(error: Error) {
-  errorQueue.push(error)
-  for (const handler of errorHandlers) {
-    // Delayed the error being passed to React Dev Overlay,
-    // avoid the state being synchronously updated in the component.
-    queueMicroTask(() => {
-      handler(error)
-    })
+  if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+    const { dispatcher } =
+      require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
+    // The overlay queues events until its own root mounts. Do not depend on
+    // HotReload committing: an initial application failure can prevent that.
+    queueMicroTask(() => dispatcher.onUnhandledError(error))
+  } else {
+    errorQueue.push(error)
+    for (const handler of errorHandlers) {
+      // Delayed the error being passed to React Dev Overlay,
+      // avoid the state being synchronously updated in the component.
+      queueMicroTask(() => {
+        handler(error)
+      })
+    }
   }
 }
 
@@ -110,9 +124,15 @@ function onUnhandledRejection(ev: WindowEventMap['unhandledrejection']): void {
   const error = coerceError(reason)
   setOwnerStackIfAvailable(error)
 
-  rejectionQueue.push(error)
-  for (const handler of rejectionHandlers) {
-    handler(error)
+  if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+    const { dispatcher } =
+      require('next/dist/compiled/next-devtools') as typeof import('next/dist/compiled/next-devtools')
+    dispatcher.onUnhandledRejection(error)
+  } else {
+    rejectionQueue.push(error)
+    for (const handler of rejectionHandlers) {
+      handler(error)
+    }
   }
 
   logUnhandledRejection(reason)
