@@ -1,8 +1,19 @@
-use std::{any::Any, collections::VecDeque, fmt::Display, sync::Arc, time::Duration};
+use std::{
+    any::Any,
+    collections::VecDeque,
+    fmt::Display,
+    sync::{
+        Arc,
+        atomic::{AtomicBool, AtomicUsize, Ordering},
+    },
+    time::Duration,
+};
 
 use dashmap::DashMap;
 use serde::Serialize;
 use tokio::sync::{Mutex, mpsc};
+
+use crate::event::Event;
 
 pub trait CompilationEvent: Sync + Send + Any {
     fn type_name(&self) -> &'static str;
@@ -25,6 +36,13 @@ enum EventChannelType {
 pub struct CompilationEventQueue {
     event_history: ArcMx<VecDeque<Arc<dyn CompilationEvent>>>,
     subscribers: Arc<DashMap<EventChannelType, Vec<CompilationEventChannel>>>,
+    /// Number of spawned delivery tasks that have not completed yet.
+    pending_deliveries: Arc<AtomicUsize>,
+    /// Signaled when a delivery task completes.
+    deliveries_idle: Arc<Event>,
+    /// Set by [`CompilationEventQueue::flush_and_close`]: new subscriptions close after replaying
+    /// the event history.
+    closed: Arc<AtomicBool>,
 }
 
 impl Default for CompilationEventQueue {
@@ -38,6 +56,9 @@ impl Default for CompilationEventQueue {
         Self {
             event_history: Arc::new(Mutex::new(VecDeque::with_capacity(MAX_QUEUE_SIZE))),
             subscribers: Arc::new(subscribers),
+            pending_deliveries: Arc::new(AtomicUsize::new(0)),
+            deliveries_idle: Arc::new(Event::new(|| || "compilation event delivery".to_string())),
+            closed: Arc::new(AtomicBool::new(false)),
         }
     }
 }
@@ -50,6 +71,13 @@ impl CompilationEventQueue {
         let event_history = self.event_history.clone();
         let subscribers = self.subscribers.clone();
         let message_clone = message.clone();
+        let pending_deliveries = self.pending_deliveries.clone();
+        let deliveries_idle = self.deliveries_idle.clone();
+        // Captured at send time: events sent before the queue closes are still delivered, even
+        // if the delivery task runs after `flush_and_close`.
+        let deliver = !self.closed.load(Ordering::Acquire);
+
+        self.pending_deliveries.fetch_add(1, Ordering::AcqRel);
 
         // Spawn a task to handle the async operations
         tokio::spawn(async move {
@@ -59,38 +87,63 @@ impl CompilationEventQueue {
                 history.pop_front();
             }
             history.push_back(message_clone.clone());
+            drop(history);
 
-            // Send to all active receivers of the same message type
-            if let Some(mut type_subscribers) = subscribers.get_mut(&EventChannelType::Type(
-                message_clone.type_name().to_owned(),
-            )) {
-                let mut removal_indices = Vec::new();
-                for (ix, sender) in type_subscribers.iter().enumerate() {
-                    if sender.send(message_clone.clone()).await.is_err() {
-                        removal_indices.push(ix);
+            if deliver {
+                // Send to all active receivers of the same message type
+                if let Some(mut type_subscribers) = subscribers.get_mut(&EventChannelType::Type(
+                    message_clone.type_name().to_owned(),
+                )) {
+                    let mut removal_indices = Vec::new();
+                    for (ix, sender) in type_subscribers.iter().enumerate() {
+                        if sender.send(message_clone.clone()).await.is_err() {
+                            removal_indices.push(ix);
+                        }
+                    }
+
+                    for ix in removal_indices.iter().rev() {
+                        type_subscribers.remove(*ix);
                     }
                 }
 
-                for ix in removal_indices.iter().rev() {
-                    type_subscribers.remove(*ix);
+                // Send to all global message subscribers
+                if let Some(mut all_channel) = subscribers.get_mut(&EventChannelType::Global) {
+                    let mut removal_indices = Vec::new();
+                    for (ix, sender) in all_channel.iter_mut().enumerate() {
+                        if sender.send(message_clone.clone()).await.is_err() {
+                            removal_indices.push(ix);
+                        }
+                    }
+
+                    for ix in removal_indices.iter().rev() {
+                        all_channel.remove(*ix);
+                    }
                 }
             }
 
-            // Send to all global message subscribers
-            let mut all_channel = subscribers.get_mut(&EventChannelType::Global).unwrap();
-            let mut removal_indices = Vec::new();
-            for (ix, sender) in all_channel.iter_mut().enumerate() {
-                if sender.send(message_clone.clone()).await.is_err() {
-                    removal_indices.push(ix);
-                }
-            }
-
-            for ix in removal_indices.iter().rev() {
-                all_channel.remove(*ix);
-            }
+            pending_deliveries.fetch_sub(1, Ordering::AcqRel);
+            deliveries_idle.notify(usize::MAX);
         });
 
         Ok(())
+    }
+
+    /// Waits until all events sent so far have been delivered to subscribers, then closes all
+    /// subscriber channels. Subscriptions drain their remaining events and then end. Events sent
+    /// afterwards are only recorded in the history, and new subscriptions close after replaying
+    /// it.
+    pub async fn flush_and_close(&self) {
+        self.closed.store(true, Ordering::Release);
+        loop {
+            // Create the listener before checking the counter so no completion is missed.
+            let listener = self.deliveries_idle.listen();
+            if self.pending_deliveries.load(Ordering::Acquire) == 0 {
+                break;
+            }
+            listener.await;
+        }
+        // Dropping the senders closes the subscriber channels once they are drained.
+        self.subscribers.clear();
     }
 
     pub fn subscribe(
@@ -100,17 +153,20 @@ impl CompilationEventQueue {
         let (tx, rx) = mpsc::channel(MAX_QUEUE_SIZE);
         let subscribers = self.subscribers.clone();
         let event_history = self.event_history.clone();
+        let closed = self.closed.clone();
         let tx_clone = tx.clone();
 
         // Spawn a task to handle the async operations
         tokio::spawn(async move {
-            // Store the sender
+            // Store the sender (unless the queue was closed)
             if let Some(event_types) = event_types {
-                for event_type in event_types.iter() {
-                    let mut type_subscribers = subscribers
-                        .entry(EventChannelType::Type(event_type.clone()))
-                        .or_default();
-                    type_subscribers.push(tx_clone.clone());
+                if !closed.load(Ordering::Acquire) {
+                    for event_type in event_types.iter() {
+                        let mut type_subscribers = subscribers
+                            .entry(EventChannelType::Type(event_type.clone()))
+                            .or_default();
+                        type_subscribers.push(tx_clone.clone());
+                    }
                 }
 
                 for event in event_history.lock().await.iter() {
@@ -119,13 +175,22 @@ impl CompilationEventQueue {
                     }
                 }
             } else {
-                let mut global_subscribers =
-                    subscribers.entry(EventChannelType::Global).or_default();
-                global_subscribers.push(tx_clone.clone());
+                if !closed.load(Ordering::Acquire) {
+                    let mut global_subscribers =
+                        subscribers.entry(EventChannelType::Global).or_default();
+                    global_subscribers.push(tx_clone.clone());
+                }
 
                 for event in event_history.lock().await.iter() {
                     let _ = tx_clone.send(event.clone()).await;
                 }
+            }
+            // If the queue was closed, tx_clone was never stored and is dropped here, closing
+            // the receiver after the history replay.
+            if closed.load(Ordering::Acquire) {
+                // The queue was closed while subscribing: make sure no sender stored above
+                // lingers (flush_and_close may have cleared the map before we inserted).
+                subscribers.clear();
             }
         });
 
@@ -291,6 +356,40 @@ impl CompilationEvent for TraceEvent {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[tokio::test]
+    async fn test_flush_and_close() {
+        let queue = CompilationEventQueue::default();
+        let mut rx = queue.subscribe(None);
+        // Wait until the subscription is registered so delivery is deterministic.
+        while queue
+            .subscribers
+            .get(&EventChannelType::Global)
+            .unwrap()
+            .is_empty()
+        {
+            tokio::task::yield_now().await;
+        }
+
+        queue
+            .send(Arc::new(TimingEvent::new(
+                "test".to_string(),
+                Duration::from_millis(1),
+            )))
+            .unwrap();
+        queue.flush_and_close().await;
+
+        // The event is delivered before the channel closes.
+        let event = rx.recv().await.unwrap();
+        assert_eq!(event.message(), "test in 1ms");
+        assert!(rx.recv().await.is_none());
+
+        // Subscribing after close replays the history and closes immediately.
+        let mut rx2 = queue.subscribe(None);
+        let event = rx2.recv().await.unwrap();
+        assert_eq!(event.message(), "test in 1ms");
+        assert!(rx2.recv().await.is_none());
+    }
 
     #[test]
     fn test_timing_event_string_formatting() {
