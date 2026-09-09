@@ -48,7 +48,7 @@ describe('next/font', () => {
       fonts: new FileRef(join(__dirname, `app/fonts`)),
     },
     dependencies: {
-      '@next/font': 'canary',
+      '@next/font': 'workspace:*',
     },
     env: {
       NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,

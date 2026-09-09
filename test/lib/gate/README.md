@@ -85,7 +85,9 @@ There are two tiers:
 - **static** — the run's own shape (`dev`, `start`, `deploy`, `mode`,
   `turbopack`, `rspack`, `webpack`, `bundler`, `react18`, `wasm`, `ci`),
   semantic aliases for `!dev` that state the reason rather than the mode
-  (`prod`, `prefetching`), plus `FIXME` / `TODO`, which are always false.
+  (`prod`, `prefetching`), specialized CI variants (`adapter`,
+  `standaloneOutput`, `turbopackDev`, `turbopackBuild`), plus `FIXME` / `TODO`,
+  which are always false.
 - **lazy** — a predicate over the fixture's *resolved* `next.config`
   (`cacheComponents`, `ppr`, `prefetchInlining`, `output`, …), read the first
   time a gate asks for it.
@@ -190,9 +192,11 @@ var is not what the fixture actually resolved.
 ## How it works
 
 1. `pragma-transform.js` rewrites the pragma into
-   `_test_gate([{force,source}], 'it')(...)`. It is a line-oriented regex, not an
-   AST transform, so **only the `it(` line changes** and every other line keeps
-   its byte offsets — `toMatchInlineSnapshot()` is written back by line/column.
+   `_test_gate([{force,source}], 'it')(...)`. `describe.each` uses the analogous
+   `_test_gate_describe_each([{force,source}], table)(...)` helper. It is a
+   line-oriented regex, not an AST transform, so **only the call line changes**
+   and every other line keeps its byte offsets — `toMatchInlineSnapshot()` is
+   written back by line/column.
 2. `jest-transformer.js` chains that rewrite in front of the SWC transformer
    `next/jest` configures. `jest.config.js` wires it up with
    `withGateTransformer()`.
