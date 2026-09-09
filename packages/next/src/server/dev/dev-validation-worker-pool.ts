@@ -16,6 +16,7 @@ import { setDevValidationWorker } from '../app-render/dev-validation-worker-glob
 import { onCacheInvalidation } from './require-cache'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { needsExperimentalReact } from '../../lib/needs-experimental-react'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 interface InstallOptions {
   distDir: string
@@ -251,7 +252,12 @@ export function installDevValidationWorker(options: InstallOptions): void {
 
     try {
       return await activePool.runDevValidation(message, abortBuffer)
-    } catch {
+    } catch (err) {
+      console.error(
+        new InvariantError('Unexpected error in Instant Validation', {
+          cause: err,
+        })
+      )
       // Worker crash or IPC error: tear down so the next validation starts
       // fresh. The main thread treats a missing result as "nothing to deliver."
       await tearDownPool()
