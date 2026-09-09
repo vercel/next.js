@@ -5,7 +5,7 @@ module.exports = function() {
     return this === globalThis ? 34 : 0;
 }();
 }),
-(function(){"use strict";return[
+(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/index.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
 
 const strictA = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/strict-a.js [test] (ecmascript)");

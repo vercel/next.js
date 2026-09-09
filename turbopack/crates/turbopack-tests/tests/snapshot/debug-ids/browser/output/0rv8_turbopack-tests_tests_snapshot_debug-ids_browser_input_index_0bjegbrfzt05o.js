@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="98a94e3a-682f-20de-6a6c-6068760eb0b7")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="3b1cd10c-f809-9a53-4073-ff4f0944b5a2")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -2123,9 +2123,8 @@ function registerChunk(registration) {
         markChunkComponentsAvailable(chunk);
     }
     let runtimeParams;
-    // When bootstrapping we are passed a single RuntimeParams object. An all-strict
-    // module chunk also has length 2, but its second item is the strict factory array.
-    if (registration.length === 2 && !Array.isArray(registration[1])) {
+    // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
+    if (registration.length === 2) {
         runtimeParams = registration[1];
     } else {
         let chunkPath = getPathFromScript(chunk);
@@ -2503,5 +2502,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=98a94e3a-682f-20de-6a6c-6068760eb0b7
+//# debugId=3b1cd10c-f809-9a53-4073-ff4f0944b5a2
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map
