@@ -1,10 +1,13 @@
 import Link from 'next/link'
-import { Marker } from '../marker'
+import { Suspense } from 'react'
+import { DynamicMarker } from '../marker'
 
 export default function Other() {
   return (
     <main>
-      <Marker name="other" />
+      <Suspense fallback={<span>other loading</span>}>
+        <DynamicMarker name="other" />
+      </Suspense>
       <Link href="/" id="to-home">
         to home
       </Link>

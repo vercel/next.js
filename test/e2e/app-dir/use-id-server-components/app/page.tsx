@@ -1,12 +1,15 @@
 import Link from 'next/link'
-import { Marker } from './marker'
+import { Suspense } from 'react'
+import { DynamicMarker } from './marker'
 import { Refresh } from './refresh'
 import { ActionForm } from './action-form'
 
 export default function Page() {
   return (
     <main>
-      <Marker name="home" />
+      <Suspense fallback={<span>home loading</span>}>
+        <DynamicMarker name="home" />
+      </Suspense>
       <Link href="/other" id="to-other">
         to other
       </Link>

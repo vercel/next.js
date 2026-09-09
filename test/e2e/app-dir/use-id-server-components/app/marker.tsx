@@ -1,3 +1,4 @@
+import { connection } from 'next/server'
 import { useId } from 'react'
 import { nextRenderId } from './render-id'
 
@@ -13,4 +14,14 @@ export function Marker({ name }: { name: string }) {
       {name}: {id}
     </span>
   )
+}
+
+/**
+ * Mints its id in the dynamic part of the render, which is what a segment that
+ * reads cookies() or headers() does. `connection()` is used rather than the
+ * `dynamic` route segment config because Cache Components rejects the latter.
+ */
+export async function DynamicMarker({ name }: { name: string }) {
+  await connection()
+  return <Marker name={name} />
 }
