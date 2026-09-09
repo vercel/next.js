@@ -139,10 +139,12 @@ function serializeRuntimeErrorState(
   return {
     routerType: state.routerType,
     errors: state.errors.map((event) => {
-      const { error, isFatal, ...details } = event as RuntimeErrorEvent
+      const { error, isFatal, boundary, ...details } =
+        event as RuntimeErrorEvent
       return {
         ...details,
         fatal: isFatal,
+        ...(boundary ? { boundary } : {}),
         error: {
           name: error.name,
           message: error.message,

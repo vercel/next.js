@@ -187,8 +187,14 @@ export interface RequestCurrentErrorStateMessage {
   requestId: string
 }
 
+export type RuntimeErrorBoundary = {
+  kind: 'default-global' | 'custom-global' | 'custom'
+  name?: string
+}
+
 export interface RuntimeErrorMetadata {
   fatal: boolean
+  boundary?: RuntimeErrorBoundary
 }
 
 export interface FormattedRuntimeError {
@@ -197,6 +203,7 @@ export interface FormattedRuntimeError {
   message: string
   /** A React root failure or a Next.js unrecoverable rendering path. */
   fatal: boolean
+  boundary?: RuntimeErrorBoundary
   stack: Array<{
     file: string
     methodName: string
@@ -221,6 +228,7 @@ export interface RuntimeErrorStateError {
   }[]
   type: 'runtime' | 'recoverable' | 'console'
   fatal: boolean
+  boundary?: RuntimeErrorBoundary
 }
 
 export interface RuntimeErrorStateUpdate {
