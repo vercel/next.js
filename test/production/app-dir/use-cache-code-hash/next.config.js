@@ -3,8 +3,10 @@
  */
 const nextConfig = {
   cacheComponents: true,
+  supportsImmutableAssets: true,
   experimental: {
     durableUseCacheEntries: true,
+    runtimeServerDeploymentId: true,
   },
 }
 

@@ -83,6 +83,81 @@ async function getCodeHashes(
            "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
          ]
         `)
+
+        // TODO ideally this wouldn't include NEXT_DEPLOYMENT_ID.
+        // But currently the import chain
+        // next/image.js
+        // -> packages/next/src/shared/lib/get-img-props.ts
+        // -> packages/next/src/shared/lib/deployment-id.ts
+        // reads NEXT_DEPLOYMENT_ID
+
+        const data = await getCodeHashes(next)
+        expect(
+          Object.fromEntries(
+            data
+              .filter((d) => d.runtimeEnvVarsRead || d.runtimeEnvVarsExistence)
+              .map((d) => [
+                d.page,
+                [
+                  ...d.runtimeEnvVarsRead,
+                  ...d.runtimeEnvVarsExistence.map((v) => `exist ${v}`),
+                ],
+              ])
+          )
+        ).toMatchInlineSnapshot(`
+         {
+           "app/env-dynamic/page": [
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+           "app/env-existence/page": [
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist FOO",
+             "exist BAR",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+           "app/next-image/page": [
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "NEXT_DEPLOYMENT_ID",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+           "app/use-cache-client/page": [
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+           "app/use-cache/page": [
+             "BUNDLED_NON_INLINED_ENVVAR",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "EXTERNAL_ENV_VAR",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+         }
+        `)
       })
     })
 
