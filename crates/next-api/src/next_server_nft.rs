@@ -4,7 +4,6 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
 use next_core::{get_next_package, next_server::get_tracing_compile_time_info};
-use serde_json::json;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
@@ -16,6 +15,7 @@ use turbopack::externals_tracing_module_context;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     context::AssetContext,
+    file_source::FileSource,
     module::{Module, Modules},
     module_graph::{GraphEntries, ModuleGraph, SingleModuleGraph},
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
@@ -24,7 +24,7 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
-use crate::{nft::traced_modules_for_entries, project::Project};
+use crate::{nft::traced_modules_for_entries, nft_json_builder::NftJsonBuilder, project::Project};
 
 /// The modules `next/dist/server/require-hook` resolves its aliased requests to at runtime
 /// (currently all of styled-jsx), so that the Pages Router renderer and user code share a single
@@ -187,11 +187,8 @@ impl Asset for ServerNftJsonAsset {
         let this = self.await?;
 
         // Example: [project]/apps/my-website/.next/
-        let base_dir = this
-            .project
-            .project_root_path()
-            .await?
-            .join(&this.project.node_root().await?.path)?;
+        let nft_path = self.path().owned().await?;
+        let mut nft_json = NftJsonBuilder::new(this.project, &nft_path).await?;
 
         let module_graph = ModuleGraph::from_graphs(
             vec![SingleModuleGraph::new_with_entries(
@@ -205,7 +202,7 @@ impl Asset for ServerNftJsonAsset {
 
         let hash_salt = this.project.next_config().output_hash_salt();
 
-        let mut server_output_assets = traced_modules_for_entries(
+        let server_output_assets = traced_modules_for_entries(
             module_graph,
             Modules::empty(),
             self.entries(),
@@ -215,33 +212,36 @@ impl Asset for ServerNftJsonAsset {
         .await?
         .iter()
         .map(async |m| {
+            let path = m.ident().await?.path.clone();
+            let source = m.source().await?.context("NFT module has no content")?;
+            let content = source.content();
             Ok((
-                base_dir
-                    .get_relative_path_to(&m.ident().await?.path)
-                    .context("failed to compute relative path for server NFT JSON")?,
-                m.source()
-                    .await?
-                    .context("NFT module has no content")?
-                    .content()
+                path,
+                content
                     .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                    .owned()
                     .await?,
+                content.await?,
             ))
         })
         .try_join()
         .await?;
 
+        for (path, hash, content) in server_output_assets {
+            nft_json.add(path, hash, &content).await?;
+        }
+
         let next_dir = get_next_package(this.project.project_path().owned().await?).await?;
         for ty in ["app-page", "pages"] {
             let dir = next_dir.join(&format!("dist/server/route-modules/{ty}"))?;
             let module_path = dir.join("module.compiled.js")?;
-            server_output_assets.push((
-                base_dir
-                    .get_relative_path_to(&module_path)
-                    .context("failed to compute relative path for server NFT JSON")?,
-                module_path
-                    .hash_file(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
-                    .await?,
-            ));
+            let content = FileSource::new(module_path.clone()).content();
+            let hash = content
+                .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                .owned()
+                .await?;
+            let content = content.await?;
+            nft_json.add(module_path, hash, &content).await?;
 
             let contexts_dir = dir.join("vendored/contexts")?;
             let DirectoryContent::Entries(contexts_files) = &*contexts_dir.read_dir().await? else {
@@ -255,32 +255,21 @@ impl Asset for ServerNftJsonAsset {
                     continue;
                 };
                 if file.extension() == Some("js") {
-                    server_output_assets.push((
-                        base_dir
-                            .get_relative_path_to(file)
-                            .context("failed to compute relative path for server NFT JSON")?,
-                        file.hash_file(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
-                            .await?,
-                    ))
+                    let content = FileSource::new(file.clone()).content();
+                    let hash = content
+                        .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                        .owned()
+                        .await?;
+                    let content = content.await?;
+                    nft_json.add(file.clone(), hash, &content).await?;
                 }
             }
         }
 
-        server_output_assets.sort_unstable();
-        // Dedupe as some entries may be duplicates: a file might be referenced multiple times,
-        // e.g. as a RawModule (from an FS operation) and as an EcmascriptModuleAsset because it
-        // was required.
-        server_output_assets.dedup();
-
-        let (files, file_hashes): (Vec<_>, Vec<_>) = server_output_assets.into_iter().unzip();
-        let json = json!({
-            "version": 1,
-            "files": files,
-            "fileHashes": file_hashes
-        });
+        let json = serde_json::to_string(&nft_json.into_json(None))?;
 
         Ok(AssetContent::file(
-            FileContent::Content(File::from(json.to_string())).cell(),
+            FileContent::Content(File::from(json)).cell(),
         ))
     }
 }

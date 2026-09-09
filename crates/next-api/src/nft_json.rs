@@ -1,23 +1,22 @@
-use anyhow::{Context, Result, bail};
-use either::Either;
-use serde_json::json;
+use anyhow::{Context, Result};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     graph::{AdjacencyMap, GraphTraversal, Visit},
-    turbofmt,
 };
 use turbo_tasks_fs::{File, FileContent, FileSystem, FileSystemPath, glob::Glob};
 use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    file_source::FileSource,
     module::Module,
     output::{OutputAsset, OutputAssets, OutputAssetsReference},
 };
 
 use crate::{
     nft::{EndpointTraceResult, tracing_exclude_glob},
+    nft_json_builder::NftJsonBuilder,
     project::Project,
 };
 
@@ -82,28 +81,6 @@ impl OutputAsset for NftJsonAsset {
     }
 }
 
-fn get_output_specifier(
-    path_ref: &FileSystemPath,
-    ident_folder: &FileSystemPath,
-    ident_folder_in_project_fs: &FileSystemPath,
-    output_root: &FileSystemPath,
-    project_root: &FileSystemPath,
-) -> Result<RcStr> {
-    // include assets in the outputs such as referenced chunks
-    if path_ref.is_inside_ref(output_root) {
-        return Ok(ident_folder.get_relative_path_to(path_ref).unwrap());
-    }
-
-    // include assets in the project root such as images and traced references (externals)
-    if path_ref.is_inside_ref(project_root) {
-        return Ok(ident_folder_in_project_fs
-            .get_relative_path_to(path_ref)
-            .unwrap());
-    }
-    // This should effectively be unreachable
-    bail!("NftJsonAsset: cannot handle filepath '{path_ref}'");
-}
-
 #[turbo_tasks::value_impl]
 impl Asset for NftJsonAsset {
     #[turbo_tasks::function]
@@ -116,20 +93,14 @@ impl Asset for NftJsonAsset {
         async move {
             let project_path = this.project.project_path().owned().await?;
 
-            let output_root_ref = this.project.output_fs().root().await?;
-            let project_root_ref = this.project.project_fs().root().await?;
             let next_config = this.project.next_config();
             let hash_salt = next_config.output_hash_salt();
 
             let client_root = this.project.client_fs().root();
             let client_root = client_root.owned().await?;
 
-            // [project]/
-            let project_root_path = this.project.project_root_path().owned().await?;
-            // Example: [output]/apps/my-website/.next/server/app -- without the `page.js.nft.json`
-            let ident_folder = self.path().await?.parent();
-            // Example: [project]/apps/my-website/.next/server/app -- without the `page.js.nft.json`
-            let ident_folder_in_project_fs = project_root_path.join(&ident_folder.path)?;
+            let nft_path = self.path().owned().await?;
+            let mut nft_json = NftJsonBuilder::new(this.project, &nft_path).await?;
 
             let chunk = this.chunk;
             let entries = this
@@ -158,7 +129,7 @@ impl Asset for NftJsonAsset {
             let traced_files = this.traced_files.await?;
             let module_data = traced_files.module_data.await?;
 
-            let mut result: Vec<(RcStr, _)> = all_assets
+            let result = all_assets
                 .iter()
                 .filter(|a| **a != chunk)
                 .copied()
@@ -171,15 +142,18 @@ impl Asset for NftJsonAsset {
                         .map(AssetOrModule::Module),
                 )
                 .map(async |referenced| {
-                    let (referenced_chunk_path, hash) = match referenced {
-                        AssetOrModule::Asset(v) => (
-                            Either::Left(v.path().await?),
-                            Either::Left(
-                                v.content()
+                    let (referenced_chunk_path, hash, content) = match referenced {
+                        AssetOrModule::Asset(v) => {
+                            let content = v.content();
+                            (
+                                v.path().owned().await?,
+                                content
                                     .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                                    .owned()
                                     .await?,
-                            ),
-                        ),
+                                content.await?,
+                            )
+                        }
                         AssetOrModule::Module(v) => {
                             let ident = module_data
                                 .idents
@@ -191,82 +165,37 @@ impl Asset for NftJsonAsset {
                                 .get(&v)
                                 .await?
                                 .context("missing hash for module")?;
-                            (Either::Right(ident.path.clone()), Either::Right(hash))
+                            let source = v.source().await?.context("NFT module has no content")?;
+                            (
+                                ident.path.clone(),
+                                (**hash).clone(),
+                                source.content().await?,
+                            )
                         }
-                    };
-                    let referenced_chunk_path = match &referenced_chunk_path {
-                        Either::Left(p) => &**p,
-                        Either::Right(p) => p,
                     };
 
                     if referenced_chunk_path.has_extension(".map") {
                         return Ok(None);
                     }
 
-                    let specifier = match get_output_specifier(
-                        referenced_chunk_path,
-                        &ident_folder,
-                        &ident_folder_in_project_fs,
-                        &output_root_ref,
-                        &project_root_ref,
-                    ) {
-                        Ok(specifier) => specifier,
-                        Err(err) => {
-                            // ast-grep-ignore: no-context-turbofmt
-                            return Err(err.context(
-                                turbofmt!(
-                                    "NftJsonAsset: cannot handle filepath \
-                                     '{referenced_chunk_path}', it is not under the output_root: \
-                                     '{output_root_ref}' or the project_root: '{project_root_ref}'",
-                                )
-                                .await?,
-                            ));
-                        }
-                    };
-
-                    Ok(Some((specifier, hash)))
+                    Ok(Some((referenced_chunk_path, hash, content)))
                 })
                 .try_flat_join()
                 .await?;
 
-            result.extend(
-                traced_files
-                    .includes
-                    .iter()
-                    .map(async |file_path| {
-                        let relative_path = ident_folder_in_project_fs
-                            .get_relative_path_to(file_path)
-                            .unwrap();
-                        Ok((
-                            relative_path,
-                            Either::Left(
-                                file_path
-                                    .hash_file(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
-                                    .await?,
-                            ),
-                        ))
-                    })
-                    .try_join()
-                    .await?,
-            );
+            for (path, hash, content) in result {
+                nft_json.add(path, hash, &content).await?;
+            }
 
-            // Some of the output assets may have been included multiple times (in multiple chunking
-            // contexts), or asset contexts.
-            result.sort_unstable();
-            result.dedup();
-
-            let (files, file_hashes): (Vec<_>, Vec<_>) = result
-                .iter()
-                .map(|(name, hash)| {
-                    (
-                        name,
-                        match hash {
-                            Either::Left(v) => &**v,
-                            Either::Right(v) => &**v,
-                        },
-                    )
-                })
-                .unzip();
+            for file_path in &traced_files.includes {
+                let content = FileSource::new(file_path.clone()).content();
+                let hash = content
+                    .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                    .owned()
+                    .await?;
+                let content = content.await?;
+                nft_json.add(file_path.clone(), hash, &content).await?;
+            }
             // We can't just add this into "files" because Next.js sometimes decides to delete
             // output files such as `.next/server/pages/index.js` if that page was prerendered and
             // is fully static. An alternative would be to postprocess the nft file so that
@@ -276,16 +205,12 @@ impl Asset for NftJsonAsset {
             let entry_hash = chunk
                 .content()
                 .hash(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                .owned()
                 .await?;
-            let json = json!({
-              "version": 1,
-              "files": files,
-              "fileHashes": file_hashes,
-              "entryHash": entry_hash,
-            });
+            let json = serde_json::to_string(&nft_json.into_json(Some(entry_hash)))?;
 
             Ok(AssetContent::file(
-                FileContent::Content(File::from(json.to_string())).cell(),
+                FileContent::Content(File::from(json)).cell(),
             ))
         }
         .instrument(span)

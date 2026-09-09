@@ -5,8 +5,8 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToStringRef, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::{
-    FileSystem, FileSystemPath, VirtualFileSystem, WriteLinkContent, WriteLinkTarget,
-    WriteLinkTargetType, rope::RopeBuilder,
+    DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem, WriteLinkContent,
+    WriteLinkTarget, WriteLinkTargetType, rope::RopeBuilder,
 };
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::{
@@ -497,22 +497,33 @@ impl Asset for ExternalsSymlinkAsset {
         // path: [output]/bench/app-router-server/.next/node_modules/lodash-ee4fa714b6d81ca3
         // target: [project]/node_modules/.pnpm/lodash@3.10.1/node_modules/lodash
 
-        let output_root_to_project_root = this.chunking_context.output_root_to_root_path().await?;
-        let project_root_to_target = &this.target.path;
-
-        let path = self.path().await?;
-        let path_to_output_root = path
-            .parent()
-            .get_relative_path_to(&*this.chunking_context.output_root().await?)
-            .context("path must be inside output root")?;
-
-        let target = format!(
-            "{path_to_output_root}/{output_root_to_project_root}/{project_root_to_target}",
-        )
-        .into();
+        let project_root = this.chunking_context.root_path().await?;
+        let target = if this.target.fs == project_root.fs {
+            let output_root_to_project_root =
+                this.chunking_context.output_root_to_root_path().await?;
+            let path = self.path().await?;
+            let path_to_output_root = path
+                .parent()
+                .get_relative_path_to(&*this.chunking_context.output_root().await?)
+                .context("path must be inside output root")?;
+            WriteLinkTarget::Relative(
+                format!(
+                    "{path_to_output_root}/{output_root_to_project_root}/{}",
+                    this.target.path
+                )
+                .into(),
+            )
+        } else {
+            let root = ResolvedVc::try_downcast_type::<DiskFileSystem>(this.target.fs)
+                .context("external target must be in a disk filesystem")?;
+            WriteLinkTarget::Absolute {
+                root,
+                path: this.target.path.clone(),
+            }
+        };
 
         Ok(AssetContent::Redirect(WriteLinkContent {
-            target: WriteLinkTarget::Relative(target),
+            target,
             target_type: WriteLinkTargetType::DirectoryOrJunctionPoint,
         })
         .cell())
