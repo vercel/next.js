@@ -224,7 +224,9 @@ export function makeExternalHandler({
       shouldUseReactServerCondition(layer) &&
       request === 'next/dist/compiled/@vercel/og/index.node.js'
     ) {
-      return `module ${request}`
+      // Preserve the dynamic import so the Node.js OG bundle is only loaded
+      // when ImageResponse is used.
+      return `import ${request}`
     }
 
     // Specific Next.js imports that should remain external

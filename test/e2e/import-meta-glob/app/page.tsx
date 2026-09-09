@@ -28,6 +28,21 @@ const multiModules = import.meta.glob<Mod>(['./modules/*.ts', './other/*.ts'], {
   eager: true,
 })
 
+// Compile-time regression checks for Next.js's `ImportMeta` additions.
+// These declarations merge with the webpack-owned ambient types.
+function typeAssertions() {
+  // Lazy globs are thunks, eager globs are the modules themselves.
+  const lazy: Record<string, () => Promise<Mod>> = lazyModules
+  const eager: Record<string, Mod> = eagerModules
+
+  // Environment metadata is readonly.
+  // @ts-expect-error ImportMetaEnv properties are readonly
+  import.meta.env.DEV = false
+
+  return { lazy, eager }
+}
+void typeAssertions
+
 export default async function Page() {
   // Resolve lazy modules
   const lazyKeys = Object.keys(lazyModules).sort()
