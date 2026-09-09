@@ -82,6 +82,11 @@ export interface RequestStore extends CommonWorkUnitStore {
    * Certain APIs have different behavior in static and runtime prerenders.
    * - if `false`, they will follow static semantics
    * - if `true`, they will follow runtime semantics
+   *
+   * NOTE: Whenever the stage of a promise varies on `needsAppShell`,
+   * we should also call `trackIncompatibleShellContent` to signal this.
+   * Otherwise, instant validation or static shell validation might incorrectly
+   * use a render that resolves it at an inappropriate time.
    * */
   needsAppShell?: boolean // DEV-only
   /**

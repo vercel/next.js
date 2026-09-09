@@ -507,9 +507,7 @@ export interface ExperimentalConfig {
    * A collapsed entry resolves each request to the same output as the entries
    * that it replaces.
    *
-   * The default is `false`, so a build keeps one entry per route.
-   *
-   * @default false
+   * @default true
    */
   collapseAdapterRoutes?: boolean
   useSkewCookie?: boolean
@@ -2279,7 +2277,7 @@ export const defaultConfig = Object.freeze({
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
     coldCacheBadge: false,
-    collapseAdapterRoutes: false,
+    collapseAdapterRoutes: true,
     devValidationWorker: true,
     useSkewCookie: false,
     cssChunking: true,
