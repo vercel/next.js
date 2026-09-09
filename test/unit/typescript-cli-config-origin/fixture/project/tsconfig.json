@@ -1,0 +1,3 @@
+{
+  "extends": "@fixture/tsconfig"
+}

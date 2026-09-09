@@ -2,15 +2,17 @@
 
 use std::borrow::Cow;
 
+use smallvec::SmallVec;
+
 /// Converts system paths into Unix paths. This is a noop on Unix systems, and replaces backslash
 /// directory separators with forward slashes on Windows.
 #[inline]
 pub fn sys_to_unix(path: &str) -> Cow<'_, str> {
-    #[cfg(not(target_family = "windows"))]
+    #[cfg(not(windows))]
     {
         Cow::from(path)
     }
-    #[cfg(target_family = "windows")]
+    #[cfg(windows)]
     {
         Cow::Owned(path.replace(std::path::MAIN_SEPARATOR_STR, "/"))
     }
@@ -20,11 +22,11 @@ pub fn sys_to_unix(path: &str) -> Cow<'_, str> {
 /// slash directory separators with backslashes on Windows.
 #[inline]
 pub fn unix_to_sys(path: &str) -> Cow<'_, str> {
-    #[cfg(not(target_family = "windows"))]
+    #[cfg(not(windows))]
     {
         Cow::from(path)
     }
-    #[cfg(target_family = "windows")]
+    #[cfg(windows)]
     {
         Cow::Owned(path.replace('/', std::path::MAIN_SEPARATOR_STR))
     }
@@ -36,10 +38,8 @@ pub fn unix_to_sys(path: &str) -> Cow<'_, str> {
 /// see also [normalize_path] for normalization.
 /// Returns `None` if the joined path would leave the filesystem root.
 pub fn join_path(fs_path: &str, join: &str) -> Option<String> {
-    // Paths that we join are written as source code (eg, `join_path(fs_path, "foo/bar.js")`) and
-    // it's expected that they will never contain a backslash.
     debug_assert!(
-        !join.contains('\\'),
+        !cfg!(windows) || !join.contains('\\'),
         "joined path {join} must not contain a Windows directory '\\', it must be normalized to \
          Unix '/'"
     );
@@ -64,7 +64,7 @@ pub fn join_path(fs_path: &str, join: &str) -> Option<String> {
 ///
 /// Returns None if the path would need to start with ".." to be equal.
 pub fn normalize_path(str: &str) -> Option<String> {
-    let mut segments = Vec::new();
+    let mut segments = SmallVec::<[&str; 8]>::new();
     for segment in str.split('/') {
         match segment {
             "." | "" => {}
@@ -85,7 +85,8 @@ pub fn normalize_path(str: &str) -> Option<String> {
 /// A request might only start with a single "." segment and no ".." segments, or any positive
 /// number of ".." segments but no "." segment.
 pub fn normalize_request(str: &str) -> String {
-    let mut segments = vec!["."];
+    let mut segments = SmallVec::<[&str; 8]>::new();
+    segments.push(".");
     // Keeps track of our directory depth so that we can pop directories when encountering a "..".
     // If this is positive, then we're inside a directory and we can pop that. If it's 0, then we
     // can't pop the directory and we must keep the ".." in our segments. This is not the same as
@@ -118,11 +119,16 @@ pub fn normalize_request(str: &str) -> String {
     segments.join("/")
 }
 
-pub fn get_relative_path_to(from: &str, target: &str) -> String {
+/// Returns `"."` by reference when the paths are identical, or `target` by reference when `from`
+/// is empty.
+pub fn get_relative_path_to<'a>(from: &str, target: &'a str) -> Cow<'a, str> {
+    if from.is_empty() && !target.is_empty() {
+        return Cow::Borrowed(target);
+    }
+
     fn split(s: &str) -> impl Iterator<Item = &str> {
-        let empty = s.is_empty();
         let mut iterator = s.split('/');
-        if empty {
+        if s.is_empty() {
             iterator.next();
         }
         iterator
@@ -133,13 +139,11 @@ pub fn get_relative_path_to(from: &str, target: &str) -> String {
     while from_segments.peek() == target_segments.peek() {
         from_segments.next();
         if target_segments.next().is_none() {
-            return ".".to_string();
+            return Cow::Borrowed(".");
         }
     }
-    let mut result = Vec::new();
-    if from_segments.peek().is_none() {
-        result.push(".");
-    } else {
+    let mut result = SmallVec::<[&str; 8]>::new();
+    if from_segments.peek().is_some() {
         while from_segments.next().is_some() {
             result.push("..");
         }
@@ -147,7 +151,7 @@ pub fn get_relative_path_to(from: &str, target: &str) -> String {
     for segment in target_segments {
         result.push(segment);
     }
-    result.join("/")
+    Cow::Owned(result.join("/"))
 }
 
 pub fn get_parent_path(path: &str) -> &str {
@@ -185,5 +189,25 @@ mod tests {
     #[case("a/../../file.js")]
     fn test_normalize_path_invalid(#[case] path: &str) {
         assert_eq!(None, normalize_path(path));
+    }
+
+    #[rstest]
+    #[case("a/b/c", "a/b/c", ".", true)]
+    #[case("a/c/d", "a/b/c", "../../b/c", false)]
+    #[case("", "a/b/c", "a/b/c", true)]
+    #[case("", "", ".", true)]
+    #[case("a/b", "a/b/c", "c", false)]
+    #[case("a/b/c", "", "../../..", false)]
+    #[case("a/b/c", "c/b/a", "../../../c/b/a", false)]
+    #[case("file:///a/b/c", "file:///c/b/a", "../../../c/b/a", false)]
+    fn test_get_relative_path_to(
+        #[case] from: &str,
+        #[case] target: &str,
+        #[case] expected: &str,
+        #[case] borrowed: bool,
+    ) {
+        let relative = get_relative_path_to(from, target);
+        assert_eq!(relative, expected);
+        assert_eq!(matches!(relative, Cow::Borrowed(_)), borrowed);
     }
 }

@@ -93,43 +93,42 @@ fn expand_next_js_template_inner<'a>(
 
     // Update the relative imports to be absolute. This will update any relative imports to be
     // relative to the root of the `next` package.
-    static IMPORT_PATH_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new("(?:from '(\\..*)'|import '(\\..*)')").unwrap());
+    static IMPORT_PATH_RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r"(?:from '(\.[^']*)'|import '(\.[^']*)'|require\('(\.[^']*)'\))").unwrap()
+    });
 
     let mut count = 0;
     let mut content = replace_all(&IMPORT_PATH_RE, content, |caps| {
-        let from_request = caps.get(1).map_or("", |c| c.as_str());
+        let capture = caps
+            .get(1)
+            .or_else(|| caps.get(2))
+            .or_else(|| caps.get(3))
+            .map(|c| c.as_str());
         count += 1;
-        let is_from_request = !from_request.is_empty();
 
         let imported_path = join_path(
             &template_parent_path,
-            if is_from_request {
-                from_request
-            } else {
-                caps.get(2).context("import path must exist")?.as_str()
-            },
+            capture.context("import path must exist")?,
         )
         .context("path should not leave the fs")?;
 
         let relative = get_relative_path_to(&next_package_dir_parent_path, &imported_path);
 
-        if !relative.starts_with("./next/") {
+        if !relative.starts_with("next/") {
             bail!(
-                "Invariant: Expected relative import to start with \"./next/\", found \
-                 {relative:?}. Path computed from {next_package_dir_parent_path:?} to \
-                 {imported_path:?}.",
+                "Invariant: Expected relative import to start with \"next/\", found {relative:?}. \
+                 Path computed from {next_package_dir_parent_path:?} to {imported_path:?}.",
             )
         }
 
-        let relative = relative
-            .strip_prefix("./")
-            .context("should be able to strip the prefix")?;
+        let relative = relative.as_ref();
 
-        Ok(if is_from_request {
+        Ok(if caps.get(1).is_some() {
             format!("from {}", serde_json::to_string(relative).unwrap())
-        } else {
+        } else if caps.get(2).is_some() {
             format!("import {}", serde_json::to_string(relative).unwrap())
+        } else {
+            format!("require({})", serde_json::to_string(relative).unwrap())
         })
     })
     .context("replacing imports failed")?;

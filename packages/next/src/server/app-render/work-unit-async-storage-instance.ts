@@ -1,5 +1,5 @@
-import { createAsyncLocalStorage } from './async-local-storage'
+import { getOrCreateGlobalAsyncLocalStorage } from './async-local-storage'
 import type { WorkUnitAsyncStorage } from './work-unit-async-storage.external'
 
 export const workUnitAsyncStorageInstance: WorkUnitAsyncStorage =
-  createAsyncLocalStorage()
+  getOrCreateGlobalAsyncLocalStorage('work-unit-async-storage')

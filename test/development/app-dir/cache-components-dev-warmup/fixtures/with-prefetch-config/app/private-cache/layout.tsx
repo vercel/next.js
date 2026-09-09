@@ -3,7 +3,7 @@ import { UncachedFetch, CachedData } from '../data-fetching'
 import { PrivateCachedData } from './data-fetching'
 
 export const instant = true
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 const CACHE_KEY = '/private-cache/__LAYOUT__'
 

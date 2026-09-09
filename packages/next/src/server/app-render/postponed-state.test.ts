@@ -1,4 +1,7 @@
-import { createPrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import {
+  createPrerenderResumeDataCache,
+  stringifyResumeDataCache,
+} from '../resume-data-cache/resume-data-cache'
 import {
   streamFromString,
   streamToString,
@@ -7,6 +10,7 @@ import {
   DynamicState,
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
+  parseResumeDataCacheFromPostponedState,
   parsePostponedState,
   DynamicHTMLPreludeState,
 } from './postponed-state'
@@ -14,6 +18,7 @@ import type {
   OpaqueFallbackRouteParams,
   OpaqueFallbackRouteParamValue,
 } from '../request/fallback-params'
+import { CachedRouteKind } from '../response-cache/types'
 
 export function createMockOpaqueFallbackRouteParams(
   params: Record<string, OpaqueFallbackRouteParamValue>
@@ -143,6 +148,126 @@ describe('getDynamicDataPostponedState', () => {
       isCacheComponentsEnabled
     )
     expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
+  })
+
+  it('serializes and parses an uncompressed cache when compression is disabled', async () => {
+    const resumeDataCache = createPrerenderResumeDataCache()
+    resumeDataCache.fetch.set('cache-key', {
+      kind: CachedRouteKind.FETCH,
+      data: {
+        headers: {},
+        body: 'cached body',
+        url: 'https://example.com',
+      },
+      revalidate: 60,
+    })
+
+    const serializedResumeDataCache = await stringifyResumeDataCache(
+      resumeDataCache,
+      isCacheComponentsEnabled
+    )
+    const state = await getDynamicDataPostponedState(
+      resumeDataCache,
+      isCacheComponentsEnabled,
+      undefined,
+      true
+    )
+
+    expect(state).toBe(`4:null${serializedResumeDataCache}`)
+
+    const parsed = parsePostponedState(state, {}, undefined, true)
+    expect(parsed.renderResumeDataCache.fetch.get('cache-key')).toEqual(
+      resumeDataCache.fetch.get('cache-key')
+    )
+  })
+
+  it('warns when the uncompressed state would exceed the size limit', async () => {
+    const resumeDataCache = createPrerenderResumeDataCache()
+    resumeDataCache.fetch.set('cache-key', {
+      kind: CachedRouteKind.FETCH,
+      data: {
+        headers: {},
+        body: '💥'.repeat(2048),
+        url: 'https://example.com',
+      },
+      revalidate: 60,
+    })
+
+    const serializedResumeDataCache = await stringifyResumeDataCache(
+      resumeDataCache,
+      isCacheComponentsEnabled
+    )
+    const uncompressedStateByteLength = Buffer.byteLength(
+      `4:null${serializedResumeDataCache}`
+    )
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await getDynamicDataPostponedState(
+      resumeDataCache,
+      isCacheComponentsEnabled,
+      uncompressedStateByteLength
+    )
+    expect(warn).not.toHaveBeenCalled()
+
+    await getDynamicDataPostponedState(
+      resumeDataCache,
+      isCacheComponentsEnabled,
+      uncompressedStateByteLength - 1
+    )
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `The uncompressed postponed state is ${uncompressedStateByteLength} bytes`
+      )
+    )
+
+    warn.mockRestore()
+  })
+})
+
+describe('parseResumeDataCacheFromPostponedState', () => {
+  it('extracts the resume data cache without parsing the React state', async () => {
+    const key = '%%drp:slug:e9615126684e5%%'
+    const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
+      slug: [key, 'd'],
+    })
+    const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
+    prerenderResumeDataCache.cache.set(
+      'cache-key',
+      Promise.resolve({
+        entry: {
+          value: streamFromString('cached value'),
+          tags: [],
+          stale: 0,
+          timestamp: 0,
+          expire: 300,
+          revalidate: 1,
+        },
+        hasExplicitRevalidate: true,
+        hasExplicitExpire: true,
+        readRootParamNames: undefined,
+        dynamicNestedCacheError: undefined,
+      })
+    )
+
+    const state = await getDynamicHTMLPostponedState(
+      { [key]: key } as any,
+      DynamicHTMLPreludeState.Full,
+      fallbackRouteParams,
+      prerenderResumeDataCache,
+      isCacheComponentsEnabled
+    )
+
+    const resumeDataCache = parseResumeDataCacheFromPostponedState(
+      state,
+      undefined
+    )
+    const value = await resumeDataCache.cache.get('cache-key')
+
+    expect(value).toBeDefined()
+    await expect(streamToString(value!.entry.value)).resolves.toBe(
+      'cached value'
+    )
   })
 })
 

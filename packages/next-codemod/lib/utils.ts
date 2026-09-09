@@ -149,4 +149,10 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
     value: 'cache-components-instant-false',
     version: '16.3.0',
   },
+  {
+    title:
+      "Remove `export const prefetch = 'partial'` Route Segment Config from App Router pages and layouts after enabling `partialPrefetching` globally",
+    value: 'remove-partial-prefetch',
+    version: '16.3.0',
+  },
 ]

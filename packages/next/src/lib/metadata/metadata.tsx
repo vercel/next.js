@@ -5,22 +5,16 @@ import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { SearchParams } from '../../server/request/search-params'
 import {
   type MetadataErrorType,
+  type SelectedMetadata,
+  createSelectedMetadata,
   resolveMetadata,
   resolveViewport,
 } from './resolve-metadata'
-import type {
-  ResolvedMetadata,
-  ResolvedViewport,
-} from './types/metadata-interface'
+import type { ResolvedViewport } from './types/metadata-interface'
 import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import type { MetadataContext } from './types/resolvers'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
-import { isPostpone } from '../../server/lib/router-utils/is-postpone'
-import {
-  workUnitAsyncStorage,
-  getStagedRenderingController,
-} from '../../server/app-render/work-unit-async-storage.external'
 
 import {
   MetadataBoundary,
@@ -30,7 +24,6 @@ import {
 
 import { getOrigin } from './generate/utils'
 import { IconMark } from './generate/icon-mark'
-import { FIRST_LATE_RENDER_STAGE } from '../../server/app-render/staged-rendering'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -46,7 +39,6 @@ export function createMetadataComponents({
   interpolatedParams,
   errorType,
   serveStreamingMetadata,
-  isRuntimePrefetchable,
 }: {
   tree: LoaderTree
   pathname: string
@@ -55,54 +47,26 @@ export function createMetadataComponents({
   interpolatedParams: Params
   errorType?: MetadataErrorType | 'redirect'
   serveStreamingMetadata: boolean
-  isRuntimePrefetchable: boolean
 }): {
   Viewport: React.ComponentType
   Metadata: React.ComponentType
   MetadataOutlet: React.ComponentType
 } {
-  const searchParams = createServerSearchParamsForMetadata(
-    parsedQuery,
-    isRuntimePrefetchable
-  )
-  const pathnameForMetadata = createServerPathnameForMetadata(
-    pathname,
-    isRuntimePrefetchable
-  )
+  const searchParams = createServerSearchParamsForMetadata(parsedQuery)
+  const pathnameForMetadata = createServerPathnameForMetadata(pathname)
 
   async function Viewport() {
-    // Gate metadata to the correct render stage. If the page is not
-    // runtime-prefetchable, defer until the ShellStatic stage so that
-    // prefetchable segments get a head start.
-    if (!isRuntimePrefetchable) {
-      const workUnitStore = workUnitAsyncStorage.getStore()
-      if (workUnitStore) {
-        const stagedRendering = getStagedRenderingController(workUnitStore)
-        if (stagedRendering) {
-          await stagedRendering.waitForStage(FIRST_LATE_RENDER_STAGE)
-        }
-      }
-    }
-
     const tags = await getResolvedViewport(
       tree,
       searchParams,
       interpolatedParams,
-      isRuntimePrefetchable,
       errorType
     ).catch((viewportErr) => {
-      // When Legacy PPR is enabled viewport can reject with a Postpone type
-      // This will go away once Legacy PPR is removed and dynamic metadata will
-      // stay pending until after the prerender is complete when it is dynamic
-      if (isPostpone(viewportErr)) {
-        throw viewportErr
-      }
       if (!errorType && isHTTPAccessFallbackError(viewportErr)) {
         return getNotFoundViewport(
           tree,
           searchParams,
-          interpolatedParams,
-          isRuntimePrefetchable
+          interpolatedParams
         ).catch(() => null)
       }
       // We're going to throw the error from the metadata outlet so we just render null here instead
@@ -122,42 +86,21 @@ export function createMetadataComponents({
   }
 
   async function Metadata() {
-    // Gate metadata to the correct render stage. If the page is not
-    // runtime-prefetchable, defer until the ShellStatic stage so that
-    // prefetchable segments get a head start.
-    if (!isRuntimePrefetchable) {
-      const workUnitStore = workUnitAsyncStorage.getStore()
-      if (workUnitStore) {
-        const stagedRendering = getStagedRenderingController(workUnitStore)
-        if (stagedRendering) {
-          await stagedRendering.waitForStage(FIRST_LATE_RENDER_STAGE)
-        }
-      }
-    }
-
     const tags = await getResolvedMetadata(
       tree,
       pathnameForMetadata,
       searchParams,
       interpolatedParams,
       metadataContext,
-      isRuntimePrefetchable,
       errorType
     ).catch((metadataErr) => {
-      // When Legacy PPR is enabled metadata can reject with a Postpone type
-      // This will go away once Legacy PPR is removed and dynamic metadata will
-      // stay pending until after the prerender is complete when it is dynamic
-      if (isPostpone(metadataErr)) {
-        throw metadataErr
-      }
       if (!errorType && isHTTPAccessFallbackError(metadataErr)) {
         return getNotFoundMetadata(
           tree,
           pathnameForMetadata,
           searchParams,
           interpolatedParams,
-          metadataContext,
-          isRuntimePrefetchable
+          metadataContext
         ).catch(() => null)
       }
       // We're going to throw the error from the metadata outlet so we just render null here instead
@@ -198,16 +141,9 @@ export function createMetadataComponents({
         searchParams,
         interpolatedParams,
         metadataContext,
-        isRuntimePrefetchable,
         errorType
       ),
-      getResolvedViewport(
-        tree,
-        searchParams,
-        interpolatedParams,
-        isRuntimePrefetchable,
-        errorType
-      ),
+      getResolvedViewport(tree, searchParams, interpolatedParams, errorType),
     ]).then(() => null)
 
     // TODO: We shouldn't change what we render based on whether we are streaming or not.
@@ -238,7 +174,6 @@ async function getResolvedMetadataImpl(
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
   metadataContext: MetadataContext,
-  isRuntimePrefetchable: boolean,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
@@ -248,7 +183,6 @@ async function getResolvedMetadataImpl(
     searchParams,
     interpolatedParams,
     metadataContext,
-    isRuntimePrefetchable,
     errorConvention
   )
 }
@@ -259,8 +193,7 @@ async function getNotFoundMetadataImpl(
   pathname: Promise<string>,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
-  metadataContext: MetadataContext,
-  isRuntimePrefetchable: boolean
+  metadataContext: MetadataContext
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
   return renderMetadata(
@@ -269,7 +202,6 @@ async function getNotFoundMetadataImpl(
     searchParams,
     interpolatedParams,
     metadataContext,
-    isRuntimePrefetchable,
     notFoundErrorConvention
   )
 }
@@ -279,32 +211,23 @@ async function getResolvedViewportImpl(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
-  isRuntimePrefetchable: boolean,
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
-  return renderViewport(
-    tree,
-    searchParams,
-    interpolatedParams,
-    isRuntimePrefetchable,
-    errorConvention
-  )
+  return renderViewport(tree, searchParams, interpolatedParams, errorConvention)
 }
 
 const getNotFoundViewport = cache(getNotFoundViewportImpl)
 async function getNotFoundViewportImpl(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
-  interpolatedParams: Params,
-  isRuntimePrefetchable: boolean
+  interpolatedParams: Params
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
   return renderViewport(
     tree,
     searchParams,
     interpolatedParams,
-    isRuntimePrefetchable,
     notFoundErrorConvention
   )
 }
@@ -315,7 +238,6 @@ async function renderMetadata(
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
   metadataContext: MetadataContext,
-  isRuntimePrefetchable: boolean,
   errorConvention?: MetadataErrorType
 ) {
   const resolvedMetadata = await resolveMetadata(
@@ -324,25 +246,22 @@ async function renderMetadata(
     searchParams,
     errorConvention,
     interpolatedParams,
-    metadataContext,
-    isRuntimePrefetchable
+    metadataContext
   )
-  return <>{createMetadataElements(resolvedMetadata)}</>
+  return <>{createMetadataElements(createSelectedMetadata(resolvedMetadata))}</>
 }
 
 async function renderViewport(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   interpolatedParams: Params,
-  isRuntimePrefetchable: boolean,
   errorConvention?: MetadataErrorType
 ) {
   const resolvedViewport = await resolveViewport(
     tree,
     searchParams,
     errorConvention,
-    interpolatedParams,
-    isRuntimePrefetchable
+    interpolatedParams
   )
   return <>{createViewportElements(resolvedViewport)}</>
 }
@@ -424,14 +343,14 @@ function createViewportElements(
 // ---------------------------------------------------------------------------
 
 function createMetadataElements(
-  metadata: ResolvedMetadata
+  metadata: SelectedMetadata
 ): React.ReactElement[] {
   const tags: React.ReactElement[] = []
   let i = 0
 
   // --- Title ---
-  if (metadata.title !== null && metadata.title.absolute) {
-    tags.push(<title key={i++}>{metadata.title.absolute}</title>)
+  if (metadata.title) {
+    tags.push(<title key={i++}>{metadata.title}</title>)
   }
 
   // --- Basic meta tags ---
@@ -815,10 +734,8 @@ function createMetadataElements(
         <meta key={i++} property="og:determiner" content={og.determiner} />
       )
     }
-    if (og.title?.absolute) {
-      tags.push(
-        <meta key={i++} property="og:title" content={og.title.absolute} />
-      )
+    if (og.title) {
+      tags.push(<meta key={i++} property="og:title" content={og.title} />)
     }
     if (og.description) {
       tags.push(
@@ -1526,10 +1443,8 @@ function createMetadataElements(
         <meta key={i++} name="twitter:creator:id" content={tw.creatorId} />
       )
     }
-    if (tw.title?.absolute) {
-      tags.push(
-        <meta key={i++} name="twitter:title" content={tw.title.absolute} />
-      )
+    if (tw.title) {
+      tags.push(<meta key={i++} name="twitter:title" content={tw.title} />)
     }
     if (tw.description) {
       tags.push(

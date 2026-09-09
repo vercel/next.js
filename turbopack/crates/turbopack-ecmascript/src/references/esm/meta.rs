@@ -7,7 +7,7 @@ use swc_core::{
     ecma::ast::{Expr, Ident},
     quote,
 };
-use turbo_rcstr::rcstr;
+use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::chunk::ChunkingContext;
@@ -32,11 +32,26 @@ use crate::{
 pub struct ImportMetaBinding {
     path: FileSystemPath,
     hmr_enabled: bool,
+    mode: RcStr,
+    base_url: RcStr,
+    is_ssr: bool,
 }
 
 impl ImportMetaBinding {
-    pub fn new(path: FileSystemPath, hmr_enabled: bool) -> Self {
-        ImportMetaBinding { path, hmr_enabled }
+    pub fn new(
+        path: FileSystemPath,
+        hmr_enabled: bool,
+        mode: RcStr,
+        base_url: RcStr,
+        is_ssr: bool,
+    ) -> Self {
+        ImportMetaBinding {
+            path,
+            hmr_enabled,
+            mode,
+            base_url,
+            is_ssr,
+        }
     }
 
     pub async fn code_generation(
@@ -68,6 +83,11 @@ impl ImportMetaBinding {
         );
 
         let hmr_enabled = self.hmr_enabled;
+        let mode: Expr = self.mode.as_str().into();
+        let is_prod: Expr = (self.mode == "production").into();
+        let is_dev: Expr = (self.mode != "production").into();
+        let is_ssr: Expr = self.is_ssr.into();
+        let base_url: Expr = self.base_url.as_str().into();
 
         // [NOTE] url property is lazy-evaluated, as it should be computed once
         // turbopack_runtime injects a function to calculate an absolute path.
@@ -75,16 +95,29 @@ impl ImportMetaBinding {
             // turbopackHot exposes the HMR API (equivalent to module.hot in CJS).
             let turbopack_module: Expr = TURBOPACK_MODULE.into();
             quote!(
-                "var $name = { get url() { return $path }, get turbopackHot() { return $m.hot } };" as Stmt,
+                "var $name = { get url() { return $path }, env: { DEV: $is_dev, PROD: \
+                 $is_prod, MODE: $mode, BASE_URL: $base_url, SSR: $is_ssr }, get turbopackHot() { \
+                 return $m.hot } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path,
+                is_dev: Expr = is_dev,
+                is_prod: Expr = is_prod,
+                mode: Expr = mode,
+                base_url: Expr = base_url,
+                is_ssr: Expr = is_ssr,
                 m: Expr = turbopack_module,
             )
         } else {
             quote!(
-                "var $name = { get url() { return $path } };" as Stmt,
+                "var $name = { get url() { return $path }, env: { DEV: $is_dev, PROD: \
+                 $is_prod, MODE: $mode, BASE_URL: $base_url, SSR: $is_ssr } };" as Stmt,
                 name = meta_ident(),
                 path: Expr = path,
+                is_dev: Expr = is_dev,
+                is_prod: Expr = is_prod,
+                mode: Expr = mode,
+                base_url: Expr = base_url,
+                is_ssr: Expr = is_ssr,
             )
         };
 

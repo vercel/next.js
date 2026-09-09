@@ -1,0 +1,5 @@
+{
+  "mangleExportNames": true,
+  "minify": true,
+  "scopeHoisting": false
+}

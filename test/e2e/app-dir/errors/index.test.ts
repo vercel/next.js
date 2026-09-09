@@ -150,18 +150,18 @@ describe('app-dir - errors', () => {
       ).not.toBe('')
       const cleanCliOutput = stripAnsi(
         next.cliOutput.slice(outputIndex)
-      ).replaceAll(/digest: '\d+(@E\d+)'/g, "digest: '<digest>$1'")
+      ).replaceAll(/digest: '\d+'/g, "digest: '<digest>'")
       if (isNextDev) {
         expect(cleanCliOutput).toEqual(
           expect.stringMatching(
-            /Error: An undefined error was thrown.*digest: '<digest>@E98'/s
+            /Error: An undefined error was thrown.*digest: '<digest>'/s
           )
         )
       } else {
         expect(cleanCliOutput).toMatchInlineSnapshot(`
          "⨯ Error: undefined
              at ignore-listed frames {
-           digest: '<digest>@E394'
+           digest: '<digest>'
          }
          "
         `)
@@ -188,18 +188,18 @@ describe('app-dir - errors', () => {
       ).not.toBe('')
       const cleanCliOutput = stripAnsi(
         next.cliOutput.slice(outputIndex)
-      ).replaceAll(/digest: '\d+(@E\d+)'/g, "digest: '<digest>$1'")
+      ).replaceAll(/digest: '\d+'/g, "digest: '<digest>'")
       if (isNextDev) {
         expect(cleanCliOutput).toEqual(
           expect.stringMatching(
-            /Error: A null error was thrown.*digest: '<digest>@E336'/s
+            /Error: A null error was thrown.*digest: '<digest>'/s
           )
         )
       } else {
         expect(cleanCliOutput).toMatchInlineSnapshot(`
          "⨯ Error: null
              at ignore-listed frames {
-           digest: '<digest>@E394'
+           digest: '<digest>'
          }
          "
         `)

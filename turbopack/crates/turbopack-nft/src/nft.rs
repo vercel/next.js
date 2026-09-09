@@ -102,7 +102,6 @@ async fn node_file_trace_operation(
             analyze_mode: AnalyzeMode::Tracing,
             // Disable tree shaking. Even side-effect-free imports need to be traced, as they will
             // execute at runtime.
-            tree_shaking_mode: None,
             ..Default::default()
         }
         .cell(),

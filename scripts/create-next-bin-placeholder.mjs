@@ -8,14 +8,7 @@ const repoRoot = path.join(scriptDir, '..')
 const placeholders = [
   path.join(repoRoot, 'packages', 'next', 'dist', 'bin', 'next'),
   path.join(repoRoot, 'packages', 'create-next-app', 'dist', 'index.js'),
-  path.join(
-    repoRoot,
-    'turbopack',
-    'packages',
-    'devlow-bench',
-    'dist',
-    'cli.js'
-  ),
+  path.join(repoRoot, 'packages', 'devlow-bench', 'dist', 'cli.js'),
 ]
 
 for (const binPath of placeholders) {

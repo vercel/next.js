@@ -1,0 +1,3 @@
+module.exports=["[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/single-export/input/index.js [test] (ecmascript)",t=>{"use strict";console.log((0,t.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/single-export/input/lone.js [test] (ecmascript)").f)()),t.s([])},"[project]/turbopack/crates/turbopack-tests/tests/snapshot/mangle-exports/single-export/input/lone.js [test] (ecmascript)",t=>{"use strict";t.s(["f",0,function(){return"lone"}])}];
+
+//# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_mangle-exports_single-export_input_1mf78g4ogdhgv._.js.map

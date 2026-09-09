@@ -1,6 +1,7 @@
 use std::{
     borrow::Borrow,
     fmt::{self, Debug, Formatter},
+    hash::{Hash, Hasher},
     ops::{Deref, Range},
     rc::Rc,
 };
@@ -8,6 +9,7 @@ use std::{
 use memmap2::Mmap;
 
 use crate::{
+    Compression,
     compression::decompress_into_rc,
     shared_bytes::{SharedBytes, is_subslice_of},
 };
@@ -75,6 +77,12 @@ impl Debug for RcBytes {
 
 impl Eq for RcBytes {}
 
+impl Hash for RcBytes {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Hash::hash(self.deref(), state);
+    }
+}
+
 impl SharedBytes for RcBytes {
     type MmapHandle = Rc<Mmap>;
 
@@ -117,8 +125,13 @@ impl SharedBytes for RcBytes {
         }
     }
 
-    fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self> {
+    fn from_decompressed(
+        compression: Compression,
+        uncompressed_length: u32,
+        block: &[u8],
+    ) -> anyhow::Result<Self> {
         Ok(RcBytes::from(decompress_into_rc(
+            compression,
             uncompressed_length,
             block,
         )?))

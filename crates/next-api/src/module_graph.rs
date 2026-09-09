@@ -103,7 +103,7 @@ impl NextDynamicGraphs {
                 let result = self
                     .0
                     .iter()
-                    .map(|graph| async move {
+                    .map(async |graph| {
                         Ok(graph
                             .get_next_dynamic_imports_for_endpoint(entry)
                             .await?
@@ -300,11 +300,10 @@ impl ServerActionsGraphs {
                 let result = self
                     .0
                     .iter()
-                    .map(|graph| async move {
+                    .map(|graph| {
                         graph
                             .get_server_actions_for_endpoint(entry, rsc_asset_context)
                             .owned()
-                            .await
                     })
                     .try_flat_join()
                     .await?;
@@ -372,7 +371,7 @@ impl ServerActionsGraph {
 
             let actions = data
                 .iter()
-                .map(|(module, (layer, actions))| async move {
+                .map(async |(module, (layer, actions))| {
                     let actions = actions.await?;
                     actions
                         .actions

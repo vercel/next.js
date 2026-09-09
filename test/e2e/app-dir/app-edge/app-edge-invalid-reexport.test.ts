@@ -4,6 +4,7 @@ import path from 'path'
 describe('app-dir edge SSR invalid reexport', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: {
+      'app/layout.tsx': new FileRef(path.join(__dirname, 'app', 'layout.tsx')),
       'app/export': new FileRef(path.join(__dirname, 'app', 'export')),
       'app/export/inherit/page.tsx':
         "export { default, runtime, preferredRegion } from '../basic/page'",

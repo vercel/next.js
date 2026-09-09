@@ -6,7 +6,7 @@ export default function Page() {
       <li>
         {/* Prerendered at build time via generateStaticParams — the prefetch
             receives the concrete version, never a fallback. */}
-        <LinkAccordion href="/static-posts/1">
+        <LinkAccordion href="/static-posts/1" prefetch={true}>
           Static post 1 (concrete)
         </LinkAccordion>
       </li>
@@ -15,14 +15,14 @@ export default function Page() {
             un-enumerated param is upgradeable: the server serves a fallback
             shell on first prefetch, then regenerates the concrete version in
             the background. Used by the recovery test. */}
-        <LinkAccordion href="/posts/recovery">
+        <LinkAccordion href="/posts/recovery" prefetch={true}>
           Post recovery (upgradeable fallback)
         </LinkAccordion>
       </li>
       <li>
         {/* No generateStaticParams — the fallback shell can never be upgraded,
             so the prefetch shell must NOT be flagged as a fallback (no retry). */}
-        <LinkAccordion href="/no-static-params/1">
+        <LinkAccordion href="/no-static-params/1" prefetch={true}>
           No static params 1 (non-upgradeable fallback)
         </LinkAccordion>
       </li>
@@ -32,7 +32,7 @@ export default function Page() {
             test's. Used by the retry-*limit* test, which forces every prefetch
             response to keep returning the fallback so the client retries to
             its cap and then stops. */}
-        <LinkAccordion href="/posts/retry-limit">
+        <LinkAccordion href="/posts/retry-limit" prefetch={true}>
           Post retry-limit (upgradeable fallback)
         </LinkAccordion>
       </li>

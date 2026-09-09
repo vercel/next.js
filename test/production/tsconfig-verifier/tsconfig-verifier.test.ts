@@ -6,6 +6,12 @@ const strictRouteTypes =
 describe('tsconfig.json verifier', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    nextConfig: {
+      experimental: { useTypeScriptCli: false },
+    },
+    env: {
+      NEXT_PRIVATE_LOCAL_DEV: '',
+    },
     skipStart: true,
     skipDeployment: true,
   })
@@ -1130,6 +1136,12 @@ describe('tsconfig.json verifier', () => {
 describe('tsconfig.json verifier 5.x', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
+    nextConfig: {
+      experimental: { useTypeScriptCli: false },
+    },
+    env: {
+      NEXT_PRIVATE_LOCAL_DEV: '',
+    },
     skipStart: true,
     dependencies: {
       typescript: '5.9.3',

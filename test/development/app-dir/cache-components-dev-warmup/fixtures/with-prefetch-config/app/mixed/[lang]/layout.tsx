@@ -1,7 +1,7 @@
 import { ReactNode, Suspense } from 'react'
 
 export const instant = true
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 // `lang` is covered by `generateStaticParams`. At this segment `params` only
 // contains `lang`, so reading it here (rather than in the deeper page) lets us

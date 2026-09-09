@@ -88,7 +88,7 @@ fn bench_startup_internal(
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
                         let browser = &*browser;
-                        b.to_async(&runtime).try_iter_custom(|iters, m| async move {
+                        b.to_async(&runtime).try_iter_custom(async |iters, m| {
                             let mut value = m.zero();
 
                             for _ in 0..iters {
@@ -183,7 +183,7 @@ fn bench_hmr_internal(
 
                         b.to_async(&runtime).try_iter_async(
                             &runtime,
-                            || async {
+                            async || {
                                 let mut app = PreparedApp::new_without_copy(
                                     bundler,
                                     test_app.path().to_path_buf(),
@@ -318,7 +318,7 @@ fn bench_hmr_internal(
                                     Ok((guard, value))
                                 }
                             },
-                            |guard| async move {
+                            async |guard| {
                                 let hmr_is_happening = guard
                                     .page()
                                     .evaluate_expression("globalThis.HMR_IS_HAPPENING")
@@ -484,7 +484,7 @@ fn bench_startup_cached_internal(
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
                         let browser = &*browser;
-                        b.to_async(&runtime).try_iter_custom(|iters, m| async move {
+                        b.to_async(&runtime).try_iter_custom(async |iters, m| {
                             // Run a complete build, shut down, and test running it again
                             let mut app =
                                 PreparedApp::new(bundler, test_app.path().to_path_buf()).await?;

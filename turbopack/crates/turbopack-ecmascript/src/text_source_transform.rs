@@ -46,7 +46,7 @@ impl SourceTransform for TextSourceTransform {
 
         // Generate ES module with inline source map pointing back to the original file.
         let code = format!(
-            "\"use turbopack no side effects\";\nexport default {};\n{}",
+            "\"use turbopack: no side effects\";\nexport default {};\n{}",
             StringifyJs(&text),
             inline_source_map_comment(&ident.path.path, &text)
         );

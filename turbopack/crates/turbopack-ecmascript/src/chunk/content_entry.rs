@@ -71,7 +71,7 @@ impl EcmascriptChunkContentEntries {
                             batch
                                 .chunk_items
                                 .iter()
-                                .map(|item| async move {
+                                .map(async |item| {
                                     Ok((
                                         item.chunk_item.id().await?,
                                         EcmascriptChunkContentEntry::new(
