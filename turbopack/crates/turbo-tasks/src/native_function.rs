@@ -10,7 +10,7 @@ use turbo_tasks_hash::DeterministicHasher;
 #[cfg(feature = "task_dirty_cause")]
 use crate::TaskDirtyCause;
 use crate::{
-    InputResolution, RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    InputResolution, RawVc, TaskExecutionReason, TaskId, TaskInput, TaskPersistence, TaskPriority,
     dyn_task_inputs::{
         DynTaskInputs, DynTaskInputsStorage, HeapDynTaskInputsStorage, StackDynTaskInputsStorage,
         any_as_encode,
@@ -284,8 +284,13 @@ impl NativeFunction {
         }
     }
 
+    pub fn name(&self) -> &'static str {
+        self.ty.name
+    }
+
     pub fn span(
         &'static self,
+        task_id: TaskId,
         persistence: TaskPersistence,
         reason: TaskExecutionReason,
         priority: TaskPriority,
@@ -307,6 +312,10 @@ impl NativeFunction {
                 flags = flags,
                 reason = reason.as_str(),
                 cause = cause.map(tracing::field::display),
+                task_id = %task_id,
+                cancelable = self.is_cancelable,
+                outcome = tracing::field::Empty,
+                abort_trigger = tracing::field::Empty,
                 inline_execution = tracing::field::Empty,
             )
         }
@@ -318,6 +327,10 @@ impl NativeFunction {
                 priority = %priority,
                 flags = flags,
                 reason = reason.as_str(),
+                task_id = %task_id,
+                cancelable = self.is_cancelable,
+                outcome = tracing::field::Empty,
+                abort_trigger = tracing::field::Empty,
                 inline_execution = tracing::field::Empty,
             )
         }

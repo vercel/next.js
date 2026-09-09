@@ -1557,6 +1557,7 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
 
                                 let result = match outcome {
                                     CaptureFutureOutcome::Aborted => {
+                                        Span::current().record("outcome", "aborted");
                                         return this
                                             .backend
                                             .task_execution_aborted(task_id, &*this);
@@ -1564,12 +1565,21 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                     CaptureFutureOutcome::Value(raw_vc) => {
                                         // This is safe because we waited for all local tasks to
                                         // complete above.
-                                        raw_vc
+                                        let result = raw_vc
                                             .to_non_local_unchecked_sync(&*this)
-                                            .map_err(|err| err.into())
+                                            .map_err(|err| err.into());
+                                        Span::current().record(
+                                            "outcome",
+                                            if result.is_ok() { "value" } else { "error" },
+                                        );
+                                        result
                                     }
-                                    CaptureFutureOutcome::Error(err) => Err(err.into()),
+                                    CaptureFutureOutcome::Error(err) => {
+                                        Span::current().record("outcome", "error");
+                                        Err(err.into())
+                                    }
                                     CaptureFutureOutcome::Panic(err) => {
+                                        Span::current().record("outcome", "panic");
                                         Err(TurboTasksExecutionError::Panic(Arc::new(err)))
                                     }
                                 };

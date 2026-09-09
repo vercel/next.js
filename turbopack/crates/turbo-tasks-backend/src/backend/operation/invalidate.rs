@@ -2,7 +2,10 @@ use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
-use turbo_tasks::{TaskExecutionReason, TaskId, TaskPriority, event::EventDescription};
+use turbo_tasks::{
+    TaskExecutionReason, TaskId, TaskPriority, backend::TaskExecutionAbortReason,
+    event::EventDescription,
+};
 
 use crate::{
     backend::{
@@ -168,7 +171,14 @@ pub fn make_task_dirty_internal<'e, E: ExecuteContext<'e>>(
             .entered();
             in_progress.stale = true;
         }
-        in_progress.abort_invalidated();
+        let native_fn = in_progress.native_fn;
+        let outcome = in_progress.request_abort(TaskExecutionAbortReason::Invalidation);
+        ctx.track_abort_request(
+            task.id(),
+            native_fn,
+            TaskExecutionAbortReason::Invalidation,
+            outcome,
+        );
     }
     let current = task.get_dirty();
     let parent_priority = ctx.get_current_task_priority();

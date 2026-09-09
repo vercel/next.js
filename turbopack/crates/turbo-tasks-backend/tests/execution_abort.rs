@@ -4,13 +4,18 @@
 mod util;
 
 use std::{
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        Barrier,
+        atomic::{AtomicUsize, Ordering},
+    },
     time::Duration,
 };
 
 use anyhow::Result;
 use tokio::sync::Notify;
-use turbo_tasks::{ReadRef, ResolvedVc, State, TransientInstance, Vc, trace::TraceRawVcs};
+use turbo_tasks::{
+    ReadRef, ResolvedVc, State, TransientInstance, TurboTasksApi, Vc, trace::TraceRawVcs,
+};
 
 use crate::util::create_tt;
 
@@ -57,6 +62,26 @@ impl ExecutionControl {
     }
 }
 
+#[derive(TraceRawVcs)]
+struct CompletionRaceControl {
+    #[turbo_tasks(trace_ignore)]
+    started: Notify,
+    #[turbo_tasks(trace_ignore)]
+    generation: AtomicUsize,
+    #[turbo_tasks(trace_ignore)]
+    first_poll_release: Barrier,
+}
+
+impl CompletionRaceControl {
+    fn new() -> Self {
+        Self {
+            started: Notify::new(),
+            generation: AtomicUsize::new(0),
+            first_poll_release: Barrier::new(2),
+        }
+    }
+}
+
 struct ExecutionDropGuard {
     control: TransientInstance<ExecutionControl>,
 }
@@ -80,6 +105,22 @@ async fn blocking_task(
         control: control.clone(),
     };
     control.releases[generation].notified().await;
+    Ok(Vc::cell(value))
+}
+
+#[turbo_tasks::function(root)]
+async fn completion_race_task(
+    input: ResolvedVc<ChangingInput>,
+    control: TransientInstance<CompletionRaceControl>,
+) -> Result<Vc<u32>> {
+    let value = *input.await?.state.get();
+    let generation = control.generation.fetch_add(1, Ordering::AcqRel);
+    if generation == 0 {
+        control.started.notify_waiters();
+        // Keep the current poll in progress while another runtime thread requests abortion. The
+        // future then returns Ready without giving Abortable another chance to observe the request.
+        control.first_poll_release.wait();
+    }
     Ok(Vc::cell(value))
 }
 
@@ -122,6 +163,7 @@ async fn awaits_blocking_subtree(
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn invalidation_aborts_in_flight_execution() {
     let (tt, _persistence_dir) = create_tt("invalidation_aborts_in_flight_execution");
+    tt.task_statistics().enable();
     let control = TransientInstance::new(ExecutionControl::new());
     let control_for_run = control.clone();
 
@@ -157,8 +199,18 @@ async fn invalidation_aborts_in_flight_execution() {
     })
     .await;
 
-    tt.stop_and_wait().await;
     result.unwrap();
+    let stats = tt
+        .task_statistics()
+        .get()
+        .unwrap()
+        .get(&BLOCKING_TASK_FUNCTION);
+    assert_eq!(stats.execution_started, 2);
+    assert_eq!(stats.execution_completed, 1);
+    assert_eq!(stats.abort_requested_invalidation, 1);
+    assert_eq!(stats.abort_observed_invalidation, 1);
+    assert_eq!(stats.abort_raced_completion_invalidation, 0);
+    tt.stop_and_wait().await;
 }
 
 /// A cancellation-unsafe task opts out: invalidation marks it stale but lets the current future
@@ -166,6 +218,7 @@ async fn invalidation_aborts_in_flight_execution() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn non_cancelable_execution_runs_to_completion() {
     let (tt, _persistence_dir) = create_tt("non_cancelable_execution_runs_to_completion");
+    tt.task_statistics().enable();
     let control = TransientInstance::new(ExecutionControl::new());
     let control_for_run = control.clone();
 
@@ -205,8 +258,18 @@ async fn non_cancelable_execution_runs_to_completion() {
 
     control.releases[0].notify_one();
     control.releases[1].notify_one();
-    tt.stop_and_wait().await;
     result.unwrap();
+    let stats = tt
+        .task_statistics()
+        .get()
+        .unwrap()
+        .get(&NON_CANCELABLE_BLOCKING_TASK_FUNCTION);
+    assert_eq!(stats.execution_started, 2);
+    assert_eq!(stats.execution_completed, 2);
+    assert_eq!(stats.abort_requested_invalidation, 1);
+    assert_eq!(stats.abort_skipped_invalidation, 1);
+    assert_eq!(stats.abort_observed_invalidation, 0);
+    tt.stop_and_wait().await;
 }
 
 /// Aborting a parent must recursively undo speculative active-count increments so a blocked
@@ -215,6 +278,7 @@ async fn non_cancelable_execution_runs_to_completion() {
 async fn inactive_subtree_is_aborted_and_restarts_when_reconnected() {
     let (tt, _persistence_dir) =
         create_tt("inactive_subtree_is_aborted_and_restarts_when_reconnected");
+    tt.task_statistics().enable();
     let control = TransientInstance::new(ExecutionControl::new());
     let control_for_run = control.clone();
 
@@ -250,8 +314,61 @@ async fn inactive_subtree_is_aborted_and_restarts_when_reconnected() {
     // Keep cleanup safe if an assertion above exits before the blocked execution is aborted.
     control.releases[0].notify_one();
     control.releases[1].notify_one();
-    tt.stop_and_wait().await;
     result.unwrap();
+    let stats = tt
+        .task_statistics()
+        .get()
+        .unwrap()
+        .get(&BLOCKING_TASK_FUNCTION);
+    assert_eq!(stats.execution_started, 2);
+    assert_eq!(stats.execution_completed, 1);
+    assert_eq!(stats.abort_requested_inactive, 1);
+    assert_eq!(stats.abort_observed_inactive, 1);
+    tt.stop_and_wait().await;
+}
+
+/// A task that returns Ready from the poll during which abortion was requested completes normally,
+/// records the lost race, and uses ordinary stale re-execution.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn successful_completion_records_abort_race() {
+    let (tt, _persistence_dir) = create_tt("successful_completion_records_abort_race");
+    tt.task_statistics().enable();
+    let control = TransientInstance::new(CompletionRaceControl::new());
+    let control_for_run = control.clone();
+
+    let result = turbo_tasks::run_once(tt.clone(), async move {
+        let input = ReadRef::resolved_cell(ReadRef::new_owned(ChangingInput {
+            state: State::new(0),
+        }));
+        let output = completion_race_task(*input, control_for_run.clone());
+        let read_output = output.strongly_consistent();
+        let drive_race = async {
+            while control_for_run.generation.load(Ordering::Acquire) < 1 {
+                control_for_run.started.notified().await;
+            }
+            input.await?.state.set(1);
+            control_for_run.first_poll_release.wait();
+            anyhow::Ok(())
+        };
+
+        let (value, ()) = tokio::try_join!(read_output, drive_race)?;
+        assert_eq!(*value, 1);
+        anyhow::Ok(())
+    })
+    .await;
+
+    result.unwrap();
+    let stats = tt
+        .task_statistics()
+        .get()
+        .unwrap()
+        .get(&COMPLETION_RACE_TASK_FUNCTION);
+    assert_eq!(stats.execution_started, 2);
+    assert_eq!(stats.execution_completed, 2);
+    assert_eq!(stats.abort_requested_invalidation, 1);
+    assert_eq!(stats.abort_raced_completion_invalidation, 1);
+    assert_eq!(stats.abort_observed_invalidation, 0);
+    tt.stop_and_wait().await;
 }
 
 /// Completing at the same time as invalidation must either complete the stale poll or abort it,
@@ -260,6 +377,7 @@ async fn inactive_subtree_is_aborted_and_restarts_when_reconnected() {
 async fn completion_racing_invalidation_has_one_fresh_execution() {
     let (tt, _persistence_dir) =
         create_tt("completion_racing_invalidation_has_one_fresh_execution");
+    tt.task_statistics().enable();
 
     let result = turbo_tasks::run_once(tt.clone(), async move {
         for _ in 0..16 {
@@ -294,6 +412,21 @@ async fn completion_racing_invalidation_has_one_fresh_execution() {
     })
     .await;
 
-    tt.stop_and_wait().await;
     result.unwrap();
+    let stats = tt
+        .task_statistics()
+        .get()
+        .unwrap()
+        .get(&BLOCKING_TASK_FUNCTION);
+    assert_eq!(stats.abort_requested_invalidation, 16);
+    assert_eq!(
+        stats.abort_observed_invalidation + stats.abort_raced_completion_invalidation,
+        16
+    );
+    assert_eq!(stats.execution_started, 32);
+    assert_eq!(
+        stats.execution_completed + stats.abort_observed_invalidation,
+        32
+    );
+    tt.stop_and_wait().await;
 }

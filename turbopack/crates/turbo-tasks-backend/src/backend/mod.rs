@@ -18,10 +18,7 @@ use std::{
     hash::BuildHasherDefault,
     mem::take,
     pin::Pin,
-    sync::{
-        Arc, LazyLock,
-        atomic::{AtomicBool, Ordering},
-    },
+    sync::{Arc, LazyLock, atomic::AtomicU8},
     time::SystemTime,
 };
 
@@ -2106,6 +2103,10 @@ impl TurboTasksBackend {
     ) -> Option<TaskPriority> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let TaskTypeRef::Cached(task_type) = task.get_task_type() else {
+            unreachable!("only cached native tasks have abort handles")
+        };
+        let native_fn = task_type.native_fn;
         let Some(in_progress) = task.take_in_progress() else {
             // Completion or another abort callback won the race.
             return None;
@@ -2116,14 +2117,28 @@ impl TurboTasksBackend {
             debug_assert!(old.is_none(), "InProgress already exists");
             return None;
         };
+        let abort_reason = in_progress
+            .abort_reason()
+            .expect("an observed abort must have a recorded trigger");
+        self.task_statistics
+            .map(|stats| stats.increment_abort_observed(native_fn, abort_reason));
+        Span::current().record("abort_trigger", abort_reason.as_str());
+        tracing::event!(
+            name: "turbo_tasks::abort_observed",
+            target: "turbo_tasks::abort",
+            tracing::Level::TRACE,
+            event = "observed",
+            task_id = %task_id,
+            function = native_fn.name(),
+            trigger = abort_reason.as_str(),
+        );
+        let aborted_as_unneeded = in_progress.abort_when_unneeded();
         let InProgressStateInner {
             stale,
             done_event,
             mut new_children,
-            abort_when_unneeded,
             ..
         } = *in_progress;
-        let aborted_as_unneeded = abort_when_unneeded.load(Ordering::Acquire);
 
         // Only children that were not already connected received a speculative active-count
         // increment during this execution.
@@ -2248,12 +2263,15 @@ impl TurboTasksBackend {
                     _ => None,
                 };
             }
-            let (abort_handle, registration) = match &task_type {
-                TaskType::Cached(task_type) if task_type.native_fn.is_cancelable => {
-                    let (abort_handle, registration) = AbortHandle::new_pair();
-                    (Some(abort_handle), Some(registration))
-                }
-                _ => (None, None),
+            let native_fn = match &task_type {
+                TaskType::Cached(task_type) => Some(task_type.native_fn),
+                TaskType::Transient(_) => None,
+            };
+            let (abort_handle, registration) = if native_fn.is_some_and(|f| f.is_cancelable) {
+                let (abort_handle, registration) = AbortHandle::new_pair();
+                (Some(abort_handle), Some(registration))
+            } else {
+                (None, None)
             };
             abort_registration = registration;
             let old = task.set_in_progress(InProgressState::InProgress(Box::new(
@@ -2263,8 +2281,9 @@ impl TurboTasksBackend {
                     done_event,
                     marked_as_completed: false,
                     new_children: Default::default(),
+                    native_fn,
                     abort_handle,
-                    abort_when_unneeded: AtomicBool::new(false),
+                    abort_state: AtomicU8::new(0),
                 },
             )));
             debug_assert!(old.is_none(), "InProgress already exists");
@@ -2320,8 +2339,11 @@ impl TurboTasksBackend {
                     this,
                     arg,
                 } = &*task_type;
+                self.task_statistics
+                    .map(|stats| stats.increment_execution_started(native_fn));
                 (
                     native_fn.span(
+                        task_id,
                         task_id.persistence(),
                         execution_reason,
                         priority,
@@ -2510,11 +2532,34 @@ impl TurboTasksBackend {
         has_invalidator: bool,
     ) -> Result<TaskExecutionCompletePrepareResult, TaskPriority> {
         let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let native_fn = match task.get_task_type() {
+            TaskTypeRef::Cached(task_type) => Some(task_type.native_fn),
+            TaskTypeRef::Transient(_) => None,
+        };
+        if let Some(native_fn) = native_fn {
+            self.task_statistics
+                .map(|stats| stats.increment_execution_completed(native_fn));
+        }
         if let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress_mut() {
             // The task future completed without observing a concurrent abort request. From this
             // point on, use the ordinary completion bookkeeping: stale tasks re-execute and
             // inactive tasks finalize into a state a later GC pass can collect.
-            in_progress.disarm_abort();
+            if let Some(reason) = in_progress.disarm_abort()
+                && let Some(native_fn) = native_fn
+            {
+                self.task_statistics
+                    .map(|stats| stats.increment_abort_raced_completion(native_fn, reason));
+                Span::current().record("abort_trigger", reason.as_str());
+                tracing::event!(
+                    name: "turbo_tasks::abort_raced_completion",
+                    target: "turbo_tasks::abort",
+                    tracing::Level::TRACE,
+                    event = "raced_completion",
+                    task_id = %task_id,
+                    function = native_fn.name(),
+                    trigger = reason.as_str(),
+                );
+            }
         }
         let is_recomputation = task.is_dirty().is_none();
         // Without dependency tracking, the SessionDependent dirty state is never read (no session

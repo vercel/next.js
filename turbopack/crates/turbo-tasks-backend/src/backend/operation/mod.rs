@@ -20,7 +20,8 @@ use tracing::info_span;
 use tracing::trace_span;
 use turbo_tasks::{
     CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence, backend::CachedTaskTypeArc,
+    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence,
+    backend::{CachedTaskTypeArc, TaskExecutionAbortReason},
     macro_helpers::NativeFunction,
 };
 
@@ -33,7 +34,10 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
+    data::{
+        AbortRequestOutcome, ActivenessState, CollectibleRef, Dirtyness, InProgressState,
+        TransientTask,
+    },
 };
 
 pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> {
@@ -144,6 +148,13 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Only effective in a gc context see [`Self::collects_gc_candidates`].
     fn note_maybe_collectible(&mut self, task: &impl TaskGuard);
+    fn track_abort_request(
+        &self,
+        task_id: TaskId,
+        native_fn: Option<&'static NativeFunction>,
+        reason: TaskExecutionAbortReason,
+        outcome: AbortRequestOutcome,
+    );
     /// Whether [`Self::note_maybe_collectible`] does anything, i.e. this is a GC context.
     ///
     /// Lets a caller skip work that only exists to feed the collector — in particular opening a
@@ -1212,8 +1223,73 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
                 // as a root and its debug validation accepts the in-progress state as the transient
                 // pin. Once the abort settles it as dirty, a later pass drops that resident root
                 // entry and collects the task.
-                in_progress.abort_unneeded();
+                let native_fn = in_progress.native_fn;
+                let outcome = in_progress.request_abort(TaskExecutionAbortReason::Gc);
+                self.track_abort_request(
+                    task.id(),
+                    native_fn,
+                    TaskExecutionAbortReason::Gc,
+                    outcome,
+                );
             }
+        }
+    }
+
+    fn track_abort_request(
+        &self,
+        task_id: TaskId,
+        native_fn: Option<&'static NativeFunction>,
+        reason: TaskExecutionAbortReason,
+        outcome: AbortRequestOutcome,
+    ) {
+        let Some(native_fn) = native_fn else {
+            return;
+        };
+        if !matches!(outcome, AbortRequestOutcome::Duplicate) {
+            self.backend.task_statistics.map(|stats| {
+                stats.increment_abort_requested(native_fn, reason);
+                match outcome {
+                    AbortRequestOutcome::Accepted | AbortRequestOutcome::Duplicate => {}
+                    AbortRequestOutcome::Skipped => {
+                        stats.increment_abort_skipped(native_fn, reason)
+                    }
+                    AbortRequestOutcome::RacedCompletion => {
+                        stats.increment_abort_raced_completion(native_fn, reason)
+                    }
+                }
+            });
+            tracing::event!(
+                name: "turbo_tasks::abort_requested",
+                target: "turbo_tasks::abort",
+                tracing::Level::TRACE,
+                event = "requested",
+                task_id = %task_id,
+                function = native_fn.name(),
+                trigger = reason.as_str(),
+                cancelable = native_fn.is_cancelable,
+            );
+        }
+        match outcome {
+            AbortRequestOutcome::Skipped => tracing::event!(
+                name: "turbo_tasks::abort_skipped",
+                target: "turbo_tasks::abort",
+                tracing::Level::TRACE,
+                event = "skipped",
+                task_id = %task_id,
+                function = native_fn.name(),
+                trigger = reason.as_str(),
+                reason = "non_cancelable",
+            ),
+            AbortRequestOutcome::RacedCompletion => tracing::event!(
+                name: "turbo_tasks::abort_raced_completion",
+                target: "turbo_tasks::abort",
+                tracing::Level::TRACE,
+                event = "raced_completion",
+                task_id = %task_id,
+                function = native_fn.name(),
+                trigger = reason.as_str(),
+            ),
+            AbortRequestOutcome::Accepted | AbortRequestOutcome::Duplicate => {}
         }
     }
 
