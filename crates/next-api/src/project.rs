@@ -2844,7 +2844,6 @@ async fn whole_app_module_graph_operation(
     }
     .instrument(span_clone)
     .await;
-    // Forward the span to the JS side for inclusion in `.next/trace`, on success or failure.
     turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
         "turbopack-module-graph",
         wall_start,

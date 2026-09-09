@@ -1603,7 +1603,6 @@ pub async fn all_entrypoints_write_to_disk_operation(
         .await
         .map(|_| project.entrypoints());
 
-    // Forward the span to the JS side for inclusion in `.next/trace`, on success or failure.
     turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
         "turbopack-write-entrypoints",
         wall_start,
@@ -1683,7 +1682,6 @@ async fn emit_all_output_assets_once_with_issues_operation(
     }
     .await;
 
-    // Forward the span to the JS side for inclusion in `.next/trace`, on success or failure.
     turbo_tasks().send_compilation_event(Arc::new(TraceEvent::new_with_duration(
         "turbopack-emit",
         wall_start,
