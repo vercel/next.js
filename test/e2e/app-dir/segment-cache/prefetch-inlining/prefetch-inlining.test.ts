@@ -2,10 +2,11 @@ import type * as Playwright from 'playwright'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createRouterAct } from 'router-act'
+import { PrefetchHint } from 'next/src/shared/lib/app-router-types'
 import {
-  PrefetchHint,
-  type PrefetchHints,
-} from 'next/dist/shared/lib/app-router-types'
+  type HintsManifest,
+  getHumanReadablePrefetchHints,
+} from '../../../../lib/prefetch-hints'
 
 // The subset of the FlightRouterState tuple the assertions below read (see
 // FlightRouterState in shared/lib/app-router-types.ts). The segment is
@@ -532,49 +533,15 @@ describe('prefetch inlining', () => {
 
   if (isNextStart) {
     it('partially generated dynamic route: build hints use the most specific shell', async () => {
-      const hintsManifest: Record<string, PrefetchHints> = await next.readJSON(
+      const hintsManifest: HintsManifest = await next.readJSON(
         '.next/server/prefetch-hints.json'
       )
-
-      const hintsToString = (hintsValue: number): string => {
-        const names: string[] = []
-        // @ts-expect-error - const enum (which jest ignores)
-        const entries = Object.entries(PrefetchHint)
-        for (const [name, mask] of entries) {
-          if (typeof mask !== 'number') continue
-          if ((hintsValue & mask) !== 0) {
-            names.push(name)
-          }
-        }
-        return names.join(' | ')
-      }
-
-      type HumanReadableHints = {
-        hints: string
-        slots: null | Record<string, HumanReadableHints>
-      }
-      const toHumanReadablePrefetchHints = (
-        tree: PrefetchHints
-      ): HumanReadableHints => {
-        return {
-          hints: hintsToString(tree.hints),
-          slots:
-            tree.slots === null
-              ? null
-              : Object.fromEntries(
-                  Object.entries(tree.slots).map(([name, slot]) => [
-                    name,
-                    toHumanReadablePrefetchHints(slot),
-                  ])
-                ),
-        }
-      }
 
       // The page awaits fallback params (and no other runtime data), so:
       // - the shell can be static (ShouldAttemptStaticShell hint set),
       // - the prefetch is runtime (ShouldAttemptStaticPrefetch hint is NOT set).
       expect(
-        toHumanReadablePrefetchHints(
+        getHumanReadablePrefetchHints(
           hintsManifest['/test-dynamic-partial/[top]/[bottom]']
         )
       ).toMatchInlineSnapshot(`
