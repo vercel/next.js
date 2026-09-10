@@ -27,6 +27,10 @@ export async function createComponentStylesAndScripts({
     injectedJS
   )
 
+  for (const entryCssFile of entryCssFiles) {
+    ctx.inlinedCSSPaths.add(entryCssFile.path)
+  }
+
   const styles = renderCssResource(entryCssFiles, ctx)
 
   const scripts: React.ReactNode[] = []
