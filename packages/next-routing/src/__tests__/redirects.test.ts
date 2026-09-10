@@ -64,6 +64,63 @@ describe('Redirects with Location header', () => {
     expect(result.externalRewrite).toBeUndefined()
   })
 
+  it('should keep a hash in the destination', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/old'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/old$',
+            destination: '/new#section',
+            status: 308,
+            headers: {
+              Location: '/new#section',
+            },
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.redirect?.url.pathname).toBe('/new')
+    expect(result.redirect?.url.hash).toBe('#section')
+  })
+
+  it('should split the destination query and hash', async () => {
+    const params = createBaseParams({
+      url: new URL('https://example.com/old'),
+      routes: {
+        beforeMiddleware: [],
+        beforeFiles: [
+          {
+            sourceRegex: '^/old$',
+            destination: '/new?ref=email#section',
+            status: 308,
+            headers: {
+              Location: '/new?ref=email#section',
+            },
+          },
+        ],
+        afterFiles: [],
+        dynamicRoutes: [],
+        onMatch: [],
+        fallback: [],
+      },
+    })
+
+    const result = await resolveRoutes(params)
+
+    expect(result.redirect?.url.pathname).toBe('/new')
+    expect(result.redirect?.url.searchParams.get('ref')).toBe('email')
+    expect(result.redirect?.url.hash).toBe('#section')
+  })
+
   it('should handle 302 temporary redirect', async () => {
     const params = createBaseParams({
       url: new URL('https://example.com/temp'),
