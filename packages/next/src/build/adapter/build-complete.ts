@@ -15,7 +15,22 @@ import {
   normalizeAppPath,
   selectAppPageEntry,
 } from '../../shared/lib/router/utils/app-paths'
-import { AdapterOutputType, type PHASE_TYPE } from '../../shared/lib/constants'
+import {
+  AdapterOutputType,
+  VARIANTS_MANIFEST,
+  type PHASE_TYPE,
+} from '../../shared/lib/constants'
+import {
+  NEXT_VARIANTS_PREFIX_HEADER,
+  NEXT_VARIANTS_QUERY_PARAM,
+  VARIANTS_NOT_ROUTED_PATH,
+  VARIANTS_PATH_PREFIX,
+} from '../../lib/constants'
+import {
+  hasVariantsPrefix,
+  readVariantsPrefixRoute,
+  removeVariantsPrefix,
+} from '../../server/variants/prefix'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 import {
@@ -652,6 +667,34 @@ export async function handleBuildComplete({
     await import(pathToFileURL(require.resolve(adapterPath)).href)
   ) as NextAdapter
 
+  // The pages that declared variant combinations. A request can reach such a
+  // page under a combination prefix as well as under the page's own path.
+  const variantRoutePages = new Set(
+    Object.keys(prerenderManifest.variantCombinationGroups ?? {})
+  )
+
+  // The pages whose fallback shell was written once per combination, keyed by
+  // the page rather than by the prefixed path.
+  //
+  // A prefixed entry here is what makes the loop below emit a prerender under
+  // that prefix, so this set names exactly the pages a request may be routed to
+  // under a prefix. Deriving both from this one source is what keeps a routing
+  // rule from naming a path nothing was written to.
+  //
+  // Only a partially prerendered route has such an entry. Without a hole to
+  // resume there is nothing to write per combination, so the route keeps its
+  // one entry at the plain path and partitions it by the combination in the
+  // cache key instead.
+  const variantFallbackPages = new Set<string>()
+
+  for (const pathname in prerenderManifest.dynamicRoutes) {
+    const page = readVariantsPrefixRoute(pathname)
+
+    if (page) {
+      variantFallbackPages.add(page)
+    }
+  }
+
   if (typeof adapterMod.onBuildComplete === 'function') {
     const outputs: AdapterOutputs = {
       pages: [],
@@ -1092,6 +1135,26 @@ export async function handleBuildComplete({
           middlewareFile,
           'neutral'
         )
+
+        // The proxy reads this at request time, to decide which combination a
+        // request matched. File tracing cannot see it, because the path is
+        // computed from the dist directory and not written as a literal
+        // require. The build produces it after the compile that traced the
+        // proxy, so this is also the first point at which it exists.
+        //
+        // The gate here is the same condition the build writes it under, so the
+        // two cannot disagree about whether a file exists.
+        if (config.experimental.variants) {
+          const variantsManifestFile = path.join(
+            distDir,
+            'server',
+            `${VARIANTS_MANIFEST}.json`
+          )
+
+          assets[path.relative(repoRoot, variantsManifestFile)] =
+            variantsManifestFile
+        }
+
         const functionConfig =
           functionsConfigManifest.functions['/_middleware'] || {}
 
@@ -1429,8 +1492,10 @@ export async function handleBuildComplete({
         const isNotFoundTrue = prerenderManifest.notFoundRoutes.includes(route)
 
         let allowQuery: string[] | undefined
+        // An alias shares a page with the route it aliases, so a lookup by page
+        // must skip aliases. Otherwise it can answer from the alias.
         const routeKeys = routesManifest.dynamicRoutes.find(
-          (item) => item.page === srcRoute
+          (item) => item.page === srcRoute && !item.variantsPrefixed
         )?.routeKeys
 
         if (!isDynamicRoute(route)) {
@@ -1724,11 +1789,28 @@ export async function handleBuildComplete({
         const isAppPage = Boolean(appOutputMap[srcRoute])
 
         const meta = await getAppRouteMeta(dynamicRoute, isAppPage)
+
+        // The prefix of a combination comes off before the lookup, because a
+        // `page` never carries one: the entry that holds the route keys is the
+        // plain one, and the prefixed alias beside it is skipped here. Without
+        // this, every combination of a route finds no keys at all, and its
+        // params stop partitioning the entry, so two params that share a
+        // combination are served each other's render.
         const routeKeys =
           routesManifest.dynamicRoutes.find(
-            (item) => item.page === dynamicRoute
+            (item) =>
+              item.page === removeVariantsPrefix(dynamicRoute) &&
+              !item.variantsPrefixed
           )?.routeKeys || {}
-        const allowQuery = Object.values(routeKeys)
+
+        // The combination joins the params in the cache key. Without it, every
+        // combination of a route falls onto one entry, and the first one
+        // rendered is served to all of them. With it, the entries partition by
+        // exactly what was declared, because nothing else about a variant
+        // reaches the key.
+        const allowQuery = variantRoutePages.has(srcRoute)
+          ? [...Object.values(routeKeys), NEXT_VARIANTS_QUERY_PARAM]
+          : Object.values(routeKeys)
         const partialFallback =
           // Partial fallback shells are only emitted when Partial Prefetching
           // is enabled in the app's Next.js config.
@@ -1805,13 +1887,35 @@ export async function handleBuildComplete({
           didFilterBlockingAllowQuery = true
         }
 
+        // The code above narrows by params. A shell is shared across the params
+        // it leaves as holes, so those params must not partition it. A
+        // combination is not a hole. Each combination has a shell of its own,
+        // rendered with different values, so a combination partitions whatever
+        // the params do. This code restores it after any branch above dropped
+        // it.
+        if (
+          variantRoutePages.has(srcRoute) &&
+          !htmlAllowQuery.includes(NEXT_VARIANTS_QUERY_PARAM)
+        ) {
+          htmlAllowQuery = [...htmlAllowQuery, NEXT_VARIANTS_QUERY_PARAM]
+        }
+
+        // `fallback` names the route pattern the shell belongs to. The origin
+        // needs that pattern plain, because it completes the pattern with
+        // params to build a cache key. The file is written per combination,
+        // under the prefixed key of the entry, so the artifact is found there.
+        const fallbackPathname =
+          typeof fallback === 'string' && hasVariantsPrefix(dynamicRoute)
+            ? dynamicRoute
+            : fallback
+
         // app router dynamic route fallbacks don't have the extension so
         // ensure it's added here
         const fallbackHtmlFile =
-          typeof fallback === 'string'
-            ? fallback.endsWith('.html')
-              ? fallback
-              : `${fallback}.html`
+          typeof fallbackPathname === 'string'
+            ? fallbackPathname.endsWith('.html')
+              ? fallbackPathname
+              : `${fallbackPathname}.html`
             : undefined
 
         const fallbackHtmlPath =
@@ -2112,6 +2216,15 @@ export async function handleBuildComplete({
       : undefined
 
     for (const route of routesManifest.dynamicRoutes) {
+      // A variant-prefixed alias exists for route matching inside the origin,
+      // where a request that was never routed must still resolve to a page. The
+      // routing rules below are the other half of that. They are derived from
+      // `page`, and not from the regex of an entry, so to derive them from an
+      // alias would repeat the entry its page already produced.
+      if (route.variantsPrefixed) {
+        continue
+      }
+
       // An earlier entry in this loop serves this shell.
       if (fallbackShellRuns?.replacedPages.has(route.page)) {
         continue
@@ -2152,10 +2265,20 @@ export async function handleBuildComplete({
         ? path.posix.join('/', '$shellPrefix', fallbackShellRun.tail)
         : route.page
 
-      const sourceRegex = pagePattern.replace(
-        '^',
-        `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
-      )
+      // The variants prefix sits after `basePath` and before the locale, which
+      // is where the proxy inserts it. It contains the whole remaining public
+      // path, so that its removal gives the route whether or not the project
+      // uses i18n.
+      //
+      // The pattern for the page is the base here. A run of shells therefore
+      // keeps its `shellPrefix` group under the variants prefix as well.
+      const buildSourceRegex = (variantsPrefix: string) =>
+        pagePattern.replace(
+          '^',
+          `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${variantsPrefix}${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
+        )
+
+      const sourceRegex = buildSourceRegex('')
       const destination =
         path.posix.join(
           '/',
@@ -2236,6 +2359,123 @@ export async function handleBuildComplete({
         })
       }
 
+      // A request that the proxy resolved a combination for arrives under the
+      // prefix of that combination. This rule matches that prefix and captures
+      // it, so that the request reaches an output of this page.
+      //
+      // Only a param the build never named reaches this rule. A param it did
+      // name has an output under the prefix already, and the filesystem is
+      // checked before a rewrite, so such a request is served from that output
+      // and never arrives here.
+      //
+      // Whether the prefix stays on the destination follows what the build
+      // wrote for that remaining case. Where a fallback shell exists per
+      // combination, the prefix stays, and the request reaches the shell of its
+      // own combination: that one holds the values of the combination baked and
+      // only the param missing, so the request resolves the param and the
+      // result answers the requests after it. The shell that omits the variants
+      // stands in for every combination, so a request sent there is answered
+      // from it and resumed each time, and no prerender for the param is ever
+      // kept.
+      //
+      // Where no shell exists per combination, the prefix comes off, because a
+      // path was written for the page alone. That page's one entry is blocking,
+      // so it keeps what a request renders, and the captured combination
+      // partitions that entry through the cache key rather than through the
+      // path.
+      //
+      // The capture is put into the query either way, because that is what the
+      // cache key is built from: a router that keys on capture groups filters
+      // them by `allowQuery`, and the prerender output lists this group there.
+      //
+      // This has the same shape as `nextLocale` and `rscSuffix` above: a group
+      // Next.js invents, added to the source and put into the destination.
+      if (variantRoutePages.has(route.page)) {
+        // The prefix sits where the source regex expects it, after `basePath`
+        // and before the locale, so that the destination names the path the
+        // outputs of this combination were written to.
+        const variantsDestination = variantFallbackPages.has(route.page)
+          ? path.posix.join(
+              '/',
+              config.basePath,
+              `/${VARIANTS_PATH_PREFIX}/$${NEXT_VARIANTS_QUERY_PARAM}`,
+              shouldLocalize ? '/$nextLocale' : '',
+              pagePath
+            ) + getDestinationQuery(route.routeKeys)
+          : destination
+
+        const variantsSourceRegex = buildSourceRegex(
+          `/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
+        )
+
+        // The combination reaches the origin as a query parameter, in every
+        // form of the request, because that is what the cache key is built
+        // from.
+        const withCombination = (destinationPath: string) =>
+          destinationPath +
+          `${destinationPath.includes('?') ? '&' : '?'}${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`
+
+        // The suffixed destination is the plain one with the captured suffix
+        // put in front of the query. An empty capture therefore gives the plain
+        // destination back, which is what lets one entry serve both forms.
+        const rscDestination = variantsDestination.replace(
+          /($|\?)/,
+          '$rscSuffix$1'
+        )
+
+        if (canMergeSuffixedAndPlain) {
+          // One entry serves the document, the `.rsc` payload and a per-segment
+          // prefetch, on the terms the plain entry above sets out. The prefixed
+          // form gains nothing of its own here: the prefix is a literal ahead
+          // of the page pattern, so it neither takes part in the suffix group
+          // nor changes what that group can match.
+          dynamicRoutes.push({
+            source: pagePath,
+            sourceRegex: variantsSourceRegex.replace(
+              new RegExp(escapeStringRegexp('(?:/)?$')),
+              '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$'
+            ),
+            destination: withCombination(rscDestination),
+            has: plainHas,
+            missing: undefined,
+          })
+        } else {
+          // The prefixed form of the `.rsc` rule above. A prefetch asks for the
+          // payload of the route rather than for the page, and the proxy puts
+          // the prefix on that path as it does on any other.
+          //
+          // Without this rule such a request has no prefixed route. It matches
+          // nothing under the prefix once no output is written there, which is
+          // the case for a param nobody enumerated, and falls through to the
+          // plain rule. The client then receives a document where it asked for
+          // a payload, and the combination is gone.
+          //
+          // It comes before the plain-shape rule because the param group of
+          // that rule takes any character, and would otherwise take the suffix
+          // as part of the param.
+          if (hasAppPages) {
+            dynamicRoutes.push({
+              source: pagePath + '.rsc',
+              sourceRegex: variantsSourceRegex.replace(
+                new RegExp(escapeStringRegexp('(?:/)?$')),
+                '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+              ),
+              destination: withCombination(rscDestination),
+              has: suffixedHas,
+              missing: undefined,
+            })
+          }
+
+          dynamicRoutes.push({
+            source: pagePath,
+            sourceRegex: variantsSourceRegex,
+            destination: withCombination(variantsDestination),
+            has: plainHas,
+            missing: undefined,
+          })
+        }
+      }
+
       // The entry above resolves a per-segment request on its own, because its
       // suffix group accepts a segment path. A build that turns the collapse
       // off emits a dedicated route for each segment, and the table lists those
@@ -2259,6 +2499,32 @@ export async function handleBuildComplete({
           })
         }
       }
+    }
+
+    // The same translation for a route without dynamic segments, which the loop
+    // above never reaches. A prerendered route of that kind is matched at its
+    // prefixed path directly, by the output written there. Therefore this rule
+    // only ever answers for a route that produced no output, which is one whose
+    // render turned out to be dynamic. That request must still reach the page,
+    // and it must still arrive carrying the combination it resolved, because
+    // nothing else on it names one.
+    for (const page of variantRoutePages) {
+      if (isDynamicRoute(page)) {
+        continue
+      }
+
+      const basePathPrefix =
+        config.basePath && config.basePath !== '/'
+          ? path.posix.join('/', config.basePath)
+          : ''
+
+      dynamicRoutes.push({
+        source: page,
+        sourceRegex: `^${basePathPrefix}[/]?/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)${escapeStringRegexp(page)}(?:/)?$`,
+        destination: `${path.posix.join('/', config.basePath, page)}?${NEXT_VARIANTS_QUERY_PARAM}=$${NEXT_VARIANTS_QUERY_PARAM}`,
+        has: undefined,
+        missing: undefined,
+      })
     }
 
     const needsMiddlewareResolveRoutes =
@@ -2372,6 +2638,61 @@ export async function handleBuildComplete({
         fallback: routesManifest.rewrites.fallback.map(buildRewriteItem),
       }
 
+      // A prefixed path is where the prerender of one combination is, and a
+      // client can request the path of an artifact even if no route names it.
+      // The prefix is therefore public input, and not internal transport, so a
+      // request that arrives carrying a prefix nobody routed must name nothing.
+      // Otherwise a client picks which combination it is served, which for a
+      // variant the server decides is what the variant exists to prevent, and a
+      // hash nobody declared creates one cache entry for each value it is
+      // given.
+      //
+      // The rejection cannot state its own status. A rule that carries a
+      // destination is a rewrite, and the status of a rewrite is not part of
+      // what reaches the routing output, so a rule that named the not-found
+      // page would serve that page with the status of a page that exists. This
+      // rule sends the request where no output is written instead, so it
+      // misses, and the server answers it as it answers any other request for
+      // something that does not exist, which is what such a path now is.
+      //
+      // Consulted before the files are, and after the proxy has run, so that a
+      // path the proxy vouched for is admitted.
+      const variantsPrefixGate: Route[] = config.experimental.variants
+        ? [
+            {
+              source: `/${VARIANTS_PATH_PREFIX}/:path*`,
+              sourceRegex: `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath) : ''}[/]?/${VARIANTS_PATH_PREFIX}(?:/.*)?$`,
+              missing: [{ type: 'header', key: NEXT_VARIANTS_PREFIX_HEADER }],
+              destination: path.posix.join(
+                '/',
+                config.basePath,
+                VARIANTS_NOT_ROUTED_PATH
+              ),
+            },
+            // The same rejection for the query parameter a prefix becomes.
+            // Routing writes that parameter from a prefix the proxy vouched
+            // for, and it writes it after this rule, so one that is present
+            // here came from the client.
+            //
+            // The proxy rejects such a request where it runs, but it runs only
+            // for the paths its matcher names, and that matcher is independent
+            // of the table of variants per route. A route can declare
+            // combinations and still be left out of it. This rule is consulted
+            // for every request, so it also covers that route.
+            {
+              source: '/:path*',
+              sourceRegex: '^/.*$',
+              has: [{ type: 'query', key: NEXT_VARIANTS_QUERY_PARAM }],
+              missing: [{ type: 'header', key: NEXT_VARIANTS_PREFIX_HEADER }],
+              destination: path.posix.join(
+                '/',
+                config.basePath,
+                VARIANTS_NOT_ROUTED_PATH
+              ),
+            },
+          ]
+        : []
+
       const redirects = routesManifest.redirects.map((route) => {
         const converted = convertRedirects([route], 307)[0]
         const regex = converted.src || route.regex
@@ -2404,7 +2725,7 @@ export async function handleBuildComplete({
               has: matcher.has,
               missing: matcher.missing,
             })) ?? [],
-          beforeFiles: rewrites.beforeFiles,
+          beforeFiles: [...variantsPrefixGate, ...rewrites.beforeFiles],
           afterFiles: rewrites.afterFiles,
           dynamicRoutes: combinedDynamicRoutes,
           onMatch: [

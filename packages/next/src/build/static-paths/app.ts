@@ -33,6 +33,8 @@ import type { AppRouteModule } from '../../server/route-modules/app-route/module
 import type { NormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { interceptionPrefixFromParamType } from '../../shared/lib/router/utils/interception-prefix-from-param-type'
 import { isPlainObject } from '../../shared/lib/is-plain-object'
+import { normalizeVariantAssignments } from '../../server/request/variants'
+import { hashVariants } from '../../server/variants/hash'
 import {
   type GenerateStaticParamsStore,
   workUnitAsyncStorage,
@@ -48,6 +50,49 @@ import { getImplicitTags } from '../../server/lib/implicit-tags'
  * @param routeParams - The list of parameter objects to filter.
  * @returns A new array containing only the unique parameter combinations.
  */
+/**
+ * Builds the string that identifies a parameter combination.
+ *
+ * This is shared, so that everything that correlates on a combination agrees on
+ * what makes two of them the same. Variant combinations are collected against
+ * this key before deduplication, and looked up again afterwards. That works
+ * only while both sides derive the key in the same way.
+ *
+ * @param childrenRouteParams - The keys of the parameters. These should be sorted to ensure consistent key generation.
+ * @param params - The parameter combination to identify.
+ */
+function getParamsKey(
+  childrenRouteParams: readonly { paramName: string }[],
+  params: Params
+): string {
+  let key = ''
+
+  // Iterate through the `routeParamKeys` (which are assumed to be sorted). This
+  // consistent order is crucial for generating a stable and unique key for each
+  // parameter combination.
+  for (const { paramName: paramKey } of childrenRouteParams) {
+    const value = params[paramKey]
+
+    // Construct a part of the key using the parameter key and its value. A type
+    // prefix (`A:` for Array, `S:` for String, `U:` for undefined) is added to
+    // the value to prevent collisions. For example, `['a', 'b']` and `'a,b'`
+    // would otherwise generate the same string representation, leading to
+    // incorrect deduplication. This ensures that different types with the same
+    // string representation are treated as distinct.
+    let valuePart: string
+    if (Array.isArray(value)) {
+      valuePart = `A:${value.join(',')}`
+    } else if (value === undefined) {
+      valuePart = `U:undefined`
+    } else {
+      valuePart = `S:${value}`
+    }
+    key += `${paramKey}:${valuePart}|`
+  }
+
+  return key
+}
+
 export function filterUniqueParams(
   childrenRouteParams: readonly { paramName: string }[],
   routeParams: readonly Params[]
@@ -59,30 +104,7 @@ export function filterUniqueParams(
 
   // Iterate over each parameter object in the input array.
   for (const params of routeParams) {
-    let key = '' // Initialize an empty string to build the unique key for the current `params` object.
-
-    // Iterate through the `routeParamKeys` (which are assumed to be sorted).
-    // This consistent order is crucial for generating a stable and unique key
-    // for each parameter combination.
-    for (const { paramName: paramKey } of childrenRouteParams) {
-      const value = params[paramKey]
-
-      // Construct a part of the key using the parameter key and its value.
-      // A type prefix (`A:` for Array, `S:` for String, `U:` for undefined) is added to the value
-      // to prevent collisions. For example, `['a', 'b']` and `'a,b'` would
-      // otherwise generate the same string representation, leading to incorrect
-      // deduplication. This ensures that different types with the same string
-      // representation are treated as distinct.
-      let valuePart: string
-      if (Array.isArray(value)) {
-        valuePart = `A:${value.join(',')}`
-      } else if (value === undefined) {
-        valuePart = `U:undefined`
-      } else {
-        valuePart = `S:${value}`
-      }
-      key += `${paramKey}:${valuePart}|`
-    }
+    const key = getParamsKey(childrenRouteParams, params)
 
     // If the generated key is not already in the `unique` Map, it means this
     // parameter combination is unique so far. Add it to the Map.
@@ -775,6 +797,161 @@ export async function generateRouteStaticParams(
   return currentParams
 }
 
+/**
+ * Multiplies the routes a page prerenders by the variant combinations it
+ * declared, in place.
+ *
+ * A combination belongs to the route, so it applies to the concrete routes and
+ * to the fallback shell alike. They cannot share a key, because combinations of
+ * one route share a pathname: a prefix carries the variant values, and routing
+ * removes that prefix before it matches the route.
+ *
+ * This also keeps the route that was not multiplied, and marks it as one that
+ * omits variants. It is what a combination nobody declared resolves to, so that
+ * one shared entry serves such a request, instead of each value it happens to
+ * carry seeding an entry. Without it, a variant with many values would grow the
+ * cache in proportion to traffic, and not in proportion to what the route
+ * declared.
+ *
+ * This applies only where the route is partially prerendered. To omit a variant
+ * leaves a hole that something must fill, and without PPR there is no resume to
+ * fill it: whatever was prerendered would contain one combination and then be
+ * served for every other. Such a route gets no shared entry, so an undeclared
+ * combination renders for each request instead, which is correct but slower.
+ */
+export function expandPrerenderedRoutesByVariants(
+  prerenderedRoutesByPathname: Map<string, PrerenderedRoute>,
+  variantCombinations: ReadonlyArray<Record<string, string>>,
+  isRoutePPREnabled: boolean
+): void {
+  if (variantCombinations.length === 0) {
+    return
+  }
+
+  for (const [key, prerenderedRoute] of [...prerenderedRoutesByPathname]) {
+    if (isRoutePPREnabled) {
+      prerenderedRoutesByPathname.set(key, {
+        ...prerenderedRoute,
+        omitsVariants: true,
+      })
+    } else {
+      prerenderedRoutesByPathname.delete(key)
+    }
+
+    for (const variantValues of variantCombinations) {
+      prerenderedRoutesByPathname.set(
+        `${key}\0${hashVariants(variantValues)}`,
+        { ...prerenderedRoute, variantValues }
+      )
+    }
+  }
+}
+
+/**
+ * Collects the variant combinations a route declares, normalized to records
+ * keyed by variant identity.
+ *
+ * A page declares these, and does not declare them for each params row, because
+ * a combination applies to the whole route, including its fallback shell, and a
+ * shell exists exactly where no params are known.
+ */
+export async function collectVariantCombinations(
+  segments: ReadonlyArray<Readonly<Pick<AppSegment, 'generateStaticVariants'>>>,
+  route: string
+): Promise<Array<Record<string, string>>> {
+  const pageSegment = segments[segments.length - 1]
+
+  for (const [index, segment] of segments.entries()) {
+    if (
+      segment !== pageSegment &&
+      typeof segment.generateStaticVariants === 'function'
+    ) {
+      throw new Error(
+        `A layout of ${route} exported \`generateStaticVariants\` (segment ${index}). Only a page may declare variant combinations, because the prerendered outputs are per page and a layout would otherwise multiply the outputs of every page beneath it.`
+      )
+    }
+  }
+
+  if (typeof pageSegment?.generateStaticVariants !== 'function') {
+    return []
+  }
+
+  const declared = await pageSegment.generateStaticVariants()
+
+  if (!Array.isArray(declared)) {
+    throw new Error(
+      `\`generateStaticVariants\` for ${route} did not return an array. Return a list of combinations, each a list of \`[variant, value]\` tuples.`
+    )
+  }
+
+  const combinations: Array<Record<string, string>> = []
+  const seen = new Set<string>()
+
+  for (const assignments of declared) {
+    const values = normalizeVariantAssignments(assignments, route)
+
+    if (Object.keys(values).length === 0) {
+      throw new Error(
+        `\`generateStaticVariants\` for ${route} returned an empty combination. A combination assigns at least one variant; a prerender with every variant left dynamic is produced for the route anyway.`
+      )
+    }
+
+    const hash = hashVariants(values)
+
+    // To declare the same combination twice would prerender the same artifact
+    // twice, because the hash is what names it.
+    if (!seen.has(hash)) {
+      seen.add(hash)
+      combinations.push(values)
+    }
+  }
+
+  assertUnambiguousVariantCombinations(combinations, route)
+
+  return combinations
+}
+
+/**
+ * Rejects two combinations that one request could match without either being
+ * the more specific answer.
+ *
+ * Two combinations may assign different variants, and one that assigns a
+ * superset of what another assigns is the intended way to prerender a route
+ * both broadly and narrowly. A request that matches both is served the larger
+ * one, which leaves fewer holes. Two combinations that only overlap have no
+ * such order, so a request that matched both would be served whichever came
+ * first, and a change to the order of the declarations would then change which
+ * prerender a user gets, without any error.
+ *
+ * Two combinations that disagree on a shared variant are permitted, because no
+ * single request can match both.
+ */
+function assertUnambiguousVariantCombinations(
+  combinations: ReadonlyArray<Record<string, string>>,
+  route: string
+): void {
+  for (let i = 0; i < combinations.length; i++) {
+    for (let j = i + 1; j < combinations.length; j++) {
+      const a = combinations[i]
+      const b = combinations[j]
+      const aKeys = Object.keys(a)
+      const bKeys = Object.keys(b)
+
+      if (aKeys.every((key) => key in b) || bKeys.every((key) => key in a)) {
+        continue
+      }
+
+      const sharedKeys = aKeys.filter((key) => key in b)
+
+      if (sharedKeys.every((key) => a[key] === b[key])) {
+        throw new Error(
+          `\`generateStaticVariants\` for ${route} declared two combinations that a single request can match, neither of which is more specific than the other: ${JSON.stringify(a)} and ${JSON.stringify(b)}. Give one of them the other's variants as well, so that it is the more specific match, or give them different values for a variant they share so that no request matches both.`
+        )
+      }
+    }
+  }
+}
+
 function createReplacements(
   segment: Pick<AppSegment, 'paramType'>,
   paramValue: string | string[]
@@ -839,6 +1016,7 @@ export async function buildAppStaticPaths({
   buildId,
   deploymentId,
   rootParamKeys,
+  variantCombinations,
 }: {
   dir: string
   page: string
@@ -863,6 +1041,12 @@ export async function buildAppStaticPaths({
   buildId: string
   deploymentId: string
   rootParamKeys: readonly string[]
+  /**
+   * The combinations the page declared. The caller collects them, because a
+   * page without dynamic segments never reaches this code and still needs them
+   * applied.
+   */
+  variantCombinations: ReadonlyArray<Record<string, string>>
 }): Promise<StaticPathsResult> {
   if (
     segments.some((generate) => generate.config?.dynamicParams === true) &&
@@ -1168,6 +1352,12 @@ export async function buildAppStaticPaths({
     })
   }
 
+  expandPrerenderedRoutesByVariants(
+    prerenderedRoutesByPathname,
+    variantCombinations,
+    isRoutePPREnabled
+  )
+
   const prerenderedRoutes =
     prerenderedRoutesByPathname.size > 0 ||
     lastDynamicSegmentHadGenerateStaticParams
@@ -1202,5 +1392,12 @@ export async function buildAppStaticPaths({
       ? [...prerenderRouteMatchersByPathname.values()]
       : undefined
 
+  // This returns the combinations as well as applying them, because the runtime
+  // must recognize the combination of a request as one that was declared, and
+  // it can do that only against the declared list. To derive that list from the
+  // prerendered routes would infer an input from its outputs, and that stops
+  // being possible as soon as a route also has a prerender that declares
+  // nothing. They are grouped here, and not at the runtime, which would
+  // otherwise group them again on every request.
   return { fallbackMode, prerenderedRoutes, prerenderRouteMatchers }
 }

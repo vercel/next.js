@@ -244,6 +244,7 @@ export abstract class RouteModule<
           routes: {},
           dynamicRoutes: {},
           notFoundRoutes: [],
+          variantCombinationGroups: {},
           version: 4,
           preview: getEdgePreviewProps(),
         } as const,

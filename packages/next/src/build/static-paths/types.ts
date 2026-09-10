@@ -12,6 +12,30 @@ type StaticPrerenderedRoute = {
   remainingPrerenderableParams?: undefined
 
   /**
+   * The variant combination this route is prerendered against, keyed by variant
+   * identity. It is undefined when the route is prerendered without variants.
+   *
+   * Several routes can share a pathname and differ only in this field, because
+   * the variant values reach the server as a path prefix, and routing removes
+   * that prefix before it matches the route. The hash of this field is what
+   * separates their artifacts on disk.
+   */
+  readonly variantValues?: Readonly<Record<string, string>>
+
+  /**
+   * True when this route is the one prerendered with every variant omitted. A
+   * request whose combination was never declared falls back to it.
+   *
+   * It exists so that such a request costs no cache entry of its own, however
+   * many different values it carries. That also makes an empty result expected,
+   * and not a mistake. A route that reads a variant above a boundary has
+   * nothing static left once the variants are gone. Such a route must not
+   * become a blocking render, which would put an undeclared value into an entry
+   * whose key does not mention it.
+   */
+  readonly omitsVariants?: boolean
+
+  /**
    * When enabled, the route will be rendered with diagnostics enabled which
    * will error the build if the route that is generated is empty.
    */
@@ -44,6 +68,30 @@ type FallbackPrerenderedRoute = {
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: readonly string[]
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
+
+  /**
+   * The variant combination this route is prerendered against, keyed by variant
+   * identity. It is undefined when the route is prerendered without variants.
+   *
+   * Several routes can share a pathname and differ only in this field, because
+   * the variant values reach the server as a path prefix, and routing removes
+   * that prefix before it matches the route. The hash of this field is what
+   * separates their artifacts on disk.
+   */
+  readonly variantValues?: Readonly<Record<string, string>>
+
+  /**
+   * True when this route is the one prerendered with every variant omitted. A
+   * request whose combination was never declared falls back to it.
+   *
+   * It exists so that such a request costs no cache entry of its own, however
+   * many different values it carries. That also makes an empty result expected,
+   * and not a mistake. A route that reads a variant above a boundary has
+   * nothing static left once the variants are gone. Such a route must not
+   * become a blocking render, which would put an undeclared value into an entry
+   * whose key does not mention it.
+   */
+  readonly omitsVariants?: boolean
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which

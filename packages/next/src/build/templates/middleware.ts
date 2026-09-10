@@ -13,6 +13,8 @@ import { edgeInstrumentationOnRequestError } from '../../server/web/globals'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 import type { RequestMeta } from '../../server/request-meta'
+import type { VariantsManifest } from '../../server/variants/manifest'
+import { SERVER_DIRECTORY, VARIANTS_MANIFEST } from '../../shared/lib/constants'
 
 const mod = { ..._mod }
 
@@ -74,7 +76,60 @@ function errorHandledHandler(fn: AdapterOptions['handler']) {
   }
 }
 
+/**
+ * The variants manifest, read once per process.
+ *
+ * `undefined` means that nothing has looked for it yet. `null` means that there
+ * is none. A project without variants writes no manifest, and neither does
+ * `next dev`, which prerenders nothing to declare combinations for.
+ */
+let cachedVariantsManifest: VariantsManifest | null | undefined
+
+function loadVariantsManifest(distDir: string): VariantsManifest | null {
+  // This uses an `if`/`else` on a compile-time condition, and not an early
+  // return, so that an edge build removes the branch and with it the `node:fs`
+  // require it could not resolve. An early return leaves the require in the
+  // bundle.
+  if (process.env.NEXT_RUNTIME !== 'edge') {
+    if (cachedVariantsManifest !== undefined) {
+      return cachedVariantsManifest
+    }
+
+    const { readFileSync } = require('node:fs') as typeof import('node:fs')
+    const { join } = require('node:path') as typeof import('node:path')
+
+    let manifest: VariantsManifest | null
+
+    try {
+      manifest = JSON.parse(
+        readFileSync(
+          join(distDir, SERVER_DIRECTORY, `${VARIANTS_MANIFEST}.json`),
+          'utf8'
+        )
+      ) as VariantsManifest
+    } catch {
+      // An absent file is the ordinary case, and not an error. Only a project
+      // with variants has one to read.
+      manifest = null
+    }
+
+    cachedVariantsManifest = manifest
+
+    return manifest
+  } else {
+    return null
+  }
+}
+
 const internalHandler: EdgeHandler = async (opts) => {
+  // The combinations each route declared. The adapter selects the resolved
+  // values of a request against them before it names the artifact to serve.
+  // This code reads the manifest, and the adapter does not, because it comes
+  // off disk and only the Node runtime can do that. An edge proxy passes none,
+  // and the server sends its requests the artifact that contains no variant
+  // value.
+  let requestVariantsManifest: VariantsManifest | undefined
+
   if (process.env.NEXT_RUNTIME !== 'edge') {
     // This mirrors what `RouteModule#prepare` does for routes
     // edge runtime handles loading instrumentation at the edge adapter level
@@ -93,6 +148,11 @@ const internalHandler: EdgeHandler = async (opts) => {
       : '.next'
 
     await ensureInstrumentationRegistered(absoluteProjectDir, distDir)
+
+    if (process.env.__NEXT_VARIANTS) {
+      requestVariantsManifest =
+        loadVariantsManifest(join(absoluteProjectDir, distDir)) ?? undefined
+    }
   }
 
   return adapter({
@@ -100,6 +160,7 @@ const internalHandler: EdgeHandler = async (opts) => {
     IncrementalCache,
     incrementalCacheHandler,
     page,
+    variantsManifest: requestVariantsManifest,
     handler: errorHandledHandler(handlerUserland),
   })
 }
