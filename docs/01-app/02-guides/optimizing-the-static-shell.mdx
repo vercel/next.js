@@ -3,13 +3,11 @@ title: Optimizing the static shell
 description: Learn how to use Cache Components to keep layouts, navigation, and useful loading states available while request-time content streams.
 nav_title: Optimizing the static shell
 related:
-  title: API reference
-  description: Review the APIs and file conventions used in this guide.
+  description: Learn more about the APIs used in this guide.
   links:
     - app/api-reference/directives/use-cache
     - app/api-reference/directives/use-cache-remote
     - app/api-reference/functions/cacheLife
-    - app/api-reference/functions/connection
     - app/api-reference/file-conventions/loading
 ---
 
@@ -32,7 +30,7 @@ npx skills add vercel/next.js --skill next-cache-components-optimizer
 Then give the agent the route and the UI that should be available immediately:
 
 ```prompt
-Optimize the static shell for /[team]/settings using the next-cache-components-optimizer skill. Keep the settings frame and heading in the instant UI.
+Make the navigation from /[team] to /[team]/settings instant using the next-cache-components-optimizer Skill. The settings frame and heading should be part of the instant UI.
 ```
 
 ## Prerequisites
@@ -49,52 +47,23 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-## Patterns for building a useful static shell
+## Patterns
 
-Most static-shell refactors use the same patterns:
+Start with the completed page and decide how each region gets its data:
 
-- **Pass request promises down.** Start `cookies()`, `headers()`, or another asynchronous read where it is convenient, but await the promise inside the component that needs the result.
-- **Stream request-time work.** Put `params`, `searchParams`, and uncached data behind a focused `<Suspense>` boundary so static siblings can prerender.
-- **Cache reusable work.** Add a cache directive only when the result can be reused. Choose its lifetime from the data's freshness requirements and invalidate it when a write changes the result.
-- **Keep stable UI above the boundary.** Reuse existing loading states for the part that changes instead of replacing the route with one broad fallback.
+| Data needed by the region | Pattern                                                                                     | Static shell                               |
+| ------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------ |
+| Request-time data         | Await the data in a focused component behind `<Suspense>`                                   | Includes the boundary's focused loading UI |
+| Reusable data             | Cache the function or component, with a lifetime and on-demand revalidation when it changes | Includes the cached result                 |
+| No request data           | Render the region directly                                                                  | Includes the completed UI                  |
 
-The example applies these patterns to one route. You can make and verify each change separately, which may be more practical for an existing application than restructuring the route at once.
+Apply and verify one region at a time. This is often more practical for an existing application than restructuring a route at once.
 
-## Example
+### Stream request-time work
 
-Consider a team settings route written in a blocking style. The layout resolves request data before it renders the settings frame:
-
-```tsx filename="app/[team]/settings/layout.tsx"
-import type { ReactNode } from 'react'
-import { cookies, headers } from 'next/headers'
-import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth'
-import { SettingsShell } from './settings-shell'
-
-export default async function SettingsLayout({
-  children,
-}: {
-  children: ReactNode
-}) {
-  const cookieStore = await cookies()
-  const requestHeaders = await headers()
-  const user = await getCurrentUser({ cookieStore, requestHeaders })
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  return <SettingsShell>{children}</SettingsShell>
-}
-```
-
-The page also resolves `params`, `searchParams`, and uncached settings before it renders the heading, filters, or form:
+A page may await all of its data before returning any UI. This is a valid way to structure an App Router page, but the heading and navigation cannot become part of the static shell because the page has not returned them yet. For example, this settings page waits for `params`, `searchParams`, and an uncached database read at the top:
 
 ```tsx filename="app/[team]/settings/page.tsx"
-import { getTeamSettings } from '@/lib/settings'
-import { SettingsForm } from './settings-form'
-import { SettingsSectionNav } from './settings-section-nav'
-
 export default async function SettingsPage({
   params,
   searchParams,
@@ -106,94 +75,17 @@ export default async function SettingsPage({
   return (
     <main>
       <h1>Settings</h1>
-      <SettingsSectionNav activeSection={section} />
+      <SettingsTabs activeSection={section} />
       <SettingsForm settings={settings} />
     </main>
   )
 }
 ```
 
-These awaits happen before their surrounding components return, so the static shell cannot include the settings frame or page. This may be a natural structure in an existing App Router app. Moving each request-time read closer to the component that needs it preserves the completed route while more content becomes available in the shell.
+Instead, return the stable UI first. Pass the request promises to a smaller component and await them behind a focused boundary:
 
-### Step 1: Choose what belongs in the static shell
-
-Start with the completed page and separate content by when its data is available. The settings route has five requirements:
-
-| Content                    | Behavior                                                                                          |
-| -------------------------- | ------------------------------------------------------------------------------------------------- |
-| Settings frame and heading | Render without request data, so keep them in the static shell.                                    |
-| Authentication redirect    | Check at request time. The check renders nothing for an authorized user.                          |
-| Team settings form         | Read protected, team-specific data at request time and stream it behind the form's loading state. |
-| Active settings section    | Read `searchParams` inside the part of the page that changes with the URL.                        |
-| Plan descriptions          | Cache them because the same values can be reused across requests.                                 |
-
-These decisions determine where the route needs `<Suspense>` and where caching is valid. They also keep authorization separate from presentation. Protected data must still authorize access inside the function that reads it.
-
-Keep the primary heading or other [Largest Contentful Paint candidate](/docs/app/guides/streaming#lcp-largest-contentful-paint) in the static shell when possible. If its data can be reused, cache the data instead of moving the whole primary region behind a loading state.
-
-### Step 2: Move request-time work behind focused boundaries
-
-Start with the layout, then apply the same pattern to the page.
-
-#### Keep the layout visible while authentication resolves
-
-Start the `cookies()` and `headers()` reads in the layout, but pass their promises to the component that needs them. Moving the awaits and redirect into a component behind `<Suspense>` lets the layout return `SettingsShell` and `children` first.
-
-```tsx filename="app/[team]/settings/layout.tsx" highlight={13-15,20-27}
-import type { ReactNode } from 'react'
+```tsx filename="app/[team]/settings/page.tsx" highlight={8,10-12,17-26}
 import { Suspense } from 'react'
-import { cookies, headers } from 'next/headers'
-import { redirect } from 'next/navigation'
-import { getCurrentUser } from '@/lib/auth'
-import { SettingsShell } from './settings-shell'
-
-export default function SettingsLayout({ children }: { children: ReactNode }) {
-  const cookieStore = cookies()
-  const requestHeaders = headers()
-
-  return (
-    <SettingsShell>
-      <Suspense fallback={null}>
-        <AuthGate cookieStore={cookieStore} requestHeaders={requestHeaders} />
-      </Suspense>
-      {children}
-    </SettingsShell>
-  )
-}
-
-async function AuthGate({
-  cookieStore,
-  requestHeaders,
-}: {
-  cookieStore: ReturnType<typeof cookies>
-  requestHeaders: ReturnType<typeof headers>
-}) {
-  const user = await getCurrentUser({
-    cookieStore: await cookieStore,
-    requestHeaders: await requestHeaders,
-  })
-
-  if (!user) {
-    redirect('/login')
-  }
-
-  return null
-}
-```
-
-Calling `cookies()` or `headers()` starts the work without blocking the layout. `AuthGate` suspends when it awaits those promises, so the settings frame can stay in the static shell. The empty fallback is appropriate because an authorized `AuthGate` also returns `null`.
-
-The shell must contain only content that is safe to send before authentication completes. Keep authorization checks in the data access functions used by the page. A layout redirect does not protect a database query or Server Action by itself. See [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components) for the complete authentication pattern.
-
-#### Move page data into focused boundaries
-
-Next, the page can return its heading before it resolves `params`, `searchParams`, or team settings. Pass each promise to the component that needs it and place that component behind a focused boundary.
-
-```tsx filename="app/[team]/settings/page.tsx" highlight={7,10-12,17-26}
-import { Suspense } from 'react'
-import { getTeamSettings } from '@/lib/settings'
-import { SettingsForm, SettingsFormSkeleton } from './settings-form'
-import { SettingsTabs, SettingsTabsSkeleton } from './settings-tabs'
 
 export default function SettingsPage({
   params,
@@ -202,9 +94,6 @@ export default function SettingsPage({
   return (
     <main>
       <h1>Settings</h1>
-      <Suspense fallback={<SettingsTabsSkeleton />}>
-        <SettingsTabs />
-      </Suspense>
       <Suspense fallback={<SettingsFormSkeleton />}>
         <TeamSettings params={params} searchParams={searchParams} />
       </Suspense>
@@ -220,13 +109,22 @@ async function TeamSettings({
   const { section = 'profile' } = await searchParams
   const settings = await getTeamSettings(team, section)
 
-  return <SettingsForm settings={settings} />
+  return (
+    <>
+      <SettingsTabs activeSection={section} />
+      <SettingsForm settings={settings} />
+    </>
+  )
 }
 ```
 
-The heading and focused skeletons now render in the static shell. The protected settings read stays at request time and replaces only the form skeleton when it resolves.
+The heading and form skeleton can now render in the static shell. The URL-dependent, protected settings read remains at request time and replaces only the form skeleton when it resolves.
 
-`SettingsTabs` can be a Server Component that awaits `searchParams`, following the same pattern as `TeamSettings`. If it needs client-side interaction, pass the promise to a Client Component and unwrap it with React's [`use()`](https://react.dev/reference/react/use), or read the URL with [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params):
+Use this pattern for `params`, `searchParams`, and uncached database or network reads. When a finite set of parameter values is known ahead of time, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can prerender those routes instead. Values that are not generated remain request-time data and need a boundary. With Cache Components, [`next/root-params`](/docs/app/api-reference/functions/next-root-params#root-parameters-and-generatestaticparams) also requires at least one generated value for each root parameter.
+
+#### Read URL data in a Client Component
+
+A Client Component can read the URL with [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params). Keep the component behind `<Suspense>` for the page-load shell:
 
 ```tsx filename="app/[team]/settings/settings-tabs.tsx"
 'use client'
@@ -235,87 +133,132 @@ import { useSearchParams } from 'next/navigation'
 
 export function SettingsTabs() {
   const section = useSearchParams().get('section') ?? 'profile'
-
-  return (
-    <nav aria-label="Settings sections">
-      <a
-        aria-current={section === 'profile' ? 'page' : undefined}
-        href="?section=profile"
-      >
-        Profile
-      </a>
-      <a
-        aria-current={section === 'billing' ? 'page' : undefined}
-        href="?section=billing"
-      >
-        Billing
-      </a>
-    </nav>
-  )
-}
-
-export function SettingsTabsSkeleton() {
-  return <nav aria-label="Settings sections">Loading sections...</nav>
+  return <nav aria-label="Settings sections">{section}</nav>
 }
 ```
 
-During a client navigation, `useSearchParams()` can resolve synchronously because the router already has the URL. The `<Suspense>` boundary is still needed for a page load, where the static shell does not know the query string.
+During a client navigation, `useSearchParams()` can resolve synchronously because the router already has the URL. On a page load, the static shell does not know the query string, so the boundary still provides the loading state.
 
-The same focused-boundary placement applies to `cookies()`, `headers()`, `params`, `searchParams`, and uncached data. Start a promise higher in the tree when that avoids a request waterfall, but await it only inside the boundary for the content that needs the result.
+You can also pass the `searchParams` promise to a Client Component and unwrap it with React's [`use()`](https://react.dev/reference/react/use). In both cases, place the boundary around the smallest region that depends on the URL.
 
-An uncached database or network read already waits for the request and does not need `connection()`. Call [`connection()`](/docs/app/api-reference/functions/connection) before synchronous values such as `Date.now()`, `Math.random()`, or `crypto.randomUUID()` when they must be generated for each request. Cache the value instead when it should be shared across requests.
+#### Pass request promises down
 
-When a finite set of route parameters is known ahead of time, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can prerender those routes. Keep parameter values that are not known at build time inside a focused boundary, as shown above. With Cache Components, [`next/root-params`](/docs/app/api-reference/functions/next-root-params#root-parameters-and-generatestaticparams) also requires at least one generated value for each root parameter.
+Layouts often need request data for authentication or personalization. Awaiting that data at the top prevents the layout and every page below it from joining the static shell. This layout waits for cookies and headers before it can render the settings frame:
 
-#### Handle metadata and viewport
+```tsx filename="app/[team]/settings/layout.tsx"
+export default async function SettingsLayout({ children }) {
+  const cookieStore = await cookies()
+  const requestHeaders = await headers()
+  const user = await getCurrentUser({ cookieStore, requestHeaders })
 
-Metadata and viewport are resolved outside the page's component tree, so a boundary around page content does not cover them. Cache reusable values in `generateMetadata` or `generateViewport`. If metadata must use request data, it can stream alongside a static shell using a dynamic marker. A request-specific viewport cannot stream and makes the route blocking. See [`generateMetadata` and `generateViewport`](/docs/app/guides/migrating-to-cache-components#generatemetadata-and-generateviewport) for the complete patterns.
+  if (!user) redirect('/login')
 
-### Step 3: Cache data that can be reused
+  return <SettingsShell>{children}</SettingsShell>
+}
+```
 
-Streaming keeps request-time data from blocking the static shell. Caching includes reusable data in the shell after it resolves.
+Instead, start the reads in the layout without awaiting them. Pass the promises to an authentication gate behind `<Suspense>`:
 
-The settings page can cache plan descriptions because they are shared across teams and change on a known schedule. Keep team settings uncached because the page needs current, authorized values.
+```tsx filename="app/[team]/settings/layout.tsx" highlight={5-6,11-13,22-23}
+import { Suspense } from 'react'
+import { cookies, headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 
-```tsx filename="app/[team]/settings/plan-options.tsx" highlight={7-8}
+export default function SettingsLayout({ children }) {
+  const cookieStore = cookies()
+  const requestHeaders = headers()
+
+  return (
+    <SettingsShell>
+      <Suspense fallback={null}>
+        <AuthGate cookieStore={cookieStore} requestHeaders={requestHeaders} />
+      </Suspense>
+      {children}
+    </SettingsShell>
+  )
+}
+
+async function AuthGate({ cookieStore, requestHeaders }) {
+  const user = await getCurrentUser({
+    cookieStore: await cookieStore,
+    requestHeaders: await requestHeaders,
+  })
+
+  if (!user) redirect('/login')
+
+  return null
+}
+```
+
+Calling `cookies()` or `headers()` starts the work. `AuthGate` suspends only when it awaits the promises, so the settings frame can stay in the shell. The empty fallback fits this boundary because an authorized `AuthGate` also returns `null`.
+
+The shell must contain only content that is safe to send before authentication completes. Keep authorization checks in the functions that read protected data. A layout redirect does not protect a database query or Server Action by itself. See [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components) for the complete pattern.
+
+React [`cache()`](https://react.dev/reference/react/cache) can deduplicate a request read during a render, but it does not make that read available during prerendering. A `cache()` wrapper around `cookies()` or `headers()` still needs a boundary.
+
+Learn more about passing promises through the tree and placing focused boundaries in [Streaming](/docs/app/guides/streaming#push-dynamic-access-down).
+
+### Cache reusable work
+
+Streaming keeps request-time work from blocking the shell. Caching lets reusable data become part of the shell after it resolves. If plan descriptions are loaded by an uncached component, the route must wait for a request before it can render them:
+
+```tsx filename="app/[team]/settings/plan-options.tsx"
+export async function PlanOptions() {
+  const plans = await db.plan.findMany()
+  return <PlanList plans={plans} />
+}
+```
+
+Instead, if the same descriptions can be reused across requests, cache the component and give the result a lifetime:
+
+```tsx filename="app/[team]/settings/plan-options.tsx" highlight={4-5}
 import { cacheLife } from 'next/cache'
-import { db } from '@/lib/db'
 
 export async function PlanOptions() {
   'use cache'
   cacheLife('hours')
 
-  const plans = await db.plan.findMany({
-    orderBy: { monthlyPrice: 'asc' },
-  })
-
-  return (
-    <ul>
-      {plans.map((plan) => (
-        <li key={plan.id}>{plan.description}</li>
-      ))}
-    </ul>
-  )
+  const plans = await db.plan.findMany()
+  return <PlanList plans={plans} />
 }
 ```
 
-Render `PlanOptions` outside the team settings boundary:
+Render `PlanOptions` outside the request-time settings boundary. Keep team settings inside the boundary when they must remain current and authorized for each request.
 
-```tsx filename="app/[team]/settings/page.tsx" highlight={3}
+Choose the cache lifetime from the data's freshness requirements. If the application can change a cached result, add on-demand revalidation to the corresponding write and verify the read after the mutation. Use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) when an entry must persist across instances and requests. Keep data uncached when it must be recomputed for each request.
+
+Learn more about cache keys, lifetimes, tags, and on-demand revalidation in [Caching](/docs/app/getting-started/caching).
+
+### Keep static UI in the shell
+
+A broad boundary can pass validation while replacing useful UI with one large fallback:
+
+```tsx filename="app/[team]/settings/page.tsx"
+<Suspense fallback={<SettingsPageSkeleton />}>
+  <SettingsPage />
+</Suspense>
+```
+
+Instead, move stable UI above the boundary and suspend only the region that changes:
+
+```tsx filename="app/[team]/settings/page.tsx"
 <main>
   <h1>Settings</h1>
+  <SettingsSectionNav />
   <PlanOptions />
   <Suspense fallback={<SettingsFormSkeleton />}>
-    <TeamSettings params={params} />
+    <TeamSettings params={params} searchParams={searchParams} />
   </Suspense>
 </main>
 ```
 
-Choose the cache lifetime from the data's freshness requirements. Keep data uncached when it must be recomputed for the request, even if caching would put more content in the shell. See [Caching](/docs/app/getting-started/caching) for cache keys, lifetimes, tags, and revalidation.
+The completed page is unchanged, but the static shell now includes the frame, heading, navigation, and cached plan options. Keep the primary heading or other [Largest Contentful Paint candidate](/docs/app/guides/streaming#lcp-largest-contentful-paint) outside the boundary when possible. If its data can be reused, cache the data instead of moving the whole primary region behind a loading state.
 
-The default `use cache` handler stores entries in memory as a best effort. Use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) when cached data must persist across instances and requests.
+Learn more about inspecting and refining the shell in [Iterate on loading states](/docs/app/guides/instant-navigation#iterate-on-loading-states).
 
-React [`cache()`](https://react.dev/reference/react/cache) deduplicates work during a render, but it does not make request data available during prerendering. A `cache()` wrapper around `cookies()` or `headers()` still needs a `<Suspense>` boundary. Use a cache directive when the result itself can be reused.
+## Handle metadata and viewport
+
+Metadata and viewport are resolved outside the page's component tree, so a boundary around page content does not cover them. Cache reusable values in `generateMetadata` or `generateViewport`. If metadata must use request data, it can stream alongside a static shell using a dynamic marker. A request-specific viewport cannot stream and makes the route blocking. See [`generateMetadata` and `generateViewport`](/docs/app/guides/migrating-to-cache-components#generatemetadata-and-generateviewport) for the complete patterns.
 
 ## Reuse and place loading states
 
