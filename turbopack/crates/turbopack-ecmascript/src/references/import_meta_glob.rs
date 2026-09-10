@@ -544,24 +544,20 @@ impl ImportMetaGlobMap {
                     // matching and user-visible specifiers have one explicit source of truth. The
                     // module resolver resolves this logical request and tracks its symlink chain.
                     let logical_path = scan_dir.join(scan_relative)?;
-                    let Some(origin_relative) = origin_path.get_relative_path_to(&logical_path)
+                    let Some(origin_relative) = origin_path.get_relative_request_to(&logical_path)
                     else {
                         bail!(
                             "import.meta.glob: failed to compute relative path from origin to \
                              matched file"
                         );
                     };
-                    let origin_relative = if origin_relative.starts_with("../") {
-                        origin_relative
-                    } else {
-                        RcStr::from(format!("./{origin_relative}"))
-                    };
 
                     // Compute the user-visible key of this entry.
                     let key: RcStr = if let Some(key_base) = key_base {
-                        // Vite keys the result relative to `base` when it is provided.
+                        // Vite keys the result relative to `base` when it is provided, and its
+                        // keys are `./`-prefixed like the origin-relative ones below.
                         // https://vite.dev/guide/features.html#base-path
-                        let Some(key) = key_base.get_relative_path_to(&logical_path) else {
+                        let Some(key) = key_base.get_relative_request_to(&logical_path) else {
                             bail!(
                                 "import.meta.glob: failed to compute relative path from base to \
                                  matched file"
@@ -583,7 +579,7 @@ impl ImportMetaGlobMap {
                                  of the project to matched file"
                             );
                         };
-                        format!("/{}", relative.strip_prefix("./").unwrap_or(&relative)).into()
+                        format!("/{relative}").into()
                     } else {
                         origin_relative.clone()
                     };
