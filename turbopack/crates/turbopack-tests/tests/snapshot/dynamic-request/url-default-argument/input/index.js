@@ -5,4 +5,6 @@ globalThis.createWorker = ({ classWorkerURL, ...options } = {}) => {
 }
 
 globalThis.fallbackURL = (override) =>
-  new URL(override ?? './fallback.txt', import.meta.url)
+  override != null
+    ? new URL(override, import.meta.url)
+    : new URL('./fallback.txt', import.meta.url)

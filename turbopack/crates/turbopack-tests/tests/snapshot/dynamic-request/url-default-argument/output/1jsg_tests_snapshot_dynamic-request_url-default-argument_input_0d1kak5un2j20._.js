@@ -21,7 +21,7 @@ globalThis.createWorker = ({ classWorkerURL, ...options } = {})=>{
         return new Worker(new URL(classWorkerURL, __TURBOPACK__import$2e$meta__.url), options);
     }
 };
-globalThis.fallbackURL = (override)=>new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/url-default-argument/input/fallback.txt (static in ecmascript)"));
+globalThis.fallbackURL = (override)=>override != null ? new URL(override, __TURBOPACK__import$2e$meta__.url) : new __turbopack_context__.U(__turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/url-default-argument/input/fallback.txt (static in ecmascript)"));
 }),
 ]);
 
