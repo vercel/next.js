@@ -36,7 +36,6 @@ type GeneratePrerenderMatcher = () => unknown | Promise<unknown>
 
 export type PrerenderMatcherExport = {
   readonly visibleParamNames: readonly string[]
-  readonly treePath: readonly string[]
 } & (
   | {
       readonly kind: 'static'
@@ -55,7 +54,7 @@ function attach(
   segment: AppSegment,
   userland: unknown,
   route: string,
-  matcherScope: Pick<PrerenderMatcherExport, 'visibleParamNames' | 'treePath'>
+  matcherScope: Pick<PrerenderMatcherExport, 'visibleParamNames'>
 ) {
   // If the userland is not an object, then we can't do anything with it.
   if (typeof userland !== 'object' || userland === null) {
@@ -128,6 +127,8 @@ function attach(
 
 export type AppSegment = {
   name: string
+  // A deduplicated module can occur in more than one parallel branch.
+  treePaths: string[][]
   paramName: string | undefined
   paramType: DynamicParamTypes | undefined
   filePath: string | undefined
@@ -176,6 +177,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 
     const segment: AppSegment = {
       name,
+      treePaths: [treePath],
       paramName: param?.paramName,
       paramType: param?.paramType,
       filePath,
@@ -188,22 +190,22 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     if (!isClientComponent) {
       attach(segment, userland, routeModule.definition.pathname, {
         visibleParamNames: currentVisibleParamNames,
-        treePath,
       })
     }
 
     // If this segment doesn't already exist, then add it to the segments array.
     // The list of segments is short so we just use a list traversal to check
     // for duplicates and spare us needing to maintain the string key.
-    if (
-      segments.every(
-        (s) =>
-          s.name !== segment.name ||
-          s.paramName !== segment.paramName ||
-          s.paramType !== segment.paramType ||
-          s.filePath !== segment.filePath
-      )
-    ) {
+    const existingSegment = segments.find(
+      (s) =>
+        s.name === segment.name &&
+        s.paramName === segment.paramName &&
+        s.paramType === segment.paramType &&
+        s.filePath === segment.filePath
+    )
+    if (existingSegment) {
+      existingSegment.treePaths.push(treePath)
+    } else {
       segments.push(segment)
     }
 
@@ -242,11 +244,12 @@ async function collectAppRouteSegments(
   }
 
   // Generate all the segments.
-  const segments: AppSegment[] = parts.map((name) => {
+  const segments: AppSegment[] = parts.map((name, index) => {
     const param = getSegmentParam(name)
 
     return {
       name,
+      treePaths: [parts.slice(0, index)],
       paramName: param?.paramName,
       paramType: param?.paramType,
       filePath: undefined,
@@ -265,7 +268,6 @@ async function collectAppRouteSegments(
   // Extract the segment config from the userland module.
   attach(segment, routeModule.userland, routeModule.definition.pathname, {
     visibleParamNames: [],
-    treePath: [],
   })
 
   return segments

@@ -1009,15 +1009,25 @@ export async function buildAppStaticPaths({
       }
     }
   }
+  // An explicitly prerenderable parameter also makes its unconfigured prefix
+  // prerenderable, even without build-time examples. Only the unconfigured
+  // suffix after this boundary can remain permanently dynamic.
+  const lastConfiguredPrerenderableParamIndex =
+    pathnameRouteParamSegments.findLastIndex(({ paramName }) => {
+      const mode = prerenderMatcher?.[paramName]
+      return mode === 'blocking' || mode === 'fallback'
+    })
   const prerenderablePathSegments = pathnameRouteParamSegments.map(
-    (segment) => {
+    (segment, index) => {
       const mode = prerenderMatcher?.[segment.paramName]
       return {
         paramName: segment.paramName,
         isPrerenderable:
           mode === 'blocking' ||
           mode === 'fallback' ||
-          (mode === undefined && generatedParamNames.has(segment.paramName)),
+          (mode === undefined &&
+            (index < lastConfiguredPrerenderableParamIndex ||
+              generatedParamNames.has(segment.paramName))),
       }
     }
   )
@@ -1112,11 +1122,13 @@ export async function buildAppStaticPaths({
       : undefined
     : FallbackMode.NOT_FOUND
 
+  const rootParamSet = new Set(rootParamKeys)
   const fallbackMode = prerenderMatcher
     ? getPrerenderMatcherFallbackMode(
         prerenderMatcher,
         pathnameRouteParamSegments,
-        inferredFallbackMode
+        inferredFallbackMode,
+        rootParamSet
       )
     : inferredFallbackMode
 
@@ -1128,7 +1140,8 @@ export async function buildAppStaticPaths({
       return getPrerenderMatcherFallbackMode(
         prerenderMatcher,
         fallbackRouteParams,
-        inferredFallbackMode
+        inferredFallbackMode,
+        rootParamSet
       )
     }
 
@@ -1177,6 +1190,14 @@ export async function buildAppStaticPaths({
         pathname,
         fallbackRouteParams,
         fallbackMode: routeFallbackMode,
+        isFallbackModeInferred:
+          prerenderMatcher &&
+          routeFallbackMode === FallbackMode.PRERENDER &&
+          prerenderMatcher[fallbackRouteParams[0].paramName] === undefined &&
+          remainingPrerenderableParams?.[0]?.paramName ===
+            fallbackRouteParams[0].paramName
+            ? true
+            : undefined,
         fallbackRootParams,
         remainingPrerenderableParams,
       })
@@ -1216,9 +1237,6 @@ export async function buildAppStaticPaths({
 
     prerenderedRoutesByPathname.set(pathname, prerenderCandidate)
   }
-
-  // Convert rootParamKeys to Set for O(1) lookup.
-  const rootParamSet = new Set(rootParamKeys)
 
   if (hadAllParamsGenerated || isRoutePPREnabled) {
     let paramsToProcess = routeParams

@@ -574,13 +574,14 @@ const createMatcherSegment = ({
   filePath?: string
 }): AppSegment => ({
   name: '',
+  treePaths: [treePath],
   paramName: undefined,
   paramType: undefined,
   filePath,
   config: undefined,
   prerenderMatcher: generate
-    ? { kind: 'generated', generate, visibleParamNames, treePath }
-    : { kind: 'static', value: matcher, visibleParamNames, treePath },
+    ? { kind: 'generated', generate, visibleParamNames }
+    : { kind: 'static', value: matcher, visibleParamNames },
   generateStaticParams: undefined,
 })
 

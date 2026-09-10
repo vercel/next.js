@@ -18,7 +18,7 @@ describe('param-matching-root-fallback', () => {
     ).toBeNull()
   })
 
-  it.each(['empty', 'fallback'])(
+  it.each(['empty', 'fallback', 'generated', 'dynamic'])(
     'preserves root-parameter blocking for the %s matching export',
     (route) => {
       // lang is a root parameter because the HTML layout is at app/[lang].
@@ -30,7 +30,7 @@ describe('param-matching-root-fallback', () => {
     }
   )
 
-  it.each(['inferred', 'empty', 'fallback'])(
+  it.each(['inferred', 'empty', 'fallback', 'generated', 'dynamic'])(
     'keeps the %s fallback available once the root parameter is known',
     (route) => {
       expect(
@@ -38,4 +38,14 @@ describe('param-matching-root-fallback', () => {
       ).toBe('string')
     }
   )
+
+  it('lets an explicit not-found reject a match before inferred root blocking', () => {
+    expect(manifest.dynamicRoutes['/[lang]/not-found/[bottom]'].fallback).toBe(
+      false
+    )
+    expect(manifest.dynamicRoutes['/en/not-found/[bottom]'].fallback).toBe(
+      false
+    )
+    expect(manifest.routes['/en/not-found/seed']).toBeDefined()
+  })
 })
