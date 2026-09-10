@@ -47,7 +47,7 @@ The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches
 - **Data-level**: Cache a function that fetches or computes data (e.g., `getProducts()`, `getUser(id)`)
 - **UI-level**: Cache an entire component or page (e.g., `async function BlogPosts()`)
 
-A cache directive gives a result a lifetime, information Next.js uses to apply rendering optimizations. See [Prerendering](#prerendering) for how cached results become part of the static shell and may be included in a [prefetch](#prefetching).
+A cache directive gives a result a lifetime, which Next.js uses for time-based revalidation and rendering optimizations. For on-demand revalidation after a mutation, see [Revalidating](/docs/app/getting-started/revalidating). See [Prerendering](#prerendering) for how cached results become part of the static shell and may be included in a [prefetch](#prefetching).
 
 > **Good to know:** We recommend pairing every cache directive with a [`cacheLife`](/docs/app/api-reference/functions/cacheLife). Without one, the implicit `default` profile applies.
 
@@ -93,8 +93,6 @@ export default async function Page() {
 ```
 
 > If you add "`use cache`" at the top of a file, all exported functions in the file will be cached.
-
-If cached data can change, see [Revalidating](/docs/app/getting-started/revalidating) to keep it fresh after mutations.
 
 ### Streaming uncached data
 
