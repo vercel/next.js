@@ -31,3 +31,28 @@ export function TreemapSkeleton() {
     </div>
   )
 }
+
+export function TableSkeleton() {
+  return (
+    <div className="flex h-full w-full flex-col p-4" aria-hidden="true">
+      <div className="flex h-9 items-center gap-4 border-b border-border px-3">
+        <Skeleton className="h-3 w-1/2" />
+        <Skeleton className="h-3 w-24" />
+        <Skeleton className="h-3 w-24" />
+      </div>
+      {Array.from({ length: 12 }, (_, index) => (
+        <div
+          key={index}
+          className="flex min-h-0 flex-1 items-center gap-4 border-b border-border/60 px-3"
+        >
+          <Skeleton
+            className="h-3"
+            style={{ width: `${35 + (index % 5) * 8}%` }}
+          />
+          <Skeleton className="ml-auto h-3 w-20" />
+          <Skeleton className="h-3 w-20" />
+        </div>
+      ))}
+    </div>
+  )
+}
