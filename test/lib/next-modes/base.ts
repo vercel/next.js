@@ -121,8 +121,20 @@ export class NextInstance {
   private _resolvedConfig?: Promise<ResolvedNextConfig>
 
   constructor(opts: NextInstanceOpts) {
-    this.env = {}
     Object.assign(this, opts)
+    this.env ??= {}
+    if (
+      this.env.NODE_OPTIONS &&
+      this.env.NODE_OPTIONS.split(/\s+/).includes('--trace-deprecation')
+    ) {
+      // already includes --trace-deprecation
+    } else {
+      this.env.NODE_OPTIONS =
+        (this.env.NODE_OPTIONS ?? '') + ' --trace-deprecation'
+    }
+    // Pending deprecations don't warn by default; surface them too.
+    this.env.NODE_PENDING_DEPRECATION ??= '1'
+
     const nextTestWasm =
       process.env.NEXT_TEST_WASM ?? process.env.NEXT_TEST_WASM_AFTER_JEST
     if (nextTestWasm) {
