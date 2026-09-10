@@ -1,4 +1,6 @@
 import { promises as fs } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import FileSystemCache from 'next/dist/server/lib/incremental-cache/file-system-cache'
 import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
@@ -125,5 +127,84 @@ describe('FileSystemCache (isrMemory 0)', () => {
       revalidate: 30,
       tags: ['server-time2'],
     })
+  })
+
+  it('keeps the previous fetch cache entry readable while writing an update', async () => {
+    const serverDistDir = await fs.mkdtemp(
+      join(tmpdir(), 'next-file-system-cache-')
+    )
+    let delayWrites = false
+    let resolveWriteStarted!: () => void
+    let releaseWrite!: () => void
+    const writeStarted = new Promise<void>((resolve) => {
+      resolveWriteStarted = resolve
+    })
+    const writeReleased = new Promise<void>((resolve) => {
+      releaseWrite = resolve
+    })
+    const delayedFs = {
+      ...nodeFs,
+      writeFile: async (filePath: string, data: string) => {
+        if (!delayWrites) {
+          await nodeFs.writeFile(filePath, data)
+          return
+        }
+
+        await nodeFs.writeFile(filePath, '')
+        resolveWriteStarted()
+        await writeReleased
+        await nodeFs.writeFile(filePath, data)
+      },
+    }
+    const fsCache = new FileSystemCache({
+      _requestHeaders: {},
+      flushToDisk: true,
+      fs: delayedFs,
+      serverDistDir,
+      revalidatedTags: [],
+      maxMemoryCacheSize: 0,
+    })
+    let write: Promise<void> | undefined
+
+    try {
+      await fsCache.set(
+        'fetch-cache',
+        {
+          kind: CachedRouteKind.FETCH,
+          data: { headers: {}, body: 'old', status: 200, url: '' },
+          revalidate: 30,
+        },
+        { fetchCache: true, tags: [] }
+      )
+
+      delayWrites = true
+      write = fsCache.set(
+        'fetch-cache',
+        {
+          kind: CachedRouteKind.FETCH,
+          data: { headers: {}, body: 'new', status: 200, url: '' },
+          revalidate: 30,
+        },
+        { fetchCache: true, tags: [] }
+      )
+      await writeStarted
+
+      const entry = await fsCache.get('fetch-cache', {
+        kind: IncrementalCacheKind.FETCH,
+        tags: [],
+      })
+
+      expect(entry?.value).toMatchObject({
+        kind: CachedRouteKind.FETCH,
+        data: { body: 'old' },
+      })
+
+      releaseWrite()
+      await write
+    } finally {
+      releaseWrite()
+      await write
+      await fs.rm(serverDistDir, { recursive: true, force: true })
+    }
   })
 })
