@@ -11,27 +11,25 @@ export async function getVersionInfo(): Promise<VersionInfo> {
   try {
     installed = require('next/package.json').version
 
-    let res
+    let response
 
     try {
       const registry = await getRegistry()
-      // use NPM registry regardless user using Yarn
-      res = await fetch(`${registry}-/package/next/dist-tags`)
+      response = await fetch(`${registry}-/package/next/dist-tags`)
     } catch {
-      // ignore fetch errors
+      return { installed, staleness: 'unknown' }
     }
-    const contentType = res?.headers?.get?.('content-type')
+    const contentType = response.headers.get('content-type')
 
     if (
-      !res ||
-      !res?.ok ||
+      !response.ok ||
       // only reject if content-type is explicitly not JSON, absent content-type is treated as valid registry response
-      (contentType && contentType !== 'application/json')
+      (contentType !== null && contentType !== 'application/json')
     ) {
       return { installed, staleness: 'unknown' }
     }
 
-    const { latest, canary } = await res.json()
+    const { latest, canary } = await response.json()
 
     return parseVersionInfo({ installed, latest, canary })
   } catch (e: any) {
