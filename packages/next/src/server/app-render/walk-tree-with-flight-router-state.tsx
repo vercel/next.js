@@ -70,7 +70,7 @@ export async function walkTreeWithFlightRouterState({
   rootLayoutIncluded: boolean
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
-  MetadataOutlet: React.ComponentType
+  MetadataOutlet: React.ComponentType<{ tree: LoaderTree }>
   hintTree: PrefetchHints | null
 }): Promise<NavigationResponseTree | null> {
   const {
@@ -355,7 +355,7 @@ export async function createFullTreeForNavigation({
   injectedFontPreloadTags: Set<string>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
-  MetadataOutlet: React.ComponentType
+  MetadataOutlet: React.ComponentType<{ tree: LoaderTree }>
 }): Promise<NavigationResponseTree> {
   const {
     renderOpts: { experimental },

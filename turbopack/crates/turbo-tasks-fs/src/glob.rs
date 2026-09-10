@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{borrow::Cow, fmt::Display};
 
 use anyhow::{Result, bail};
 use bincode::{
@@ -12,7 +12,7 @@ use regex::bytes::{Regex, RegexBuilder};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Vc, trace::TraceRawVcs};
 
-use crate::globset::parse;
+use crate::{FileSystemPath, globset::parse};
 
 // Examples:
 // - file.js = File(file.js)
@@ -77,7 +77,10 @@ pub struct GlobOptions {
     /// Allows glob to match any part of the given string(s).
     /// NOTE: this means that a pattern like `node_modules/package_name` with `contains:true` will
     /// match `foo_node_modules/package_name_bar` If you want to match a _directory_ named
-    /// `node_modules/package_name` you should use `**/node_modules/package_name/**`
+    /// `node_modules/package_name` you should use `**/node_modules/package_name/**`.
+    ///
+    /// A partial match cannot safely determine whether a directory might contain a match, so this
+    /// option cannot be used with [`Glob::can_match_in_directory`].
     pub contains: bool,
     /// Whether matching should ignore ASCII case differences.
     pub case_insensitive: bool,
@@ -92,6 +95,10 @@ impl Glob {
     // Returns true if the glob might match a filename underneath this `path` where the
     // path represents a directory.
     pub fn can_match_in_directory(&self, path: &str) -> bool {
+        assert!(
+            !self.opts.contains,
+            "Glob::can_match_in_directory cannot be used when GlobOptions::contains is true"
+        );
         debug_assert!(
             !path.ends_with('/'),
             "Path should be a directory name and not end with /"
@@ -154,6 +161,47 @@ impl Glob {
     }
 }
 
+/// Resolve the leading `./` and `../` segments of a glob pattern into a
+/// directory, so that what remains only ever traverses *down* the tree.
+///
+/// [`Glob`] matches paths relative to the directory that is scanned and has no
+/// notion of `.` or `..`, and the directory walker only descends. A pattern like
+/// `../dir/*.js` therefore has to be turned into the pattern `dir/*.js` matched
+/// against the parent of `relative_to`, which is what this does.
+///
+/// Returns the remaining pattern together with the directory it is relative to,
+/// or [`None`] if the pattern walks above the root of the filesystem. Callers
+/// decide how to report that: it is a hard error for some and a diagnostic for
+/// others.
+///
+/// ```ignore
+/// // with `relative_to` = `src/app`
+/// relativize_glob("*.js")           // => ("*.js",    "src/app")
+/// relativize_glob("./dir/*.js")     // => ("dir/*.js", "src/app")
+/// relativize_glob("../dir/*.js")    // => ("dir/*.js", "src")
+/// relativize_glob("././../x/*.js")  // => ("x/*.js",   "src")
+/// ```
+pub fn relativize_glob<'a>(
+    glob: &'a str,
+    relative_to: &FileSystemPath,
+) -> Option<(&'a str, FileSystemPath)> {
+    let mut relative_to = Cow::Borrowed(relative_to);
+    let mut remaining = glob;
+    loop {
+        if let Some(stripped) = remaining.strip_prefix("../") {
+            if relative_to.is_root() {
+                return None;
+            }
+            relative_to = Cow::Owned(relative_to.parent());
+            remaining = stripped;
+        } else if let Some(stripped) = remaining.strip_prefix("./") {
+            remaining = stripped;
+        } else {
+            return Some((remaining, relative_to.into_owned()));
+        }
+    }
+}
+
 fn new_regex(pattern: &str, opts: GlobOptions) -> Regex {
     RegexBuilder::new(pattern)
         // Because we aren't setting the `unicode` flag, this is only ASCII case-insensitive.
@@ -161,6 +209,97 @@ fn new_regex(pattern: &str, opts: GlobOptions) -> Regex {
         .dot_matches_new_line(true)
         .build()
         .expect("A successfully parsed glob should produce a valid regex")
+}
+
+#[cfg(test)]
+mod relativize_glob_tests {
+    use turbo_tasks::ResolvedVc;
+    use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
+
+    use super::*;
+    use crate::NullFileSystem;
+
+    fn path(path: &str) -> FileSystemPath {
+        FileSystemPath {
+            fs: ResolvedVc::upcast(NullFileSystem {}.resolved_cell()),
+            path: path.into(),
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn relativizes_leading_segments() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            let dir = path("project/src/components");
+
+            // No leading relative segments: returned as-is.
+            let (glob, root) = relativize_glob("*.js", &dir).unwrap();
+            assert_eq!(
+                (glob, root.path.as_str()),
+                ("*.js", "project/src/components")
+            );
+            let (glob, root) = relativize_glob("nested/**/*.js", &dir).unwrap();
+            assert_eq!(
+                (glob, root.path.as_str()),
+                ("nested/**/*.js", "project/src/components")
+            );
+
+            // `./` doesn't move the directory, repeated or not.
+            let (glob, root) = relativize_glob("./*.js", &dir).unwrap();
+            assert_eq!(
+                (glob, root.path.as_str()),
+                ("*.js", "project/src/components")
+            );
+            let (glob, root) = relativize_glob("././*.js", &dir).unwrap();
+            assert_eq!(
+                (glob, root.path.as_str()),
+                ("*.js", "project/src/components")
+            );
+
+            // Each `../` walks one directory up.
+            let (glob, root) = relativize_glob("../*.js", &dir).unwrap();
+            assert_eq!((glob, root.path.as_str()), ("*.js", "project/src"));
+            let (glob, root) = relativize_glob("../../lib/*.js", &dir).unwrap();
+            assert_eq!((glob, root.path.as_str()), ("lib/*.js", "project"));
+
+            // `./` and `../` may be mixed, in either order, and are all consumed.
+            let (glob, root) = relativize_glob(".././utils/*.js", &dir).unwrap();
+            assert_eq!((glob, root.path.as_str()), ("utils/*.js", "project/src"));
+            let (glob, root) = relativize_glob("./../lib/*.js", &dir).unwrap();
+            assert_eq!((glob, root.path.as_str()), ("lib/*.js", "project/src"));
+            let (glob, root) = relativize_glob("././../.././x/*.js", &dir).unwrap();
+            assert_eq!((glob, root.path.as_str()), ("x/*.js", "project"));
+
+            // Walking exactly to the filesystem root is fine.
+            let (glob, root) = relativize_glob("../../../*.js", &dir).unwrap();
+            assert_eq!((glob, root.path.as_str()), ("*.js", ""));
+
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reports_walking_above_the_root() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async {
+            // One `../` too many, from a nested directory and from the root itself.
+            assert!(relativize_glob("../../../../*.js", &path("project/src/components")).is_none());
+            assert!(relativize_glob("../*.js", &path("")).is_none());
+            // The `../` doesn't have to be the first segment to be detected.
+            assert!(relativize_glob("./../../*.js", &path("project")).is_none());
+            Ok(())
+        })
+        .await
+        .unwrap();
+    }
 }
 
 #[cfg(test)]
@@ -372,5 +511,35 @@ mod tests {
         println!("{glob:?} {path}");
 
         assert!(!glob.matches(path));
+    }
+
+    #[test]
+    fn literal_glob_directory_pruning() {
+        let pattern = rcstr!(
+            "node_modules/.pnpm/lightningcss-wasm@1.28.2/node_modules/lightningcss-wasm/\
+             lightningcss_node.wasm"
+        );
+        let anchored = Glob::parse(pattern, GlobOptions::default()).unwrap();
+
+        assert!(anchored.can_match_in_directory("node_modules"));
+        assert!(anchored.can_match_in_directory("node_modules/.pnpm"));
+        assert!(!anchored.can_match_in_directory("node_modules/next"));
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "Glob::can_match_in_directory cannot be used when GlobOptions::contains is true"
+    )]
+    fn contains_glob_cannot_match_in_directory() {
+        let glob = Glob::parse(
+            rcstr!("node_modules/package_name"),
+            GlobOptions {
+                contains: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+
+        glob.can_match_in_directory("node_modules");
     }
 }

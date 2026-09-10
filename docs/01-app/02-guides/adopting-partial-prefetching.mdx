@@ -10,6 +10,8 @@ related:
     - app/guides/optimizing-prefetching
     - app/api-reference/config/next-config-js/partialPrefetching
     - app/api-reference/file-conventions/route-segment-config/prefetch
+    - app/api-reference/functions/prefetch
+    - app/api-reference/functions/navigation
 ---
 
 [Partial Prefetching](/docs/app/glossary#partial-prefetching) changes what a `<Link>` downloads for a Cache Components route. With Partial Prefetching enabled, a `<Link>` prefetches the route's [App Shell](/docs/app/glossary#app-shell): its static content and the cached content that doesn't depend on the URL. Next.js builds one App Shell per route and reuses it for every link to that route, rather than prefetching each link separately as it did before.
@@ -44,6 +46,7 @@ To adopt an existing app by hand:
 2. [Enable `partialPrefetching`](#enable-partial-prefetching). For larger migrations, you can [adopt incrementally](#adopting-incrementally) with the global flag off. The [dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial) insight identifies each destination that still uses the legacy full prefetch.
 3. [Move URL data behind Suspense](#move-url-data-behind-suspense), resolving the [URL data outside of Suspense](/docs/messages/instant-shell-url-data) insight.
 4. Optionally, [prefetch URL data](#prefetching-url-data) on the routes where streaming in after navigation isn't enough.
+5. Optionally, [exclude cached content from a prefetch](/docs/app/guides/optimizing-prefetching#exclude-content-from-a-prefetch) on the routes where caching content into the App Shell made it heavier than you want.
 
 Both insights are development-only and never block the build. They appear in the dev overlay with fix cards that link the docs page for each fix. If a route isn't ready to adopt, export [`instant = false`](/docs/app/api-reference/file-conventions/route-segment-config/instant) from its page or layout to opt the route out of instant-navigation validation, and return to it later.
 
@@ -86,7 +89,30 @@ A legacy full prefetch can include more UI than the navigation needs. In most ca
 
 ### Verify prefetched UI with tests
 
-To verify the migration programmatically, an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test can capture the UI that should stay available from an existing full prefetch. Run this baseline against a production build with `partialPrefetching` disabled because automatic prefetching doesn't run in `next dev`. Then rerun the same assertions after adopting the destination. A failure identifies UI the App Shell no longer carries, so you can cache the data or subtree that restores it. The passing test provides regression coverage.
+To verify the migration programmatically, an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test can capture the UI that should stay available from an existing full prefetch. Test the exact source link because different links to the same destination can use different prefetch settings:
+
+```ts filename="e2e/product-navigation.test.ts" highlight={7-16}
+import { expect, test } from '@playwright/test'
+import { instant } from '@next/playwright'
+
+test('preserves the prefetched product summary', async ({ page }) => {
+  await page.goto('/products')
+
+  await instant(page, async () => {
+    const link = page.getByRole('link', { name: 'Baseball Cap' })
+    await expect(link).toBeVisible()
+    await link.click()
+    await page.waitForURL((url) => url.pathname === '/products/baseball-cap')
+
+    await expect(
+      page.getByRole('heading', { name: 'Baseball Cap' })
+    ).toBeVisible()
+    await expect(page.getByTestId('product-summary')).toBeVisible()
+  })
+})
+```
+
+Run this baseline against a production build with `partialPrefetching` disabled because automatic prefetching doesn't run in `next dev`. Then rerun the same test after adopting the destination. If it fails, the selected UI is no longer prefetched. Cache the reusable data or subtree that should stay available, then keep the passing test as regression coverage.
 
 ### Static or cached content
 

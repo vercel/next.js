@@ -1732,6 +1732,7 @@ function formatDependencyChain(dependencyChain) {
 }
 /// <reference path="../../../shared/runtime/dev-globals.d.ts" />
 /// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
+/// <reference path="../../../shared/runtime/hmr-runtime.ts" />
 const devContextPrototype = Context.prototype;
 /**
  * This file contains runtime types and functions that are shared between all
@@ -2419,10 +2420,6 @@ let DEV_BACKEND;
                 const baseChunkUrl = chunkUrl.split('?')[0];
                 const decodedBaseChunkUrl = decodeURI(baseChunkUrl);
                 const previousLinks = document.querySelectorAll(`link[rel=stylesheet][href="${baseChunkUrl}"],link[rel=stylesheet][href^="${baseChunkUrl}?"],link[rel=stylesheet][href="${decodedBaseChunkUrl}"],link[rel=stylesheet][href^="${decodedBaseChunkUrl}?"]`);
-                if (previousLinks.length === 0) {
-                    reject(new Error(`No link element found for chunk ${chunkUrl}`));
-                    return;
-                }
                 const link = document.createElement('link');
                 link.rel = 'stylesheet';
                 link.crossOrigin = CROSS_ORIGIN;
@@ -2457,9 +2454,20 @@ let DEV_BACKEND;
                     // loaded instantly.
                     resolve();
                 };
-                // Make sure to insert the new CSS right after the previous one, so that
-                // its precedence is higher.
-                previousLinks[0].parentElement.insertBefore(link, previousLinks[0].nextSibling);
+                if (previousLinks.length === 0) {
+                    // The chunk's <link> was already removed from the DOM (the importing
+                    // component unmounted via navigation or a `dynamic(ssr: false)`
+                    // boundary, so `unloadChunk` removed it), but its chunk list stays
+                    // subscribed and can still receive a 'total' update. Mirror the
+                    // 'added' branch of `applyChunkListUpdate` and load the fresh
+                    // stylesheet instead of rejecting with "No link element found for
+                    // chunk" (an unhandledRejection that forced a full page reload).
+                    document.head.appendChild(link);
+                } else {
+                    // Make sure to insert the new CSS right after the previous one, so that
+                    // its precedence is higher.
+                    previousLinks[0].parentElement.insertBefore(link, previousLinks[0].nextSibling);
+                }
             });
         },
         restart: ()=>self.location.reload()

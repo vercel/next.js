@@ -3560,14 +3560,11 @@ describe('app-dir static/dynamic handling', () => {
       await waitFor(1000)
 
       res = await next.fetch(path)
+      // fetch resolves when the response headers arrive, which is the first
+      // byte of the response.
+      const startedStreaming = Date.now()
 
       let data: any
-      let startedStreaming: number = -1
-      res.body.on('data', () => {
-        if (startedStreaming === -1) {
-          startedStreaming = Date.now()
-        }
-      })
       if (res.headers.get('content-type').includes('application/json')) {
         data = await res.json()
       } else {
@@ -3589,11 +3586,6 @@ describe('app-dir static/dynamic handling', () => {
       if (Number.isNaN(startedResponding)) {
         throw new Error(
           `Expected start to be a number. Received: "${data.start}"`
-        )
-      }
-      if (startedStreaming === -1) {
-        throw new Error(
-          'Expected startedStreaming to be set. This is a bug in the test.'
         )
       }
 

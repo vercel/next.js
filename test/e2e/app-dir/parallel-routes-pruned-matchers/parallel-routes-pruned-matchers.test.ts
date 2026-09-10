@@ -5,13 +5,7 @@ import stripAnsi from 'strip-ansi'
 
 const prunedRoutes: Array<[path: string, layoutId: string]> = [
   ['/named-catchall/anything', 'named-catchall-layout'],
-  ['/children-catchall/foo', 'children-catchall-layout'],
-  ['/children-catchall/bar', 'children-catchall-layout'],
-  ['/optional-children-catchall', 'optional-children-catchall-layout'],
-  ['/optional-children-catchall/anything', 'optional-children-catchall-layout'],
   ['/split-matcher/anything', 'split-matcher-layout'],
-  ['/nested-parallel/anything', 'nested-parallel-layout'],
-  ['/grouped/anything', 'grouped-layout'],
 ]
 
 function getAppRoutes(cliOutput: string): string[] {
@@ -147,7 +141,7 @@ describe('parallel-routes-pruned-matchers', () => {
     expect($('#valid-slot-page').text()).toBe('valid slot page')
   })
 
-  it('keeps the specific sibling of a pruned optional catch-all', async () => {
+  it('keeps a complete specific matcher', async () => {
     const $ = await next.render$('/optional-children-catchall/specific')
 
     expect($('#optional-specific-page').text()).toBe('optional specific page')
@@ -170,7 +164,7 @@ describe('parallel-routes-pruned-matchers', () => {
     expect(response.status).toBe(404)
   })
 
-  it('prunes a matcher with an incomplete nested parallel route', async () => {
+  it('keeps a complete nested parallel route matcher', async () => {
     const $ = await next.render$('/nested-parallel/specific')
 
     expect($('#nested-specific-page').text()).toBe('nested specific page')
@@ -182,7 +176,7 @@ describe('parallel-routes-pruned-matchers', () => {
     )
   })
 
-  it('keeps the specific sibling of a pruned route-group matcher', async () => {
+  it('keeps a complete matcher through a route group', async () => {
     const $ = await next.render$('/grouped/specific')
 
     expect($('#grouped-specific-page').text()).toBe('grouped specific page')
@@ -194,11 +188,7 @@ describe('parallel-routes-pruned-matchers', () => {
       const appRoutes = getAppRoutes(next.cliOutput)
       const omittedRoutes = [
         '/named-catchall/[...slug]',
-        '/children-catchall/[...slug]',
-        '/optional-children-catchall/[[...slug]]',
         '/split-matcher/[...parts]',
-        '/nested-parallel/[...slug]',
-        '/grouped/[...slug]',
       ]
 
       expect(

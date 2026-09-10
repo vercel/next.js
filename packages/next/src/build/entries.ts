@@ -8,7 +8,7 @@ import type { ProxyConfig, ProxyMatcher } from './analysis/get-page-static-info'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
-import { dirname, posix, join, normalize } from 'path'
+import { dirname, posix, join, normalize, relative } from 'path'
 import { stringify } from 'querystring'
 import {
   PAGES_DIR_ALIAS,
@@ -47,6 +47,7 @@ import {
 import { encodeMatchers } from './webpack/loaders/next-middleware-loader'
 import type { EdgeFunctionLoaderOptions } from './webpack/loaders/next-edge-function-loader'
 import { isAppRouteRoute } from '../lib/is-app-route-route'
+import { isAppPageRoute } from '../lib/is-app-page-route'
 import { getRouteLoaderEntry } from './webpack/loaders/next-route-loader'
 import {
   isInternalComponent,
@@ -58,6 +59,11 @@ import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
 import type { PageExtensions } from './page-extensions-type'
 import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
+import { UnmatchedAppPagesError } from '../shared/lib/errors/unmatched-app-pages-error'
+import { MissingCanonicalInterceptionRoutesError } from '../shared/lib/errors/missing-canonical-interception-routes-error'
+import { IncompatibleParallelRouteSlotsError } from '../shared/lib/errors/incompatible-parallel-route-slots-error'
+import { findMissingCanonicalInterceptionRoutes } from '../shared/lib/router/utils/interception-routes'
+import { findPageFile } from '../server/lib/find-page-file'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
@@ -409,23 +415,107 @@ export async function createEntrypoints(
 
   let appPathsPerRoute: Record<string, string[]> = {}
   if (appDir && appPaths) {
+    const appPageFiles = new Map<string, string>()
     for (const pathname in appPaths) {
       const normalizedPath = normalizeAppPath(pathname)
       const actualPath = appPaths[pathname]
       if (!appPathsPerRoute[normalizedPath]) {
         appPathsPerRoute[normalizedPath] = []
       }
-      appPathsPerRoute[normalizedPath].push(
-        // TODO-APP: refactor to pass the page path from createPagesMapping instead.
-        getPageFromPath(actualPath, pageExtensions).replace(APP_DIR_ALIAS, '')
+      // TODO-APP: refactor to pass the page path from createPagesMapping instead.
+      const appPath = getPageFromPath(actualPath, pageExtensions).replace(
+        APP_DIR_ALIAS,
+        ''
       )
+      appPathsPerRoute[normalizedPath].push(appPath)
+      appPageFiles.set(appPath, actualPath)
     }
 
     // TODO: find a better place to do this
-    normalizeCatchAllRoutes(appPathsPerRoute, {
-      strictRouteMatching: config.experimental.strictRouteMatching,
-      defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
-    })
+    const { unmatchedAppPages, incompatibleParallelRouteSlots } =
+      normalizeCatchAllRoutes(appPathsPerRoute, {
+        strictRouteMatching: config.experimental.strictRouteMatching,
+        defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
+      })
+    // Only App Router pages can make an intercepted URL directly renderable.
+    // Route handlers and metadata routes may share the pathname, but they
+    // cannot provide the canonical page shown by an initial request.
+    const appPagePathsPerRoute = Object.fromEntries(
+      Object.entries(appPathsPerRoute).flatMap(([route, routeAppPaths]) => {
+        const pageAppPaths = routeAppPaths.filter(isAppPageRoute)
+        return pageAppPaths.length > 0 ? [[route, pageAppPaths]] : []
+      })
+    )
+    const missingCanonicalInterceptionRoutes = config.experimental
+      .strictRouteMatching
+      ? findMissingCanonicalInterceptionRoutes(appPagePathsPerRoute)
+      : []
+    const routeMatchingErrors: Error[] = []
+    if (missingCanonicalInterceptionRoutes.length > 0) {
+      routeMatchingErrors.push(
+        new MissingCanonicalInterceptionRoutesError(
+          missingCanonicalInterceptionRoutes
+        )
+      )
+    }
+    if (incompatibleParallelRouteSlots.length > 0) {
+      routeMatchingErrors.push(
+        new IncompatibleParallelRouteSlotsError(
+          await Promise.all(
+            incompatibleParallelRouteSlots.map(async (incompatibleRoute) => {
+              const layoutPagePath = posix.join(
+                incompatibleRoute.layoutPath,
+                'layout'
+              )
+              const layoutFile = await findPageFile(
+                appDir,
+                layoutPagePath,
+                pageExtensions,
+                true
+              )
+
+              return {
+                ...incompatibleRoute,
+                layoutFile: relative(
+                  rootDir,
+                  layoutFile
+                    ? join(appDir, layoutFile)
+                    : join(appDir, layoutPagePath)
+                ),
+              }
+            })
+          )
+        )
+      )
+    }
+    if (unmatchedAppPages.length > 0) {
+      routeMatchingErrors.push(
+        new UnmatchedAppPagesError(
+          unmatchedAppPages.map((appPath) => {
+            const absolutePagePath = appPageFiles.get(appPath)
+            if (!absolutePagePath) return appPath
+
+            return relative(
+              rootDir,
+              getPageFilePath({
+                absolutePagePath,
+                pagesDir,
+                appDir,
+                rootDir,
+              })
+            )
+          })
+        )
+      )
+    }
+    if (routeMatchingErrors.length === 1) {
+      throw routeMatchingErrors[0]
+    }
+    if (routeMatchingErrors.length > 1) {
+      throw new Error(
+        routeMatchingErrors.map((error) => error.message).join('\n\n')
+      )
+    }
 
     // Make sure to sort parallel routes to make the result deterministic.
     appPathsPerRoute = Object.fromEntries(

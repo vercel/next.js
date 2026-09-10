@@ -196,6 +196,7 @@ export const experimentalSchema = {
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),
   appNavFailHandling: z.boolean().optional(),
+  parallelRouteMetadata: z.boolean().optional(),
   coldCacheBadge: z.boolean().optional(),
   collapseAdapterRoutes: z.boolean().optional(),
   preloadEntriesOnStart: z.boolean().optional(),
@@ -375,7 +376,7 @@ export const experimentalSchema = {
     .union([z.literal(false), z.literal('full'), z.literal('auto')])
     .optional(),
   turbopackPluginRuntimeStrategy: z
-    .enum(['workerThreads', 'childProcesses'])
+    .enum(['workerThreads', 'childProcesses', 'forceWorkerThreads'])
     .optional(),
   turbopackMinify: z
     .union([
