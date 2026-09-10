@@ -20,7 +20,7 @@ To expand the shell, trace each data read to the UI that needs it, cache reusabl
 
 ## Use the optimizer skill (recommended)
 
-The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) skill applies this guide with a coding agent. It uses the [`instant()` verification loop](#step-4-verify-the-instant-ui) below to capture the intended UI, prove the current behavior, and keep the passing test as regression coverage.
+The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) skill applies this guide with a coding agent. It uses the [`instant()` verification loop](#step-4-verify-the-instant-ui) below to capture the intended static shell, prove the current behavior, and keep the passing test as regression coverage.
 
 Install the skill:
 
@@ -28,10 +28,10 @@ Install the skill:
 npx skills add vercel/next.js --skill next-cache-components-optimizer
 ```
 
-Then give the agent the route and the UI that should be available immediately:
+Then give the agent the route and the UI that should be in its static shell:
 
 ```prompt
-Make the navigation from /[team] to /[team]/settings instant using the next-cache-components-optimizer Skill. The settings frame and heading should be part of the instant UI.
+Optimize the static shell for /[team]/settings using the next-cache-components-optimizer Skill. On an initial load, the settings frame and heading should be available immediately.
 ```
 
 ## Prerequisites
@@ -621,7 +621,7 @@ async function AuthGate() {
 
 `AuthGate` is the only component that needs the request values, so it owns those reads. Its boundary lets the settings frame and page stay in the shell. An empty fallback fits this boundary because an authorized gate also returns `null`.
 
-> **Good to know:** If an [authorization interrupt](/docs/app/guides/authentication#authorization-interrupts) runs after streaming starts, it can render its UI, but the response status remains `200`. If the HTTP `401` or `403` status matters, check access before streaming begins. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+> **Good to know:** If an authorization interrupt such as [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) or [`forbidden()`](/docs/app/api-reference/functions/forbidden) runs after streaming starts, it can render its UI, but the response status remains `200`. If the HTTP `401` or `403` status matters, check access before streaming begins. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 A layout redirect does not protect a database query or Server Action by itself. Keep authorization checks in the data access functions used by the page, and include only safe UI in the shell before authentication completes. See [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components) for the complete pattern.
 

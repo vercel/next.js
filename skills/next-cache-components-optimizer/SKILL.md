@@ -2,10 +2,10 @@
 name: next-cache-components-optimizer
 description: >
   Optimize a Next.js Cache Components route so a meaningful static shell
-  commits immediately on an initial load, client navigation, or both. Use when
-  asked to improve a route's static shell, fix a blocking first paint, or add
-  instant() regression coverage. Requires Next.js 16.3+ with Cache Components
-  already adopted.
+  commits immediately on an initial load, then verify any relevant client
+  navigation entry points. Use when asked to improve a route's static shell,
+  fix a blocking first paint, or add instant() regression coverage. Requires
+  Next.js 16.3+ with Cache Components already adopted.
 ---
 
 # next-cache-components-optimizer
@@ -77,13 +77,13 @@ hear those words.
 
 ## Define the contract
 
-Initial loads and client navigations can produce different shells. Follow the
-[Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation)
-guide to choose which navigation to guard, then identify a meaningful,
-visible DOM node in that shell. Guard the navigation the user named. When both
-an initial load and client navigation are in scope, give each its own contract
-and test. Use `instant()` as a ruler, not a stopwatch: assert what commits while
-dynamic data is paused, never elapsed time.
+Start with an initial page load because it directly captures the target route's
+static shell. Identify a meaningful, visible DOM node in that shell. Add a
+separate client-navigation contract when the user names that navigation or a
+shared layout gives it a different entry point. Follow the [Instant
+navigation](https://nextjs.org/docs/app/guides/instant-navigation) guide for
+that distinction. Use `instant()` as a ruler, not a stopwatch: assert what
+commits while dynamic data is paused, never elapsed time.
 
 For a client navigation, place the relevant boundary below the layout shared
 by the source and destination. When the destination uses parallel routes,
