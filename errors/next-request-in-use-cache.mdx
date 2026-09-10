@@ -8,6 +8,8 @@ A cached function tried to access the incoming request. APIs such as `cookies()`
 
 A cached function can also stall if it awaits a promise stored outside the function, such as one kept in a module-scoped `Map` for deduplication.
 
+`unstable_prefetch()` and `unstable_navigation()` are also unavailable inside cached functions. Move the stage boundary outside the cached function, then call the cached function below it so only the deferred work is cached.
+
 ## Possible Ways to Fix It
 
 Read and resolve request data outside the cached function, then pass only the values you need as arguments. Call `connection()` and enable or disable draft mode outside the cached function as well.
@@ -54,4 +56,6 @@ export default async function Page() {
 - [`cookies()` function](/docs/app/api-reference/functions/cookies)
 - [`connection()` function](/docs/app/api-reference/functions/connection)
 - [`draftMode()` function](/docs/app/api-reference/functions/draft-mode)
+- [`unstable_prefetch()` function](/docs/app/api-reference/functions/prefetch)
+- [`unstable_navigation()` function](/docs/app/api-reference/functions/navigation)
 - [`use cache` directive](/docs/app/api-reference/directives/use-cache)

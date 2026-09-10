@@ -142,6 +142,10 @@ See [Proxy](#proxy).
 
 # N
 
+## Navigation stages
+
+The control mechanism for choosing how much of a [Cache Components](#cache-components) route each prefetch includes. With [Partial Prefetching](#partial-prefetching), [`unstable_prefetch()`](/docs/app/api-reference/functions/prefetch) excludes subsequent work from the [App Shell](#app-shell), while [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) excludes it from every prefetch. The work remains cacheable.
+
 ## Not Found
 
 A special component shown when a route doesn't exist or when the [`notFound()` function](/docs/app/api-reference/functions/not-found) is called. Created by adding a [`not-found.js` file](/docs/app/api-reference/file-conventions/not-found) to your app directory. Learn more in [Error Handling](/docs/app/getting-started/error-handling#not-found).

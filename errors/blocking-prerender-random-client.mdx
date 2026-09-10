@@ -14,7 +14,7 @@ kind: insight
     lineHeight: '1.6',
   }}
 >
-  This Insight is part of the [Instant
+  This insight is part of the [Instant
   Navigations](https://nextjs.org/blog/next-16-3-instant-navigations) feature
   introduced in Next.js 16.3. If you're new to it, start with the [Ensuring
   instant navigations](/docs/app/guides/instant-navigation) guide for an
@@ -233,7 +233,7 @@ In [`next dev`](/docs/app/api-reference/cli/next#next-dev-options), the error ov
 
 This error fires from the prerender, not from instant-navigation validation. `Math.random()` returns a different value on every render, so the prerender can't bake it into a static shell regardless of the segment's `instant` config or [`experimental.instantInsights.validationLevel`](/docs/app/api-reference/file-conventions/route-segment-config/instant#configuring-validation-defaults). Use one of the fixes above.
 
-## Related Insights
+## Related insights
 
 - [Runtime data during prerendering](/docs/messages/blocking-prerender-runtime)
 - [Uncached data during prerendering](/docs/messages/blocking-prerender-dynamic)
@@ -247,6 +247,9 @@ This error fires from the prerender, not from instant-navigation validation. `Ma
 - [`Date.now()` in a Client Component](/docs/messages/blocking-prerender-current-time-client)
 - [Crypto APIs while prerendering](/docs/messages/blocking-prerender-crypto)
 - [Crypto APIs in a Client Component](/docs/messages/blocking-prerender-crypto-client)
+- [Navigation stage API outside of Suspense](/docs/messages/instant-navigation-stage)
+- [Navigation stage API in `generateMetadata()`](/docs/messages/instant-navigation-stage-metadata)
+- [Navigation stage API in `generateViewport()`](/docs/messages/instant-navigation-stage-viewport)
 - [Dynamic data during prefetching](/docs/messages/instant-link-prefetch-partial)
 - [URL data outside of Suspense](/docs/messages/instant-shell-url-data)
 - [Unrendered segment](/docs/messages/instant-unrendered-segment)

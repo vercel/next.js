@@ -30,11 +30,13 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-A route is then rendered in three stages, and content can arrive at any of them:
+With Partial Prefetching enabled, Next.js can prepare progressively more of a route before and during navigation:
 
-1. The App Shell, which every `<Link>` into the route prefetches, and which holds the part of the route that does not depend on the URL.
-2. A per-link prefetch, requested with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), which resolves the URL and adds the content that depends on it.
-3. The navigation itself, which covers everything left.
+1. A default `<Link>` prefetch includes the App Shell, which holds the part of the route that does not depend on the URL.
+2. A [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch) prefetch can also include content that depends on the link's URL.
+3. A navigation renders any content that remains.
+
+This control mechanism is called [navigation stages](/docs/app/glossary#navigation-stages).
 
 Awaiting `unstable_prefetch()` keeps content out of the App Shell, so it renders only on a per-link prefetch or on the navigation.
 
@@ -140,10 +142,8 @@ When every read of [`cookies()`](/docs/app/api-reference/functions/cookies) and 
 
 - The function has no effect on the initial load of a page.
 - Unlike [`connection()`](/docs/app/api-reference/functions/connection), it does not mark the subtree as request-dependent. Content below `await unstable_prefetch()` stays fully cacheable and can be wrapped in [`use cache`](/docs/app/api-reference/directives/use-cache).
-- A call outside a `<Suspense>` boundary surfaces a validation insight in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
+- A call outside a `<Suspense>` boundary surfaces a [validation insight](/docs/messages/instant-navigation-stage) in development. It is reported even on a page that is currently prerendered in full, because the same page starts deferring content as soon as it switches to a runtime shell.
 - Calling it inside `use cache`, `use cache: private`, [`unstable_cache()`](/docs/app/api-reference/functions/unstable_cache), [`after()`](/docs/app/api-reference/functions/after), [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params), or a Client Component throws.
-
-{/* TODO: link the validation insight error page from the bullet above once it merges. */}
 
 ## Reference
 

@@ -10,8 +10,9 @@ export enum RenderStage {
   Static = 13,
   //
   ShellRuntime = 20,
-  Runtime = 21,
-  NavigationRuntime = 22,
+  PrefetchRuntime = 21,
+  Runtime = 22,
+  NavigationRuntime = 23,
   //
   Dynamic = 30,
   Abandoned = 40,
@@ -29,6 +30,7 @@ export const RENDER_STAGE_ADVANCE_ORDER: AdvanceableRenderStage[] = [
   RenderStage.Static,
   //
   RenderStage.ShellRuntime,
+  RenderStage.PrefetchRuntime,
   RenderStage.Runtime,
   RenderStage.NavigationRuntime,
   //

@@ -188,7 +188,7 @@ Everything inside the scope shares the same lifetime. Colocate `"use cache: priv
 
 ## Exclude content from a prefetch
 
-Optimizing a prefetch also means excluding content from it. Some subtrees are expensive enough to produce that you would rather not pay for them on every prefetch of the route.
+You can reduce prefetch work by excluding subtrees that are expensive to produce. [Navigation stages](/docs/app/glossary#navigation-stages) control how much of a route each prefetch includes.
 
 Awaiting [`unstable_navigation()`](/docs/app/api-reference/functions/navigation) above the work leaves it out of every prefetch, so it is produced on the navigation. The nearest [`<Suspense>`](https://react.dev/reference/react/Suspense) fallback is what the user sees while it streams in. Take the dashboard again, where a ranking keyed on the session is too expensive to produce for every link into the route:
 
