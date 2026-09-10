@@ -418,7 +418,9 @@ async function main() {
     printTests: argv.printTests ?? false,
   }
   let numRetries = options.retries
-  const hideOutput = !options.debug && !options.dry
+  // Temporary CI experiment: stream output of all tests (not just failures)
+  // in CI so the job logs can be searched for --trace-deprecation warnings.
+  const hideOutput = !options.debug && !options.dry && !process.env.CI
 
   let filterTestsBy
 
