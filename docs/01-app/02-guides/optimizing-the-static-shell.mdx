@@ -16,6 +16,22 @@ related:
 
 Read [Instant Navigation](/docs/app/guides/instant-navigation) to understand how Next.js produces the static shell and how to inspect it with Next.js DevTools. This guide uses one route to show how to move more useful content into that shell without changing the completed page.
 
+## Use the optimizer skill (recommended)
+
+The [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill applies this guide with a coding agent. It defines the intended shell in an [`instant()` test](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests), proves the current behavior, and works the test to green.
+
+Install the skill:
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-cache-components-optimizer
+```
+
+Then give the agent the route and the UI that should be available immediately:
+
+```prompt
+Optimize the static shell for /[team]/settings using the next-cache-components-optimizer skill. Keep the settings frame and heading in the instant UI.
+```
+
 ## Prerequisites
 
 Enable [`cacheComponents`](/docs/app/api-reference/config/next-config-js/cacheComponents) and resolve the route's blocking validation errors first. For the migration workflow, see [Migrating to Cache Components](/docs/app/guides/migrating-to-cache-components).
