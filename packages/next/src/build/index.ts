@@ -37,6 +37,8 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   MATCHED_PATH_HEADER,
+  NEXT_VARIANTS_HEADER,
+  VARIANTS_PATH_PREFIX,
   type RSC_SEGMENTS_DIR_SUFFIX,
   type RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
@@ -220,6 +222,7 @@ import { generatePreviewKeys } from './preview-key-utils'
 import { handleBuildComplete } from './adapter/build-complete'
 import type { VariantCombinationGroups } from '../server/variants/combinations'
 import { buildVariantsManifest, recordVariantOutput } from './variants/manifest'
+import { buildVariantRouteAliases } from './variants/route-aliases'
 import { getVariantOutputPath } from '../server/variants/prefix'
 import {
   sortPageObjects,
@@ -554,6 +557,12 @@ export type ManifestRoute = ManifestBuiltRoute & {
    * routers.
    */
   skipInternalRouting?: boolean
+
+  /**
+   * Marks an alias whose regexes carry a Variants prefix while its `page` does
+   * not. A consumer cannot derive this entry's matchers from `page`.
+   */
+  variantsPrefixed?: boolean
 }
 
 type ManifestDataRoute = {
@@ -2193,6 +2202,7 @@ export default async function build(
         VariantCombinationGroups
       >()
       const variantOutputHashesByPage = new Map<string, Set<string>>()
+      const variantDynamicOutputPathnames = new Set<string>()
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
@@ -3062,6 +3072,18 @@ export default async function build(
         variantCombinationGroups: {},
       }
 
+      // `allowHeader` forwards a header without adding it to the cache key.
+      // Every prerender in a project with Variants enabled accepts this header
+      // because the build cannot identify which routes can reach a variant
+      // reader. Static variant combinations cannot answer that: a route can
+      // read a variant without declaring a combination.
+      //
+      // TODO(variants): Narrow this list with emit and collect data that
+      // identifies routes which can reach a variant reader.
+      const allowHeader: string[] = config.experimental.variants
+        ? [...ALLOWED_HEADERS, NEXT_VARIANTS_HEADER]
+        : ALLOWED_HEADERS
+
       // Accumulate per-route segment inlining decisions for
       // prefetch-hints.json. First-writer-wins: if multiple param
       // combinations exist for the same route pattern, use the first one.
@@ -3461,6 +3483,20 @@ export default async function build(
                     },
                   ]
                 : []),
+              // A non-PPR prerender cannot leave runtime-tier variant values as
+              // holes. Bypass the platform prerender when the proxy forwards
+              // any such value, so the request uses a request render instead. A
+              // blocking prerender cannot preserve the runtime tier.
+              //
+              // The proxy omits values assigned by a declared variant
+              // combination from this header. The header is absent when that
+              // combination assigns every resolved variant, so the request can
+              // use its prerender.
+              ...(config.experimental.variants &&
+              !isRoutePPREnabled &&
+              variantCombinationGroupsByPage.get(page)?.length
+                ? [{ type: 'header' as const, key: NEXT_VARIANTS_HEADER }]
+                : []),
             ]
 
             // Candidates without unknown params can become concrete static
@@ -3656,7 +3692,7 @@ export default async function build(
                   srcRoute: page,
                   dataRoute,
                   prefetchDataRoute,
-                  allowHeader: ALLOWED_HEADERS,
+                  allowHeader,
                 }
 
                 recordVariantOutput(
@@ -3836,7 +3872,30 @@ export default async function build(
                     }
                   }
 
-                  if (metadata?.segmentPaths) {
+                  // Build a combined prefetch segment data route from the page
+                  // segment metadata, and attach it to the logical dynamic
+                  // route. Its source accepts both the full
+                  // `.../__PAGE__.segment.rsc` form and the shorter
+                  // `.segment.rsc` form, so one entry serves both requests.
+                  //
+                  // A builder that consumes `routes-manifest.json` directly
+                  // needs this route. An adapter also emits it when
+                  // `collapseAdapterRoutes` is off. When the collapse is on,
+                  // the merged RSC suffix matcher handles segment requests
+                  // instead.
+                  //
+                  // A page without variant combinations has at most one
+                  // candidate per pathname. Static variant combinations create
+                  // several candidates with the same pathname and segment
+                  // metadata. The first candidate of such a page attaches the
+                  // shared route, and later candidates skip this block. Pages
+                  // without combinations keep the existing per-candidate
+                  // behavior.
+                  if (
+                    metadata?.segmentPaths &&
+                    (!variantCombinationGroupsByPage.has(page) ||
+                      !dynamicRoute.prefetchSegmentDataRoutes)
+                  ) {
                     const pageSegmentPath = metadata.segmentPaths.find((item) =>
                       item.endsWith('__PAGE__')
                     )
@@ -3844,9 +3903,6 @@ export default async function build(
                       throw new Error(`Invariant: missing __PAGE__ segmentPath`)
                     }
 
-                    // We build a combined segment data route from the
-                    // page segment as we need to limit the number of
-                    // routes we output and they can be shared
                     const builtSegmentDataRoute = buildPrefetchSegmentDataRoute(
                       route.pathname,
                       pageSegmentPath
@@ -4005,14 +4061,18 @@ export default async function build(
                           excludeOptionalTrailingSlash: true,
                         }).re.source
                       ),
-                  allowHeader: ALLOWED_HEADERS,
+                  allowHeader,
                 }
 
-                recordVariantOutput(
-                  variantOutputHashesByPage,
-                  page,
-                  prerenderCandidate?.variantValues
-                )
+                const variantValues = prerenderCandidate?.variantValues
+                if (variantValues) {
+                  recordVariantOutput(
+                    variantOutputHashesByPage,
+                    page,
+                    variantValues
+                  )
+                  variantDynamicOutputPathnames.add(route.pathname)
+                }
               }
             }
           })
@@ -4256,7 +4316,7 @@ export default async function build(
                         `${localePage}.json`
                       ),
                       prefetchDataRoute: undefined,
-                      allowHeader: ALLOWED_HEADERS,
+                      allowHeader,
                     }
                   }
                 } else {
@@ -4286,7 +4346,7 @@ export default async function build(
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
-                    allowHeader: ALLOWED_HEADERS,
+                    allowHeader,
                   }
                 }
                 if (pageInfo) {
@@ -4325,7 +4385,7 @@ export default async function build(
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
-                    allowHeader: ALLOWED_HEADERS,
+                    allowHeader,
                   }
 
                   if (pageInfo) {
@@ -4338,6 +4398,28 @@ export default async function build(
 
           await writeManifest(pagesManifestPath, pagesManifest)
         })
+
+        if (config.experimental.variants) {
+          // Exclude artifact paths from ordinary origin matchers before adding
+          // aliases. A broad dynamic route can otherwise consume the prefix
+          // instead of capturing the hash.
+          for (const route of dynamicRoutes) {
+            route.regex = route.regex.replace(
+              '^',
+              `^(?![/]?/${VARIANTS_PATH_PREFIX}/)`
+            )
+            if (route.namedRegex !== undefined) {
+              route.namedRegex = route.namedRegex.replace(
+                '^',
+                `^(?![/]?/${VARIANTS_PATH_PREFIX}/)`
+              )
+            }
+          }
+
+          dynamicRoutes.push(
+            ...buildVariantRouteAliases(variantOutputHashesByPage.keys())
+          )
+        }
 
         // As we may have modified the dynamicRoutes, we need to sort the
         // dynamic routes by page.
@@ -4469,7 +4551,7 @@ export default async function build(
             // Pages does not have a prefetch data route.
             prefetchDataRoute: undefined,
             prefetchDataRouteRegex: undefined,
-            allowHeader: ALLOWED_HEADERS,
+            allowHeader,
           }
         })
 
@@ -4665,6 +4747,7 @@ export default async function build(
               appPageKeys: emittedAppPageKeys,
               routesManifest,
               prerenderManifest,
+              variantDynamicOutputPathnames,
               middlewareManifest,
               functionsConfigManifest,
               hasStatic404: useStaticPages404,

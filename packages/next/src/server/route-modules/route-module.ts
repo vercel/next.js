@@ -172,7 +172,9 @@ export abstract class RouteModule<
 
   public normalizeUrl(
     _req: IncomingMessage | BaseNextRequest,
-    _parsedUrl: UrlWithParsedQuery
+    _parsedUrl: UrlWithParsedQuery,
+    _nextConfig?: DeepReadonly<NextConfigRuntime>,
+    _isWrappedByNextServer?: boolean
   ) {}
 
   public async instrumentationOnRequestError(
@@ -754,7 +756,12 @@ export abstract class RouteModule<
       isNextDataRequest = true
       parsedUrl.pathname = normalizeDataPath(parsedUrl.pathname || '/')
     }
-    this.normalizeUrl(req, parsedUrl)
+    this.normalizeUrl(
+      req,
+      parsedUrl,
+      nextConfig,
+      routerServerContext?.isWrappedByNextServer
+    )
     let originalPathname = parsedUrl.pathname || '/'
     const originalQuery = { ...parsedUrl.query }
     const pageIsDynamic = isDynamicRoute(srcPage)

@@ -1,9 +1,15 @@
 import type { AppPageRouteDefinition } from '../../route-definitions/app-page-route-definition'
 import type RenderResult from '../../render-result'
 import type { RenderOpts } from '../../app-render/types'
-import { addRequestMeta, type NextParsedUrlQuery } from '../../request-meta'
+import {
+  addRequestMeta,
+  getRequestMeta,
+  type NextParsedUrlQuery,
+} from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 import type { PrerenderManifest } from '../../../build'
+import type { NextConfigRuntime } from '../../config-shared'
+import { splitVariantsPrefix } from '../../variants/prefix'
 
 import {
   prerenderToHTMLOrFlight,
@@ -118,7 +124,9 @@ export class AppPageRouteModule extends RouteModule<
 
   public normalizeUrl(
     req: IncomingMessage | BaseNextRequest,
-    parsedUrl: UrlWithParsedQuery
+    parsedUrl: UrlWithParsedQuery,
+    nextConfig?: DeepReadonly<NextConfigRuntime>,
+    isWrappedByNextServer?: boolean
   ) {
     if (this.normalizers.segmentPrefetchRSC.match(parsedUrl.pathname || '/')) {
       const result = this.normalizers.segmentPrefetchRSC.extract(
@@ -146,7 +154,24 @@ export class AppPageRouteModule extends RouteModule<
       // Mark the request as a RSC request.
       req.headers[RSC_HEADER] = '1'
     } else {
-      super.normalizeUrl(req, parsedUrl)
+      super.normalizeUrl(req, parsedUrl, nextConfig, isWrappedByNextServer)
+    }
+
+    // Remove the artifact prefix before matching route params. Self-hosted
+    // routing does this when it processes the proxy rewrite; direct minimal
+    // invocations do not.
+    if (
+      nextConfig?.experimental.variants &&
+      getRequestMeta(req, 'minimalMode') === true &&
+      !isWrappedByNextServer
+    ) {
+      const variantPath = splitVariantsPrefix(
+        parsedUrl.pathname || '/',
+        undefined
+      )
+      if (variantPath) {
+        parsedUrl.pathname = variantPath.pathname
+      }
     }
 
     // Minimal adapters can bypass base-server request normalization and invoke

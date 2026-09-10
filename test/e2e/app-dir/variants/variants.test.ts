@@ -7,15 +7,13 @@ import { basePath, url } from './base-path'
 import { startExternalServer } from './external-server.mjs'
 
 // Variants are supported with Turbopack only, and enabling them rejects a
-// webpack build, which `variants-webpack.test.ts` covers.
-// @force-gate turbopack
+// webpack build, which `variants-webpack.test.ts` covers. Deployments require
+// the adapter's Variants routing and prerender outputs. Self-hosted dev and
+// start do not require an adapter.
+// @force-gate turbopack && (!deploy || adapter)
 describe('variants', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/default',
-    // TODO(variants): enable this for a deployment. A platform serves a
-    // combination from the routing rules the adapter emits, and those do not
-    // exist yet, so every assertion here is about a self-hosted server.
-    skipDeployment: true,
     // Handed to the build rather than read from `process.env` there, so that a
     // deployed build receives it too: only what goes through here is forwarded
     // to the remote build.
@@ -109,11 +107,15 @@ describe('variants', () => {
     expect($('#theme').length).toBe(0)
     expect($('#pending').text()).toBe('pending')
 
-    await retry(async () => {
-      expect(next.cliOutput).toContain(
-        'read variant `theme@variants.ts`, but no value was resolved for this request'
-      )
-    })
+    // A deployment exposes build logs here, not logs from the function that
+    // served the request. The response assertions above cover both modes.
+    if (!isNextDeploy) {
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          'read variant `theme@variants.ts`, but no value was resolved for this request'
+        )
+      })
+    }
   })
 
   it('should fail a read on a route the proxy does not match', async () => {
@@ -124,11 +126,13 @@ describe('variants', () => {
     expect($('#pending').text()).toBe('pending')
     expect($('#theme').length).toBe(0)
 
-    await retry(async () => {
-      expect(next.cliOutput).toContain(
-        'read variant `theme@variants.ts`, but no value was resolved for this request'
-      )
-    })
+    if (!isNextDeploy) {
+      await retry(async () => {
+        expect(next.cliOutput).toContain(
+          'read variant `theme@variants.ts`, but no value was resolved for this request'
+        )
+      })
+    }
   })
 
   it('should resolve a variant on the route the proxy rewrote to', async () => {
@@ -551,6 +555,29 @@ describe('variants', () => {
           }
           throw error
         }
+      }
+
+      if (isNextDeploy) {
+        // Warm the server entry before the final prefetch assertion. A segment
+        // fallback can omit the concrete param until background generation
+        // completes.
+        //
+        // TODO: Investigate whether deploy should serve the same cold-prefetch
+        // content as `next start`. The difference also occurs without Variants.
+        const $ = await next.render$(url(pathname), undefined, {
+          headers: { cookie: 'theme=light; locale=en' },
+        })
+        expect($('#slug').text()).toBe(slug)
+
+        await retry(async () => {
+          // Each attempt uses a fresh page so the client router cannot reuse
+          // its cached fallback.
+          const { browser } = await prefetch()
+          await using _ = defer(async () => {
+            await browser.deleteCookies()
+            await browser.close()
+          })
+        }, 15000)
       }
 
       const { browser, act } = await prefetch()

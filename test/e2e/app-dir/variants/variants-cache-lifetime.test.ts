@@ -5,15 +5,13 @@ import { retry } from 'next-test-utils'
 import { basePath, url } from './base-path'
 
 // Variants are supported with Turbopack only, and enabling them rejects a
-// webpack build, which `variants-webpack.test.ts` covers.
-// @force-gate turbopack
+// webpack build, which `variants-webpack.test.ts` covers. Deployments require
+// the adapter's Variants routing and prerender outputs. Self-hosted dev and
+// start do not require an adapter.
+// @force-gate turbopack && (!deploy || adapter)
 describe('variants with a cache lifetime per combination', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/cache-lifetime',
-    // TODO(variants): enable this for a deployment. A platform serves a
-    // combination from the routing rules the adapter emits, and those do not
-    // exist yet, so every assertion here is about a self-hosted server.
-    skipDeployment: true,
     // Handed to the build rather than read from `process.env` there, so that
     // a deployed build receives it too: only what goes through here is
     // forwarded to the remote build.
@@ -24,35 +22,39 @@ describe('variants with a cache lifetime per combination', () => {
     return
   }
 
-  it('should resolve a variant while revalidating a stale prerender', async () => {
-    // A tag rather than the route's own lifetime, so the entry goes stale at
-    // once instead of after an hour.
-    const before = await next.render$(url('/lifetime/r'), undefined, {
-      headers: { cookie: 'theme=dark' },
-    })
-
-    expect(before('#theme').text()).toBe('dark')
-
-    const renderedAt = before('#rendered-at').text()
-    expect(renderedAt).not.toBe('')
-
-    const revalidateRes = await next.fetch(url('/revalidate?tag=lifetime-r'))
-    expect(revalidateRes.status).toBe(200)
-
-    // The stamp is what shows the entry was replaced. The variant reads
-    // `dark` before and after, so a response carrying the old stamp is the
-    // stale entry served while the revalidation runs behind it, and asserting
-    // on the variant alone would pass without that render happening.
-    await retry(async () => {
-      const after = await next.render$(url('/lifetime/r'), undefined, {
+  for (const [pathname, tag] of [
+    ['/lifetime/r', 'lifetime-r'],
+    ['/', 'lifetime-root'],
+  ]) {
+    it(`should resolve a variant while revalidating a stale prerender at ${pathname}`, async () => {
+      // Expire this route's tagged entries without waiting for their cache
+      // lifetime.
+      const before = await next.render$(url(pathname), undefined, {
         headers: { cookie: 'theme=dark' },
       })
 
-      expect(after('#rendered-at').text()).not.toBe(renderedAt)
+      expect(before('#theme').text()).toBe('dark')
 
-      expect(after('#theme').text()).toBe('dark')
+      const renderedAt = before('#rendered-at').text()
+      expect(renderedAt).not.toBe('')
+
+      const revalidateRes = await next.fetch(url(`/revalidate?tag=${tag}`))
+      expect(revalidateRes.status).toBe(200)
+
+      // Require a new timestamp to distinguish regenerated content from the
+      // stale prerender. The variant value stays the same across revalidation.
+      await retry(async () => {
+        const after = await next.render$(url(pathname), undefined, {
+          headers: { cookie: 'theme=dark' },
+        })
+
+        expect(after('#rendered-at').text()).not.toBe('')
+        expect(after('#rendered-at').text()).not.toBe(renderedAt)
+
+        expect(after('#theme').text()).toBe('dark')
+      })
     })
-  })
+  }
 
   it('should resolve the variant the cache lifetime is selected from', async () => {
     const $ = await next.render$(url('/lifetime/a'), undefined, {

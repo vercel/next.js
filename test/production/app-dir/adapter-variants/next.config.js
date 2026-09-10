@@ -3,15 +3,11 @@
  */
 const nextConfig = {
   cacheComponents: true,
-  partialPrefetching: true,
   experimental: {
     variants: true,
     collapseAdapterRoutes: process.env.COLLAPSE_ADAPTER_ROUTES === '1',
   },
-}
-
-if (process.env.BASE_PATH) {
-  nextConfig.basePath = process.env.BASE_PATH
+  adapterPath: require.resolve('./my-adapter.mjs'),
 }
 
 module.exports = nextConfig

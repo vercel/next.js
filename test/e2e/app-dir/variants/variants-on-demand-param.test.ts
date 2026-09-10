@@ -4,15 +4,13 @@ const CONTROL = '/control'
 const DECLARED = '/declared'
 
 // Variants are supported with Turbopack only, and enabling them rejects a
-// webpack build, which `variants-webpack.test.ts` covers.
-// @force-gate turbopack
+// webpack build, which `variants-webpack.test.ts` covers. Deployments require
+// the adapter's Variants routing and prerender outputs. Self-hosted dev and
+// start do not require an adapter.
+// @force-gate turbopack && (!deploy || adapter)
 describe('variants with a param the build did not name', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/on-demand-param',
-    // TODO(variants): enable this for a deployment. A platform serves a
-    // combination from the routing rules the adapter emits, and those do not
-    // exist yet, so every assertion here is about a self-hosted server.
-    skipDeployment: true,
   })
 
   if (skipped) {
