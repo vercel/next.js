@@ -688,6 +688,9 @@ importers:
       react-dom:
         specifier: npm:react-dom@19.3.0-canary-ff8f88fc-20260915
         version: 19.3.0-canary-ff8f88fc-20260915(react@19.3.0-canary-ff8f88fc-20260915)
+      react-virtuoso:
+        specifier: 4.18.13
+        version: 4.18.13(react-dom@19.3.0-canary-ff8f88fc-20260915(react@19.3.0-canary-ff8f88fc-20260915))(react@19.3.0-canary-ff8f88fc-20260915)
       swr:
         specifier: ^2.2.4
         version: 2.2.4(react@19.3.0-canary-ff8f88fc-20260915)
@@ -1953,7 +1956,7 @@ importers:
     devDependencies:
       '@napi-rs/cli':
         specifier: 3.7.2
-        version: 3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
+        version: 3.7.2(@emnapi/runtime@1.11.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
@@ -16160,6 +16163,12 @@ packages:
       react: ^15.3.0 || ^16.0.0-alpha
       react-dom: ^15.3.0 || ^16.0.0-alpha
 
+  react-virtuoso@4.18.13:
+    resolution: {integrity: sha512-M4kP7zbV7JmLrnJYs0X2FBA8gnNlHisSYuKMyeJVYtWz31CAJeP57dgPJzfneUdKDKmL9SiqvcBQ32si8CfQSQ==}
+    peerDependencies:
+      react: '>=16 || >=17 || >= 18 || >= 19'
+      react-dom: '>=16 || >=17 || >= 18 || >=19'
+
   react@0.0.0-experimental-ff8f88fc-20260915:
     resolution: {integrity: sha512-R81scYyermJkqNBoMg6jD1usyOObT4Yp63JWqpseC0SiHgRcFeLDWCeQaxYx/e7mP//yXt5a9bD59bDwwE9EaA==}
     engines: {node: '>=0.10.0'}
@@ -20449,7 +20458,7 @@ snapshots:
   '@eslint/config-array@0.21.0':
     dependencies:
       '@eslint/object-schema': 2.1.6
-      debug: 4.4.0
+      debug: 4.4.3
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -21837,7 +21846,7 @@ snapshots:
       '@open-draft/logger': 0.3.0
       '@open-draft/until': 2.1.0
       is-node-process: 1.2.0
-      outvariant: 1.4.2
+      outvariant: 1.4.3
       strict-event-emitter: 0.5.1
 
   '@mswjs/interceptors@0.42.5':
@@ -21851,7 +21860,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@napi-rs/cli@3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
+  '@napi-rs/cli@3.7.2(@emnapi/runtime@1.11.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
       '@napi-rs/cross-toolchain': 1.0.3
@@ -21866,7 +21875,7 @@ snapshots:
       semver: 7.8.5
       typanion: 3.14.0
     optionalDependencies:
-      '@emnapi/runtime': 1.9.2
+      '@emnapi/runtime': 1.11.2
     transitivePeerDependencies:
       - '@napi-rs/cross-toolchain-arm64-target-aarch64'
       - '@napi-rs/cross-toolchain-arm64-target-armv7'
@@ -24804,7 +24813,7 @@ snapshots:
       '@typescript-eslint/types': 8.46.0
       '@typescript-eslint/typescript-estree': 8.46.0(typescript@6.0.2)
       '@typescript-eslint/visitor-keys': 8.46.0
-      debug: 4.4.0
+      debug: 4.4.3
       eslint: 9.37.0(jiti@2.6.1)
       typescript: 6.0.2
     transitivePeerDependencies:
@@ -24869,7 +24878,7 @@ snapshots:
       '@typescript-eslint/tsconfig-utils': 8.46.0(typescript@6.0.2)
       '@typescript-eslint/types': 8.46.0
       '@typescript-eslint/visitor-keys': 8.46.0
-      debug: 4.4.0
+      debug: 4.4.3
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -29065,7 +29074,7 @@ snapshots:
       content-type: 1.0.5
       cookie: 0.7.1
       cookie-signature: 1.2.2
-      debug: 4.4.0
+      debug: 4.4.3
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
@@ -35609,6 +35618,11 @@ snapshots:
       react: 19.3.0-canary-ff8f88fc-20260915
       react-dom: 19.3.0-canary-ff8f88fc-20260915(react@19.3.0-canary-ff8f88fc-20260915)
       react-lifecycles-compat: 3.0.4
+
+  react-virtuoso@4.18.13(react-dom@19.3.0-canary-ff8f88fc-20260915(react@19.3.0-canary-ff8f88fc-20260915))(react@19.3.0-canary-ff8f88fc-20260915):
+    dependencies:
+      react: 19.3.0-canary-ff8f88fc-20260915
+      react-dom: 19.3.0-canary-ff8f88fc-20260915(react@19.3.0-canary-ff8f88fc-20260915)
 
   react@0.0.0-experimental-ff8f88fc-20260915: {}
 
