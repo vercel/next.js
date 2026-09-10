@@ -16,9 +16,11 @@ If you already have an app and it has dependencies, you can follow these steps:
 
 ## Set as a local dependency in `package.json`
 
-1. Run `pnpm dev` in the background in the Next.js monorepo.
+1. Run `pnpm build` in the Next.js monorepo.
 
-2. In your app's root directory, run:
+2. Run `pnpm dev` in the background in the Next.js monorepo.
+
+3. In your app's root directory, run:
 
    ```sh
    pnpm add ./path/to/next.js/{packages/next,node_modules/{react,react-dom}}
@@ -28,7 +30,7 @@ If you already have an app and it has dependencies, you can follow these steps:
 
    Note that Next.js will be copied from the locally compiled version as opposed to being downloaded from the NPM registry.
 
-3. Run your application as you normally would.
+4. Run your application as you normally would.
 
 ### Troubleshooting
 
