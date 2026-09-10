@@ -701,8 +701,8 @@ internal
   .addOption(
     new Option(
       '--sort <mode>',
-      'Sort mode: "value" for corrected duration descending, "name" for alphabetical.'
-    ).choices(['value', 'name'])
+      'Sort mode: "value" for corrected duration descending, "name" for alphabetical, "allocations" for total allocated bytes descending, "persistent-allocations" for net retained bytes descending.'
+    ).choices(['value', 'name', 'allocations', 'persistent-allocations'])
   )
   .addOption(
     new Option('--search <search>', 'Substring filter on span name/category.')

@@ -2,6 +2,7 @@
 #![feature(bufreader_peek)]
 
 use std::{
+    cmp::Reverse,
     hash::BuildHasherDefault,
     path::PathBuf,
     sync::Arc,
@@ -69,6 +70,10 @@ pub enum SortMode {
     Value,
     /// Sort alphabetically by name, then by category.
     Name,
+    /// Sort by total allocated bytes, descending.
+    Allocations,
+    /// Sort by total persistent (net retained) bytes, descending.
+    PersistentAllocations,
 }
 
 /// Options for querying spans from the trace store.
@@ -129,6 +134,37 @@ pub struct SpanInfo {
     pub avg_corrected_duration: Option<u64>,
     /// Raw span ID for aggregated groups (the index of the first span).
     pub first_span_id: Option<String>,
+    /// Total bytes allocated by this span and all its children.
+    ///
+    /// For aggregated groups this is the **group total** across every span in
+    /// the group (unlike `cpu_duration`, which is the example span's value).
+    pub allocations: u64,
+    /// Total bytes deallocated by this span and all its children.
+    /// Group total for aggregated spans.
+    pub deallocations: u64,
+    /// Net retained bytes for this span and all its children: the sum over
+    /// each span of `max(0, self_allocations - self_deallocations)`. This is
+    /// the best single indicator of memory a span is responsible for holding
+    /// onto. Note it is not `allocations - deallocations`, since a span may
+    /// free memory that an earlier span allocated (which is also why
+    /// `deallocations` can exceed `allocations`). Group total for aggregated
+    /// spans.
+    pub persistent_allocations: u64,
+    /// Number of allocation operations by this span and all its children.
+    /// Group total for aggregated spans.
+    pub allocation_count: u64,
+    /// Bytes allocated by this span itself, excluding children.
+    /// Group total for aggregated spans.
+    pub self_allocations: u64,
+    /// Bytes deallocated by this span itself, excluding children.
+    /// Group total for aggregated spans.
+    pub self_deallocations: u64,
+    /// Net retained bytes by this span itself, excluding children.
+    /// Group total for aggregated spans.
+    pub self_persistent_allocations: u64,
+    /// Number of allocation operations by this span itself, excluding children.
+    /// Group total for aggregated spans.
+    pub self_allocation_count: u64,
     /// TurboMalloc memory-usage samples recorded while this span (or its
     /// example span, for aggregated groups) was live.
     ///
@@ -266,6 +302,12 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                     a_title.cmp(b_title).then_with(|| a_cat.cmp(b_cat))
                 });
             }
+            SortMode::Allocations => {
+                filtered.sort_by_key(|s| Reverse(s.total_allocations()));
+            }
+            SortMode::PersistentAllocations => {
+                filtered.sort_by_key(|s| Reverse(s.total_persistent_allocations()));
+            }
             SortMode::ExecutionOrder => {}
         }
 
@@ -323,6 +365,14 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                     total_corrected_duration: Some(total_corrected),
                     avg_corrected_duration: Some(avg_corrected),
                     first_span_id: Some(first_index.to_string()),
+                    allocations: graph.total_allocations(),
+                    deallocations: graph.total_deallocations(),
+                    persistent_allocations: graph.total_persistent_allocations(),
+                    allocation_count: graph.total_allocation_count(),
+                    self_allocations: graph.self_allocations(),
+                    self_deallocations: graph.self_deallocations(),
+                    self_persistent_allocations: graph.self_persistent_allocations(),
+                    self_allocation_count: graph.self_allocation_count(),
                     memory_samples,
                 }
             })
@@ -369,6 +419,12 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                     a_title.cmp(b_title).then_with(|| a_cat.cmp(b_cat))
                 });
             }
+            SortMode::Allocations => {
+                filtered.sort_by_key(|s| s.total_allocations());
+            }
+            SortMode::PersistentAllocations => {
+                filtered.sort_by_key(|s| s.total_persistent_allocations());
+            }
             SortMode::ExecutionOrder => {}
         }
 
@@ -411,6 +467,14 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
                     total_corrected_duration: None,
                     avg_corrected_duration: None,
                     first_span_id: None,
+                    allocations: span.total_allocations(),
+                    deallocations: span.total_deallocations(),
+                    persistent_allocations: span.total_persistent_allocations(),
+                    allocation_count: span.total_allocation_count(),
+                    self_allocations: span.self_allocations(),
+                    self_deallocations: span.self_deallocations(),
+                    self_persistent_allocations: span.self_persistent_allocations(),
+                    self_allocation_count: span.self_allocation_count(),
                     memory_samples,
                 }
             })

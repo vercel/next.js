@@ -762,7 +762,9 @@ export interface TraceQueryOptions {
   /** When `true` (default), aggregate child spans with the same name. */
   aggregated?: boolean
   /**
-   * Sort mode: `"value"` for duration descending, `"name"` for alphabetical.
+   * Sort mode: `"value"` for duration descending, `"name"` for alphabetical,
+   * `"allocations"` for total allocated bytes descending,
+   * `"persistent-allocations"` for net retained bytes descending.
    * Omit for execution order (no sorting).
    */
   sort?: string
@@ -813,6 +815,51 @@ export interface TraceSpanInfo {
   avgCorrectedDuration?: number
   /** Raw span ID for aggregated groups (the index of the first span). */
   firstSpanId?: string
+  /**
+   * Total bytes allocated by this span and all its children.
+   *
+   * For aggregated groups this is the **group total** across every span in
+   * the group (unlike `cpuDuration`, which is the example span's value).
+   */
+  allocations: number
+  /**
+   * Total bytes deallocated by this span and all its children.
+   * Group total for aggregated spans.
+   */
+  deallocations: number
+  /**
+   * Net retained bytes for this span and all its children: the sum over
+   * each span of `max(0, selfAllocations - selfDeallocations)` — the best
+   * single indicator of memory a span holds onto. Not simply
+   * `allocations - deallocations`, since a span may free memory an earlier
+   * span allocated. Group total for aggregated spans.
+   */
+  persistentAllocations: number
+  /**
+   * Number of allocation operations by this span and all its children.
+   * Group total for aggregated spans.
+   */
+  allocationCount: number
+  /**
+   * Bytes allocated by this span itself, excluding children.
+   * Group total for aggregated spans.
+   */
+  selfAllocations: number
+  /**
+   * Bytes deallocated by this span itself, excluding children.
+   * Group total for aggregated spans.
+   */
+  selfDeallocations: number
+  /**
+   * Net retained bytes by this span itself, excluding children.
+   * Group total for aggregated spans.
+   */
+  selfPersistentAllocations: number
+  /**
+   * Number of allocation operations by this span itself, excluding children.
+   * Group total for aggregated spans.
+   */
+  selfAllocationCount: number
   /**
    * TurboMalloc memory-usage samples recorded while this span
    * (or its example span, for aggregated groups) was live.
