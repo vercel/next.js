@@ -220,53 +220,36 @@ pub struct NapiProjectOptions {
     pub server_hmr: Option<bool>,
 }
 
-/// [NapiProjectOptions] with all fields optional.
+/// The subset of [`NapiProjectOptions`] that may change without restarting the process. Used by
+/// [`project_update`].
+///
+/// Refer to [`NapiProjectOptions`] for documentation on this struct's fields.
 #[napi(object)]
 pub struct NapiPartialProjectOptions {
-    /// An absolute root path  (Unix or Windows path) from which all files must be nested under.
-    /// Trying to access a file outside this root will fail, so think of this as a chroot.
-    /// E.g. `/home/user/projects/my-repo`.
     pub root_path: Option<RcStr>,
 
-    /// A path which contains the app/pages directories, relative to [`Project::root_path`], always
-    /// a Unix path.
-    /// E.g. `apps/my-app`
     pub project_path: Option<RcStr>,
 
-    /// Filesystem watcher options.
     pub watch: Option<NapiWatchOptions>,
 
-    /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<RcStr>,
 
-    /// A map of environment variables to use when compiling code.
     pub env: Option<Vec<NapiEnvVar>>,
 
-    /// A map of environment variables which should get injected at compile
-    /// time.
     pub define_env: Option<NapiDefineEnv>,
 
-    /// The mode in which Next.js is running.
     pub dev: Option<bool>,
 
-    /// The server actions encryption key.
     pub encryption_key: Option<RcStr>,
 
-    /// The build id.
     pub build_id: Option<RcStr>,
 
-    /// Options for draft mode.
     pub preview_props: Option<NapiDraftModeOptions>,
 
-    /// The browserslist query to use for targeting browsers.
     pub browserslist_query: Option<RcStr>,
 
-    /// Whether to write the route hashes manifest.
     pub write_routes_hashes_manifest: Option<bool>,
 
-    /// When the code is minified, this opts out of the default mangling of
-    /// local names for variables, functions etc., which can be useful for
-    /// debugging/profiling purposes.
     pub no_mangling: Option<bool>,
 }
 

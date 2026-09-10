@@ -787,9 +787,18 @@ export interface ExperimentalConfig {
    *
    * `'workerThreads'` runs the same work in worker threads instead, which should
    * use less memory and CPU. It may become the default in a future version of
-   * Next.js.
+   * Next.js. On Node.js 24.13.1 and newer, a Node.js teardown bug can abort the
+   * process when a native addon has a live Node-API threadsafe function as a
+   * worker exits. Next.js falls back to `'childProcesses'` on affected versions.
+   * See <https://github.com/nodejs/node/issues/65100>.
+   *
+   * `'forceWorkerThreads'` bypasses this fallback. It may cause the process to
+   * abort on affected Node.js versions.
    */
-  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
+  turbopackPluginRuntimeStrategy?:
+    | 'workerThreads'
+    | 'childProcesses'
+    | 'forceWorkerThreads'
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.

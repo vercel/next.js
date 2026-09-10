@@ -12,7 +12,9 @@ use turbo_tasks::{
     turbobail, turbofmt,
 };
 use turbo_tasks_hash::HashAlgorithm;
-use turbo_unix_path::{get_parent_path, get_relative_path_to, join_path, normalize_path};
+use turbo_unix_path::{
+    get_parent_path, get_relative_path_to, get_relative_request_to, join_path, normalize_path,
+};
 
 use crate::{
     DirectoryContent, DirectoryEntry, FileContent, FileJsonContent, FileMeta, FileSystem,
@@ -97,8 +99,13 @@ impl FileSystemPath {
         }
     }
 
-    /// Returns a unix-style path of `other` relative to `self`. Supports traversing upwards (`../`)
-    /// within the filesystem.
+    /// Returns a unix-style path of `other` relative to `self`, as a plain path: `dir/file.js`,
+    /// `../file.js`, or `.`. Supports traversing upwards (`../`) within the filesystem.
+    ///
+    /// Returns [`None`] when the two are on different filesystems.
+    ///
+    /// The result is not prefixed with `./`, so it is a path and not a module request. Use
+    /// [`FileSystemPath::get_relative_request_to`] to build an import specifier.
     pub fn get_relative_path_to(&self, other: &FileSystemPath) -> Option<RcStr> {
         if self.fs != other.fs {
             return None;
@@ -106,6 +113,25 @@ impl FileSystemPath {
 
         Some(match get_relative_path_to(&self.path, &other.path) {
             Cow::Borrowed(path) if std::ptr::eq(path, other.path.as_str()) => other.path.clone(),
+            Cow::Borrowed(path) => path.into(),
+            Cow::Owned(path) => path.into(),
+        })
+    }
+
+    /// Returns a unix-style path of `other` relative to `self`, as an explicitly relative module
+    /// request: `./dir/file.js`, `../file.js`, or `.`. Supports traversing upwards (`../`) within
+    /// the filesystem.
+    ///
+    /// Returns [`None`] when the two are on different filesystems.
+    ///
+    /// The `./` prefix is what makes the result a relative request rather than a reference to a
+    /// package of that name. Use [`FileSystemPath::get_relative_path_to`] for a plain path.
+    pub fn get_relative_request_to(&self, other: &FileSystemPath) -> Option<RcStr> {
+        if self.fs != other.fs {
+            return None;
+        }
+
+        Some(match get_relative_request_to(&self.path, &other.path) {
             Cow::Borrowed(path) => path.into(),
             Cow::Owned(path) => path.into(),
         })
@@ -767,6 +793,102 @@ mod tests {
 
     use super::*;
     use crate::VirtualFileSystem;
+
+    /// Builds two paths on the same filesystem and returns them.
+    fn paths_on_one_fs(
+        fs: ResolvedVc<Box<dyn FileSystem>>,
+        from: &str,
+        target: &str,
+    ) -> (FileSystemPath, FileSystemPath) {
+        (
+            FileSystemPath::new_normalized_unchecked(fs, from.into()),
+            FileSystemPath::new_normalized_unchecked(fs, target.into()),
+        )
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_get_relative_path_to() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
+                .to_resolved()
+                .await?;
+
+            for (from, target, expected) in [
+                ("a/b/c", "a/b/c", "."),
+                ("a/c/d", "a/b/c", "../../b/c"),
+                ("", "a/b/c", "a/b/c"),
+                ("a/b", "a/b/c", "c"),
+                ("a/b/c", "", "../../.."),
+                ("a/b/c", "c/b/a", "../../../c/b/a"),
+            ] {
+                let (from_path, target_path) = paths_on_one_fs(fs, from, target);
+                assert_eq!(
+                    from_path.get_relative_path_to(&target_path).as_deref(),
+                    Some(expected),
+                    "{from:?} -> {target:?}"
+                );
+            }
+
+            // A path on another filesystem is not reachable relatively.
+            let (from_path, _) = paths_on_one_fs(fs, "a/b", "a/b/c");
+            let other_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
+                .to_resolved()
+                .await?;
+            let on_other_fs = FileSystemPath::new_normalized_unchecked(other_fs, rcstr!("a/b/c"));
+            assert_eq!(from_path.get_relative_path_to(&on_other_fs), None);
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
+
+    /// The cases this covers are the ones `get_relative_path_to` was asserted against before it
+    /// stopped prefixing `./`, so they pin that the request form still produces them.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_get_relative_request_to() {
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        tt.run_once(async move {
+            let fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
+                .to_resolved()
+                .await?;
+
+            for (from, target, expected) in [
+                ("a/b/c", "a/b/c", "."),
+                ("a/c/d", "a/b/c", "../../b/c"),
+                ("", "a/b/c", "./a/b/c"),
+                ("a/b", "a/b/c", "./c"),
+                ("a/b/c", "", "../../.."),
+                ("a/b/c", "c/b/a", "../../../c/b/a"),
+            ] {
+                let (from_path, target_path) = paths_on_one_fs(fs, from, target);
+                assert_eq!(
+                    from_path.get_relative_request_to(&target_path).as_deref(),
+                    Some(expected),
+                    "{from:?} -> {target:?}"
+                );
+            }
+
+            // A path on another filesystem is not reachable relatively.
+            let (from_path, _) = paths_on_one_fs(fs, "a/b", "a/b/c");
+            let other_fs = Vc::upcast::<Box<dyn FileSystem>>(VirtualFileSystem::new())
+                .to_resolved()
+                .await?;
+            let on_other_fs = FileSystemPath::new_normalized_unchecked(other_fs, rcstr!("a/b/c"));
+            assert_eq!(from_path.get_relative_request_to(&on_other_fs), None);
+
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
+    }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn with_extension() {

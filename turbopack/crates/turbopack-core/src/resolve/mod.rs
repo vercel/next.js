@@ -3149,14 +3149,7 @@ async fn resolved(
         path.parent(),
         options,
         options_value,
-        |package_path| {
-            let path = package_path.get_relative_path_to(&path_ref)?;
-            Some(if path.starts_with("../") {
-                path
-            } else {
-                RcStr::from(format!("./{path}"))
-            })
-        },
+        |package_path| package_path.get_relative_request_to(&path_ref),
         query.clone(),
         fragment.clone(),
     )

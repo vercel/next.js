@@ -90,12 +90,11 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(path) {
-                        // Webpack always chacks the RegExp against a path prefixed with `./`
-                        let relative_path = RcStr::from(format!("./{relative_path}"));
-                        if regex.is_match(&relative_path) {
-                            list.insert(relative_path, DirListEntry::File(path.clone()));
-                        }
+                    // Webpack always checks the RegExp against a path prefixed with `./`
+                    if let Some(relative_path) = root_val.get_relative_request_to(path)
+                        && regex.is_match(&relative_path)
+                    {
+                        list.insert(relative_path, DirListEntry::File(path.clone()));
                     }
                 }
                 DirectoryEntry::Directory(path) if recursive => {
@@ -195,13 +194,8 @@ impl RequireContextMap {
         let mut map = FxIndexMap::default();
 
         for (context_relative, path) in list {
-            let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
+            let Some(origin_relative) = origin_path.get_relative_request_to(path) else {
                 bail!("invariant error: this was already checked in `list_dir`");
-            };
-            let origin_relative = if origin_relative.starts_with("../") {
-                origin_relative
-            } else {
-                RcStr::from(format!("./{origin_relative}"))
             };
 
             let request = Request::parse(origin_relative.clone().into())
