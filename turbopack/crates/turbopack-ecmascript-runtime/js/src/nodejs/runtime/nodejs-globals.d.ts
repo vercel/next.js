@@ -19,7 +19,7 @@ declare global {
   // in this .d.ts file, so the handler parameter must use any here.
 
   var __turbopack_server_hmr_handlers__:
-    | Map<string, { handler: (update: any) => boolean; chunkPrefix: string }>
+    | Map<string, { handler: (update: any) => void; chunkPrefix: string }>
     | undefined
 }
 

@@ -221,14 +221,14 @@ export default function Page() {
 
 To start using CSS Modules, create a new file with the extension `.module.css` and import it into any component inside the `pages` directory:
 
-```css filename="/styles/blog.module.css"
+```css filename="styles/blog.module.css"
 .blog {
   padding: 24px;
 }
 ```
 
 ```tsx filename="pages/blog/index.tsx" switcher
-import styles from './blog.module.css'
+import styles from '@/styles/blog.module.css'
 
 export default function Page() {
   return <main className={styles.blog}></main>
@@ -236,7 +236,7 @@ export default function Page() {
 ```
 
 ```jsx filename="pages/blog/index.js" switcher
-import styles from './blog.module.css'
+import styles from '@/styles/blog.module.css'
 
 export default function Page() {
   return <main className={styles.blog}></main>
@@ -299,7 +299,7 @@ export default function RootLayout({ children }) {
 
 Import the stylesheet in the `pages/_app.js` file to apply the styles to **every route** in your application:
 
-```tsx filename="pages/_app.js"
+```jsx filename="pages/_app.js"
 import '@/styles/global.css'
 
 export default function MyApp({ Component, pageProps }) {

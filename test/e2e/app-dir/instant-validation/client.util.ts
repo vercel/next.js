@@ -49,7 +49,6 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
                  ],
                },
              ],
-             "code": "E1331",
              "description": "Route "/suspense-in-root/static/invalid-client-data-blocks-validation": Could not validate \`instant\` because a Client Component in a parent segment prevented the page from rendering.",
              "environmentLabel": "Server",
              "label": "Console Error",
@@ -255,7 +254,6 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
                    ],
                  },
                ],
-               "code": "E1118",
                "description": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -357,7 +355,6 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
                    "stack": [],
                  },
                ],
-               "code": "E1118",
                "description": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -419,12 +416,11 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
                "cause": [
                  {
                    "label": "Caused by: Error",
-                   "message": "Bail out to client-side rendering: next/dynamic",
+                   "message": "Browser-only rendering was requested by \`browser()\`.",
                    "source": null,
                    "stack": [],
                  },
                ],
-               "code": "E1118",
                "description": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
                "environmentLabel": "Server",
                "label": "Console Error",
@@ -452,10 +448,9 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
                at body (<anonymous>)
                at html (<anonymous>)
                at c (<anonymous>) {
-             [cause]: Error: Bail out to client-side rendering: next/dynamic
+             [cause]: Error: Browser-only rendering was requested by \`browser()\`.
                  at ignore-listed frames {
-               reason: 'next/dynamic',
-               digest: 'BAILOUT_TO_CLIENT_SIDE_RENDERING'
+               [cause]: 'next/dynamic'
              }
            }
            Build-time instant validation failed for route "/suspense-in-root/static/invalid-csr-bailout-blocks-children".
@@ -473,6 +468,14 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
         const browser = await navigateTo(
           '/suspense-in-root/static/invalid-client-error-in-parent-sibling'
         )
+
+        // Wait for validation to finish before snapshotting. Unlike the other
+        // client-error cases, this page also throws a client error during the
+        // render itself, which opens the redbox before validation reports its
+        // own errors. Without waiting, the snapshot can race the
+        // (asynchronously delivered) validation errors and capture only the
+        // render error.
+        await waitForValidation(await browser.url(), getCliOutputSinceMark)
 
         if (isClientNav) {
           // In a client navigation, the redbox will be collapsed.
@@ -524,7 +527,6 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
                    ],
                  },
                ],
-               "code": "E1118",
                "description": "An error occurred while attempting to validate instant UI. This error may be preventing the validation from completing.",
                "environmentLabel": "Server",
                "label": "Console Error",

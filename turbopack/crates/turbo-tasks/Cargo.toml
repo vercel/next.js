@@ -15,6 +15,14 @@ hanging_detection = []
 task_id_details = []
 task_dirty_cause = []
 verify_determinism = []
+# Counts what reads do when they can't get a value straight away: queue pushes, claim attempts and
+# their outcomes, and waits for a task a worker is already running. Reported by
+# `TurboTasks::inline_execution_stats()`, and printed on shutdown with
+# `TURBO_ENGINE_INLINE_STATS=1`.
+#
+# Off by default: the counters sit on the read-miss path, so a build that doesn't want the numbers
+# shouldn't pay for them. With the feature off there are no counters and no atomics at all.
+inline_execution_stats = []
 
 # TODO(bgw): This feature is here to unblock turning on local tasks by default. It's only turned on
 # in unit tests. This will be removed very soon.
@@ -33,6 +41,7 @@ dashmap = { workspace = true }
 either = { workspace = true }
 erased-serde = { workspace = true }
 event-listener = "5.4.0"
+fixedbitset = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 parking_lot = { workspace = true, features = ["serde"]}
@@ -59,7 +68,10 @@ turbo-tasks-macros = { workspace = true }
 turbo-tasks-malloc = { workspace = true }
 unsize = { workspace = true }
 
-[dev-dependencies]
+# Only used by the benchmarks, which don't run on wasm. Gated by target so that
+# `cargo test -p turbo-tasks --lib --target wasm32-wasip1-threads` can build: criterion pulls in
+# rayon, which refuses to compile for wasi, and cargo resolves dev-dependencies even for `--lib`.
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
 
 [[bench]]

@@ -131,7 +131,7 @@ impl DevHtmlAsset {
         let all_chunk_groups = self
             .entries
             .iter()
-            .map(|entry| async move {
+            .map(async |entry| {
                 let &DevHtmlEntry {
                     chunkable_module,
                     chunking_context,

@@ -192,6 +192,10 @@ impl<T: ?Sized> OperationVc<T> {
     {
         self.connect().into_trait_ref().strongly_consistent()
     }
+
+    pub fn task_id(self) -> TaskId {
+        self.task
+    }
 }
 
 impl<T> Copy for OperationVc<T> where T: ?Sized {}

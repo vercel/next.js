@@ -7,6 +7,3 @@ packages/next/compiled/** -text linguist-vendored
 
 # Make next/src/build folder indexable for github search
 build/** linguist-generated=false
-
-# Custom merge driver for auto-generated errors.json
-packages/next/errors.json merge=errors-json

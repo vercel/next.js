@@ -6,7 +6,7 @@ export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [{ params: { slug: 'hello' } }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page({
   params,

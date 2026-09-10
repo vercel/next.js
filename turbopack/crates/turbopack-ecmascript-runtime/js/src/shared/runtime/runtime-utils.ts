@@ -44,9 +44,6 @@ declare function getOrInstantiateModuleFromParent<M>(
   sourceModule: M
 ): M
 
-// @ts-ignore Defined in `hmr-runtime.ts` (dev mode only)
-declare let devModuleCache: Record<ModuleId, any> | undefined
-
 /**
  * Flag indicating which module object type to create when a module is merged. Set to `true`
  * by each runtime that uses ModuleWithDirection (browser dev-base.ts, nodejs dev-base.ts,

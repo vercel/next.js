@@ -373,6 +373,8 @@ async fn collect_chunk_groups(
         let mut items_in_postorder = FxIndexSet::default();
         batches_graph.traverse_edges_from_entries_dfs(
             entries.iter().copied(),
+            // TODO this would be wrong with emitted CSS modules
+            None,
             &mut (),
             |parent_info, module, _| {
                 if let Some((_, ModuleBatchesGraphEdge { ty, .. })) = parent_info
@@ -401,7 +403,7 @@ async fn collect_chunk_groups(
         // order.
         let mut ids: Vec<usize> = Vec::new();
         let mut seen: FxHashSet<usize> = FxHashSet::default();
-        let mut handle_module = async |module| -> Result<()> {
+        let mut handle_module = |module| {
             let id_slot = match module_id_map.entry(module) {
                 Entry::Occupied(e) => *e.get(),
                 Entry::Vacant(e) => {
@@ -420,19 +422,18 @@ async fn collect_chunk_groups(
             {
                 ids.push(id);
             }
-            Ok(())
         };
 
         for item in items_in_postorder {
             match item {
                 ModuleOrBatch::Batch(batch) => {
                     for &module in &batch.await?.modules {
-                        handle_module(module).await?;
+                        handle_module(module);
                     }
                 }
                 ModuleOrBatch::Module(module) => {
                     if let Some(chunkable_module) = ResolvedVc::try_downcast(module) {
-                        handle_module(chunkable_module).await?;
+                        handle_module(chunkable_module);
                     }
                 }
                 ModuleOrBatch::None(_) => {}

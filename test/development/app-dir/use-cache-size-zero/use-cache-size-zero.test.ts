@@ -24,14 +24,12 @@ describe('use-cache-size-zero', () => {
     expect(await browser.elementByCss('p', { waitUntil: false }).text()).toBe(
       'Loading...'
     )
-    await retry(async () => {
-      expect(
-        await browser.elementByCss('p', { waitUntil: false }).text()
-      ).toBeDateString()
-    })
+    // After observing the streamed fallback, wait for the initial document to
+    // finish loading so the cold request is fully settled before reloading.
     const coldValue = await browser
-      .elementByCss('p', { waitUntil: false })
+      .elementByCss('#value', { waitUntil: 'load' })
       .text()
+    expect(coldValue).toBeDateString()
 
     // Warm reload: `cacheMaxMemorySize: 0` still caches in development, so the
     // reload serves the previously cached value fast instead of regenerating
@@ -40,23 +38,22 @@ describe('use-cache-size-zero', () => {
     // background revalidation regenerates a fresh entry for the next reload
     // (asserted below).
     await browser.refresh({ waitUntil: 'commit' })
-    await retry(async () => {
-      expect(
-        await browser.elementByCss('p', { waitUntil: false }).text()
-      ).toBeDateString()
-    })
-    expect(await browser.elementByCss('p', { waitUntil: false }).text()).toBe(
-      coldValue
-    )
+    expect(
+      await browser.elementByCss('#value', { waitUntil: false }).text()
+    ).toBe(coldValue)
 
-    // That warm reload regenerated a fresh entry in the background, so a later
-    // reload converges to the new value. Read after "load" here (a plain
-    // refresh) since we want the settled value, not the streaming inspection
-    // above.
+    // That warm reload regenerates a fresh entry in the background. Poll with
+    // independent requests so we can observe convergence without navigating
+    // away from (and potentially cancelling) the warm browser request.
     await retry(async () => {
-      await browser.refresh()
-      expect(await browser.elementById('value').text()).not.toBe(coldValue)
+      const $ = await next.render$('/reload')
+      expect($('#value').text()).not.toBe(coldValue)
     })
+
+    // Once independent requests observe convergence, confirm the next browser
+    // reload also exposes a fresh value through the user-visible path.
+    await browser.refresh()
+    expect(await browser.elementById('value').text()).not.toBe(coldValue)
   })
 
   it('shows the Cold cache badge on an initial cold load and not on a warm reload', async () => {

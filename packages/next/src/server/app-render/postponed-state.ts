@@ -7,10 +7,11 @@ import type { Params } from '../request/params'
 import {
   createPrerenderResumeDataCache,
   createRenderResumeDataCache,
+  deflateResumeDataCache,
+  stringifyResumeDataCache,
   type PrerenderResumeDataCache,
   type RenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
-import { stringifyResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 export enum DynamicState {
   /**
@@ -75,12 +76,47 @@ export type PostponedState =
   | DynamicDataPostponedState
   | DynamicHTMLPostponedState
 
+async function serializePostponedState(
+  postponedString: string,
+  resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache,
+  isCacheComponentsEnabled: boolean,
+  maxPostponedStateSizeBytes: number | undefined,
+  disableResumeDataCacheCompression: boolean
+): Promise<string> {
+  const prefix = `${postponedString.length}:${postponedString}`
+  let serializedResumeDataCache = await stringifyResumeDataCache(
+    resumeDataCache,
+    isCacheComponentsEnabled
+  )
+
+  if (!disableResumeDataCacheCompression) {
+    if (maxPostponedStateSizeBytes !== undefined) {
+      const uncompressedPostponedStateByteLength =
+        Buffer.byteLength(prefix) + Buffer.byteLength(serializedResumeDataCache)
+
+      if (uncompressedPostponedStateByteLength > maxPostponedStateSizeBytes) {
+        console.warn(
+          `The uncompressed postponed state is ${uncompressedPostponedStateByteLength} bytes, which exceeds the configured experimental.maxPostponedStateSize limit of ${maxPostponedStateSizeBytes} bytes. Next.js currently compresses the Resume Data Cache before persisting the postponed state, but this compression will be removed in a future release. Increase experimental.maxPostponedStateSize to ensure this route can still be resumed after that change.`
+        )
+      }
+    }
+
+    serializedResumeDataCache = deflateResumeDataCache(
+      serializedResumeDataCache
+    )
+  }
+
+  return prefix + serializedResumeDataCache
+}
+
 export async function getDynamicHTMLPostponedState(
   postponed: ReactPostponed,
   preludeState: DynamicHTMLPreludeState,
   fallbackRouteParams: OpaqueFallbackRouteParams | null,
   resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache,
-  isCacheComponentsEnabled: boolean
+  isCacheComponentsEnabled: boolean,
+  maxPostponedStateSizeBytes?: number,
+  disableResumeDataCacheCompression = false
 ): Promise<string> {
   const data: DynamicHTMLPostponedState['data'] = [preludeState, postponed]
   const dataString = JSON.stringify(data)
@@ -89,10 +125,13 @@ export async function getDynamicHTMLPostponedState(
   // state as is.
   if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
     // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
-    return `${dataString.length}:${dataString}${await stringifyResumeDataCache(
-      createRenderResumeDataCache(resumeDataCache),
-      isCacheComponentsEnabled
-    )}`
+    return serializePostponedState(
+      dataString,
+      resumeDataCache,
+      isCacheComponentsEnabled,
+      maxPostponedStateSizeBytes,
+      disableResumeDataCacheCompression
+    )
   }
 
   const replacements: OpaqueFallbackRouteParamEntries = Array.from(
@@ -104,45 +143,93 @@ export async function getDynamicHTMLPostponedState(
   const postponedString = `${replacementsString.length}${replacementsString}${dataString}`
 
   // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
-  return `${postponedString.length}:${postponedString}${await stringifyResumeDataCache(resumeDataCache, isCacheComponentsEnabled)}`
+  return serializePostponedState(
+    postponedString,
+    resumeDataCache,
+    isCacheComponentsEnabled,
+    maxPostponedStateSizeBytes,
+    disableResumeDataCacheCompression
+  )
 }
 
 export async function getDynamicDataPostponedState(
   resumeDataCache: PrerenderResumeDataCache | RenderResumeDataCache,
-  isCacheComponentsEnabled: boolean
+  isCacheComponentsEnabled: boolean,
+  maxPostponedStateSizeBytes?: number,
+  disableResumeDataCacheCompression = false
 ): Promise<string> {
-  return `4:null${await stringifyResumeDataCache(createRenderResumeDataCache(resumeDataCache), isCacheComponentsEnabled)}`
+  return serializePostponedState(
+    'null',
+    resumeDataCache,
+    isCacheComponentsEnabled,
+    maxPostponedStateSizeBytes,
+    disableResumeDataCacheCompression
+  )
+}
+
+function parsePostponedStateParts(
+  state: string,
+  maxPostponedStateSizeBytes: number | undefined,
+  disableResumeDataCacheCompression: boolean
+): {
+  postponedString: string
+  renderResumeDataCache: RenderResumeDataCache
+} {
+  const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
+  if (!postponedStringLengthMatch) {
+    // Do not include the raw state in the message: it can be large and may
+    // contain sensitive serialized data.
+    throw new Error('Invariant: invalid postponed state: missing length prefix')
+  }
+
+  const postponedStringLength = parseInt(postponedStringLengthMatch)
+  const tailStart =
+    postponedStringLengthMatch.length + postponedStringLength + 1
+
+  return {
+    postponedString: state.slice(
+      postponedStringLengthMatch.length + 1,
+      tailStart
+    ),
+    renderResumeDataCache: createRenderResumeDataCache(
+      state.slice(tailStart),
+      maxPostponedStateSizeBytes,
+      disableResumeDataCacheCompression
+    ),
+  }
+}
+
+export function parseResumeDataCacheFromPostponedState(
+  state: string,
+  maxPostponedStateSizeBytes: number | undefined,
+  disableResumeDataCacheCompression = false
+): RenderResumeDataCache {
+  try {
+    return parsePostponedStateParts(
+      state,
+      maxPostponedStateSizeBytes,
+      disableResumeDataCacheCompression
+    ).renderResumeDataCache
+  } catch (err) {
+    console.error(
+      'Failed to parse postponed state',
+      describePostponedStateParseFailure(state, err)
+    )
+    return createRenderResumeDataCache(createPrerenderResumeDataCache())
+  }
 }
 
 export function parsePostponedState(
   state: string,
   interpolatedParams: Params,
-  maxPostponedStateSizeBytes: number | undefined
+  maxPostponedStateSizeBytes: number | undefined,
+  disableResumeDataCacheCompression = false
 ): PostponedState {
   try {
-    const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
-    if (!postponedStringLengthMatch) {
-      // Do not include the raw state in the message: it can be large and may
-      // contain sensitive serialized data.
-      throw new Error(
-        'Invariant: invalid postponed state: missing length prefix'
-      )
-    }
-
-    const postponedStringLength = parseInt(postponedStringLengthMatch)
-
-    // We add a `:` to the end of the length as the first character of the
-    // postponed string is the length of the replacement entries.
-    const postponedString = state.slice(
-      postponedStringLengthMatch.length + 1,
-      postponedStringLengthMatch.length + postponedStringLength + 1
-    )
-
-    const renderResumeDataCache = createRenderResumeDataCache(
-      state.slice(
-        postponedStringLengthMatch.length + postponedStringLength + 1
-      ),
-      maxPostponedStateSizeBytes
+    const { postponedString, renderResumeDataCache } = parsePostponedStateParts(
+      state,
+      maxPostponedStateSizeBytes,
+      disableResumeDataCacheCompression
     )
 
     try {
@@ -231,8 +318,9 @@ export function parsePostponedState(
  * sensitive) serialized contents. Every field is a size, a structural flag, or
  * an error code, never the state bytes themselves.
  *
- * The serialized layout is `<N>:<postponedString><base64-deflate cache>`, so
- * these fields distinguish the failure shapes:
+ * The serialized layout is `<N>:<postponedString><cache>`. The cache is a
+ * base64-deflate string by default and raw JSON when RDC compression is
+ * disabled, so these fields distinguish the failure shapes:
  * - `postponedStringComplete: false`: the declared length `N` exceeds what
  * actually arrived, i.e. the postponed string itself was truncated.
  * - `errorCode: 'Z_BUF_ERROR'` with an empty or short tail: the

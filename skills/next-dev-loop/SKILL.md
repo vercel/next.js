@@ -82,7 +82,9 @@ Once per session, confirm both views are live.
    the next `open` restores it.
 
 2. Probe `/_next/mcp` (`tools/list`) — confirm it's reachable and
-   lists `get_compilation_issues`:
+   lists `get_compilation_issues`. First read the port off the
+   `next dev` banner; if it isn't 3000, set
+   `NEXT_MCP_URL=http://localhost:<port>/_next/mcp` before probing:
    - Unreachable → either `next dev` isn't running, or Next.js is
      below 16.3. Check `package.json` to disambiguate, then refuse.
    - `get_compilation_issues` not in the list → Next.js below 16.3.
@@ -121,6 +123,10 @@ manual rather than from memory.
 
 ## gotchas
 
+- **Preserve `.next` while the development server is running.** Moving or
+  deleting it disconnects the server from its generated state and discards
+  incremental caches. Moving it to a backup is still a reset. If a production
+  build needs isolated output, configure a separate `distDir`.
 - **Every `agent-browser` command must know your session and restore
   key, or it may use an empty default browser or fail to save login
   state.** Easiest: export both `AGENT_BROWSER_SESSION="$SESSION"` and
@@ -149,8 +155,6 @@ manual rather than from memory.
 - `/_next/mcp` replies are SSE — read the JSON off the `data:` line
   with `sed -n 's/^data: //p'` (a plain `sed 's/^data: //'` leaves the
   `event:` line and the parse fails).
-- Non-3000 dev server: read the `next dev` banner; set
-  `NEXT_MCP_URL=http://localhost:<port>/_next/mcp`.
 - `get_errors` and `get_page_metadata` need at least one navigation
   to populate.
 
@@ -181,8 +185,3 @@ Close the session with the same session and restore context:
 `agent-browser --session "$SESSION" --restore close`. `close` saves
 that session's cookies and storage so the next loop's `--restore` open
 keeps the user logged in. Leave `next dev` up for the next loop.
-
----
-
-`next-dev-loop-<topic>` siblings (e.g. `next-dev-loop-rsc`, `next-dev-loop-debug`)
-assume this preflight already ran; they pick up at the loop.

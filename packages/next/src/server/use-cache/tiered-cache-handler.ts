@@ -158,10 +158,12 @@ async function reconcileFrontFromBacking(
     if (backingEntry.timestamp > frontEntry.timestamp) {
       await front.set(cacheKey, Promise.resolve(backingEntry))
     } else {
-      // The front is already up to date, so the backing entry goes unused.
-      // Release its stream without awaiting: a teed stream's `cancel()` only
-      // settles once the sibling branch (retained by the backing handler) is
-      // also cancelled, so awaiting it here would hang the reconcile.
+      // The front is already up to date, so the backing entry goes unused. This
+      // code releases its stream and does not await the result. The backing
+      // handler is user-configured, and it can return one branch of a teed
+      // stream. `cancel()` on such a branch settles only after the sibling
+      // branch is cancelled too, and the handler retains that sibling, so an
+      // await here would hang the reconcile.
       void backingEntry.value.cancel()
     }
   } catch {

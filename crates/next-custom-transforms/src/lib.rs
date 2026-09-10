@@ -28,7 +28,7 @@ DEALINGS IN THE SOFTWARE.
 
 #![recursion_limit = "2048"]
 #![deny(clippy::all)]
-#![feature(box_patterns)]
+#![feature(deref_patterns)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
@@ -39,7 +39,6 @@ use rustc_hash::FxHasher;
 
 pub mod chain_transforms;
 mod linter;
-pub mod react_compiler;
 pub mod transforms;
 
 type FxIndexMap<K, V> = IndexMap<K, V, BuildHasherDefault<FxHasher>>;

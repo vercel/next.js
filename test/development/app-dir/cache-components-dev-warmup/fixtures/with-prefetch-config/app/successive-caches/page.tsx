@@ -1,5 +1,5 @@
 export const instant = true
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

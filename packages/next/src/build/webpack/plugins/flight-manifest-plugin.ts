@@ -523,7 +523,7 @@ export class ClientReferenceManifestPlugin {
                   const concatenatedMod = connection.module
                   const concatenatedModId =
                     compilation.chunkGraph.getModuleId(concatenatedMod)
-                  if (concatenatedModId) {
+                  if (concatenatedModId !== null) {
                     recordModule(concatenatedModId, clientEntryMod)
                   }
                 }

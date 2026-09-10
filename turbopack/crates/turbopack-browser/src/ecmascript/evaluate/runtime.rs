@@ -26,7 +26,7 @@ use crate::BrowserChunkingContext;
 #[value_to_string("Ecmascript Browser Runtime Chunk")]
 pub(crate) struct EcmascriptBrowserRuntimeChunk {
     chunking_context: ResolvedVc<BrowserChunkingContext>,
-    has_async_modules: bool,
+    include_async_module_runtime: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -34,11 +34,11 @@ impl EcmascriptBrowserRuntimeChunk {
     #[turbo_tasks::function]
     pub fn new(
         chunking_context: ResolvedVc<BrowserChunkingContext>,
-        has_async_modules: bool,
+        include_async_module_runtime: bool,
     ) -> Vc<Self> {
         EcmascriptBrowserRuntimeChunk {
             chunking_context,
-            has_async_modules,
+            include_async_module_runtime,
         }
         .cell()
     }
@@ -70,7 +70,7 @@ impl EcmascriptBrowserRuntimeChunk {
                     chunking_context.chunk_loading_global(),
                     chunking_context.cross_origin(),
                     chunking_context.chunk_load_retry(),
-                    this.has_async_modules,
+                    this.include_async_module_runtime,
                     chunking_context.chunk_loading(),
                     *chunking_context.generate_component_chunks().await?,
                 );

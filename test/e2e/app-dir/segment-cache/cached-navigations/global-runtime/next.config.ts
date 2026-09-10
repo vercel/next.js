@@ -3,10 +3,11 @@ import type { NextConfig } from 'next'
 const nextConfig: NextConfig = {
   cacheComponents: true,
   productionBrowserSourceMaps: true,
+  // Globally enable Partial Prefetching, which treats every route as
+  // runtime-cached, regardless of any per-segment `prefetch` config.
+  partialPrefetching: true,
   experimental: {
-    // Globally treat every route as runtime-cached, regardless of any
-    // per-segment `prefetch` config.
-    cachedNavigations: 'allow-runtime',
+    cachedNavigations: true,
     prefetchInlining: false,
     exposeTestingApiInProductionBuild: true,
     optimisticRouting: true,

@@ -3,7 +3,7 @@ import { cookies } from 'next/headers'
 import { Suspense } from 'react'
 import { setTimeout } from 'timers/promises'
 
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 async function RuntimePrefetchable() {
   await cookies()

@@ -114,17 +114,14 @@ fn expand_next_js_template_inner<'a>(
 
         let relative = get_relative_path_to(&next_package_dir_parent_path, &imported_path);
 
-        if !relative.starts_with("./next/") {
+        if !relative.starts_with("next/") {
             bail!(
-                "Invariant: Expected relative import to start with \"./next/\", found \
-                 {relative:?}. Path computed from {next_package_dir_parent_path:?} to \
-                 {imported_path:?}.",
+                "Invariant: Expected relative import to start with \"next/\", found {relative:?}. \
+                 Path computed from {next_package_dir_parent_path:?} to {imported_path:?}.",
             )
         }
 
-        let relative = relative
-            .strip_prefix("./")
-            .context("should be able to strip the prefix")?;
+        let relative = relative.as_ref();
 
         Ok(if caps.get(1).is_some() {
             format!("from {}", serde_json::to_string(relative).unwrap())

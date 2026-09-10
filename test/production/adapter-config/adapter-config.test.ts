@@ -1,4 +1,5 @@
 import fs from 'fs'
+import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import type { AdapterOutput, NextAdapter } from 'next'
 import { version as nextVersion } from 'next/package.json'
@@ -374,6 +375,10 @@ describe('adapter-config', () => {
 
     expect(appPageOutput).toBeDefined()
     expect(pagesOutput).toBeDefined()
+    expect(appPageOutput?.sourcePage).toBe('/node-app/page')
+    expect(appPageOutput?.filePath).toEndWith(
+      path.join('server', 'app', 'node-app', 'page.js')
+    )
 
     // Check that vendored context files are included in assets
     const appPageAssets = Object.values(appPageOutput!.assets)

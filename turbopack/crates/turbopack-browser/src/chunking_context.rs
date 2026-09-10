@@ -174,6 +174,18 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    /// Marks this context as being shared by multiple independent module graphs (e.g. per-page
+    /// graphs), each of which only sees part of what is written to `chunk_root_path`.
+    ///
+    /// The runtime chunk is emitted to a fixed path, so every graph sharing this context writes
+    /// the same file. Optional runtime features must therefore not be decided from a single
+    /// graph: one graph would omit a helper that another graph's chunks call, and which variant
+    /// lands on disk depends on emission order.
+    pub fn shared_runtime_chunk(mut self, shared_runtime_chunk: bool) -> Self {
+        self.chunking_context.shared_runtime_chunk = shared_runtime_chunk;
+        self
+    }
+
     pub fn should_use_absolute_url_references(
         mut self,
         should_use_absolute_url_references: bool,
@@ -350,6 +362,9 @@ pub struct BrowserChunkingContext {
     /// entrypoint's chunk group bootstrap params via
     /// `ChunkGroupResult.chunk_group_bootstrap_params`.
     shared_runtime: bool,
+    /// Whether the runtime chunk is shared with other module graphs using this context.
+    /// See [`BrowserChunkingContextBuilder::shared_runtime_chunk`].
+    shared_runtime_chunk: bool,
     /// The environment chunks will be evaluated in.
     environment: ResolvedVc<Environment>,
     /// The kind of runtime to include in the output.
@@ -429,6 +444,7 @@ impl BrowserChunkingContext {
                 enable_dynamic_chunk_content_loading: false,
                 debug_ids: false,
                 shared_runtime: false,
+                shared_runtime_chunk: false,
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
@@ -472,17 +488,20 @@ impl BrowserChunkingContext {
     /// The shared browser runtime chunk for this chunking context.
     ///
     /// Returns the same asset every time: [`EcmascriptBrowserRuntimeChunk::new`] is a
-    /// `#[turbo_tasks::function]` memoized on `(chunking_context, has_async_modules)`.
+    /// `#[turbo_tasks::function]` memoized on `(chunking_context, include_async_module_runtime)`.
     pub(crate) async fn generate_runtime_chunk(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<EcmascriptBrowserRuntimeChunk>> {
-        // Detect async modules from the whole-app graph in production. In development, the graph
-        // is per-page. To keep the shared `runtime.js` stable, always include the machinery.
-        let runtime_type = self.await?.runtime_type;
-        let has_async_modules = matches!(runtime_type, RuntimeType::Development)
-            || !module_graph.async_module_info().await?.is_empty();
-        Ok(EcmascriptBrowserRuntimeChunk::new(self, has_async_modules))
+        // Only omit the machinery when this graph sees every chunk that shares the runtime. With
+        // per-page graphs it doesn't, and this asset is emitted to a fixed path, so a graph
+        // without async modules would otherwise strip a helper another page's chunks call.
+        let include_async_module_runtime =
+            self.await?.shared_runtime_chunk || !module_graph.async_module_info().await?.is_empty();
+        Ok(EcmascriptBrowserRuntimeChunk::new(
+            self,
+            include_async_module_runtime,
+        ))
     }
 
     fn generate_chunk_list_register_chunk(
@@ -550,6 +569,14 @@ impl BrowserChunkingContext {
     #[turbo_tasks::function]
     pub fn shared_runtime(&self) -> Vc<bool> {
         Vc::cell(self.shared_runtime)
+    }
+
+    /// Whether the runtime chunk is shared with other module graphs using this context, meaning no
+    /// single graph may decide which optional runtime features to omit.
+    /// See [`BrowserChunkingContextBuilder::shared_runtime_chunk`].
+    #[turbo_tasks::function]
+    pub fn shared_runtime_chunk(&self) -> Vc<bool> {
+        Vc::cell(self.shared_runtime_chunk)
     }
 
     /// Returns the asset base path.

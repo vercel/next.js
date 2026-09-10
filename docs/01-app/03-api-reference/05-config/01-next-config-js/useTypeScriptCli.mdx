@@ -4,7 +4,7 @@ description: Run the project-local TypeScript CLI for type checking during produ
 version: experimental
 ---
 
-The `experimental.useTypeScriptCli` option makes `next build` run the project-local `tsc` command instead of loading the TypeScript JavaScript compiler API. You can use this option with TypeScript 6, and it enables [TypeScript 7](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/) support while its JavaScript API is unavailable.
+By default, `next build` runs the project-local `tsc` command instead of loading the TypeScript JavaScript compiler API. This supports TypeScript 6 and enables [TypeScript 7](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/) while its JavaScript API is unavailable.
 
 Install TypeScript 7 in your project:
 
@@ -24,14 +24,14 @@ yarn add -D typescript@^7
 bun add -D typescript@^7
 ```
 
-Then, explicitly enable the CLI checker:
+The CLI checker is enabled by default. To use the TypeScript JavaScript compiler API instead, set `experimental.useTypeScriptCli` to `false`:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    useTypeScriptCli: true,
+    useTypeScriptCli: false,
   },
 }
 
@@ -42,14 +42,14 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    useTypeScriptCli: true,
+    useTypeScriptCli: false,
   },
 }
 
 module.exports = nextConfig
 ```
 
-Next.js does not select the CLI checker automatically. If TypeScript 7 is installed without this option, `next build` exits with instructions to enable it or install a TypeScript version supported by the default checker.
+If you opt out while using TypeScript 7, `next build` exits because the TypeScript JavaScript compiler API is unavailable.
 
 ## Behavior
 

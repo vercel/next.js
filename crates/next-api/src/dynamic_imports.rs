@@ -54,7 +54,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
     let chunking_availability = &chunking_availability;
     let dynamic_import_chunks = dynamic_import_entries
         .iter()
-        .map(|(dynamic_entry, parent_client_reference)| async move {
+        .map(async |(dynamic_entry, parent_client_reference)| {
             let module = ResolvedVc::upcast::<Box<dyn ChunkableModule>>(*dynamic_entry);
 
             // This is the availability info for the parent chunk group, i.e. the client reference
@@ -124,7 +124,7 @@ pub async fn map_next_dynamic(
         graph
             .await?
             .iter_reachable_modules()?
-            .map(|module| async move {
+            .map(async |module| {
                 if let Some(dynamic_entry_module) =
                     ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module)
                     && module.ident().await?.layer.as_ref().is_some_and(|layer| {

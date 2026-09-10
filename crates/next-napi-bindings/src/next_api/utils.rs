@@ -7,9 +7,11 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use futures_util::TryFutureExt;
 use napi::{
-    JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
-    bindgen_prelude::{Buffer, External, ToNapiValue},
-    threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
+    Env, Status, Unknown,
+    bindgen_prelude::{
+        Buffer, External, ExternalRef, FunctionRef, JsObjectValue, JsValue, Object, ToNapiValue,
+    },
+    threadsafe_function::{ThreadsafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
 };
 use napi_derive::napi;
 use next_code_frame::{
@@ -19,7 +21,7 @@ use regex::Regex;
 use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Effects, OperationVc, ReadRef, TaskId, Vc, VcValueType, take_effects};
+use turbo_tasks::{Effects, GcRoot, OperationVc, ReadRef, TaskId, Vc, VcValueType, take_effects};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     issue::{
@@ -41,17 +43,23 @@ use crate::next_api::turbopack_ctx::NextTurbopackContext;
 /// [`turbo_tasks::OperationValue`] and should be dereferenced to an [`OperationVc`] before being
 /// passed to a [`turbo_tasks::function`].
 //
-// TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
-#[derive(Clone)]
+/// A `DetachedVc` holds its operation's task alive against garbage collection for as long as the
+/// handle exists.
 pub struct DetachedVc<T> {
     turbopack_ctx: NextTurbopackContext,
-    /// The Vc. Must be unresolved, otherwise you are referencing an inactive operation.
-    vc: OperationVc<T>,
+    /// Pins the operation to prevent GC, and holds the `Vc` itself. Must be unresolved, otherwise
+    /// you are referencing an inactive operation.
+    gc_root: GcRoot<T>,
 }
 
 impl<T> DetachedVc<T> {
     pub fn new(turbopack_ctx: NextTurbopackContext, vc: OperationVc<T>) -> Self {
-        Self { turbopack_ctx, vc }
+        // Pin the operation's task so GC treats this out-of-graph handle as a root.
+        let gc_root = GcRoot::pin(turbopack_ctx.turbo_tasks().clone(), vc);
+        Self {
+            turbopack_ctx,
+            gc_root,
+        }
     }
 
     pub fn turbopack_ctx(&self) -> &NextTurbopackContext {
@@ -63,7 +71,7 @@ impl<T> Deref for DetachedVc<T> {
     type Target = OperationVc<T>;
 
     fn deref(&self) -> &Self::Target {
-        &self.vc
+        &self.gc_root
     }
 }
 
@@ -71,33 +79,36 @@ impl<T> Deref for DetachedVc<T> {
 /// [`turbo_tasks::TurboTasks::spawn_root_task`] that can be passed back and forth to JS across the
 /// [`napi`][mod@napi] boundary via [`External`].
 ///
-/// JavaScript code receiving this value **must** call [`root_task_dispose`] in a `try...finally`
-/// block to avoid leaking root tasks.
+/// JavaScript code should call [`root_task_dispose`] in a `try...finally` block to dispose the root
+/// task promptly. If it doesn't, [`Drop`] disposes it as a backstop.
 ///
 /// This is used by [`subscribe`] to create a computation that re-executes when dependencies change.
-//
-// TODO: If we add a tracing garbage collector to turbo-tasks, this should be tracked as a GC root.
-pub struct RootTask {
+pub struct SubscriptionTask {
     turbopack_ctx: NextTurbopackContext,
     task_id: Option<TaskId>,
 }
 
-impl Drop for RootTask {
+impl SubscriptionTask {
+    fn dispose(&mut self) {
+        if let Some(task) = self.task_id.take() {
+            self.turbopack_ctx.turbo_tasks().dispose_root_task(task);
+        }
+    }
+}
+
+impl Drop for SubscriptionTask {
     fn drop(&mut self) {
-        // TODO stop the root task
+        self.dispose();
     }
 }
 
 #[napi]
 pub fn root_task_dispose(
-    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: External<RootTask>,
+    #[napi(ts_arg_type = "{ __napiType: \"RootTask\" }")] mut root_task: ExternalRef<
+        SubscriptionTask,
+    >,
 ) -> napi::Result<()> {
-    if let Some(task) = root_task.task_id.take() {
-        root_task
-            .turbopack_ctx
-            .turbo_tasks()
-            .dispose_root_task(task);
-    }
+    root_task.dispose();
     Ok(())
 }
 
@@ -406,35 +417,40 @@ impl<T: ToNapiValue> ToNapiValue for TurbopackResult<T> {
         env: napi::sys::napi_env,
         val: Self,
     ) -> napi::Result<napi::sys::napi_value> {
-        let mut obj = unsafe { napi::Env::from_raw(env).create_object()? };
+        let result_raw = unsafe { T::to_napi_value(env, val.result)? };
+        let result = unsafe { Unknown::from_raw_unchecked(env, result_raw) };
 
-        let result = unsafe {
-            let result = T::to_napi_value(env, val.result)?;
-            JsUnknown::from_raw(env, result)?
+        // When the result is an object, extend it in place with the `issues`
+        // property. Otherwise, produce a fresh object holding only `issues`.
+        let mut obj = if matches!(result.get_type()?, napi::ValueType::Object) {
+            Object::from_raw(env, result_raw)
+        } else {
+            Object::new(&Env::from_raw(env))?
         };
-        if matches!(result.get_type()?, napi::ValueType::Object) {
-            // SAFETY: We know that result is an object, so we can cast it to a JsObject
-            let result = unsafe { result.cast::<JsObject>() };
-
-            for key in JsObject::keys(&result)? {
-                let value: JsUnknown = result.get_named_property(&key)?;
-                obj.set_named_property(&key, value)?;
-            }
-        }
 
         obj.set_named_property("issues", val.issues)?;
 
-        Ok(unsafe { obj.raw() })
+        Ok(obj.raw())
     }
 }
 
-pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send, V: ToNapiValue>(
+pub fn subscribe<
+    T: 'static + Send + Sync,
+    F: Future<Output = Result<T>> + Send,
+    V: 'static + ToNapiValue,
+>(
     ctx: NextTurbopackContext,
-    func: JsFunction,
+    env: &Env,
+    func: &FunctionRef<V, ()>,
     handler: impl 'static + Sync + Send + Clone + Fn() -> F,
-    mapper: impl 'static + Sync + Send + FnMut(ThreadSafeCallContext<T>) -> napi::Result<Vec<V>>,
-) -> napi::Result<External<RootTask>> {
-    let func: ThreadsafeFunction<T> = func.create_threadsafe_function(0, mapper)?;
+    mapper: impl 'static + Sync + Send + FnMut(ThreadsafeCallContext<T>) -> napi::Result<V>,
+) -> napi::Result<External<SubscriptionTask>> {
+    let js_func = func.borrow_back(env)?;
+    let func: ThreadsafeFunction<T, (), V, Status, true> = js_func
+        .build_threadsafe_function::<T>()
+        .callee_handled::<true>()
+        .build_callback(mapper)?;
+    let func = Arc::new(func);
     let task_id = ctx.turbo_tasks().spawn_root_task({
         let ctx = ctx.clone();
         move || {
@@ -456,7 +472,7 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
             }
         }
     });
-    Ok(External::new(RootTask {
+    Ok(External::new(SubscriptionTask {
         turbopack_ctx: ctx,
         task_id: Some(task_id),
     }))

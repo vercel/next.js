@@ -98,6 +98,20 @@ Artifacts are written under:
 - `bench/render-pipeline/artifacts/<run>/node/next-runtime-trace.log`
 - `bench/render-pipeline/artifacts/<run>/results.json`
 
+## 5b. Client-side attribution (opt-in)
+
+When a change can affect client cost (payload shape, chunk layout, hydration),
+run the traced client pass after the server benchmark (it reuses the build):
+
+```bash
+pnpm bench:render-pipeline:client
+```
+
+This reports main-thread buckets per route (chunk eval/compile, inline script
+eval, hydration mark, blocking time, GC) plus FCP/LCP/DCL/load as secondary
+rows. Compare bucket medians across A/B runs; document bytes and Flight share
+from the HTTP benchmark are the deterministic cross-check.
+
 ## 6. Analyze hotspots
 
 ```bash

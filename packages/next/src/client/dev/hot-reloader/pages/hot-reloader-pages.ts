@@ -340,10 +340,17 @@ function processMessage(message: HmrMessageSentToBrowser) {
       return handleSuccess()
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      for (const listener of turbopackMessageListeners) {
+        listener(message)
+      }
       turbopackHmr?.onServerComponentChanges()
       if (hasCompileErrors || RuntimeErrorHandler.hadRuntimeError) {
         window.location.reload()
       }
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED: {
+      // Only relevant to the App Router; ignored in the Pages Router client.
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_ERROR: {
@@ -372,6 +379,7 @@ function processMessage(message: HmrMessageSentToBrowser) {
         listener({
           type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
           data: message.data,
+          hmrVersion: message.hmrVersion,
         })
       }
       if (RuntimeErrorHandler.hadRuntimeError) {

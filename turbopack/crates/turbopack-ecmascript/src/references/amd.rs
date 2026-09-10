@@ -158,7 +158,7 @@ impl AmdDefineWithDependenciesCodeGen {
         let resolved_elements = self
             .dependencies_requests
             .iter()
-            .map(|element| async move {
+            .map(async |element| {
                 Ok(match element {
                     AmdDefineDependencyElement::Request {
                         request,
@@ -176,6 +176,7 @@ impl AmdDefineWithDependenciesCodeGen {
                                 self.error_mode,
                             ),
                             ResolveType::ChunkItem,
+                            None,
                         )
                         .await?,
                         request_str: request_str.to_string(),
