@@ -16,6 +16,18 @@ type StaticPrerenderedRoute = {
    * will error the build if the route that is generated is empty.
    */
   throwOnEmptyStaticShell: undefined
+
+  /**
+   * The static variant combination this route is prerendered against, keyed by
+   * variant identity. It is undefined for a route prerendered without variants.
+   */
+  readonly variantValues?: Readonly<Record<string, string>>
+
+  /**
+   * True for the one route prerendered with every variant omitted, which serves
+   * a request whose variant combination no page declared.
+   */
+  readonly omitsVariants?: boolean
 }
 
 export type FallbackRouteParam = {
@@ -50,6 +62,18 @@ type FallbackPrerenderedRoute = {
    * will error the build if the route that is generated is empty.
    */
   throwOnEmptyStaticShell: boolean
+
+  /**
+   * The static variant combination this route is prerendered against, keyed by
+   * variant identity. It is undefined for a route prerendered without variants.
+   */
+  readonly variantValues?: Readonly<Record<string, string>>
+
+  /**
+   * True for the one route prerendered with every variant omitted, which serves
+   * a request whose variant combination no page declared.
+   */
+  readonly omitsVariants?: boolean
 }
 
 /**

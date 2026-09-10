@@ -45,7 +45,7 @@ import {
 } from '../segment-config/middleware/middleware-config'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
-import { isProxyFile } from '../utils'
+import { isMiddlewareFile, isProxyFile } from '../utils'
 
 const PARSE_PATTERN =
   /(?<!(_jsx|jsx-))runtime|preferredRegion|getStaticProps|getServerSideProps|generateStaticParams|export const|generateImageMetadata|generateSitemaps|middleware|proxy/
@@ -825,6 +825,26 @@ export async function getPagesPageStaticInfo({
       // internal _next/ routes and spams logs.
       Log.errorOnce(message)
       resolvedRuntime = SERVER_RUNTIME.nodejs
+    } else {
+      throw new Error(message)
+    }
+  }
+
+  if (
+    isMiddlewareFile(page) &&
+    !isProxyFile(page) &&
+    nextConfig.experimental?.variants
+  ) {
+    const relativePath = relative(process.cwd(), pageFilePath)
+    const resolvedPath = relativePath.startsWith('.')
+      ? relativePath
+      : `./${relativePath}`
+    const message = `\`experimental.variants\` is not supported in the Middleware file at "${resolvedPath}". Rename it to a Proxy file, which always runs on the Node.js runtime. Run \`npx @next/codemod@canary middleware-to-proxy\` to migrate. Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
+
+    if (isDev) {
+      // errorOnce as proxy/middleware runs per request including multiple
+      // internal _next/ routes and spams logs.
+      Log.errorOnce(message)
     } else {
       throw new Error(message)
     }

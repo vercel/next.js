@@ -352,6 +352,7 @@ async function startWatcher(
         routes: {},
         dynamicRoutes: {},
         notFoundRoutes: [],
+        variantCombinationGroups: {},
       },
       null,
       2

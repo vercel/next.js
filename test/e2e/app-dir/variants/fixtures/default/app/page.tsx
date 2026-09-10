@@ -4,7 +4,7 @@ import { VariantValues } from './variant-values'
 
 export default function Page() {
   return (
-    <Suspense fallback={<p id="pending">pending</p>}>
+    <Suspense fallback={null}>
       <VariantValues />
     </Suspense>
   )

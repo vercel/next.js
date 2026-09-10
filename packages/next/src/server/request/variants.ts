@@ -201,13 +201,28 @@ function readVariant(key: string): Promise<string> {
 
   switch (workUnitStore.type) {
     case 'request': {
-      const value = workUnitStore.variants?.[key]
+      const staticValue = workUnitStore.staticVariants?.[key]
+
+      if (staticValue !== undefined) {
+        return resolveInStage(
+          workUnitStore,
+          // A variant can be derived from a param, and a shell is shared
+          // across the params of a route, so a variant value must not appear
+          // in one. Resolving after the shell keeps it out and still reaches
+          // the output of this combination. Static params are delayed by the
+          // same rule.
+          // TODO(variants): Track if a variant varies on params.
+          workUnitStore.needsAppShell
+            ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData // Match the timing of 'prerender-runtime'.
+            : RENDER_STAGES_BY_DATA_KIND.staticLinkData, // Match the timing of 'prerender'.
+          variantName,
+          staticValue
+        )
+      }
+
+      const value = workUnitStore.runtimeVariants?.[key]
 
       if (value !== undefined) {
-        // TODO(variants): a value that a combination declared belongs to an
-        // earlier stage, because the prerender of that combination can hold it.
-        // Only a value that no combination declared waits for the runtime
-        // stage.
         return resolveInStage(
           workUnitStore,
           RENDER_STAGES_BY_DATA_KIND.runtimeLinkData,
@@ -245,15 +260,21 @@ function readVariant(key: string): Promise<string> {
         `${variantName} must not be read within a Client Component. Next.js should be preventing variants from being included in Client Components, but did not in this case.`
       )
     }
-    // A request resolves a variant, so no prerender holds a value for one. Each
-    // read below interrupts the prerender instead, and the value then arrives
-    // at request time. Each kind of prerender interrupts in the way that it
-    // requires, as the other request APIs do.
-    //
-    // TODO(variants): a prerender produced for a declared combination holds the
-    // values that the combination fixes, and returns one here. The interrupts
-    // then cover only the combinations that nothing declared.
+    // A prerender produced for a declared combination holds the values that
+    // combination assigns, so a read of one of those returns the value. A read
+    // of any other variant interrupts the prerender, in the way that kind of
+    // prerender requires and as the other request APIs do, and the value then
+    // arrives at request time.
     case 'prerender': {
+      // The combination this prerender is produced for assigns some variants,
+      // so a read of one belongs in the output rather than produce a dynamic
+      // hole.
+      const staticValue = workUnitStore.staticVariants?.[key]
+
+      if (staticValue !== undefined) {
+        return Promise.resolve(staticValue)
+      }
+
       // A variant is runtime data, and not dynamic data. A request resolves it
       // from cookies and headers, so a runtime prefetch can supply a value
       // where a static prerender cannot. This helper also records the access,
@@ -267,8 +288,33 @@ function readVariant(key: string): Promise<string> {
       )
     }
     case 'prerender-runtime': {
-      // A runtime prefetch produces this store. Only a real request resolves a
-      // variant, so the read is dynamic here.
+      // This prerender runs against a real request, so both tiers are known
+      // here, and each resolves at the stage its tier belongs to.
+      const staticValue = workUnitStore.staticVariants?.[key]
+
+      if (staticValue !== undefined) {
+        return resolveInStage(
+          workUnitStore,
+          RENDER_STAGES_BY_DATA_KIND.staticLinkData,
+          variantName,
+          staticValue
+        )
+      }
+
+      const runtimeValue = workUnitStore.runtimeVariants?.[key]
+
+      if (runtimeValue !== undefined) {
+        return resolveInStage(
+          workUnitStore,
+          RENDER_STAGES_BY_DATA_KIND.runtimeLinkData,
+          variantName,
+          runtimeValue
+        )
+      }
+
+      // The variant is in neither tier, so nothing resolved a value for it.
+      // The read hangs rather than failing the prefetch, which leaves this part
+      // of the output to the navigation.
       return makeDynamicHangingPromise(
         workUnitStore.renderSignal,
         workStore.route,
@@ -276,6 +322,14 @@ function readVariant(key: string): Promise<string> {
       )
     }
     case 'prerender-legacy': {
+      const staticValue = workUnitStore.staticVariants?.[key]
+
+      if (staticValue !== undefined) {
+        return Promise.resolve(staticValue)
+      }
+
+      // This path cannot postpone, so without a fixed value the read has to
+      // interrupt static generation and the route renders per request instead.
       return throwToInterruptStaticGeneration(
         variantName,
         workStore,

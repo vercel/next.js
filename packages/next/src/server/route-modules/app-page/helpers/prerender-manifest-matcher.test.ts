@@ -14,6 +14,7 @@ function createMockPrerenderManifest(
     routes: {},
     dynamicRoutes,
     notFoundRoutes: [],
+    variantCombinationGroups: {},
     preview: {
       previewModeId: 'test-preview-id',
       previewModeEncryptionKey: 'test-encryption-key',

@@ -30,7 +30,35 @@ export const NEXT_RESUME_HEADER = 'next-resume'
 export const NEXT_RESUME_STATE_LENGTH_HEADER = 'x-next-resume-state-length'
 
 /**
- * Carries the variant values that a request resolved, encoded.
+ * The marker segment that introduces the hash of a static variant combination
+ * in an internal pathname, for example `/__variants/1u0zqp3/blog/my-post`. The
+ * build writes an artifact under it, and routing removes it again before route
+ * resolution. A user never sees it.
+ *
+ * The hash travels in the path, and not in a header, because an artifact is a
+ * file and the layers that serve or refresh one address it by path. A platform
+ * serves `/__variants/<hash>/blog/my-post` straight from its filesystem, before
+ * any function runs. It rebuilds the same path to revalidate the artifact, with
+ * no proxy in the loop and nothing else left to say which combination it is.
+ *
+ * Routing converts the hash into `NEXT_VARIANTS_QUERY_PARAM` before it matches
+ * a route, because matching runs on route patterns and no prefixed path matches
+ * one. It converts inside the branch that handles a rewrite our own proxy
+ * produced.
+ */
+export const VARIANTS_PATH_PREFIX = '__variants'
+
+/**
+ * Carries the hash of a static variant combination from routing to the route
+ * module, once routing has taken it out of the path.
+ */
+export const NEXT_VARIANTS_QUERY_PARAM = 'nxtV'
+
+/**
+ * Carries the variant values a request resolved that no static variant
+ * combination assigns, encoded. What a combination does assign is recovered
+ * from the hash in `VARIANTS_PATH_PREFIX` instead. Where no combination
+ * matched, every resolved value travels here.
  *
  * The `x-next-internal-` prefix makes the header safe to trust on arrival. A
  * deployment reserves that prefix for its routing layer and removes such a
