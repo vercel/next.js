@@ -26,6 +26,29 @@ const DEFAULT_ESTIMATED_REQUEST_COST_BYTES: u64 = 200_000;
 /// Probability that a navigation stays within a cluster.
 const CLUSTER_NAVIGATION_PROBABILITY: f64 = 0.6;
 
+/// Upper bound on the number of chunk pairs evaluated while merging small chunks of one chunk
+/// group. The merge search restarts from the largest candidates after every merge and, when no
+/// pair has a positive merge value, scans all pairs, so without a bound it is O(n²) per merge
+/// and O(n³) overall in the number of small chunks. Chunk groups that hit the bound keep the
+/// merges found so far and put the remaining small chunks into the single "remainder" chunk
+/// below, which is the same fallback used for small chunks that cannot be merged.
+const MAX_MERGE_PAIR_EVALUATIONS: u64 = 4_000_000;
+
+/// `chunk_groups` restricted to the priority routes, or `None` when there are no priority routes
+/// (or no chunk groups). The overlap of two such sets tells whether a merge is a priority merge
+/// without materializing the pair's full overlap.
+fn priority_groups_of(
+    chunk_groups: &Option<Cow<'_, RoaringBitmapWrapper>>,
+    priority_routes: &RoaringBitmap,
+) -> Option<RoaringBitmap> {
+    if priority_routes.is_empty() {
+        return None;
+    }
+    chunk_groups
+        .as_ref()
+        .map(|chunk_groups| &***chunk_groups & priority_routes)
+}
+
 pub async fn make_production_chunks(
     chunk_items: Vec<&ChunkItemOrBatchWithInfo>,
     batch_groups: Vec<ResolvedVc<ChunkItemBatchGroup>>,
@@ -212,11 +235,14 @@ pub async fn make_production_chunks(
                                 components,
                             } = heap.pop().unwrap();
                             chunks_to_merge_size += size;
+                            let priority_groups =
+                                priority_groups_of(&chunk_groups, &heuristics.priority_routes);
                             chunks_to_merge.push(MergeCandidate {
                                 size,
                                 chunk_items,
                                 batch_groups,
                                 chunk_groups,
+                                priority_groups,
                                 components,
                             });
                             continue;
@@ -260,12 +286,18 @@ pub async fn make_production_chunks(
                 // match at least one route.
                 let has_clusters = heuristics.clusters.iter().any(|c| !c.is_empty());
 
-                let mut iterations = 0;
+                let mut iterations: u64 = 0;
                 while chunks_to_merge.len() > 1 {
                     // Find best candidate
                     let mut selection: Vec<MergeCandidate<'_>> = Vec::new();
                     let mut best_combination = None;
                     while let Some(candidate) = chunks_to_merge.pop() {
+                        if iterations >= MAX_MERGE_PAIR_EVALUATIONS {
+                            // Out of budget: keep the merges found so far, the rest of the small
+                            // chunks end up in the remainder chunk below.
+                            chunks_to_merge.push(candidate);
+                            break;
+                        }
                         // Exist early when no better overlaps are possible
                         if let Some((_, _, best_overlap, _)) = best_combination.as_ref() {
                             let candidate_best_possible_value = candidate.chunk_groups_len();
@@ -336,23 +368,28 @@ pub async fn make_production_chunks(
                             // optimising the overlap of these chunk groups. an example of something
                             // in `o_groups` would be a chunk group that requests both chunk items.
 
-                            let mut is_priority_route = false;
+                            // if there is one chunk group in `o_groups` that is used by a
+                            // priority route, we should prioritise merging these two chunk
+                            // items. `priority_groups` are the chunk groups of each candidate
+                            // restricted to the priority routes, so this is a cheap overlap check
+                            // instead of materializing `o_groups` for every pair.
+                            let is_priority_route =
+                                match (&candidate.priority_groups, &other.priority_groups) {
+                                    (Some(a), Some(b)) => a.intersection_len(b) > 0,
+                                    _ => false,
+                                };
 
                             // Distinct pairs between the sets X (a_rem), Y (b_rem) and Z (overlap)
                             // that are both in a cluster.
                             let (mut c_xx, mut c_xy, mut c_xz, mut c_yy, mut c_yz, mut c_zz) =
                                 (0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
-                            if let (Some(a), Some(b)) =
-                                (&candidate.chunk_groups, &other.chunk_groups)
+                            if has_clusters
+                                && let (Some(a), Some(b)) =
+                                    (&candidate.chunk_groups, &other.chunk_groups)
                             {
                                 let o = &***a & &***b; // `o_groups` (Z)
 
-                                // if there is one chunk group in `o_groups` that is used by a
-                                // priority route, we should prioritise merging these two chunk
-                                // items.
-                                is_priority_route = !o.is_disjoint(&heuristics.priority_routes);
-
-                                if has_clusters {
+                                {
                                     let x = &***a - &o; // a_rem groups: load only chunk A
                                     let y = &***b - &o; // b_rem groups: load only chunk B
 
@@ -498,6 +535,7 @@ pub async fn make_production_chunks(
                             chunk_items,
                             mut batch_groups,
                             chunk_groups,
+                            priority_groups: _,
                             components: other_components,
                         } = other;
                         candidate.components.extend(other_components);
@@ -517,6 +555,10 @@ pub async fn make_production_chunks(
                         }
                         candidate.chunk_groups =
                             merge_chunk_groups(&candidate.chunk_groups, &chunk_groups);
+                        candidate.priority_groups = priority_groups_of(
+                            &candidate.chunk_groups,
+                            &heuristics.priority_routes,
+                        );
 
                         // Merged candidate is pushed back into the queue
                         chunks_to_merge.push(candidate);
@@ -559,6 +601,7 @@ pub async fn make_production_chunks(
                     chunk_items,
                     batch_groups,
                     chunk_groups,
+                    priority_groups: _,
                     components,
                 } in chunks_to_merge.into_iter()
                 {
@@ -671,6 +714,8 @@ struct MergeCandidate<'l> {
     chunk_items: Vec<&'l ChunkItemOrBatchWithInfo>,
     batch_groups: SmallVec<[ResolvedVc<ChunkItemBatchGroup>; 1]>,
     chunk_groups: Option<Cow<'l, RoaringBitmapWrapper>>,
+    /// `chunk_groups` restricted to the priority routes, see [`priority_groups_of`].
+    priority_groups: Option<RoaringBitmap>,
     /// Original groups this candidate covers; one per chunk, > 1 once merged.
     components: Vec<ChunkComponent<'l>>,
 }
