@@ -60,7 +60,6 @@ import {
   getInvalidServerReferenceIdError,
 } from './manifests-singleton'
 import { isNodeNextRequest, isWebNextRequest } from '../base-http/helpers'
-import { normalizeFilePath } from './segment-explorer-path'
 import {
   extractInfoFromServerReferenceId,
   mightBeServerReferenceId,
@@ -79,8 +78,57 @@ import {
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
+import { isServerReference } from '../../lib/client-and-server-references'
+import { getTracer } from '../lib/trace/tracer'
+import { AppRenderSpan } from '../lib/trace/constants'
+import { getServerReferenceMetadata } from './server-reference-metadata'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
+
+type ServerActionInfo = {
+  name: string
+  file?: string
+}
+
+type ServerActionTracing = {
+  info: ServerActionInfo | null
+} | null
+
+function getServerActionTracing(
+  actionId: string | null,
+  ctx: AppRenderContext
+): ServerActionTracing {
+  if (actionId === null) {
+    return { info: null }
+  }
+
+  const { type } = extractInfoFromServerReferenceId(actionId)
+  return type === 'use-cache'
+    ? null
+    : { info: getServerActionInfo(actionId, ctx) }
+}
+
+function getServerActionInfo(
+  actionId: string,
+  ctx: AppRenderContext
+): ServerActionInfo | null {
+  const metadata = getServerReferenceMetadata(actionId, ctx.renderOpts.dir)
+
+  if (!metadata) {
+    return null
+  }
+
+  const isInlineAction = metadata.exportedName?.startsWith(INLINE_ACTION_PREFIX)
+
+  return {
+    name: isInlineAction
+      ? '<inline action>'
+      : metadata.exportedName === 'default'
+        ? 'default'
+        : metadata.exportedName || '<action>',
+    file: metadata.file,
+  }
+}
 
 /**
  * Checks if the app has any server actions defined in any runtime.
@@ -932,7 +980,11 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
-                  actionWasForwarded
+                  actionWasForwarded,
+                  getServerActionTracing(
+                    isServerReference(action) ? action.$$id : null,
+                    ctx
+                  )
                 )
 
                 const formState = await decodeFormState(
@@ -1150,7 +1202,11 @@ export async function handleAction({
                   [],
                   workStore,
                   requestStore,
-                  actionWasForwarded
+                  actionWasForwarded,
+                  getServerActionTracing(
+                    isServerReference(action) ? action.$$id : null,
+                    ctx
+                  )
                 )
 
                 const formState = await decodeFormState(
@@ -1240,38 +1296,21 @@ export async function handleAction({
 
         // Log server action call in development when enabled
         let logInfo: ServerActionLogInfo | null = null
-        const { type: actionType } = extractInfoFromServerReferenceId(actionId!)
+        const serverActionTracing = getServerActionTracing(actionId!, ctx)
+        const serverActionInfo = serverActionTracing?.info ?? null
         if (
           process.env.NODE_ENV === 'development' &&
           ctx.renderOpts.logServerFunctions &&
           // TODO: For now, skip logging for 'use cache' Server Functions as the
           // output needs more work, or a different approach entirely.
-          actionType !== 'use-cache'
+          serverActionTracing
         ) {
-          const serverActionsManifest = getServerActionsManifest()
-          const runtime = process.env.NEXT_RUNTIME === 'edge' ? 'edge' : 'node'
-          const actionInfo = serverActionsManifest[runtime]?.[actionId!]
-
-          if (actionInfo) {
-            const isInlineAction =
-              actionInfo.exportedName?.startsWith(INLINE_ACTION_PREFIX)
-
-            const projectDir =
-              ctx.renderOpts.dir ||
-              (process.env.NEXT_RUNTIME === 'edge' ? '' : process.cwd())
-            const location = normalizeFilePath(projectDir, actionInfo.filename)
-
-            // Format function name for display
-            let functionName: string
-            if (isInlineAction) {
-              functionName = '<inline action>'
-            } else if (actionInfo.exportedName === 'default') {
-              functionName = 'default'
-            } else {
-              functionName = actionInfo.exportedName || '<action>'
+          if (serverActionInfo) {
+            logInfo = {
+              functionName: serverActionInfo.name,
+              args: boundActionArguments,
+              location: serverActionInfo.file ?? '',
             }
-
-            logInfo = { functionName, args: boundActionArguments, location }
           }
         }
 
@@ -1282,7 +1321,8 @@ export async function handleAction({
             boundActionArguments,
             workStore,
             requestStore,
-            shouldSkipPageRendering
+            shouldSkipPageRendering,
+            serverActionTracing
           ).finally(() => {
             addRevalidationHeader(res, { workStore, requestStore })
             if (logInfo) {
@@ -1439,6 +1479,53 @@ export async function handleAction({
  */
 const SERVER_ACTION_ARGS_LIMIT = 1000
 
+function getServerActionTraceError(error: unknown): Error | undefined {
+  if (isRedirectError(error) || isHTTPAccessFallbackError(error)) {
+    return undefined
+  }
+
+  return error instanceof Error
+    ? error
+    : new Error('Server Action threw a non-Error value')
+}
+
+async function traceServerActionExecution<T>(
+  executeAction: () => Promise<T>,
+  tracing: ServerActionTracing
+): Promise<T> {
+  if (!tracing) {
+    return executeAction()
+  }
+
+  const actionName = tracing.info?.name ?? '<action>'
+  const attributes: Record<string, string> = {
+    'next.span_category': 'application',
+    'next.server_action.name': actionName,
+  }
+
+  if (tracing.info?.file) {
+    attributes['next.server_action.file'] = tracing.info.file
+  }
+
+  return getTracer().trace(
+    AppRenderSpan.executeServerAction,
+    {
+      spanName: `run Server Action ${actionName}`,
+      attributes,
+    },
+    async (_span, done) => {
+      try {
+        const result = await executeAction()
+        done?.()
+        return result
+      } catch (error) {
+        done?.(getServerActionTraceError(error))
+        throw error
+      }
+    }
+  )
+}
+
 async function executeActionAndPrepareForRender<
   TFn extends (...args: any[]) => Promise<any>,
 >(
@@ -1446,7 +1533,8 @@ async function executeActionAndPrepareForRender<
   args: Parameters<TFn>,
   workStore: WorkStore,
   requestStore: RequestStore,
-  shouldSkipPageRendering: boolean
+  shouldSkipPageRendering: boolean,
+  tracing: ServerActionTracing
 ): Promise<{
   actionResult: Awaited<ReturnType<TFn>>
   skipPageRendering: boolean
@@ -1461,8 +1549,11 @@ async function executeActionAndPrepareForRender<
   }
 
   try {
-    const actionResult = await workUnitAsyncStorage.run(requestStore, () =>
-      action.apply(null, args)
+    const executeAction = () =>
+      workUnitAsyncStorage.run(requestStore, () => action.apply(null, args))
+    const actionResult = await traceServerActionExecution(
+      executeAction,
+      tracing
     )
 
     // If the page was not revalidated, or if this is an action-only request,
