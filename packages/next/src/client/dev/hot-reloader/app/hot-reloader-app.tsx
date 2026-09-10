@@ -452,9 +452,9 @@ export function processMessage(
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED: {
       // Re-fetch the current router tree so the render picks up the new set of
-      // statically-known params (and thus the fresh `fallbackParams`). Unlike
-      // `SERVER_COMPONENT_CHANGES` this does not store an HMR refresh hash, so
-      // it doesn't invalidate `"use cache"` entries.
+      // statically-known params (and thus the fresh `stagedFallbackParams`).
+      // Unlike `SERVER_COMPONENT_CHANGES` this does not store an HMR refresh
+      // hash, so it doesn't invalidate `"use cache"` entries.
       if (
         RuntimeErrorHandler.hadRuntimeError ||
         document.documentElement.id === '__next_error__'
