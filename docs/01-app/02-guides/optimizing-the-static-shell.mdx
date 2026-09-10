@@ -16,7 +16,7 @@ related:
 
 Apps written before Cache Components often await request data near the top of a layout or page. With Cache Components enabled, those routes may already have a small static shell, sometimes made up of one broad loading state.
 
-In this guide, you'll expand that shell by tracing each data read to the UI that needs it, caching reusable work, and moving request-time work behind focused `<Suspense>` boundaries. You'll also keep important content available early and reserve space as the rest of the page streams in.
+This guide shows how to expand that shell by tracing each data read to the UI that needs it, caching reusable work, and moving request-time work behind focused `<Suspense>` boundaries. It also covers how to keep important content available early and reserve space as the rest of the page streams in.
 
 ## Use the optimizer skill (recommended)
 
@@ -52,11 +52,11 @@ export default nextConfig
 
 When a layout or page awaits data near the top, trace each result to the UI that actually uses it. Then apply the matching pattern:
 
-| Data needed by the region | Pattern                                                                                     | Static shell                                     |
-| ------------------------- | ------------------------------------------------------------------------------------------- | ------------------------------------------------ |
-| No request data           | Render the region directly                                                                  | Includes the completed UI when it is reachable   |
-| Reusable data             | Cache the function or component, with a lifetime and on-demand revalidation when it changes | Can include the cached result                    |
-| Request-time data         | Await the data in a focused component behind `<Suspense>`                                   | Can include the nearest boundary's loading state |
+| Pattern                                                     | Use it when                                        | Result                                                    |
+| ----------------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------------- |
+| [Keep static UI in the shell](#keep-static-ui-in-the-shell) | A region does not need request data                | Its completed UI can render in the static shell           |
+| [Cache reusable work](#cache-reusable-work)                 | A result can be reused across requests             | The cached result can render in the static shell          |
+| [Stream request-time work](#stream-request-time-work)       | A region needs request data or other uncached data | Its nearest `<Suspense>` fallback can render in the shell |
 
 ### Keep static UI in the shell
 
@@ -93,21 +93,9 @@ export async function ProductList() {
 
 If the application can change a cached result, add on-demand revalidation to the corresponding write and verify the read after the mutation. Use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) when an entry must persist across instances and requests. Keep data uncached when it must be recomputed for each request.
 
+React [`cache()`](https://react.dev/reference/react/cache) can instead deduplicate matching calls during one server request. It does not persist the result across requests or make request-time data part of the static shell. See [Reusing data with `React.cache`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache) for that pattern.
+
 Learn more about cache scopes and lifetimes in [Caching](/docs/app/getting-started/caching#usage), and about updating cached data after a mutation in [Revalidating](/docs/app/getting-started/revalidating).
-
-### Reuse work within a request
-
-React [`cache()`](https://react.dev/reference/react/cache) can deduplicate matching calls during one server request. This is useful when several components need the same uncached data:
-
-```tsx filename="app/lib/user.ts" highlight={3}
-import { cache } from 'react'
-
-export const getUser = cache(async (id: string) => {
-  return db.user.findUnique({ where: { id } })
-})
-```
-
-Unlike `use cache`, React `cache()` does not persist the result across requests or make request-time data available during prerendering. Wrapping a `cookies()`, `headers()`, or uncached data read with React `cache()` does not make it part of the static shell. The component that reads it still needs a boundary. See [Reusing data with `React.cache`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache) for the complete request memoization pattern.
 
 ### Stream request-time work
 
@@ -169,35 +157,47 @@ A Server Component can resolve `searchParams` inline with `.then()` without maki
 </Suspense>
 ```
 
-When a finite set of parameter values is known ahead of time, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can prerender those routes. Values that are not generated resolve at request time and follow the boundary pattern above. With Cache Components, [`next/root-params`](/docs/app/api-reference/functions/next-root-params#root-parameters-and-generatestaticparams) also requires at least one generated value for each root parameter.
+When a finite set of parameter values is known ahead of time, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can produce concrete prerenders for those routes. Keep the parameter read behind the boundary when the route also needs an App Shell for unknown values because each resolved parameter belongs to one URL. Values that are not generated resolve at request time and follow the same boundary pattern. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the complete pattern. With Cache Components, [`next/root-params`](/docs/app/api-reference/functions/next-root-params#root-parameters-and-generatestaticparams) also requires at least one generated value for each root parameter.
 
 #### Unwrap promises in Client Components
 
-Pass a promise from a Server Component to a Client Component when the interactive UI needs the value. The Client Component can unwrap it with React's [`use()`](https://react.dev/reference/react/use). Keep the Client Component behind `<Suspense>`:
+Start a data request in a Server Component and pass the unresolved promise down when an interactive Client Component needs the result. The Client Component can unwrap it with React's [`use()`](https://react.dev/reference/react/use). Keep the component behind `<Suspense>`:
 
-```tsx filename="app/products/page.tsx"
-<Suspense fallback={<ProductTabsSkeleton />}>
-  <ProductTabsClient searchParams={searchParams} />
-</Suspense>
+```tsx filename="app/dashboard/page.tsx" highlight={6,9}
+import { Suspense } from 'react'
+import { getActivity } from '@/app/lib/data'
+import { ActivityChart } from './activity-chart'
+
+export default function DashboardPage() {
+  const activityPromise = getActivity()
+
+  return (
+    <Suspense fallback={<ActivityChartSkeleton />}>
+      <ActivityChart dataPromise={activityPromise} />
+    </Suspense>
+  )
+}
 ```
 
-```tsx filename="app/products/product-tabs-client.tsx" highlight={10}
+```tsx filename="app/dashboard/activity-chart.tsx" highlight={9}
 'use client'
 
 import { use } from 'react'
 
-export function ProductTabsClient({
-  searchParams,
-}: {
-  searchParams: Promise<{ tab?: string }>
-}) {
-  const { tab = 'details' } = use(searchParams)
+type Activity = { date: string; value: number }
 
-  return <nav>{/* Render the active tab. */}</nav>
+export function ActivityChart({
+  dataPromise,
+}: {
+  dataPromise: Promise<Activity[]>
+}) {
+  const activity = use(dataPromise)
+
+  return <Chart data={activity} />
 }
 ```
 
-A Client Component can also read the URL with [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params). It can resolve synchronously during a client navigation because the router already has the URL. On a page load, it needs a boundary because the static shell does not know the query string.
+For URL state, a Client Component can usually call [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) directly instead of receiving the `searchParams` promise. The hook resolves synchronously during a client navigation because the router already has the URL. On a page load, it needs a boundary because the static shell does not know the query string.
 
 Learn more about passing promises through the tree and placing focused boundaries in [Streaming](/docs/app/guides/streaming#push-dynamic-access-down).
 
@@ -227,20 +227,14 @@ Nest boundaries when a group should first appear together, followed by progressi
 </Suspense>
 ```
 
-A fallback should reserve space for the content it replaces to reduce [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift). Share the responsive frame between the fallback and completed content so both states follow the same layout rules:
+A fallback should reserve space for the content it replaces to reduce [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift). Keep the shared responsive frame outside the boundary so the fallback and completed content follow the same layout rules:
 
 ```tsx filename="app/products/page.tsx"
-<Suspense
-  fallback={
-    <ProductGridFrame>
-      <ProductGridSkeleton />
-    </ProductGridFrame>
-  }
->
-  <ProductGridFrame>
+<ProductGridFrame>
+  <Suspense fallback={<ProductGridSkeleton />}>
     <Products />
-  </ProductGridFrame>
-</Suspense>
+  </Suspense>
+</ProductGridFrame>
 ```
 
 An empty fallback works when the resolved component has no visual footprint, such as an authorization gate that returns `null`.
@@ -281,6 +275,37 @@ export async function Projects({ slug }: { slug: string }) {
 If React reaches a component only after other blocking work, but the request inputs are already available, [preload the data](/docs/app/getting-started/fetching-data#preloading-data) to start that work earlier.
 
 Learn more about [sequential and parallel data fetching](/docs/app/getting-started/fetching-data#sequential-data-fetching).
+
+## Follow validation as you refactor
+
+When you load or navigate to a route in `next dev`, [instant navigation validation](/docs/app/guides/instant-navigation#validate-instant-navigation) reports request-time or uncached work that prevents some UI from rendering instantly. If a new insight appears after a refactor, a data read may have moved outside its boundary or the change may have introduced new uncached work.
+
+The insight points to the affected code and offers fixes such as caching reusable work or moving request-time work behind `<Suspense>`:
+
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Cache the component or data"
+    href="/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data"
+    snippets={[
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
+    ]}
+  />
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+The available cards depend on the data read. Each card links to the corresponding walkthrough and trade-offs.
 
 ## Example
 
@@ -342,7 +367,7 @@ If you want to compare the route visually as it changes, the [Navigation Inspect
 
 ### Step 1: Move URL-dependent work behind Suspense
 
-The settings tabs are interactive, so pass `searchParams` to the Client Component and unwrap it with `use()`. The server-rendered form receives the same promise and resolves it where the section is needed.
+The settings tabs are interactive, so they can read the URL directly with `useSearchParams()`. The server-rendered form receives the `params` and `searchParams` promises and resolves them where their values are needed.
 
 First, put both regions behind a focused boundary:
 
@@ -357,7 +382,7 @@ export default function SettingsPage({
     <main>
       <h1>Settings</h1>
       <Suspense fallback={<SettingsContentSkeleton />}>
-        <SettingsTabs searchParams={searchParams} />
+        <SettingsTabs />
         <Suspense fallback={<SettingsFormSkeleton />}>
           <TeamSettings params={params} searchParams={searchParams} />
         </Suspense>
@@ -367,17 +392,15 @@ export default function SettingsPage({
 }
 ```
 
-The tabs unwrap the promise in a Client Component:
+The tabs read the active section from the URL:
 
-```tsx filename="app/[team]/settings/settings-tabs.tsx" highlight={10}
+```tsx filename="app/[team]/settings/settings-tabs.tsx" highlight={3,6}
 'use client'
 
-import { use } from 'react'
+import { useSearchParams } from 'next/navigation'
 
-export function SettingsTabs({
-  searchParams,
-}: Pick<PageProps<'/[team]/settings'>, 'searchParams'>) {
-  const { section = 'profile' } = use(searchParams)
+export function SettingsTabs() {
+  const section = useSearchParams().get('section') ?? 'profile'
 
   return <Tabs activeSection={section} />
 }
@@ -400,7 +423,7 @@ export async function TeamSettings({
 }
 ```
 
-The tabs can appear once `searchParams` resolves while the form continues to show its nested loading state. The settings query starts afterward because it depends on the resolved team and section.
+On a page load, the tabs appear once the URL is available while the form continues to show its nested loading state. During a client navigation, `useSearchParams()` can resolve synchronously. The settings query starts after the server resolves the team and section it depends on.
 
 The plan query does not depend on either URL value. Move it into a sibling component so React can start it while the URL-dependent branch is pending. It remains uncached at this point, so keep a temporary boundary:
 
@@ -411,7 +434,7 @@ The plan query does not depend on either URL value. Move it into a sibling compo
     <PlanOptions />
   </Suspense>
   <Suspense fallback={<SettingsContentSkeleton />}>
-    <SettingsTabs searchParams={searchParams} />
+    <SettingsTabs />
     <Suspense fallback={<SettingsFormSkeleton />}>
       <TeamSettings params={params} searchParams={searchParams} />
     </Suspense>
@@ -490,7 +513,7 @@ If a write changes the plan descriptions, revalidate this cache from the corresp
   <h1>Settings</h1>
   <PlanOptions />
   <Suspense fallback={<SettingsContentSkeleton />}>
-    <SettingsTabs searchParams={searchParams} />
+    <SettingsTabs />
     <Suspense fallback={<SettingsFormSkeleton />}>
       <TeamSettings params={params} searchParams={searchParams} />
     </Suspense>
@@ -500,26 +523,20 @@ If a write changes the plan descriptions, revalidate this cache from the corresp
 
 The finished route now reveals in stages:
 
-| When                    | New content available                            | Loading state             |
-| ----------------------- | ------------------------------------------------ | ------------------------- |
-| In the static shell     | Settings frame, heading, and cached plan options | Settings content skeleton |
-| After the URL resolves  | Active settings tab                              | Settings form skeleton    |
-| After the settings load | Settings form                                    | None                      |
-
-## Follow validation as you refactor
-
-When you load or navigate to a route in `next dev`, [instant navigation validation](/docs/app/guides/instant-navigation#validate-instant-navigation) reports request-time or uncached work that prevents some UI from rendering instantly. A new insight after a refactor can mean that a data read moved outside its boundary or that new uncached work was introduced.
-
-The insight identifies the affected code and links to the available fixes. For reads in the page or layout tree, see [runtime data during prerendering or a navigation](/docs/messages/blocking-prerender-runtime) and [uncached data during prerendering or a navigation](/docs/messages/blocking-prerender-dynamic).
-
-### Metadata and viewport
-
-Metadata and viewport are resolved outside the page's component tree, so a boundary around page content does not cover them. Their insights separate request data from uncached data:
-
-- For metadata, see [runtime data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-runtime) or [uncached data in `generateMetadata()`](/docs/messages/blocking-prerender-metadata-dynamic). Metadata can stream alongside a static shell when the page includes an intentional dynamic marker.
-- For viewport, see [runtime data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-runtime) or [uncached data in `generateViewport()`](/docs/messages/blocking-prerender-viewport-dynamic). Viewport cannot stream, so request-time viewport data makes the route blocking.
-
-For the complete API behavior, see [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata#with-cache-components), [`generateViewport`](/docs/app/api-reference/functions/generate-viewport#with-cache-components), and the [Cache Components migration guide](/docs/app/guides/migrating-to-cache-components#generatemetadata-and-generateviewport).
+```text
+STATIC SHELL
+Settings frame + heading + cached plan options
+Settings content skeleton
+                    │
+                    ▼ URL data resolves
+URL-SPECIFIC UI
+Active settings tab
+Settings form skeleton
+                    │
+                    ▼ settings load
+COMPLETED PAGE
+Settings form
+```
 
 ## Verify the instant UI
 

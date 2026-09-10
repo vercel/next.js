@@ -31,6 +31,15 @@ not adopted, use `next-cache-components-adoption` first. If the static shell is
 already instant and the user wants URL-specific content ready before a click,
 use `next-partial-prefetching-optimizer` instead.
 
+## Goal
+
+Make the target route's most meaningful prerenderable UI commit immediately,
+while only genuinely request-time work streams afterward. The locked
+`instant()` test proves that a chosen visible marker is present and instant.
+It does not prove that the shell is useful, so a blank `fallback={null}` is not
+a successful result. The workflow's parity and review gates preserve that
+additional product judgment.
+
 ## Reporting to the user
 
 This loop is meant to run unattended, so it doesn't stop to ask between steps.
@@ -63,9 +72,10 @@ hear those words.
 Initial loads and client navigations can produce different shells. Follow the
 [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation)
 guide to choose which navigation to guard, then identify a meaningful,
-visible DOM node in that shell. A blank fallback is not a successful
-optimization. Use `instant()` as a ruler, not a stopwatch: assert what commits
-while dynamic data is paused, never elapsed time.
+visible DOM node in that shell. Guard the navigation the user named. When both
+an initial load and client navigation are in scope, give each its own contract
+and test. Use `instant()` as a ruler, not a stopwatch: assert what commits while
+dynamic data is paused, never elapsed time.
 
 For a client navigation, place the relevant boundary below the layout shared
 by the source and destination. When the destination uses parallel routes,
@@ -213,6 +223,17 @@ Use the **Optimizing the static shell** guide you read at the start. Follow the
 section that matches the route's blocker, and follow any canonical Insight link
 printed by the build for the specific API involved. Do not recreate those
 framework recipes in this Skill.
+
+Metadata and viewport resolve outside the page's component tree, so page-level
+boundaries do not cover them. When validation identifies one of these APIs,
+follow its specific Insight: [request data in
+`generateMetadata()`](https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime),
+[uncached data in
+`generateMetadata()`](https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic),
+[request data in
+`generateViewport()`](https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime),
+or [uncached data in
+`generateViewport()`](https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic).
 
 For synchronous non-deterministic values such as `Date.now()`, `Math.random()`,
 or `crypto.randomUUID()`, follow [Random values and
