@@ -74,7 +74,18 @@ impl EcmascriptClientReferenceModule {
         let mut code = CodeBuilder::default();
         let is_esm: bool;
 
-        let server_module_path = &*self.server_ident.to_string().await?;
+        // `self.server_ident` carries whichever "part" (e.g. `<module evaluation>`) the specific
+        // resolution that reached this `EcmascriptClientReferenceModule` asked for — turbopack
+        // resolves the plain named-export form and the module-evaluation form of the same import
+        // as two different edges, each independently landing here, both wrapping the same
+        // underlying client component. Rendering that part suffix into the generated proxy file's
+        // *content* would make the two forms produce different `VirtualSource`s at the *same*
+        // path, and turbopack's module graph, so it's stripped here — this is purely a
+        // user-facing label (embedded in the error strings and passed as the "module path"
+        // argument to `registerClientReference`), not something that needs to identify the part.
+        let mut canonical_server_ident = self.server_ident.owned().await?;
+        canonical_server_ident.parts.clear();
+        let server_module_path = &*canonical_server_ident.into_vc().to_string().await?;
 
         // Adapted from https://github.com/facebook/react/blob/c5b9375767e2c4102d7e5559d383523736f1c902/packages/react-server-dom-webpack/src/ReactFlightWebpackNodeLoader.js#L323-L354
         if let EcmascriptExports::EsmExports(exports) = &*self.client_module.get_exports().await? {
