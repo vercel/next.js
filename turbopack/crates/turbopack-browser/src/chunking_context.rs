@@ -629,6 +629,22 @@ impl BrowserChunkingContext {
         )
     }
 
+    /// Returns the global object identifier used by generated browser chunks.
+    #[turbo_tasks::function]
+    pub async fn browser_global_ident(&self) -> Result<Vc<RcStr>> {
+        let ident = if *self
+            .environment
+            .runtime_versions()
+            .supports_global_this()
+            .await?
+        {
+            rcstr!("globalThis")
+        } else {
+            rcstr!("self")
+        };
+        Ok(Vc::cell(ident))
+    }
+
     #[turbo_tasks::function]
     pub fn cross_origin(&self) -> Vc<CrossOrigin> {
         self.cross_origin.cell()
@@ -1017,7 +1033,7 @@ impl ChunkingContext for BrowserChunkingContext {
             }
 
             // The evaluate chunk registers this entry's chunks/modules onto the
-            // `globalThis[TURBOPACK]` queue. When `shared_runtime` is enabled we return that chunk
+            // browser-global chunk queue. When `shared_runtime` is enabled we return that chunk
             // group's bootstrap params for Next to inline into the HTML and skip emitting the
             // per-route evaluate chunk file. Only `ChunkGroup::Entry` groups (the page/app client
             // entries Next renders into HTML) can be inlined. When `shared_runtime` is disabled the

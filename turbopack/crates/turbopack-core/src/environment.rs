@@ -365,8 +365,62 @@ impl EdgeWorkerEnvironment {
 #[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct RuntimeVersions(#[turbo_tasks(trace_ignore)] pub Versions);
 
+/// Checks if a browser version field is either absent or at least the given version.
+/// Supports major-only, major.minor, and major.minor.patch comparisons.
+macro_rules! version_at_least {
+    ($data:expr, $field:ident, $major:expr) => {
+        $data.$field.is_none_or(|v| v.major >= $major)
+    };
+    ($data:expr, $field:ident, $major:expr, $minor:expr) => {
+        $data
+            .$field
+            .is_none_or(|v| v.major > $major || (v.major == $major && v.minor >= $minor))
+    };
+    ($data:expr, $field:ident, $major:expr, $minor:expr, $patch:expr) => {
+        $data.$field.is_none_or(|v| {
+            v.major > $major
+                || (v.major == $major && v.minor > $minor)
+                || (v.major == $major && v.minor == $minor && v.patch >= $patch)
+        })
+    };
+}
+
+fn versions_support_global_this(data: &Versions) -> bool {
+    version_at_least!(data, chrome, 71)
+        && version_at_least!(data, opera, 58)
+        && version_at_least!(data, edge, 79)
+        && version_at_least!(data, firefox, 65)
+        && version_at_least!(data, safari, 12, 1)
+        && version_at_least!(data, node, 12)
+        && version_at_least!(data, deno, 1)
+        && version_at_least!(data, ios, 12, 2)
+        && version_at_least!(data, samsung, 10)
+        && version_at_least!(data, rhino, 1, 7, 14)
+        && version_at_least!(data, opera_mobile, 50)
+        && version_at_least!(data, electron, 5)
+}
+
 #[turbo_tasks::value_impl]
 impl RuntimeVersions {
+    /// Whether the environment supports `globalThis`.
+    #[turbo_tasks::function]
+    pub fn supports_global_this(&self) -> Vc<bool> {
+        // https://github.com/zloirock/core-js/blob/84e45fba098dd3a177d5cf2247d06ab8e98d3790/packages/core-js-compat/src/data.mjs#L689-L695
+        // "chrome": "71",
+        // "opera": "58",
+        // "edge": "79",
+        // "firefox": "65",
+        // "safari": "12.1",
+        // "node": "12",
+        // "deno": "1",
+        // "ios": "12.2",
+        // "samsung": "10",
+        // "rhino": "1.7.14",
+        // "opera_mobile": "50",
+        // "electron": "5"
+        Vc::cell(versions_support_global_this(&self.0))
+    }
+
     /// Whether the environment supports arrow functions.
     #[turbo_tasks::function]
     pub fn supports_arrow_functions(&self) -> Vc<bool> {
@@ -474,5 +528,25 @@ pub async fn get_current_nodejs_version(env: Vc<Box<dyn ProcessEnv>>) -> Result<
             "Expected 'node --version' to return a version starting with 'v', but received: '{}'",
             version
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detects_global_this_support_for_ios_targets() {
+        let ios_12_1 = Versions {
+            ios: Some(Version::from_str("12.1").unwrap()),
+            ..Default::default()
+        };
+        let ios_12_2 = Versions {
+            ios: Some(Version::from_str("12.2").unwrap()),
+            ..Default::default()
+        };
+
+        assert!(!versions_support_global_this(&ios_12_1));
+        assert!(versions_support_global_this(&ios_12_2));
     }
 }

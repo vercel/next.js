@@ -114,14 +114,16 @@ pub async fn get_browser_runtime_code(
     let chunk_update_listeners_global =
         chunk_update_listeners_global_name(chunk_loading_global.as_str());
 
-    if *environment
-        .runtime_versions()
-        .supports_arrow_functions()
-        .await?
-    {
+    let runtime_versions = environment.runtime_versions();
+    if *runtime_versions.supports_arrow_functions().await? {
         code += "(() => {\n";
     } else {
         code += "(function(){\n";
+    }
+    if !*runtime_versions.supports_global_this().await? {
+        // Browser chunks use `self` until this runtime executes. Defining `globalThis` here keeps
+        // the embedded runtime and module factories compatible without changing application code.
+        code += "if (typeof globalThis === \"undefined\") self.globalThis = self;\n";
     }
 
     // A shared runtime can execute before any async chunk has initialized the chunk queue.

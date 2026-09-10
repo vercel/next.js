@@ -33,7 +33,7 @@ use crate::{
 };
 
 /// An Ecmascript chunk that registers an entrypoint's chunks and runtime module
-/// IDs onto the `globalThis["TURBOPACK"]` queue, which the shared
+/// IDs onto the browser-global chunk queue, which the shared
 /// [`crate::ecmascript::evaluate::runtime::EcmascriptBrowserRuntimeChunk`] drains.
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
@@ -140,6 +140,7 @@ impl EcmascriptBrowserEvaluateChunk {
         // This allows multiple runtimes to coexist on the same page when using different global
         // names.
         let chunk_loading_global = this.chunking_context.chunk_loading_global().await?;
+        let browser_global_ident = this.chunking_context.browser_global_ident().await?;
         let use_string_literal = matches!(
             *this.chunking_context.current_chunk_method().await?,
             CurrentChunkMethod::StringLiteral
@@ -167,12 +168,13 @@ impl EcmascriptBrowserEvaluateChunk {
             // `||=` would be better but we need to be es2020 compatible.
             // `x || (x = default)` avoids _writing_ the property in the common case.
             r#"
-                (globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([
+                ({browser_global_ident}[{chunk_loading_global}] || ({browser_global_ident}[{chunk_loading_global}] = [])).push([
                     {script_or_path},
                     {params}
                 ]);
             "#,
             chunk_loading_global = StringifyJs(&chunk_loading_global),
+            browser_global_ident = browser_global_ident,
             script_or_path = script_or_path,
             params = &**params,
         }?;
