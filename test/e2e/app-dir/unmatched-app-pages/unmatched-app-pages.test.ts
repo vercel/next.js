@@ -15,43 +15,34 @@ describe('unmatched-app-pages', () => {
       await next.start()
       const browser = await next.browser('/')
 
+      // This fixture also contains incompatible slot topology. Once that
+      // validation is enabled it is the more actionable primary dev error;
+      // production below still verifies that every unmatched page is reported.
       if (isTurbopack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
-           "description": "Unmatched app pages",
+           "description": "Parallel route slots cannot render the same URLs",
            "environmentLabel": null,
            "label": "Build Error",
-           "source": "./app/(pruning-group)/grouped/[...slug]/page.tsx
-         Error: Unmatched app pages
-         The following page files do not match any complete route:
-         - app/(pruning-group)/grouped/[...slug]/page.tsx
-         - app/declared-children/@panel/details/page.tsx
-         - app/disagreeing-slots/@first/foo/page.tsx
-         - app/disagreeing-slots/@second/bar/page.tsx
-         - app/disagreeing-slots/[...slug]/page.tsx
-         - app/nested-parallel/@outer/[...slug]/page.tsx
-         - app/nested-parallel/[...slug]/page.tsx
-         - app/optional-catchall/[[...slug]]/page.tsx
-         Every page must be part of at least one complete route. Add matching pages or default files for the sibling parallel route slots, or remove the unreachable pages.",
+           "source": "./app/declared-children/layout.tsx
+         Error: Parallel route slots cannot render the same URLs
+         The following layouts have parallel route slots that cannot render the same URLs:
+         app/declared-children/layout.tsx
+         - /declared-children/details is missing a matching page or default.tsx in children
+         Every URL matched by one slot must have a matching page or default.tsx in every sibling slot.",
            "stack": [],
          }
         `)
       } else {
         await expect({ browser, next }).toDisplayRedbox(`
          {
-           "description": "- app/(pruning-group)/grouped/[...slug]/page.tsx",
+           "description": "app/declared-children/layout.tsx",
            "environmentLabel": null,
            "label": "Build Error",
-           "source": "The following page files do not match any complete route:
-         - app/(pruning-group)/grouped/[...slug]/page.tsx
-         - app/declared-children/@panel/details/page.tsx
-         - app/disagreeing-slots/@first/foo/page.tsx
-         - app/disagreeing-slots/@second/bar/page.tsx
-         - app/disagreeing-slots/[...slug]/page.tsx
-         - app/nested-parallel/@outer/[...slug]/page.tsx
-         - app/nested-parallel/[...slug]/page.tsx
-         - app/optional-catchall/[[...slug]]/page.tsx
-         Every page must be part of at least one complete route. Add matching pages or default files for the sibling parallel route slots, or remove the unreachable pages.",
+           "source": "The following layouts have parallel route slots that cannot render the same URLs:
+         app/declared-children/layout.tsx
+         - /declared-children/details is missing a matching page or default.tsx in children
+         Every URL matched by one slot must have a matching page or default.tsx in every sibling slot.",
            "stack": [],
          }
         `)

@@ -61,7 +61,9 @@ import type { MappedPages } from './build-context'
 import { PAGE_TYPES } from '../lib/page-types'
 import { UnmatchedAppPagesError } from '../shared/lib/errors/unmatched-app-pages-error'
 import { MissingCanonicalInterceptionRoutesError } from '../shared/lib/errors/missing-canonical-interception-routes-error'
+import { IncompatibleParallelRouteSlotsError } from '../shared/lib/errors/incompatible-parallel-route-slots-error'
 import { findMissingCanonicalInterceptionRoutes } from '../shared/lib/router/utils/interception-routes'
+import { findPageFile } from '../server/lib/find-page-file'
 
 type ObjectValue<T> = T extends { [key: string]: infer V } ? V : never
 import { getStaticInfoIncludingLayouts } from './get-static-info-including-layouts'
@@ -430,10 +432,11 @@ export async function createEntrypoints(
     }
 
     // TODO: find a better place to do this
-    const unmatchedAppPages = normalizeCatchAllRoutes(appPathsPerRoute, {
-      strictRouteMatching: config.experimental.strictRouteMatching,
-      defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
-    })
+    const { unmatchedAppPages, incompatibleParallelRouteSlots } =
+      normalizeCatchAllRoutes(appPathsPerRoute, {
+        strictRouteMatching: config.experimental.strictRouteMatching,
+        defaultAppPaths: Object.keys(appDefaultPaths ?? {}),
+      })
     // Only App Router pages can make an intercepted URL directly renderable.
     // Route handlers and metadata routes may share the pathname, but they
     // cannot provide the canonical page shown by an initial request.
@@ -447,27 +450,70 @@ export async function createEntrypoints(
       .strictRouteMatching
       ? findMissingCanonicalInterceptionRoutes(appPagePathsPerRoute)
       : []
+    const routeMatchingErrors: Error[] = []
     if (missingCanonicalInterceptionRoutes.length > 0) {
-      throw new MissingCanonicalInterceptionRoutesError(
-        missingCanonicalInterceptionRoutes
+      routeMatchingErrors.push(
+        new MissingCanonicalInterceptionRoutesError(
+          missingCanonicalInterceptionRoutes
+        )
+      )
+    }
+    if (incompatibleParallelRouteSlots.length > 0) {
+      routeMatchingErrors.push(
+        new IncompatibleParallelRouteSlotsError(
+          await Promise.all(
+            incompatibleParallelRouteSlots.map(async (incompatibleRoute) => {
+              const layoutPagePath = posix.join(
+                incompatibleRoute.layoutPath,
+                'layout'
+              )
+              const layoutFile = await findPageFile(
+                appDir,
+                layoutPagePath,
+                pageExtensions,
+                true
+              )
+
+              return {
+                ...incompatibleRoute,
+                layoutFile: relative(
+                  rootDir,
+                  layoutFile
+                    ? join(appDir, layoutFile)
+                    : join(appDir, layoutPagePath)
+                ),
+              }
+            })
+          )
+        )
       )
     }
     if (unmatchedAppPages.length > 0) {
-      throw new UnmatchedAppPagesError(
-        unmatchedAppPages.map((appPath) => {
-          const absolutePagePath = appPageFiles.get(appPath)
-          if (!absolutePagePath) return appPath
+      routeMatchingErrors.push(
+        new UnmatchedAppPagesError(
+          unmatchedAppPages.map((appPath) => {
+            const absolutePagePath = appPageFiles.get(appPath)
+            if (!absolutePagePath) return appPath
 
-          return relative(
-            rootDir,
-            getPageFilePath({
-              absolutePagePath,
-              pagesDir,
-              appDir,
+            return relative(
               rootDir,
-            })
-          )
-        })
+              getPageFilePath({
+                absolutePagePath,
+                pagesDir,
+                appDir,
+                rootDir,
+              })
+            )
+          })
+        )
+      )
+    }
+    if (routeMatchingErrors.length === 1) {
+      throw routeMatchingErrors[0]
+    }
+    if (routeMatchingErrors.length > 1) {
+      throw new Error(
+        routeMatchingErrors.map((error) => error.message).join('\n\n')
       )
     }
 
