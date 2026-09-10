@@ -350,6 +350,9 @@ export interface RequestMeta {
    */
   fallbackRouteParams?: OpaqueFallbackRouteParams | null
 
+  /** DEV only: the foreground outcome selected by an explicit matcher. */
+  devPrerenderMatcherOutcome?: 'render' | 'not-found'
+
   /**
    * DEV only: Request timings in process.hrtime.bigint()
    */

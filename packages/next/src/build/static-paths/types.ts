@@ -10,6 +10,7 @@ type StaticPrerenderedRoute = {
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: undefined
   remainingPrerenderableParams?: undefined
+  readonly isPrerenderOutput?: undefined
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which
@@ -44,6 +45,12 @@ type FallbackPrerenderedRoute = {
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: readonly string[]
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
+
+  /**
+   * False when this candidate is rendered only to validate its static shell.
+   * It must not be registered as a concrete prerender cache output.
+   */
+  readonly isPrerenderOutput?: false
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which
@@ -88,4 +95,13 @@ export type StaticPathsResult = {
 
   /** Logical request matchers, independent of the artifacts rendered for them. */
   prerenderRouteMatchers?: PrerenderRouteMatcher[]
+
+  /** Whether fallback modes came from explicit parameter matching. */
+  hasPrerenderMatcher?: true
+
+  /**
+   * DEV only: the first explicitly configured fallback parameter and every
+   * parameter after it remain unknown during staged rendering and validation.
+   */
+  explicitFallbackRouteParams?: readonly FallbackRouteParam[]
 }

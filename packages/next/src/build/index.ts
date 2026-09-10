@@ -2296,6 +2296,9 @@ export default async function build(
               distDir,
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
+              experimentalParamMatching: Boolean(
+                config.experimental.paramMatching
+              ),
               authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
               durableUseCacheEntries: Boolean(
@@ -2530,6 +2533,9 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
+                            experimentalParamMatching: Boolean(
+                              config.experimental.paramMatching
+                            ),
                             authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
@@ -2590,9 +2596,11 @@ export default async function build(
                               originalAppPath,
                               workerResult.prerenderedRoutes
                             )
-                            ssgPageRoutes = workerResult.prerenderedRoutes.map(
-                              (route) => route.pathname
-                            )
+                            ssgPageRoutes = workerResult.prerenderedRoutes
+                              .filter(
+                                (route) => route.isPrerenderOutput !== false
+                              )
+                              .map((route) => route.pathname)
                             isSSG = true
                           }
 
@@ -3161,7 +3169,6 @@ export default async function build(
               sortedStaticPaths.forEach(([originalAppPath, routes]) => {
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
-
                 const isRoutePPREnabled: boolean = appConfig
                   ? isAppCacheComponentsEnabled
                   : false
@@ -3894,7 +3901,11 @@ export default async function build(
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
                   throwOnEmptyStaticShell:
-                    prerenderCandidate?.throwOnEmptyStaticShell,
+                    // Matcher-only entries have no source shell to validate.
+                    // Their runtime renders stage the completed shell instead.
+                    prerenderCandidate
+                      ? prerenderCandidate.throwOnEmptyStaticShell
+                      : false,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
