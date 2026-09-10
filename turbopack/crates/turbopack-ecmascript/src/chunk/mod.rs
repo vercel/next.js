@@ -32,15 +32,14 @@ pub use self::{
     },
     chunk_type::EcmascriptChunkType,
     code_module_ids_and_paths::{
-        BatchGroupCodeModuleIdsAndPaths, CodeModuleIdsAndPaths, ModuleFactoryMode,
-        batch_group_code_module_ids_and_paths, item_code_module_ids_and_paths,
+        BatchGroupCodeModuleIdsAndPaths, CodeModuleIdAndPath, CodeModuleIdsAndPaths,
+        ModuleFactoryMode, batch_group_code_module_ids_and_paths, item_code_module_ids_and_paths,
     },
     content::EcmascriptChunkContent,
     content_entry::{EcmascriptChunkContentEntries, EcmascriptChunkContentEntry},
     data::EcmascriptChunkData,
     factory_group::{
-        STRICT_MODE_DIRECTIVE, StrictFactoryMode, sort_chunk_items_by_path, strict_factory_mode,
-        write_module_factories,
+        StrictFactoryMode, strict_chunk_wrapper, strict_factory_mode, write_module_factories,
     },
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
