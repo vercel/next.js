@@ -734,7 +734,7 @@ async fn build_compact_reexports(
         group.pairs.push((exported_key, imported_key));
     }
 
-    if groups.is_empty() || (!positions_known && groups.len() > 1) {
+    if groups.is_empty() {
         return Ok(None);
     }
 
@@ -742,10 +742,13 @@ async fn build_compact_reexports(
     groups.sort_by_key(|g| g.order);
 
     // The imports can only be subsumed when nothing else depends on them running where they are:
-    // the mode says no import follows a re-export, and no re-exported module is also bound to a
-    // name the module's own code uses.
-    let subsume_imports =
-        mode == ExportRegistrationMode::Reexport && !groups.iter().any(|group| group.locally_bound);
+    // the mode says no import follows a re-export, no re-exported module is also bound to a name
+    // the module's own code uses, and group order is known -- unless there is only one group, which
+    // has no relative order to get wrong. The one-group exception is what lets the common facade
+    // case replace its import entirely.
+    let subsume_imports = mode == ExportRegistrationMode::Reexport
+        && (positions_known || groups.len() == 1)
+        && !groups.iter().any(|group| group.locally_bound);
 
     Ok(Some(CompactReexports {
         groups,
