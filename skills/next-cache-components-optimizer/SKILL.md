@@ -91,7 +91,7 @@ Routes](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-rout
 Keep one production browser test per route and navigation type. Do not combine
 several contracts in one test.
 
-### Workflow
+## Workflow
 
 ```
 - [ ] P  PREREQS      Next.js 16.3+ with Cache Components already adopted
@@ -226,14 +226,22 @@ section that matches the route's blocker:
   shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-static-ui-in-the-shell)
 - [Cache reusable
   work](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#cache-reusable-work)
-- [Stream request-time
-  work](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#stream-request-time-work)
+- [Resolve data in the Server Component that uses
+  it](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#resolve-data-in-the-server-component-that-uses-it)
+  for top-level `await`, `params`, `searchParams`, `cookies()`, `headers()`, and
+  uncached reads
+- [Pass promises to Client
+  Components](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#pass-promises-to-client-components)
+  when an interactive subtree needs server data
+- [Avoid data
+  waterfalls](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#avoid-data-waterfalls)
+  when independent work became sequential
 
-For streaming changes, also review [Avoid data
-waterfalls](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#avoid-data-waterfalls)
-and [Design loading
-states](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#design-loading-states).
-Follow any canonical Insight link printed by the build for the specific API
+For dynamic params that can be enumerated, follow [ISR with Cache
+Components](https://nextjs.org/docs/app/guides/incremental-static-regeneration-cache-components).
+Use [Follow validation as you
+refactor](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#follow-validation-as-you-refactor),
+then open any canonical Insight link printed by the build for the specific API
 involved. Do not recreate those framework recipes in this Skill.
 
 Metadata and viewport resolve outside the page's component tree, so page-level
@@ -256,12 +264,17 @@ options](https://nextjs.org/docs/app/guides/building#debugging-build-errors)
 to get source-mapped errors or scope the build to the target route. Do not
 deploy a build produced with `--debug-prerender`.
 
-Preserve the route's existing freshness and authorization behavior. Reuse its
-loading UI, keep the shell meaningful, and verify every render path and
-breakpoint in scope. If the guide does not cover the blocker, stop and report
-the missing case instead of inventing a new general pattern here.
+Preserve the route's existing freshness and authorization behavior. For a
+top-level session gate, follow [Move authentication behind
+Suspense](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-2-move-authentication-behind-suspense).
+Reuse the route's loading UI, keep the shell meaningful, and verify every
+render path and breakpoint in scope. If the guide does not cover the blocker,
+stop and report the missing case instead of inventing a new general pattern
+here.
 
-Before creating a fallback, inspect the target route for existing loading UI:
+Before creating a fallback, read [Design loading
+states](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#design-loading-states),
+then inspect the target route for existing loading UI:
 
 1. Use its `loading.tsx` when the whole segment shares one loading state.
 2. Reuse an exported `*Skeleton` colocated with the deferred component.
@@ -288,8 +301,10 @@ complete only when the phase-C test passes on the production rig. A successful
 build by itself is not GREEN.
 
 If the route already has a meaningful static shell and only URL-specific
-content is missing before a client navigation, stop. That is a Partial
-Prefetching optimization, not a static-shell change.
+content is missing before a client navigation, stop at [Include URL-specific
+content in the instant
+UI](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#include-url-specific-content-in-the-instant-ui).
+That is a Partial Prefetching optimization, not a static-shell change.
 
 If the optimization adds or expands a cache boundary, follow
 [Revalidating](https://nextjs.org/docs/app/getting-started/revalidating).
@@ -307,7 +322,10 @@ now commits instantly. Verify:
   branch for the test user.
 - **Side effects still fire.** A deferred `redirect()` or `notFound()` still
   happens, at request time rather than during prerender. Confirm an
-  unauthorized user is still redirected and a missing record still returns 404.
+  unauthorized user is still redirected and a missing record still renders
+  the expected not-found UI. If the route must preserve a specific HTTP status,
+  verify it against [streaming status-code
+  behavior](https://nextjs.org/docs/app/guides/streaming#status-codes).
 - **All supported viewports reach the real UI** after the stream.
 - **Client state survives.** Because the layout UI is hoisted into the stable
   shell rather than swapped on resolve, open menus, scroll position, focus,

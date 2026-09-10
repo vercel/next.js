@@ -263,6 +263,16 @@ Learn more about [sequential and parallel data fetching](/docs/app/getting-start
 
 [`<Suspense>` lets a region stream](/docs/app/guides/streaming#granular-streaming-with-suspense) without holding back the rest of the page. When a child suspends, its nearest boundary shows the fallback until the child is ready. The fallback's size and placement affect both the loading experience and [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
+A [`loading.tsx` file](/docs/app/api-reference/file-conventions/loading) automatically wraps the segment's page and children in a Suspense boundary. It is a practical starting point when the whole segment can share one loading state:
+
+```tsx filename="app/dashboard/loading.tsx"
+export default function Loading() {
+  return <DashboardSkeleton />
+}
+```
+
+Use explicit `<Suspense>` boundaries when more completed UI should stay visible or different regions should reveal independently. With either approach, make the fallback reserve the completed content's space to avoid layout shifts.
+
 Use separate boundaries when regions can reveal independently and each fallback reserves predictable space:
 
 ```tsx filename="app/account/page.tsx"
@@ -515,7 +525,7 @@ async function AuthGate() {
 
 `AuthGate` is the only component that needs the request values, so it owns those reads. Its boundary lets the settings frame and page stay in the shell. An empty fallback fits this boundary because an authorized gate also returns `null`.
 
-> **Good to know:** Once the shell starts streaming, the HTTP response is already committed to `200`. A later redirect is handled on the client, and [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) or [`forbidden()`](/docs/app/api-reference/functions/forbidden) can render their UI without changing that status. If the response must return `401` or `403`, check access before streaming begins, which blocks the response, or perform a route-level check in [`proxy`](/docs/app/api-reference/file-conventions/proxy). See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+> **Good to know:** If an [authorization interrupt](/docs/app/guides/authentication#authorization-interrupts) runs after streaming starts, it can render its UI, but the response status remains `200`. If the HTTP `401` or `403` status matters, check access before streaming begins. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 A layout redirect does not protect a database query or Server Action by itself. Keep authorization checks in the data access functions used by the page, and include only safe UI in the shell before authentication completes. See [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components) for the complete pattern.
 
