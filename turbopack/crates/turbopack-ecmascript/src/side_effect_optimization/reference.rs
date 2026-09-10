@@ -2,7 +2,7 @@ use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashSet;
 use swc_core::{
-    common::DUMMY_SP,
+    common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{Ident, Lit},
     quote,
 };
@@ -161,7 +161,7 @@ impl EcmascriptModulePartReference {
         // Namespace variables a compact re-export registration already imports for itself. A
         // facade's exports all come through part references, so this is what lets its registration
         // subsume them instead of importing the locals module twice.
-        subsumed_namespaces: &FxHashSet<String>,
+        subsumed_namespaces: &FxHashSet<(String, Option<SyntaxContext>)>,
     ) -> Result<CodeGeneration> {
         let this = self.await?;
 
@@ -222,7 +222,7 @@ impl EcmascriptModulePartReference {
                 }
                 ReferencedAssetIdent::Module { .. } => {
                     let (sym, ctxt) = ident.into_module_namespace_ident().unwrap();
-                    if subsumed_namespaces.contains(sym.as_str()) {
+                    if subsumed_namespaces.contains(&(sym.to_string(), ctxt)) {
                         // A compact re-export registration performs this import.
                         return Ok(CodeGeneration::hoisted_stmts(result));
                     }

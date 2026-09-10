@@ -951,7 +951,9 @@ impl EsmExports {
         let compact = if matches!(
             export_registration_mode,
             ExportRegistrationMode::Mixed | ExportRegistrationMode::Reexport
-        ) && !is_async_module
+        ) && !(export_usage_info.is_circuit_breaker
+            && export_usage_info.export_usage_known)
+            && !is_async_module
             && expanded.dynamic_exports.is_empty()
             && !expanded.exports.is_empty()
         {
