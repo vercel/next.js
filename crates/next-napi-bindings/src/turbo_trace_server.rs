@@ -22,7 +22,9 @@ pub struct TraceQueryOptions {
     pub parent: Option<String>,
     /// When `true` (default), aggregate child spans with the same name.
     pub aggregated: Option<bool>,
-    /// Sort mode: `"value"` for duration descending, `"name"` for alphabetical.
+    /// Sort mode: `"value"` for duration descending, `"name"` for alphabetical,
+    /// `"allocations"` for total allocated bytes descending,
+    /// `"persistent-allocations"` for net retained bytes descending.
     /// Omit for execution order (no sorting).
     pub sort: Option<String>,
     /// Optional substring search query applied to span name/category.
@@ -62,6 +64,35 @@ pub struct TraceSpanInfo {
     pub avg_corrected_duration: Option<i64>,
     /// Raw span ID for aggregated groups (the index of the first span).
     pub first_span_id: Option<String>,
+    /// Total bytes allocated by this span and all its children.
+    ///
+    /// For aggregated groups this is the **group total** across every span in
+    /// the group (unlike `cpuDuration`, which is the example span's value).
+    pub allocations: i64,
+    /// Total bytes deallocated by this span and all its children.
+    /// Group total for aggregated spans.
+    pub deallocations: i64,
+    /// Net retained bytes for this span and all its children: the sum over
+    /// each span of `max(0, selfAllocations - selfDeallocations)` — the best
+    /// single indicator of memory a span holds onto. Not simply
+    /// `allocations - deallocations`, since a span may free memory an earlier
+    /// span allocated. Group total for aggregated spans.
+    pub persistent_allocations: i64,
+    /// Number of allocation operations by this span and all its children.
+    /// Group total for aggregated spans.
+    pub allocation_count: i64,
+    /// Bytes allocated by this span itself, excluding children.
+    /// Group total for aggregated spans.
+    pub self_allocations: i64,
+    /// Bytes deallocated by this span itself, excluding children.
+    /// Group total for aggregated spans.
+    pub self_deallocations: i64,
+    /// Net retained bytes by this span itself, excluding children.
+    /// Group total for aggregated spans.
+    pub self_persistent_allocations: i64,
+    /// Number of allocation operations by this span itself, excluding children.
+    /// Group total for aggregated spans.
+    pub self_allocation_count: i64,
     /// TurboMalloc memory-usage samples recorded while this span
     /// (or its example span, for aggregated groups) was live.
     ///
@@ -107,6 +138,8 @@ pub fn query_trace_spans(
             sort: match options.sort.as_deref() {
                 Some("value") => SortMode::Value,
                 Some("name") => SortMode::Name,
+                Some("allocations") => SortMode::Allocations,
+                Some("persistent-allocations") => SortMode::PersistentAllocations,
                 _ => SortMode::ExecutionOrder,
             },
             search: options.search,
@@ -133,6 +166,14 @@ pub fn query_trace_spans(
                 total_corrected_duration: s.total_corrected_duration.map(|v| v as i64),
                 avg_corrected_duration: s.avg_corrected_duration.map(|v| v as i64),
                 first_span_id: s.first_span_id,
+                allocations: s.allocations as i64,
+                deallocations: s.deallocations as i64,
+                persistent_allocations: s.persistent_allocations as i64,
+                allocation_count: s.allocation_count as i64,
+                self_allocations: s.self_allocations as i64,
+                self_deallocations: s.self_deallocations as i64,
+                self_persistent_allocations: s.self_persistent_allocations as i64,
+                self_allocation_count: s.self_allocation_count as i64,
                 memory_samples: s
                     .memory_samples
                     .into_iter()
