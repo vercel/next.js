@@ -50,10 +50,12 @@ async fn item_code_and_mode(
     Ok((code.await?, ModuleFactoryMode::from_strict(strict)))
 }
 
+/// A chunk item's emitted code, together with the module id and path it is registered under and
+/// the factory form it has to be wrapped in.
+pub type CodeModuleIdAndPath = (ModuleId, ReadRef<Code>, RcStr, ModuleFactoryMode);
+
 #[turbo_tasks::value(transparent, serialization = "skip")]
-pub struct CodeModuleIdsAndPaths(
-    SmallVec<[(ModuleId, ReadRef<Code>, RcStr, ModuleFactoryMode); 1]>,
-);
+pub struct CodeModuleIdsAndPaths(SmallVec<[CodeModuleIdAndPath; 1]>);
 
 #[turbo_tasks::value(transparent, serialization = "skip")]
 pub struct BatchGroupCodeModuleIdsAndPaths(

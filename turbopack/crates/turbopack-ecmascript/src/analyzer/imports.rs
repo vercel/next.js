@@ -707,8 +707,8 @@ impl ImportMap {
         // side-effect-only `import './x'`, which carries a reference but no imported symbol and so
         // is never a re-export source.
         let last_other = (0..self.references.len())
-            .filter(|i| !reexports.contains(i))
-            .next_back();
+            .rev()
+            .find(|i| !reexports.contains(i));
         let Some(last_other) = last_other else {
             // Nothing but re-exports: hoisting cannot reorder anything.
             return ExportRegistrationMode::Reexport;
