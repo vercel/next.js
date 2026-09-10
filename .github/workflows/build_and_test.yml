@@ -18,7 +18,7 @@ concurrency:
 # reusable workflows.
 env:
   NODE_MAINTENANCE_VERSION: 20
-  NODE_LTS_VERSION: 22
+  NODE_LTS_VERSION: 24
 
 jobs:
   optimize-ci:
@@ -485,7 +485,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 24
       afterBuild: |
         export IS_TURBOPACK_TEST=1
         export TURBOPACK_BUILD=1
@@ -525,7 +525,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.19.x
+      nodeVersion: 24
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-dev-tests-manifest.json"
         export NEXT_TEST_MODE=dev
@@ -574,7 +574,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.19.x
+      nodeVersion: 24
       afterBuild: |
         export NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/rspack-build-tests-manifest.json"
         export NEXT_TEST_MODE=start
@@ -651,7 +651,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 22] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+        node: [24]
 
     permissions:
       contents: read
@@ -674,10 +674,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Playwright hangs on Node 24.16+, we can remove this exact node version
-        # pin once we update to playwright 1.60.0 or newer.
-        # https://github.com/microsoft/playwright/issues/40724
-        node: [22, '24.15.0']
+        node: [24]
 
     permissions:
       contents: read
@@ -685,6 +682,8 @@ jobs:
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ matrix.node }}
+
+      # .test.ts/.test.mts tests
       afterBuild: |
         export __NEXT_NODE_NATIVE_TS_LOADER_ENABLED=true
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
@@ -702,9 +701,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Playwright hangs on Node 24.16+, we can remove this exact node version
-        # pin once we update to playwright 1.60.0 or newer.
-        node: [22, '24.15.0']
+        node: [24]
 
     permissions:
       contents: read
@@ -728,7 +725,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [20, 22] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+        node: [24]
 
     permissions:
       contents: read
@@ -980,7 +977,7 @@ jobs:
       id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 20.9.0
+      nodeVersion: 24
       afterBuild: |
         export NEXT_TEST_MODE=start
         export __NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES=true
