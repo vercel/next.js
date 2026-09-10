@@ -92,6 +92,12 @@ export type ServerOnInstrumentationRequestError = (
 ) => void | Promise<void>
 
 export interface RenderOptsPartial {
+  /**
+   * The variants that the request resolved. The render puts them on the
+   * request store. Absent for a render that has none.
+   */
+  variants?: Record<string, string> | null
+
   dir?: string
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
