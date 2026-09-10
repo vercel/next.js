@@ -642,6 +642,96 @@ describe('static App Shell prefetch attempt', () => {
     ])
   })
 
+  describe('excluded caches', () => {
+    it("uses a static shell when the page accesses a cache that's excluded from shells due to a short staletime", async () => {
+      // Caches with `stale < MIN_SHELL_STALE` are excluded from shells.
+      // They should not cause a page to use a runtime shell.
+
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/excluded-caches/uses-non-shell-cache"]'
+          )
+          .click()
+      }, [
+        // The static request still includes the cache, because it's included
+        // in the static prerender.
+        {
+          includes: 'Cache value',
+          kind: 'static',
+        },
+      ])
+    })
+
+    it("uses a static shell when the page accesses a cache that's not prefetchable due to a short staletime", async () => {
+      // Caches with `stale < MIN_PREFETCHABLE_STALE` are excluded from all prerenders.
+      // They should not cause a page to use a runtime shell.
+
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/excluded-caches/uses-non-prefetchable-cache"]'
+          )
+          .click()
+      }, [
+        // We should use a static request.
+        {
+          includes: 'Uses a cache that is excluded from all prerenders',
+          kind: 'static',
+        },
+        // The static prerender should not include the cache.
+        {
+          includes: 'Cache value',
+          block: 'reject',
+        },
+      ])
+    })
+
+    it("uses a runtime shell when the page accesses a cache that's excluded from static prerenders due to short expire", async () => {
+      // Caches with `expire < MIN_PRERENDERABLE_EXPIRE` are excluded from
+      // static prerenders, but included in runtime prerenders. If a page
+      // uses one, it should use a runtime shell and access the cache.
+
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      await act(async () => {
+        await browser
+          .elementByCss(
+            'input[data-link-accordion="/excluded-caches/uses-non-prerenderable-cache"]'
+          )
+          .click()
+      }, [
+        // We should use a runtime shell, and the cache should be included.
+        {
+          includes: 'Cache value',
+          kind: 'runtime',
+        },
+      ])
+    })
+  })
+
   it('reuses the static App Shell across different param values of a dynamic route', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {

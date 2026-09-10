@@ -8,9 +8,6 @@ export interface CacheComponentsErrorsContext {
   isNextStart: boolean
   isDebugPrerender: boolean
   prerender: (pathname: string) => Promise<void>
-  // Always false when sections run (the wrapper returns early when skipped);
-  // exposed because some sections carry redundant guards.
-  skipped: boolean
 }
 
 // This suite is far too slow to run as a single CI test file, so it's split
@@ -22,17 +19,17 @@ export function runCacheComponentsErrorsTests(
   registerTests: (ctx: CacheComponentsErrorsContext) => void
 ) {
   describe('Cache Components Errors', () => {
-    const { next, isTurbopack, isNextStart, skipped, isRspack } = nextTestSetup(
+    const { next, isTurbopack, isNextStart, isRspack, skipped } = nextTestSetup(
       {
         files: __dirname + '/fixtures/default',
         skipStart: !isNextDev,
+        // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+        // No deploy-specific incompatibility is documented.
         skipDeployment: true,
       }
     )
 
-    if (skipped) {
-      return
-    }
+    if (skipped) return
 
     afterEach(async () => {
       if (isNextStart) {
@@ -99,7 +96,6 @@ export function runCacheComponentsErrorsTests(
         isNextStart,
         isDebugPrerender,
         prerender,
-        skipped,
       })
     })
   })
