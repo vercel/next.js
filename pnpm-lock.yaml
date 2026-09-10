@@ -679,6 +679,9 @@ importers:
       react-dom:
         specifier: npm:react-dom@19.3.0-canary-019019be-20260911
         version: 19.3.0-canary-019019be-20260911(react@19.3.0-canary-019019be-20260911)
+      react-virtuoso:
+        specifier: 4.18.13
+        version: 4.18.13(react-dom@19.3.0-canary-019019be-20260911(react@19.3.0-canary-019019be-20260911))(react@19.3.0-canary-019019be-20260911)
       swr:
         specifier: ^2.2.4
         version: 2.2.4(react@19.3.0-canary-019019be-20260911)
@@ -16151,6 +16154,12 @@ packages:
       react: ^15.3.0 || ^16.0.0-alpha
       react-dom: ^15.3.0 || ^16.0.0-alpha
 
+  react-virtuoso@4.18.13:
+    resolution: {integrity: sha512-M4kP7zbV7JmLrnJYs0X2FBA8gnNlHisSYuKMyeJVYtWz31CAJeP57dgPJzfneUdKDKmL9SiqvcBQ32si8CfQSQ==}
+    peerDependencies:
+      react: '>=16 || >=17 || >= 18 || >= 19'
+      react-dom: '>=16 || >=17 || >= 18 || >=19'
+
   react@0.0.0-experimental-019019be-20260911:
     resolution: {integrity: sha512-9vIvq/7kC6qJ/38Xt1xd+dWVeM/Pgr/WqmmhXY82wrkrgvvwDxgzAl3QW6x+M5i8lbcSmTQMadTOWnPBY4b0Sw==}
     engines: {node: '>=0.10.0'}
@@ -20440,7 +20449,7 @@ snapshots:
   '@eslint/config-array@0.21.0':
     dependencies:
       '@eslint/object-schema': 2.1.6
-      debug: 4.4.0
+      debug: 4.4.3
       minimatch: 3.1.2
     transitivePeerDependencies:
       - supports-color
@@ -21828,7 +21837,7 @@ snapshots:
       '@open-draft/logger': 0.3.0
       '@open-draft/until': 2.1.0
       is-node-process: 1.2.0
-      outvariant: 1.4.2
+      outvariant: 1.4.3
       strict-event-emitter: 0.5.1
 
   '@mswjs/interceptors@0.42.5':
@@ -24795,7 +24804,7 @@ snapshots:
       '@typescript-eslint/types': 8.46.0
       '@typescript-eslint/typescript-estree': 8.46.0(typescript@6.0.2)
       '@typescript-eslint/visitor-keys': 8.46.0
-      debug: 4.4.0
+      debug: 4.4.3
       eslint: 9.37.0(jiti@2.6.1)
       typescript: 6.0.2
     transitivePeerDependencies:
@@ -24860,7 +24869,7 @@ snapshots:
       '@typescript-eslint/tsconfig-utils': 8.46.0(typescript@6.0.2)
       '@typescript-eslint/types': 8.46.0
       '@typescript-eslint/visitor-keys': 8.46.0
-      debug: 4.4.0
+      debug: 4.4.3
       fast-glob: 3.3.3
       is-glob: 4.0.3
       minimatch: 9.0.5
@@ -29056,7 +29065,7 @@ snapshots:
       content-type: 1.0.5
       cookie: 0.7.1
       cookie-signature: 1.2.2
-      debug: 4.4.0
+      debug: 4.4.3
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
@@ -35600,6 +35609,11 @@ snapshots:
       react: 19.3.0-canary-019019be-20260911
       react-dom: 19.3.0-canary-019019be-20260911(react@19.3.0-canary-019019be-20260911)
       react-lifecycles-compat: 3.0.4
+
+  react-virtuoso@4.18.13(react-dom@19.3.0-canary-019019be-20260911(react@19.3.0-canary-019019be-20260911))(react@19.3.0-canary-019019be-20260911):
+    dependencies:
+      react: 19.3.0-canary-019019be-20260911
+      react-dom: 19.3.0-canary-019019be-20260911(react@19.3.0-canary-019019be-20260911)
 
   react@0.0.0-experimental-019019be-20260911: {}
 
