@@ -5,9 +5,6 @@ import {
   type ErrorSnapshot,
 } from '../../lib/add-redbox-matchers'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
-// @force-gate !deploy
 describe('Link with legacyBehavior', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,

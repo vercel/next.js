@@ -1,8 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
-// @force-gate !deploy
 describe('api-resolver-query-writeable', () => {
   const { next } = nextTestSetup({
     files: __dirname,

@@ -5,9 +5,6 @@ import fs from 'fs-extra'
 
 const locales = ['', '/en', '/sv', '/nl']
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely reads files from the isolated local fixture.
-// @force-gate !deploy
 describe('i18n-ignore-rewrite-source-locale with basepath', () => {
   const { next } = nextTestSetup({
     files: __dirname,

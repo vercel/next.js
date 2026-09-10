@@ -1,9 +1,6 @@
 /* eslint-disable jest/no-standalone-expect */
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
-// TODO(deploy-test-completion): This likely inspects local build artifacts that
-// deploy tests do not expose.
-// @force-gate !deploy
 // @force-gate !start || !turbopackDev
 // @force-gate !dev || !turbopackBuild
 describe('Default 404 Page with custom _error', () => {
