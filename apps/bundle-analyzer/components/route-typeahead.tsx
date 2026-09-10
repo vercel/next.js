@@ -1,9 +1,9 @@
 'use client'
 
-import useSWR from 'swr'
-import { Check, ChevronsUpDown, Loader, Route } from 'lucide-react'
+import { Check, ChevronsUpDown, Route } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { Button } from '@/components/ui/button'
+import { useSuspenseData } from '@/lib/analyzer-data'
 import {
   Command,
   CommandEmpty,
@@ -18,7 +18,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover'
 import { cn, jsonFetcher } from '@/lib/utils'
-import { NetworkError } from '@/lib/errors'
 import { Kbd } from '@/components/ui/kbd'
 import {
   delta,
@@ -76,11 +75,7 @@ export function RouteTypeahead({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const {
-    data: routes,
-    isLoading,
-    error,
-  } = useSWR<string[]>('/data/routes.json', jsonFetcher, {
+  const routes = useSuspenseData<string[]>('/data/routes.json', jsonFetcher, {
     onSuccess: (routeNames) => {
       // Auto-select first route if none is selected
       if (routeNames.length > 0 && selectedRoute == null) {
@@ -100,7 +95,7 @@ export function RouteTypeahead({
         row,
       }))
     }
-    return (routes ?? []).map((name) => ({ name, row: null }))
+    return routes.map((name) => ({ name, row: null }))
   }, [routes, routeDiff, useCompressed])
 
   // Find the currently selected route's diff row, used to render a delta
@@ -110,27 +105,7 @@ export function RouteTypeahead({
     return routeDiff.rows.find((r) => r.key === selectedRoute) ?? null
   }, [routeDiff, selectedRoute])
 
-  if (error) {
-    return (
-      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm max-w-full">
-        <span className="font-medium">⚠</span>
-        <span className="truncate">
-          {error instanceof NetworkError
-            ? 'Unable to connect to server'
-            : error.message}
-        </span>
-      </div>
-    )
-  }
-
-  let ctaText: React.ReactNode
-  if (isLoading) {
-    ctaText = 'Loading routes...'
-  } else if (selectedRoute != null) {
-    ctaText = selectedRoute
-  } else {
-    ctaText = 'Select route...'
-  }
+  const ctaText = selectedRoute ?? 'Select route...'
 
   return (
     <div className="flex items-center gap-2 min-w-64 max-w-full">
@@ -140,15 +115,10 @@ export function RouteTypeahead({
             variant="outline"
             role="combobox"
             aria-expanded={open}
-            disabled={isLoading}
             className="flex-grow-1 w-full justify-between font-mono text-sm"
           >
             <div className="flex items-center min-w-0">
-              {isLoading ? (
-                <Loader className="mr-2 inline animate-spin" />
-              ) : (
-                <Route className="inline mr-2 shrink-0" />
-              )}
+              <Route className="inline mr-2 shrink-0" />
 
               <span className="truncate">{ctaText}</span>
               {selectedRow ? (
