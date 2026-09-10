@@ -96,6 +96,11 @@ pub struct ChunkGroupInfo {
     #[bincode(with = "turbo_bincode::indexset")]
     pub chunk_group_keys: FxIndexSet<ChunkGroupKey>,
     pub chunking_heuristics: ChunkingHeuristicsInfo,
+    /// For each chunk group (same indexing as `chunk_groups`), the chunk groups that reference
+    /// it: for an async, isolated or shared chunk group these are the chunk groups containing the
+    /// referencing modules, for a merged chunk group it is its parent chunk group.
+    #[turbo_tasks(trace_ignore)]
+    pub chunk_group_parents: Vec<RoaringBitmapWrapper>,
 }
 
 /// Chunking heuristics computed by [`compute_chunk_group_info`]. `clusters` is indexed by
@@ -588,6 +593,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         // `inherits_from[source]` is the set of chunk groups that inherit heuristics from `source`.
         let mut inherits_from: FxHashMap<u32, RoaringBitmap> = FxHashMap::default();
+        // `chunk_group_parents[id]` is the set of chunk groups that reference chunk group `id`.
+        let mut chunk_group_parents: FxHashMap<u32, RoaringBitmap> = FxHashMap::default();
 
         let visit_count = graph.traverse_edges_fixed_point_with_priority(
             entries
@@ -734,12 +741,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             // inherit from every chunk group of the referencing module.
                             if let Some(parent) = merged_parent {
                                 inherits_from.entry(parent).or_default().insert(id);
+                                chunk_group_parents.entry(id).or_default().insert(parent);
                             } else if let Some((parent_module, _, _)) = parent_info
                                 && let Some(parent_groups) = module_chunk_groups.get(&parent_module)
                             {
                                 for source in parent_groups.iter() {
                                     inherits_from.entry(source).or_default().insert(id);
                                 }
+                                *chunk_group_parents.entry(id).or_default() |= &**parent_groups;
                             }
                             id
                         });
@@ -920,7 +929,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             .collect();
         let chunk_group_priority_routes = RoaringBitmapWrapper(priority_routes);
 
+        let chunk_group_parents = (0..chunk_groups_map.len())
+            .map(|id| {
+                RoaringBitmapWrapper(chunk_group_parents.remove(&(id as u32)).unwrap_or_default())
+            })
+            .collect();
+
         Ok(ChunkGroupInfo {
+            chunk_group_parents,
             module_chunk_groups: ResolvedVc::cell(module_chunk_groups),
             chunk_group_keys: chunk_groups_map.keys().cloned().collect(),
             chunking_heuristics: ChunkingHeuristicsInfo {

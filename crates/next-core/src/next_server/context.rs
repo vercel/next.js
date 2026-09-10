@@ -1132,7 +1132,11 @@ pub async fn get_server_chunking_context_with_client_assets(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            // Server bundles don't pay for duplicated modules the way browser bundles do, and a
+            // per-referencing-chunk-group async chunk group multiplies the chunking work by the
+            // number of entries.
+            .shared_async_chunk_groups(true);
     }
 
     Ok(builder.build())
@@ -1241,7 +1245,11 @@ pub async fn get_server_chunking_context(
                     ..Default::default()
                 },
             )
-            .module_merging(*scope_hoisting.await?);
+            .module_merging(*scope_hoisting.await?)
+            // Server bundles don't pay for duplicated modules the way browser bundles do, and a
+            // per-referencing-chunk-group async chunk group multiplies the chunking work by the
+            // number of entries.
+            .shared_async_chunk_groups(true);
     }
 
     Ok(builder.build())

@@ -429,6 +429,19 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
+    /// Whether async chunk groups (dynamic imports) are shared between all chunk groups that
+    /// reference them. By default an async chunk group is computed per referencing chunk group
+    /// (with that chunk group's available modules excluded), which creates one variant per
+    /// referencing chunk group. When enabled, the async chunk group is computed once and only
+    /// modules that are part of every referencing chunk group are excluded. Modules that are only
+    /// available in some referencing chunk groups end up duplicated in the async chunk (the
+    /// runtime ignores already registered modules), which mostly matters for download size, so
+    /// this is intended for server bundles.
+    #[turbo_tasks::function]
+    fn is_shared_async_chunk_groups_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
     /// Whether to use `MergeableModule` to merge modules if possible.
     #[turbo_tasks::function]
     fn is_module_merging_enabled(self: Vc<Self>) -> Vc<bool> {

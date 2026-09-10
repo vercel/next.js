@@ -6,7 +6,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
+    FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 
 use super::{
@@ -52,6 +53,9 @@ pub async fn make_chunk_group(
         .is_nested_async_availability_enabled()
         .await?;
     let should_merge_modules = *chunking_context.is_module_merging_enabled().await?;
+    let shared_async_chunk_groups = *chunking_context
+        .is_shared_async_chunk_groups_enabled()
+        .await?;
     let batching_config = chunking_context.batching_config().to_resolved().await?;
 
     let ChunkGroupContent {
@@ -149,10 +153,22 @@ pub async fn make_chunk_group(
     let async_loaders = async_modules
         .iter()
         .copied()
-        .map(|module| {
+        .map(async |module| {
+            let availability_info = if shared_async_chunk_groups {
+                shared_async_availability_info(
+                    module_graph,
+                    module,
+                    batching_config,
+                    can_split_async,
+                )
+                .await?
+            } else {
+                async_availability_info
+            };
             chunking_context
-                .async_loader_chunk_item(*module, *module_graph, async_availability_info)
+                .async_loader_chunk_item(*module, *module_graph, availability_info)
                 .to_resolved()
+                .await
         })
         .try_join()
         .await?;
@@ -195,6 +211,123 @@ pub async fn make_chunk_group(
         references: ResolvedVc::upcast_vec(async_loaders),
         availability_info: new_availability_info,
     })
+}
+
+/// The availability info for the async chunk group of `module` when async chunk groups are
+/// shared between all referencing chunk groups (see
+/// [`ChunkingContext::is_shared_async_chunk_groups_enabled`]). It only depends on the module
+/// graph and the module, so all referencing chunk groups end up with the same async loader and
+/// the same async chunk group.
+async fn shared_async_availability_info(
+    module_graph: ResolvedVc<ModuleGraph>,
+    module: ResolvedVc<Box<dyn ChunkableModule>>,
+    batching_config: ResolvedVc<BatchingConfig>,
+    can_split_async: bool,
+) -> Result<AvailabilityInfo> {
+    let modules = shared_async_available_modules_operation(
+        module_graph,
+        module,
+        batching_config,
+        can_split_async,
+    );
+    Ok(AvailabilityInfo::root()
+        .with_modules(modules)
+        .await?
+        .in_async_module())
+}
+
+/// The modules and batches reachable from `module` (the entry of an async chunk group) that are
+/// part of every chunk group referencing that async chunk group. Those are available wherever the
+/// async chunk group can be loaded from, so they don't need to be included in it.
+#[turbo_tasks::function(operation)]
+async fn shared_async_available_modules_operation(
+    module_graph: ResolvedVc<ModuleGraph>,
+    module: ResolvedVc<Box<dyn ChunkableModule>>,
+    batching_config: ResolvedVc<BatchingConfig>,
+    can_split_async: bool,
+) -> Result<Vc<AvailableModulesSet>> {
+    let chunk_group_info = module_graph.chunk_group_info().await?;
+    let entry_module = ResolvedVc::upcast::<Box<dyn Module>>(module);
+    let Some(chunk_group_idx) = chunk_group_info
+        .chunk_groups
+        .get_index_of(&ChunkGroup::Async(entry_module))
+    else {
+        bail!(
+            "async chunk group for {} not found in chunk group info",
+            module.ident().to_string().await?
+        );
+    };
+    let parents = &*chunk_group_info.chunk_group_parents[chunk_group_idx];
+    let mut available = FxIndexSet::default();
+    if parents.is_empty() {
+        return Ok(Vc::cell(available));
+    }
+
+    let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
+    let module_batches_graph = module_graph.module_batches(*batching_config).await?;
+    let entry = module_batches_graph.get_entry_index(entry_module).await?;
+
+    // Collect what the chunk group would contain, following the same edges as
+    // `chunk_group_content_operation`.
+    let mut nodes = FxIndexSet::default();
+    module_batches_graph.traverse_edges_from_entries_dfs(
+        std::iter::once(entry),
+        None,
+        &mut (),
+        |parent_info, &node, _| {
+            if matches!(node, ModuleOrBatch::None(_)) {
+                return Ok(GraphTraversalAction::Continue);
+            }
+            if let Some((_, edge)) = parent_info {
+                let follow = match edge.ty {
+                    ChunkingType::Parallel { .. }
+                    | ChunkingType::Shared { .. }
+                    | ChunkingType::Collected { .. } => true,
+                    ChunkingType::Async => !can_split_async,
+                    ChunkingType::Traced { .. }
+                    | ChunkingType::PerEntry
+                    | ChunkingType::Emitted { .. }
+                    | ChunkingType::Isolated { .. } => false,
+                };
+                if !follow {
+                    return Ok(GraphTraversalAction::Exclude);
+                }
+            }
+            Ok(if nodes.insert(node) {
+                GraphTraversalAction::Continue
+            } else {
+                GraphTraversalAction::Exclude
+            })
+        },
+        |_, _, _| {},
+    )?;
+
+    for node in nodes {
+        match node {
+            ModuleOrBatch::Module(module) => {
+                if module_chunk_groups
+                    .get(&module)
+                    .is_some_and(|chunk_groups| chunk_groups.is_superset(parents))
+                    && let Some(module) =
+                        ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module)
+                {
+                    available.insert(AvailableModuleItem::Module(module));
+                }
+            }
+            ModuleOrBatch::Batch(batch) => {
+                if batch
+                    .await?
+                    .chunk_groups
+                    .as_ref()
+                    .is_some_and(|chunk_groups| chunk_groups.is_superset(parents))
+                {
+                    available.insert(AvailableModuleItem::Batch(batch));
+                }
+            }
+            ModuleOrBatch::None(_) => {}
+        }
+    }
+    Ok(Vc::cell(available))
 }
 
 #[turbo_tasks::task_input]

@@ -90,6 +90,12 @@ impl NodeJsChunkingContextBuilder {
         self
     }
 
+    /// See [`ChunkingContext::is_shared_async_chunk_groups_enabled`].
+    pub fn shared_async_chunk_groups(mut self, enable_shared_async_chunk_groups: bool) -> Self {
+        self.chunking_context.enable_shared_async_chunk_groups = enable_shared_async_chunk_groups;
+        self
+    }
+
     pub fn module_merging(mut self, enable_module_merging: bool) -> Self {
         self.chunking_context.enable_module_merging = enable_module_merging;
         self
@@ -222,6 +228,8 @@ pub struct NodeJsChunkingContext {
     runtime_type: RuntimeType,
     /// Enable nested async availability for this chunking
     enable_nested_async_availability: bool,
+    /// Share async chunk groups between all chunk groups referencing them.
+    enable_shared_async_chunk_groups: bool,
     /// Enable module merging
     enable_module_merging: bool,
     /// Enable dynamic chunk content loading.
@@ -282,6 +290,7 @@ impl NodeJsChunkingContext {
                 url_behaviors: Default::default(),
                 default_url_behavior: None,
                 enable_nested_async_availability: false,
+                enable_shared_async_chunk_groups: false,
                 enable_module_merging: false,
                 enable_dynamic_chunk_content_loading: false,
                 environment,
@@ -419,6 +428,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn is_nested_async_availability_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_nested_async_availability)
+    }
+
+    #[turbo_tasks::function]
+    fn is_shared_async_chunk_groups_enabled(&self) -> Vc<bool> {
+        Vc::cell(self.enable_shared_async_chunk_groups)
     }
 
     #[turbo_tasks::function]
