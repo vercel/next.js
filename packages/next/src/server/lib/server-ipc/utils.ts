@@ -1,4 +1,7 @@
-import { NEXT_VARIANTS_HEADER } from '../../../lib/constants'
+import {
+  NEXT_VARIANTS_HEADER,
+  NEXT_VARIANTS_PREFIX_HEADER,
+} from '../../../lib/constants'
 
 export const ipcForbiddenHeaders = [
   'accept-encoding',
@@ -54,6 +57,7 @@ const INTERNAL_HEADERS = [
   'x-next-resume-state-length',
   'next-resume',
   NEXT_VARIANTS_HEADER,
+  NEXT_VARIANTS_PREFIX_HEADER,
 ]
 
 export const filterInternalHeaders = (

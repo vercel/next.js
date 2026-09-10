@@ -223,6 +223,10 @@ import { handleBuildComplete } from './adapter/build-complete'
 import type { VariantCombinationGroups } from '../server/variants/combinations'
 import { buildVariantsManifest, recordVariantOutput } from './variants/manifest'
 import { buildVariantRouteAliases } from './variants/route-aliases'
+import {
+  assertNotVariantsReservedPathname,
+  assertNoVariantsReservedPublicEntries,
+} from './variants/reserved-paths'
 import { getVariantOutputPath } from '../server/variants/prefix'
 import {
   sortPageObjects,
@@ -1549,6 +1553,26 @@ export default async function build(
       const mappedPages = NextBuildContext.mappedPages
       const mappedAppPages = NextBuildContext.mappedAppPages
 
+      // A route at a pathname that Variants reserves can never be served, so
+      // the build rejects it here, before it compiles anything.
+      if (config.experimental.variants) {
+        for (const appKey of discoveredAppPageKeys ?? []) {
+          assertNotVariantsReservedPathname(
+            normalizeAppPath(appKey),
+            (discovery.mappedAppPages?.[appKey] ?? appKey).replace(
+              /^private-next-app-dir/,
+              'app'
+            )
+          )
+        }
+        for (const page of pagesPageKeys) {
+          assertNotVariantsReservedPathname(
+            page,
+            mappedPages[page].replace(/^private-next-pages/, 'pages')
+          )
+        }
+      }
+
       // Validate that the app paths are valid. This is currently duplicating
       // the logic from packages/next/src/shared/lib/router/utils/sorted-routes.ts
       // but is instead specifically focused on code that can be shared
@@ -1645,6 +1669,10 @@ export default async function build(
         )
         if (hasPublicUnderScoreNextDir) {
           throw new Error(PUBLIC_DIR_MIDDLEWARE_CONFLICT)
+        }
+
+        if (config.experimental.variants) {
+          assertNoVariantsReservedPublicEntries(publicDir)
         }
       }
 
@@ -2582,6 +2610,21 @@ export default async function build(
                           })
                         }
                       )
+
+                      // A generated path in the namespace that Variants
+                      // reserves would answer a rejected request with content,
+                      // so the build rejects it.
+                      if (
+                        config.experimental.variants &&
+                        workerResult.prerenderedRoutes
+                      ) {
+                        for (const route of workerResult.prerenderedRoutes) {
+                          assertNotVariantsReservedPathname(
+                            route.pathname,
+                            `the static params of "${page}"`
+                          )
+                        }
+                      }
 
                       if (pageType === 'app' && originalAppPath) {
                         appNormalizedPaths.set(originalAppPath, page)

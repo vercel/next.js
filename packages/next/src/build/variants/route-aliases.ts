@@ -17,7 +17,8 @@ import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
  *
  * `page` stays unprefixed and names the module. The regexes carry the prefix,
  * and the named regex captures the hash as `nxtV`. One alias matches every hash
- * for a page.
+ * for a page. The hash is matched as `[0-9a-z]+`, the shape `hashVariants`
+ * produces, so the pathname of a rejected request cannot match an alias.
  */
 export function buildVariantRouteAliases(
   pages: Iterable<string>
@@ -33,12 +34,12 @@ export function buildVariantRouteAliases(
       sourcePage: undefined,
       regex: normalizeRouteRegex(routeRegex.re.source).replace(
         page === '/' ? '^/' : '^',
-        `^/${VARIANTS_PATH_PREFIX}/[^/]+`
+        `^/${VARIANTS_PATH_PREFIX}/[0-9a-z]+`
       ),
       routeKeys: routeRegex.routeKeys,
       namedRegex: routeRegex.namedRegex.replace(
         page === '/' ? '^/' : '^',
-        `^/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[^/]+)`
+        `^/${VARIANTS_PATH_PREFIX}/(?<${NEXT_VARIANTS_QUERY_PARAM}>[0-9a-z]+)`
       ),
       skipInternalRouting: true,
       variantsPrefixed: true,
