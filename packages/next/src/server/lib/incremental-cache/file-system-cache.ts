@@ -304,15 +304,27 @@ export default class FileSystemCache implements CacheHandler {
       if (typeof tagsHeader === 'string') {
         const cacheTags = tagsHeader.split(',')
 
-        // we trigger a blocking validation if an ISR page
-        // had a tag revalidated, if we want to be a background
-        // revalidation instead we return data.lastModified = -1
         if (
           cacheTags.length > 0 &&
           areTagsExpired(cacheTags, data.lastModified)
         ) {
           if (FileSystemCache.debug) {
             console.log('FileSystemCache: expired tags', cacheTags)
+          }
+
+          // Keep generated PPR route shells long enough for IncrementalCache to
+          // distinguish blocking revalidation from a true cache miss. The
+          // response cache never serves an entry with this sentinel timestamp;
+          // it blocks on a concrete render instead of serving the generic
+          // fallback shell.
+          if (
+            data.value.kind === CachedRouteKind.APP_PAGE &&
+            data.value.postponed !== undefined &&
+            ctx.kind === IncrementalCacheKind.APP_PAGE &&
+            ctx.isRoutePPREnabled &&
+            ctx.isFallback === false
+          ) {
+            return { ...data, lastModified: -1 }
           }
 
           return null

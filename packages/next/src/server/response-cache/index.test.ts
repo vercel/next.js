@@ -1,5 +1,9 @@
 import ResponseCache from './index'
-import { CachedRouteKind, type ResponseCacheEntry } from './types'
+import {
+  CachedRouteKind,
+  type IncrementalResponseCacheEntry,
+  type ResponseCacheEntry,
+} from './types'
 import { RouteKind } from '../route-kind'
 import RenderResult from '../render-result'
 import { HTML_CONTENT_TYPE_HEADER } from '../../lib/constants'
@@ -100,6 +104,39 @@ describe('ResponseCache', () => {
 
       expect(renderCount).toBe(1)
       expect(followUp).not.toBeNull()
+    })
+  })
+
+  describe('failed blocking revalidation', () => {
+    it('does not revive an entry explicitly expired by a tag', async () => {
+      const cache = new ResponseCache(false)
+      const incrementalCache = mockIncrementalCache()
+      const expiredEntry: IncrementalResponseCacheEntry = {
+        value: {
+          kind: CachedRouteKind.APP_PAGE,
+          html: 'expired html',
+          rscData: undefined,
+          postponed: '{}',
+          status: 200,
+          headers: undefined,
+          segmentData: undefined,
+        },
+        cacheControl: { revalidate: 60, expire: undefined },
+        isStale: -1,
+        isTagExpired: true,
+      }
+      incrementalCache.get.mockResolvedValue(expiredEntry)
+
+      const error = new Error('revalidation failed')
+      await expect(
+        cache.get('/test', jest.fn().mockRejectedValue(error), {
+          routeKind: RouteKind.APP_PAGE,
+          incrementalCache,
+          isRoutePPREnabled: true,
+        })
+      ).rejects.toBe(error)
+
+      expect(incrementalCache.set).not.toHaveBeenCalled()
     })
   })
 })

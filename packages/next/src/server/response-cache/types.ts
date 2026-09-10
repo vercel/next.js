@@ -142,6 +142,11 @@ export interface IncrementalResponseCacheEntry {
    * `-1` here dictates a blocking revalidate should be used
    */
   isStale?: boolean | -1
+  /**
+   * True when a cache handler retained a tag-expired entry so the route can
+   * blocking-revalidate without treating it as a cache miss.
+   */
+  isTagExpired?: boolean
   isMiss?: boolean
   isFallback?: boolean
   value: Exclude<IncrementalCacheValue, CachedFetchValue> | null
