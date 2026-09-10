@@ -289,12 +289,11 @@ function useDrag(options: UseDragOptions) {
     origin.current = { x: e.clientX, y: e.clientY }
     machine.current = { state: 'press' }
     window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('pointerup', onPointerUp)
-    // A cancelled gesture fires pointercancel and no pointerup. Without this
-    // the machine is stranded in 'drag' and these listeners are never removed,
-    // so the next pointerup anywhere on the page runs cancel() against a
-    // pointer that no longer exists.
-    window.addEventListener('pointercancel', onPointerUp)
+    // A gesture ends in either pointerup or pointercancel, and a cancelled one
+    // never fires pointerup. Listening for only the former strands the machine
+    // in 'drag' with these listeners still attached.
+    window.addEventListener('pointerup', onPointerEnd)
+    window.addEventListener('pointercancel', onPointerEnd)
 
     if (cleanup.current !== null) {
       cleanup.current()
@@ -302,8 +301,8 @@ function useDrag(options: UseDragOptions) {
     }
     cleanup.current = () => {
       window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('pointerup', onPointerUp)
-      window.removeEventListener('pointercancel', onPointerUp)
+      window.removeEventListener('pointerup', onPointerEnd)
+      window.removeEventListener('pointercancel', onPointerEnd)
     }
 
     ref.current?.addEventListener('click', onClick)
@@ -356,7 +355,8 @@ function useDrag(options: UseDragOptions) {
     options.onDrag?.(translation.current)
   }
 
-  function onPointerUp() {
+  /** Ends the gesture, whether it was released (pointerup) or cancelled. */
+  function onPointerEnd() {
     const velocity = calculateVelocity(velocities.current)
 
     cancel()
