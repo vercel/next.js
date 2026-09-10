@@ -117,6 +117,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
 
   const sharedTurboOptions = {
     turbopackMemoryEviction: config.experimental.turbopackMemoryEvictionMode,
+    gc: config.experimental.turbopackGcOptions,
     dependencyTracking: persistentCaching || hasDeferredEntries,
     isCi: isCI,
     isShortSession: true,

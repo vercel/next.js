@@ -57,7 +57,7 @@ import type { NextAdapter } from '../build/adapter/build-complete'
 import { HardDeprecatedConfigError } from '../shared/lib/errors/hard-deprecated-config-error'
 import { NextInstanceErrorState } from './mcp/tools/next-instance-error-state'
 import { Bundler } from '../lib/bundler'
-import type { MemoryEvictionMode } from '../build/swc/types'
+import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
@@ -505,6 +505,23 @@ function assignDefaultsAndValidate(
   }
   ;(result as NextConfigComplete).experimental.turbopackMemoryEvictionMode =
     turbopackMemoryEvictionMode as MemoryEvictionMode
+
+  // Normalize the user-facing `turbopackGc` (`boolean | { minProgressMs?,
+  // rootTtlMs? } | undefined`) into the object napi expects
+  const turbopackGc = result.experimental.turbopackGc
+  let turbopackGcOptions: TurbopackGcOptions | undefined
+  if (turbopackGc === true) {
+    turbopackGcOptions = {}
+  } else if (typeof turbopackGc === 'object' && turbopackGc !== null) {
+    turbopackGcOptions = {
+      minProgressMs: turbopackGc.minProgressMs,
+      rootTtlMs: turbopackGc.rootTtlMs,
+    }
+  } else {
+    turbopackGcOptions = undefined
+  }
+  ;(result as NextConfigComplete).experimental.turbopackGcOptions =
+    turbopackGcOptions
 
   // Normalize experimental.browserDebugInfoInTerminal to logging.browserToTerminal
   if (

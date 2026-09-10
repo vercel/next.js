@@ -94,6 +94,7 @@ export async function turbopackAnalyze(
     },
     {
       turbopackMemoryEviction: config.experimental.turbopackMemoryEvictionMode,
+      gc: config.experimental.turbopackGcOptions,
       dependencyTracking: persistentCaching,
       isCi: isCI,
       isShortSession: true,

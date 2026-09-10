@@ -2,6 +2,7 @@ mod cell_data;
 mod counter_map;
 mod eviction;
 mod gc;
+mod id_reuse;
 mod operation;
 mod snapshot_coordinator;
 mod storage;
@@ -27,6 +28,7 @@ use auto_hash_map::{AutoMap, AutoSet};
 use gc::DEFAULT_GC_ROOT_TTL;
 pub use gc::{GcStats, TtlCounter};
 use hashbrown::hash_table::Entry;
+use id_reuse::{DEFAULT_ID_REUSE_DELAY_CYCLES, DeferredIdReuse};
 use indexmap::IndexSet;
 use parking_lot::{Mutex, RwLock};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
@@ -157,17 +159,23 @@ pub struct BackendOptions {
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
     pub eviction_mode: EvictionMode,
 
-    /// Overrides whether the reference-counting GC runs for this backend. `None` (default) derives
-    /// it from the `TURBO_ENGINE_GC` env var;
+    /// Whether the reference-counting GC runs for this backend. `None` (default) leaves it off.
+    ///
+    /// In Next.js this is driven by the `experimental.turbopackGc` config option.
     pub gc: Option<bool>,
 
-    /// Overrides how long a GC root may go un-anchored before it ages out. `None` (default)
-    /// derives it from the `TURBO_ENGINE_GC_ROOT_TTL_MS` env var, falling back to
+    /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
     /// [`DEFAULT_GC_ROOT_TTL`].
     pub gc_root_ttl: Option<Duration>,
 
-    /// Overrides how long a GC pass runs before it will honour an interrupt.
+    /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
+    /// [`GC_MIN_PROGRESS`].
     pub gc_min_progress: Option<Duration>,
+
+    /// How many snapshot cycles a GC-freed task id waits before it may be reused. `None`
+    /// (default) uses [`DEFAULT_ID_REUSE_DELAY_CYCLES`]. `0` reuses as soon as the next cycle
+    /// ends, which is what tests use to maximize aliasing pressure.
+    pub id_reuse_delay_cycles: Option<u32>,
 }
 
 impl Default for BackendOptions {
@@ -180,8 +188,9 @@ impl Default for BackendOptions {
             small_preallocation: false,
             eviction_mode: EvictionMode::Off,
             gc: None,
-            gc_root_ttl: None,
             gc_min_progress: None,
+            gc_root_ttl: None,
+            id_reuse_delay_cycles: None,
         }
     }
 }
@@ -230,6 +239,9 @@ pub struct TurboTasksBackend {
     start_time: Instant,
 
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
+    /// Task ids freed by GC that are waiting out their deferral window before being handed back to
+    /// `persisted_task_id_factory`. See [`DeferredIdReuse`].
+    deferred_id_reuse: DeferredIdReuse,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
 
     storage: Storage,
@@ -311,66 +323,69 @@ impl TurboTasksBackend {
             options.active_tracking = false;
         }
         let small_preallocation = options.small_preallocation;
+        let gc_root_ttl = options.gc_root_ttl.unwrap_or(DEFAULT_GC_ROOT_TTL);
+        let gc_min_progress = options.gc_min_progress.unwrap_or(GC_MIN_PROGRESS);
+        let id_reuse_delay_cycles = options
+            .id_reuse_delay_cycles
+            .unwrap_or(DEFAULT_ID_REUSE_DELAY_CYCLES);
         let next_task_id = backing_storage
             .next_free_task_id()
             .expect("Failed to get task id");
 
-        let mut gc_enabled = options.gc.unwrap_or_else(|| {
-            std::env::var_os("TURBO_ENGINE_GC")
-                .is_some_and(|v| matches!(v.to_str(), Some("1" | "true" | "yes")))
-        });
+        let mut gc_enabled = options.gc.unwrap_or(false);
         if gc_enabled
             && options.storage_mode == Some(StorageMode::ReadWrite)
             && options.eviction_mode == EvictionMode::Off
         {
             eprintln!(
-                "warning: GC is enabled but eviction is disabled on a ReadWrite backend; GC would \
-                 leave collected tasks resident forever. Forcing GC off. Enable eviction \
-                 ('auto'/'full') to use GC in this mode."
+                "warning: GC is enabled but eviction is disabled; GC would leave collected tasks \
+                 resident forever. Forcing GC off. Enable eviction ('auto'/'full') to use GC in \
+                 this mode."
             );
             gc_enabled = false;
         }
 
-        let gc_min_progress = options.gc_min_progress.unwrap_or_else(|| {
-            match std::env::var("TURBO_ENGINE_GC_MIN_PROGRESS_MS") {
-                Ok(v) => match v.parse::<u64>() {
-                    Ok(ms) => Duration::from_millis(ms),
-                    Err(e) => {
-                        eprintln!(
-                            "warning: TURBO_ENGINE_GC_MIN_PROGRESS_MS set but is not parsable: \
-                             {e}. Using the default instead."
-                        );
-                        GC_MIN_PROGRESS
-                    }
-                },
-                Err(_) => GC_MIN_PROGRESS,
+        // Ids the previous session freed. Validated before use: a corrupt or stale entry would
+        // otherwise hand out an id that is still live, which reuse must never do. Anything
+        // suspicious drops the whole set rather than part of it — the cost is lost density, and
+        // the alternative is trusting the rest of a record we already know is wrong.
+        let free_task_ids = match backing_storage.free_task_ids() {
+            Ok(ids) => {
+                let valid = ids
+                    .iter()
+                    .all(|id| !id.is_transient() && **id < *next_task_id);
+                if valid {
+                    ids
+                } else {
+                    eprintln!(
+                        "warning: persisted free task id set contains ids outside the allocated                          range; ignoring it"
+                    );
+                    Vec::new()
+                }
             }
-        });
-
-        let gc_root_ttl = options.gc_root_ttl.unwrap_or_else(|| {
-            match std::env::var("TURBO_ENGINE_GC_ROOT_TTL_MS") {
-                Ok(v) => match v.parse::<u64>() {
-                    Ok(ms) => Duration::from_millis(ms),
-                    Err(e) => {
-                        eprintln!(
-                            "warning: TURBO_ENGINE_GC_ROOT_TTL_MS set but is not parsable: {e}. \
-                             Using the default instead."
-                        );
-                        DEFAULT_GC_ROOT_TTL
-                    }
-                },
-                Err(_) => DEFAULT_GC_ROOT_TTL,
+            Err(err) => {
+                eprintln!("failed to read free task ids, treating as empty: {err:?}");
+                Vec::new()
             }
-        });
+        };
 
         Self {
             options,
             gc_enabled,
             start_time: Instant::now(),
-            persisted_task_id_factory: IdFactoryWithReuse::new(
-                next_task_id,
-                TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
-            ),
+            deferred_id_reuse: DeferredIdReuse::new(id_reuse_delay_cycles),
+            persisted_task_id_factory: {
+                let factory = IdFactoryWithReuse::new(
+                    next_task_id,
+                    TaskId::try_from(TRANSIENT_TASK_BIT - 1).unwrap(),
+                );
+                // SAFETY: each id was freed by a previous session's GC, its tombstone was
+                // committed, and it was validated above to be a persistent id below the
+                // allocation watermark. A fresh session has no resident state, so nothing in this
+                // process can be holding a reference to one.
+                unsafe { factory.seed_free_ids(free_task_ids) };
+                factory
+            },
             transient_task_id_factory: IdFactoryWithReuse::new(
                 TaskId::try_from(TRANSIENT_TASK_BIT).unwrap(),
                 TaskId::MAX,
@@ -442,6 +457,38 @@ impl TurboTasksBackend {
         )
     }
 
+    /// Hands the ids an eviction sweep freed to the deferral queue, ends the cycle, and returns
+    /// whatever has now waited long enough to the id factory.
+    ///
+    /// # Safety of the `reuse` calls
+    ///
+    /// Each id released here named a GC-deleted task that `evict_after_snapshot` erased from the
+    /// resident map and the task cache, whose tombstone was committed by the snapshot that ran
+    /// immediately before, and which has since sat out its deferral window. Nothing can resolve it
+    /// any more, which is what [`IdFactoryWithReuse::reuse`] requires.
+    fn recycle_freed_task_ids(&self, freed: Vec<TaskId>) {
+        let freed_count = freed.len();
+        self.deferred_id_reuse.defer(freed);
+        let released = self.deferred_id_reuse.advance_cycle();
+        // The headline number for this feature is density: peak allocated id vs. peak live tasks.
+        // A ratio that climbs over a long session means ids are not coming back.
+        tracing::trace!(
+            target: "turbo_tasks_backend::id_reuse",
+            freed = freed_count,
+            released = released.len(),
+            pending = self.deferred_id_reuse.pending(),
+            resident = self.storage.resident_persistent_task_count_for_testing(),
+        );
+        for id in released {
+            debug_assert!(
+                !id.is_transient(),
+                "only persistent task ids are collected by GC"
+            );
+            // SAFETY: see the doc comment above.
+            unsafe { self.persisted_task_id_factory.reuse(id) };
+        }
+    }
+
     /// Perform a snapshot and then evict all evictable tasks from memory.
     ///
     /// This is exposed for integration tests that need to verify the
@@ -469,7 +516,8 @@ impl TurboTasksBackend {
                 return TestSnapshotOutcome::default();
             }
         };
-        let eviction_counts = self.storage.evict_after_snapshot(None);
+        let (eviction_counts, freed_ids) = self.storage.evict_after_snapshot(None);
+        self.recycle_freed_task_ids(freed_ids);
         TestSnapshotOutcome {
             had_new_data,
             eviction_counts,
@@ -480,6 +528,18 @@ impl TurboTasksBackend {
     /// The number of persistent (non-transient) tasks resident in the map. Test-only hook; see
     /// [`Storage::resident_persistent_task_count_for_testing`] for why the metric excludes
     /// transient tasks.
+    #[doc(hidden)]
+    /// `(pending_deferral, next_fresh_id)`: how many freed ids are waiting out their window, and
+    /// the next id the factory would mint if its free list were empty. The second is the density
+    /// watermark — if reuse is working, it stops climbing once a workload reaches steady state.
+    #[doc(hidden)]
+    pub fn id_reuse_state_for_testing(&self) -> (usize, u64) {
+        (
+            self.deferred_id_reuse.pending(),
+            self.persisted_task_id_factory.peek_next_fresh(),
+        )
+    }
+
     #[doc(hidden)]
     pub fn resident_persistent_task_count_for_testing(&self) -> usize {
         self.storage.resident_persistent_task_count_for_testing()
@@ -1231,7 +1291,12 @@ impl TurboTasksBackend {
         let snapshot_time = Instant::now();
         drop(snapshot_phase);
 
-        if !has_modifications && gc_roots_to_persist.is_none() {
+        // Ids this session freed still need to reach disk even when nothing else changed —
+        // otherwise a session whose last cycle had no modifications silently drops them and the
+        // next session re-mints instead of reusing.
+        let has_free_ids_to_persist =
+            self.gc_enabled && !self.deferred_id_reuse.persistable().is_empty();
+        if !has_modifications && gc_roots_to_persist.is_none() && !has_free_ids_to_persist {
             // No tasks modified since the last snapshot — drop the guard (which
             // calls end_snapshot) and skip the expensive O(N) scan.
             drop(snapshot_guard);
@@ -1409,6 +1474,10 @@ impl TurboTasksBackend {
         // For tasks accessed during snapshot mode, a frozen copy was made and its `modified`
         // flags were copied from the live task at snapshot creation time, reflecting which
         // categories were dirtied before the snapshot was taken.
+        // Only collected at shutdown; see the `Delete` branch below. `Arc` because `process` is
+        // borrowed by the parallel scan and must not keep the value borrowed past it.
+        let tombstoned_this_commit: Option<Arc<Mutex<Vec<TaskId>>>> =
+            (self.gc_enabled && reason.drain_entries()).then(|| Arc::new(Mutex::new(Vec::new())));
         let process = |task_id: TaskId, inner: &TaskStorage, buffer: &mut TurboBincodeBuffer| {
             let encode_category = |task_id: TaskId,
                                    data: &TaskStorage,
@@ -1454,6 +1523,12 @@ impl TurboTasksBackend {
                             .get_persistent_task_type()
                             .expect("a GC-deleted task must have a task type"),
                     );
+                    // Shutdown only: this is the last commit, so these ids can be offered to the
+                    // next session directly instead of waiting for a follow-up commit that will
+                    // never come. `process` runs in parallel across shards, hence the lock.
+                    if let Some(tombstoned) = &tombstoned_this_commit {
+                        tombstoned.lock().push(task_id);
+                    }
                     return SnapshotItem::Delete {
                         task_id,
                         task_type_hash,
@@ -1525,7 +1600,7 @@ impl TurboTasksBackend {
         let snapshot_duration = start.elapsed();
         let task_count = task_snapshots.len();
 
-        if task_snapshots.is_empty() && gc_roots_to_persist.is_none() {
+        if task_snapshots.is_empty() && gc_roots_to_persist.is_none() && !has_free_ids_to_persist {
             // This should be impossible — if we got here, modified_count was nonzero or gc_roots
             // was present, and every modification that increments the count also failed
             // during encoding.
@@ -1544,9 +1619,26 @@ impl TurboTasksBackend {
         // Tasks were already consumed by take_snapshot, so a future snapshot
         // would not re-persist them — returning an error signals to the caller
         // that further persist attempts would corrupt the task graph in storage.
+        // Recomputed each commit rather than accumulated: an id that was freed and has since been
+        // resurrected simply drops out of the set. Ids freed by *this* cycle's eviction are not
+        // here yet — eviction runs after this returns — so they ride the next commit, which is
+        // also the commit after their tombstone is durable.
+        //
+        // At shutdown there is no next commit, so fold in the tasks this snapshot is tombstoning
+        // right now. Nothing can resurrect them: this is the process's last write.
+        let free_task_ids = if self.gc_enabled {
+            let mut ids = self.deferred_id_reuse.persistable();
+            if let Some(tombstoned) = &tombstoned_this_commit {
+                ids.extend(tombstoned.lock().iter().copied());
+            }
+            Some(ids)
+        } else {
+            None
+        };
         let snapshot_meta = self.backing_storage.save_snapshot(
             suspended_operations,
             gc_roots_to_persist,
+            free_task_ids,
             task_snapshots,
         )?;
         span.record("snapshot_meta", display(snapshot_meta));
@@ -3287,6 +3379,9 @@ impl TurboTasksBackend {
                                     // memory so racing with execution is as likely to save time as
                                     // cost it.
                                     self.storage.evict_after_snapshot(background_span.id());
+                                    let (_counts, freed_ids) =
+                                        self.storage.evict_after_snapshot(background_span.id());
+                                    self.recycle_freed_task_ids(freed_ids);
                                     true
                                 } else {
                                     false

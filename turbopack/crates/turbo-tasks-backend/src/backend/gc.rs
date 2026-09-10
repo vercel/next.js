@@ -190,7 +190,6 @@ impl TurboTasksBackend {
         let aged_out = self.gc_roots_refresh_and_age_out(&mut roots, now);
 
         let aged_out_count = aged_out.len();
-        // TODO(perf): recycle the task ids of collected tasks.
         let budget = if interruptible {
             Some(GcBudget {
                 phase,
@@ -377,8 +376,7 @@ impl TurboTasksBackend {
         // A pass sets `deleted` flags, and the persist path only knows how to tombstone those when
         // GC is enabled. Running a pass on a GC-disabled backend would leave soft-deleted tasks
         // that persistence refuses to handle, so require the backend to be configured for GC
-        // (`BackendOptions::gc` or `TURBO_ENGINE_GC`) rather than silently diverging from
-        // production.
+        // (`BackendOptions::gc`) rather than silently diverging from production.
         assert!(
             self.gc_enabled,
             "gc_for_testing requires a GC-enabled backend: set `BackendOptions::gc = Some(true)`"
@@ -393,6 +391,8 @@ impl TurboTasksBackend {
             && let Err(err) = self.backing_storage.save_snapshot(
                 Vec::new(),
                 Some(roots),
+                // This hook runs no eviction, so it frees no ids to persist.
+                None,
                 Vec::<Vec<SnapshotItem>>::new(),
             )
         {
