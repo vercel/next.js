@@ -1,9 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // import.meta.glob is a Turbopack-only feature; skip under webpack
-// TODO(deploy-test-completion): No deploy-specific incompatibility is
-// documented.
-// @force-gate !deploy
 // @force-gate turbopack
 describe('import-meta-glob', () => {
   const { next } = nextTestSetup({

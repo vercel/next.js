@@ -1,8 +1,5 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): No deploy-specific incompatibility is
-// documented.
-// @force-gate !deploy
 // @force-gate turbopack
 describe('import.meta.env', () => {
   const { next } = nextTestSetup({

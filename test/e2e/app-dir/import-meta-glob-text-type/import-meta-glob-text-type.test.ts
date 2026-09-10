@@ -1,9 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // `turbopack.rules` is a Turbopack-only feature; skip under webpack
-// TODO(deploy-test-completion): No deploy-specific incompatibility is
-// documented.
-// @force-gate !deploy
 // @force-gate turbopack
 describe('turbopack `text` / `raw` module types', () => {
   const { next } = nextTestSetup({

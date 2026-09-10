@@ -3,9 +3,6 @@ import { join } from 'path'
 import { existsSync } from 'fs'
 import { parseTraceFile } from '../../../lib/parse-trace-file'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely inspects local build artifacts that deploy tests do not expose.
-// @force-gate !deploy
 describe('trace-build-file', () => {
   const { next } = nextTestSetup({
     files: __dirname,

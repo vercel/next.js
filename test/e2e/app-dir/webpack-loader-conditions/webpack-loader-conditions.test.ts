@@ -1,9 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // Specifically tests turbopack.rules.*.foreign config
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
-// @force-gate !deploy
 // @force-gate turbopack
 describe('webpack-loader-conditions', () => {
   const { next } = nextTestSetup({

@@ -5,9 +5,6 @@ const jsContent = `export const nope = 'nope'
 throw new Error('please dont execute me')
 `
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
-// @force-gate !deploy
 // @force-gate turbopack
 describe('turbopack-import-with-type', () => {
   const { next } = nextTestSetup({

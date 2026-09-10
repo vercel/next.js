@@ -1,9 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('swcPlugins', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely expects a local build failure instead of a successful deployment.
-  // @force-gate !deploy
   describe('supports swcPlugins', () => {
     const { next } = nextTestSetup({
       files: __dirname,

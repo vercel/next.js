@@ -4,9 +4,6 @@ import { isNextStart, nextTestSetup } from 'e2e-utils'
 const assetPrefix = 'https://example.vercel.sh'
 
 if (!isNextStart) {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // No deploy-specific incompatibility is documented.
-  // @force-gate !deploy
   describe('app dir - crossOrigin config', () => {
     const { next } = nextTestSetup({
       files: __dirname,
