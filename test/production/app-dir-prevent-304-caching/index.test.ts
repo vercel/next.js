@@ -28,6 +28,9 @@ describe('app-dir-prevent-304-caching', () => {
         headers: {
           'If-None-Match': rStale.headers.get('etag'),
         },
+        // undici injects Cache-Control: no-cache into requests with
+        // conditional headers, which would defeat the etag freshness check.
+        cache: 'force-cache',
       }
     )
     expect(rHit.status).toBe(200)
@@ -42,6 +45,9 @@ describe('app-dir-prevent-304-caching', () => {
         headers: {
           'If-None-Match': rHit.headers.get('etag'),
         },
+        // undici injects Cache-Control: no-cache into requests with
+        // conditional headers, which would defeat the etag freshness check.
+        cache: 'force-cache',
       }
     )
     expect(r304.status).toBe(304)

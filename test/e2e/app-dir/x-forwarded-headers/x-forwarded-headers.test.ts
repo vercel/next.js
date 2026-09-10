@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { fetchViaRawHttp } from 'next-test-utils'
 
 describe('x-forwarded-headers', () => {
   const { next, skipped } = nextTestSetup({
@@ -31,7 +32,9 @@ describe('x-forwarded-headers', () => {
       const reqHeaders = {
         host: `subdomain.localhost:${url.port}`,
       }
-      const res = await next.fetch('/', {
+      // Global fetch derives the Host header from the URL authority and
+      // cannot override it, so this uses a raw HTTP request.
+      const res = await fetchViaRawHttp(next.appPort, '/', {
         headers: reqHeaders,
       })
       const headers = await res.json()
@@ -55,7 +58,7 @@ describe('x-forwarded-headers', () => {
         port: '1234',
         proto: 'https',
       }
-      const res = await next.fetch('/', {
+      const res = await fetchViaRawHttp(next.appPort, '/', {
         headers: {
           host: 'override.localhost',
           'x-forwarded-host': reqHeaders.host,
