@@ -31,6 +31,36 @@ function parsePositiveInt(
 }
 
 /**
+ * `NoFallbackError` hands the request back to the router so it can try the next
+ * match, which is how `dynamicParams: false` produces a 404. It is control flow
+ * rather than a failure.
+ *
+ * It is thrown from a route module compiled into the user's bundle, while this
+ * runs from the pre-compiled server runtime, so the two do not share a class
+ * identity and `instanceof` cannot be used here.
+ */
+function isNoFallbackError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.name === 'NoFallbackError' ||
+      error.constructor?.name === 'NoFallbackError' ||
+      error.message === 'Internal: NoFallbackError')
+  )
+}
+
+/**
+ * The response cache passes the same promise to `waitUntil` that it returns to
+ * its caller. The caller owns any rejection, so a `NoFallbackError` travelling
+ * through it must not additionally be reported as a failed background task.
+ * Every other error is re-thrown so genuine background failures are still
+ * surfaced.
+ */
+function ignoreNoFallbackError(error: unknown): void {
+  if (isNoFallbackError(error)) return
+  throw error
+}
+
+/**
  * Default TTL (in milliseconds) for minimal mode response cache entries.
  * Used for cache hit validation as a fallback for providers that don't
  * send the x-invocation-id header yet.
@@ -289,7 +319,7 @@ export default class ResponseCache implements ResponseCacheBase {
         )
 
         // We need to ensure background revalidates are passed to waitUntil.
-        if (waitUntil) waitUntil(promise)
+        if (waitUntil) waitUntil(promise.catch(ignoreNoFallbackError))
 
         return promise
       }
@@ -458,7 +488,7 @@ export default class ResponseCache implements ResponseCacheBase {
       )
 
       // We need to ensure background revalidates are passed to waitUntil.
-      if (waitUntil) waitUntil(promise)
+      if (waitUntil) waitUntil(promise.catch(ignoreNoFallbackError))
 
       return promise
     })
