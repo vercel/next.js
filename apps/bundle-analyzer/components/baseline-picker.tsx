@@ -25,10 +25,10 @@ import {
 } from '@/components/ui/popover'
 import { cn, jsonFetcher } from '@/lib/utils'
 import { NetworkError } from '@/lib/errors'
+import { useHistoryIndex } from '@/lib/analyzer-data'
 import {
   formatRelativeTime,
   formatSnapshotLabel,
-  type HistoryIndex,
   type SnapshotMetadata,
 } from '@/lib/snapshot'
 
@@ -59,23 +59,12 @@ export function BaselinePicker({
 }: BaselinePickerProps) {
   const [open, setOpen] = useState(false)
 
-  const {
-    data: history,
-    isLoading,
-    error,
-  } = useSWR<HistoryIndex>('history/history.json', jsonFetcher, {
-    // History rarely changes during a session — avoid spamming refetches.
-    revalidateOnFocus: false,
-    revalidateOnReconnect: false,
-    // Treat 404 as "no history yet" rather than an error so users on fresh
-    // installs see a graceful disabled state instead of a red banner.
-    shouldRetryOnError: false,
-  })
+  const { data: history, isLoading, error } = useHistoryIndex()
 
   // Metadata for the *current* build, so we can exclude its corresponding
   // entry from the history picker (you can't compare a build with itself).
   const { data: currentMetadata } = useSWR<SnapshotMetadata>(
-    'data/metadata.json',
+    '/data/metadata.json',
     jsonFetcher,
     {
       revalidateOnFocus: false,
