@@ -4,6 +4,13 @@ import {
   NEXT_QUERY_PARAM_PREFIX,
 } from '../../lib/constants'
 
+const LOOPBACK_HOSTNAME_REGEX =
+  /^(?:127(?:\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}|\[::1\]|::1|localhost)$/i
+
+export function normalizeLoopbackHostname(hostname: string): string {
+  return LOOPBACK_HOSTNAME_REGEX.test(hostname) ? 'localhost' : hostname
+}
+
 /**
  * Converts a Node.js IncomingHttpHeaders object to a Headers object. Any
  * headers with multiple values will be joined with a comma and space. Any
