@@ -44,8 +44,8 @@ export function serverPatchReducer(
   //
   // The freshness policy comes from the action: a genuine tree mismatch
   // re-fetches the dynamic data (`RefreshAll`), whereas a redirect that only
-  // changed the canonical URL reuses the data already in the tree
-  // (`HistoryTraversal`), since the data we received is correct.
+  // changed the canonical URL reuses the data already in the tree (`Default`),
+  // since the data we received is correct.
   const retryCanonicalUrl = createHrefFromUrl(retryUrl)
   const retryNextUrl = action.nextUrl
   const scrollBehavior = ScrollBehavior.Default
