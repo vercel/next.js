@@ -169,6 +169,11 @@ type EsmBindings = Array<
 >
 
 /**
+ * Terminates a module's group of entries in an {@link EsmReexports} list.
+ */
+const REEXPORT_GROUP_END = 0
+
+/**
  * Adds the getters to the exports object.
  */
 function esm(exports: Exports, bindings: EsmBindings, dynamic?: boolean) {
@@ -237,6 +242,70 @@ function esmExport(
   esm(exports, bindings, dynamic)
 }
 contextPrototype.s = esmExport
+
+/**
+ * Registers re-exports that all forward to properties of other modules.
+ *
+ * This is a compact spelling of the pattern
+ *
+ * ```js
+ * var ns = context.i(moduleId)
+ * context.s([exportName, () => ns[importedName], ...])
+ * ```
+ *
+ * The list is a flat sequence of groups, each starting with a module id followed by that module's
+ * entries and terminated by the `0` sentinel (or the end of the list):
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default', 'f', 'named', 'A', 0,
+ *   29842, 'otherModule', 'f',
+ * ])
+ * ```
+ *
+ * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
+ * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default,f,named,A', 0,
+ *   29842, 'otherModule,f',
+ * ])
+ * ```
+ *
+ * The producer only picks that spelling when no name contains a comma, since the names are recovered
+ * by splitting on it.
+ *
+ * Modules are instantiated in list order, at the point where the call appears, so the producer must
+ * not merge groups across an import of another module.
+ */
+function esmReexport(
+  this: TurbopackBaseContext<Module>,
+  list: EsmReexports
+): void {
+  const bindings: EsmBindings = []
+  let i = 0
+  while (i < list.length) {
+    const moduleId = list[i++] as ModuleId
+    const start = i
+    while (i < list.length && list[i] !== REEXPORT_GROUP_END) i++
+    const entries = list.slice(start, i) as string[]
+    // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
+    i++
+
+    // `esmImport` may return a promise for an async module. Re-exports of async modules keep going
+    // through `context.s`, so the producer never routes them here and this stays synchronous.
+    const namespace = this.i(moduleId) as Record<string, unknown>
+    const pairs =
+      entries.length === 1 ? entries[0].split(',') : (entries as string[])
+    for (let j = 0; j < pairs.length; j += 2) {
+      const importedName = pairs[j + 1]
+      bindings.push(pairs[j], () => namespace[importedName])
+    }
+  }
+  esmExport.call(this, bindings, undefined)
+}
+contextPrototype.S = esmReexport
 
 type ReexportedObjects = Record<PropertyKey, unknown>[]
 function ensureDynamicExports(

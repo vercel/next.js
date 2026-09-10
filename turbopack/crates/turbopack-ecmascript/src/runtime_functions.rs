@@ -71,6 +71,7 @@ pub const TURBOPACK_ASYNC_LOADER: &TurbopackRuntimeFunctionShortcut = make_short
 pub const TURBOPACK_MODULE_CONTEXT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("f");
 pub const TURBOPACK_IMPORT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("i");
 pub const TURBOPACK_ESM: &TurbopackRuntimeFunctionShortcut = make_shortcut!("s");
+pub const TURBOPACK_ESM_REEXPORT: &TurbopackRuntimeFunctionShortcut = make_shortcut!("S");
 pub const TURBOPACK_EXPORT_VALUE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("v");
 pub const TURBOPACK_EXPORT_URL: &TurbopackRuntimeFunctionShortcut = make_shortcut!("q");
 pub const TURBOPACK_EXPORT_NAMESPACE: &TurbopackRuntimeFunctionShortcut = make_shortcut!("n");
@@ -98,10 +99,11 @@ pub const TURBOPACK_ASSET_SUFFIX: &TurbopackRuntimeFunctionShortcut = make_short
 
 /// Adding an entry to this list will automatically ensure that `__turbopack_XXX__` can be called
 /// from user code (by inserting a replacement into free_var_references)
-pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 25] = [
+pub const TURBOPACK_RUNTIME_FUNCTION_SHORTCUTS: [(&str, &TurbopackRuntimeFunctionShortcut); 26] = [
     ("__turbopack_require__", TURBOPACK_REQUIRE),
     ("__turbopack_module_context__", TURBOPACK_MODULE_CONTEXT),
     ("__turbopack_import__", TURBOPACK_IMPORT),
+    ("__turbopack_esm_reexport__", TURBOPACK_ESM_REEXPORT),
     ("__turbopack_export_value__", TURBOPACK_EXPORT_VALUE),
     ("__turbopack_export_url__", TURBOPACK_EXPORT_URL),
     ("__turbopack_export_namespace__", TURBOPACK_EXPORT_NAMESPACE),
