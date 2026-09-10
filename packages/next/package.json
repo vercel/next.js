@@ -56,6 +56,7 @@
     "types.js",
     "index.d.ts",
     "types/global.d.ts",
+    "types/routes.d.ts",
     "types/compiled.d.ts",
     "image-types/global.d.ts",
     "navigation-types/navigation.d.ts",
