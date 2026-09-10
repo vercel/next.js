@@ -94,13 +94,15 @@ export default async function Page() {
 
 > If you add "`use cache`" at the top of a file, all exported functions in the file will be cached.
 
-### Keep mutable data fresh
+### Revalidating after mutations
 
-Before caching data that can change, identify every write that affects the cached result and decide when readers must see the update. If the cached data has no write path, you do not need on-demand invalidation. [`cacheLife`](/docs/app/api-reference/functions/cacheLife) controls time-based freshness, but it does not make a cached read immediately reflect a mutation.
+A mutation does not automatically invalidate cached data. Without on-demand invalidation, Next.js continues to use the configured cache lifetime. To invalidate a cached result after a mutation, tag it with [`cacheTag`](/docs/app/api-reference/functions/cacheTag), then invalidate the tag after the mutation succeeds.
 
-For read-your-own-writes behavior, tag the cached read with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and invalidate that tag after a successful write. Use [`updateTag`](/docs/app/api-reference/functions/updateTag) in a Server Action when the next read must wait for fresh data, or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) when stale-while-revalidate behavior is acceptable or the write happens in a Route Handler. When correctness requires fresh data and you cannot invalidate every affected cache entry, keep the read uncached.
+Use [`updateTag`](/docs/app/api-reference/functions/updateTag) in a Server Action when the next read should wait for fresh data. Use [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) when stale-while-revalidate behavior is acceptable, or when invalidating from a Route Handler.
 
-Test the complete lifecycle: populate the cache, perform the mutation, then read the data again and verify that the updated value is returned.
+[`cacheLife`](/docs/app/api-reference/functions/cacheLife) controls time-based freshness. It does not replace on-demand invalidation after a mutation. Data that is never updated does not need on-demand invalidation. If you cannot invalidate every cache entry affected by a mutation, keep the data uncached when immediate freshness is required.
+
+> **Good to know:** When testing a mutation, populate the cache first. Then perform the mutation and read the data again to verify that it returns the updated value.
 
 ### Streaming uncached data
 

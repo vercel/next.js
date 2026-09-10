@@ -265,7 +265,7 @@ Use `prefetch={true}` on routes where:
 - That part of the tree has a known cache lifetime (it can be expressed with `"use cache"` or `"use cache: private"`)
 - The traffic justifies the per-link server invocation
 
-If prefetched data has write paths, follow the [cache lifecycle guidance](/docs/app/getting-started/caching#keep-mutable-data-fresh) to connect them to invalidation and verify a write followed by a fresh read.
+Prefetching cached data does not change its freshness behavior. If a mutation can update the data, [tag and invalidate the cached result](/docs/app/getting-started/caching#revalidating-after-mutations).
 
 Skip it when the prefetch can't produce a better UI than the App Shell. Each visible `<Link prefetch={true}>` can wake a server, and that cost only pays off if more of the page is ready before the click:
 
