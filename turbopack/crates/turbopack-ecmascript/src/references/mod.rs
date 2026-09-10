@@ -235,7 +235,8 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     cjs_static_exports: Option<CjsStaticExports>,
 
-    env_var_info_runtime: FxIndexSet<RcStr>,
+    env_var_info_runtime_read: FxIndexSet<RcStr>,
+    env_var_info_runtime_existence: FxIndexSet<RcStr>,
 
     #[cfg(debug_assertions)]
     ident: RcStr,
@@ -256,7 +257,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             successful: false,
             source_map: None,
             cjs_static_exports: None,
-            env_var_info_runtime: Default::default(),
+            env_var_info_runtime_read: Default::default(),
+            env_var_info_runtime_existence: Default::default(),
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -333,9 +335,18 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.successful = successful;
     }
 
-    /// Adds a runtime environment variable reference to the analysis result.
-    pub fn add_runtime_env_var_reference(&mut self, runtime_env: RcStr) {
-        self.env_var_info_runtime.insert(runtime_env);
+    /// Adds a runtime environment variable read to the analysis result.
+    pub fn add_runtime_env_var_reference_read(&mut self, runtime_env: RcStr) {
+        self.env_var_info_runtime_existence
+            .swap_remove(&runtime_env);
+        self.env_var_info_runtime_read.insert(runtime_env);
+    }
+
+    /// Adds a runtime environment variable existence check to the analysis result.
+    pub fn add_runtime_env_var_reference_existence(&mut self, runtime_env: RcStr) {
+        if !self.env_var_info_runtime_read.contains(&runtime_env) {
+            self.env_var_info_runtime_existence.insert(runtime_env);
+        }
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -444,7 +455,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 source_map: self.source_map,
                 cjs_static_exports: self.cjs_static_exports,
                 env_var_info: EnvVarInfo {
-                    runtime: self.env_var_info_runtime.into_iter().collect(),
+                    runtime_read: self.env_var_info_runtime_read.into_iter().collect(),
+                    runtime_existence: self.env_var_info_runtime_existence.into_iter().collect(),
                 }
                 .resolved_cell(),
             },
@@ -1261,6 +1273,7 @@ async fn analyze_ecmascript_module_internal(
                     mut prop,
                     ast_path,
                     span,
+                    in_boolean_context,
                 } => {
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj =
@@ -1277,7 +1290,7 @@ async fn analyze_ecmascript_module_internal(
                         span,
                         &analysis_state,
                         &mut analysis,
-                        MembershipType::Member,
+                        MembershipType::Member { in_boolean_context },
                     )
                     .await?;
                 }
@@ -1314,7 +1327,7 @@ async fn analyze_ecmascript_module_internal(
                                     )
                             })
                         {
-                            analysis.add_runtime_env_var_reference(RcStr::from(prop));
+                            analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
                         }
                     }
                 }
@@ -3429,9 +3442,10 @@ fn extract_hot_dep_strings(arg: &JsValue<'_>) -> Option<Vec<RcStr>> {
 }
 
 enum MembershipType {
-    Member,
+    Member { in_boolean_context: bool },
     In,
 }
+
 async fn handle_membership<'a>(
     ast_path: &[AstParentKind],
     link_obj: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
@@ -3453,7 +3467,7 @@ async fn handle_membership<'a>(
             if has_member && let Some((mut name, false)) = obj_name.clone() {
                 name.0.push(DefinableNameSegmentRef::Name(prop));
                 match ty {
-                    MembershipType::Member => {
+                    MembershipType::Member { .. } => {
                         if let Some(value) = state
                             .compile_time_info_ref
                             .free_var_references
@@ -3487,7 +3501,7 @@ async fn handle_membership<'a>(
                 && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &obj
             {
                 analysis.add_code_gen::<CodeGen>(match ty {
-                    MembershipType::Member => {
+                    MembershipType::Member { .. } => {
                         CjsRequireCacheAccess::new(ast_path.to_vec().into()).into()
                     }
                     MembershipType::In => ConstantValueCodeGen::new(
@@ -3511,7 +3525,18 @@ async fn handle_membership<'a>(
                     ]
                 )
         }) {
-            analysis.add_runtime_env_var_reference(RcStr::from(prop));
+            match ty {
+                MembershipType::In => {
+                    analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
+                }
+                MembershipType::Member { in_boolean_context } => {
+                    if in_boolean_context {
+                        analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
+                    } else {
+                        analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
+                    }
+                }
+            }
             return Ok(());
         }
     }

@@ -431,8 +431,12 @@ pub trait EcmascriptParsable {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Debug)]
 pub struct EnvVarInfo {
-    /// List of environment variables that are referenced (but not inlined) in the module.
-    pub runtime: Vec<RcStr>,
+    /// List of environment variables that are read (but not inlined) in the module.
+    pub runtime_read: Vec<RcStr>,
+
+    /// List of environment variables that are checked for their existence (but not inlined) in the
+    /// module.
+    pub runtime_existence: Vec<RcStr>,
     // TODO add this back once we can do it without regressing performance
     // Whether the module potentially references all environment variables (because of a
     // non-statically analyzeable `process.env`).

@@ -7,7 +7,7 @@ use bumpalo::boxed::Box as BumpBox;
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use swc_core::{
-    common::{BytePos, Span, Spanned, SyntaxContext, pass::AstNodePath},
+    common::{BytePos, Mark, Span, Spanned, SyntaxContext, pass::AstNodePath},
     ecma::{
         ast::*,
         atoms::atom,
@@ -827,6 +827,52 @@ fn is_expression_statement(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool
             // The `Expr` wrapper of the node itself, and of a parenthesized one.
             AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
             AstParentNodeRef::ExprStmt(_, ExprStmtField::Expr) => return true,
+            _ => return false,
+        }
+    }
+    false
+}
+
+fn is_in_boolean_context(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    unresolved_mark: Mark,
+) -> bool {
+    for parent in ast_path.iter().rev() {
+        match parent {
+            // Transparent expression wrappers.
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            // A plain call argument may reach Boolean().
+            AstParentNodeRef::ExprOrSpread(arg, ExprOrSpreadField::Expr)
+                if arg.spread.is_none() => {}
+            // Logical results inherit their consumer's context.
+            AstParentNodeRef::BinExpr(
+                BinExpr {
+                    op: BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing,
+                    ..
+                },
+                BinExprField::Left | BinExprField::Right,
+            ) => {}
+            // Only logical negation coerces to boolean.
+            AstParentNodeRef::UnaryExpr(expr, UnaryExprField::Arg) => {
+                return expr.op == UnaryOp::Bang;
+            }
+            // Only the first argument to global Boolean is coerced.
+            AstParentNodeRef::CallExpr(call, CallExprField::Args(0)) => {
+                return matches!(
+                    &call.callee,
+                    Callee::Expr(callee)
+                        if matches!(&**callee, Expr::Ident(ident) if is_global(ident, "Boolean", unresolved_mark))
+                );
+            }
+            // Control-flow tests coerce their value to boolean.
+            AstParentNodeRef::IfStmt(_, IfStmtField::Test)
+            | AstParentNodeRef::CondExpr(_, CondExprField::Test)
+            | AstParentNodeRef::ForStmt(_, ForStmtField::Test)
+            | AstParentNodeRef::WhileStmt(_, WhileStmtField::Test)
+            | AstParentNodeRef::DoWhileStmt(_, DoWhileStmtField::Test) => return true,
+            // A selected ternary branch becomes the ternary's result. Needed for the if(ternary)
+            AstParentNodeRef::CondExpr(_, CondExprField::Cons | CondExprField::Alt) => {}
+            // Any other parent consumes the actual value.
             _ => return false,
         }
     }
@@ -1791,6 +1837,10 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 prop: prop_value,
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: member_expr.span(),
+                in_boolean_context: is_in_boolean_context(
+                    ast_path,
+                    self.eval_context.unresolved_mark,
+                ),
             });
         }
 
