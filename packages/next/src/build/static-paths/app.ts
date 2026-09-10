@@ -462,16 +462,14 @@ function getRemainingPrerenderableParams(
 /**
  * Assigns static shell metadata to each prerendered route.
  * This function uses a Trie data structure to efficiently determine whether each route
- * should throw an error when its static shell is empty and whether a fallback shell
- * can still be completed into a more specific prerendered shell.
+ * should throw an error when its static shell is empty.
  *
  * A route should not throw on empty static shell if it has child routes in the Trie. For example,
  * if we have two routes, `/blog/first-post` and `/blog/[slug]`, the route for
  * `/blog/[slug]` should not throw because `/blog/first-post` is a more specific concrete route.
  *
  * @param prerenderedRoutes - The prerendered routes.
- * @param pathnameSegments - The pathname params and whether each one can still
- * be filled by a more specific prerender.
+ * @param pathnameSegments - The pathname params in route order.
  * @param explicitFallbackParamName - The first parameter explicitly configured
  * as fallback, when one exists.
  */
@@ -479,7 +477,6 @@ export function assignStaticShellMetadata(
   prerenderedRoutes: readonly PrerenderedRoute[],
   pathnameSegments: ReadonlyArray<{
     readonly paramName: string
-    readonly isPrerenderable: boolean
   }>,
   explicitFallbackParamName?: string
 ): void {
@@ -629,14 +626,6 @@ export function assignStaticShellMetadata(
           route.throwOnEmptyStaticShell = false // Should not throw on empty static shell.
         } else {
           route.throwOnEmptyStaticShell = true // Should throw on empty static shell.
-        }
-
-        if (route.fallbackRouteParams && route.fallbackRouteParams.length > 0) {
-          route.remainingPrerenderableParams = getRemainingPrerenderableParams(
-            route.params,
-            route.fallbackRouteParams,
-            pathnameSegments
-          )
         }
       }
     }
