@@ -80,6 +80,7 @@ type WithSelectedTitle<T> = T extends { title: AbsoluteTemplateString }
  */
 export type SelectedMetadata = Omit<
   ResolvedMetadata,
+  | 'weight'
   | 'metadataBase'
   | 'title'
   | 'openGraph'
@@ -94,6 +95,13 @@ export type SelectedMetadata = Omit<
   > | null
   twitter: WithSelectedTitle<NonNullable<ResolvedMetadata['twitter']>> | null
 }
+
+/**
+ * Viewport that has finished route-level resolution. It contains only values
+ * that can be turned into viewport elements; it is never used as the parent of
+ * another viewport resolver.
+ */
+export type SelectedViewport = Omit<ResolvedViewport, 'weight'>
 
 export type TitleTemplates = {
   title: string | null
@@ -412,6 +420,11 @@ export async function mergeMetadata(
           : null
         break
 
+      // Used by parallel route selection and intentionally omitted from the
+      // resolved metadata that is rendered into tags.
+      case 'weight':
+        break
+
       case 'apple-touch-fullscreen': {
         buildState.warnings.add(
           `Use appleWebApp instead\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata`
@@ -472,6 +485,10 @@ export function mergeViewport({
       const key = key_ as keyof Viewport
 
       switch (key) {
+        // Used by parallel route selection and intentionally omitted from the
+        // resolved viewport that is rendered into tags.
+        case 'weight':
+          break
         case 'themeColor': {
           newResolvedViewport.themeColor = resolveThemeColor(
             viewport.themeColor

@@ -89,6 +89,14 @@ import type { ResolvedTwitterMetadata, Twitter } from './twitter-types'
  */
 interface Metadata extends DeprecatedMetadataFields {
   /**
+   * Controls which metadata is selected when parallel routes define competing
+   * values. Higher weights are preferred, and equal weights use the default
+   * selection behavior. The weight is inherited from the closest ancestor;
+   * set it to `0` to reset it to the default.
+   */
+  weight?: number | undefined
+
+  /**
    * The base path and origin for absolute URLs in various metadata fields.
    *
    * @remarks
@@ -763,6 +771,14 @@ declare namespace MetadataRoute {
  * ```
  */
 interface Viewport extends ViewportLayout {
+  /**
+   * Controls which viewport is selected when parallel routes define competing
+   * values. Higher weights are preferred, and equal weights use the default
+   * selection behavior. The weight is inherited from the closest ancestor;
+   * set it to `0` to reset it to the default.
+   */
+  weight?: number | undefined
+
   /**
    * The theme color for the document.
    *

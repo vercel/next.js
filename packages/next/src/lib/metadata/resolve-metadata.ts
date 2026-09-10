@@ -37,6 +37,7 @@ import {
   type PageProps,
   type SegmentProps,
   type SelectedMetadata,
+  type SelectedViewport,
   type TitleTemplates,
   type ViewportItems,
   createSelectedMetadata,
@@ -53,6 +54,7 @@ export type {
   MetadataErrorType,
   MetadataItems,
   SelectedMetadata,
+  SelectedViewport,
   ViewportItems,
 }
 export { createSelectedMetadata }

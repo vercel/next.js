@@ -205,6 +205,24 @@ function runMetadataStreamingTests(parallelRouteMetadata: boolean) {
       'second page - @bar'
     )
   })
+
+  it.each([
+    ['positive', 'slot positive title'],
+    ['negative', 'children negative title'],
+    ['reset', 'children reset title'],
+    ['equal', 'children equal title'],
+    ['higher', 'children higher title'],
+  ])('should select metadata using %s weights', async (mode, expectedTitle) => {
+    const $ = await next.render$(`/metadata-weight/${mode}`)
+    expect($('title').text()).toBe(expectedTitle)
+  })
+
+  it('should select metadata and viewport weights independently', async () => {
+    const $ = await next.render$('/metadata-weight/viewport-positive')
+
+    expect($('title').text()).toBe('children viewport-positive title')
+    expect($('meta[name="color-scheme"]').attr('content')).toBe('light')
+  })
 }
 
 describe.each([false, true])(

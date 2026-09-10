@@ -1,6 +1,8 @@
 import React from 'react'
-import type { SelectedMetadata } from './metadata-resolution-primitives'
-import type { ResolvedViewport } from './types/metadata-interface'
+import type {
+  SelectedMetadata,
+  SelectedViewport,
+} from './metadata-resolution-primitives'
 import { getOrigin } from './generate/utils'
 import { IconMark } from './generate/icon-mark'
 
@@ -9,7 +11,7 @@ import { IconMark } from './generate/icon-mark'
 // ---------------------------------------------------------------------------
 
 export function createViewportElements(
-  viewport: ResolvedViewport
+  viewport: SelectedViewport
 ): React.ReactElement[] {
   const tags: React.ReactElement[] = []
   let i = 0
