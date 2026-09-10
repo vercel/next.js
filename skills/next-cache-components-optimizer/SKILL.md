@@ -232,18 +232,21 @@ section that matches the route's blocker:
 
 - [Keep static UI in the
   shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-static-ui-in-the-shell)
+- [Push data access
+  down](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#push-data-access-down)
+  for top-level `await`, `params`, `searchParams`, `cookies()`, `headers()`, and
+  data that must be recomputed for each request
+- [Design loading
+  states](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#design-loading-states)
+  when new or changed boundaries affect how the UI reveals
 - [Cache reusable
   work](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#cache-reusable-work)
-- [Resolve data in the Server Component that uses
-  it](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#resolve-data-in-the-server-component-that-uses-it)
-  for top-level `await`, `params`, `searchParams`, `cookies()`, `headers()`, and
-  uncached reads
-- [Pass promises to Client
-  Components](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#pass-promises-to-client-components)
-  when an interactive subtree needs server data
-- [Keep streamed work
-  parallel](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-streamed-work-parallel)
-  when independent work became sequential
+
+When moving data access changes when requests start, preserve parallel fetching
+with [sequential and parallel data
+fetching](https://nextjs.org/docs/app/getting-started/fetching-data#sequential-data-fetching)
+and [preloading
+data](https://nextjs.org/docs/app/getting-started/fetching-data#preloading-data).
 
 For dynamic params that can be enumerated, follow [ISR with Cache
 Components](https://nextjs.org/docs/app/guides/incremental-static-regeneration-cache-components).

@@ -90,9 +90,11 @@ When the primary heading or other [Largest Contentful Paint candidate](/docs/app
 
 Some data cannot be known until a request arrives, must be recomputed for every request, or has a cache lifetime too short for prerendering. If a layout or page awaits that work near the top, it can block the whole page from rendering. Split out the region that needs the result and let only that region suspend so the rest of the page can render first.
 
-#### Resolve data in the Server Component that uses it
+#### Push data access down
 
-When the page resolves request-time data itself, its heading and other independent UI cannot render until that work finishes:
+Resolve request-time data in the logical UI region that uses it. This can be a Server Component that awaits the data or a Client Component that unwraps a promise passed from the server.
+
+**Resolve data in a Server Component.** When the page resolves request-time data itself, its heading and other independent UI cannot render until that work finishes:
 
 ```tsx filename="app/products/[slug]/page.tsx"
 // Before: request-time work blocks the page
@@ -164,7 +166,7 @@ async function UserMenu() {
 
 The layout can return `DashboardShell` before `UserMenu` reads the incoming request.
 
-For a small region, you do not need to create another component only to await a promise. Resolve `params`, `searchParams`, or another promise inline with `.then()` inside the boundary:
+**Resolve a promise inline.** For a small region, you do not need to create another component only to await a promise. Resolve `params`, `searchParams`, or another promise inline with `.then()` inside the boundary:
 
 ```tsx filename="app/products/page.tsx"
 <Suspense fallback={<ProductTabsSkeleton />}>
@@ -174,11 +176,7 @@ For a small region, you do not need to create another component only to await a 
 </Suspense>
 ```
 
-See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for more examples of resolving request-time work closer to the UI that uses it.
-
-#### Pass promises to Client Components
-
-An interactive Client Component may need data fetched on the server. Awaiting that data in its parent would also hold back the parent's stable UI:
+**Pass a promise to a Client Component.** An interactive Client Component may need data fetched on the server. Awaiting that data in its parent would also hold back the parent's stable UI:
 
 ```tsx filename="app/dashboard/page.tsx"
 // Before: the page waits for the chart data
@@ -233,57 +231,13 @@ export function ActivityChart({
 }
 ```
 
-For URL data, a Client Component can often call [`useParams()`](/docs/app/api-reference/functions/use-params) or [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) instead of receiving a promise. Both hooks resolve synchronously during a client navigation because the router already has the URL. On a page load, keep the component behind a boundary when the value is not known during prerendering.
+For URL data, a Client Component can often call [`useParams()`](/docs/app/api-reference/functions/use-params) or [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) instead of receiving a promise. Both hooks resolve synchronously during a client navigation because the router already has the URL.
 
-Related pattern:
-
-- To make specific dynamic params available during prerendering, use [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
-
-#### Keep streamed work parallel
-
-Splitting request-time work into smaller regions should not make independent requests sequential. When a parent awaits both results, neither region can reveal until both are ready:
-
-```tsx filename="app/dashboard/page.tsx"
-// Before: both regions wait for the slowest request
-export default async function DashboardPage() {
-  const [sales, activity] = await Promise.all([getSales(), getActivity()])
-
-  return (
-    <>
-      <Sales data={sales} />
-      <Activity data={activity} />
-    </>
-  )
-}
-```
-
-When the results belong to separate UI regions, let each component start its own request. React can begin rendering both components in the same render, and each region can stream when it is ready:
-
-```tsx filename="app/dashboard/page.tsx"
-// After: each region can reveal when its request finishes
-<Suspense fallback={<SalesSkeleton />}>
-  <Sales />
-</Suspense>
-<Suspense fallback={<ActivitySkeleton />}>
-  <Activity />
-</Suspense>
-```
-
-Within one region, start independent requests together and keep them sequential only when a later request needs an earlier result. If React reaches the component after other blocking work, preloading can start its request sooner. See [Sequential and parallel data fetching](/docs/app/getting-started/fetching-data#sequential-data-fetching) and [Preloading data](/docs/app/getting-started/fetching-data#preloading-data) for these patterns.
+See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for more examples of resolving request-time work closer to the UI that uses it.
 
 #### Design loading states
 
-[`<Suspense>` lets a region stream](/docs/app/guides/streaming#granular-streaming-with-suspense) without holding back the rest of the page. When a child suspends, its nearest boundary shows the fallback until the child is ready. The fallback's size and placement affect both the loading experience and [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
-
-**Scope `loading.tsx` with Suspense.** A route may already have a [`loading.tsx` file](/docs/app/api-reference/file-conventions/loading), which automatically wraps the segment's page and children in a Suspense boundary:
-
-```tsx filename="app/dashboard/loading.tsx"
-export default function Loading() {
-  return <DashboardSkeleton />
-}
-```
-
-When optimizing the static shell, use more focused `<Suspense>` boundaries to keep completed UI visible instead of replacing the whole segment with its `loading.tsx` fallback. The file can stay as the outer loading state while nested boundaries let smaller regions reveal independently. With either approach, make each fallback reserve the completed content's space to avoid layout shifts.
+Moving data access into smaller regions can expose loading states that a previously blocked page never showed. [`<Suspense>` lets those regions stream](/docs/app/guides/streaming#granular-streaming-with-suspense), but its boundaries also determine which content appears together and what replaces it while it waits.
 
 **Choose what reveals together.** Use separate boundaries when each completed region has predictable dimensions and can reveal independently. Its fallback should reserve the same space:
 
@@ -310,6 +264,16 @@ Nest the boundaries when one region has a variable height that could shift the c
 React can still start independently reachable work during the same render. Nesting changes the reveal order. It does not make independent requests sequential.
 
 For variable-length content, another option is to render a predictable collapsed state with a Show more or Load more control so content below can appear without shifting later.
+
+**Refine an existing `loading.tsx`.** A route may already have a [`loading.tsx` file](/docs/app/api-reference/file-conventions/loading), which automatically wraps the segment's page and children in a Suspense boundary:
+
+```tsx filename="app/dashboard/loading.tsx"
+export default function Loading() {
+  return <DashboardSkeleton />
+}
+```
+
+The file can stay as the segment's outer loading state. As you push data access down, add focused boundaries where completed UI should remain visible or smaller regions should reveal independently. This is often when a route that previously showed one broad loading state needs more deliberate fallbacks.
 
 When a route uses parallel slots, each slot can stream with its own loading state. See [Loading and Error UI with Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
 
@@ -356,6 +320,7 @@ If the application can change a cached result, connect the cached read to its wr
 
 Related patterns:
 
+- To cache a result using a value from `cookies()`, `headers()`, or another runtime API, [read the value outside the cached scope and pass it as an argument](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions).
 - To deduplicate matching calls during one server request without persisting the result across requests, use [React `cache()`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache).
 - To prerender known dynamic routes and generate others on demand, see [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
 
