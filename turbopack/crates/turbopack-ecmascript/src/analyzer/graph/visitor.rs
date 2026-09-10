@@ -1837,7 +1837,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 prop: prop_value,
                 ast_path: as_parent_path_in(self.arena, ast_path),
                 span: member_expr.span(),
-                in_boolean_context: is_in_boolean_context(
+                in_truthiness_context: is_in_boolean_context(
                     ast_path,
                     self.eval_context.unresolved_mark,
                 ),
