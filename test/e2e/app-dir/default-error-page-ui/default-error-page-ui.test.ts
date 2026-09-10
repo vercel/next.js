@@ -105,14 +105,10 @@ describe('app dir - default error page UI', () => {
     expect(buttonBg).toContain('23')
   })
 
-  it('should keep the warning icon at 32px when app CSS targets svg elements', async () => {
+  (isNextDev ? it.skip : it)('should keep the warning icon at 32px when app CSS targets svg elements', async () => {
     const browser = await next.browser('/trigger-error')
 
     await browser.elementByCss('#trigger-error').click()
-
-    if (isNextDev) {
-      return
-    }
 
     await browser.eval(`(() => {
       const style = document.createElement('style')
