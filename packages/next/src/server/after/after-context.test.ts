@@ -47,6 +47,65 @@ describe('AfterContext', () => {
       )
     }
 
+  it('waits for callback thenables when tracing is enabled', async () => {
+    const { trace } = await import('@opentelemetry/api')
+    const span = trace.wrapSpanContext({
+      traceId: '0123456789abcdef0123456789abcdef',
+      spanId: '0123456789abcdef',
+      traceFlags: 1,
+    })
+    trace.setGlobalTracerProvider({
+      getTracer() {
+        return {
+          startSpan: () => span,
+          startActiveSpan(...args: any[]) {
+            return args[args.length - 1](span)
+          },
+        }
+      },
+    })
+
+    try {
+      const waitUntilPromises: Promise<unknown>[] = []
+      const taskErrors: unknown[] = []
+      const { onClose, triggerOnClose } = createOnClose()
+      const afterContext = new AfterContext({
+        waitUntil: (promise) => waitUntilPromises.push(promise),
+        onClose,
+        onTaskError: (error) => taskErrors.push(error),
+      })
+      const run = createRun(
+        afterContext,
+        createMockWorkStore(afterContext),
+        createMockWorkUnitStore()
+      )
+      const deferred = createPromiseWithResolvers<void>()
+      let callbackFinished = false
+
+      run(() =>
+        after(() => ({
+          then(resolve: () => void) {
+            deferred.promise.then(() => {
+              callbackFinished = true
+              resolve()
+            })
+          },
+        }))
+      )
+
+      triggerOnClose()
+      await waitForCallbackQueue()
+      expect(taskErrors).toEqual([])
+      expect(callbackFinished).toBe(false)
+
+      deferred.resolve()
+      await Promise.all(waitUntilPromises)
+      expect(callbackFinished).toBe(true)
+    } finally {
+      trace.disable()
+    }
+  })
+
   it('runs after() callbacks from a run() callback that resolves', async () => {
     const waitUntilPromises: Promise<unknown>[] = []
     const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
