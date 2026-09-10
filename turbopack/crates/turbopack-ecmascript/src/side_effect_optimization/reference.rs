@@ -160,12 +160,8 @@ impl EcmascriptModulePartReference {
     ) -> Result<CodeGeneration> {
         let this = self.await?;
 
-        // Mirrors the same check in `EsmAssetReference::code_generation`. The module graph's
-        // usage-pruning pass can decide this reference is unused (an `Evaluation` edge to a
-        // side-effect-free target — see `BindingUsageInfo::add`) and skip traversing through it,
-        // which can drop the target from the chunk entirely. Emitting the import unconditionally
-        // here would then reference a module that was never chunked, so this has to agree with
-        // that decision rather than assume the target is always present.
+        // Skip generation for unused references, similar to `EsmAssetReference::code_generation`.
+        // Chunking may completely skip the target so we cannot reference it.
         if chunking_context
             .unused_references()
             .contains_key(&ResolvedVc::upcast(self.to_resolved().await?))
