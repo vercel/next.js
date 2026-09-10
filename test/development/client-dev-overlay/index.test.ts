@@ -119,6 +119,21 @@ describe('client-dev-overlay', () => {
     })
   })
 
+  it('should prevent page scrolling when dragging the indicator by touch', async () => {
+    const browser = await next.browser('/')
+    await waitForDevToolsIndicator(browser)
+
+    const touchAction = await browser.eval((indicatorSelector: string) => {
+      const badge = document
+        .querySelector('nextjs-portal')
+        ?.shadowRoot?.querySelector(indicatorSelector)
+      const draggable = badge?.parentElement
+      return draggable ? getComputedStyle(draggable).touchAction : null
+    }, selectors.indicator)
+
+    expect(touchAction).toBe('none')
+  })
+
   it('should nudge to use Turbopack unless Turbopack is disabled', async () => {
     const browser = await next.browser('/')
 
