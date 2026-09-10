@@ -47,6 +47,36 @@ describe('AfterContext', () => {
       )
     }
 
+  it('updates the phase of tracked work unit stores when the request closes', () => {
+    const { onClose, triggerOnClose } = createOnClose()
+    const afterContext = new AfterContext({
+      waitUntil: undefined,
+      onClose,
+      onTaskError: undefined,
+    })
+    const workUnitStore = createMockWorkUnitStore()
+
+    afterContext.trackWorkUnitStore(workUnitStore)
+    triggerOnClose()
+
+    expect(workUnitStore.phase).toBe('after')
+  })
+
+  it('updates the phase of work unit stores tracked after the request closes', () => {
+    const { onClose, triggerOnClose } = createOnClose()
+    const afterContext = new AfterContext({
+      waitUntil: undefined,
+      onClose,
+      onTaskError: undefined,
+    })
+    const workUnitStore = createMockWorkUnitStore()
+
+    triggerOnClose()
+    afterContext.trackWorkUnitStore(workUnitStore)
+
+    expect(workUnitStore.phase).toBe('after')
+  })
+
   it('runs after() callbacks from a run() callback that resolves', async () => {
     const waitUntilPromises: Promise<unknown>[] = []
     const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
