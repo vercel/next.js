@@ -1,18 +1,16 @@
 /**
- * React mints a `useId` value in a Flight render as `_<prefix>S_<counter>_`,
- * where `counter` restarts at zero for every render. A document's whole tree is
- * one Flight render, but navigations, Server Action results and prefetches are
- * separate renders, so without a prefix a Server Component in a newly fetched
- * page hands out ids that a layout still mounted from the document render is
- * already using.
+ * A `useId` value is unique within one Flight render, not across renders. A
+ * document's whole tree is one render, but navigations, Server Action results
+ * and prefetches are separate renders, so without a prefix a Server Component
+ * in a newly fetched page can hand out an id that a layout still mounted from
+ * the document render is already using.
  *
- * Only the renders whose payload is applied onto a tree the client already
- * holds take a prefix. A document render and a prerender produce that tree
- * rather than joining one, so they keep the unprefixed ids — which also leaves
- * prerendered output byte-for-byte unchanged. Within one URL a prerender
- * numbers every segment in a single pass, and a layout's ids are always minted
- * before the child segment's, so segments carved out of a prerender agree on
- * their counters no matter which route they are later inserted under.
+ * Only renders whose payload is applied onto a tree the client already holds
+ * take a prefix. A document render and a prerender produce that tree rather
+ * than joining one, so their ids keep their unprefixed form. The segments
+ * carved out of a single prerender agree on their ids because they come from
+ * one render; `test/e2e/app-dir/use-id-static-segments` covers what that
+ * relies on.
  */
 
 /**
