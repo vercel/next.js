@@ -353,7 +353,8 @@ impl Asset for ServerActionManifestAsset {
                         .await?,
                     durability: data.as_ref().map(|d| ActionManifestWorkerEntryDurability {
                         code_hash: d.ident_code_hash.as_str(),
-                        runtime_env_vars: d.runtime_env_var_read.as_slice(),
+                        runtime_env_vars_read: d.runtime_env_vars_read.as_slice(),
+                        runtime_env_vars_existence: d.runtime_env_vars_existence.as_slice(),
                     }),
                 },
             );
@@ -405,10 +406,13 @@ pub async fn to_rsc_context(
 #[turbo_tasks::value]
 #[derive(Debug)]
 struct ModulesInformation {
-    /// The combined code hash of all modules in the subgraph
+    /// The combined code hash of all modules in the subgraph.
     pub ident_code_hash: RcStr,
-    /// The merged and deduplicated list of all runtime env vars read in the subgraph
-    pub runtime_env_var_read: Vec<RcStr>,
+    /// The merged and deduplicated list of all runtime env vars read in the subgraph.
+    pub runtime_env_vars_read: Vec<RcStr>,
+    /// The merged and deduplicated list of runtime env vars used only checked for set/falsy/truthy
+    /// in the subgraph.
+    pub runtime_env_vars_existence: Vec<RcStr>,
 }
 
 #[turbo_tasks::function]
@@ -491,7 +495,17 @@ async fn compute_subtree_content_hash(
                             data.ident_code_hash,
                             data.env_var_info
                                 .as_ref()
-                                .map(|e| e.runtime_read.clone())
+                                .map(|e| {
+                                    e.runtime_read
+                                        .iter()
+                                        .map(|r| format!("read {}", r))
+                                        .chain(
+                                            e.runtime_existence
+                                                .iter()
+                                                .map(|r| format!("exists {}", r)),
+                                        )
+                                        .collect::<Vec<_>>()
+                                })
                                 .unwrap_or_default()
                                 .join(",")
                         ))
@@ -503,21 +517,29 @@ async fn compute_subtree_content_hash(
         }
 
         let mut hashes = Vec::with_capacity(data.len());
-        let mut runtime_env_var_read = FxIndexSet::default();
+        let mut runtime_env_vars_read = FxIndexSet::default();
+        let mut runtime_env_vars_existence = FxIndexSet::default();
 
         for (_m, data) in &data {
             hashes.push(&data.ident_code_hash);
             if let Some(env) = &data.env_var_info {
-                runtime_env_var_read.extend(env.runtime_read.iter());
+                runtime_env_vars_read.extend(env.runtime_read.iter());
+                runtime_env_vars_existence.extend(env.runtime_existence.iter());
             }
         }
+
+        runtime_env_vars_existence.retain(|key| !runtime_env_vars_read.contains(key));
 
         let hash = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
 
         anyhow::Ok(
             ModulesInformation {
                 ident_code_hash: hash,
-                runtime_env_var_read: runtime_env_var_read.into_iter().cloned().collect(),
+                runtime_env_vars_read: runtime_env_vars_read.into_iter().cloned().collect(),
+                runtime_env_vars_existence: runtime_env_vars_existence
+                    .into_iter()
+                    .cloned()
+                    .collect(),
             }
             .cell(),
         )
