@@ -141,7 +141,7 @@ In the example above, each `accountId` has its own entry for `getOrderSummary`, 
 
 Note that `getOrderTotals` is not cached. It is exported so other parts of the application can read fresh totals in an uncached scope. Inside `getOrderSummary`, though, the totals query only runs when that function runs following the `'hours'` lifetime set there.
 
-With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), prerendering fills the entry and keeps rendering, so this output contributes to the route's [static shell](/docs/app/getting-started/caching#prerendering) and can contribute to its [prefetch](/docs/app/getting-started/caching#prefetching). A cache life too short to store safely leaves a hole that resolves at request time instead. See [prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for the thresholds.
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), prerendering fills the entry and keeps rendering, so this output contributes to the route's [static shell](/docs/app/getting-started/rendering-model#the-static-shell) and can contribute to its [prefetch](/docs/app/guides/prefetching). A cache life too short to store safely leaves a hole that resolves at request time instead. See [prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for the thresholds.
 
 ## Serialization
 
