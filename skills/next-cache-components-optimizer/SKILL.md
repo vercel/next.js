@@ -80,6 +80,7 @@ several contracts in one test.
 - [ ] C  RED          locked instant(): the shell does not commit            → test-template.md
 - [ ] C-gate          VERIFY-RED: stop until the RED is trustworthy          → reference/red-test-robustness.md
 - [ ] D  FIX          apply the public static-shell patterns to reach GREEN
+- [ ]      apply and verify one visible region at a time
 - [ ]      reuse existing loading UI; do not hand-build page skeletons
 - [ ]      match the completed render at every supported breakpoint
 - [ ] E  PARITY       the refactor changed only whether the route is instant
@@ -206,6 +207,16 @@ Preserve the route's existing freshness and authorization behavior. Reuse its
 loading UI, keep the shell meaningful, and verify every render path and
 breakpoint in scope. If the guide does not cover the blocker, stop and report
 the missing case instead of inventing a new general pattern here.
+
+Before creating a fallback, inspect the target route for existing loading UI:
+
+1. Use its `loading.tsx` when the whole segment shares one loading state.
+2. Reuse an exported `*Skeleton` colocated with the deferred component.
+3. Reuse the fallback from an existing `<Suspense>` boundary.
+
+If none applies, extract loading markup next to the component it represents.
+Do not create a second skeleton that mirrors the whole page and can drift from
+the completed layout.
 
 Run the scoped build and the locked test after each focused change. Phase D is
 complete only when the phase-C test passes on the production rig. A successful
