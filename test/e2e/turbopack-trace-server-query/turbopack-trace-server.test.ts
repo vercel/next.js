@@ -314,6 +314,91 @@ describe('turbopack-trace-server', () => {
     expect(span).toHaveProperty('isAggregated')
   })
 
+  // ─── allocation metadata ─────────────────────────────────────────────────
+
+  it('should include allocation metadata on every span in JSON output', async () => {
+    const { spans } = await querySpansJson(mcpPort, { sort: 'value' })
+    expect(spans.length).toBeGreaterThan(0)
+
+    for (const span of spans) {
+      for (const field of [
+        'allocations',
+        'deallocations',
+        'persistentAllocations',
+        'allocationCount',
+        'selfAllocations',
+        'selfDeallocations',
+        'selfPersistentAllocations',
+        'selfAllocationCount',
+      ]) {
+        expect(span).toHaveProperty(field)
+        expect(typeof span[field]).toBe('number')
+        expect(span[field]).toBeGreaterThanOrEqual(0)
+      }
+    }
+  })
+
+  it('should report allocation totals that are consistent with self values', async () => {
+    const { spans } = await querySpansJson(mcpPort, { sort: 'allocations' })
+
+    for (const span of spans) {
+      // `self` covers this span only; the total also includes children.
+      expect(span.allocations as number).toBeGreaterThanOrEqual(
+        span.selfAllocations as number
+      )
+      expect(span.deallocations as number).toBeGreaterThanOrEqual(
+        span.selfDeallocations as number
+      )
+      expect(span.persistentAllocations as number).toBeGreaterThanOrEqual(
+        span.selfPersistentAllocations as number
+      )
+      expect(span.allocationCount as number).toBeGreaterThanOrEqual(
+        span.selfAllocationCount as number
+      )
+    }
+  })
+
+  it('should sort by allocations descending', async () => {
+    const { spans } = await querySpansJson(mcpPort, { sort: 'allocations' })
+    const values = spans.map((s) => s.allocations as number)
+    expect(values).toEqual([...values].sort((a, b) => b - a))
+  })
+
+  it('should sort by persistent-allocations descending', async () => {
+    const { spans } = await querySpansJson(mcpPort, {
+      sort: 'persistent-allocations',
+    })
+    const values = spans.map((s) => s.persistentAllocations as number)
+    expect(values).toEqual([...values].sort((a, b) => b - a))
+  })
+
+  it('should include allocation metadata for raw (non-aggregated) spans', async () => {
+    const { spans } = await querySpansJson(mcpPort, { aggregated: false })
+    expect(spans.length).toBeGreaterThan(0)
+    for (const span of spans) {
+      expect(typeof span.allocations).toBe('number')
+      expect(typeof span.persistentAllocations).toBe('number')
+    }
+  })
+
+  it('should render an allocations section in markdown', async () => {
+    // Sorting by allocations puts a span that actually allocated first, so the
+    // section is present (it is omitted for spans that allocated nothing).
+    const { spans } = await querySpansJson(mcpPort, { sort: 'allocations' })
+    if ((spans[0].allocations as number) === 0) {
+      // No allocation data in this trace; nothing to assert.
+      return
+    }
+
+    const md = await callMcpTool(mcpPort, 'query_spans', {
+      sort: 'allocations',
+    })
+    expect(md).toContain('**Allocations:**')
+    expect(md).toMatch(/- \*\*Allocated:\*\* .+ \(self .+\)/)
+    expect(md).toMatch(/- \*\*Persistent \(net retained\):\*\* .+ \(self .+\)/)
+    expect(md).toMatch(/- \*\*Allocation Count:\*\* .+ \(self .+\)/)
+  })
+
   // ─── CLI tests ───────────────────────────────────────────────────────────
 
   it('CLI: should return root-level spans', async () => {
@@ -345,6 +430,30 @@ describe('turbopack-trace-server', () => {
       String(mcpPort),
       '--sort',
       'name',
+    ])
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('## Spans at root level')
+    expect(stdout).toMatch(/###/)
+  })
+
+  it('CLI: should support --sort allocations flag', async () => {
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--sort',
+      'allocations',
+    ])
+    expect(exitCode).toBe(0)
+    expect(stdout).toContain('## Spans at root level')
+    expect(stdout).toMatch(/###/)
+  })
+
+  it('CLI: should support --sort persistent-allocations flag', async () => {
+    const { stdout, exitCode } = await runQueryTraceCli([
+      '--port',
+      String(mcpPort),
+      '--sort',
+      'persistent-allocations',
     ])
     expect(exitCode).toBe(0)
     expect(stdout).toContain('## Spans at root level')

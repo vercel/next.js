@@ -44,6 +44,35 @@ function formatBytes(bytes: number): string {
   return `${bytes} B`
 }
 
+function formatCount(n: number): string {
+  return n.toLocaleString('en-US')
+}
+
+/**
+ * Render the allocation metrics for a span.
+ *
+ * `total*` values cover the span and all its children; `self*` values exclude
+ * children. For aggregated groups both are group totals across every span in
+ * the group. Lines are omitted entirely when a span allocated nothing, so
+ * traces recorded without allocation tracking stay uncluttered.
+ */
+function renderAllocationsMarkdown(span: TraceSpanInfo): string {
+  if (
+    !span.allocations &&
+    !span.deallocations &&
+    !span.persistentAllocations &&
+    !span.allocationCount
+  ) {
+    return ''
+  }
+  let md = `\n**Allocations:**\n`
+  md += `- **Allocated:** ${formatBytes(span.allocations)} (self ${formatBytes(span.selfAllocations)})\n`
+  md += `- **Deallocated:** ${formatBytes(span.deallocations)} (self ${formatBytes(span.selfDeallocations)})\n`
+  md += `- **Persistent (net retained):** ${formatBytes(span.persistentAllocations)} (self ${formatBytes(span.selfPersistentAllocations)})\n`
+  md += `- **Allocation Count:** ${formatCount(span.allocationCount)} (self ${formatCount(span.selfAllocationCount)})\n`
+  return md
+}
+
 function summarizeMemorySamples(samples: number[][]): string | null {
   if (!samples || samples.length === 0) return null
   const bytes = samples.map((s) => s[1])
@@ -102,6 +131,8 @@ function renderSpanMarkdown(span: TraceSpanInfo): string {
     }
   }
 
+  md += renderAllocationsMarkdown(span)
+
   const memSummary = summarizeMemorySamples(span.memorySamples)
   if (memSummary) {
     md += `\n**Memory (TurboMalloc live bytes):** ${memSummary}\n`
@@ -154,7 +185,7 @@ export async function startTurboTraceServerCli(
     'query_spans',
     {
       description:
-        'Query spans from a turbopack trace file. Returns spans with timing, CPU usage, attribute details, and TurboMalloc live-memory samples recorded while each span was active. Set `outputType` to "json" for machine-readable output (including the raw `memorySamples` array of `[ts_offset_ticks, bytes, pressure]` triples per span — pressure is 0 = none, higher = more memory pressure) or "markdown" (default) for a human-readable summary. Use the `parent` parameter (with an ID from a previous result) to drill into children. Results are paginated to 20 spans per page.',
+        'Query spans from a turbopack trace file. Returns spans with timing, CPU usage, attribute details, allocation metadata, and TurboMalloc live-memory samples recorded while each span was active. Allocation fields per span: `allocations` / `deallocations` / `persistentAllocations` (bytes) and `allocationCount`, each covering the span and all its children, plus `selfAllocations` / `selfDeallocations` / `selfPersistentAllocations` / `selfAllocationCount` which exclude children. `persistentAllocations` is net bytes still retained (summed per span as allocated minus deallocated, floored at zero) and is the best signal for finding memory a span holds onto; it is not simply `allocations - deallocations`, since a span may free memory an earlier span allocated, which is also why `deallocations` can exceed `allocations`; comparing a total against its `self` counterpart shows whether a span allocates directly or only through its children. For aggregated groups these are group totals across every span in the group (unlike `cpuDuration`, which is the example span\'s value). Sort by `allocations` or `persistent-allocations` to rank the biggest allocators. Set `outputType` to "json" for machine-readable output (including the raw `memorySamples` array of `[ts_offset_ticks, bytes, pressure]` triples per span — pressure is 0 = none, higher = more memory pressure) or "markdown" (default) for a human-readable summary. Use the `parent` parameter (with an ID from a previous result) to drill into children. Results are paginated to 20 spans per page.',
       inputSchema: {
         parent: z
           .string()
@@ -169,10 +200,10 @@ export async function startTurboTraceServerCli(
             'When true (default), aggregate spans with the same name into a single entry. Set to false to see individual raw spans.'
           ),
         sort: z
-          .enum(['value', 'name'])
+          .enum(['value', 'name', 'allocations', 'persistent-allocations'])
           .optional()
           .describe(
-            'Sort mode: "value" for corrected duration descending, "name" for alphabetical. Omit for execution order.'
+            'Sort mode: "value" for corrected duration descending, "name" for alphabetical, "allocations" for total allocated bytes descending, "persistent-allocations" for net retained bytes descending. Omit for execution order.'
           ),
         search: z
           .string()
