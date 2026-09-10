@@ -12,7 +12,6 @@ describe('API routes', () => {
     dependencies: {
       'http-proxy': 'latest',
       cors: 'latest',
-      'node-fetch': '2.6.7',
     },
     skipDeployment: true,
     disableAutoSkewProtection: true,
@@ -602,7 +601,6 @@ describe('API routes output export error', () => {
     dependencies: {
       'http-proxy': 'latest',
       cors: 'latest',
-      'node-fetch': '2.6.7',
     },
     skipStart: true,
     skipDeployment: true,
