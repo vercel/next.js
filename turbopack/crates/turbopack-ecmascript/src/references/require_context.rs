@@ -69,7 +69,7 @@ impl DirList {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn read_internal(
+    async fn read_internal(
         root: FileSystemPath,
         dir: FileSystemPath,
         recursive: bool,
@@ -90,7 +90,8 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(path)
+                    // Webpack always checks the RegExp against a path prefixed with `./`
+                    if let Some(relative_path) = root_val.get_relative_request_to(path)
                         && regex.is_match(&relative_path)
                     {
                         list.insert(relative_path, DirListEntry::File(path.clone()));
@@ -193,7 +194,7 @@ impl RequireContextMap {
         let mut map = FxIndexMap::default();
 
         for (context_relative, path) in list {
-            let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
+            let Some(origin_relative) = origin_path.get_relative_request_to(path) else {
                 bail!("invariant error: this was already checked in `list_dir`");
             };
 

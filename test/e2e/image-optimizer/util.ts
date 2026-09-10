@@ -1469,7 +1469,12 @@ export function runTests(ctx: RunTestsCtx) {
     )
     await expectWidth(res1, ctx.w)
 
-    const opts2 = { headers: { accept: 'image/webp', 'if-none-match': etag } }
+    // undici injects Cache-Control: no-cache into requests with
+    // conditional headers, which would defeat the etag freshness check.
+    const opts2 = {
+      headers: { accept: 'image/webp', 'if-none-match': etag },
+      cache: 'force-cache' as const,
+    }
     const res2 = await next.fetch(`/_next/image?${toQueryString(query)}`, opts2)
     expect(res2.status).toBe(304)
     expect(res2.headers.get('Content-Type')).toBeFalsy()

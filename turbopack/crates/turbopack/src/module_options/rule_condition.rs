@@ -261,7 +261,7 @@ impl RuleCondition {
                         return Ok(source.ident().await?.content_type.is_none());
                     }
                     RuleCondition::ResourcePathGlob { glob, base } => {
-                        return Ok(if let Some(rel_path) = base.get_relative_path_to(path) {
+                        return Ok(if let Some(rel_path) = base.get_relative_request_to(path) {
                             glob.matches(&rel_path)
                         } else {
                             glob.matches(&path.path)
