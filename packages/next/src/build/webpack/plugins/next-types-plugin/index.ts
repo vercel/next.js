@@ -370,6 +370,7 @@ function createServerDefinitions() {
     export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
     export { after } from 'next/dist/server/after'
     export { connection } from 'next/dist/server/request/connection'
+    export { unstable_requestSignal } from 'next/dist/server/request/request-signal'
   }
   `
 }
