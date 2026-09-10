@@ -21,7 +21,7 @@ export function DevToolsHeader({
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '8px 20px',
+        padding: '8px 8px 8px 20px',
         userSelect: 'none',
         WebkitUserSelect: 'none',
         borderBottom: '1px solid var(--color-gray-alpha-400)',
