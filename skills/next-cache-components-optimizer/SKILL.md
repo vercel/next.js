@@ -220,9 +220,21 @@ untrustworthy REDs, the checklist, and worked cases are in
 ### D. Apply the documented static-shell pattern
 
 Use the **Optimizing the static shell** guide you read at the start. Follow the
-section that matches the route's blocker, and follow any canonical Insight link
-printed by the build for the specific API involved. Do not recreate those
-framework recipes in this Skill.
+section that matches the route's blocker:
+
+- [Keep static UI in the
+  shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-static-ui-in-the-shell)
+- [Cache reusable
+  work](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#cache-reusable-work)
+- [Stream request-time
+  work](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#stream-request-time-work)
+
+For streaming changes, also review [Avoid data
+waterfalls](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#avoid-data-waterfalls)
+and [Design loading
+states](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#design-loading-states).
+Follow any canonical Insight link printed by the build for the specific API
+involved. Do not recreate those framework recipes in this Skill.
 
 Metadata and viewport resolve outside the page's component tree, so page-level
 boundaries do not cover them. When validation identifies one of these APIs,

@@ -104,9 +104,11 @@ Learn more about cache scopes and lifetimes in [Caching](/docs/app/getting-start
 
 ### Stream request-time work
 
-#### Resolve promises in Server Components
+Some data cannot be known until a request arrives. If a layout or page awaits that work before returning its UI, stable content in the same component waits too. Let the region that needs the data suspend so the rest of the route can render first.
 
-A top-level `await` for `params`, `searchParams`, or uncached data prevents the component from returning its stable UI. Pass existing promises to the region that needs them, or move the uncached read into that region, then resolve the work behind `<Suspense>`:
+#### Resolve data in the Server Component that uses it
+
+Move `params`, `searchParams`, or an uncached data read into the smallest Server Component that needs it. Place that component behind `<Suspense>` so its stable siblings stay visible while the work resolves:
 
 ```tsx filename="app/products/[slug]/page.tsx" highlight={7-9,17-18}
 import { Suspense } from 'react'
@@ -131,9 +133,9 @@ async function Product({
 }
 ```
 
-The heading and fallback can render in the static shell while the uncached product query waits for the request. For `cookies()` or `headers()` reads, move the read into the smallest Server Component that needs it and place that component behind `<Suspense>`:
+The heading and product fallback can render before the uncached product query finishes. Request APIs such as `cookies()` and `headers()` follow the same pattern:
 
-```tsx filename="app/dashboard/layout.tsx" highlight={7,14}
+```tsx filename="app/dashboard/layout.tsx" highlight={7-9,16}
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 
@@ -158,7 +160,7 @@ async function UserMenu() {
 
 The layout can return `DashboardShell` before `UserMenu` reads the incoming request.
 
-When only one region needs `searchParams`, a Server Component can resolve the promise inline with `.then()`. This keeps the page synchronous, so its stable siblings can render while the boundary shows a fallback for the URL-dependent region:
+For a small region, you do not need to create another component only to await a promise. Resolve `params`, `searchParams`, or another promise inline with `.then()` inside the boundary:
 
 ```tsx filename="app/products/page.tsx" highlight={2}
 <Suspense fallback={<ProductTabsSkeleton />}>
@@ -168,13 +170,13 @@ When only one region needs `searchParams`, a Server Component can resolve the pr
 </Suspense>
 ```
 
-#### Unwrap promises in Client Components
+See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for more examples of resolving request-time work closer to the UI that uses it.
 
-An interactive Client Component may need data fetched on the server. If its parent awaits that data before returning, it also holds back stable UI around the component. Instead, start the request in the Server Component without awaiting it and pass the promise down. The parent can return its stable UI while the nearest `<Suspense>` boundary shows a fallback for the pending Client Component.
+#### Pass promises to Client Components
 
-The Client Component unwraps the promise with React's [`use()`](https://react.dev/reference/react/use):
+An interactive Client Component may need data fetched on the server. Awaiting that data in its parent would also hold back the parent's stable UI. Instead, start the request without awaiting it and pass the promise to the Client Component behind `<Suspense>`:
 
-```tsx filename="app/dashboard/page.tsx" highlight={6,9}
+```tsx filename="app/dashboard/page.tsx" highlight={6,9-10}
 import { Suspense } from 'react'
 import { getActivity } from '@/app/lib/data'
 import { ActivityChart } from './activity-chart'
@@ -190,7 +192,9 @@ export default function DashboardPage() {
 }
 ```
 
-```tsx filename="app/dashboard/activity-chart.tsx" highlight={9}
+The Client Component unwraps the promise with React's [`use()`](https://react.dev/reference/react/use):
+
+```tsx filename="app/dashboard/activity-chart.tsx" highlight={12}
 'use client'
 
 import { use } from 'react'
@@ -210,11 +214,9 @@ export function ActivityChart({
 
 For URL state, a Client Component can usually call [`useSearchParams()`](/docs/app/api-reference/functions/use-search-params) directly instead of receiving the `searchParams` promise. The hook resolves synchronously during a client navigation because the router already has the URL. On a page load, it needs a boundary because the static shell does not know the query string.
 
-Learn more about passing promises through the tree and placing focused boundaries in [Streaming](/docs/app/guides/streaming#push-dynamic-access-down).
-
 #### Avoid data waterfalls
 
-Suspense controls when content is revealed. It does not make already-reachable data requests sequential. When independent results belong to separate UI regions, split them into async components with sibling boundaries. React can render both components in parallel and stream each region when it is ready:
+Moving request-time work into smaller components also gives independent work a chance to start sooner. When the results belong to separate UI regions, use sibling async components so React can render them in parallel and stream each one when it is ready:
 
 ```tsx filename="app/dashboard/page.tsx"
 <Suspense fallback={<SalesSkeleton />}>
@@ -225,7 +227,7 @@ Suspense controls when content is revealed. It does not make already-reachable d
 </Suspense>
 ```
 
-When independent results must be combined into one UI region, start the requests together before awaiting them. For example, this chart needs both datasets before it can render:
+If one UI region needs multiple independent results, start the requests together before awaiting them:
 
 ```tsx filename="app/dashboard/comparison-chart.tsx" highlight={2-3,5}
 export async function ComparisonChart({ teamId }: { teamId: string }) {
@@ -238,7 +240,7 @@ export async function ComparisonChart({ teamId }: { teamId: string }) {
 }
 ```
 
-Keep requests sequential only when the second needs a result from the first:
+Keep requests sequential when the second needs a result from the first:
 
 ```tsx filename="app/[team]/projects/page.tsx" highlight={2-3}
 export async function Projects({ slug }: { slug: string }) {
@@ -255,9 +257,9 @@ Learn more about [sequential and parallel data fetching](/docs/app/getting-start
 
 #### Design loading states
 
-When a child suspends, its nearest boundary shows the fallback until the child is ready. A fallback encountered during prerendering can become part of the static shell. A boundary reached after request-time data resolves can show its fallback later while the remaining work streams.
+When a child suspends, its nearest boundary shows the fallback until the child is ready. This is the UI people see while the region streams, so its size and placement affect both the loading experience and [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift).
 
-Separate boundaries, like the sibling boundaries above, let each region reveal independently. Nest boundaries when a group should first appear together, followed by progressively more detail:
+Use separate boundaries when regions can reveal independently. Nest them when a group should first appear together, followed by progressively more detail:
 
 ```tsx filename="app/account/page.tsx"
 <Suspense fallback={<AccountSkeleton />}>
@@ -268,7 +270,7 @@ Separate boundaries, like the sibling boundaries above, let each region reveal i
 </Suspense>
 ```
 
-A fallback should reserve space for the content it replaces to reduce [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift). For example, keep the shared responsive frame outside the boundary so both states follow the same layout rules:
+Keep shared layout outside the boundary so the fallback and completed content follow the same responsive rules:
 
 ```tsx filename="app/products/page.tsx"
 <ProductGridFrame>
@@ -278,7 +280,7 @@ A fallback should reserve space for the content it replaces to reduce [Cumulativ
 </ProductGridFrame>
 ```
 
-> **Good to know:** Fallback drift happens when a fallback no longer matches the dimensions or responsive layout of the completed content. Keep the fallback close to the component it represents and share layout primitives between them. For variable-length content, group it with the region below or give it a predictable collapsed height with a Show more/Show less control so the lower region can appear without shifting later.
+> **Good to know:** As the completed UI changes, its skeleton might no longer match its size or responsive layout. Keeping the skeleton next to the component, or exporting it from the same file, makes it easier to update and reuse wherever the component suspends. For variable-length content, a collapsed Show more/Show less state can reserve predictable space for the content below.
 
 An empty fallback works when the resolved component has no visual footprint, such as an authorization gate that returns `null`.
 
@@ -381,7 +383,7 @@ The settings tabs are interactive, so they can read the URL directly with `useSe
 
 First, put both regions behind a focused boundary:
 
-```tsx filename="app/[team]/settings/page.tsx" highlight={9-16}
+```tsx filename="app/[team]/settings/page.tsx" highlight={10-15}
 import { Suspense } from 'react'
 
 export default function SettingsPage({
@@ -418,7 +420,7 @@ export function SettingsTabs() {
 
 The form awaits both URL promises before starting the query that depends on their values:
 
-```tsx filename="app/[team]/settings/team-settings.tsx" highlight={7-10}
+```tsx filename="app/[team]/settings/team-settings.tsx" highlight={5-9}
 export async function TeamSettings({
   params,
   searchParams,
@@ -465,7 +467,7 @@ The heading renders directly. `PlanOptions` and the URL-dependent settings branc
 
 Move the `cookies()` and `headers()` reads into an authentication gate behind `<Suspense>`. The layout can return the settings frame without waiting for authentication:
 
-```tsx filename="app/[team]/settings/layout.tsx" highlight={8,16,20}
+```tsx filename="app/[team]/settings/layout.tsx" highlight={8-10,17-19}
 import { Suspense } from 'react'
 import { cookies, headers } from 'next/headers'
 import { redirect } from 'next/navigation'
@@ -495,6 +497,8 @@ async function AuthGate() {
 ```
 
 `AuthGate` is the only component that needs the request values, so it owns those reads. Its boundary lets the settings frame and page stay in the shell. An empty fallback fits this boundary because an authorized gate also returns `null`.
+
+> **Good to know:** Because `AuthGate` runs after the shell starts streaming, its redirect is handled on the client. If the gate calls [`unauthorized()`](/docs/app/api-reference/functions/unauthorized) or [`forbidden()`](/docs/app/api-reference/functions/forbidden), the corresponding UI can render, but the HTTP response remains `200`. If the response must return `401` or `403`, perform the route-level check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) before rendering. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 A layout redirect does not protect a database query or Server Action by itself. Keep authorization checks in the data access functions used by the page, and include only safe UI in the shell before authentication completes. See [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components) for the complete pattern.
 
@@ -547,7 +551,7 @@ The finished route now reveals in stages:
 
 Suppose you want to ensure that future changes keep this loading state in the static shell. Use [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) around a direct page load, without warming or prefetching the route:
 
-```ts filename="e2e/settings-navigation.test.ts" highlight={13-14}
+```ts filename="e2e/settings-navigation.test.ts" highlight={14,17-18}
 import { expect, test, type Page } from '@playwright/test'
 import { instant } from '@next/playwright'
 
