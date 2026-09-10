@@ -554,11 +554,11 @@ export function createAppPageEntrypoint({
     const supportsRDCForNavigations =
       isRoutePPREnabled && nextConfig.cacheComponents === true
 
-    // Cached Navigations stage a reusable static segment during production
+    // Cached Navigations produce a reusable static stage during production
     // HTML renders, dynamic RSC renders, and postponed resumes. All of these
-    // paths need prerender fallback params even though the response itself is
-    // dynamic.
-    const isStagedCachedNavigationRender =
+    // paths need prerender fallback params in the RequestStore even though the
+    // response itself is dynamic.
+    const needsFallbackParamsForCachedNavigationStage =
       (isDynamicRSCRequest ||
         hasPostponedState ||
         (routeModule.isDev === false && !isRSCRequest)) &&
@@ -1577,7 +1577,7 @@ export function createAppPageEntrypoint({
             // and staged navigations need it to defer params in reusable shells.
             (!isRequestSpecificRender ||
               isPossibleServerAction ||
-              isStagedCachedNavigationRender) &&
+              needsFallbackParamsForCachedNavigationStage) &&
             (isProduction || isDebugStaticShell) &&
             nextConfig.cacheComponents &&
             !isPrerendered &&
@@ -2129,7 +2129,7 @@ export function createAppPageEntrypoint({
           // handling and for deferring params in staged navigation shells.
           (!supportsDynamicResponse ||
             isPossibleServerAction ||
-            isStagedCachedNavigationRender)
+            needsFallbackParamsForCachedNavigationStage)
         ) {
           const fallbackParams = createOpaqueFallbackRouteParams(
             prerenderInfo.fallbackRouteParams
