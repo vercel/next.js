@@ -91,6 +91,20 @@ describe('adapter-config', () => {
     expect(staticOutputs.length).toBeGreaterThan(0)
     expect(prerenderOutputs.length).toBeGreaterThan(0)
 
+    const appRouteRscPathnames = outputs.appRoutes
+      .map((output) => output.pathname)
+      .filter((pathname) => pathname.endsWith('.rsc'))
+    expect(appRouteRscPathnames).toEqual([])
+
+    const dynamicRscRouteSources = routing.dynamicRoutes
+      .map((route) => route.source)
+      .filter((source) => source.endsWith('.rsc'))
+      .sort()
+    expect(dynamicRscRouteSources).toEqual([
+      '/isr-app/[slug].rsc',
+      '/node-app/[slug].rsc',
+    ])
+
     const expectedRouteConfigs = [
       {
         pathname: '/docs/node-app',
