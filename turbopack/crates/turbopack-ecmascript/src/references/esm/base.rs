@@ -759,7 +759,7 @@ impl EsmAssetReference {
         scope_hoisting_context: ScopeHoistingContext<'_>,
         // Namespace variables a compact re-export registration (`TURBOPACK_ESM_REEXPORT`) already
         // imports for itself. Emitting them here too would instantiate the module twice.
-        subsumed_namespaces: &FxHashSet<String>,
+        subsumed_namespaces: &FxHashSet<(String, Option<SyntaxContext>)>,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
@@ -856,7 +856,9 @@ impl EsmAssetReference {
                                     export: _,
                                     import_source,
                                 }) => {
-                                    if subsumed_namespaces.contains(&namespace_ident) {
+                                    if subsumed_namespaces
+                                        .contains(&(namespace_ident.clone(), ctxt))
+                                    {
                                         // A compact re-export registration performs this import.
                                         break 'import;
                                     }
