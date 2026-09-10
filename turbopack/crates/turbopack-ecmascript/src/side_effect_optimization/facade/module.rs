@@ -17,6 +17,7 @@ use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions, EnvVarInfo,
     MergedEcmascriptModule, SpecifiedModuleType,
+    analyzer::imports::ExportRegistrationMode,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -211,6 +212,9 @@ impl EcmascriptAnalyzable for EcmascriptModuleFacadeModule {
             generate_source_map: false,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
+            // Every export forwards a binding out of the locals module, and the only other
+            // reference is that module's evaluation, so the registration can subsume the imports.
+            export_registration_mode: Some(ExportRegistrationMode::Reexport),
             async_module_info,
         }
         .cell())

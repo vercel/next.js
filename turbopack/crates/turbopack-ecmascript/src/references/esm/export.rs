@@ -665,6 +665,10 @@ async fn build_compact_reexports(
     // Keyed by the namespace variable, which names the resolved module: two exports forwarded from
     // the same module share a group even when they came from different `export ... from` clauses.
     let mut groups: FxIndexMap<NamespaceKey, ReexportGroup> = FxIndexMap::default();
+    // Cleared when an export's source position cannot be determined. That means the imports cannot
+    // be subsumed if there are several groups (the registration would not know their evaluation
+    // order), but the compact form can still use namespace-object heads, which import nothing.
+    let mut positions_known = true;
 
     for (exported, local) in exports {
         let EsmExport::ImportedBinding(esm_ref, imported_name, mutable) = local else {
@@ -676,10 +680,16 @@ async fn build_compact_reexports(
         }
 
         // The analysis-time export carries the reference's position, which is what lets the groups
-        // be emitted in source order.
-        let Some(Export::ImportedBinding(idx, _, _)) = eval_context.imports.exports.get(exported)
-        else {
-            return Ok(None);
+        // be emitted in source order. A synthetic module (a facade) has no `ImportMap` of its own,
+        // so there is no position to read; that is only safe if everything ends up in one group,
+        // which is checked once all the exports have been collected.
+        let idx = match eval_context.imports.exports.get(exported) {
+            Some(Export::ImportedBinding(idx, _, _)) => Some(*idx),
+            Some(_) => return Ok(None),
+            None => {
+                positions_known = false;
+                None
+            }
         };
 
         let referenced_asset =
@@ -710,19 +720,21 @@ async fn build_compact_reexports(
         let group = groups
             .entry((namespace_ident.clone(), ctxt))
             .or_insert_with(|| ReexportGroup {
-                order: *idx,
+                order: idx.unwrap_or(0),
                 namespace_ident,
                 ctxt,
                 asset,
                 locally_bound: false,
                 pairs: Vec::new(),
             });
-        group.order = group.order.min(*idx);
-        group.locally_bound |= locally_bound.contains(idx);
+        if let Some(idx) = idx {
+            group.order = group.order.min(idx);
+            group.locally_bound |= locally_bound.contains(&idx);
+        }
         group.pairs.push((exported_key, imported_key));
     }
 
-    if groups.is_empty() {
+    if groups.is_empty() || (!positions_known && groups.len() > 1) {
         return Ok(None);
     }
 
@@ -863,6 +875,10 @@ impl EsmExports {
         eval_context: &EvalContext,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         export_registration_mode: ExportRegistrationMode,
+        // An async module's imports are promises that the async-module wrapper awaits and assigns
+        // back over the namespace variables. The compact registration reads the namespace when it
+        // runs, which for those would be the unresolved promise, so it is not available here.
+        is_async_module: bool,
     ) -> Result<(CodeGeneration, FxHashSet<NamespaceKey>)> {
         let export_usage_info = chunking_context
             .module_export_usage(*ResolvedVc::upcast(module))
@@ -932,7 +948,8 @@ impl EsmExports {
         let compact = if matches!(
             export_registration_mode,
             ExportRegistrationMode::Mixed | ExportRegistrationMode::Reexport
-        ) && expanded.dynamic_exports.is_empty()
+        ) && !is_async_module
+            && expanded.dynamic_exports.is_empty()
             && !expanded.exports.is_empty()
         {
             build_compact_reexports(

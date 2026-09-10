@@ -20,6 +20,7 @@ use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleContent, EcmascriptModuleContentOptions, EcmascriptOptions, EnvVarInfo,
     MergedEcmascriptModule, SpecifiedModuleType,
+    analyzer::imports::ExportRegistrationMode,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -207,6 +208,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleRenameModule {
             generate_source_map: false,
             original_source_map: None,
             exports: self.get_exports().to_resolved().await?,
+            // Rename modules build their own export mapping.
+            export_registration_mode: Some(ExportRegistrationMode::Normal),
             async_module_info,
         }
         .cell())
