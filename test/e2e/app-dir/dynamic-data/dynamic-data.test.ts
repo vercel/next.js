@@ -2,9 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 
 process.env.__TEST_SENTINEL = 'at buildtime'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('dynamic-data', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/main',

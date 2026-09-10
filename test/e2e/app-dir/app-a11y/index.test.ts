@@ -1,9 +1,6 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
-// @force-gate !deploy
 describe('app a11y features', () => {
   const { next } = nextTestSetup({
     files: __dirname,

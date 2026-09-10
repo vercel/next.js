@@ -4,9 +4,6 @@ import {
   computeLegacyCacheBustingSearchParam,
 } from 'next/dist/shared/lib/router/utils/cache-busting-search-param'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
-// @force-gate !deploy
 describe('app dir - validation', () => {
   const { next } = nextTestSetup({
     files: __dirname,

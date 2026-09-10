@@ -1056,10 +1056,6 @@ describe.each([true, false])(
   }
 )
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// This is skipped when deployed as it appears to cause an issue when tracing Next.js files
-// TODO: Investigate why this causes an issue when deployed
-// @force-gate !deploy
 describe('parallel-routes-and-interception-conflicting-pages', () => {
   const { next } = nextTestSetup({
     files: {

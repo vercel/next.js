@@ -1,9 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// TODO: remove after deployment handling is updated
-// @force-gate !deploy
 describe('parallel-routes-and-interception', () => {
   const { next } = nextTestSetup({
     files: __dirname,

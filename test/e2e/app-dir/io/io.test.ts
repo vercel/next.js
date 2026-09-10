@@ -1,8 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
-// @force-gate !deploy
 describe('io with cache components', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/cache-components',
@@ -55,9 +52,6 @@ describe('io with cache components', () => {
   })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
-// @force-gate !deploy
 describe('io without cache components', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/default',

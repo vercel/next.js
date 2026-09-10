@@ -2,9 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import path from 'path'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely mutates files in the isolated local fixture after setup.
-// @force-gate !deploy
 describe('app dir - next/dynamic', () => {
   const { next, isNextStart, isNextDev } = nextTestSetup({
     files: __dirname,

@@ -2,9 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 import cheerio from 'cheerio'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
-// @force-gate !deploy
 describe('app dir rendering', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
