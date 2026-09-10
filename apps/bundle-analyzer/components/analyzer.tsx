@@ -574,6 +574,21 @@ function ComparisonContent({
       filterSource: compareFilterSource,
     })
   }, [model.analyzeData, baselineAnalyzeData, compareFilterSource])
+  const alternateEnvironment = getAlternateEnvironment(model.environmentFilter)
+  const hasAlternateEnvironmentSources = useMemo(
+    () =>
+      [model.analyzeData, baselineAnalyzeData].some(
+        (data) =>
+          data &&
+          hasEnvironmentSources(data, alternateEnvironment, model.typeFilter)
+      ),
+    [
+      model.analyzeData,
+      baselineAnalyzeData,
+      alternateEnvironment,
+      model.typeFilter,
+    ]
+  )
   const compareModel: CompareLayoutModel = {
     ...layoutProps,
     selectedRoute: model.selectedRoute,
@@ -584,6 +599,8 @@ function ComparisonContent({
     moduleDepthMap: model.moduleDepthMap,
     baselineModuleDepthMap,
     environmentFilter: model.environmentFilter,
+    hasAlternateEnvironmentSources,
+    setEnvironmentFilter: model.setEnvironmentFilter,
     sidebarWidth: model.sidebarWidth,
     compareView: model.compareView,
     searchQuery: model.searchQuery,
@@ -623,6 +640,21 @@ function SingleAnalyzerContent({
   analyzeData: AnalyzeData
 }) {
   const rootSourceIndex = getRootSourceIndex(analyzeData)
+  const hasAlternateEnvironmentSources = hasEnvironmentSources(
+    analyzeData,
+    getAlternateEnvironment(model.environmentFilter),
+    model.typeFilter
+  )
+  const alternateEnvironmentEmptyState = hasAlternateEnvironmentSources ? (
+    <AlternateEnvironmentEmptyState
+      environment={model.environmentFilter}
+      onSwitch={() =>
+        model.setEnvironmentFilter(
+          getAlternateEnvironment(model.environmentFilter)
+        )
+      }
+    />
+  ) : undefined
 
   return (
     <>
@@ -637,6 +669,7 @@ function SingleAnalyzerContent({
             nameHeading="Source"
             mode="single"
             searchQuery={model.searchQuery}
+            emptyState={alternateEnvironmentEmptyState}
             onRowSelect={(row) => {
               if (row.sourceIndexB != null) {
                 model.setSelectedSourceIndex(row.sourceIndexB)
@@ -644,6 +677,11 @@ function SingleAnalyzerContent({
               }
             }}
           />
+        ) : model.singleSourceListing?.rows.length === 0 &&
+          alternateEnvironmentEmptyState ? (
+          <div className="flex h-full items-center justify-center p-4 text-sm text-muted-foreground">
+            {alternateEnvironmentEmptyState}
+          </div>
         ) : (
           <TreemapVisualizer
             analyzeData={analyzeData}
@@ -676,6 +714,59 @@ function SingleAnalyzerContent({
         environmentFilter={model.environmentFilter}
         filterSource={model.filterSource}
       />
+    </>
+  )
+}
+
+function hasEnvironmentSources(
+  data: AnalyzeData,
+  environment: Environment,
+  typeFilter: string[]
+): boolean {
+  for (let index = 0; index < data.sourceCount(); index++) {
+    const flags = data.getSourceFlags(index)
+    const hasEnvironment =
+      (environment === Environment.Client && flags.client) ||
+      (environment === Environment.Server && flags.server)
+    const hasType =
+      (typeFilter.includes('js') && flags.js) ||
+      (typeFilter.includes('css') && flags.css) ||
+      (typeFilter.includes('json') && flags.json) ||
+      (typeFilter.includes('asset') && flags.asset)
+    if (hasEnvironment && hasType) {
+      return true
+    }
+  }
+  return false
+}
+
+function getAlternateEnvironment(environment: Environment): Environment {
+  return environment === Environment.Client
+    ? Environment.Server
+    : Environment.Client
+}
+
+export function AlternateEnvironmentEmptyState({
+  environment,
+  onSwitch,
+}: {
+  environment: Environment
+  onSwitch: () => void
+}) {
+  const currentLabel = environment === Environment.Client ? 'client' : 'server'
+  const alternateLabel =
+    environment === Environment.Client ? 'server' : 'client'
+  return (
+    <>
+      This route has no {currentLabel} sources matching the active file types.{' '}
+      <button
+        type="button"
+        className="font-medium text-foreground underline underline-offset-4 hover:text-primary"
+        onClick={onSwitch}
+      >
+        Show {alternateLabel} sources
+      </button>
+      .
     </>
   )
 }
