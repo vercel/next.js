@@ -1,4 +1,4 @@
-use anyhow::{Result, bail};
+use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, State, ValueToString, Vc};
@@ -81,8 +81,8 @@ pub fn lazy_compilation_state(key: RcStr) -> Vc<LazyCompilationState> {
 
 #[turbo_tasks::value]
 #[derive(ValueToString)]
-#[value_to_string("lazy compilation target")]
-enum LazyCompilationTarget {
+#[value_to_string("lazy compilation reference")]
+enum LazyCompilationReference {
     Deferred {
         module: ResolvedVc<EcmascriptModuleAsset>,
         canonicalization: EcmascriptModuleCanonicalization,
@@ -90,8 +90,24 @@ enum LazyCompilationTarget {
     Direct(ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>),
 }
 
+impl LazyCompilationReference {
+    async fn referenced_module(&self) -> Result<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>> {
+        match self {
+            Self::Deferred {
+                module,
+                canonicalization,
+            } => {
+                canonicalize_ecmascript_module(**module, canonicalization.clone())
+                    .to_resolved()
+                    .await
+            }
+            Self::Direct(module) => Ok(*module),
+        }
+    }
+}
+
 #[turbo_tasks::value_impl]
-impl LazyCompilationTarget {
+impl LazyCompilationReference {
     #[turbo_tasks::function]
     fn deferred(
         module: ResolvedVc<EcmascriptModuleAsset>,
@@ -130,20 +146,10 @@ impl LazyCompilationTarget {
 }
 
 #[turbo_tasks::value_impl]
-impl ModuleReference for LazyCompilationTarget {
+impl ModuleReference for LazyCompilationReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        let module = match self {
-            Self::Deferred {
-                module,
-                canonicalization,
-            } => {
-                canonicalize_ecmascript_module(**module, canonicalization.clone())
-                    .to_resolved()
-                    .await?
-            }
-            Self::Direct(module) => *module,
-        };
+        let module = self.referenced_module().await?;
         Ok(*ModuleResolveResult::module(ResolvedVc::upcast(module)))
     }
 
@@ -161,10 +167,10 @@ impl ModuleReference for LazyCompilationTarget {
 
 #[turbo_tasks::value]
 pub struct LazyCompilationProxyModule {
-    target: ResolvedVc<LazyCompilationTarget>,
+    target: ResolvedVc<LazyCompilationReference>,
     ident: ResolvedVc<AssetIdent>,
     /// The key that requesting this proxy's manifest chunk activates.
-    pub key: RcStr,
+    pub(crate) key: RcStr,
 }
 
 #[turbo_tasks::value_impl]
@@ -174,7 +180,7 @@ impl LazyCompilationProxyModule {
         module: ResolvedVc<EcmascriptModuleAsset>,
         canonicalization: EcmascriptModuleCanonicalization,
     ) -> Result<Vc<Self>> {
-        let target = LazyCompilationTarget::deferred(*module, canonicalization)
+        let target = LazyCompilationReference::deferred(*module, canonicalization)
             .to_resolved()
             .await?;
         Ok(Self::new(*target))
@@ -184,12 +190,14 @@ impl LazyCompilationProxyModule {
     pub async fn new_direct(
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Result<Vc<Self>> {
-        let target = LazyCompilationTarget::direct(*module).to_resolved().await?;
+        let target = LazyCompilationReference::direct(*module)
+            .to_resolved()
+            .await?;
         Ok(Self::new(*target))
     }
 
     #[turbo_tasks::function]
-    async fn new(target: ResolvedVc<LazyCompilationTarget>) -> Result<Vc<Self>> {
+    async fn new(target: ResolvedVc<LazyCompilationReference>) -> Result<Vc<Self>> {
         let ident = target.proxy_ident().to_resolved().await?;
         let key = activation_key(&ident.to_string().await?);
         Ok(Self::cell(Self { target, ident, key }))
@@ -257,15 +265,7 @@ impl EcmascriptChunkPlaceable for LazyCompilationProxyModule {
 
         let state = lazy_compilation_state(this.key.clone()).await?;
         let inner_code = if state.is_active() {
-            let result = this.target.resolve_reference().await?;
-            let Some(module) = result.first_module().await? else {
-                bail!("lazy compilation target did not resolve to a module");
-            };
-            let Some(target) =
-                ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
-            else {
-                bail!("lazy compilation target is not an ecmascript chunk placeable module");
-            };
+            let target = this.target.await?.referenced_module().await?;
             let loader_ident = chunking_context.async_loader_chunk_item_ident(Vc::upcast(*target));
             let loader_id = chunking_context
                 .chunk_item_id_strategy()

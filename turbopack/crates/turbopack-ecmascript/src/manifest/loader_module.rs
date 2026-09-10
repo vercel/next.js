@@ -153,6 +153,8 @@ impl EcmascriptChunkPlaceable for ManifestLoaderModule {
         let dynamic_id = placeable.chunk_item_id(*manifest.chunking_context).await?;
 
         if chunks_server_data.is_empty() {
+            // No chunks need to be loaded and thus the module is already available,
+            // so we can just require the module.
             writedoc!(
                 code,
                 r#"
