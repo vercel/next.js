@@ -94,13 +94,7 @@ export default async function Page() {
 
 > If you add "`use cache`" at the top of a file, all exported functions in the file will be cached.
 
-### Revalidating after mutations
-
-A mutation does not automatically invalidate cached data. Without on-demand invalidation, Next.js continues to use the configured cache lifetime. To invalidate a cached result after a mutation, tag it with [`cacheTag`](/docs/app/api-reference/functions/cacheTag), then invalidate the tag after the mutation succeeds.
-
-Use [`updateTag`](/docs/app/api-reference/functions/updateTag) in a Server Action when the next read should wait for fresh data. Use [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) when stale-while-revalidate behavior is acceptable, or when invalidating from a Route Handler.
-
-[`cacheLife`](/docs/app/api-reference/functions/cacheLife) controls time-based freshness. It does not replace on-demand invalidation after a mutation. Data that is never updated does not need on-demand invalidation. If you cannot invalidate every cache entry affected by a mutation, keep the data uncached when immediate freshness is required.
+If cached data can change, see [Revalidating](/docs/app/getting-started/revalidating) to keep it fresh after mutations.
 
 ### Streaming uncached data
 

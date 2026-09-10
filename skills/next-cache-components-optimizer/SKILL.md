@@ -367,8 +367,7 @@ this gate is as machine-checkable as the others. Detail:
 > GREEN is the deterministic stop for the fix loop; proceed to E.
 
 If the optimization adds or expands a cache boundary, follow
-[Revalidating after mutations](https://nextjs.org/docs/app/getting-started/caching#revalidating-after-mutations)
-in the Caching guide.
+[Revalidating](https://nextjs.org/docs/app/getting-started/revalidating).
 A passing `instant()` test proves shell readiness, not mutation freshness.
 
 **When URL data can't be pushed down** (for example, the whole page depends on
