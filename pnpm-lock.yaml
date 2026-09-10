@@ -253,9 +253,6 @@ importers:
       '@vercel/og':
         specifier: 1.0.1
         version: 1.0.1(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
-      abort-controller:
-        specifier: 3.0.0
-        version: 3.0.0
       alex:
         specifier: 9.1.0
         version: 9.1.0
