@@ -86,6 +86,12 @@ running while the test command executes. Follow the public
 Link is visible, then enter `instant()`, click, wait for the destination URL,
 and assert the prefetched UI.
 
+Assert a `data-testid` on a real, visible DOM node after its client subtree
+commits. Do not search the RSC response for text to infer that commit, because
+Client Component text might not appear in the response bytes. Do not use a
+marker on `display: none`, `display: contents`, a fragment, off-screen content,
+or a hover-only overlay.
+
 ### Test context
 
 Record the state required to reach the audited Links and destination UI:

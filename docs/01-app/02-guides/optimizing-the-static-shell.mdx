@@ -164,6 +164,8 @@ async function TeamSettings({
 
 The heading and form skeleton now render in the static shell. The protected settings read stays at request time and replaces only the form skeleton when it resolves.
 
+If a layout starts a [`cookies()`](/docs/app/api-reference/functions/cookies) or [`headers()`](/docs/app/api-reference/functions/headers) read that a child needs, pass the returned promise to the child without awaiting it in the layout. Await the promise inside a focused component behind `<Suspense>` so the layout can still render its shell.
+
 On a page load, the same boundary pattern applies to `cookies()`, `headers()`, `searchParams`, and uncached data. A Client Component that calls `useSearchParams()` can resolve synchronously during a client navigation because the router already has the URL, but it still needs a boundary for the page-load shell.
 
 For values that should be generated for each request, such as `Date.now()`, `Math.random()`, or `crypto.randomUUID()`, call [`connection()`](/docs/app/api-reference/functions/connection) before reading the value. Cache the value instead when it should be shared across requests. See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-down) for more examples.
@@ -218,6 +220,8 @@ Choose the cache lifetime from the data's freshness requirements. Keep data unca
 
 The default `use cache` handler stores entries in memory as a best effort. Use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) when cached data must persist across instances and requests.
 
+React [`cache()`](https://react.dev/reference/react/cache) deduplicates work during a render, but it does not make request data available during prerendering. A `cache()` wrapper around `cookies()` or `headers()` still needs a `<Suspense>` boundary. Use a cache directive when the result itself can be reused.
+
 ## Reuse and place loading states
 
 The static shell should reuse the loading states that already describe the completed page. It also needs a boundary in each server-rendered segment that can suspend.
@@ -251,6 +255,8 @@ app/[team]/settings/
 ```
 
 Each server-rendered slot has its own dynamic reads. A boundary around `children` does not cover a session or database read in `@sidebar`, so place a boundary in each slot that can suspend.
+
+A slot that statically renders `null`, such as an empty `default.tsx`, does not suspend and does not need a boundary.
 
 The example reuses a loading state exported by the sidebar:
 

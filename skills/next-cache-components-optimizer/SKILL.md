@@ -31,12 +31,6 @@ not adopted, use `next-cache-components-adoption` first. If the static shell is
 already instant and the user wants URL-specific content ready before a click,
 use `next-partial-prefetching-optimizer` instead.
 
-Initial loads and client navigations can produce different shells. Follow the
-[Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation)
-guide to choose which navigation to guard. Use `instant()` as a ruler, not a
-stopwatch: assert what commits while dynamic data is paused, never elapsed
-time.
-
 ## Reporting to the user
 
 This loop is meant to run unattended, so it doesn't stop to ask between steps.
@@ -64,7 +58,19 @@ hear those words.
   defer the read behind `<Suspense>` (always fresh, still instant) rather than
   guess a `cacheLife`.
 
-## The workflow
+## Define the contract
+
+Initial loads and client navigations can produce different shells. Follow the
+[Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation)
+guide to choose which navigation to guard, then identify a meaningful,
+visible DOM node in that shell. A blank fallback is not a successful
+optimization. Use `instant()` as a ruler, not a stopwatch: assert what commits
+while dynamic data is paused, never elapsed time.
+
+Keep one production browser test per route and navigation type. Do not combine
+several contracts in one test.
+
+### Workflow
 
 ```
 - [ ] P  PREREQS      Next.js 16.3+ with Cache Components already adopted
@@ -85,7 +91,9 @@ Phases B and C build the test; only the locked test from C ships.
 
 ---
 
-## P. Prerequisites
+## Reuse the production rig
+
+### P. Prerequisites
 
 Confirm the app uses Next.js 16.3 or newer with `cacheComponents: true` and
 already builds successfully. If not, stop and use
@@ -96,7 +104,7 @@ production build must enable
 `experimental.exposeTestingApiInProductionBuild` only in its test environment,
 as described in phase A.
 
-## 0. Set up the project's rig
+### 0. Set up the project's rig
 
 The principles in this skill are fixed; the infrastructure they run on is
 yours. On first use in a repository, discover how the project builds, deploys,
@@ -110,7 +118,7 @@ If the repo has no Playwright e2e harness yet, standing up a minimal one
 (`@next/playwright`, a config with `baseURL`, one authenticated path) is part
 of this step; the loop does not assume a pre-existing suite.
 
-## A. Run a production build with the testing API exposed
+### A. Run a production build with the testing API exposed
 
 Stand up the rig described by `instant-nav.rig.md`. Two invariants hold on
 every platform:
@@ -148,7 +156,9 @@ artifact contains `HEAD` before trusting a verdict (a stale deploy reads as a
 false RED or GREEN); a local `next build && next start` needs none. The probe
 mechanism is in `rig-template.md`.
 
-## B. Prove the target renders without the lock
+## Prove the current behavior
+
+### B. Prove the target renders without the lock
 
 Drive the real navigation with no `instant()` lock and assert that the
 destination's `SHELL_MARKER` renders **as the test user**: the account the
@@ -160,7 +170,7 @@ that environment drift (the rig DRIFT list) is a common source of
 untrustworthy REDs. Scaffold and run command: **`test-template.md`**.
 **Delete this baseline before the PR.**
 
-## C. Record a trustworthy RED
+### C. Record a trustworthy RED
 
 Wrap the same navigation in `instant()`; assert the shell commits under the
 lock. A RED here is the gap. **This is the test that ships**
@@ -183,7 +193,9 @@ untrustworthy REDs, the checklist, and worked cases are in
 
 ---
 
-## D. Apply the documented static-shell pattern
+## Make the smallest optimization
+
+### D. Apply the documented static-shell pattern
 
 Use the **Optimizing the static shell** guide you read at the start. Follow the
 section that matches the route's blocker, and follow any canonical Insight link
@@ -207,7 +219,7 @@ If the optimization adds or expands a cache boundary, follow
 [Revalidating](https://nextjs.org/docs/app/getting-started/revalidating).
 A passing `instant()` test proves shell readiness, not mutation freshness.
 
-## E. Confirm parity
+### E. Confirm parity
 
 The push-down is a mechanical transform, not a redesign. Afterward the route
 must render the same tree, data, ordering, empty and error states, redirects,
@@ -232,13 +244,15 @@ now commits instantly. Verify:
 
 If anything other than whether the route is instant changed, reduce the refactor.
 
-## F. Prove the differential
+## Verify and ship
+
+### F. Prove the differential
 
 Revert only the fix → RED; re-apply → GREEN; link both runs
 (`reference/red-test-robustness.md`). On a deployed rig, confirm each run is live
 (LIVENESS, phase A) before trusting its color.
 
-## G. Review the result
+## Completion checklist
 
 A green final state means nothing if the RED was never trustworthy. The
 test-trustworthiness items are the robustness checklist
@@ -291,3 +305,9 @@ Prefetching optimizer.
 - `reference/red-test-robustness.md`: the C-gate and phase F. The taxonomy of
   untrustworthy REDs, the checklist, the differential recipe, the vacuous-pass
   failure mode, and worked cases.
+
+## Further reading
+
+- [Optimizing the static shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell)
+- [Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation)
+- [Caching](https://nextjs.org/docs/app/getting-started/caching)
