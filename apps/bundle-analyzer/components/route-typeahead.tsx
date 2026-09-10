@@ -80,7 +80,7 @@ export function RouteTypeahead({
     data: routes,
     isLoading,
     error,
-  } = useSWR<string[]>('data/routes.json', jsonFetcher, {
+  } = useSWR<string[]>('/data/routes.json', jsonFetcher, {
     onSuccess: (routeNames) => {
       // Auto-select first route if none is selected
       if (routeNames.length > 0 && selectedRoute == null) {
