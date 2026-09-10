@@ -3,6 +3,7 @@ import { createRequire } from 'module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
+import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import * as ciEnvironment from '../server/ci-info'
 import {
@@ -1688,6 +1689,49 @@ function assignDefaultsAndValidate(
   // backwards compatibility.
   if (result.experimental.useCache === undefined) {
     result.experimental.useCache = result.cacheComponents
+  }
+
+  const pluginRuntimeStrategy =
+    result.experimental.turbopackPluginRuntimeStrategy
+  if (
+    pluginRuntimeStrategy === 'workerThreads' ||
+    pluginRuntimeStrategy === 'forceWorkerThreads'
+  ) {
+    result.experimental.turbopackPluginRuntimeStrategy = 'workerThreads'
+
+    if (!process.versions.bun && !process.versions.deno) {
+      const nodeVersion = process.versions.node
+      const affectedNodeRange = '>=24.13.1'
+      if (
+        semver.satisfies(nodeVersion, affectedNodeRange, {
+          includePrerelease: true,
+        })
+      ) {
+        if (pluginRuntimeStrategy === 'forceWorkerThreads') {
+          Log.warn(
+            `\`experimental.turbopackPluginRuntimeStrategy = ` +
+              `'forceWorkerThreads'\` is enabled, bypassing protection ` +
+              `against a known potential crash in Node.js ${affectedNodeRange}.\n` +
+              `A Node.js worker-thread teardown bug can abort the process ` +
+              `when a native addon, such as fsevents, has a live Node-API ` +
+              `threadsafe function as a worker exits.\n` +
+              `See https://github.com/nodejs/node/issues/65100.`
+          )
+        } else {
+          Log.warn(
+            `\`experimental.turbopackPluginRuntimeStrategy = ` +
+              `'workerThreads'\` is disabled on Node.js ${nodeVersion}.\n` +
+              `A Node.js worker-thread teardown bug can abort the process ` +
+              `when a native addon, such as fsevents, has a live Node-API ` +
+              `threadsafe function as a worker exits.\n` +
+              `See https://github.com/nodejs/node/issues/65100.\n` +
+              `Falling back to 'childProcesses'. To override at your own ` +
+              `risk, use 'forceWorkerThreads'.`
+          )
+          result.experimental.turbopackPluginRuntimeStrategy = 'childProcesses'
+        }
+      }
+    }
   }
 
   // Store the distDirRoot in the config before it is modified for development mode
