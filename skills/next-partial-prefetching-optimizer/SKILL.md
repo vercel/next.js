@@ -43,6 +43,26 @@ existing application. Stop for user input only when a product decision is
 genuinely blocked and cannot be inferred safely without changing cost,
 freshness, authorization, or user-visible behavior.
 
+## Reporting to the user
+
+This loop runs unattended, so do not stop between implementation steps. Finish
+the navigations the user named, then check in. The rig, lock, RED/GREEN loop,
+and stage names are internal scaffolding; report the product behavior instead.
+
+- **Speak their language.** Describe the source link and result in terms of
+  what the user sees before and after the click, not the validation mechanics.
+- **Show, don't tell.** Drive the exact link in a production browser so the user
+  sees which content is already available and which content streams after the
+  click. If a live demonstration is unavailable, attach before/after captures.
+- **Give them a concise click-through list, not a technical results table.** Use
+  one line per navigation with the source URL, link to click, UI ready before
+  the click, UI that waits for navigation, and whether prefetching starts in the
+  viewport or after intent.
+- **Only surface a question for a genuine fork.** Ask when the choice changes
+  cost, freshness, authorization, or visible behavior. If the user already
+  requested a PR or named every navigation, finish that scope without asking
+  again.
+
 ## Define the contract
 
 Inspect the source route, the exact link or interaction, the destination's
@@ -154,10 +174,9 @@ Reapply the optimization and require GREEN again. This differential proves the
 test guards the exact link policy instead of unrelated cached state. Ship only
 the final positive test.
 
-Report the result per navigation: source link, destination, what is in the App
-Shell, what extra UI is eligible before the click, what waits for navigation,
-and whether the trigger is viewport or intent. Be precise that prefetching is
-best-effort; the App Shell remains the fallback when it has not completed.
+Report the verified result using the user-facing format above. Be precise that
+prefetching is best-effort; the App Shell remains the fallback when it has not
+completed.
 
 Treat request counts, transferred bytes, and cache behavior as measurements,
 not as part of the `instant()` contract. Do not classify requests using private
