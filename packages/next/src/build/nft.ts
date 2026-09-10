@@ -25,7 +25,8 @@ export interface NftFileList {
    *
    * When present, files not listed in `symlinks` are not symlinks. An empty
    * array means there are no symlinks. When omitted, the NFT consumer must call
-   * `readlink` on every file to identify symlinks and their targets.
+   * `readlink` on every file to identify symlinks and their targets. Entries
+   * are sorted by file index.
    *
    * This field is always included when `NftJson` includes `additionalRoots`,
    * and on every `NftAdditionalRoot`.
@@ -118,14 +119,19 @@ function invalid(message: string): never {
   throw new Error(`Invalid NFT metadata: ${message}`)
 }
 
-function isInside(root: string, candidate: string): boolean {
+function relativePathIfInside(
+  root: string,
+  candidate: string
+): string | undefined {
   const relative = path.relative(root, candidate)
-  return (
+  if (
     relative === '' ||
     (!path.isAbsolute(relative) &&
       relative !== '..' &&
       !relative.startsWith(`..${path.sep}`))
-  )
+  ) {
+    return relative
+  }
 }
 
 function mapBasePath(
@@ -134,10 +140,11 @@ function mapBasePath(
   relativePath: string
 ): { source: string; destination: string } {
   const source = path.resolve(traceFileDirectory, relativePath)
-  if (!isInside(baseRoot, source)) {
+  const destination = relativePathIfInside(baseRoot, source)
+  if (destination === undefined) {
     invalid(`path ${JSON.stringify(relativePath)} escapes the base root`)
   }
-  return { source, destination: path.relative(baseRoot, source) }
+  return { source, destination }
 }
 
 function mapAdditionalRootPath(
@@ -145,7 +152,7 @@ function mapAdditionalRootPath(
   relativePath: string
 ): { source: string; destination: string } {
   const source = path.resolve(root.absolutePath, relativePath)
-  if (!isInside(root.absolutePath, source)) {
+  if (relativePathIfInside(root.absolutePath, source) === undefined) {
     invalid(
       `path ${JSON.stringify(relativePath)} escapes additional root ${root.name}`
     )
@@ -166,30 +173,36 @@ export function mapNftFileEntries(
   const result: MappedNftFileEntry[] = []
 
   const mapList = (list: NftFileList, currentRootIndex: number) => {
-    const symlinks = new Map<number, [target: string, rootIndex?: number]>()
-    for (const [fileIndex, target, rootIndex] of list.symlinks ?? []) {
-      symlinks.set(fileIndex, [target, rootIndex])
-    }
+    // The list of symlinks is always in sorted order (by file index)
+    const { files, fileHashes } = list
+    const symlinks = list.symlinks ?? []
+    let symlinkCursor = 0
+    let nextSymlink = symlinks[symlinkCursor]
 
-    for (let fileIndex = 0; fileIndex < list.files.length; fileIndex++) {
-      const file = list.files[fileIndex]
+    for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
+      const file = files[fileIndex]
+
+      // a currentRootIndex of -1 denotes a path relative to the *.nft.json file
+      // (i.e. not an additional root)
       const mapped =
         currentRootIndex === -1
           ? mapBasePath(traceFileDirectory, baseRoot, file)
           : mapAdditionalRootPath(roots[currentRootIndex], file)
+
       let symlinkTarget: string | undefined
-      const symlink = symlinks.get(fileIndex)
-      if (symlink) {
-        const [target, rootIndex] = symlink
+      if (nextSymlink?.[0] === fileIndex) {
+        const [, target, rootIndex] = nextSymlink
+        nextSymlink = symlinks[++symlinkCursor]
         const targetRootIndex = rootIndex ?? currentRootIndex
         symlinkTarget =
           targetRootIndex === -1
             ? mapBasePath(traceFileDirectory, baseRoot, target).destination
             : mapAdditionalRootPath(roots[targetRootIndex], target).destination
       }
+
       result.push({
         ...mapped,
-        hash: list.fileHashes?.[fileIndex],
+        hash: fileHashes?.[fileIndex],
         symlinkTarget,
       })
     }
@@ -207,7 +220,7 @@ export function resolveNftOutputPath(
   destination: string
 ): string {
   const outputPath = path.resolve(outputRoot, destination)
-  if (!isInside(outputRoot, outputPath)) {
+  if (relativePathIfInside(outputRoot, outputPath) === undefined) {
     invalid(
       `output path ${JSON.stringify(destination)} escapes the deployment root`
     )
