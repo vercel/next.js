@@ -405,7 +405,7 @@ async function main() {
 
   const options = {
     concurrency: argv.concurrency ?? envConcurrency ?? DEFAULT_CONCURRENCY,
-    debug: argv.debug ?? false,
+    debug: argv.debug ?? core.isDebug(),
     timings: argv.timings ?? false,
     writeTimings: argv.writeTimings ?? false,
     group: argv.group ?? false,
