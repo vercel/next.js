@@ -1711,7 +1711,11 @@ function assignDefaultsAndValidate(
           Log.warn(
             `\`experimental.turbopackPluginRuntimeStrategy = ` +
               `'forceWorkerThreads'\` is enabled, bypassing protection ` +
-              `against a known potential crash in Node.js ${affectedNodeRange}.`
+              `against a known potential crash in Node.js ${affectedNodeRange}.\n` +
+              `A Node.js worker-thread teardown bug can abort the process ` +
+              `when a native addon, such as fsevents, has a live Node-API ` +
+              `threadsafe function as a worker exits.\n` +
+              `See https://github.com/nodejs/node/issues/65100.`
           )
         } else {
           Log.warn(
