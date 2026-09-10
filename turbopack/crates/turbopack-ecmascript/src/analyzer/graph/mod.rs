@@ -69,6 +69,7 @@ pub fn create_graph<'a>(
 ) -> VarGraph<'a> {
     let mut analyzer = Analyzer {
         arena,
+        paths: Default::default(),
         analyze_mode,
         data: VarGraph {
             values: Default::default(),

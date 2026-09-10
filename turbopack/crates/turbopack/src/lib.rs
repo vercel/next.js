@@ -1023,15 +1023,13 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn resolve_asset(
         self: Vc<Self>,
-        origin_path: FileSystemPath,
+        lookup_path: FileSystemPath,
         request: Vc<Request>,
         resolve_options: Vc<ResolveOptions>,
         reference_type: ReferenceType,
     ) -> Result<Vc<ModuleResolveResult>> {
-        let context_path = origin_path.parent();
-
         let result = resolve(
-            context_path,
+            lookup_path.clone(),
             reference_type.clone(),
             request,
             resolve_options,
@@ -1040,8 +1038,14 @@ impl AssetContext for ModuleAssetContext {
         let mut result = self.process_resolve_result(*result.to_resolved().await?, reference_type);
         let this = self.await?;
         if this.is_types_resolving_enabled().await? {
+            // `type_resolve` only uses the parent directory of the origin path (plus the origin
+            // path itself for error messages), so a placeholder file inside `lookup_path` is
+            // sufficient here.
             let types_result = type_resolve(
-                Vc::upcast(PlainResolveOrigin::new(Vc::upcast(self), origin_path)),
+                Vc::upcast(PlainResolveOrigin::new(
+                    Vc::upcast(self),
+                    lookup_path.join("_")?,
+                )),
                 request,
             );
 

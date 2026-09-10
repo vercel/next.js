@@ -162,7 +162,7 @@ async fn specific_resolve(
     issue_source: Option<IssueSource>,
 ) -> Result<Vc<ModuleResolveResult>> {
     let result = origin.asset_context().resolve_asset(
-        origin.origin_path(),
+        origin.origin_path().parent(),
         request,
         options,
         reference_type.clone(),

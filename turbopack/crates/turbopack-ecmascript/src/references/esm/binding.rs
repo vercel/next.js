@@ -89,7 +89,7 @@ impl EsmBinding {
                 .map_or(ImportedIdent::Unresolvable, ImportedIdent::Module),
         };
 
-        let mut ast_path = self.ast_path.0.clone();
+        let mut ast_path = self.ast_path.to_vec();
         loop {
             match ast_path.last() {
                 // Shorthand properties get special treatment because we need to rewrite them to

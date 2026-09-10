@@ -291,7 +291,7 @@ async fn build_internal(
                     let ty = ReferenceType::Entry(EntryReferenceSubType::Undefined);
                     let request = request_vc.await?;
                     asset_context
-                        .resolve_asset(origin_path, request_vc, resolve_options, ty)
+                        .resolve_asset(origin_path.parent(), request_vc, resolve_options, ty)
                         .await?
                         .first_module()
                         .await?

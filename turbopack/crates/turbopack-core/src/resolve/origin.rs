@@ -62,7 +62,7 @@ where
             .into_trait_ref()
             .await?;
         Ok(origin.asset_context().resolve_asset(
-            origin.origin_path(),
+            origin.origin_path().parent(),
             *request.to_resolved().await?,
             *options.to_resolved().await?,
             reference_type,

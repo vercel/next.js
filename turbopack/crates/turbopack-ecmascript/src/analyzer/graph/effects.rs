@@ -1,10 +1,11 @@
 use bumpalo::boxed::Box as BumpBox;
-use swc_core::{atoms::Atom, common::Span, ecma::visit::fields::*};
+use swc_core::{atoms::Atom, common::Span};
 use turbo_rcstr::RcStr;
 use turbopack_core::resolve::ExportUsage;
 
 use crate::{
     analyzer::{Bump, BumpVec, JsValue},
+    references::AstPath,
     utils::AstPathRange,
 };
 
@@ -122,14 +123,14 @@ pub enum Effect<'a> {
         condition: BumpBox<'a, JsValue<'a>>,
         kind: BumpBox<'a, ConditionalKind<'a>>,
         /// The ast path to the condition.
-        ast_path: BumpBox<'a, [AstParentKind]>,
+        ast_path: AstPath,
         span: Span,
     },
     /// A function call or a new call of a function.
     Call {
         func: BumpBox<'a, JsValue<'a>>,
         args: BumpVec<'a, EffectArg<'a>>,
-        ast_path: BumpBox<'a, [AstParentKind]>,
+        ast_path: AstPath,
         span: Span,
         in_try: bool,
         new: bool,
@@ -139,7 +140,7 @@ pub enum Effect<'a> {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
         args: BumpVec<'a, EffectArg<'a>>,
-        ast_path: BumpBox<'a, [AstParentKind]>,
+        ast_path: AstPath,
         span: Span,
         in_try: bool,
         new: bool,
@@ -148,7 +149,7 @@ pub enum Effect<'a> {
     Member {
         obj: BumpBox<'a, JsValue<'a>>,
         prop: BumpBox<'a, JsValue<'a>>,
-        ast_path: BumpBox<'a, [AstParentKind]>,
+        ast_path: AstPath,
         span: Span,
     },
     /// A property access created by an object destructuring pattern.
@@ -161,34 +162,31 @@ pub enum Effect<'a> {
     In {
         left: BumpBox<'a, JsValue<'a>>,
         right: BumpBox<'a, JsValue<'a>>,
-        ast_path: BumpBox<'a, [AstParentKind]>,
+        ast_path: AstPath,
         span: Span,
     },
     /// A reference to an imported binding.
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
-        ast_path: BumpBox<'a, [AstParentKind]>,
+        ast_path: AstPath,
         span: Span,
     },
     /// A reference to a free var access.
     FreeVar {
         var: Atom,
-        ast_path: BumpBox<'a, [AstParentKind]>,
+        ast_path: AstPath,
         span: Span,
     },
     /// A typeof expression
     TypeOf {
         arg: BumpBox<'a, JsValue<'a>>,
-        ast_path: BumpBox<'a, [AstParentKind]>,
+        ast_path: AstPath,
         span: Span,
     },
     // TODO ImportMeta should be replaced with Member
     /// A reference to `import.meta`.
-    ImportMeta {
-        ast_path: BumpBox<'a, [AstParentKind]>,
-        span: Span,
-    },
+    ImportMeta { ast_path: AstPath, span: Span },
     /// A dynamic import() call, potentially with export usage extracted from
     /// usage patterns. Export usage is detected from these patterns:
     ///
@@ -200,16 +198,14 @@ pub enum Effect<'a> {
     /// - `import(/* turbopackExports: ["a"] */ './lib')` (magic comment)
     DynamicImport {
         args: BumpVec<'a, EffectArg<'a>>,
-        ast_path: BumpBox<'a, [AstParentKind]>,
+        ast_path: AstPath,
         span: Span,
         in_try: bool,
         /// The export usage extracted from the usage pattern.
         export_usage: ExportUsage,
     },
     /// Unreachable code, e.g. after a `return` statement.
-    Unreachable {
-        start_ast_path: BumpBox<'a, [AstParentKind]>,
-    },
+    Unreachable { start_ast_path: AstPath },
 }
 
 impl<'a> Effect<'a> {

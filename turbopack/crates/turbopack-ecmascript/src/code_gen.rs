@@ -301,7 +301,7 @@ macro_rules! create_visitor {
         $crate::create_visitor!(__ $ast_path.to_vec(), $name, |$arg: &mut $ty| $b)
     };
     ($ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
-        $crate::create_visitor!(__ $crate::code_gen::path_to(&$ast_path, |n| {
+        $crate::create_visitor!(__ $crate::code_gen::path_to(&$ast_path.to_vec(), |n| {
             matches!(n, swc_core::ecma::visit::AstParentKind::$ty(_))
         }), $name, |$arg: &mut $ty| $b)
     };

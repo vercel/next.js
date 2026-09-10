@@ -148,15 +148,15 @@ impl IntoCodeGenReference for EmitReference {
 
     fn into_code_gen_reference(
         self,
-        mut path: AstPath,
+        path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
-        path.0.pop();
+        let path = path.parent();
         (
             ResolvedVc::upcast(reference),
             CodeGen::RemovalCodeGen(RemovalCodeGen::new(
                 rcstr!("TURBOPACK collect"),
-                AstPathRange::Exact(path.0),
+                AstPathRange::Exact(path.to_vec()),
             )),
         )
     }
@@ -225,10 +225,10 @@ impl IntoCodeGenReference for CollectReference {
 
     fn into_code_gen_reference(
         self,
-        mut path: AstPath,
+        path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
-        path.0.pop();
+        let path = path.parent();
         (
             ResolvedVc::upcast(reference),
             CodeGen::CollectReferenceCodeGen(CollectReferenceCodeGen { reference, path }),

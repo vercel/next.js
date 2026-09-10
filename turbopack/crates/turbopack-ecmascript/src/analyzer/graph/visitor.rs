@@ -1,4 +1,5 @@
 use std::{
+    cell::RefCell,
     iter,
     mem::{replace, take},
 };
@@ -29,6 +30,7 @@ use crate::{
         graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
         is_unresolved_id,
     },
+    ast_path::AstPathInterner,
     chunk::CjsStaticExports,
     code_gen::CodeGen,
     references::{
@@ -42,38 +44,29 @@ use crate::{
 enum EarlyReturn<'a> {
     Always {
         prev_effects: BumpVec<'a, Effect<'a>>,
-        start_ast_path: BumpBox<'a, [AstParentKind]>,
+        start_ast_path: AstPath,
     },
     Conditional {
         prev_effects: BumpVec<'a, Effect<'a>>,
-        start_ast_path: BumpBox<'a, [AstParentKind]>,
+        start_ast_path: AstPath,
 
         condition: BumpBox<'a, JsValue<'a>>,
         then: Option<EffectsBlock<'a>>,
         r#else: Option<EffectsBlock<'a>>,
         /// The ast path to the condition.
-        condition_ast_path: BumpBox<'a, [AstParentKind]>,
+        condition_ast_path: AstPath,
         span: Span,
 
         early_return_condition_value: bool,
     },
 }
 
-/// Builds an arena-allocated boxed slice of the ast path, skipping the last `skip` entries.
-pub fn as_parent_path_skip_in<'a>(
-    arena: &'a Bump,
-    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
-    skip: usize,
-) -> BumpBox<'a, [AstParentKind]> {
-    let kinds = ast_path.kinds();
-    let kinds = &kinds[..kinds.len() - skip];
-    let mut path = BumpVec::with_capacity_in(arena, kinds.len());
-    path.extend_from_slice(arena, kinds);
-    path.into_boxed_slice()
-}
-
 pub(super) struct Analyzer<'arena, 'eval> {
     pub(super) arena: &'arena Bump,
+
+    /// Builds prefix-sharing [`AstPath`]s for effects. Interior mutability so that paths can be
+    /// created while `self` is (two-phase) borrowed for pushing the effect.
+    pub(super) paths: RefCell<AstPathInterner>,
 
     pub(super) analyze_mode: AnalyzeMode,
 
@@ -94,6 +87,34 @@ pub(super) struct Analyzer<'arena, 'eval> {
     pub(super) supports_block_scoping: bool,
 
     pub(super) eval_context: &'eval EvalContext,
+}
+
+impl Analyzer<'_, '_> {
+    /// The [`AstPath`] for the current position of the AST walk.
+    fn intern_path(&self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> AstPath {
+        self.paths.borrow_mut().intern(ast_path.kinds())
+    }
+
+    /// The [`AstPath`] for the current position of the AST walk, with `additional` appended.
+    fn intern_path_with(
+        &self,
+        ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+        additional: AstParentKind,
+    ) -> AstPath {
+        self.paths
+            .borrow_mut()
+            .intern_with(ast_path.kinds(), additional)
+    }
+
+    /// The [`AstPath`] for the current position of the AST walk, without the last `skip`
+    /// entries.
+    fn intern_path_skip(
+        &self,
+        ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+        skip: usize,
+    ) -> AstPath {
+        self.paths.borrow_mut().intern_skip(ast_path.kinds(), skip)
+    }
 }
 
 /// Collects a static CommonJS module's droppable named exports during the main
@@ -420,7 +441,7 @@ mod analyzer_state {
         ) {
             let early_return = EarlyReturn::Always {
                 prev_effects: take(&mut self.effects),
-                start_ast_path: as_parent_path_in(self.arena, ast_path),
+                start_ast_path: self.intern_path(ast_path),
             };
             self.early_return_stack_mut().push(early_return);
         }
@@ -793,29 +814,6 @@ mod analyzer_state {
 
 pub fn as_parent_path(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> Vec<AstParentKind> {
     ast_path.kinds().to_vec()
-}
-
-/// Like [`as_parent_path`], but freezes the path into an arena-allocated boxed slice.
-pub fn as_parent_path_in<'a>(
-    arena: &'a Bump,
-    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
-) -> BumpBox<'a, [AstParentKind]> {
-    let mut path = BumpVec::with_capacity_in(arena, ast_path.kinds().len());
-    path.extend_from_slice(arena, ast_path.kinds());
-    path.into_boxed_slice()
-}
-
-/// Like [`as_parent_path_with`], but freezes the path into an arena-allocated boxed slice.
-pub fn as_parent_path_with_in<'a>(
-    arena: &'a Bump,
-    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
-    additional: AstParentKind,
-) -> BumpBox<'a, [AstParentKind]> {
-    let kinds = ast_path.kinds();
-    let mut path = BumpVec::with_capacity_in(arena, kinds.len() + 1);
-    path.extend_from_slice(arena, kinds);
-    path.push(arena, additional);
-    path.into_boxed_slice()
 }
 
 /// Whether the node at `ast_path` is a whole statement, so its value goes nowhere:
@@ -1340,7 +1338,7 @@ impl<'a> Analyzer<'a, '_> {
                 };
                 self.add_effect(Effect::DynamicImport {
                     args,
-                    ast_path: as_parent_path_in(self.arena, ast_path),
+                    ast_path: self.intern_path(ast_path),
                     span,
                     in_try: self.is_in_try(),
                     export_usage,
@@ -1368,7 +1366,7 @@ impl<'a> Analyzer<'a, '_> {
                         obj: obj_value,
                         prop: prop_value,
                         args,
-                        ast_path: as_parent_path_in(self.arena, ast_path),
+                        ast_path: self.intern_path(ast_path),
                         span,
                         in_try: self.is_in_try(),
                         new,
@@ -1379,7 +1377,7 @@ impl<'a> Analyzer<'a, '_> {
                     self.add_effect(Effect::Call {
                         func: fn_value,
                         args,
-                        ast_path: as_parent_path_in(self.arena, ast_path),
+                        ast_path: self.intern_path(ast_path),
                         span,
                         in_try: self.is_in_try(),
                         new,
@@ -1394,7 +1392,7 @@ impl<'a> Analyzer<'a, '_> {
                     self.arena,
                 ),
                 args,
-                ast_path: as_parent_path_in(self.arena, ast_path),
+                ast_path: self.intern_path(ast_path),
                 span,
                 in_try: self.is_in_try(),
                 new,
@@ -1405,8 +1403,7 @@ impl<'a> Analyzer<'a, '_> {
     fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
         if self.analyze_mode.is_code_gen() {
             self.code_gens.push(
-                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
-                    .into(),
+                EsmModuleItem::new(self.intern_path(ast_path), self.supports_block_scoping).into(),
             );
         }
     }
@@ -1449,7 +1446,7 @@ impl<'a> Analyzer<'a, '_> {
 
         // The RHS isn't inspected; the code-gen keeps it as `<value>`.
         let name = RcStr::from(name.sym.as_str());
-        let path = as_parent_path(ast_path).into();
+        let path = self.intern_path(ast_path);
         if dead {
             self.record_dead_cjs_write(name, path);
         } else {
@@ -1485,7 +1482,7 @@ impl<'a> Analyzer<'a, '_> {
             }
             return;
         }
-        let (name, path) = (RcStr::from(name), as_parent_path(ast_path).into());
+        let (name, path) = (RcStr::from(name), self.intern_path(ast_path));
         if dead {
             self.record_dead_cjs_write(name, path);
         } else {
@@ -1558,7 +1555,7 @@ impl<'a> Analyzer<'a, '_> {
             names.push(name);
         }
         if !names.is_empty() {
-            self.record_cjs_object_literal_exports(names, as_parent_path(ast_path).into());
+            self.record_cjs_object_literal_exports(names, self.intern_path(ast_path));
         }
     }
 }
@@ -1789,7 +1786,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             self.add_effect(Effect::Member {
                 obj: obj_value,
                 prop: prop_value,
-                ast_path: as_parent_path_in(self.arena, ast_path),
+                ast_path: self.intern_path(ast_path),
                 span: member_expr.span(),
             });
         }
@@ -1814,7 +1811,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             self.add_effect(Effect::In {
                 left: left_value,
                 right: right_value,
-                ast_path: as_parent_path_in(self.arena, ast_path),
+                ast_path: self.intern_path(ast_path),
                 span: bin_expr.span(),
             });
         }
@@ -2423,14 +2420,14 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     esm_reference_index,
                     export: Some(prop_str.into()),
                     // point to the MemberExpression instead
-                    ast_path: as_parent_path_skip_in(self.arena, ast_path, 1),
+                    ast_path: self.intern_path_skip(ast_path, 1),
                     span: member.span(),
                 });
             } else {
                 self.add_effect(Effect::ImportedBinding {
                     esm_reference_index,
                     export: export.map(|e| RcStr::from(e.as_str())),
-                    ast_path: as_parent_path_in(self.arena, ast_path),
+                    ast_path: self.intern_path(ast_path),
                     span: ident.span(),
                 })
             }
@@ -2445,7 +2442,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             // benefit in an Effect for `window` or `Math`
             self.add_effect(Effect::FreeVar {
                 var,
-                ast_path: as_parent_path_in(self.arena, ast_path),
+                ast_path: self.intern_path(ast_path),
                 span: ident.span(),
             })
         }
@@ -2464,7 +2461,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             // 'this' is free; in CommonJS a top-level `this` aliases `exports`.
             self.add_effect(Effect::FreeVar {
                 var: atom!("this"),
-                ast_path: as_parent_path_in(self.arena, ast_path),
+                ast_path: self.intern_path(ast_path),
                 span: node.span(),
             });
             if !self.in_cjs_export_target() {
@@ -2509,7 +2506,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             // an effect.
             self.add_effect(Effect::ImportMeta {
                 span: expr.span,
-                ast_path: as_parent_path_in(self.arena, ast_path),
+                ast_path: self.intern_path(ast_path),
             })
         }
     }
@@ -2759,7 +2756,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
 
             self.add_effect(Effect::TypeOf {
                 arg: arg_value,
-                ast_path: as_parent_path_in(self.arena, ast_path),
+                ast_path: self.intern_path(ast_path),
                 span: n.span(),
             });
         }
@@ -2798,7 +2795,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     },
                     self.arena,
                 ),
-                ast_path: as_parent_path_in(self.arena, ast_path),
+                ast_path: self.intern_path(ast_path),
                 span: stmt.span,
             },
         );
@@ -2901,15 +2898,11 @@ impl<'a> Analyzer<'a, '_> {
             (true, false) => {
                 let early_return = EarlyReturn::Conditional {
                     prev_effects: take(&mut self.effects),
-                    start_ast_path: as_parent_path_in(self.arena, ast_path),
+                    start_ast_path: self.intern_path(ast_path),
                     condition,
                     then,
                     r#else,
-                    condition_ast_path: as_parent_path_with_in(
-                        self.arena,
-                        ast_path,
-                        condition_ast_kind,
-                    ),
+                    condition_ast_path: self.intern_path_with(ast_path, condition_ast_kind),
                     span,
                     early_return_condition_value: true,
                 };
@@ -2918,15 +2911,11 @@ impl<'a> Analyzer<'a, '_> {
             (false, true) => {
                 let early_return = EarlyReturn::Conditional {
                     prev_effects: take(&mut self.effects),
-                    start_ast_path: as_parent_path_in(self.arena, ast_path),
+                    start_ast_path: self.intern_path(ast_path),
                     condition,
                     then,
                     r#else,
-                    condition_ast_path: as_parent_path_with_in(
-                        self.arena,
-                        ast_path,
-                        condition_ast_kind,
-                    ),
+                    condition_ast_path: self.intern_path_with(ast_path, condition_ast_kind),
                     span,
                     early_return_condition_value: false,
                 };
@@ -2945,13 +2934,13 @@ impl<'a> Analyzer<'a, '_> {
                 self.add_effect(Effect::Conditional {
                     condition,
                     kind: BumpBox::new_in(kind, self.arena),
-                    ast_path: as_parent_path_with_in(self.arena, ast_path, condition_ast_kind),
+                    ast_path: self.intern_path_with(ast_path, condition_ast_kind),
                     span,
                 });
                 if early_return_when_false && early_return_when_true {
                     let early_return = EarlyReturn::Always {
                         prev_effects: take(&mut self.effects),
-                        start_ast_path: as_parent_path_in(self.arena, ast_path),
+                        start_ast_path: self.intern_path(ast_path),
                     };
                     self.early_return_stack_mut().push(early_return);
                 }
@@ -3006,7 +2995,7 @@ impl<'a> Analyzer<'a, '_> {
             self.add_effect(Effect::Conditional {
                 condition,
                 kind: BumpBox::new_in(cond_kind, self.arena),
-                ast_path: as_parent_path_with_in(self.arena, ast_path, ast_kind),
+                ast_path: self.intern_path_with(ast_path, ast_kind),
                 span,
             });
         }

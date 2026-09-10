@@ -71,11 +71,16 @@ pub trait AssetContext {
     #[turbo_tasks::function]
     fn resolve_options(self: Vc<Self>, origin_path: FileSystemPath) -> Vc<ResolveOptions>;
 
-    /// Resolves an request to an [ModuleResolveResult].
+    /// Resolves a request from the given directory (`lookup_path`) to an [ModuleResolveResult].
+    ///
+    /// This is keyed by the directory rather than by the importing file, so that all modules in
+    /// the same directory that import the same request share a single resolve task. Error
+    /// reporting that needs the importing file (e.g. `handle_resolve_error`) is done by the
+    /// caller.
     #[turbo_tasks::function]
     fn resolve_asset(
         self: Vc<Self>,
-        origin_path: FileSystemPath,
+        lookup_path: FileSystemPath,
         request: Vc<Request>,
         resolve_options: Vc<ResolveOptions>,
         reference_type: ReferenceType,
