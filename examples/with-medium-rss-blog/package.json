@@ -13,6 +13,7 @@
     "rss-parser": "^3.13.0"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.15",
     "@types/node": "^20.11.17",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
