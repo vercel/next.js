@@ -6,9 +6,13 @@
  * page hands out ids that a layout still mounted from the document render is
  * already using.
  *
- * Every Flight render therefore gets a prefix derived from the request it
- * belongs to, plus a tag for the renders that share one request. Prerenders
- * derive their request id from the URL, so build output stays byte-stable.
+ * Only the renders whose payload is applied onto a tree the client already
+ * holds take a prefix. A document render and a prerender produce that tree
+ * rather than joining one, so they keep the unprefixed ids — which also leaves
+ * prerendered output byte-for-byte unchanged. Within one URL a prerender
+ * numbers every segment in a single pass, and a layout's ids are always minted
+ * before the child segment's, so segments carved out of a prerender agree on
+ * their counters no matter which route they are later inserted under.
  */
 
 /**
@@ -20,13 +24,11 @@ export const FlightRenderPass = {
   Primary: '',
   /** A prefetch payload embedded in another render's payload. */
   Prefetch: 'p',
-  /** An error tree rendered after the primary render failed. */
-  Error: 'e',
 } as const
 
-// Request ids are a nanoid at runtime and a SHA-1 of the URL when prerendering.
-// Both are truncated here because the prefix is repeated in every id the render
-// mints; 48 bits keeps accidental collisions across a large build negligible.
+// Request ids are a nanoid at runtime. Truncated here because the prefix is
+// repeated in every id the render mints; 48 bits keeps accidental collisions
+// between renders alive in one document negligible.
 const REQUEST_ID_LENGTH = 12
 
 export function getFlightIdentifierPrefix(
