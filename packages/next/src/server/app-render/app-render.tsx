@@ -1442,6 +1442,7 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     const result = await stagedRenderWithCachesInDev({
       prefetchMode,
       ctx,
+      identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
       requestStore: initialRequestStore,
       createRequestStore,
       getPayload,
@@ -1669,7 +1670,6 @@ async function prospectiveRuntimeServerPrerender(
   )
 
   const prerenderOptions = {
-    identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
     filterStackFrame,
     onError: (err: unknown) => {
       const digest = getDigestForWellKnownError(err)
@@ -3849,6 +3849,7 @@ async function renderToStream(
             await stagedRenderWithCachesInDev({
               prefetchMode,
               ctx,
+              identifierPrefix: '',
               requestStore,
               createRequestStore,
               getPayload,
@@ -3885,7 +3886,6 @@ async function renderToStream(
             requestStore,
             getPayload,
             {
-              identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
               onError: serverComponentsErrorHandler,
               filterStackFrame,
               debugChannel: debugChannel?.serverSide,
@@ -4033,7 +4033,6 @@ async function renderToStream(
               RSCPayload,
               clientModules,
               {
-                identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
                 onError: serverComponentsErrorHandler,
                 filterStackFrame,
               }
@@ -4102,7 +4101,6 @@ async function renderToStream(
               RSCPayload,
               clientModules,
               {
-                identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
                 debugChannel: debugChannel?.serverSide,
@@ -4145,7 +4143,6 @@ async function renderToStream(
               RSCPayload,
               clientModules,
               {
-                identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
                 filterStackFrame,
                 onError: serverComponentsErrorHandler,
                 debugChannel: debugChannel?.serverSide,
@@ -4551,10 +4548,6 @@ async function renderToStream(
             errorRSCPayload,
             clientModules,
             {
-              identifierPrefix: getFlightIdentifierPrefix(
-                ctx.requestId,
-                FlightRenderPass.Error
-              ),
               filterStackFrame,
               onError: serverComponentsErrorHandler,
             }
@@ -4647,10 +4640,6 @@ async function renderToStream(
             errorRSCPayload,
             clientModules,
             {
-              identifierPrefix: getFlightIdentifierPrefix(
-                ctx.requestId,
-                FlightRenderPass.Error
-              ),
               filterStackFrame,
               onError: serverComponentsErrorHandler,
             }
@@ -5570,6 +5559,8 @@ function getEnvironmentNameForStage(stage: RenderStage) {
 interface StagedDevRenderOptions {
   prefetchMode: PrefetchingMode
   ctx: AppRenderContext
+  /** Empty for the initial document, whose ids are the tree the client starts from. */
+  identifierPrefix: string
   requestStore: RequestStore
   onError: (error: unknown) => void
   navigationKind: DevNavigationKind
@@ -5634,6 +5625,7 @@ interface StreamStagedRenderInDevOptions extends StagedDevRenderOptions {
 async function streamStagedRenderInDev({
   prefetchMode,
   ctx,
+  identifierPrefix,
   requestStore,
   rscPayload,
   stageController,
@@ -5796,7 +5788,7 @@ async function streamStagedRenderInDev({
           rscPayload,
           clientModules,
           {
-            identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
+            identifierPrefix,
             onError,
             environmentName,
             startTime,
@@ -5968,7 +5960,6 @@ async function renderWithWarmCachesForValidationInDev(
         rscPayload,
         clientModules,
         {
-          identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
           onError,
           environmentName,
           startTime,
@@ -6102,7 +6093,6 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
         rscPayload,
         clientModules,
         {
-          identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
           onError,
           environmentName,
           startTime,
@@ -6204,6 +6194,7 @@ function abortInRenderContext(
 async function stagedRenderWithCachesInDev({
   prefetchMode,
   ctx,
+  identifierPrefix,
   requestStore,
   createRequestStore,
   getPayload,
@@ -6248,6 +6239,7 @@ async function stagedRenderWithCachesInDev({
     const { stream, resultPromise } = await streamStagedRenderInDev({
       prefetchMode,
       ctx,
+      identifierPrefix,
       requestStore,
       rscPayload,
       stageController,
@@ -8268,7 +8260,6 @@ async function renderWithRestartOnCacheMissInValidation(
         initialRscPayload,
         clientModules,
         {
-          identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
           onError: createOnError(initialReactController.signal, false),
           startTime,
           filterStackFrame,
@@ -8372,7 +8363,6 @@ async function renderWithRestartOnCacheMissInValidation(
         finalRscPayload,
         clientModules,
         {
-          identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
           onError: createOnError(finalReactController.signal, true),
           startTime,
           filterStackFrame,
@@ -9400,7 +9390,6 @@ async function prerenderToStream(
       })
 
       const initialPrerenderOptions = {
-        identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
         filterStackFrame,
         onError: (err: unknown) => {
           const digest = getDigestForWellKnownError(err)
@@ -9803,7 +9792,6 @@ async function prerenderToStream(
             finalServerPayload,
             clientModules,
             {
-              identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
               filterStackFrame,
               onError: (err: unknown) => {
                 return serverComponentsErrorHandler(err)
@@ -10295,7 +10283,6 @@ async function prerenderToStream(
             RSCPayload,
             clientModules,
             {
-              identifierPrefix: getFlightIdentifierPrefix(ctx.requestId),
               filterStackFrame,
               onError: serverComponentsErrorHandler,
             }
@@ -10571,10 +10558,6 @@ async function prerenderToStream(
               errorRSCPayload,
               clientModules,
               {
-                identifierPrefix: getFlightIdentifierPrefix(
-                  ctx.requestId,
-                  FlightRenderPass.Error
-                ),
                 filterStackFrame,
                 signal: errorServerReactController.signal,
                 onError: (rscError: unknown) => {
@@ -10886,10 +10869,6 @@ async function prerenderToStream(
       errorRSCPayload,
       clientModules,
       {
-        identifierPrefix: getFlightIdentifierPrefix(
-          ctx.requestId,
-          FlightRenderPass.Error
-        ),
         filterStackFrame,
         onError: serverComponentsErrorHandler,
       }
