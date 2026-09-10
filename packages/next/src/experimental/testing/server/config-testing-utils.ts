@@ -21,7 +21,6 @@ import type { Params } from '../../../server/request/params'
 import { constructRequest } from './utils'
 import { parsedUrlQueryToParams } from '../../../server/route-modules/app-route/helpers/parsed-url-query-to-params'
 import { searchParamsToUrlQuery } from '../../../shared/lib/router/utils/querystring'
-import { isFullStringUrl, parseUrl } from '../../../lib/url'
 
 /**
  * Tries to match the current request against the provided route. If there is
@@ -87,17 +86,9 @@ export async function unstable_getResponseFromNextConfig({
   headers?: IncomingHttpHeaders
   cookies?: Record<string, string>
 }): Promise<NextResponse> {
-  const parsed = parseUrl(url)
-  if (!parsed) {
-    throw new Error(`Invalid URL: ${url}`)
-  }
+  const parsed = new URL(url, 'https://example.com')
   const pathname = parsed.pathname
   const query = searchParamsToUrlQuery(parsed.searchParams)
-  // The legacy `url.parse` gives relative URLs no origin, in which case route
-  // destinations resolve against a placeholder.
-  const origin = isFullStringUrl(url)
-    ? `${parsed.protocol}//${parsed.host}`
-    : 'https://example.com'
   const request = constructRequest({ url, headers, cookies })
   const resolvedConfig = await normalizeConfig(
     PHASE_PRODUCTION_BUILD,
@@ -146,7 +137,7 @@ export async function unstable_getResponseFromNextConfig({
       searchParams.size > 0 ? `${newUrl}?${searchParams.toString()}` : newUrl,
       parsedDestination.hostname
         ? `${parsedDestination.protocol}//${parsedDestination.hostname}`
-        : origin
+        : parsed.origin
     )
   }
   for (const route of redirectRoutes) {
