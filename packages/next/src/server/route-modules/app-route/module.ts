@@ -1128,9 +1128,11 @@ export default AppRouteRouteModule
  *          methods are static
  */
 export function hasNonStaticMethods(handlers: AppRouteHandlers): boolean {
+  // QUERY is safe, but its request content is not part of the prerender cache key.
   if (
     // Order these by how common they are to be used
     handlers.POST ||
+    handlers.QUERY ||
     handlers.PUT ||
     handlers.DELETE ||
     handlers.PATCH ||
