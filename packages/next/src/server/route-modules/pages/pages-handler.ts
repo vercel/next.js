@@ -610,9 +610,9 @@ export const getHandler = ({
           }
         }
 
-        // If cache control is already set on the response we don't
-        // override it to allow users to customize it via next.config
-        if (cacheControl && !res.getHeader('Cache-Control')) {
+        // ISG/ISR cache-control must always take precedence over any
+        // Cache-Control header set earlier (e.g. by _app's getInitialProps)
+        if (cacheControl) {
           res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
         }
 

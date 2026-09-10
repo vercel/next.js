@@ -55,9 +55,12 @@ export async function sendRenderResult({
     res.setHeader('X-Powered-By', 'Next.js')
   }
 
-  // If cache control is already set on the response we don't
-  // override it to allow users to customize it via next.config
-  if (cacheControl && !res.getHeader('Cache-Control')) {
+  // If the page has a revalidate value (ISG/ISR), the cache-control
+  // header derived from it must always take precedence over any
+  // Cache-Control header that may have been set earlier (e.g. by
+  // _app's getInitialProps). For pages without revalidate, we still
+  // respect any previously set Cache-Control header.
+  if (cacheControl) {
     res.setHeader('Cache-Control', getCacheControlHeader(cacheControl))
   }
 
