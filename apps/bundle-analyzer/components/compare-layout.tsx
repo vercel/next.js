@@ -4,9 +4,9 @@ import type { MouseEventHandler } from 'react'
 import { CompareSidebar } from '@/components/sidebar'
 import { DiffTable } from '@/components/diff-table'
 import { DiffTreemap } from '@/components/diff-treemap'
-import { TreemapSkeleton } from '@/components/ui/skeleton'
 import { StatCard, CountCard } from '@/components/stat-cards'
 import { CompareView, Environment } from '@/components/top-bar'
+import { TableSkeleton, TreemapSkeleton } from '@/components/ui/skeleton'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import {
   diffRoutesWithSizes,
@@ -31,15 +31,14 @@ export interface CompareLayoutModel {
   sourceDiff: DiffSummary<SourceDiffRow> | null
   analyzeData: AnalyzeData | null
   baselineAnalyzeData: AnalyzeData | null
-  modulesData: ModulesData | null
-  baselineModulesData: ModulesData | null
+  modulesData: ModulesData
+  baselineModulesData: ModulesData
   moduleDepthMap: Map<number, number>
   baselineModuleDepthMap: Map<number, number>
   environmentFilter: Environment
   sidebarWidth: number
   compareView: CompareView
-  isAnalyzeLoading: boolean
-  isBaselineAnalyzeLoading: boolean
+  isViewPending: boolean
   searchQuery: string
   selectedKey: string | null
   onSelectedKeyChange: (key: string | null) => void
@@ -60,8 +59,6 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
         <RouteStatsCard
           selectedRoute={model.selectedRoute}
           sourceDiff={model.sourceDiff}
-          isAnalyzeLoading={model.isAnalyzeLoading}
-          isBaselineAnalyzeLoading={model.isBaselineAnalyzeLoading}
           compressed
           className="xl:min-w-0 xl:flex-1 xl:basis-0 xl:border-r xl:border-border"
         />
@@ -77,12 +74,11 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
         <div className="flex flex-1 min-w-0 flex-col">
           <ComparePerRoutePanel
             compareView={model.compareView}
+            isViewPending={model.isViewPending}
             selectedRoute={model.selectedRoute}
             sourceDiff={model.sourceDiff}
             analyzeData={model.analyzeData}
             baselineAnalyzeData={model.baselineAnalyzeData}
-            isAnalyzeLoading={model.isAnalyzeLoading}
-            isBaselineAnalyzeLoading={model.isBaselineAnalyzeLoading}
             compressed
             searchQuery={model.searchQuery}
             baselineSnapshot={model.baselineSnapshot}
@@ -225,26 +221,18 @@ export function CompareContextStrip({
 export function RouteStatsCard({
   selectedRoute,
   sourceDiff,
-  isAnalyzeLoading,
-  isBaselineAnalyzeLoading,
   compressed,
   className,
 }: {
   selectedRoute: string | null
   sourceDiff: DiffSummary<SourceDiffRow> | null
-  isAnalyzeLoading: boolean
-  isBaselineAnalyzeLoading: boolean
   compressed: boolean
   className?: string
 }) {
-  const isLoading = isAnalyzeLoading || isBaselineAnalyzeLoading
-
   const body = !selectedRoute ? (
     <div className="pt-1 text-xs text-muted-foreground">
       Select a route above to see per-source changes.
     </div>
-  ) : isLoading ? (
-    <div className="pt-1 text-xs text-muted-foreground">Loading…</div>
   ) : !sourceDiff ? (
     <div className="pt-1 text-xs text-muted-foreground">
       No data for this route.
@@ -339,12 +327,11 @@ function RouteStatsBody({
  */
 export function ComparePerRoutePanel({
   compareView,
+  isViewPending,
   selectedRoute,
   sourceDiff,
   analyzeData,
   baselineAnalyzeData,
-  isAnalyzeLoading,
-  isBaselineAnalyzeLoading,
   compressed,
   searchQuery,
   baselineSnapshot,
@@ -353,12 +340,11 @@ export function ComparePerRoutePanel({
   onCompareSelectedKeyChange,
 }: {
   compareView: CompareView
+  isViewPending: boolean
   selectedRoute: string | null
   sourceDiff: DiffSummary<SourceDiffRow> | null
   analyzeData: AnalyzeData | null
   baselineAnalyzeData: AnalyzeData | null
-  isAnalyzeLoading: boolean
-  isBaselineAnalyzeLoading: boolean
   compressed: boolean
   searchQuery: string
   baselineSnapshot: SnapshotMetadata
@@ -373,17 +359,26 @@ export function ComparePerRoutePanel({
       </div>
     )
   }
-  if (isAnalyzeLoading || isBaselineAnalyzeLoading) {
-    return (
-      <div className="p-4">
-        <TreemapSkeleton />
-      </div>
-    )
-  }
   if (!sourceDiff) {
     return (
       <div className="flex flex-1 items-center justify-center p-4 text-sm text-muted-foreground">
         No data for this route.
+      </div>
+    )
+  }
+
+  if (isViewPending) {
+    return (
+      <div
+        className="flex flex-1 min-h-0 p-4"
+        role="status"
+        aria-label="Loading view"
+      >
+        {compareView === CompareView.Treemap ? (
+          <TreemapSkeleton />
+        ) : (
+          <TableSkeleton />
+        )}
       </div>
     )
   }
