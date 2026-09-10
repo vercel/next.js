@@ -94,6 +94,14 @@ export default async function Page() {
 
 > If you add "`use cache`" at the top of a file, all exported functions in the file will be cached.
 
+### Keep mutable data fresh
+
+Before caching data that can change, identify every write that affects the cached result and decide when readers must see the update. If the cached data has no write path, you do not need on-demand invalidation. [`cacheLife`](/docs/app/api-reference/functions/cacheLife) controls time-based freshness, but it does not make a cached read immediately reflect a mutation.
+
+For read-your-own-writes behavior, tag the cached read with [`cacheTag`](/docs/app/api-reference/functions/cacheTag) and invalidate that tag after a successful write. Use [`updateTag`](/docs/app/api-reference/functions/updateTag) in a Server Action when the next read must wait for fresh data, or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) when stale-while-revalidate behavior is acceptable or the write happens in a Route Handler. When correctness requires fresh data and you cannot invalidate every affected cache entry, keep the read uncached.
+
+Test the complete lifecycle: populate the cache, perform the mutation, then read the data again and verify that the updated value is returned.
+
 ### Streaming uncached data
 
 For components that fetch data from an asynchronous source such as an API, a database, or any other async operation, and require fresh data on every request, do not use `"use cache"`.

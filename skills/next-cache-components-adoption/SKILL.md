@@ -54,6 +54,8 @@ In both, the per-route success bar is the same: **dev loop reports no errors AND
 
 When a fix introduces `"use cache"`, follow the Caching guide for [choosing a data-level or UI-level boundary and setting its lifetime](https://nextjs.org/docs/app/getting-started/caching#usage). Use the [`use cache` cache-key reference](https://nextjs.org/docs/app/api-reference/directives/use-cache#cache-keys) when the result varies by arguments or captured values.
 
+Also check whether any write path can change the cached result. If there are no writers, no on-demand invalidation is required. If there are writers, follow the Caching guide's [mutable data guidance](https://nextjs.org/docs/app/getting-started/caching#keep-mutable-data-fresh): tag the cached read, invalidate it from every relevant writer, and verify a populated-cache → write → fresh-read lifecycle. `cacheLife` is not a substitute for invalidating after a write.
+
 Three classes of blocker come up, usually in this order:
 
 Whenever a fix introduces `<Suspense>`, follow the Streaming guide's [granular streaming pattern](https://nextjs.org/docs/app/guides/streaming#granular-streaming-with-suspense) and [guidance for preventing CLS](https://nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
@@ -215,6 +217,7 @@ Checklist before checking in with the user:
 - `next build` completes without blocking-route errors.
 - No bare TODOs in the feature: `grep -rn "TODO: Cache Components adoption"` finds both the codemod's opt-out comments and the sync-IO unblocks from the pre-step. Any `instant = false` left behind is a deliberate, documented Block — comment rewritten to a reason (see [references/per-page-decisions.md](./references/per-page-decisions.md) → "when to leave a Block in place"). Any `await io()` or `await connection()` left behind has been reviewed and kept on purpose, not left over from the pre-step.
 - Each route visited in the browser: confirm the static shell renders first and every `<Suspense>` fallback resolves to its real content. Capture both states if you can — the fallback (mid-stream) and the final paint — so you have a streaming-experience demo to show the user. Throttle the network in the browser if streaming is too fast to observe.
+- Every new cache was checked for writers. When writers exist, each relevant write path invalidates the cached read and a populated-cache → write → fresh-read check passes.
 - If runtime verification fails, reproduce the same route on the pre-adoption branch or with its opt-out restored. A failure that already exists is an environment or data problem, not an adoption regression.
 
 Then check in with the user. Same rule as the pre-step: speak their language. Don't say "feature-by-feature loop" or other internal labels; talk about the feature you adopted and what the user will see.

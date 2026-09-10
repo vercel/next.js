@@ -132,6 +132,15 @@ and
 Work one accepted navigation to GREEN before moving to another. Do not create
 an app-wide Link or cache abstraction from a single case.
 
+If the optimization adds or expands a cache boundary, first determine whether
+any write path can change the cached result. If there are no writers, no
+on-demand invalidation is required. If there are writers, follow the Caching
+guide's [mutable data guidance](https://nextjs.org/docs/app/getting-started/caching#keep-mutable-data-fresh):
+connect every relevant writer to invalidation and verify a populated-cache →
+write → fresh-read lifecycle. `cacheLife` is not a substitute for invalidating
+after a write. A passing `instant()` test proves prefetched readiness, not
+mutation freshness.
+
 ## Verify and ship
 
 Keep the passing locked test for the real source link as regression coverage.
@@ -169,6 +178,8 @@ request.
 - [ ] The App Shell stayed visible throughout the RED/GREEN loop.
 - [ ] The selected UI is present and navigation-only UI is absent under lock.
 - [ ] Reusable navigation-only work remains cached below its navigation stage.
+- [ ] Every new cache was checked for writers. When writers exist, mutation
+      freshness was verified after first populating the cache.
 - [ ] Loaded content, freshness, authorization, and direct visits are unchanged.
 - [ ] Removing only the optimization returns the contract to RED.
 - [ ] The final positive `instant()` regression test ships.

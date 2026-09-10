@@ -366,6 +366,15 @@ this gate is as machine-checkable as the others. Detail:
 > under the lock on the production-build rig**, not when the code compiles. That
 > GREEN is the deterministic stop for the fix loop; proceed to E.
 
+If the optimization adds or expands a cache boundary, first determine whether
+any write path can change the cached result. If there are no writers, no
+on-demand invalidation is required. If there are writers, follow the Caching
+guide's [mutable data guidance](https://nextjs.org/docs/app/getting-started/caching#keep-mutable-data-fresh):
+connect every relevant writer to invalidation and verify a populated-cache →
+write → fresh-read lifecycle. `cacheLife` is not a substitute for invalidating
+after a write. A passing `instant()` test proves shell readiness, not mutation
+freshness.
+
 **When URL data can't be pushed down** (for example, the whole page depends on
 `params`, `searchParams`, or the full URL), there may be no meaningful static
 shell to grow. Don't force one. Per-link prefetching can make the soft
@@ -413,6 +422,9 @@ PR-specific items:
 
 - [ ] **Differential shown**: RED without the fix, GREEN with it, runs linked.
 - [ ] **Parity confirmed (E)**: same content, redirects, and state.
+- [ ] **Mutations verified when applicable**: every new cache was checked for
+      writers; caches with writers have a passing populated-cache → write →
+      fresh-read flow.
 - [ ] **Existing loading UI reused (D1)**: no new page-mirroring skeleton.
 - [ ] **Shell matches the real render at desktop and mobile widths (D2)**.
 - [ ] **Baseline removed**: only the locked test from C remains.
