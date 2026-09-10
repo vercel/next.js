@@ -1,3 +1,3 @@
 export default function Page() {
-  return 'Intercepted catch-all'
+  return <h2>Canonical page</h2>
 }
