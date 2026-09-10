@@ -49,6 +49,19 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+## Patterns for building a useful static shell
+
+Most static-shell refactors use the same patterns:
+
+- **Pass request promises down.** Start `cookies()`, `headers()`, or another asynchronous read where it is convenient, but await the promise inside the component that needs the result.
+- **Stream request-time work.** Put `params`, `searchParams`, and uncached data behind a focused `<Suspense>` boundary so static siblings can prerender.
+- **Cache reusable work.** Add a cache directive only when the result can be reused. Choose its lifetime from the data's freshness requirements and invalidate it when a write changes the result.
+- **Keep stable UI above the boundary.** Reuse existing loading states for the part that changes instead of replacing the route with one broad fallback.
+
+The following walkthrough applies these patterns to one route. You can make and verify each change separately, which is often more practical for an existing application than restructuring the route at once.
+
+## Work through a settings route
+
 Consider a team settings route written in a blocking style. The layout resolves request data before it renders the settings frame:
 
 ```tsx filename="app/[team]/settings/layout.tsx"
@@ -102,7 +115,7 @@ export default async function SettingsPage({
 
 These awaits happen before their surrounding components return. The static shell therefore cannot include the settings frame or page. This may be a natural structure in an existing App Router app. The following changes preserve its behavior while moving each request-time read closer to the component that needs it.
 
-## Choose what belongs in the static shell
+### Step 1: Choose what belongs in the static shell
 
 Start with the completed page and separate content by when its data is available. The settings route has five requirements:
 
@@ -118,7 +131,11 @@ This division determines where the route needs `<Suspense>` and where caching is
 
 Keep the primary heading or other [Largest Contentful Paint candidate](/docs/app/guides/streaming#lcp-largest-contentful-paint) in the static shell when possible. If its data can be reused, cache the data instead of moving the whole primary region behind a loading state.
 
-## Keep the layout visible while authentication resolves
+### Step 2: Move request-time work behind focused boundaries
+
+Start with the layout, then apply the same pattern to the page.
+
+#### Keep the layout visible while authentication resolves
 
 Start the `cookies()` and `headers()` reads in the layout, but pass their promises to the component that needs them. Moving the awaits and redirect into a component behind `<Suspense>` lets the layout return `SettingsShell` and `children` first.
 
@@ -168,7 +185,7 @@ Calling `cookies()` or `headers()` starts the work without blocking the layout. 
 
 The shell must contain only content that is safe to send before authentication completes. Keep authorization checks in the data access functions used by the page. A layout redirect does not protect a database query or Server Action by itself. See [Authentication with Cache Components](/docs/app/guides/authentication-with-cache-components) for the complete authentication pattern.
 
-## Move page data into focused boundaries
+#### Move page data into focused boundaries
 
 Next, the page can return its heading before it resolves `params`, `searchParams`, or team settings. Pass each promise to the component that needs it and place that component behind a focused boundary.
 
@@ -250,11 +267,11 @@ An uncached database or network read already waits for the request and does not 
 
 When a finite set of route parameters is known ahead of time, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can prerender those routes. Keep parameter values that are not known at build time inside a focused boundary, as shown above. With Cache Components, [`next/root-params`](/docs/app/api-reference/functions/next-root-params#root-parameters-and-generatestaticparams) also requires at least one generated value for each root parameter.
 
-### Handle metadata and viewport
+#### Handle metadata and viewport
 
 Metadata and viewport are resolved outside the page's component tree, so a boundary around page content does not cover them. Cache reusable values in `generateMetadata` or `generateViewport`. If metadata must use request data, it can stream alongside a static shell using a dynamic marker. A request-specific viewport cannot stream and makes the route blocking. See [`generateMetadata` and `generateViewport`](/docs/app/guides/migrating-to-cache-components#generatemetadata-and-generateviewport) for the complete patterns.
 
-## Cache data that can be reused
+### Step 3: Cache data that can be reused
 
 Streaming keeps request-time data from blocking the static shell. Caching includes reusable data in the shell after it resolves.
 
