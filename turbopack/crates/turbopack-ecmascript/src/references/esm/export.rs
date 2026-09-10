@@ -732,8 +732,15 @@ async fn build_compact_reexports(
     // The imports can only be subsumed when nothing else depends on them running where they are:
     // the mode says no import follows a re-export, and no re-exported module is also bound to a
     // name the module's own code uses.
-    let subsume_imports =
-        mode == ExportRegistrationMode::Reexport && !groups.iter().any(|group| group.locally_bound);
+    // The imports can only be subsumed when nothing else depends on them running where they are:
+    // the mode says no import follows a re-export, no re-exported module is also bound to a name
+    // the module's own code uses, and the groups' source positions are known -- the registration
+    // instantiates them in list order, so an unknown order could reorder evaluation. Failing any of
+    // these still uses the compact form, just with namespace-object heads, which instantiates
+    // nothing and so cannot reorder anything.
+    let subsume_imports = mode == ExportRegistrationMode::Reexport
+        && positions_known
+        && !groups.iter().any(|group| group.locally_bound);
 
     Ok(Some(CompactReexports {
         groups,

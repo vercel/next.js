@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 3, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/two-sources/input/first.js"],"sourcesContent":["export const a = 'a-value'\nexport const b = 'b-value'\n"],"names":["a","b"],"mappings":";;;;;;AAAO,MAAMA,IAAI;AACV,MAAMC,IAAI"}},
+    {"offset": {"line": 14, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/two-sources/input/index.js"],"sourcesContent":["// Two source modules, so the registration needs a second group -- and therefore\n// the `0` separator between them.\nexport { a } from './first'\nexport { b } from './first'\nexport { c } from './second'\n"],"names":[],"mappings":"AAAA,gFAAgF;AAChF,kCAAkC"}},
+    {"offset": {"line": 29, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-registration/two-sources/input/second.js"],"sourcesContent":["export const c = 'c-value'\n"],"names":["c"],"mappings":";;;;AAAO,MAAMA,IAAI"}}]
+}
