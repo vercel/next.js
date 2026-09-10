@@ -12,7 +12,6 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client'
 import { prerender } from 'react-server-dom-webpack/static'
-/* eslint-enable import/no-extraneous-dependencies */
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
@@ -52,6 +51,7 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 
 import {
   getClientReferenceManifest,
+  getRscModuleMappingForUseCache,
   getServerActionsManifest,
   getServerModuleMap,
   normalizeWorkerPageName,
@@ -3611,7 +3611,7 @@ export async function cache(
     // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
     // which themselves will handle the preloading.
     moduleLoading: null,
-    moduleMap: clientReferenceManifest.rscModuleMapping,
+    moduleMap: getRscModuleMappingForUseCache(),
     serverModuleMap: getServerModuleMap(),
   }
 
@@ -3648,11 +3648,7 @@ async function computeCacheKeyImplementationPart(
         normalizeWorkerPageName(workStore.page)
       ]?.durability
     : undefined
-  if (
-    durability &&
-    // TODO replace this with more granular tracking: a list of all imported client components
-    durability.referencesClientComponent !== true
-  ) {
+  if (durability) {
     // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
     const crypto = require('crypto') as typeof import('crypto')
     let runtimeEnvVarStateHash = crypto

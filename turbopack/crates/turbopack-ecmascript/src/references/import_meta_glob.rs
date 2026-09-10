@@ -477,6 +477,11 @@ impl ImportMetaGlobMap {
                              matched file"
                         );
                     };
+                    let origin_relative = if origin_relative.starts_with("../") {
+                        origin_relative
+                    } else {
+                        RcStr::from(format!("./{origin_relative}"))
+                    };
 
                     // Append query string if specified (e.g., `?raw`).
                     let request_str: RcStr = if let Some(q) = query {
@@ -996,6 +1001,10 @@ impl ModuleReference for ImportMetaGlobAssetReference {
 }
 
 impl IntoCodeGenReference for ImportMetaGlobAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         path: AstPath,

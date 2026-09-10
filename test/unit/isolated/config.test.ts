@@ -1,6 +1,6 @@
 /* eslint-env jest */
 import { join } from 'path'
-import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
+import { PHASE_DEVELOPMENT_SERVER, PHASE_TEST } from 'next/constants'
 
 const pathToConfig = join(__dirname, '_resolvedata', 'without-function')
 const pathToConfigFn = join(__dirname, '_resolvedata', 'with-function')
@@ -106,6 +106,21 @@ describe('config', () => {
       }
     )
     expect(disabledConfig.experimental.devMemoryThresholdRestart).toBe(false)
+  })
+
+  it('Should allow bundler-specific options during the test phase', async () => {
+    const config = await loadConfig(PHASE_TEST, '<rootDir>-test-phase', {
+      customConfig: {
+        reactCompiler: true,
+        experimental: {
+          cssChunking: 'graph',
+          turbopackRustReactCompiler: true,
+        },
+      },
+    })
+
+    expect(config.experimental.cssChunking).toBe('graph')
+    expect(config.experimental.turbopackRustReactCompiler).toBe(true)
   })
 
   it('Should allow setting objects which do not have defaults', async () => {

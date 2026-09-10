@@ -69,7 +69,7 @@ impl DirList {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn read_internal(
+    async fn read_internal(
         root: FileSystemPath,
         dir: FileSystemPath,
         recursive: bool,
@@ -90,10 +90,12 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(path)
-                        && regex.is_match(&relative_path)
-                    {
-                        list.insert(relative_path, DirListEntry::File(path.clone()));
+                    if let Some(relative_path) = root_val.get_relative_path_to(path) {
+                        // Webpack always chacks the RegExp against a path prefixed with `./`
+                        let relative_path = RcStr::from(format!("./{relative_path}"));
+                        if regex.is_match(&relative_path) {
+                            list.insert(relative_path, DirListEntry::File(path.clone()));
+                        }
                     }
                 }
                 DirectoryEntry::Directory(path) if recursive => {
@@ -195,6 +197,11 @@ impl RequireContextMap {
         for (context_relative, path) in list {
             let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
                 bail!("invariant error: this was already checked in `list_dir`");
+            };
+            let origin_relative = if origin_relative.starts_with("../") {
+                origin_relative
+            } else {
+                RcStr::from(format!("./{origin_relative}"))
             };
 
             let request = Request::parse(origin_relative.clone().into())
@@ -313,6 +320,10 @@ impl ModuleReference for RequireContextAssetReference {
 }
 
 impl IntoCodeGenReference for RequireContextAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         path: AstPath,

@@ -14,6 +14,7 @@ import { findPagesDir } from '../../lib/find-pages-dir'
 import loadCustomRoutes from '../../lib/load-custom-routes'
 import { generateRoutesManifest } from '../generate-routes-manifest'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { writeAnalyzeSnapshot } from './snapshot'
 import http from 'node:http'
 
 // @ts-expect-error types are in @types/serve-handler
@@ -31,6 +32,8 @@ export type AnalyzeOptions = {
   appDirOnly?: boolean
   output?: boolean
   port?: number
+  /** User-supplied baseline name stored in the snapshot metadata, overriding branch/sha in the UI. */
+  baselineName?: string
 }
 
 export default async function analyze({
@@ -40,6 +43,7 @@ export default async function analyze({
   appDirOnly = false,
   output = false,
   port = 4000,
+  baselineName,
 }: AnalyzeOptions): Promise<void> {
   try {
     // analyze is Turbopack-only. Mirror what parseBundlerArgs does for build/dev
@@ -87,6 +91,17 @@ export default async function analyze({
       path.join(analyzeDir, 'data', 'routes.json'),
       JSON.stringify(routes, null, 2)
     )
+
+    // Capture this build alongside any prior builds so the analyzer UI can
+    // offer it as a comparison baseline in the future.
+    await writeAnalyzeSnapshot({
+      projectDir: dir,
+      analyzeDir,
+      routes,
+      appDirOnly,
+      noMangling,
+      baselineName,
+    })
 
     let logMessage = `Analyze completed in ${durationString}.`
     if (output) {
