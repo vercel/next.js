@@ -187,7 +187,14 @@ function useDrag(options: UseDragOptions) {
 
   const cancel = useCallback(() => {
     if (machine.current.state === 'drag') {
-      ref.current?.releasePointerCapture(machine.current.pointerId)
+      // The user agent implicitly releases pointer capture when a gesture ends
+      // or is cancelled, so the pointer may already be inactive by the time we
+      // get here. Releasing an inactive pointer throws NotFoundError, so only
+      // release capture we still hold.
+      const { pointerId } = machine.current
+      if (ref.current?.hasPointerCapture(pointerId)) {
+        ref.current.releasePointerCapture(pointerId)
+      }
     }
 
     machine.current =
@@ -283,6 +290,11 @@ function useDrag(options: UseDragOptions) {
     machine.current = { state: 'press' }
     window.addEventListener('pointermove', onPointerMove)
     window.addEventListener('pointerup', onPointerUp)
+    // A cancelled gesture fires pointercancel and no pointerup. Without this
+    // the machine is stranded in 'drag' and these listeners are never removed,
+    // so the next pointerup anywhere on the page runs cancel() against a
+    // pointer that no longer exists.
+    window.addEventListener('pointercancel', onPointerUp)
 
     if (cleanup.current !== null) {
       cleanup.current()
@@ -291,6 +303,7 @@ function useDrag(options: UseDragOptions) {
     cleanup.current = () => {
       window.removeEventListener('pointermove', onPointerMove)
       window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointercancel', onPointerUp)
     }
 
     ref.current?.addEventListener('click', onClick)
