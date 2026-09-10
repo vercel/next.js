@@ -58,7 +58,6 @@
     "test-turbo": "scripts/run-jest.sh --bundler=turbo --headless --",
     "testonly": "jest --runInBand",
     "testheadless": "scripts/run-jest.sh --headless --",
-    "genstats": "cross-env LOCAL_STATS=true node .github/actions/next-stats-action/src/index.js",
     "git-reset": "git reset --hard HEAD",
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
     "typescript": "tsc --noEmit",
