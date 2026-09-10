@@ -336,7 +336,7 @@ impl EcmascriptExports {
                             EsmExport::ImportedBinding(..) | EsmExport::ImportedNamespace(_)
                         )
                     });
-                Vc::cell(has_reexports)
+                Vc::cell(has_reexports || exports.mangle_export_names)
             }
             _ => Vc::cell(false),
         })
