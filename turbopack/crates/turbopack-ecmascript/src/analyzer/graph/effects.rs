@@ -150,6 +150,7 @@ pub enum Effect<'a> {
         prop: BumpBox<'a, JsValue<'a>>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
+        in_boolean_context: bool,
     },
     /// A property access created by an object destructuring pattern.
     DestructuredMember {
