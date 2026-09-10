@@ -1065,6 +1065,25 @@ impl EcmascriptModuleContentOptions {
         } = self;
 
         async {
+            // The export registration is computed first: when it can spell the whole module's
+            // exports as one compact call, it also performs those imports, and reports which
+            // references it subsumed so they don't emit them a second time.
+            let (exports_code_gen, subsumed_namespaces) =
+                if let EcmascriptExports::EsmExports(exports) = *exports.await? {
+                    let (code_gen, subsumed) = exports
+                        .code_generation(
+                            **chunking_context,
+                            scope_hoisting_context,
+                            eval_context,
+                            *module,
+                            eval_context.imports.export_registration_mode(),
+                        )
+                        .await?;
+                    (Some(code_gen), subsumed)
+                } else {
+                    (None, Default::default())
+                };
+
             let additional_code_gens = [
                 if let Some(async_module) = &*async_module.await? {
                     Some(
@@ -1079,20 +1098,7 @@ impl EcmascriptModuleContentOptions {
                 } else {
                     None
                 },
-                if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-                    Some(
-                        exports
-                            .code_generation(
-                                **chunking_context,
-                                scope_hoisting_context,
-                                eval_context,
-                                *module,
-                            )
-                            .await?,
-                    )
-                } else {
-                    None
-                },
+                exports_code_gen,
             ];
 
             let part_code_gens = part_references
@@ -1104,7 +1110,13 @@ impl EcmascriptModuleContentOptions {
             let esm_code_gens = esm_references
                 .await?
                 .iter()
-                .map(|r| r.code_generation(**chunking_context, scope_hoisting_context))
+                .map(|r| {
+                    r.code_generation(
+                        **chunking_context,
+                        scope_hoisting_context,
+                        &subsumed_namespaces,
+                    )
+                })
                 .try_join()
                 .await?;
 

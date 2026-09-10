@@ -2,6 +2,7 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
+use rustc_hash::FxHashSet;
 use strsim::jaro;
 use swc_core::{
     common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
@@ -756,6 +757,9 @@ impl EsmAssetReference {
         self: ResolvedVc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
+        // Namespace variables a compact re-export registration (`TURBOPACK_ESM_REEXPORT`) already
+        // imports for itself. Emitting them here too would instantiate the module twice.
+        subsumed_namespaces: &FxHashSet<String>,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
@@ -822,140 +826,149 @@ impl EsmAssetReference {
                         // the same scope hoisting group (unless it's a
                         // namespace import)
                     } else {
-                        let ident = referenced_asset
-                            .get_ident(
-                                chunking_context,
-                                this.export_name.as_ref().and_then(|e| match e {
-                                    ModulePart::Export(export_name) => Some(export_name.clone()),
-                                    _ => None,
-                                }),
-                                scope_hoisting_context,
-                            )
-                            .await?;
-                        // `referenced_asset` must not be used past this point: the ident carries
-                        // everything about the import target (see `ImportSource`) — notably,
-                        // when the ident was resolved through a re-export chain, the
-                        // directly-referenced asset is the outer (rename) module, not the one
-                        // the emitted variable actually holds.
-                        drop(referenced_asset);
-                        match ident {
-                            Some(ReferencedAssetIdent::LocalBinding { .. }) => {
-                                // no need to import
-                            }
-                            Some(ReferencedAssetIdent::Module {
-                                namespace_ident,
-                                ctxt,
-                                export: _,
-                                import_source,
-                            }) => {
-                                let span = this
-                                    .issue_source
-                                    .to_swc_offsets()
-                                    .await?
-                                    .map_or(DUMMY_SP, |(start, end)| {
-                                        Span::new(BytePos(start), BytePos(end))
-                                    });
-                                let name = Ident::new(
-                                    namespace_ident.into(),
-                                    DUMMY_SP,
-                                    ctxt.unwrap_or_default(),
-                                );
-                                let (key, mut call_expr) = match import_source {
-                                    ImportSource::Module { asset } => {
-                                        let id = asset.chunk_item_id(chunking_context).await?;
-                                        // Include ctxt in the key to prevent incorrect
-                                        // deduplication when multiple merged modules import the
-                                        // same target but have different syntax contexts (which
-                                        // would cause hygiene to rename one of them).
-                                        (
-                                            format!("{} {:?}", id, ctxt).into(),
-                                            quote!(
-                                                "$turbopack_import($id)" as Expr,
-                                                turbopack_import: Expr = TURBOPACK_IMPORT.into(),
-                                                id: Expr = module_id_to_lit(&id),
-                                            ),
-                                        )
-                                    }
-                                    ImportSource::External {
-                                        request,
-                                        ty: ExternalType::EcmaScriptModule,
-                                    } => {
-                                        if !*chunking_context
-                                            .environment()
-                                            .supports_esm_externals()
-                                            .await?
-                                        {
-                                            turbobail!(
-                                                "the chunking context ({}) does not support \
-                                                 external modules (esm request: {request})",
-                                                chunking_context.name()
-                                            );
+                        'import: {
+                            let ident = referenced_asset
+                                .get_ident(
+                                    chunking_context,
+                                    this.export_name.as_ref().and_then(|e| match e {
+                                        ModulePart::Export(export_name) => {
+                                            Some(export_name.clone())
                                         }
-                                        let call = if import_externals {
-                                            quote!(
-                                                "$turbopack_external_import($id)" as Expr,
-                                                turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
-                                                id: Expr = Expr::Lit(request.to_string().into())
+                                        _ => None,
+                                    }),
+                                    scope_hoisting_context,
+                                )
+                                .await?;
+                            // `referenced_asset` must not be used past this point: the ident
+                            // carries everything about the import
+                            // target (see `ImportSource`) — notably,
+                            // when the ident was resolved through a re-export chain, the
+                            // directly-referenced asset is the outer (rename) module, not the one
+                            // the emitted variable actually holds.
+                            drop(referenced_asset);
+                            match ident {
+                                Some(ReferencedAssetIdent::LocalBinding { .. }) => {
+                                    // no need to import
+                                }
+                                Some(ReferencedAssetIdent::Module {
+                                    namespace_ident,
+                                    ctxt,
+                                    export: _,
+                                    import_source,
+                                }) => {
+                                    if subsumed_namespaces.contains(&namespace_ident) {
+                                        // A compact re-export registration performs this import.
+                                        break 'import;
+                                    }
+                                    let span = this
+                                        .issue_source
+                                        .to_swc_offsets()
+                                        .await?
+                                        .map_or(DUMMY_SP, |(start, end)| {
+                                            Span::new(BytePos(start), BytePos(end))
+                                        });
+                                    let name = Ident::new(
+                                        namespace_ident.into(),
+                                        DUMMY_SP,
+                                        ctxt.unwrap_or_default(),
+                                    );
+                                    let (key, mut call_expr) = match import_source {
+                                        ImportSource::Module { asset } => {
+                                            let id = asset.chunk_item_id(chunking_context).await?;
+                                            // Include ctxt in the key to prevent incorrect
+                                            // deduplication when multiple merged modules import the
+                                            // same target but have different syntax contexts (which
+                                            // would cause hygiene to rename one of them).
+                                            (
+                                                format!("{} {:?}", id, ctxt).into(),
+                                                quote!(
+                                                    "$turbopack_import($id)" as Expr,
+                                                    turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                                                    id: Expr = module_id_to_lit(&id),
+                                                ),
                                             )
-                                        } else {
-                                            quote!(
+                                        }
+                                        ImportSource::External {
+                                            request,
+                                            ty: ExternalType::EcmaScriptModule,
+                                        } => {
+                                            if !*chunking_context
+                                                .environment()
+                                                .supports_esm_externals()
+                                                .await?
+                                            {
+                                                turbobail!(
+                                                    "the chunking context ({}) does not support \
+                                                     external modules (esm request: {request})",
+                                                    chunking_context.name()
+                                                );
+                                            }
+                                            let call = if import_externals {
+                                                quote!(
+                                                    "$turbopack_external_import($id)" as Expr,
+                                                    turbopack_external_import: Expr = TURBOPACK_EXTERNAL_IMPORT.into(),
+                                                    id: Expr = Expr::Lit(request.to_string().into())
+                                                )
+                                            } else {
+                                                quote!(
+                                                    "$turbopack_external_require($id, () => require($id), true)" as Expr,
+                                                    turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                                                    id: Expr = Expr::Lit(request.to_string().into())
+                                                )
+                                            };
+                                            (name.sym.as_str().into(), call)
+                                        }
+                                        ImportSource::External {
+                                            request,
+                                            ty: ExternalType::CommonJs | ExternalType::Url,
+                                        } => {
+                                            if !*chunking_context
+                                                .environment()
+                                                .supports_commonjs_externals()
+                                                .await?
+                                            {
+                                                turbobail!(
+                                                    "the chunking context ({}) does not support \
+                                                     external modules (request: {request})",
+                                                    chunking_context.name()
+                                                );
+                                            }
+                                            let call = quote!(
                                                 "$turbopack_external_require($id, () => require($id), true)" as Expr,
                                                 turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
                                                 id: Expr = Expr::Lit(request.to_string().into())
-                                            )
-                                        };
-                                        (name.sym.as_str().into(), call)
-                                    }
-                                    ImportSource::External {
-                                        request,
-                                        ty: ExternalType::CommonJs | ExternalType::Url,
-                                    } => {
-                                        if !*chunking_context
-                                            .environment()
-                                            .supports_commonjs_externals()
-                                            .await?
-                                        {
-                                            turbobail!(
-                                                "the chunking context ({}) does not support \
-                                                 external modules (request: {request})",
-                                                chunking_context.name()
                                             );
+                                            (name.sym.as_str().into(), call)
                                         }
-                                        let call = quote!(
-                                            "$turbopack_external_require($id, () => require($id), true)" as Expr,
-                                            turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
-                                            id: Expr = Expr::Lit(request.to_string().into())
-                                        );
-                                        (name.sym.as_str().into(), call)
+                                        // fallback in case we introduce a new `ExternalType`
+                                        #[allow(unreachable_patterns)]
+                                        ImportSource::External { request, ty, .. } => {
+                                            bail!(
+                                                "Unsupported external type {:?} for ESM reference \
+                                                 with request: {:?}",
+                                                ty,
+                                                request
+                                            )
+                                        }
+                                    };
+                                    if this.is_pure_import {
+                                        call_expr.set_span(PURE_SP);
                                     }
-                                    // fallback in case we introduce a new `ExternalType`
-                                    #[allow(unreachable_patterns)]
-                                    ImportSource::External { request, ty, .. } => {
-                                        bail!(
-                                            "Unsupported external type {:?} for ESM reference \
-                                             with request: {:?}",
-                                            ty,
-                                            request
-                                        )
-                                    }
-                                };
-                                if this.is_pure_import {
-                                    call_expr.set_span(PURE_SP);
-                                }
-                                result.push(CodeGenerationHoistedStmt::new(
-                                    key,
-                                    var_decl_with_span(
-                                        quote!(
-                                            "var $name = $call;" as Stmt,
-                                            name = name,
-                                            call: Expr = call_expr
+                                    result.push(CodeGenerationHoistedStmt::new(
+                                        key,
+                                        var_decl_with_span(
+                                            quote!(
+                                                "var $name = $call;" as Stmt,
+                                                name = name,
+                                                call: Expr = call_expr
+                                            ),
+                                            span,
                                         ),
-                                        span,
-                                    ),
-                                ));
-                            }
-                            None => {
-                                // Nothing to import.
+                                    ));
+                                }
+                                None => {
+                                    // Nothing to import.
+                                }
                             }
                         }
                     }

@@ -1,4 +1,4 @@
-;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="be30733b-bf7d-b911-2002-9606ae4ba897")}catch(e){}}();
+;!function(){try { var e="undefined"!=typeof globalThis?globalThis:"undefined"!=typeof global?global:"undefined"!=typeof window?window:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&((e._debugIds|| (e._debugIds={}))[n]="58582c4d-acad-5d03-c44c-f05bc7417fda")}catch(e){}}();
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push([
     "output/0rv8_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js",
     {"otherChunks":["output/0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_03ibyvsq4xsbk.js"],"runtimeModuleIds":["[project]/turbopack/crates/turbopack-tests/tests/snapshot/debug-ids/browser/input/index.js [test] (ecmascript)"]}
@@ -227,7 +227,10 @@ contextPrototype.s = esmExport;
  *
  * Groups whose head is a module id are instantiated in list order, at the point where the call
  * appears, so the producer must not merge such a group across an import of another module.
- */ function esmReexport(list) {
+ *
+ * `id` names the module the exports belong to when this module was merged into a scope-hoisting
+ * group, exactly as it does for {@link EsmExport}.
+ */ function esmReexport(list, id) {
     const bindings = [];
     let i = 0;
     while(i < list.length){
@@ -250,7 +253,7 @@ contextPrototype.s = esmExport;
             bindings.push(pairs[j], ()=>namespace[importedName]);
         }
     }
-    esmExport.call(this, bindings, undefined);
+    esmExport.call(this, bindings, id);
 }
 contextPrototype.S = esmReexport;
 function ensureDynamicExports(module, exports) {
@@ -2579,5 +2582,5 @@ chunkListsToRegister.forEach(registerChunkList);
 })();
 
 
-//# debugId=be30733b-bf7d-b911-2002-9606ae4ba897
+//# debugId=58582c4d-acad-5d03-c44c-f05bc7417fda
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_debug-ids_browser_input_index_0bjegbrfzt05o.js.map

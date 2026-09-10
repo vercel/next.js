@@ -674,17 +674,21 @@ impl ImportMap {
             .chain(self.reexport_namespaces.iter().copied())
     }
 
+    /// Indices of references that also provide a binding used by the module's own code, i.e. a
+    /// named import or a namespace import. A re-export whose reference is in here cannot have its
+    /// import subsumed by a compact registration: the binding would be left undefined.
+    pub fn locally_bound_reference_idxs(&self) -> impl Iterator<Item = usize> {
+        self.imports
+            .values()
+            .map(|(i, _)| *i)
+            .chain(self.namespace_imports.values().copied())
+    }
+
     /// How this module's export registration can be emitted.
     ///
     /// `references` is in source order (it is populated as the AST is visited), so a reference's
     /// index doubles as its position, and comparing indices tells us whether an import would be
     /// reordered by hoisting the re-exported ones into a single registration call.
-    ///
-    /// Not called yet: the producer that consumes this — emitting `TURBOPACK_ESM_REEXPORT` and
-    /// suppressing the imports it subsumes — is still to come, and landing it depends on this
-    /// classification existing first. Enabling suppression before that producer exists would drop a
-    /// module's imports while its getters still referenced them.
-    #[allow(dead_code)]
     pub fn export_registration_mode(&self) -> ExportRegistrationMode {
         let has_local_exports = self
             .exports

@@ -73,7 +73,7 @@ type EsmExport = (
  * or a single comma-joined string of those pairs.
  */
 type EsmReexports = Array<ModuleId | EsmNamespaceObject | string | 0>
-type EsmReexport = (list: EsmReexports) => void
+type EsmReexport = (list: EsmReexports, id?: ModuleId) => void
 type ExportValue = (value: any, id: ModuleId | undefined) => void
 type ExportUrl = (url: string, id: ModuleId | undefined) => void
 type ExportNamespace = (namespace: any, id: ModuleId | undefined) => void
