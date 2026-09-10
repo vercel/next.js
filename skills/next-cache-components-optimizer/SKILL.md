@@ -67,6 +67,17 @@ visible DOM node in that shell. A blank fallback is not a successful
 optimization. Use `instant()` as a ruler, not a stopwatch: assert what commits
 while dynamic data is paused, never elapsed time.
 
+For a client navigation, place the relevant boundary below the layout shared
+by the source and destination. When the destination uses parallel routes,
+inspect every server-rendered slot that changes; a boundary in one slot does
+not cover request-time work in another. A Client Component inside the shared
+layout remains mounted during that navigation, so do not treat it as part of
+the server-rendered destination tree. Verify it separately on an initial load
+when that path is in scope. See [What "instant"
+means](https://nextjs.org/docs/app/guides/instant-navigation#what-instant-means)
+and [Loading and Error UI with Parallel
+Routes](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
+
 Keep one production browser test per route and navigation type. Do not combine
 several contracts in one test.
 
@@ -203,6 +214,15 @@ section that matches the route's blocker, and follow any canonical Insight link
 printed by the build for the specific API involved. Do not recreate those
 framework recipes in this Skill.
 
+For synchronous non-deterministic values such as `Date.now()`, `Math.random()`,
+or `crypto.randomUUID()`, follow [Random values and
+timestamps](https://nextjs.org/docs/app/getting-started/caching#random-values-and-timestamps).
+When production output does not identify the source, use the
+[`next build` debugging
+options](https://nextjs.org/docs/app/guides/building#debugging-build-errors)
+to get source-mapped errors or scope the build to the target route. Do not
+deploy a build produced with `--debug-prerender`.
+
 Preserve the route's existing freshness and authorization behavior. Reuse its
 loading UI, keep the shell meaningful, and verify every render path and
 breakpoint in scope. If the guide does not cover the blocker, stop and report
@@ -217,6 +237,18 @@ Before creating a fallback, inspect the target route for existing loading UI:
 If none applies, extract loading markup next to the component it represents.
 Do not create a second skeleton that mirrors the whole page and can drift from
 the completed layout.
+
+For a client-navigation contract, make sure the reused `loading.tsx` or
+boundary is below the layout shared by the source and destination. A boundary
+above that layout can cover an initial load without participating in the client
+navigation.
+
+Do not use `export const instant = false` as the optimization. It allows the
+segment to block and only opts it out of validation. Do not move `<Suspense>`
+above the document `<body>` to make the test green either; an empty document
+shell is not meaningful instant UI. See [Opting
+out](https://nextjs.org/docs/app/guides/instant-navigation#opting-out) for the
+behavior of both escape hatches.
 
 Run the scoped build and the locked test after each focused change. Phase D is
 complete only when the phase-C test passes on the production rig. A successful
