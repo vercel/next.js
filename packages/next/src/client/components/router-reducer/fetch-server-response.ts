@@ -469,6 +469,10 @@ async function resolveStaticStageResponse<
       // Partially static — truncate the body clone at the byte boundary and
       // decode it.
       const staticStageByteLength = await flightResponse.l
+      if (staticStageByteLength === 0) {
+        staticBodyClone.cancel()
+        return null
+      }
       return decodeStageUntilBoundary<T>(
         staticBodyClone,
         staticStageByteLength,
@@ -513,6 +517,10 @@ export async function resolveShellStageResponse<
   }
 
   const shellByteLength = await flightResponse.a
+  if (shellByteLength === 0) {
+    shellBodyClone.cancel()
+    return null
+  }
   if (shellByteLength === null) {
     // The shell IS the full response (no shell/full split). Return the full
     // response itself — callers detect this case by reference equality —

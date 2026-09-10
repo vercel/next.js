@@ -1075,10 +1075,9 @@ async function generateStagedDynamicFlightRenderResultNode(
   const stageController = new StagedRenderingController({
     abortSignal: null,
     abandonController: null,
-    // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-    // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-    // we should change this to track sync IO, log an error and advance to dynamic.
-    syncIO: SyncIOMode.Untracked,
+    // Synchronous request-time data ends the static stage before its result can
+    // enter the Cached Navigation.
+    syncIO: SyncIOMode.AllowedInRuntimeOrDynamic,
     finalStage: null,
   })
 
@@ -1178,8 +1177,18 @@ async function generateStagedDynamicFlightRenderResultNode(
 
       void countShellAndStaticStageBytes(staticStream, stageController).then(
         (byteLengths) => {
-          staticStageByteLengthDeferred.resolve(byteLengths[RenderStage.Static])
-          shellByteLengthDeferred.resolve(byteLengths[RenderStage.ShellStatic])
+          // A sync interruption can precede the Flight root row. Do not expose
+          // that incomplete prefix as a cacheable payload.
+          staticStageByteLengthDeferred.resolve(
+            stageController.getSyncInterruptReason()
+              ? 0
+              : byteLengths[RenderStage.Static]
+          )
+          shellByteLengthDeferred.resolve(
+            stageController.getSyncInterruptReason()
+              ? 0
+              : byteLengths[RenderStage.ShellStatic]
+          )
         }
       )
 
@@ -3848,10 +3857,9 @@ async function renderToStream(
         const stageController = new StagedRenderingController({
           abortSignal: null,
           abandonController: null,
-          // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-          // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-          // we should change this to track sync IO, log an error and advance to dynamic.
-          syncIO: SyncIOMode.Untracked,
+          // Synchronous request-time data ends the static stage before its
+          // result can enter the Cached Navigation.
+          syncIO: SyncIOMode.AllowedInRuntimeOrDynamic,
           finalStage: null,
         })
 
@@ -3954,10 +3962,14 @@ async function renderToStream(
               stageController
             ).then((byteLengths) => {
               staticStageByteLengthDeferred.resolve(
-                byteLengths[RenderStage.Static]
+                stageController.getSyncInterruptReason()
+                  ? 0
+                  : byteLengths[RenderStage.Static]
               )
               shellByteLengthDeferred.resolve(
-                byteLengths[RenderStage.ShellStatic]
+                stageController.getSyncInterruptReason()
+                  ? 0
+                  : byteLengths[RenderStage.ShellStatic]
               )
             })
 
