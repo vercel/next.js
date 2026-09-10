@@ -38,6 +38,15 @@ export async function getSession(slug: string) {
   return sessions.find((session) => session.slug === slug) ?? null
 }
 
+export async function updateSessionSummary(slug: string, summary: string) {
+  await connection()
+  const index = sessions.findIndex((candidate) => candidate.slug === slug)
+  if (index === -1) return false
+
+  sessions[index] = { ...sessions[index], summary }
+  return true
+}
+
 export async function getRelatedSessions(slug: string) {
   await connection()
   await new Promise((resolve) => setTimeout(resolve, 350))

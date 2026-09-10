@@ -102,8 +102,6 @@ Use [`updateTag`](/docs/app/api-reference/functions/updateTag) in a Server Actio
 
 [`cacheLife`](/docs/app/api-reference/functions/cacheLife) controls time-based freshness. It does not replace on-demand invalidation after a mutation. Data that is never updated does not need on-demand invalidation. If you cannot invalidate every cache entry affected by a mutation, keep the data uncached when immediate freshness is required.
 
-> **Good to know:** When testing a mutation, populate the cache first. Then perform the mutation and read the data again to verify that it returns the updated value.
-
 ### Streaming uncached data
 
 For components that fetch data from an asynchronous source such as an API, a database, or any other async operation, and require fresh data on every request, do not use `"use cache"`.

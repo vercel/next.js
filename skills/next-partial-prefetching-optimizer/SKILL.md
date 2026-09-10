@@ -135,7 +135,10 @@ an app-wide Link or cache abstraction from a single case.
 If the optimization adds or expands a cache boundary, follow
 [Revalidating after mutations](https://nextjs.org/docs/app/getting-started/caching#revalidating-after-mutations)
 in the Caching guide.
-A passing `instant()` test proves prefetched readiness, not mutation freshness.
+When a writer can change that cached data, test the complete lifecycle: populate
+the cache, perform the mutation, then read the data again and verify the updated
+value. A passing `instant()` test proves prefetched readiness, not mutation
+freshness.
 
 ## Verify and ship
 

@@ -5,6 +5,7 @@ import {
   getRelatedSessions,
   getSession,
 } from '@/lib/sessions'
+import { saveSessionSummary } from './actions'
 
 export default function SessionPage({
   params,
@@ -39,7 +40,13 @@ async function SessionSummary({
     <header data-testid="session-summary">
       <h1>{session.title}</h1>
       <p>{session.speaker}</p>
-      <p>{session.summary}</p>
+      <p data-testid="session-summary-text">{session.summary}</p>
+      <form action={saveSessionSummary}>
+        <input name="slug" type="hidden" value={slug} />
+        <label htmlFor="summary">Summary</label>
+        <input defaultValue={session.summary} id="summary" name="summary" />
+        <button type="submit">Save summary</button>
+      </form>
     </header>
   )
 }

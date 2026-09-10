@@ -67,6 +67,12 @@ test('assigns the destination UI to the intended stages', async () => {
   )
 })
 
+test('invalidates cached session data after an edit', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The cached session read has a cache tag that identifies the edited session, and saveSessionSummary invalidates the same tag after updateSessionSummary succeeds. The invalidation provides read-your-own-writes behavior for the Server Action; cacheLife alone is not treated as sufficient.`
+  )
+})
+
 test('ships the exact positive instant contract', async () => {
   await expect(environment).toSatisfyCriterion(
     `The project retains a production-mode @next/playwright instant() test that starts at /sessions and clicks the featured Aurora keynote Link. While instant() holds dynamic writes, the test asserts the Aurora Keynote title, Mina Park speaker, and session summary are visible, while related sessions and live audience questions are absent. After the lock releases, the deferred regions are allowed to render. The testing API is exposed only for the measured production test build.`
@@ -76,5 +82,11 @@ test('ships the exact positive instant contract', async () => {
 test('completed a verified RED-to-GREEN optimizer loop', async () => {
   await expect(transcript).toSatisfyCriterion(
     `The agent verified the exact featured-Link navigation in a production build. Before changing the implementation, it proved the destination content rendered normally and that the locked instant() contract failed while the route shell remained available. It then applied the targeted optimization and reran the same locked test successfully. Merely writing the test, running only a development server, or describing commands for the user does not satisfy this criterion.`
+  )
+})
+
+test('verified session summary freshness after a write', async () => {
+  await expect(transcript).toSatisfyCriterion(
+    `The agent ran a behavioral freshness check that first populated the cache for a session, then updated its summary through the existing mutation, and finally read the session again and observed the updated summary. Source inspection, merely adding invalidation code, or testing the mutation before the cache was populated does not satisfy this criterion.`
   )
 })
