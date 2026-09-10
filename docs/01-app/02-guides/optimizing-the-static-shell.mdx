@@ -94,7 +94,7 @@ Some data cannot be known until a request arrives, must be recomputed for every 
 
 Resolve request-time data in the logical UI region that uses it. This can be a Server Component that awaits the data or a Client Component that unwraps a promise passed from the server.
 
-**Resolve data in a Server Component.** When the page resolves request-time data itself, its heading and other independent UI cannot render until that work finishes:
+**Move data access into a Server Component.** When the page resolves request-time data itself, its heading and other independent UI cannot render until that work finishes:
 
 ```tsx filename="app/products/[slug]/page.tsx"
 // Before: request-time work blocks the page
@@ -237,9 +237,9 @@ See [Push dynamic access down](/docs/app/guides/streaming#push-dynamic-access-do
 
 #### Design loading states
 
-Moving data access into smaller regions can expose loading states that a previously blocked page never showed. [`<Suspense>` lets those regions stream](/docs/app/guides/streaming#granular-streaming-with-suspense), but its boundaries also determine which content appears together and what replaces it while it waits.
+Before this refactor, a route might rely on one [`loading.tsx` file](/docs/app/api-reference/file-conventions/loading) for the whole segment. That is often enough while the page loads as one unit. As you push data access down to reveal more completed UI, use focused [`<Suspense>` boundaries](/docs/app/guides/streaming#granular-streaming-with-suspense) and choose their loading states more deliberately. The `loading.tsx` file can remain as an outer fallback, or be removed when the route no longer needs it.
 
-**Choose what reveals together.** Use separate boundaries when each completed region has predictable dimensions and can reveal independently. Its fallback should reserve the same space:
+**Reveal independent regions separately.** Use sibling boundaries when each completed region has predictable dimensions and can appear on its own. Each fallback should reserve the space its completed region needs:
 
 ```tsx filename="app/account/page.tsx"
 <Suspense fallback={<AccountHeaderSkeleton />}>
@@ -250,7 +250,7 @@ Moving data access into smaller regions can expose loading states that a previou
 </Suspense>
 ```
 
-Nest the boundaries when one region has a variable height that could shift the content below it, or when the group should first appear together and then reveal more detail:
+**Reveal related regions in stages.** Nest boundaries when the group should first appear together and then reveal more detail, or when revealing a variable-height region by itself could shift the content below it:
 
 ```tsx filename="app/account/page.tsx"
 <Suspense fallback={<AccountSkeleton />}>
@@ -264,16 +264,6 @@ Nest the boundaries when one region has a variable height that could shift the c
 React can still start independently reachable work during the same render. Nesting changes the reveal order. It does not make independent requests sequential.
 
 For variable-length content, another option is to render a predictable collapsed state with a Show more or Load more control so content below can appear without shifting later.
-
-**Refine an existing `loading.tsx`.** A route may already have a [`loading.tsx` file](/docs/app/api-reference/file-conventions/loading), which automatically wraps the segment's page and children in a Suspense boundary:
-
-```tsx filename="app/dashboard/loading.tsx"
-export default function Loading() {
-  return <DashboardSkeleton />
-}
-```
-
-The file can stay as the segment's outer loading state. As you push data access down, add focused boundaries where completed UI should remain visible or smaller regions should reveal independently. This is often when a route that previously showed one broad loading state needs more deliberate fallbacks.
 
 When a route uses parallel slots, each slot can stream with its own loading state. See [Loading and Error UI with Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
 
@@ -290,6 +280,11 @@ When a route uses parallel slots, each slot can stream with its own loading stat
 > **Good to know:** As you refactor or update the UI, a skeleton might no longer match the completed component's size or responsive layout. Keeping the skeleton next to the component, or exporting it from the same file, makes it easier to update and reuse whenever that component needs to be wrapped in `<Suspense>`.
 
 Use an empty fallback only when the resolved component also has no visual footprint, such as an authorization gate that returns `null`. Otherwise, provide a fallback that reserves space for the completed UI.
+
+**Related data-fetching patterns.** After splitting work into streamed regions, these patterns can prevent the requests themselves from starting later than necessary:
+
+- When multiple independent requests must stay in one region, use [parallel data fetching](/docs/app/getting-started/fetching-data#parallel-data-fetching) to start them together.
+- When React reaches a data dependency later in the render, use [preloading](/docs/app/getting-started/fetching-data#preloading-data) to start it sooner.
 
 ### Cache reusable work
 
@@ -318,7 +313,7 @@ export async function ProductList() {
 
 If the application can change a cached result, connect the cached read to its writes with [on-demand revalidation](/docs/app/getting-started/revalidating).
 
-Related patterns:
+**Related caching patterns.** These patterns cover values derived from a request, reuse within one request, and dynamic routes:
 
 - To cache a result using a value from `cookies()`, `headers()`, or another runtime API, [read the value outside the cached scope and pass it as an argument](/docs/app/getting-started/caching#passing-runtime-values-to-cached-functions).
 - To deduplicate matching calls during one server request without persisting the result across requests, use [React `cache()`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache).
@@ -634,15 +629,31 @@ If a write changes the plan descriptions, use [on-demand revalidation](/docs/app
 
 With the refactor complete, the route reveals in three stages:
 
-```text
-1. In the static shell             2. After the URL resolves          3. After the settings load
-┌──────────────────────────────┐   ┌──────────────────────────────┐   ┌──────────────────────────────┐
-│ <h1>Settings</h1>            │   │ <h1>Settings</h1>            │   │ <h1>Settings</h1>            │
-│ <PlanOptions />              │   │ <PlanOptions />              │   │ <PlanOptions />              │
-│ <SettingsContentSkeleton />  │   │ <SettingsTabs />             │   │ <SettingsTabs />             │
-│                              │   │ <SettingsFormSkeleton />     │   │ <TeamSettings />             │
-└──────────────────────────────┘   └──────────────────────────────┘   └──────────────────────────────┘
-```
+1. **In the static shell.** The heading and cached plan options render while the URL-dependent region shows its fallback.
+
+   ```tsx
+   <h1>Settings</h1>
+   <PlanOptions />
+   <SettingsContentSkeleton />
+   ```
+
+2. **After the URL resolves.** The tabs replace the content skeleton while the settings query continues behind its nested fallback.
+
+   ```tsx
+   <h1>Settings</h1>
+   <PlanOptions />
+   <SettingsTabs />
+   <SettingsFormSkeleton />
+   ```
+
+3. **After the settings load.** The completed form replaces its skeleton.
+
+   ```tsx
+   <h1>Settings</h1>
+   <PlanOptions />
+   <SettingsTabs />
+   <TeamSettings />
+   ```
 
 The page now renders useful UI immediately while request-specific content streams into focused fallbacks. The next step is to lock this contract in.
 

@@ -242,11 +242,12 @@ section that matches the route's blocker:
 - [Cache reusable
   work](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#cache-reusable-work)
 
-When moving data access changes when requests start, preserve parallel fetching
-with [sequential and parallel data
-fetching](https://nextjs.org/docs/app/getting-started/fetching-data#sequential-data-fetching)
-and [preloading
-data](https://nextjs.org/docs/app/getting-started/fetching-data#preloading-data).
+When multiple independent requests must stay in one region, use [parallel data
+fetching](https://nextjs.org/docs/app/getting-started/fetching-data#parallel-data-fetching)
+to start them together. When React reaches a dependency later in the render,
+use [preloading
+data](https://nextjs.org/docs/app/getting-started/fetching-data#preloading-data)
+to start it sooner.
 
 For dynamic params that can be enumerated, follow [ISR with Cache
 Components](https://nextjs.org/docs/app/guides/incremental-static-regeneration-cache-components).
