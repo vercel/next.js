@@ -106,14 +106,19 @@ export * from './types'
 
 export default class ResponseCache implements ResponseCacheBase {
   private readonly getBatcher = Batcher.create<
-    { key: string; isOnDemandRevalidate: boolean },
+    {
+      key: string
+      isOnDemandRevalidate: boolean
+      isPrefetch: boolean
+    },
     IncrementalResponseCacheEntry | null,
     string
   >({
-    // Ensure on-demand revalidate doesn't block normal requests, it should be
-    // safe to run an on-demand revalidate for the same key as a normal request.
-    cacheKeyFn: ({ key, isOnDemandRevalidate }) =>
-      `${key}-${isOnDemandRevalidate ? '1' : '0'}`,
+    // Ensure requests with different response semantics don't collapse into
+    // the same render. Prefetches can intentionally serve fallback shells,
+    // while normal requests must generate the concrete response.
+    cacheKeyFn: ({ key, isOnDemandRevalidate, isPrefetch }) =>
+      `${key}-${isOnDemandRevalidate ? '1' : '0'}-${isPrefetch ? '1' : '0'}`,
     // We wait to do any async work until after we've added our promise to
     // `pendingResponses` to ensure that any any other calls will reuse the
     // same promise until we've fully finished our work.
@@ -271,7 +276,7 @@ export default class ResponseCache implements ResponseCacheBase {
     } = context
 
     const response = await this.getBatcher.batch(
-      { key, isOnDemandRevalidate },
+      { key, isOnDemandRevalidate, isPrefetch },
       ({ resolve }) => {
         const promise = this.handleGet(
           key,
