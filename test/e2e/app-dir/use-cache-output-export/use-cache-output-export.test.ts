@@ -3,9 +3,6 @@ import { renderViaHTTP, startCleanStaticServer } from 'next-test-utils'
 import { join } from 'path'
 import { AddressInfo, Server } from 'net'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
-// @force-gate !deploy
 describe('use-cache-output-export', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
