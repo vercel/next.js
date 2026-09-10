@@ -89,6 +89,9 @@ function createModuleWithDirection(id) {
 }
 const BindingTag_Value = 0;
 /**
+ * Terminates a module's group of entries in an {@link EsmReexports} list.
+ */ const REEXPORT_GROUP_END = 0;
+/**
  * Adds the getters to the exports object.
  */ function esm(exports, bindings, dynamic) {
     defineProp(exports, '__esModule', {
@@ -153,6 +156,80 @@ const BindingTag_Value = 0;
     esm(exports, bindings, dynamic);
 }
 contextPrototype.s = esmExport;
+/**
+ * Registers re-exports that all forward to properties of other modules.
+ *
+ * This is a compact spelling of the pattern
+ *
+ * ```js
+ * var ns = context.i(moduleId)
+ * context.s([exportName, () => ns[importedName], ...])
+ * ```
+ *
+ * The list is a flat sequence of groups. Each group starts with the source the exports come from,
+ * followed by that group's entries, and is terminated by the `0` sentinel (or the end of the list).
+ *
+ * The group head is either a **module id**, which is instantiated here:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default', 'f', 'named', 'A', 0,
+ *   29842, 'otherModule', 'f',
+ * ])
+ * ```
+ *
+ * or the **namespace object** of a module that has already been imported, which is used directly:
+ *
+ * ```js
+ * var ns1 = context.i(76061)
+ * context.S([ns1, 'default', 'f', 'named', 'A'])
+ * ```
+ *
+ * The producer picks the namespace form when it has generated the import anyway -- because some
+ * later import must not be reordered past it -- so nothing is instantiated twice. The two are told
+ * apart by type: a namespace object is always an object, a module id never is.
+ *
+ * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
+ * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default,f,named,A', 0,
+ *   29842, 'otherModule,f',
+ * ])
+ * ```
+ *
+ * The producer only picks that spelling when no name contains a comma, since the names are recovered
+ * by splitting on it.
+ *
+ * Groups whose head is a module id are instantiated in list order, at the point where the call
+ * appears, so the producer must not merge such a group across an import of another module.
+ */ function esmReexport(list) {
+    const bindings = [];
+    let i = 0;
+    while(i < list.length){
+        const head = list[i++];
+        const start = i;
+        while(i < list.length && list[i] !== REEXPORT_GROUP_END)i++;
+        const entries = list.slice(start, i);
+        // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
+        i++;
+        // An already-imported namespace is passed as an object; a module id never is, so the type is
+        // enough to tell them apart. `esmImport` may return a promise for an async module, but
+        // re-exports of async modules keep going through `context.s`, so the producer never routes them
+        // here and this stays synchronous.
+        const namespace = typeof head === 'object' && head !== null ? head : // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
+        // argument. Passed here only to satisfy the declared type.
+        this.i(head, false);
+        const pairs = entries.length === 1 ? entries[0].split(',') : entries;
+        for(let j = 0; j < pairs.length; j += 2){
+            const importedName = pairs[j + 1];
+            bindings.push(pairs[j], ()=>namespace[importedName]);
+        }
+    }
+    esmExport.call(this, bindings, undefined);
+}
+contextPrototype.S = esmReexport;
 function ensureDynamicExports(module, exports) {
     let reexportedObjects = REEXPORTED_OBJECTS.get(module);
     if (!reexportedObjects) {

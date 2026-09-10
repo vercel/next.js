@@ -67,10 +67,12 @@ type EsmExport = (
   id: ModuleId | undefined
 ) => void
 /**
- * A flat list of `moduleId, ...entries` groups separated by the `0` sentinel. Each group's entries
- * are either `exportName, importedName` pairs, or a single comma-joined string of those pairs.
+ * A flat list of `head, ...entries` groups separated by the `0` sentinel. Each head is either a
+ * module id, which {@link EsmReexport} instantiates, or the namespace object of an already-imported
+ * module, which it uses directly. Each group's entries are either `exportName, importedName` pairs,
+ * or a single comma-joined string of those pairs.
  */
-type EsmReexports = Array<ModuleId | string | 0>
+type EsmReexports = Array<ModuleId | EsmNamespaceObject | string | 0>
 type EsmReexport = (list: EsmReexports) => void
 type ExportValue = (value: any, id: ModuleId | undefined) => void
 type ExportUrl = (url: string, id: ModuleId | undefined) => void
