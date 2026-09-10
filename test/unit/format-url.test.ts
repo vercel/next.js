@@ -13,6 +13,17 @@ describe('formatUrl', () => {
     ).toBe('http://user:pa:ss@example.com/')
   })
 
+  it('preserves three or more colons in auth', () => {
+    expect(
+      formatUrl({
+        protocol: 'http',
+        host: 'example.com',
+        auth: 'a:b:c:d',
+        pathname: '/',
+      })
+    ).toBe('http://a:b:c:d@example.com/')
+  })
+
   it('formats single-colon auth', () => {
     expect(
       formatUrl({
@@ -32,7 +43,7 @@ describe('formatUrl', () => {
         auth: 'user@name:pass',
         pathname: '/',
       })
-    ).toContain('user%40name:pass@')
+    ).toBe('http://user%40name:pass@example.com/')
   })
 
   it('formats a basic url with a query object', () => {
@@ -46,9 +57,20 @@ describe('formatUrl', () => {
     ).toBe('https://example.com/a?b=c')
   })
 
-  it('normalizes a hash without a leading #', () => {
+  it('encodes every # in the search string', () => {
     expect(
-      formatUrl({ protocol: 'https', host: 'x.com', hash: 'top' })
-    ).toMatch(/#top$/)
+      formatUrl({
+        protocol: 'http',
+        host: 'x.com',
+        pathname: '/',
+        search: '?a=1#b#c',
+      })
+    ).toBe('http://x.com/?a=1%23b%23c')
+  })
+
+  it('normalizes a hash without a leading #', () => {
+    expect(formatUrl({ protocol: 'https', host: 'x.com', hash: 'top' })).toBe(
+      'https://x.com#top'
+    )
   })
 })
