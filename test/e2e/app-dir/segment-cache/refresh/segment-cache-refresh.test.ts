@@ -130,7 +130,7 @@ describe.skip('segment cache (refresh)', () => {
     // If this is still 0, then the nav bar was not successfully refreshed
     expect(await navbarDynamicRenderCounter.textContent()).toBe('1')
 
-    // Confirm that navigating the the docs page does not require any
+    // Confirm that navigating the docs page does not require any
     // additional requests.
     await act(async () => {
       const link = await browser.elementByCss('a[href="/docs"]')
