@@ -131,11 +131,9 @@ async function Product({
 }
 ```
 
-The heading and fallback can render in the static shell while the uncached product query waits for the request. For `cookies()` or `headers()` reads that only one Server Component needs, move the read into that component and place it behind the boundary.
+The heading and fallback can render in the static shell while the uncached product query waits for the request. For `cookies()` or `headers()` reads, move the read into the smallest Server Component that needs it and place that component behind `<Suspense>`:
 
-If a layout needs a value from `cookies()` only to render one child, it can resolve the promise inline with `.then()` inside the boundary. Pass the child only the value it needs instead of the full cookie store:
-
-```tsx filename="app/dashboard/layout.tsx" highlight={8-12}
+```tsx filename="app/dashboard/layout.tsx" highlight={7,14}
 import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 
@@ -143,19 +141,22 @@ export default function DashboardLayout({ children }) {
   return (
     <DashboardShell>
       <Suspense fallback={<UserMenuSkeleton />}>
-        {cookies().then((cookieStore) => (
-          <UserMenu
-            menuStyle={cookieStore.get('menu-style')?.value ?? 'compact'}
-          />
-        ))}
+        <UserMenu />
       </Suspense>
       {children}
     </DashboardShell>
   )
 }
+
+async function UserMenu() {
+  const cookieStore = await cookies()
+  const menuStyle = cookieStore.get('menu-style')?.value ?? 'compact'
+
+  return <DashboardMenu menuStyle={menuStyle} />
+}
 ```
 
-The layout does not wait before returning the dashboard shell, and `UserMenu` receives a resolved value rather than a request API object.
+The layout can return `DashboardShell` before `UserMenu` reads the incoming request.
 
 When only one region needs `searchParams`, a Server Component can resolve the promise inline with `.then()`. This keeps the page synchronous, so its stable siblings can render while the boundary shows a fallback for the URL-dependent region:
 
@@ -533,17 +534,13 @@ If a write changes the plan descriptions, revalidate this cache from the corresp
 The finished route now reveals in stages:
 
 ```text
-1. In the static shell   2. After the URL resolves  3. After the settings load
-┌────────────────────┐   ┌────────────────────┐      ┌────────────────────┐
-│ Settings           │   │ Settings           │      │ Settings           │
-│ ┌────────────────┐ │   │ ┌────────────────┐ │      │ ┌────────────────┐ │
-│ │ Plan options   │ │   │ │ Plan options   │ │      │ │ Plan options   │ │
-│ └────────────────┘ │   │ └────────────────┘ │      │ └────────────────┘ │
-│ ┌────────────────┐ │   │ Settings tabs      │      │ Settings tabs      │
-│ │ Content        │ │   │ ┌────────────────┐ │      │ ┌────────────────┐ │
-│ │ skeleton       │ │   │ │ Form skeleton  │ │      │ │ Settings form  │ │
-│ └────────────────┘ │   │ └────────────────┘ │      │ └────────────────┘ │
-└────────────────────┘   └────────────────────┘      └────────────────────┘
+1. In the static shell             2. After the URL resolves          3. After the settings load
+┌──────────────────────────────┐   ┌──────────────────────────────┐   ┌──────────────────────────────┐
+│ <h1>Settings</h1>            │   │ <h1>Settings</h1>            │   │ <h1>Settings</h1>            │
+│ <PlanOptions />              │   │ <PlanOptions />              │   │ <PlanOptions />              │
+│ <SettingsContentSkeleton />  │   │ <SettingsTabs />             │   │ <SettingsTabs />             │
+│                              │   │ <SettingsFormSkeleton />     │   │ <TeamSettings />             │
+└──────────────────────────────┘   └──────────────────────────────┘   └──────────────────────────────┘
 ```
 
 ### Step 4: Verify the instant UI
