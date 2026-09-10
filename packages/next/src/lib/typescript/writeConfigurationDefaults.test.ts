@@ -143,6 +143,60 @@ describe('writeConfigurationDefaults()', () => {
       )
     })
 
+    it('uses bundler moduleResolution for commonjs on TypeScript 6+', async () => {
+      await writeFile(
+        tsConfigPath,
+        JSON.stringify({ compilerOptions: { module: 'commonjs' } }),
+        { encoding: 'utf8' }
+      )
+
+      await writeConfigurationDefaults(
+        '6.0.0',
+        tsConfigPath,
+        isFirstTimeSetup,
+        hasAppDir,
+        distDir,
+        hasPagesDir,
+        experimentalStrictRouteTypes
+      )
+
+      const tsConfig = JSON.parse(
+        await readFile(tsConfigPath, { encoding: 'utf8' })
+      )
+
+      expect(tsConfig.compilerOptions.moduleResolution).toBe('bundler')
+      expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))).toContain(
+        '- moduleResolution was set to bundler (to match modern bundler resolution)'
+      )
+    })
+
+    it('keeps node moduleResolution for commonjs on TypeScript 5', async () => {
+      await writeFile(
+        tsConfigPath,
+        JSON.stringify({ compilerOptions: { module: 'commonjs' } }),
+        { encoding: 'utf8' }
+      )
+
+      await writeConfigurationDefaults(
+        '5.9.3',
+        tsConfigPath,
+        isFirstTimeSetup,
+        hasAppDir,
+        distDir,
+        hasPagesDir,
+        experimentalStrictRouteTypes
+      )
+
+      const tsConfig = JSON.parse(
+        await readFile(tsConfigPath, { encoding: 'utf8' })
+      )
+
+      expect(tsConfig.compilerOptions.moduleResolution).toBe('node')
+      expect(stripAnsi(consoleLogSpy.mock.calls.flat().join('\n'))).toContain(
+        '- moduleResolution was set to node (to match webpack resolution)'
+      )
+    })
+
     it('uses bundler moduleResolution for TypeScript 6+', async () => {
       await writeFile(tsConfigPath, JSON.stringify({ compilerOptions: {} }), {
         encoding: 'utf8',
