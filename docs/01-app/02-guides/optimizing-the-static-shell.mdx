@@ -20,7 +20,7 @@ This guide shows how to expand that shell by tracing each data read to the UI th
 
 ## Use the optimizer skill (recommended)
 
-The [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) skill applies this guide with a coding agent. It captures the intended shell in a production `instant()` test, proves the current behavior, and keeps the passing test as regression coverage.
+The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) skill applies this guide with a coding agent. It captures the intended shell in a production `instant()` test, proves the current behavior, and keeps the passing test as regression coverage.
 
 Install the skill:
 
@@ -50,7 +50,7 @@ export default nextConfig
 
 ## Patterns
 
-When a layout or page awaits data near the top, trace each result to the UI that actually uses it. Then apply the matching pattern:
+How much of a route can render in the static shell depends on the data each region needs and how fresh that data must be. Not every read should be cached, and not every loading state should be removed. When a layout or page awaits data near the top, trace each result to the UI that uses it, then choose the matching pattern:
 
 | Pattern                                                     | Use it when                                        | Result                                                    |
 | ----------------------------------------------------------- | -------------------------------------------------- | --------------------------------------------------------- |
@@ -60,7 +60,9 @@ When a layout or page awaits data near the top, trace each result to the UI that
 
 ### Keep static UI in the shell
 
-A boundary should wrap only the region that waits for request-time data. Render headings, navigation, cached content, and other stable UI directly:
+A `<Suspense>` boundary controls which part of the UI its fallback replaces when a child suspends. Static UI can sit inside a boundary without a problem. However, if the same boundary also contains slow or request-time work, that fallback temporarily replaces the static UI too.
+
+To keep headings, navigation, cached content, and other stable UI visible, place the boundary around the smaller region that can suspend:
 
 ```tsx filename="app/products/page.tsx" highlight={2-4}
 <main>
@@ -73,35 +75,38 @@ A boundary should wrap only the region that waits for request-time data. Render 
 </main>
 ```
 
-Keep the primary heading or other [Largest Contentful Paint candidate](/docs/app/guides/streaming#lcp-largest-contentful-paint) outside the boundary when possible. If its data can be reused, cache the data instead of moving the whole primary region behind a loading state.
+When possible, avoid placing the primary heading or other [Largest Contentful Paint candidate](/docs/app/guides/streaming#lcp-largest-contentful-paint) in the same fallback region as slower work. If that content needs reusable data, cache the data so the completed content can render in the shell.
 
 ### Cache reusable work
 
-Cache a function or component when its result can be reused. Give the result a lifetime based on how fresh the data needs to be:
+Uncached data must be computed during the request and can leave the region showing a fallback. When the result can be reused, cache the function or component so its completed UI can render in the static shell. Give the result a lifetime based on how fresh the data needs to be:
 
-```tsx filename="app/products/product-list.tsx" highlight={4-5}
-import { cacheLife } from 'next/cache'
+```tsx filename="app/products/product-list.tsx" highlight={4-6}
+import { cacheLife, cacheTag } from 'next/cache'
 
 export async function ProductList() {
   'use cache'
   cacheLife('hours')
+  cacheTag('products')
 
   const products = await db.products.findMany()
   return <List products={products} />
 }
 ```
 
-If the application can change a cached result, add on-demand revalidation to the corresponding write and verify the read after the mutation. Use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) when an entry must persist across instances and requests. Keep data uncached when it must be recomputed for each request.
+If the application can change a cached result, use [`cacheTag()`](/docs/app/getting-started/revalidating#cachetag) to connect the cached read to its writes. Follow [Revalidating](/docs/app/getting-started/revalidating) to invalidate the tag from the corresponding mutation, then verify that the next read returns the updated value. Use [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote) when an entry must persist across instances and requests. Keep data uncached when it must be recomputed for each request.
 
 React [`cache()`](https://react.dev/reference/react/cache) can instead deduplicate matching calls during one server request. It does not persist the result across requests or make request-time data part of the static shell. See [Reusing data with `React.cache`](/docs/app/getting-started/fetching-data#reusing-data-with-reactcache) for that pattern.
 
-Learn more about cache scopes and lifetimes in [Caching](/docs/app/getting-started/caching#usage), and about updating cached data after a mutation in [Revalidating](/docs/app/getting-started/revalidating).
+To prerender known dynamic routes and generate others on demand, see [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components).
+
+Learn more about cache scopes and lifetimes in [Caching](/docs/app/getting-started/caching#usage).
 
 ### Stream request-time work
 
 #### Resolve promises in Server Components
 
-A top-level `await` prevents the component from returning its stable UI. Pass `params`, `searchParams`, or another promise to the region that needs it, then resolve it behind `<Suspense>`:
+A top-level `await` for `params`, `searchParams`, or uncached data prevents the component from returning its stable UI. Pass existing promises to the region that needs them, or move the uncached read into that region, then resolve the work behind `<Suspense>`:
 
 ```tsx filename="app/products/[slug]/page.tsx" highlight={7-9,17-18}
 import { Suspense } from 'react'
@@ -128,16 +133,21 @@ async function Product({
 
 The heading and fallback can render in the static shell while the uncached product query waits for the request. For `cookies()` or `headers()` reads that only one Server Component needs, move the read into that component and place it behind the boundary.
 
-If a layout already starts a request read that a child needs, pass the promise without awaiting it in the layout:
+If a layout needs a value from `cookies()` only to render one child, it can resolve the promise inline with `.then()` inside the boundary. Pass the child only the value it needs instead of the full cookie store:
 
-```tsx filename="app/dashboard/layout.tsx" highlight={2,6}
+```tsx filename="app/dashboard/layout.tsx" highlight={8-12}
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+
 export default function DashboardLayout({ children }) {
-  const cookieStore = cookies()
-
   return (
     <DashboardShell>
       <Suspense fallback={<UserMenuSkeleton />}>
-        <UserMenu cookieStore={cookieStore} />
+        {cookies().then((cookieStore) => (
+          <UserMenu
+            menuStyle={cookieStore.get('menu-style')?.value ?? 'compact'}
+          />
+        ))}
       </Suspense>
       {children}
     </DashboardShell>
@@ -145,9 +155,9 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
-The child resolves the promise inside the boundary. The layout does not wait before returning the dashboard shell.
+The layout does not wait before returning the dashboard shell, and `UserMenu` receives a resolved value rather than a request API object.
 
-A Server Component can resolve `searchParams` inline with `.then()` without making the page itself async:
+When only one region needs `searchParams`, a Server Component can resolve the promise inline with `.then()`. This keeps the page synchronous, so its stable siblings can render while the boundary shows a fallback for the URL-dependent region:
 
 ```tsx filename="app/products/page.tsx" highlight={2}
 <Suspense fallback={<ProductTabsSkeleton />}>
@@ -157,11 +167,11 @@ A Server Component can resolve `searchParams` inline with `.then()` without maki
 </Suspense>
 ```
 
-When a finite set of parameter values is known ahead of time, [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can produce concrete prerenders for those routes. Keep the parameter read behind the boundary when the route also needs an App Shell for unknown values because each resolved parameter belongs to one URL. Values that are not generated resolve at request time and follow the same boundary pattern. See [ISR with Cache Components](/docs/app/guides/incremental-static-regeneration-cache-components) for the complete pattern. With Cache Components, [`next/root-params`](/docs/app/api-reference/functions/next-root-params#root-parameters-and-generatestaticparams) also requires at least one generated value for each root parameter.
-
 #### Unwrap promises in Client Components
 
-Start a data request in a Server Component and pass the unresolved promise down when an interactive Client Component needs the result. The Client Component can unwrap it with React's [`use()`](https://react.dev/reference/react/use). Keep the component behind `<Suspense>`:
+An interactive Client Component may need data fetched on the server. If its parent awaits that data before returning, it also holds back stable UI around the component. Instead, start the request in the Server Component without awaiting it and pass the promise down. The parent can return its stable UI while the nearest `<Suspense>` boundary shows a fallback for the pending Client Component.
+
+The Client Component unwraps the promise with React's [`use()`](https://react.dev/reference/react/use):
 
 ```tsx filename="app/dashboard/page.tsx" highlight={6,9}
 import { Suspense } from 'react'
@@ -201,11 +211,9 @@ For URL state, a Client Component can usually call [`useSearchParams()`](/docs/a
 
 Learn more about passing promises through the tree and placing focused boundaries in [Streaming](/docs/app/guides/streaming#push-dynamic-access-down).
 
-#### Design loading states
+#### Avoid data waterfalls
 
-When a child suspends, its nearest boundary shows the fallback until the child is ready. A fallback encountered during prerendering can become part of the static shell. A boundary reached after request-time data resolves can show its fallback later while the remaining work streams.
-
-Choose boundaries based on which parts of the page should reveal together. Sibling boundaries let independent regions complete in any order:
+Suspense controls when content is revealed. It does not make already-reachable data requests sequential. When independent results belong to separate UI regions, split them into async components with sibling boundaries. React can render both components in parallel and stream each region when it is ready:
 
 ```tsx filename="app/dashboard/page.tsx"
 <Suspense fallback={<SalesSkeleton />}>
@@ -216,52 +224,20 @@ Choose boundaries based on which parts of the page should reveal together. Sibli
 </Suspense>
 ```
 
-Nest boundaries when a group should first appear together, followed by progressively more detail:
+When independent results must be combined into one UI region, start the requests together before awaiting them. For example, this chart needs both datasets before it can render:
 
-```tsx filename="app/account/page.tsx"
-<Suspense fallback={<AccountSkeleton />}>
-  <AccountHeader />
-  <Suspense fallback={<ActivitySkeleton />}>
-    <Activity />
-  </Suspense>
-</Suspense>
-```
+```tsx filename="app/dashboard/comparison-chart.tsx" highlight={2-3,5}
+export async function ComparisonChart({ teamId }: { teamId: string }) {
+  const revenuePromise = getRevenue(teamId)
+  const targetPromise = getRevenueTarget(teamId)
 
-A fallback should reserve space for the content it replaces to reduce [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift). Keep the shared responsive frame outside the boundary so the fallback and completed content follow the same layout rules:
+  const [revenue, target] = await Promise.all([revenuePromise, targetPromise])
 
-```tsx filename="app/products/page.tsx"
-<ProductGridFrame>
-  <Suspense fallback={<ProductGridSkeleton />}>
-    <Products />
-  </Suspense>
-</ProductGridFrame>
-```
-
-An empty fallback works when the resolved component has no visual footprint, such as an authorization gate that returns `null`.
-
-When a route uses parallel slots, each slot can stream with its own loading state. See [Loading and Error UI with Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
-
-#### Avoid data waterfalls
-
-Suspense controls when content is revealed. It does not make already-reachable data requests sequential. Independent async components behind sibling boundaries can render and stream in parallel.
-
-When independent requests stay in the same component, start both before awaiting them:
-
-```tsx filename="app/dashboard/overview.tsx" highlight={2-3,5}
-export async function Overview({ userId }: { userId: string }) {
-  const profilePromise = getProfile(userId)
-  const activityPromise = getActivity(userId)
-
-  const [profile, activity] = await Promise.all([
-    profilePromise,
-    activityPromise,
-  ])
-
-  return <Dashboard profile={profile} activity={activity} />
+  return <Chart actual={revenue} target={target} />
 }
 ```
 
-Keep the requests sequential when the second needs a result from the first:
+Keep requests sequential only when the second needs a result from the first:
 
 ```tsx filename="app/[team]/projects/page.tsx" highlight={2-3}
 export async function Projects({ slug }: { slug: string }) {
@@ -275,6 +251,39 @@ export async function Projects({ slug }: { slug: string }) {
 If React reaches a component only after other blocking work, but the request inputs are already available, [preload the data](/docs/app/getting-started/fetching-data#preloading-data) to start that work earlier.
 
 Learn more about [sequential and parallel data fetching](/docs/app/getting-started/fetching-data#sequential-data-fetching).
+
+#### Design loading states
+
+When a child suspends, its nearest boundary shows the fallback until the child is ready. A fallback encountered during prerendering can become part of the static shell. A boundary reached after request-time data resolves can show its fallback later while the remaining work streams.
+
+Separate boundaries, like the sibling boundaries above, let each region reveal independently. Nest boundaries when a group should first appear together, followed by progressively more detail:
+
+```tsx filename="app/account/page.tsx"
+<Suspense fallback={<AccountSkeleton />}>
+  <AccountHeader />
+  <Suspense fallback={<ActivitySkeleton />}>
+    <Activity />
+  </Suspense>
+</Suspense>
+```
+
+A fallback should reserve space for the content it replaces to reduce [Cumulative Layout Shift](/docs/app/guides/streaming#cls-cumulative-layout-shift). For example, keep the shared responsive frame outside the boundary so both states follow the same layout rules:
+
+```tsx filename="app/products/page.tsx"
+<ProductGridFrame>
+  <Suspense fallback={<ProductGridSkeleton />}>
+    <Products />
+  </Suspense>
+</ProductGridFrame>
+```
+
+> **Good to know:** Fallback drift happens when a fallback no longer matches the dimensions or responsive layout of the completed content. Keep the fallback close to the component it represents and share layout primitives between them. For variable-length content, group it with the region below or give it a predictable collapsed height with a Show more/Show less control so the lower region can appear without shifting later.
+
+An empty fallback works when the resolved component has no visual footprint, such as an authorization gate that returns `null`.
+
+When a route uses parallel slots, each slot can stream with its own loading state. See [Loading and Error UI with Parallel Routes](/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
+
+Learn more about choosing sibling and nested boundaries in [Streaming](/docs/app/guides/streaming#granular-streaming-with-suspense).
 
 ## Follow validation as you refactor
 
@@ -524,27 +533,24 @@ If a write changes the plan descriptions, revalidate this cache from the corresp
 The finished route now reveals in stages:
 
 ```text
-STATIC SHELL
-Settings frame + heading + cached plan options
-Settings content skeleton
-                    │
-                    ▼ URL data resolves
-URL-SPECIFIC UI
-Active settings tab
-Settings form skeleton
-                    │
-                    ▼ settings load
-COMPLETED PAGE
-Settings form
+1. In the static shell   2. After the URL resolves  3. After the settings load
+┌────────────────────┐   ┌────────────────────┐      ┌────────────────────┐
+│ Settings           │   │ Settings           │      │ Settings           │
+│ ┌────────────────┐ │   │ ┌────────────────┐ │      │ ┌────────────────┐ │
+│ │ Plan options   │ │   │ │ Plan options   │ │      │ │ Plan options   │ │
+│ └────────────────┘ │   │ └────────────────┘ │      │ └────────────────┘ │
+│ ┌────────────────┐ │   │ Settings tabs      │      │ Settings tabs      │
+│ │ Content        │ │   │ ┌────────────────┐ │      │ ┌────────────────┐ │
+│ │ skeleton       │ │   │ │ Form skeleton  │ │      │ │ Settings form  │ │
+│ └────────────────┘ │   │ └────────────────┘ │      │ └────────────────┘ │
+└────────────────────┘   └────────────────────┘      └────────────────────┘
 ```
 
-## Verify the instant UI
+### Step 4: Verify the instant UI
 
-The Navigation Inspector can pause the route before request-time content resolves. Repeat the inspection for a direct visit and a client navigation because the direct visit renders from the root while the client navigation reuses shared layouts. Check that the settings frame, heading, cached plan descriptions, and focused skeletons appear in the expected layout on desktop and mobile.
+Suppose you want to ensure that future changes keep this loading state in the static shell. Use [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) around a direct page load, without warming or prefetching the route:
 
-Keep important shell content as regression coverage with [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests). Test initial loads and client navigations separately because they render different parts of the route tree:
-
-```ts filename="e2e/settings-navigation.test.ts" highlight={14,31}
+```ts filename="e2e/settings-navigation.test.ts" highlight={13-14}
 import { expect, test, type Page } from '@playwright/test'
 import { instant } from '@next/playwright'
 
@@ -569,28 +575,16 @@ test('serves the settings shell on an initial load', async ({
 
   await expect(page.getByTestId('team-settings-form')).toBeVisible()
 })
-
-test('prefetches the settings shell for a client navigation', async ({
-  page,
-}) => {
-  await page.goto('/acme')
-
-  await instant(page, async () => {
-    await page.getByRole('link', { name: 'Settings' }).click()
-    await page.waitForURL((url) => url.pathname === '/acme/settings')
-    await expectSettingsShell(page)
-  })
-
-  await expect(page.getByTestId('team-settings-form')).toBeVisible()
-})
 ```
 
-Inside each callback, the settings heading and cached plan options must be visible while the request-time form is paused. The final assertion confirms that the form renders after the pause is released. Use stable selectors from your application for the shell and deferred regions.
+Inside the callback, the settings heading and cached plan options must be visible while the request-time form is paused. The final assertion confirms that the form renders after the pause is released.
 
 The completed route should have the same settings data, redirects, error states, and interactions as the original route.
 
-## Continue with prefetching
+### Step 5: Continue with prefetching
 
-The static shell is shared across links to the route. It can show a focused loading state for content that depends on a destination's `params` or `searchParams`, but it does not contain the result for each URL.
+The test above captures the shared static shell for a direct visit. It still shows `SettingsContentSkeleton` because the route does not know `searchParams` during prerendering.
 
-If the shell is already instant and you want that URL-specific content ready before the click, continue with [Optimizing prefetching](/docs/app/guides/optimizing-prefetching). It covers how to prefetch cacheable content for an individual link and choose a prefetch policy based on its cost.
+During a client navigation, `SettingsTabs` can read the URL synchronously. Other server content that depends on the destination's `params` or `searchParams` is not part of the shared shell. If that work is cacheable, a per-link prefetch can resolve it before the click instead of streaming it afterward.
+
+Continue with [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) when that URL-specific content should be part of an individual link's prefetched UI. The guide also covers how to choose a prefetch policy based on the cost of the work.
