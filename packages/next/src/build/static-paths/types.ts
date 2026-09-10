@@ -83,6 +83,12 @@ export type PrerenderRouteMatcher = {
   readonly pathname: string
   readonly fallbackRouteParams: readonly FallbackRouteParam[]
   readonly fallbackMode: FallbackMode | undefined
+  /**
+   * The first unresolved prerenderable parameter has no explicit policy.
+   * Its trial fallback becomes blocking if rendering produces an empty shell,
+   * independently of whether that shell also requires instant validation.
+   */
+  readonly isFallbackModeInferred?: true
   readonly fallbackRootParams: readonly string[]
   readonly remainingPrerenderableParams?: readonly FallbackRouteParam[]
 }

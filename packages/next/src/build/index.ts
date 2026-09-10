@@ -3273,13 +3273,16 @@ export default async function build(
             prerenderCandidate: PrerenderedRoute | undefined,
             hasEmptyStaticShell: boolean | undefined
           ) => {
-            // If the route has an empty static shell and is not configured to
-            // throw on empty static shell, then we should use the blocking
-            // static render mode.
+            // An unconfigured parameter uses its shell to infer the miss mode.
+            // This is separate from validation: even a required validation
+            // render can be empty when the user opts out with instant=false.
+            // Without matching configuration, preserve the existing heuristic
+            // for optional, more generic shells.
             if (
               prerenderCandidate &&
               hasEmptyStaticShell &&
-              !prerenderCandidate.throwOnEmptyStaticShell &&
+              (matcher.isFallbackModeInferred ||
+                !prerenderCandidate.throwOnEmptyStaticShell) &&
               matcher.fallbackMode === FallbackMode.PRERENDER
             ) {
               return FallbackMode.BLOCKING_STATIC_RENDER

@@ -83,13 +83,9 @@ export async function compilePrerenderMatcher(
   segments: readonly Readonly<AppSegment>[],
   pathnameSegments: ReadonlyArray<{ readonly paramName: string }>
 ): Promise<PrerenderMatcher | undefined> {
-  const matcherSegments = segments
-    .filter((segment) => segment.prerenderMatcher !== undefined)
-    .sort(
-      (a, b) =>
-        a.prerenderMatcher!.treePath.length -
-        b.prerenderMatcher!.treePath.length
-    )
+  const matcherSegments = segments.filter(
+    (segment) => segment.prerenderMatcher !== undefined
+  )
 
   if (matcherSegments.length === 0) return undefined
 
@@ -114,22 +110,47 @@ export async function compilePrerenderMatcher(
     })
   )
 
-  for (let index = 0; index < matcherSegments.length; index++) {
-    const segment = matcherSegments[index]
-    const matcherExport = segment.prerenderMatcher!
-    const fragment = fragments[index]
-
-    for (const [paramName, mode] of Object.entries(fragment)) {
-      const next = (candidates.get(paramName) ?? []).filter(
-        (candidate) =>
-          !isTreePathPrefix(candidate.treePath, matcherExport.treePath)
+  // Include branches without matching exports: they still inherit their
+  // ancestors' policies. An override in one branch must not erase that intent
+  // from a sibling. Keep module evaluation above separate from tree occurrences
+  // so a shared generator is still called only once.
+  const treePaths = segments.flatMap((segment) => segment.treePaths)
+  const branchPaths = treePaths.filter(
+    (treePath) =>
+      !treePaths.some(
+        (other) =>
+          other.length > treePath.length && isTreePathPrefix(treePath, other)
       )
-      next.push({
-        mode,
-        filePath: segment.filePath,
-        treePath: matcherExport.treePath,
-      })
-      candidates.set(paramName, next)
+  )
+  for (const branchPath of branchPaths) {
+    const branchCandidates = new Map<string, MatcherCandidate>()
+    for (let index = 0; index < matcherSegments.length; index++) {
+      const segment = matcherSegments[index]
+      for (const treePath of segment.treePaths) {
+        if (!isTreePathPrefix(treePath, branchPath)) continue
+
+        for (const [paramName, mode] of Object.entries(fragments[index])) {
+          const inherited = branchCandidates.get(paramName)
+          if (!inherited || inherited.treePath.length < treePath.length) {
+            branchCandidates.set(paramName, {
+              mode,
+              filePath: segment.filePath,
+              treePath,
+            })
+          }
+        }
+      }
+    }
+
+    for (const [paramName, candidate] of branchCandidates) {
+      const parallelCandidates = candidates.get(paramName)
+      if (!parallelCandidates) {
+        candidates.set(paramName, [candidate])
+      } else if (
+        !parallelCandidates.some(({ mode }) => mode === candidate.mode)
+      ) {
+        parallelCandidates.push(candidate)
+      }
     }
   }
 
@@ -173,21 +194,32 @@ export async function compilePrerenderMatcher(
 export function getPrerenderMatcherFallbackMode(
   matcher: Readonly<PrerenderMatcher>,
   fallbackRouteParams: readonly Pick<FallbackRouteParam, 'paramName'>[],
-  inferredFallbackMode: FallbackMode | undefined
+  inferredFallbackMode: FallbackMode | undefined,
+  rootParamKeys: ReadonlySet<string>
 ): FallbackMode | undefined {
+  let hasInferredBlockingRoot = false
   for (const { paramName } of fallbackRouteParams) {
     switch (matcher[paramName]) {
+      case undefined:
+        if (rootParamKeys.has(paramName)) hasInferredBlockingRoot = true
+        break
       case 'not-found':
         return FallbackMode.NOT_FOUND
       case 'blocking':
         return FallbackMode.BLOCKING_STATIC_RENDER
       case 'fallback':
       case 'dynamic':
-        return FallbackMode.PRERENDER
+        return hasInferredBlockingRoot
+          ? FallbackMode.BLOCKING_STATIC_RENDER
+          : FallbackMode.PRERENDER
     }
   }
 
-  return inferredFallbackMode
+  // Root parameters retain their existing blocking inference. Keep walking
+  // above so a later explicit not-found can still reject the whole match.
+  return hasInferredBlockingRoot
+    ? FallbackMode.BLOCKING_STATIC_RENDER
+    : inferredFallbackMode
 }
 
 export function validatePrerenderMatcherParams(

@@ -16,4 +16,22 @@ describe('param-matching-parallel-inheritance', () => {
     )
     expect(exitCode).toBe(1)
   })
+
+  it('allows all parallel branches to explicitly replace the inherited policy', async () => {
+    for (const file of [
+      'app/[lang]/page.tsx',
+      'app/[lang]/@sidebar/page.tsx',
+    ]) {
+      await next.patchFile(
+        file,
+        `export const experimental_paramMatching = { lang: 'blocking' } as const\n${await next.readFile(file)}`
+      )
+    }
+
+    const { exitCode, cliOutput } = await next.build()
+    expect(cliOutput).not.toContain(
+      'conflicting parallel parameter matching modes'
+    )
+    expect(exitCode).toBe(0)
+  })
 })
