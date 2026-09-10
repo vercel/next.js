@@ -26,6 +26,14 @@ links to the relevant API references and error pages when choosing and applying
 the fix. This skill owns the production test rig, trustworthy RED-to-GREEN loop,
 parity check, differential, and reporting.
 
+Use one conclusive run at each gate. Do not stress-run a passing or failing
+test, create ad hoc probes, or repeatedly rebuild the same source unless two
+results conflict or an infrastructure failure makes the verdict
+untrustworthy. A normal run needs one unlocked baseline, one locked RED, one
+final GREEN for each contract, the parity check, and one RED/GREEN
+differential. Run all in-scope contracts together when the test runner supports
+it.
+
 This is not an adoption or Partial Prefetching skill. If Cache Components are
 not adopted, use `next-cache-components-adoption` first. If the static shell is
 already instant and the user wants URL-specific content ready before a click,
@@ -233,8 +241,8 @@ section that matches the route's blocker:
 - [Pass promises to Client
   Components](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#pass-promises-to-client-components)
   when an interactive subtree needs server data
-- [Avoid data
-  waterfalls](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#avoid-data-waterfalls)
+- [Keep streamed work
+  parallel](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-streamed-work-parallel)
   when independent work became sequential
 
 For dynamic params that can be enumerated, follow [ISR with Cache
@@ -267,6 +275,9 @@ deploy a build produced with `--debug-prerender`.
 Preserve the route's existing freshness and authorization behavior. For a
 top-level session gate, follow [Move authentication behind
 Suspense](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-2-move-authentication-behind-suspense).
+Do not replace a mutable or reloadable data source with a build-time import to
+make it appear static. Cache the existing read when it can be reused, or stream
+it when it must stay request-time.
 Reuse the route's loading UI, keep the shell meaningful, and verify every
 render path and breakpoint in scope. If the guide does not cover the blocker,
 stop and report the missing case instead of inventing a new general pattern
@@ -296,9 +307,11 @@ shell is not meaningful instant UI. See [Opting
 out](https://nextjs.org/docs/app/guides/instant-navigation#opting-out) for the
 behavior of both escape hatches.
 
-Run the scoped build and the locked test after each focused change. Phase D is
-complete only when the phase-C test passes on the production rig. A successful
-build by itself is not GREEN.
+Apply focused changes one region at a time, then run the scoped production
+build and locked contracts once the implementation is coherent. Re-run after
+a code change or an infrastructure failure, not merely to accumulate passing
+runs. Phase D is complete only when the phase-C test passes on the production
+rig. A successful build by itself is not GREEN.
 
 If the route already has a meaningful static shell and only URL-specific
 content is missing before a client navigation, stop at [Include URL-specific

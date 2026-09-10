@@ -4,7 +4,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test:instant": "EXPOSE_TESTING_API=1 npm run build && playwright test"
   },
   "dependencies": {
     "next": "^16",

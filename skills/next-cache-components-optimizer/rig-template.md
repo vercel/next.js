@@ -72,7 +72,9 @@ and reporters. The suite must import `instant()` from `@next/playwright`. If
 the dependencies are absent, install `@next/playwright` on the same release
 line as the project's `next`, alongside `@playwright/test`.
 
-For a local rig, a typical sequence is:
+Prefer an existing Playwright `webServer` configuration to own the local
+server lifecycle. This avoids leaving a `next-server` child on the test port
+between builds. A typical sequence is:
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
@@ -171,3 +173,7 @@ Before recording the static-shell contract:
 Fix the rig before interpreting an optimizer failure. A missing testing API,
 stale deployment, unreachable target, or wrong test state is an environment
 failure rather than evidence that the shell blocks.
+
+Once the rig produces a conclusive result, continue to the next workflow gate.
+Do not repeat the same build or test to look for flakiness unless two observed
+results conflict.

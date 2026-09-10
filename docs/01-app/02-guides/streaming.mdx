@@ -797,6 +797,8 @@ The trigger is **your code**: async work, non-deterministic output, or runtime d
 
 The key decisions are **what to cache** and **where to place Suspense boundaries**. Cache what you can with [`"use cache"`](/docs/app/api-reference/directives/use-cache) to grow the static shell. Push dynamic access down to the components that need it, and wrap those in `<Suspense>`. Everything else becomes part of the shell.
 
+For a step-by-step workflow that applies these patterns to an existing route, see [Optimizing the static shell](/docs/app/guides/optimizing-the-static-shell).
+
 ## Further reading
 
 - [RSC Explorer](https://rscexplorer.dev/) - interactive tool to explore the component payload format and see how React reconstructs the tree from streamed chunks
