@@ -638,6 +638,35 @@ function createNotFoundLoaderTree(
 }
 
 /**
+ * Whether any segment below the root defines its own `not-found.js`,
+ * distinct from the root's.
+ *
+ * A `notFound()` thrown while rendering a Server Component propagates past
+ * every segment before `getErrorRSCPayload` sees it — there is no record of
+ * which segment threw, only that some segment did. When a nested boundary
+ * like this exists, `notFound()` thrown at or below it should resolve to
+ * *that* boundary, not the root's, but this function has no way to tell
+ * which segment actually threw. It conservatively answers "yes" for the
+ * whole tree the moment it finds any nested boundary, even one the throw
+ * site couldn't have reached, and the caller falls back to the client-side
+ * recovery that already walks the real component tree and always resolves
+ * the correct boundary.
+ */
+function hasNestedNotFoundBoundary(loaderTree: LoaderTree): boolean {
+  const parallelRoutes = loaderTree[1]
+  for (const key in parallelRoutes) {
+    const childTree = parallelRoutes[key]
+    if (childTree[2]['not-found']) {
+      return true
+    }
+    if (hasNestedNotFoundBoundary(childTree)) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
  * Returns a function that parses the dynamic segment and return the associated value.
  */
 function makeGetDynamicParamFromSegment(
@@ -2347,7 +2376,18 @@ async function getErrorRSCPayload(
   // Cache Components recovery shell, which intentionally defers rendering to
   // the client so it can participate in the normal static/dynamic recovery
   // flow instead.
-  if (errorType === 'not-found' && shouldRenderMetadataAndViewport) {
+  //
+  // Also skipped when the tree has a nested (non-root) `not-found.js`: which
+  // boundary should apply depends on where the throw happened, which isn't
+  // known here (see hasNestedNotFoundBoundary). Rendering the root boundary
+  // unconditionally would risk showing the wrong not-found content, so this
+  // case keeps falling back to the client-side recovery below, which walks
+  // the real component tree and always resolves the correct boundary.
+  if (
+    errorType === 'not-found' &&
+    shouldRenderMetadataAndViewport &&
+    !hasNestedNotFoundBoundary(tree)
+  ) {
     try {
       const notFoundLoaderTree = createNotFoundLoaderTree(tree, true)
       return await getRSCPayload(notFoundLoaderTree, ctx, {

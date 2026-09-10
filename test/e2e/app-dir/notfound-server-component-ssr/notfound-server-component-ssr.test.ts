@@ -85,6 +85,42 @@ describe('notfound-server-component-ssr', () => {
     expect(hydrationErrors).toEqual([])
   })
 
+  it('does not server-render the root not-found content when a nested not-found.js boundary exists', async () => {
+    // /trigger has no nested not-found.js anywhere in its route, so it must
+    // still be unaffected by the unrelated nested boundary under
+    // /nested-boundary/[id] elsewhere in the app.
+    const triggerRes = await next.fetch('/trigger')
+    const triggerHtml = await triggerRes.text()
+    expect(triggerHtml).not.toContain('__next_error__')
+    expect(cheerio.load(triggerHtml)('#not-found-marker h1').text()).toBe(
+      'Custom Not Found'
+    )
+
+    // /nested-boundary/missing has its own not-found.js, so which boundary
+    // applies can't be determined from the error alone: this must fall back
+    // to the original (safe) empty shell rather than risk rendering the
+    // wrong (root) not-found content.
+    const nestedRes = await next.fetch('/nested-boundary/missing')
+    expect(nestedRes.status).toBe(404)
+    const nestedHtml = await nestedRes.text()
+    expect(nestedHtml).toContain('__next_error__')
+    const $nested = cheerio.load(nestedHtml)
+    expect($nested('#not-found-marker').length).toBe(0)
+    expect($nested('#nested-not-found-marker').length).toBe(0)
+  })
+
+  it('still resolves to the correct nested not-found boundary once JavaScript runs', async () => {
+    const browser = await next.browser('/nested-boundary/missing')
+    expect(
+      await browser.elementByCss('#nested-not-found-marker h1').text()
+    ).toBe('Nested Not Found')
+  })
+
+  it('renders existing nested-boundary routes normally', async () => {
+    const $ = await next.render$('/nested-boundary/123')
+    expect($('#nested-boundary-page').text()).toBe('id: 123')
+  })
+
   it('does not duplicate the root layout for a server action notFound()', async () => {
     const browser = await next.browser('/action')
     await browser.elementByCss('#trigger-action').click()
