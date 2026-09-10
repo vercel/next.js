@@ -18,10 +18,12 @@ import {
   ACTION_NAVIGATE,
   ACTION_REFRESH,
   ACTION_RESTORE,
+  ACTION_SERVER_PATCH,
   type AppHistoryState,
   type AppRouterState,
   type NavigateAction,
   ScrollBehavior,
+  type ServerPatchAction,
 } from './router-reducer/router-reducer-types'
 import type { NavigateOptions } from '../../shared/lib/app-router-context.shared-runtime'
 import { dispatchAppRouterAction } from './use-action-queue'
@@ -32,7 +34,21 @@ import { startRouterTransition } from './router-transition'
 import { addBasePath } from '../add-base-path'
 import { isExternalURL } from './app-router-utils'
 import { isJavaScriptURLString } from '../lib/javascript-url'
-import { resetKnownRoutes } from './segment-cache/optimistic-routes'
+import {
+  discoverKnownRoute,
+  resetKnownRoutes,
+} from './segment-cache/optimistic-routes'
+import {
+  markRouteEntryAsDynamicRewrite,
+  invalidateRouteCacheEntries,
+  type FulfilledRouteCacheEntry,
+} from './segment-cache/cache'
+import { getLastCommittedTree } from './router-reducer/reducers/committed-state'
+import { createHrefFromUrl } from './router-reducer/create-href-from-url'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
+import type { NavigationSeed } from './segment-cache/decode-server-response'
+import type { NormalizedSearch } from './segment-cache/cache-key'
+import type { FreshnessPolicy } from './render-tree'
 
 function getRequiredAppRouterState(): AppRouterState {
   const state = getCurrentAppRouterState()
@@ -182,6 +198,119 @@ export function refresh(): void {
       type: ACTION_REFRESH,
     })
   })
+}
+
+// Represents whether the previous navigation resulted in a route tree mismatch.
+// A mismatch results in a refresh of the page. If there are two successive
+// mismatches, we will fall back to an MPA navigation, to prevent a retry loop.
+//
+// NOTE: This state was originally tracked directly in the render-tree.ts
+// module. In the Concurrent Router implementation, we will likely track this
+// as part of the internal router state machine.
+let previousNavigationDidMismatch = false
+
+/**
+ * Internal operation, not a user-facing one: the back-edge from shared
+ * navigation machinery (render-tree.ts), called when a navigation request's
+ * dynamic server response does not match the client tree. Responds by
+ * dispatching a refresh of the (possibly redirect-corrected) target. There is
+ * no originating event, and deliberately no startTransition here — the
+ * refresh's transition comes from the action queue's internal wrap.
+ *
+ * @param url The (possibly redirect-corrected) target URL.
+ * @param seed Server data to reuse, if any.
+ * @param baseTree The tree the failed navigation was based on.
+ * @param routeCacheEntry The route cache entry used for the navigation, if it
+ * came from route prediction; since the navigation resulted in a mismatch, it
+ * is marked as having a dynamic rewrite so future predictions bail out.
+ * @param navigateType The original navigation's push/replace intent.
+ * @param hard Escalate to an MPA navigation. Raw per-mismatch value; even
+ * when false, the refresh escalates here if the previous navigation
+ * also mismatched.
+ */
+export function finishMismatchedNavigationRequest(
+  url: URL,
+  nextUrl: string | null,
+  seed: NavigationSeed | null,
+  baseTree: FlightRouterState,
+  routeCacheEntry: FulfilledRouteCacheEntry | null,
+  navigateType: 'push' | 'replace',
+  hard: boolean,
+  freshness: FreshnessPolicy.RefreshAll | FreshnessPolicy.HistoryTraversal
+): void {
+  // If the navigation used a route prediction, mark it as having a dynamic
+  // rewrite since it resulted in a mismatch.
+  if (routeCacheEntry !== null) {
+    markRouteEntryAsDynamicRewrite(routeCacheEntry)
+  } else if (seed !== null) {
+    // Even without a direct reference to the route cache entry, we can still
+    // mark the route as having a dynamic rewrite by traversing the known route
+    // tree. This handles cases where the navigation didn't originate from a
+    // route prediction, but still needs to mark the pattern.
+    const metadataVaryPath = seed.metadataVaryPath
+    if (metadataVaryPath !== null) {
+      const now = Date.now()
+      discoverKnownRoute(
+        now,
+        url.pathname,
+        url.search as NormalizedSearch,
+        nextUrl,
+        null,
+        seed.routeTree,
+        metadataVaryPath,
+        false, // couldBeIntercepted - doesn't matter, we're just marking hasDynamicRewrite
+        createHrefFromUrl(url),
+        false, // supportsPerSegmentPrefetching - doesn't matter, we're just marking hasDynamicRewrite
+        true // hasDynamicRewrite
+      )
+    }
+  }
+
+  // Invalidate all route cache entries. Other entries may have been derived
+  // from the template before we knew it had a dynamic rewrite. This also
+  // triggers re-prefetching of visible links.
+  invalidateRouteCacheEntries(nextUrl, baseTree)
+
+  // If this is the second time in a row that a navigation resulted in a
+  // mismatch, fall back to a hard (MPA) refresh.
+  hard = hard || previousNavigationDidMismatch
+  previousNavigationDidMismatch = true
+
+  // If the original navigation hasn't committed to the browser history yet
+  // (the transition suspended before React committed), inherit its push/replace
+  // intent. Otherwise, the pushState already ran, so use 'replace' to avoid
+  // creating a duplicate history entry.
+  //
+  // This works because React entangles the retry's state update with the
+  // original pending transition — they commit together as a single batch,
+  // so the navigate type from the retry is what HistoryUpdater ultimately sees.
+  const lastCommitted = getLastCommittedTree()
+  const retryNavigateType: 'push' | 'replace' =
+    lastCommitted !== null && baseTree !== lastCommitted
+      ? navigateType
+      : 'replace'
+
+  const retryAction: ServerPatchAction = {
+    type: ACTION_SERVER_PATCH,
+    previousTree: baseTree,
+    url,
+    nextUrl,
+    seed,
+    mpa: hard,
+    navigateType: retryNavigateType,
+    freshnessPolicy: freshness,
+  }
+  dispatchAppRouterAction(retryAction)
+}
+
+/**
+ * Internal operation, not a user-facing one: called by shared navigation
+ * machinery (render-tree.ts) when a navigation request completes without a
+ * tree mismatch — either fully cached, or all of its dynamic requests
+ * finished cleanly. Clears the two-strike mismatch-escalation state.
+ */
+export function finishNavigationRequest(): void {
+  previousNavigationDidMismatch = false
 }
 
 // Tracks the newest HMR refresh generation so that a newer refresh can abort

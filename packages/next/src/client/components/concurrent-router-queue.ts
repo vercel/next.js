@@ -21,6 +21,10 @@ import type {
 import type { NavigateOptions } from '../../shared/lib/app-router-context.shared-runtime'
 import type { LinkInstance } from './links'
 import type { RouterTransitionPrefetchIntent } from '../router-transition-types'
+import type { FlightRouterState } from '../../shared/lib/app-router-types'
+import type { NavigationSeed } from './segment-cache/decode-server-response'
+import type { FulfilledRouteCacheEntry } from './segment-cache/cache'
+import type { FreshnessPolicy } from './render-tree'
 
 // Keep in sync with the identical message in concurrent-call-server.ts, so
 // all unimplemented behavior shares a single error (and error code).
@@ -81,6 +85,23 @@ export function legacyUrgentBFCacheRestore(
 }
 
 export function refresh(): void {
+  notImplemented()
+}
+
+export function finishMismatchedNavigationRequest(
+  _url: URL,
+  _nextUrl: string | null,
+  _seed: NavigationSeed | null,
+  _baseTree: FlightRouterState,
+  _routeCacheEntry: FulfilledRouteCacheEntry | null,
+  _navigateType: 'push' | 'replace',
+  _hard: boolean,
+  _freshness: FreshnessPolicy.RefreshAll | FreshnessPolicy.HistoryTraversal
+): void {
+  notImplemented()
+}
+
+export function finishNavigationRequest(): void {
   notImplemented()
 }
 

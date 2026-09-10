@@ -13,13 +13,11 @@ import {
 import { matchSegment } from './match-segments'
 import { createHrefFromUrl } from './router-reducer/create-href-from-url'
 import { fetchServerResponse } from './router-reducer/fetch-server-response'
-import { dispatchAppRouterAction } from './use-action-queue'
 import {
-  ACTION_SERVER_PATCH,
-  type ServerPatchAction,
-} from './router-reducer/router-reducer-types'
+  finishMismatchedNavigationRequest,
+  finishNavigationRequest,
+} from './navigator'
 import { isNavigatingToNewRootLayout } from './router-reducer/is-navigating-to-new-root-layout'
-import { getLastCommittedTree } from './router-reducer/reducers/committed-state'
 import {
   createNavigationSeed,
   type NavigationSeed,
@@ -34,13 +32,10 @@ import {
   convertReusedFlightRouterStateToRouteTree,
   readSegmentCacheEntryForNavigation,
   waitForSegmentCacheEntry,
-  markRouteEntryAsDynamicRewrite,
-  invalidateRouteCacheEntries,
   spawnStaticStageCacheWrite,
   writeRuntimePrefetchStreamIntoCache,
   EntryStatus,
 } from './segment-cache/cache'
-import { discoverKnownRoute } from './segment-cache/optimistic-routes'
 import { urlSearchParamsToParsedUrlQuery } from '../route-params'
 import type { NormalizedSearch } from './segment-cache/cache-key'
 import type { CacheMap } from './segment-cache/cache-map'
@@ -1392,11 +1387,6 @@ function compareSegments(
   return SegmentMatchKind.Change
 }
 
-// Represents whether the previuos navigation resulted in a route tree mismatch.
-// A mismatch results in a refresh of the page. If there are two successive
-// mismatches, we will fall back to an MPA navigation, to prevent a retry loop.
-let previousNavigationDidMismatch = false
-
 // Writes a dynamic server response into the tree created by
 // updateCacheNodeOnNavigation. All pending promises that were spawned by the
 // navigation will be resolved, either with dynamic data from the server, or
@@ -1436,7 +1426,7 @@ export function spawnDynamicRequests(
   const dynamicRequestTree = task.dynamicRequestTree
   if (dynamicRequestTree === null) {
     // This navigation was fully cached. There are no dynamic requests to spawn.
-    previousNavigationDidMismatch = false
+    finishNavigationRequest()
     return
   }
 
@@ -1572,7 +1562,7 @@ async function finishNavigationTask(
     }
     case NavigationTaskExitStatus.Done: {
       // The task has completely finished. There's no missing data. Exit.
-      previousNavigationDidMismatch = false
+      finishNavigationRequest()
       return
     }
     case NavigationTaskExitStatus.SoftRetry: {
@@ -1583,14 +1573,14 @@ async function finishNavigationTask(
       // happen in a row, fall back to a hard retry.
       const isHardRetry = false
       const primaryRequestResult = await primaryRequestPromise
-      dispatchRetryDueToTreeMismatch(
-        isHardRetry,
+      finishMismatchedNavigationRequest(
         primaryRequestResult.url,
         nextUrl,
         primaryRequestResult.seed,
         task.route,
         routeCacheEntry,
         navigateType,
+        isHardRetry,
         FreshnessPolicy.RefreshAll
       )
       return
@@ -1602,14 +1592,14 @@ async function finishNavigationTask(
       // (HistoryTraversal) instead of re-fetching it. See issue #95195.
       const isHardRetry = false
       const primaryRequestResult = await primaryRequestPromise
-      dispatchRetryDueToTreeMismatch(
-        isHardRetry,
+      finishMismatchedNavigationRequest(
         primaryRequestResult.url,
         nextUrl,
         primaryRequestResult.seed,
         task.route,
         routeCacheEntry,
         navigateType,
+        isHardRetry,
         FreshnessPolicy.HistoryTraversal
       )
       return
@@ -1625,14 +1615,14 @@ async function finishNavigationTask(
       // doesn't exist yet.
       const isHardRetry = true
       const primaryRequestResult = await primaryRequestPromise
-      dispatchRetryDueToTreeMismatch(
-        isHardRetry,
+      finishMismatchedNavigationRequest(
         primaryRequestResult.url,
         nextUrl,
         primaryRequestResult.seed,
         task.route,
         routeCacheEntry,
         navigateType,
+        isHardRetry,
         FreshnessPolicy.RefreshAll
       )
       return
@@ -1690,97 +1680,6 @@ function waitForRequestsToFinish(
       )
     }
   })
-}
-
-function dispatchRetryDueToTreeMismatch(
-  isHardRetry: boolean,
-  retryUrl: URL,
-  retryNextUrl: string | null,
-  seed: NavigationSeed | null,
-  baseTree: FlightRouterState,
-  // The route cache entry used for this navigation, if it came from route
-  // prediction. If the navigation results in a mismatch, we mark it as having
-  // a dynamic rewrite so future predictions bail out.
-  routeCacheEntry: FulfilledRouteCacheEntry | null,
-  // The original navigation's push/replace intent.
-  originalNavigateType: 'push' | 'replace',
-  // Freshness policy for the retry navigation. `RefreshAll` re-fetches the
-  // tree's dynamic data (used for genuine tree mismatches). `HistoryTraversal`
-  // reuses the data already in the tree (used when only the URL needs
-  // correcting after a redirect).
-  retryFreshnessPolicy:
-    | FreshnessPolicy.RefreshAll
-    | FreshnessPolicy.HistoryTraversal
-) {
-  // If the navigation used a route prediction, mark it as having a dynamic
-  // rewrite since it resulted in a mismatch.
-  if (routeCacheEntry !== null) {
-    markRouteEntryAsDynamicRewrite(routeCacheEntry)
-  } else if (seed !== null) {
-    // Even without a direct reference to the route cache entry, we can still
-    // mark the route as having a dynamic rewrite by traversing the known route
-    // tree. This handles cases where the navigation didn't originate from a
-    // route prediction, but still needs to mark the pattern.
-    const metadataVaryPath = seed.metadataVaryPath
-    if (metadataVaryPath !== null) {
-      const now = Date.now()
-      discoverKnownRoute(
-        now,
-        retryUrl.pathname,
-        retryUrl.search as NormalizedSearch,
-        retryNextUrl,
-        null,
-        seed.routeTree,
-        metadataVaryPath,
-        false, // couldBeIntercepted - doesn't matter, we're just marking hasDynamicRewrite
-        createHrefFromUrl(retryUrl),
-        false, // supportsPerSegmentPrefetching - doesn't matter, we're just marking hasDynamicRewrite
-        true // hasDynamicRewrite
-      )
-    }
-  }
-
-  // Invalidate all route cache entries. Other entries may have been derived
-  // from the template before we knew it had a dynamic rewrite. This also
-  // triggers re-prefetching of visible links.
-  invalidateRouteCacheEntries(retryNextUrl, baseTree)
-
-  // If this is the second time in a row that a navigation resulted in a
-  // mismatch, fall back to a hard (MPA) refresh.
-  isHardRetry = isHardRetry || previousNavigationDidMismatch
-  previousNavigationDidMismatch = true
-
-  // If the original navigation hasn't committed to the browser history yet
-  // (the transition suspended before React committed), inherit its push/replace
-  // intent. Otherwise, the pushState already ran, so use 'replace' to avoid
-  // creating a duplicate history entry.
-  //
-  // This works because React entangles the retry's state update with the
-  // original pending transition — they commit together as a single batch,
-  // so the navigate type from the retry is what HistoryUpdater ultimately sees.
-  //
-  // TODO: Ideally this check would happen right before we schedule the React
-  // update (i.e., closer to where the action is dispatched into the queue),
-  // not here where the action is constructed. But the current action queue
-  // doesn't provide a natural place for that. Revisit when we refactor the
-  // action queue into a more reactive navigation model.
-  const lastCommitted = getLastCommittedTree()
-  const retryNavigateType: 'push' | 'replace' =
-    lastCommitted !== null && baseTree !== lastCommitted
-      ? originalNavigateType
-      : 'replace'
-
-  const retryAction: ServerPatchAction = {
-    type: ACTION_SERVER_PATCH,
-    previousTree: baseTree,
-    url: retryUrl,
-    nextUrl: retryNextUrl,
-    seed,
-    mpa: isHardRetry,
-    navigateType: retryNavigateType,
-    freshnessPolicy: retryFreshnessPolicy,
-  }
-  dispatchAppRouterAction(retryAction)
 }
 
 async function fetchMissingDynamicData(

@@ -1,6 +1,10 @@
 // This module is the router's operation interface: one function per
 // user-facing operation, called directly by the corresponding entry points
-// (Link, the public router methods, the history event handlers).
+// (Link, the public router methods, the history event handlers). A few
+// internal operations (currently the completion reports for navigation
+// requests, called from render-tree.ts) also enter through this interface,
+// so shared machinery below the fork reaches the active implementation
+// without importing either one.
 //
 // The navigator owns the startTransition for its operations, along with the
 // centralized safety checks; callers must invoke these functions
@@ -29,5 +33,7 @@ export {
   restore,
   legacyUrgentBFCacheRestore,
   refresh,
+  finishMismatchedNavigationRequest,
+  finishNavigationRequest,
   hmrRefresh,
 } from './sequential-router-queue'
