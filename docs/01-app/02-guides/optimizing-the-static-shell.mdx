@@ -16,7 +16,7 @@ related:
 
 Apps written before Cache Components often await request data near the top of a layout or page. With Cache Components enabled, those routes may already have a small static shell, sometimes made up of one broad loading state.
 
-To expand the shell, trace each data read to the UI that needs it, cache reusable work, and move request-time work behind focused `<Suspense>` boundaries. These patterns keep important content available early and reserve space as the rest of the page streams in.
+In this guide, you'll learn how to expand the shell by tracing each data read to the UI that needs it, caching reusable work, and moving request-time work behind focused `<Suspense>` boundaries. These patterns keep important content available early and reserve space as the rest of the page streams in.
 
 ## Use the optimizer skill (recommended)
 
