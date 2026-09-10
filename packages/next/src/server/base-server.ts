@@ -150,7 +150,7 @@ import {
 } from './after/builtin-request-context'
 import { NextRequestHint } from './web/adapter'
 import type { RouteModule } from './route-modules/route-module'
-import { type FallbackMode, parseFallbackField } from '../lib/fallback'
+import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { decodeQueryPathParameter } from './lib/decode-query-path-parameter'
@@ -158,7 +158,11 @@ import { NoFallbackError } from '../shared/lib/no-fallback-error.external'
 import { fixMojibake } from './lib/fix-mojibake'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
-import type { PrerenderedRoute } from '../build/static-paths/types'
+import type {
+  FallbackRouteParam,
+  PrerenderRouteMatcher,
+  PrerenderedRoute,
+} from '../build/static-paths/types'
 import {
   createOpaqueFallbackRouteParams,
   getStagedFallbackParams,
@@ -2307,7 +2311,10 @@ export default abstract class Server<
   }): Promise<{
     staticPaths?: string[]
     prerenderedRoutes?: PrerenderedRoute[]
+    prerenderRouteMatchers?: PrerenderRouteMatcher[]
     fallbackMode?: FallbackMode
+    hasPrerenderMatcher?: true
+    explicitFallbackRouteParams?: readonly FallbackRouteParam[]
   }> {
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
@@ -2748,12 +2755,22 @@ export default abstract class Server<
       }
 
       if (isAppPath && this.nextConfig.cacheComponents) {
-        if (pathsResults.prerenderedRoutes?.length) {
-          // The source selection includes concrete routes with no fallback
-          // params. Otherwise it could choose a generic fallback for a fully
-          // generated URL.
-          let matchedRoute: PrerenderedRoute | undefined
-          for (const route of pathsResults.prerenderedRoutes) {
+        if (pathsResults.hasPrerenderMatcher) {
+          // Matcher fallback and blocking policies describe how production
+          // prerenders are selected. Normal dev requests still render
+          // dynamically; only an explicit not-found match changes their
+          // foreground behavior.
+          addRequestMeta(req, 'devPrerenderMatcherOutcome', 'render')
+        }
+
+        if (
+          pathsResults.prerenderedRoutes?.length ||
+          pathsResults.prerenderRouteMatchers?.length
+        ) {
+          // Include concrete routes with no fallback params as well as
+          // matcher-only entries that intentionally have no fallback output.
+          let matchedRoute: PrerenderedRoute | PrerenderRouteMatcher | undefined
+          for (const route of pathsResults.prerenderedRoutes ?? []) {
             if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
               continue
             }
@@ -2765,10 +2782,26 @@ export default abstract class Server<
               matchedRoute = route
             }
           }
+          for (const route of pathsResults.prerenderRouteMatchers ?? []) {
+            if (!getRouteRegex(route.pathname).re.test(urlPathname)) continue
+            if (
+              matchedRoute === undefined ||
+              route.fallbackRouteParams.length <
+                (matchedRoute.fallbackRouteParams?.length ?? 0)
+            ) {
+              matchedRoute = route
+            }
+          }
+          if (
+            pathsResults.hasPrerenderMatcher &&
+            matchedRoute?.fallbackMode === FallbackMode.NOT_FOUND
+          ) {
+            addRequestMeta(req, 'devPrerenderMatcherOutcome', 'not-found')
+          }
+
           if (matchedRoute) {
             // Explicit shell requests render the matched artifact. Ordinary
-            // requests stage and validate the same required or completed shell
-            // target.
+            // requests stage and validate the same required or completed shell.
             addRequestMeta(
               req,
               'fallbackRouteParams',
@@ -2778,11 +2811,27 @@ export default abstract class Server<
                   )
                 : null
             )
-            addRequestMeta(
-              req,
-              'stagedFallbackParams',
-              getStagedFallbackParams(matchedRoute)
-            )
+            let stagedFallbackParams = getStagedFallbackParams({
+              ...matchedRoute,
+              // Matcher-only entries have no source shell to validate. Stage
+              // the completed shell, retaining any always-dynamic tail.
+              throwOnEmptyStaticShell:
+                'throwOnEmptyStaticShell' in matchedRoute
+                  ? matchedRoute.throwOnEmptyStaticShell
+                  : false,
+            })
+            if (pathsResults.explicitFallbackRouteParams) {
+              // An explicit fallback must work even when its params are
+              // unknown. Preserve that boundary for fully generated URLs too,
+              // without losing holes in a required partial source shell.
+              stagedFallbackParams = new Map([
+                ...(stagedFallbackParams ?? []),
+                ...(createOpaqueFallbackRouteParams(
+                  pathsResults.explicitFallbackRouteParams
+                ) ?? []),
+              ])
+            }
+            addRequestMeta(req, 'stagedFallbackParams', stagedFallbackParams)
           }
         }
       }
