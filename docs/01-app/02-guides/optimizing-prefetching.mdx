@@ -61,7 +61,7 @@ export default function Home() {
 }
 ```
 
-If only some links should resolve URL data before navigation, return `'auto'` for the rest to keep the default App Shell prefetch:
+`'auto'` is equivalent to omitting `prefetch` or passing `undefined`. In a conditional expression, return `'auto'` for links that should keep the default App Shell prefetch:
 
 ```tsx filename="app/page.tsx"
 <Link href={href} prefetch={isFeatured ? true : 'auto'} />
