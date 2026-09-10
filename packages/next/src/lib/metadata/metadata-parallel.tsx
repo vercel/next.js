@@ -5,6 +5,7 @@ import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { SearchParams } from '../../server/request/search-params'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
+import { HIDDEN_METADATA_WRAPPER_TAG } from './constants'
 import type { MetadataErrorType } from './metadata-resolution-primitives'
 import {
   resolveMetadataForBranch,
