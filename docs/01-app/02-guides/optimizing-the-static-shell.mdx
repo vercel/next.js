@@ -15,7 +15,7 @@ related:
 
 [Cache Components](/docs/app/getting-started/caching) can prerender a static shell while request-time content streams in. The shell can keep the route's layout, navigation, headings, and focused loading states visible instead of replacing the page with one broad fallback.
 
-Apps written before Cache Components often await request data near the top of a layout or page. That structure is valid, but adopting a static shell can require a larger refactor than adding one boundary. This guide works through one route in small steps so you can keep checking the completed page as more of it moves into the shell.
+Apps written before Cache Components often await request data near the top of a layout or page. That structure is valid, but adopting a static shell can require a larger refactor than adding one boundary. Working through the route one change at a time lets you check the completed page as more content moves into the shell.
 
 Read [Instant Navigation](/docs/app/guides/instant-navigation) for the rendering model and the Next.js DevTools workflow used to inspect each step.
 
@@ -58,9 +58,9 @@ Most static-shell refactors use the same patterns:
 - **Cache reusable work.** Add a cache directive only when the result can be reused. Choose its lifetime from the data's freshness requirements and invalidate it when a write changes the result.
 - **Keep stable UI above the boundary.** Reuse existing loading states for the part that changes instead of replacing the route with one broad fallback.
 
-The following walkthrough applies these patterns to one route. You can make and verify each change separately, which is often more practical for an existing application than restructuring the route at once.
+The example applies these patterns to one route. You can make and verify each change separately, which may be more practical for an existing application than restructuring the route at once.
 
-## Work through a settings route
+## Example
 
 Consider a team settings route written in a blocking style. The layout resolves request data before it renders the settings frame:
 
@@ -113,7 +113,7 @@ export default async function SettingsPage({
 }
 ```
 
-These awaits happen before their surrounding components return. The static shell therefore cannot include the settings frame or page. This may be a natural structure in an existing App Router app. The following changes preserve its behavior while moving each request-time read closer to the component that needs it.
+These awaits happen before their surrounding components return, so the static shell cannot include the settings frame or page. This may be a natural structure in an existing App Router app. Moving each request-time read closer to the component that needs it preserves the completed route while more content becomes available in the shell.
 
 ### Step 1: Choose what belongs in the static shell
 
@@ -127,7 +127,7 @@ Start with the completed page and separate content by when its data is available
 | Active settings section    | Read `searchParams` inside the part of the page that changes with the URL.                        |
 | Plan descriptions          | Cache them because the same values can be reused across requests.                                 |
 
-This division determines where the route needs `<Suspense>` and where caching is valid. It also keeps authorization separate from presentation. Protected data must still authorize access inside the function that reads it.
+These decisions determine where the route needs `<Suspense>` and where caching is valid. They also keep authorization separate from presentation. Protected data must still authorize access inside the function that reads it.
 
 Keep the primary heading or other [Largest Contentful Paint candidate](/docs/app/guides/streaming#lcp-largest-contentful-paint) in the static shell when possible. If its data can be reused, cache the data instead of moving the whole primary region behind a loading state.
 
@@ -261,7 +261,7 @@ export function SettingsTabsSkeleton() {
 
 During a client navigation, `useSearchParams()` can resolve synchronously because the router already has the URL. The `<Suspense>` boundary is still needed for a page load, where the static shell does not know the query string.
 
-This placement is the same for `cookies()`, `headers()`, `params`, `searchParams`, and uncached data. Start a promise higher in the tree when that helps avoid a request waterfall, but await it only inside the boundary for the content that needs the result.
+The same focused-boundary placement applies to `cookies()`, `headers()`, `params`, `searchParams`, and uncached data. Start a promise higher in the tree when that avoids a request waterfall, but await it only inside the boundary for the content that needs the result.
 
 An uncached database or network read already waits for the request and does not need `connection()`. Call [`connection()`](/docs/app/api-reference/functions/connection) before synchronous values such as `Date.now()`, `Math.random()`, or `crypto.randomUUID()` when they must be generated for each request. Cache the value instead when it should be shared across requests.
 
