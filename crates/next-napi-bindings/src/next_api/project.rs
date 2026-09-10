@@ -1887,10 +1887,7 @@ async fn server_hmr_snapshot_with_effects_operation(
     tracing::info!("server hmr snapshot");
     let snapshot_op = project_server_hmr_snapshot_operation(project, entry_paths);
     // Build-graph failures must reach the JS recovery path.
-    let snapshot = snapshot_op
-        .read_strongly_consistent()
-        .final_read_hint()
-        .await?;
+    let snapshot = snapshot_op.read_strongly_consistent().await?;
     let filter = project.issue_filter().await?;
     let issues = get_issues(snapshot_op, &filter).await?;
     let effects = Arc::new(take_effects(snapshot_op).await?);
