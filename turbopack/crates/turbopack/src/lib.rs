@@ -719,15 +719,10 @@ async fn process_default_internal(
         .to_resolved()
         .await?;
 
-        let loader_relative_path = execution_context_value
+        let loader_request = execution_context_value
             .project_path
-            .get_relative_path_to(&loader.loader)
+            .get_relative_request_to(&loader.loader)
             .context("Loader path must be on project filesystem")?;
-        let loader_request = if loader_relative_path.starts_with("../") {
-            loader_relative_path
-        } else {
-            RcStr::from(format!("./{loader_relative_path}"))
-        };
         let webpack_loader_item = WebpackLoaderItem {
             loader: loader_request,
             options: loader.options.clone(),
