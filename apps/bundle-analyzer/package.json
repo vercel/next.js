@@ -25,6 +25,7 @@
     "polished": "^4.3.1",
     "react": "19.2.0",
     "react-dom": "19.2.0",
+    "react-virtuoso": "4.18.13",
     "swr": "^2.2.4",
     "tailwind-merge": "^2.5.5",
     "tailwindcss-animate": "^1.0.7"

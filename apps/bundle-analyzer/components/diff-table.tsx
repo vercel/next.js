@@ -1,6 +1,7 @@
 'use client'
 
-import { useMemo, useState, type ReactNode } from 'react'
+import { useMemo, useState, type ComponentProps, type ReactNode } from 'react'
+import { TableVirtuoso } from 'react-virtuoso'
 import {
   ArrowDown,
   ArrowUp,
@@ -72,6 +73,24 @@ interface DiffTableProps<Row extends DiffRow> {
    * the toolbar input affects both views consistently.
    */
   searchQuery?: string
+}
+
+const virtuosoComponents = {
+  Table: ({ children, style }: ComponentProps<'table'>) => (
+    <table className="w-full table-fixed text-sm" style={style}>
+      {children}
+    </table>
+  ),
+  TableHead: ({ children, style, ref }: ComponentProps<'thead'>) => (
+    <thead ref={ref} className="z-10 bg-background" style={style}>
+      {children}
+    </thead>
+  ),
+  TableFoot: ({ children, style, ref }: ComponentProps<'tfoot'>) => (
+    <tfoot ref={ref} className="z-10 bg-background" style={style}>
+      {children}
+    </tfoot>
+  ),
 }
 
 /**
@@ -162,163 +181,137 @@ export function DiffTable<Row extends DiffRow>({
     () => buildRenderItems(filtered, sortColumn, sortDirection, useCompressed),
     [filtered, sortColumn, sortDirection, useCompressed]
   )
+  const visibleItems = useMemo(
+    () => expandRenderItems(renderItems, expandedPackages),
+    [renderItems, expandedPackages]
+  )
 
   const totalDelta = useCompressed
     ? summary.totalCompressedB - summary.totalCompressedA
     : summary.totalB - summary.totalA
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       {caption ? (
         <div className="flex flex-wrap items-center gap-2 border-b border-border px-4 py-2">
           <span className="text-sm font-medium text-foreground">{caption}</span>
         </div>
       ) : null}
 
-      <div className="overflow-auto">
-        <table className="w-full text-sm">
-          <thead className="sticky top-0 z-10 bg-background">
-            <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+      <TableVirtuoso
+        className="min-h-0 flex-1"
+        data={visibleItems}
+        increaseViewportBy={{ top: 600, bottom: 600 }}
+        components={virtuosoComponents}
+        fixedHeaderContent={() => (
+          <tr className="border-b border-border text-left text-xs uppercase text-muted-foreground">
+            <SortableHeader
+              label={nameHeading}
+              column="name"
+              activeColumn={sortColumn}
+              direction={sortDirection}
+              onClick={onHeaderClick}
+              align="left"
+              trailing={
+                !isSingle ? (
+                  <DiffStatusFilter
+                    value={statusFilter}
+                    onChange={setStatusFilter}
+                    counts={summary.counts}
+                  />
+                ) : null
+              }
+            />
+            {!isSingle ? (
               <SortableHeader
-                label={nameHeading}
-                column="name"
+                label={aHeading}
+                column="a"
                 activeColumn={sortColumn}
                 direction={sortDirection}
                 onClick={onHeaderClick}
-                align="left"
-                trailing={
-                  !isSingle ? (
-                    <DiffStatusFilter
-                      value={statusFilter}
-                      onChange={setStatusFilter}
-                      counts={summary.counts}
-                    />
-                  ) : null
-                }
-              />
-              {!isSingle ? (
-                <SortableHeader
-                  label={aHeading}
-                  column="a"
-                  activeColumn={sortColumn}
-                  direction={sortDirection}
-                  onClick={onHeaderClick}
-                  title="Historical build (before)"
-                  align="right"
-                />
-              ) : null}
-              <SortableHeader
-                label={isSingle ? 'Size' : bHeading}
-                column="b"
-                activeColumn={sortColumn}
-                direction={sortDirection}
-                onClick={onHeaderClick}
-                title={isSingle ? undefined : 'Latest build (after)'}
+                title="Historical build (before)"
                 align="right"
               />
-              {!isSingle ? (
-                <SortableHeader
-                  label="Δ"
-                  column="delta"
-                  activeColumn={sortColumn}
-                  direction={sortDirection}
-                  onClick={onHeaderClick}
-                  align="right"
-                />
-              ) : null}
-            </tr>
-          </thead>
-          <tbody>
-            {renderItems.flatMap((item) => {
-              if (item.kind === 'group') {
-                const isExpanded = expandedPackages.has(item.packageName)
-                const header = (
-                  <DiffPackageHeaderRow
-                    key={`pkg:${item.packageName}`}
-                    packageName={item.packageName}
-                    rows={item.rows}
-                    useCompressed={useCompressed}
-                    isExpanded={isExpanded}
-                    onToggle={() => togglePackage(item.packageName)}
-                    mode={mode}
-                  />
-                )
-                if (!isExpanded) return [header]
-                return [
-                  header,
-                  ...item.rows.map((row) => (
-                    <DiffTableRow
-                      key={`pkg:${item.packageName}:${row.key}`}
-                      row={row}
-                      useCompressed={useCompressed}
-                      indent
-                      onClick={onRowSelect ? () => onRowSelect(row) : undefined}
-                      isSelected={selectedKey === row.key}
-                      mode={mode}
-                    />
-                  )),
-                ]
-              }
-              return [
-                <DiffTableRow
-                  key={item.row.key}
-                  row={item.row}
-                  useCompressed={useCompressed}
-                  onClick={
-                    onRowSelect ? () => onRowSelect(item.row) : undefined
-                  }
-                  isSelected={selectedKey === item.row.key}
-                  mode={mode}
-                />,
-              ]
-            })}
-            {renderItems.length === 0 ? (
-              <tr>
-                <td
-                  colSpan={isSingle ? 2 : 4}
-                  className="px-4 py-8 text-center text-sm text-muted-foreground"
-                >
-                  No matching rows.
-                </td>
-              </tr>
             ) : null}
-          </tbody>
-          <tfoot className="sticky bottom-0 bg-background">
-            {/*
-              Footer cells match the body's `text-xs` + `whitespace-nowrap`
-              so size totals (e.g. `259.74 KB`) can't wrap — at `text-sm`
-              the unit broke onto a second line in compare mode where the
-              numbers are larger.
-            */}
-            <tr className="border-t border-border text-xs font-medium">
-              <td className="px-4 py-2">Total</td>
-              {!isSingle ? (
-                <td className="whitespace-nowrap px-4 py-2 text-right font-mono">
-                  {formatBytes(
-                    useCompressed ? summary.totalCompressedA : summary.totalA
-                  )}
-                </td>
-              ) : null}
+            <SortableHeader
+              label={isSingle ? 'Size' : bHeading}
+              column="b"
+              activeColumn={sortColumn}
+              direction={sortDirection}
+              onClick={onHeaderClick}
+              title={isSingle ? undefined : 'Latest build (after)'}
+              align="right"
+            />
+            {!isSingle ? (
+              <SortableHeader
+                label="Δ"
+                column="delta"
+                activeColumn={sortColumn}
+                direction={sortDirection}
+                onClick={onHeaderClick}
+                align="right"
+              />
+            ) : null}
+          </tr>
+        )}
+        itemContent={(_, item) => {
+          if (item.kind === 'group') {
+            return (
+              <DiffPackageHeaderRow
+                packageName={item.packageName}
+                rows={item.rows}
+                useCompressed={useCompressed}
+                isExpanded={expandedPackages.has(item.packageName)}
+                onToggle={() => togglePackage(item.packageName)}
+                mode={mode}
+              />
+            )
+          }
+          return (
+            <DiffTableRow
+              row={item.row}
+              useCompressed={useCompressed}
+              indent={item.indent}
+              onClick={onRowSelect ? () => onRowSelect(item.row) : undefined}
+              isSelected={selectedKey === item.row.key}
+              mode={mode}
+            />
+          )
+        }}
+        fixedFooterContent={() => (
+          <tr className="border-t border-border text-xs font-medium">
+            <td className="px-4 py-2">Total</td>
+            {!isSingle ? (
               <td className="whitespace-nowrap px-4 py-2 text-right font-mono">
                 {formatBytes(
-                  useCompressed ? summary.totalCompressedB : summary.totalB
+                  useCompressed ? summary.totalCompressedA : summary.totalA
                 )}
               </td>
-              {!isSingle ? (
-                <td
-                  className={cn(
-                    'whitespace-nowrap px-4 py-2 text-right font-mono',
-                    totalDelta > 0 && 'text-red-600 dark:text-red-400',
-                    totalDelta < 0 && 'text-green-600 dark:text-green-400'
-                  )}
-                >
-                  {formatDelta(totalDelta)}
-                </td>
-              ) : null}
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+            ) : null}
+            <td className="whitespace-nowrap px-4 py-2 text-right font-mono">
+              {formatBytes(
+                useCompressed ? summary.totalCompressedB : summary.totalB
+              )}
+            </td>
+            {!isSingle ? (
+              <td
+                className={cn(
+                  'whitespace-nowrap px-4 py-2 text-right font-mono',
+                  totalDelta > 0 && 'text-red-600 dark:text-red-400',
+                  totalDelta < 0 && 'text-green-600 dark:text-green-400'
+                )}
+              >
+                {formatDelta(totalDelta)}
+              </td>
+            ) : null}
+          </tr>
+        )}
+      />
+      {visibleItems.length === 0 ? (
+        <div className="absolute inset-x-0 top-20 px-4 py-8 text-center text-sm text-muted-foreground">
+          No matching rows.
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -428,6 +421,21 @@ function buildRenderItems<Row extends DiffRow>(
   return items
 }
 
+function expandRenderItems<Row extends DiffRow>(
+  items: RenderItem<Row>[],
+  expandedPackages: ReadonlySet<string>
+): RenderItem<Row>[] {
+  return items.flatMap((item) => {
+    if (item.kind === 'row' || !expandedPackages.has(item.packageName)) {
+      return [item]
+    }
+    return [
+      item,
+      ...item.rows.map((row) => ({ kind: 'row' as const, row, indent: true })),
+    ]
+  })
+}
+
 /**
  * Header row for a package group. Renders an expand/collapse chevron, the
  * package name (with package icon), a count of contained rows, and the
@@ -463,15 +471,15 @@ function DiffPackageHeaderRow<Row extends DiffRow>({
           : 'changed'
 
   return (
-    <tr
-      className={cn(
-        'border-b border-border bg-muted/30 transition-colors hover:bg-muted/50',
-        'cursor-pointer'
-      )}
-      onClick={onToggle}
-      aria-expanded={isExpanded}
-    >
-      <td className="w-full max-w-0 px-4 py-2 font-mono text-xs">
+    <>
+      <td
+        className={cn(
+          'w-full max-w-0 px-4 py-2 font-mono text-xs',
+          'cursor-pointer border-b border-border bg-muted/30 transition-colors hover:bg-muted/50'
+        )}
+        onClick={onToggle}
+        aria-expanded={isExpanded}
+      >
         <span className="flex min-w-0 items-center gap-2">
           {isExpanded ? (
             <ChevronDown
@@ -500,26 +508,33 @@ function DiffPackageHeaderRow<Row extends DiffRow>({
         </span>
       </td>
       {!isSingle ? (
-        <td className="whitespace-nowrap px-4 py-2 text-right font-mono text-xs text-muted-foreground">
+        <td
+          className="cursor-pointer whitespace-nowrap border-b border-border bg-muted/30 px-4 py-2 text-right font-mono text-xs text-muted-foreground transition-colors hover:bg-muted/50"
+          onClick={onToggle}
+        >
           {aggregateStatus === 'added' ? '—' : formatBytes(a)}
         </td>
       ) : null}
-      <td className="whitespace-nowrap px-4 py-2 text-right font-mono text-xs text-muted-foreground">
+      <td
+        className="cursor-pointer whitespace-nowrap border-b border-border bg-muted/30 px-4 py-2 text-right font-mono text-xs text-muted-foreground transition-colors hover:bg-muted/50"
+        onClick={onToggle}
+      >
         {aggregateStatus === 'removed' ? '—' : formatBytes(b)}
       </td>
       {!isSingle ? (
         <td
           className={cn(
-            'whitespace-nowrap px-4 py-2 text-right font-mono text-xs',
+            'cursor-pointer whitespace-nowrap border-b border-border bg-muted/30 px-4 py-2 text-right font-mono text-xs transition-colors hover:bg-muted/50',
             d > 0 && 'text-red-600 dark:text-red-400',
             d < 0 && 'text-green-600 dark:text-green-400',
             d === 0 && 'text-muted-foreground'
           )}
+          onClick={onToggle}
         >
           {formatDelta(d)}
         </td>
       ) : null}
-    </tr>
+    </>
   )
 }
 
@@ -705,22 +720,21 @@ function DiffTableRow<Row extends DiffRow>({
   const isSingle = mode === 'single'
   const d = delta(row, useCompressed)
   const isInteractive = onClick != null
+  const cellClassName = cn(
+    'border-b border-border transition-colors',
+    isInteractive && 'cursor-pointer hover:bg-muted/50',
+    indent && 'bg-muted/10',
+    isSelected && 'bg-primary/10 hover:bg-primary/15'
+  )
   return (
-    <tr
-      className={cn(
-        // `group` lets `DiffRowName` reveal env badges only on hover.
-        'group border-b border-border last:border-0 transition-colors',
-        isInteractive && 'cursor-pointer hover:bg-muted/50',
-        indent && 'bg-muted/10',
-        isSelected && 'bg-primary/10 hover:bg-primary/15'
-      )}
-      onClick={onClick}
-    >
+    <>
       <td
         className={cn(
-          'w-full max-w-0 py-2 font-mono text-xs',
+          cellClassName,
+          'group w-full max-w-0 py-2 font-mono text-xs',
           indent ? 'pl-12 pr-4' : 'px-4'
         )}
+        onClick={onClick}
       >
         <DiffRowName
           row={row}
@@ -729,13 +743,25 @@ function DiffTableRow<Row extends DiffRow>({
         />
       </td>
       {!isSingle ? (
-        <td className="whitespace-nowrap px-4 py-2 text-right font-mono text-xs text-muted-foreground">
+        <td
+          className={cn(
+            cellClassName,
+            'whitespace-nowrap px-4 py-2 text-right font-mono text-xs text-muted-foreground'
+          )}
+          onClick={onClick}
+        >
           {row.status === 'added'
             ? '—'
             : formatBytes(useCompressed ? row.compressedA : row.sizeA)}
         </td>
       ) : null}
-      <td className="whitespace-nowrap px-4 py-2 text-right font-mono text-xs text-muted-foreground">
+      <td
+        className={cn(
+          cellClassName,
+          'whitespace-nowrap px-4 py-2 text-right font-mono text-xs text-muted-foreground'
+        )}
+        onClick={onClick}
+      >
         {row.status === 'removed'
           ? '—'
           : formatBytes(useCompressed ? row.compressedB : row.sizeB)}
@@ -744,15 +770,17 @@ function DiffTableRow<Row extends DiffRow>({
         <td
           className={cn(
             'whitespace-nowrap px-4 py-2 text-right font-mono text-xs',
+            cellClassName,
             d > 0 && 'text-red-600 dark:text-red-400',
             d < 0 && 'text-green-600 dark:text-green-400',
             d === 0 && 'text-muted-foreground'
           )}
+          onClick={onClick}
         >
           {formatDelta(d)}
         </td>
       ) : null}
-    </tr>
+    </>
   )
 }
 

@@ -312,7 +312,7 @@ importers:
         version: 5.2.1(eslint@9.37.0(jiti@2.6.1))
       eslint-plugin-import:
         specifier: 2.31.0
-        version: 2.31.0(eslint@9.37.0(jiti@2.6.1))
+        version: 2.31.0(@typescript-eslint/parser@8.46.0(eslint@9.37.0(jiti@2.6.1))(typescript@6.0.2))(eslint@9.37.0(jiti@2.6.1))
       eslint-plugin-jest:
         specifier: 27.6.3
         version: 27.6.3(eslint@9.37.0(jiti@2.6.1))(jest@29.7.0(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(babel-plugin-macros@3.1.0))(typescript@6.0.2)
@@ -679,6 +679,9 @@ importers:
       react-dom:
         specifier: npm:react-dom@19.3.0-canary-6c0e1047-20260908
         version: 19.3.0-canary-6c0e1047-20260908(react@19.3.0-canary-6c0e1047-20260908)
+      react-virtuoso:
+        specifier: 4.18.13
+        version: 4.18.13(react-dom@19.3.0-canary-6c0e1047-20260908(react@19.3.0-canary-6c0e1047-20260908))(react@19.3.0-canary-6c0e1047-20260908)
       swr:
         specifier: ^2.2.4
         version: 2.2.4(react@19.3.0-canary-6c0e1047-20260908)
@@ -1944,7 +1947,7 @@ importers:
     devDependencies:
       '@napi-rs/cli':
         specifier: 3.7.2
-        version: 3.7.2(@emnapi/runtime@1.11.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
+        version: 3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)
       cross-env:
         specifier: 6.0.3
         version: 6.0.3
@@ -16151,6 +16154,12 @@ packages:
       react: ^15.3.0 || ^16.0.0-alpha
       react-dom: ^15.3.0 || ^16.0.0-alpha
 
+  react-virtuoso@4.18.13:
+    resolution: {integrity: sha512-M4kP7zbV7JmLrnJYs0X2FBA8gnNlHisSYuKMyeJVYtWz31CAJeP57dgPJzfneUdKDKmL9SiqvcBQ32si8CfQSQ==}
+    peerDependencies:
+      react: '>=16 || >=17 || >= 18 || >= 19'
+      react-dom: '>=16 || >=17 || >= 18 || >=19'
+
   react@0.0.0-experimental-6c0e1047-20260908:
     resolution: {integrity: sha512-4Te072JIgBo91NYzzp8aOov+gUj9aVxBCq6Gx+lhdBFTWkgX4bGTW9HyjvI/BENfpTDatnQ1KXMur7Ze43GNjw==}
     engines: {node: '>=0.10.0'}
@@ -21842,7 +21851,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@napi-rs/cli@3.7.2(@emnapi/runtime@1.11.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
+  '@napi-rs/cli@3.7.2(@emnapi/runtime@1.9.2)(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))(node-addon-api@6.1.0)':
     dependencies:
       '@inquirer/prompts': 8.5.2(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
       '@napi-rs/cross-toolchain': 1.0.3
@@ -21857,7 +21866,7 @@ snapshots:
       semver: 7.8.5
       typanion: 3.14.0
     optionalDependencies:
-      '@emnapi/runtime': 1.11.2
+      '@emnapi/runtime': 1.9.2
     transitivePeerDependencies:
       - '@napi-rs/cross-toolchain-arm64-target-aarch64'
       - '@napi-rs/cross-toolchain-arm64-target-armv7'
@@ -28402,10 +28411,11 @@ snapshots:
       - bluebird
       - supports-color
 
-  eslint-module-utils@2.12.0(eslint-import-resolver-node@0.3.9)(eslint@9.37.0(jiti@2.6.1)):
+  eslint-module-utils@2.12.0(@typescript-eslint/parser@8.46.0(eslint@9.37.0(jiti@2.6.1))(typescript@6.0.2))(eslint-import-resolver-node@0.3.9)(eslint@9.37.0(jiti@2.6.1)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
+      '@typescript-eslint/parser': 8.46.0(eslint@9.37.0(jiti@2.6.1))(typescript@6.0.2)
       eslint: 9.37.0(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
     transitivePeerDependencies:
@@ -28446,7 +28456,7 @@ snapshots:
       - typescript
     optional: true
 
-  eslint-plugin-import@2.31.0(eslint@9.37.0(jiti@2.6.1)):
+  eslint-plugin-import@2.31.0(@typescript-eslint/parser@8.46.0(eslint@9.37.0(jiti@2.6.1))(typescript@6.0.2))(eslint@9.37.0(jiti@2.6.1)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.1.8
@@ -28457,7 +28467,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.37.0(jiti@2.6.1)
       eslint-import-resolver-node: 0.3.9
-      eslint-module-utils: 2.12.0(eslint-import-resolver-node@0.3.9)(eslint@9.37.0(jiti@2.6.1))
+      eslint-module-utils: 2.12.0(@typescript-eslint/parser@8.46.0(eslint@9.37.0(jiti@2.6.1))(typescript@6.0.2))(eslint-import-resolver-node@0.3.9)(eslint@9.37.0(jiti@2.6.1))
       hasown: 2.0.2
       is-core-module: 2.16.1
       is-glob: 4.0.3
@@ -28468,6 +28478,8 @@ snapshots:
       semver: 6.3.1
       string.prototype.trimend: 1.0.9
       tsconfig-paths: 3.15.0
+    optionalDependencies:
+      '@typescript-eslint/parser': 8.46.0(eslint@9.37.0(jiti@2.6.1))(typescript@6.0.2)
     transitivePeerDependencies:
       - eslint-import-resolver-typescript
       - eslint-import-resolver-webpack
@@ -35600,6 +35612,11 @@ snapshots:
       react: 19.3.0-canary-6c0e1047-20260908
       react-dom: 19.3.0-canary-6c0e1047-20260908(react@19.3.0-canary-6c0e1047-20260908)
       react-lifecycles-compat: 3.0.4
+
+  react-virtuoso@4.18.13(react-dom@19.3.0-canary-6c0e1047-20260908(react@19.3.0-canary-6c0e1047-20260908))(react@19.3.0-canary-6c0e1047-20260908):
+    dependencies:
+      react: 19.3.0-canary-6c0e1047-20260908
+      react-dom: 19.3.0-canary-6c0e1047-20260908(react@19.3.0-canary-6c0e1047-20260908)
 
   react@0.0.0-experimental-6c0e1047-20260908: {}
 

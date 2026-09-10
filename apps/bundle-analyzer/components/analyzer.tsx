@@ -21,7 +21,11 @@ import { TopBar, Environment, CompareView } from '@/components/top-bar'
 import { TreemapVisualizer } from '@/components/treemap-visualizer'
 
 import { Badge } from '@/components/ui/badge'
-import { TableSkeleton, TreemapSkeleton } from '@/components/ui/skeleton'
+import {
+  AnalyzerChromeSkeleton,
+  TableSkeleton,
+  TreemapSkeleton,
+} from '@/components/ui/skeleton'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import {
   analyzeDataUrl,
@@ -115,14 +119,7 @@ class AnalyzerErrorBoundary extends Component<
 }
 
 function AnalyzerFallback({ view }: { view: CompareView }) {
-  return (
-    <main className="h-screen flex flex-col bg-background">
-      <div className="h-14 flex-none border-b border-border" />
-      <div className="flex-1 min-h-0 p-4">
-        {view === CompareView.Table ? <TableSkeleton /> : <TreemapSkeleton />}
-      </div>
-    </main>
-  )
+  return <AnalyzerChromeSkeleton view={view} />
 }
 
 function useAnalyzerModel(compare: boolean) {
