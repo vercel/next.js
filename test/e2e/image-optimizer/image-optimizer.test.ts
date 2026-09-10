@@ -263,9 +263,6 @@ describe('Image Optimizer', () => {
       })
     }
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
-  // @force-gate !deploy
   describe('Server support for trailingSlash in next.config.js', () => {
     const { next } = nextTestSetup({
       files: join(__dirname, 'app'),

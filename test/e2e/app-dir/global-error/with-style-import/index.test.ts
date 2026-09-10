@@ -6,9 +6,6 @@ async function testDev(browser, errorRegex) {
   expect(await getRedboxHeader(browser)).toMatch(errorRegex)
 }
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
-// @force-gate !deploy
 describe('app dir - global error - with style import', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
