@@ -7,6 +7,10 @@ type DynamicRoute = {
   fallback: false | null | string
   fallbackSourceRoute?: string
   throwOnEmptyStaticShell?: boolean
+  remainingPrerenderableParams?: Array<{
+    paramName: string
+    paramType: string
+  }>
 }
 
 type AdapterDynamicRoute = {
@@ -91,6 +95,41 @@ describe('experimental parameter matching', () => {
   })
 
   if (isNextStart) {
+    it('only specializes unresolved prerenderable params', async () => {
+      const manifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      ) as { dynamicRoutes: Record<string, DynamicRoute> }
+
+      for (const [pathname, paramNames] of [
+        // With both params seeded, each shell can fill the remaining suffix.
+        ['/inferred-full/[top]/items/[bottom]', ['top', 'bottom']],
+        ['/inferred-full/t1/items/[bottom]', ['bottom']],
+        // A permanently dynamic suffix must never be specialized.
+        ['/dynamic-suffix/[top]/items/[bottom]', ['top']],
+        ['/dynamic-suffix/t1/items/[bottom]', []],
+        // Explicit policies allow specialization without build-time examples,
+        // including matcher-only prefixes that produce no fallback artifact.
+        ['/no-example-fallback/[top]/items/[bottom]', ['top']],
+        ['/no-example-blocking/[top]/items/[bottom]', ['top']],
+        [
+          '/no-example-blocking-fallback/[top]/items/[bottom]',
+          ['top', 'bottom'],
+        ],
+      ] as const) {
+        expect(manifest.dynamicRoutes[pathname]).toBeDefined()
+        expect(
+          manifest.dynamicRoutes[pathname].remainingPrerenderableParams
+        ).toEqual(
+          paramNames.length > 0
+            ? paramNames.map((paramName) => ({
+                paramName,
+                paramType: 'dynamic',
+              }))
+            : undefined
+        )
+      }
+    })
+
     it('emits one route matcher for each effective prefix behavior', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')

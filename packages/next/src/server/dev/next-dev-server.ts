@@ -81,11 +81,6 @@ import {
 } from '../lib/router-utils/instrumentation-globals.external'
 import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
-import type {
-  FallbackRouteParam,
-  PrerenderRouteMatcher,
-  PrerenderedRoute,
-} from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
 
@@ -737,14 +732,7 @@ export default class DevServer extends Server {
     requestHeaders: IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
-  }): Promise<{
-    prerenderedRoutes?: PrerenderedRoute[]
-    prerenderRouteMatchers?: PrerenderRouteMatcher[]
-    staticPaths?: string[]
-    fallbackMode?: FallbackMode
-    hasPrerenderMatcher?: true
-    explicitFallbackRouteParams?: readonly FallbackRouteParam[]
-  }> {
+  }): ReturnType<Server['getStaticPaths']> {
     // we lazy load the staticPaths to prevent the user
     // from waiting on them for the page to load in dev mode
 
@@ -805,7 +793,6 @@ export default class DevServer extends Server {
           prerenderRouteMatchers,
           fallbackMode: fallback,
           hasPrerenderMatcher,
-          explicitFallbackRouteParams,
         } = res.value
 
         if (isAppPath) {
@@ -838,20 +825,9 @@ export default class DevServer extends Server {
           }
         }
 
-        const value: {
-          staticPaths: string[] | undefined
-          prerenderedRoutes: PrerenderedRoute[] | undefined
-          prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
-          fallbackMode: FallbackMode | undefined
-          hasPrerenderMatcher: true | undefined
-          explicitFallbackRouteParams: readonly FallbackRouteParam[] | undefined
-        } = {
+        const value = {
+          ...res.value,
           staticPaths: prerenderedRoutes?.map((route) => route.pathname),
-          prerenderedRoutes,
-          prerenderRouteMatchers,
-          fallbackMode: fallback,
-          hasPrerenderMatcher,
-          explicitFallbackRouteParams,
         }
 
         if (

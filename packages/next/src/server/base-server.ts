@@ -159,9 +159,9 @@ import { fixMojibake } from './lib/fix-mojibake'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
 import type {
-  FallbackRouteParam,
   PrerenderRouteMatcher,
   PrerenderedRoute,
+  StaticPathsResult,
 } from '../build/static-paths/types'
 import {
   createOpaqueFallbackRouteParams,
@@ -2308,14 +2308,7 @@ export default abstract class Server<
     requestHeaders: import('./lib/incremental-cache').IncrementalCache['requestHeaders']
     page: string
     isAppPath: boolean
-  }): Promise<{
-    staticPaths?: string[]
-    prerenderedRoutes?: PrerenderedRoute[]
-    prerenderRouteMatchers?: PrerenderRouteMatcher[]
-    fallbackMode?: FallbackMode
-    hasPrerenderMatcher?: true
-    explicitFallbackRouteParams?: readonly FallbackRouteParam[]
-  }> {
+  }): Promise<Partial<StaticPathsResult> & { staticPaths?: string[] }> {
     // Read whether or not fallback should exist from the manifest.
     const fallbackField =
       this.getPrerenderManifest().dynamicRoutes[pathname]?.fallback
