@@ -3,6 +3,7 @@
  */
 const nextConfig = {
   cacheComponents: true,
+  htmlLimitedBots: /MyHTMLLimitedBot/i,
   adapterPath: require.resolve('./my-adapter.mjs'),
 }
 
