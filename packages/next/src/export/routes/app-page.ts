@@ -28,10 +28,7 @@ import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
 import type { AppSharedContext } from '../../server/app-render/app-render'
 import type { MultiFileWriter } from '../../lib/multi-file-writer'
-import {
-  deflateResumeDataCache,
-  stringifyResumeDataCache,
-} from '../../server/resume-data-cache/resume-data-cache'
+import { stringifyResumeDataCache } from '../../server/resume-data-cache/resume-data-cache'
 import {
   UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
@@ -231,19 +228,6 @@ export async function exportAppPage(
       JSON.stringify(meta, null, 2)
     )
 
-    let serializedRenderResumeDataCache: string | undefined
-    if (renderResumeDataCache) {
-      serializedRenderResumeDataCache = await stringifyResumeDataCache(
-        renderResumeDataCache,
-        renderOpts.cacheComponents
-      )
-      if (!renderOpts.experimental.disableResumeDataCacheCompression) {
-        serializedRenderResumeDataCache = deflateResumeDataCache(
-          serializedRenderResumeDataCache
-        )
-      }
-    }
-
     return {
       // Filter the metadata if the environment does not have next support.
       metadata: hasNextSupport
@@ -259,7 +243,12 @@ export async function exportAppPage(
       hasStaticRsc,
       cacheControl,
       fetchMetrics,
-      renderResumeDataCache: serializedRenderResumeDataCache,
+      renderResumeDataCache: renderResumeDataCache
+        ? await stringifyResumeDataCache(
+            renderResumeDataCache,
+            renderOpts.cacheComponents
+          )
+        : undefined,
     }
   } catch (err) {
     if (!isDynamicUsageError(err)) {

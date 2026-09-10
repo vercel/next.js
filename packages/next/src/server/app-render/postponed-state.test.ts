@@ -1,7 +1,4 @@
-import {
-  createPrerenderResumeDataCache,
-  stringifyResumeDataCache,
-} from '../resume-data-cache/resume-data-cache'
+import { createPrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 import {
   streamFromString,
   streamToString,
@@ -18,7 +15,6 @@ import type {
   OpaqueFallbackRouteParams,
   OpaqueFallbackRouteParamValue,
 } from '../request/fallback-params'
-import { CachedRouteKind } from '../response-cache/types'
 
 export function createMockOpaqueFallbackRouteParams(
   params: Record<string, OpaqueFallbackRouteParamValue>
@@ -62,7 +58,7 @@ describe('getDynamicHTMLPostponedState', () => {
       isCacheComponentsEnabled
     )
 
-    const parsed = parsePostponedState(state, { slug: '123' }, undefined)
+    const parsed = parsePostponedState(state, { slug: '123' })
 
     expect(parsed).toMatchInlineSnapshot(`
      {
@@ -122,7 +118,7 @@ describe('getDynamicHTMLPostponedState', () => {
 
     const value = 'hello'
     const params = { slug: value }
-    const parsed = parsePostponedState(state, params, undefined)
+    const parsed = parsePostponedState(state, params)
     expect(parsed).toEqual({
       type: DynamicState.HTML,
       data: [1, { [value]: value }],
@@ -148,79 +144,6 @@ describe('getDynamicDataPostponedState', () => {
       isCacheComponentsEnabled
     )
     expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
-  })
-
-  it('serializes and parses an uncompressed cache when compression is disabled', async () => {
-    const resumeDataCache = createPrerenderResumeDataCache()
-    resumeDataCache.fetch.set('cache-key', {
-      kind: CachedRouteKind.FETCH,
-      data: {
-        headers: {},
-        body: 'cached body',
-        url: 'https://example.com',
-      },
-      revalidate: 60,
-    })
-
-    const serializedResumeDataCache = await stringifyResumeDataCache(
-      resumeDataCache,
-      isCacheComponentsEnabled
-    )
-    const state = await getDynamicDataPostponedState(
-      resumeDataCache,
-      isCacheComponentsEnabled,
-      undefined,
-      true
-    )
-
-    expect(state).toBe(`4:null${serializedResumeDataCache}`)
-
-    const parsed = parsePostponedState(state, {}, undefined, true)
-    expect(parsed.renderResumeDataCache.fetch.get('cache-key')).toEqual(
-      resumeDataCache.fetch.get('cache-key')
-    )
-  })
-
-  it('warns when the uncompressed state would exceed the size limit', async () => {
-    const resumeDataCache = createPrerenderResumeDataCache()
-    resumeDataCache.fetch.set('cache-key', {
-      kind: CachedRouteKind.FETCH,
-      data: {
-        headers: {},
-        body: '💥'.repeat(2048),
-        url: 'https://example.com',
-      },
-      revalidate: 60,
-    })
-
-    const serializedResumeDataCache = await stringifyResumeDataCache(
-      resumeDataCache,
-      isCacheComponentsEnabled
-    )
-    const uncompressedStateByteLength = Buffer.byteLength(
-      `4:null${serializedResumeDataCache}`
-    )
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
-
-    await getDynamicDataPostponedState(
-      resumeDataCache,
-      isCacheComponentsEnabled,
-      uncompressedStateByteLength
-    )
-    expect(warn).not.toHaveBeenCalled()
-
-    await getDynamicDataPostponedState(
-      resumeDataCache,
-      isCacheComponentsEnabled,
-      uncompressedStateByteLength - 1
-    )
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining(
-        `The uncompressed postponed state is ${uncompressedStateByteLength} bytes`
-      )
-    )
-
-    warn.mockRestore()
   })
 })
 
@@ -258,10 +181,7 @@ describe('parseResumeDataCacheFromPostponedState', () => {
       isCacheComponentsEnabled
     )
 
-    const resumeDataCache = parseResumeDataCacheFromPostponedState(
-      state,
-      undefined
-    )
+    const resumeDataCache = parseResumeDataCacheFromPostponedState(state)
     const value = await resumeDataCache.cache.get('cache-key')
 
     expect(value).toBeDefined()
@@ -277,7 +197,7 @@ describe('parsePostponedState', () => {
     const params = {
       slug: Math.random().toString(16).slice(3),
     }
-    const parsed = parsePostponedState(state, params, undefined)
+    const parsed = parsePostponedState(state, params)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
@@ -300,7 +220,7 @@ describe('parsePostponedState', () => {
   it('parses a HTML postponed state without fallback params', () => {
     const state = `2:{}null`
     const params = {}
-    const parsed = parsePostponedState(state, params, undefined)
+    const parsed = parsePostponedState(state, params)
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
@@ -319,7 +239,7 @@ describe('parsePostponedState', () => {
 
   it('parses a data postponed state', () => {
     const state = '4:nullnull'
-    const parsed = parsePostponedState(state, {}, undefined)
+    const parsed = parsePostponedState(state, {})
 
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
