@@ -323,17 +323,25 @@ struct Located<T> {
 
 /// Does this name match the search query?
 ///
-/// Comma-separated terms are ANDed, each a substring match against the
-/// category, the title, or the `"category title"` display name. The display
-/// name is included because that is the `name` a result reports, and a term
-/// spanning both fields matches neither on its own.
+/// Comma-separated terms are ANDed. A term is split on spaces and each word
+/// must appear in the category or the title, so a term copied from a result's
+/// `name` (which is `"category title"`) matches even though it spans both
+/// fields. Splitting the term rather than joining the fields keeps this
+/// allocation-free — it runs for every span in the searched subtree.
+///
+/// The split makes matching insensitive to word order and lets different words
+/// match different fields. That only widens the result set, so a term that
+/// matched before still matches.
 fn name_matches(cat: &str, title: &str, query: &str) -> bool {
-    let display = format_span_name(cat, title);
     query
         .split(',')
         .map(str::trim)
         .filter(|term| !term.is_empty())
-        .all(|term| cat.contains(term) || title.contains(term) || display.contains(term))
+        .all(|term| {
+            term.split(' ')
+                .filter(|word| !word.is_empty())
+                .all(|word| cat.contains(word) || title.contains(word))
+        })
 }
 
 /// Collect the aggregated children of a graph node.
@@ -394,11 +402,11 @@ fn search_graph_recursive<'a>(
     matches
 }
 
-/// Walk raw spans below `roots`, returning every span whose display name
-/// matches `query`.
+/// Walk raw spans below `roots`, returning every span whose name matches
+/// `query`.
 ///
-/// Only used as a fallback when the store's search index comes up empty; see
-/// the call site.
+/// Used for multi-word terms, which the store's index cannot answer; see the
+/// call site.
 fn search_spans_recursive<'a>(
     roots: Vec<SpanRef<'a>>,
     query: &str,
@@ -699,23 +707,25 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
             total_count,
         }
     } else {
-        // `SpanRef::search` is already recursive via the store's index, so the
-        // walk below exists only to recover each hit's full path ID.
+        // The store's index keys category and title separately, so a term
+        // spanning both (a `name` copied from a result) matches no key. It is
+        // shared with the WebSocket viewer, so rather than change its keys,
+        // walk the subtree ourselves whenever any term contains a space.
+        // Single-word queries still take the index, which is much faster.
         let filtered: Vec<Located<SpanRef<'_>>> = if let Some(ref query) = options.search {
-            let mut matches: Vec<SpanRef<'_>> = match parent_span {
-                Some(ref parent) => parent.search(query).collect(),
-                None => store_ref.root_span().search(query).collect(),
-            };
-            // That index keys category and title separately and is shared with
-            // the WebSocket viewer, so rather than change its keys, fall back
-            // to a scan for queries spanning both fields.
-            if matches.is_empty() {
+            let needs_scan = query.split(',').any(|term| term.trim().contains(' '));
+            let matches: Vec<SpanRef<'_>> = if needs_scan {
                 let roots: Vec<SpanRef<'_>> = match parent_span {
                     Some(ref parent) => parent.children().collect(),
                     None => store_ref.root_spans().collect(),
                 };
-                matches = search_spans_recursive(roots, query, max_depth);
-            }
+                search_spans_recursive(roots, query, max_depth)
+            } else {
+                match parent_span {
+                    Some(ref parent) => parent.search(query).collect(),
+                    None => store_ref.root_span().search(query).collect(),
+                }
+            };
             matches
                 .into_iter()
                 .filter_map(|span| {
@@ -997,6 +1007,36 @@ mod tests {
     }
 
     #[test]
+    fn raw_search_handles_multi_word_terms_that_the_index_matches_partially() {
+        let (store, _) = nested_store();
+        // "cat" alone matches via the store's index. Adding a second word must
+        // narrow the result, not be silently dropped: the index answers whole
+        // terms only, so trusting it here returned every "cat" span.
+        let both = query(
+            &store,
+            QueryOptions {
+                aggregated: false,
+                search: Some("cat needle".to_string()),
+                ..options()
+            },
+        );
+        assert_eq!(both.total_count, 1);
+        assert_eq!(both.spans[0].name, "cat needle");
+
+        // A second word that matches nothing must yield nothing, even though
+        // the first word matches.
+        let neither = query(
+            &store,
+            QueryOptions {
+                aggregated: false,
+                search: Some("cat nomatch".to_string()),
+                ..options()
+            },
+        );
+        assert_eq!(neither.total_count, 0);
+    }
+
+    #[test]
     fn search_respects_max_depth() {
         let (store, _) = nested_store();
         let shallow = query(
@@ -1162,5 +1202,17 @@ mod tests {
         // A result's `name` is "cat title"; searching for that exact string has
         // to find the span again, even though it spans both fields.
         assert!(name_matches("turbopack", "build", "turbopack build"));
+        // Every word still has to land somewhere.
+        assert!(!name_matches("turbopack", "build", "turbopack missing"));
+        assert!(!name_matches("turbopack", "build", "nope"));
+    }
+
+    #[test]
+    fn search_ignores_empty_terms_and_padding() {
+        // Trimming and the empty-word filter must not turn separators into a
+        // vacuous match-everything.
+        assert!(name_matches("turbopack", "build", "  build  "));
+        assert!(name_matches("turbopack", "build", "build,,"));
+        assert!(!name_matches("turbopack", "build", "build, nope"));
     }
 }
