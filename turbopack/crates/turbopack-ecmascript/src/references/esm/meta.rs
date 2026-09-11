@@ -13,6 +13,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::AstPathTrie,
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
     references::AstPath,
@@ -56,6 +57,7 @@ impl ImportMetaBinding {
 
     pub async fn code_generation(
         &self,
+        _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let rel_path = chunking_context
@@ -150,9 +152,10 @@ impl ImportMetaRef {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let visitor = create_visitor!(self.ast_path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.ast_path, visit_mut_expr, |expr: &mut Expr| {
             *expr = Expr::Ident(meta_ident());
         });
 

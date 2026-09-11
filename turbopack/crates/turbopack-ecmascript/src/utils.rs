@@ -5,18 +5,18 @@ use serde::Serialize;
 use smallvec::SmallVec;
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
-    ecma::{
-        ast::{ComputedPropName, Expr, Lit, MemberProp, ObjectPatProp, Pat, PropName, Str},
-        visit::AstParentKind,
-    },
+    ecma::ast::{ComputedPropName, Expr, Lit, MemberProp, ObjectPatProp, Pat, PropName, Str},
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
 use turbopack_core::{chunk::ModuleId, resolve::pattern::Pattern};
 
-use crate::analyzer::{
-    ConstantNumber, ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
-    WellKnownObjectKind,
+use crate::{
+    analyzer::{
+        ConstantNumber, ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
+        WellKnownObjectKind,
+    },
+    references::AstPath,
 };
 
 pub fn unparen(expr: &Expr) -> &Expr {
@@ -216,21 +216,13 @@ format_iter!(std::fmt::Pointer);
 format_iter!(std::fmt::UpperExp);
 format_iter!(std::fmt::UpperHex);
 
-#[derive(Clone, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Hash, Encode, Decode)]
+#[derive(Clone, Copy, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Hash, Encode, Decode)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
-    Exact(
-        #[bincode(with_serde)]
-        #[turbo_tasks(trace_ignore)]
-        Vec<AstParentKind>,
-    ),
+    Exact(AstPath),
     /// The ast path to a expression just before the range in the parent of the
     /// specific ast path.
-    StartAfter(
-        #[bincode(with_serde)]
-        #[turbo_tasks(trace_ignore)]
-        Vec<AstParentKind>,
-    ),
+    StartAfter(AstPath),
 }
 
 /// Converts a module value (ie an import) to a well known object,

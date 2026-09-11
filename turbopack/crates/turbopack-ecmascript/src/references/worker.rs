@@ -26,6 +26,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    ast_path_trie::AstPathTrie,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -314,6 +315,7 @@ impl IntoCodeGenReference for WorkerAssetReference {
 
     fn into_code_gen_reference(
         self,
+        _trie: &AstPathTrie,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
@@ -335,6 +337,7 @@ pub struct WorkerAssetReferenceCodeGen {
 impl WorkerAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -359,7 +362,7 @@ impl WorkerAssetReferenceCodeGen {
         // Transform `new Worker(url, opts)` into `require(id)(Worker, opts)`
         // The loader module exports a function that creates the worker with all necessary
         // configuration (entrypoint, chunks, forwarded globals, etc.)
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let message = if let Expr::New(new_expr) = expr {
                 if let Some(args) = &mut new_expr.args {
                     match args.first_mut() {
@@ -445,6 +448,7 @@ impl WorkerGlobalsReplacementCodeGen {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let options = chunking_context.worker_configuration_options().await?;
@@ -463,7 +467,7 @@ impl WorkerGlobalsReplacementCodeGen {
             },
         };
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             *expr = value.clone();
         });
 

@@ -117,45 +117,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
+                    AstPath(
+                        AstPathId(
+                            14,
                         ),
-                        Module(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        ModuleItem(
-                            ModuleDecl,
-                        ),
-                        ModuleDecl(
-                            ExportDefaultDecl,
-                        ),
-                        ExportDefaultDecl(
-                            Decl,
-                        ),
-                        DefaultDecl(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -200,42 +166,11 @@
                     },
                 ],
                 range: StartAfter(
-                    [
-                        Program(
-                            Module,
+                    AstPath(
+                        AstPathId(
+                            13,
                         ),
-                        Module(
-                            Body(
-                                1,
-                            ),
-                        ),
-                        ModuleItem(
-                            ModuleDecl,
-                        ),
-                        ModuleDecl(
-                            ExportDefaultDecl,
-                        ),
-                        ExportDefaultDecl(
-                            Decl,
-                        ),
-                        DefaultDecl(
-                            Fn,
-                        ),
-                        FnExpr(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },

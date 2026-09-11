@@ -25,6 +25,7 @@ use turbopack_resolve::ecmascript::{cjs_resolve, esm_resolve};
 
 use crate::{
     ScopeHoistingContext,
+    ast_path_trie::AstPathTrie,
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::{
@@ -129,6 +130,7 @@ impl ModuleHotReferenceCodeGen {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
@@ -203,6 +205,7 @@ impl ModuleHotReferenceCodeGen {
 
         let mut visitors = Vec::new();
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {

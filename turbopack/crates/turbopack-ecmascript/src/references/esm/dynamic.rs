@@ -24,6 +24,7 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
+    ast_path_trie::AstPathTrie,
     async_chunk::proxy::LazyCompilationProxyModule,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
@@ -143,6 +144,7 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
 
     fn into_code_gen_reference(
         self,
+        _trie: &AstPathTrie,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
@@ -167,6 +169,7 @@ pub struct EsmAsyncAssetReferenceCodeGen {
 impl EsmAsyncAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -187,7 +190,7 @@ impl EsmAsyncAssetReferenceCodeGen {
 
         let import_externals = reference.import_externals;
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             let old_expr = expr.take();
             let message = if let Expr::Call(CallExpr { args, .. }) = old_expr {
                 match args.into_iter().next() {

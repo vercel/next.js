@@ -160,50 +160,11 @@
                         },
                     ],
                     range: Exact(
-                        [
-                            Program(
-                                Script,
+                        AstPath(
+                            AstPathId(
+                                12,
                             ),
-                            Script(
-                                Body(
-                                    1,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Fn,
-                            ),
-                            FnExpr(
-                                Function,
-                            ),
-                            Function(
-                                Body,
-                            ),
-                        ],
+                        ),
                     ),
                 },
             ),
@@ -400,50 +361,11 @@
                         },
                     ],
                     range: Exact(
-                        [
-                            Program(
-                                Script,
+                        AstPath(
+                            AstPathId(
+                                23,
                             ),
-                            Script(
-                                Body(
-                                    2,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Fn,
-                            ),
-                            FnExpr(
-                                Function,
-                            ),
-                            Function(
-                                Body,
-                            ),
-                        ],
+                        ),
                     ),
                 },
             ),
@@ -881,50 +803,11 @@
                         },
                     ],
                     range: Exact(
-                        [
-                            Program(
-                                Script,
+                        AstPath(
+                            AstPathId(
+                                34,
                             ),
-                            Script(
-                                Body(
-                                    3,
-                                ),
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Var,
-                            ),
-                            VarDecl(
-                                Decls(
-                                    0,
-                                ),
-                            ),
-                            VarDeclarator(
-                                Init,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Fn,
-                            ),
-                            FnExpr(
-                                Function,
-                            ),
-                            Function(
-                                Body,
-                            ),
-                        ],
+                        ),
                     ),
                 },
             ),

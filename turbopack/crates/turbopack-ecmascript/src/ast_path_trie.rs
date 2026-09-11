@@ -138,8 +138,20 @@ impl AstPathTrie {
     }
 
     fn node(&self, id: AstPathId) -> Option<&Node> {
-        // `AstPathId::ROOT` is implicit and has no node.
-        (!id.is_root()).then(|| &self.nodes[id.0 as usize - 1])
+        if id.is_root() {
+            // `AstPathId::ROOT` is implicit and has no node.
+            return None;
+        }
+        let index = id.0 as usize - 1;
+        Some(self.nodes.get(index).unwrap_or_else(|| {
+            // An id only means anything against the trie that minted it. Reading one from
+            // a different trie is a wiring bug, so say that rather than index out of bounds.
+            panic!(
+                "{id:?} does not belong to this trie ({} nodes); an AstPath was interned into a \
+                 different one",
+                self.nodes.len(),
+            )
+        }))
     }
 
     /// The number of elements in the path ending at `id`.
@@ -195,6 +207,12 @@ impl AstPathTrie {
             id = node.parent;
         }
         id
+    }
+
+    /// The path with its last element removed, as an [`AstPathId`]. Returns the root when
+    /// already at the root.
+    pub fn parent_or_root(&self, id: AstPathId) -> AstPathId {
+        self.parent(id).unwrap_or(AstPathId::ROOT)
     }
 
     /// The number of interned nodes, excluding the implicit root.
@@ -323,6 +341,49 @@ mod tests {
         assert_eq!(trie.trim_end_while(id, |_| false), id);
         // Everything matches: we end at the root.
         assert_eq!(trie.trim_end_while(id, |_| true), AstPathId::ROOT);
+    }
+
+    /// Ids are only meaningful against the trie that minted them, so a trie that adopts
+    /// another one must keep that one's ids valid. This is the shape of the analyzer
+    /// handing its trie to effect processing.
+    #[test]
+    fn adopted_trie_keeps_its_ids_valid() {
+        let mut first = AstPathTrie::new();
+        let a = first.intern(&[module_body(0), module_item()]);
+        let b = first.intern(&[module_body(1), expr_bin(), bin_left()]);
+
+        // Continue interning into the adopted trie, as effect processing does.
+        let mut second = first.clone();
+        let c = second.intern(&[module_body(2), module_item()]);
+
+        assert_eq!(second.to_vec(a), vec![module_body(0), module_item()]);
+        assert_eq!(
+            second.to_vec(b),
+            vec![module_body(1), expr_bin(), bin_left()],
+        );
+        assert_eq!(second.to_vec(c), vec![module_body(2), module_item()]);
+        // The new path must not collide with an existing id.
+        assert_ne!(c, a);
+        assert_ne!(c, b);
+    }
+
+    /// Every id must address a node that exists; an id from a *different* trie is a bug
+    /// we want to fail loudly rather than read the wrong path.
+    #[test]
+    fn ids_stay_within_the_trie() {
+        let mut trie = AstPathTrie::new();
+        let id = trie.intern(&[module_body(0), module_item(), expr_bin()]);
+        // Walking any valid id must terminate at the root without going out of bounds.
+        assert_eq!(trie.iter_rev(id).count(), trie.len(id));
+        let mut current = Some(id);
+        while let Some(c) = current {
+            assert!(
+                c.is_root() || (c.0 as usize) <= trie.node_count(),
+                "id {c:?} is outside a trie of {} nodes",
+                trie.node_count(),
+            );
+            current = trie.parent(c);
+        }
     }
 
     #[test]
