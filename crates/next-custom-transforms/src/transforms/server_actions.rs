@@ -2425,9 +2425,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         "default",
                                         ref_id.clone(),
                                         0,
+                                        // Don't use the same name as the original to avoid
+                                        // shadowing. We don't need it here for call stacks.
+                                        None,
                                         Expr::Ident(ident.clone()),
                                         ident.span,
                                         None,
+                                        self.unresolved_ctxt,
                                     )),
                                 })),
                             }),
@@ -2956,14 +2960,64 @@ fn may_need_cache_runtime_wrapper(expr: &Expr) -> bool {
 }
 
 /// Creates a cache wrapper expression: $$cache__(...)
+#[allow(clippy::too_many_arguments)]
 fn create_cache_wrapper(
     cache_kind: &str,
     reference_id: Atom,
     bound_args_length: usize,
+    fn_ident: Option<Ident>,
     target_expr: Expr,
     original_span: Span,
     params: Option<&[Param]>,
+    unresolved_ctxt: SyntaxContext,
 ) -> Expr {
+    let invoke_ident = private_ident!(DUMMY_SP, "invoke");
+    let args = match params {
+        // The params are statically known and rest params are not used.
+        Some(params) if !params.iter().any(|p| matches!(p.pat, Pat::Rest(_))) => {
+            if params.is_empty() {
+                // No params are declared, so ignore all invocation arguments.
+                Box::new(Expr::Array(ArrayLit {
+                    span: DUMMY_SP,
+                    elems: vec![],
+                }))
+            } else {
+                // The invocation adapter receives `invoke` before the actual arguments.
+                Box::new(quote!(
+                    "$array.prototype.slice.call(arguments, 1, $end)" as Expr,
+                    array = quote_ident!(unresolved_ctxt, "Array"),
+                    end: Expr = (params.len() + 1).into(),
+                ))
+            }
+        }
+        // The params are statically unknown, or rest params are used.
+        _ => Box::new(quote!(
+            "$array.prototype.slice.call(arguments, 1)" as Expr,
+            array = quote_ident!(unresolved_ctxt, "Array"),
+        )),
+    };
+
+    let invocation_adapter = Expr::Fn(FnExpr {
+        ident: fn_ident,
+        function: Box::new(Function {
+            params: vec![Param::from(Pat::Ident(invoke_ident.clone().into()))],
+            body: Some(FunctionBody {
+                stmts: vec![Stmt::Return(ReturnStmt {
+                    span: DUMMY_SP,
+                    arg: Some(Box::new(Expr::Call(CallExpr {
+                        span: original_span,
+                        callee: invoke_ident.as_callee(),
+                        args: vec![args.as_arg()],
+                        ..Default::default()
+                    }))),
+                })],
+                ..Default::default()
+            }),
+            span: original_span,
+            ..Default::default()
+        }),
+    });
+
     Expr::Call(CallExpr {
         span: original_span,
         callee: quote_ident!("$$cache__").as_callee(),
@@ -2977,21 +3031,7 @@ fn create_cache_wrapper(
             })))
             .as_arg(),
             Box::new(target_expr).as_arg(),
-            match params {
-                // The params are statically known and rest params are not used.
-                Some(params) if !params.iter().any(|p| matches!(p.pat, Pat::Rest(_))) => {
-                    // Pass the declared parameter count so the runtime wrapper can ignore
-                    // unused arguments.
-                    Box::new(Expr::Lit(Lit::Num(Number {
-                        span: DUMMY_SP,
-                        value: params.len() as f64,
-                        raw: None,
-                    })))
-                    .as_arg()
-                }
-                // The params are statically unknown, or rest params are used.
-                _ => Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))).as_arg(),
-            },
+            Box::new(invocation_adapter).as_arg(),
         ],
         ..Default::default()
     })
@@ -3018,9 +3058,11 @@ fn create_and_hoist_cache_function(
         cache_kind,
         reference_id.clone(),
         bound_args_length,
+        fn_ident.clone(),
         Expr::Ident(inner_fn_ident.clone()),
         original_span,
         Some(&params),
+        unresolved_ctxt,
     ));
 
     let inner_fn_expr = FnExpr {

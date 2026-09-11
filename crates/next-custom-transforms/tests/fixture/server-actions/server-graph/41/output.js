@@ -16,7 +16,9 @@ const $$RSC_SERVER_CACHE_1_INNER = async function Component({ foo }) {
     // @ts-expect-error: data is not a valid react child
     return <div>{data}</div>;
 };
-export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "c0951c375b4a6a6e89d67b743ec5808127cfde405d", 0, $$RSC_SERVER_CACHE_1_INNER, 1);
+export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "c0951c375b4a6a6e89d67b743ec5808127cfde405d", 0, $$RSC_SERVER_CACHE_1_INNER, function Component(invoke) {
+    return invoke(Array.prototype.slice.call(arguments, 1, 2));
+});
 registerServerReference($$RSC_SERVER_CACHE_1, "c0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
     value: "Component"

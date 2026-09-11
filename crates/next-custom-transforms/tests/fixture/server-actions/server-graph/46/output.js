@@ -8,7 +8,9 @@ import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
         b
     ];
 };
-export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, 2);
+export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, function f1(invoke) {
+    return invoke(Array.prototype.slice.call(arguments, 1, 3));
+});
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "f1"
@@ -31,7 +33,9 @@ const $$RSC_SERVER_CACHE_2_INNER = async function f3(a, b, ...rest) {
         rest
     ];
 };
-export var $$RSC_SERVER_CACHE_2 = $$cache__("default", "ff69348c79fce073bae2f70f139565a2fda1c74c74", 0, $$RSC_SERVER_CACHE_2_INNER, null);
+export var $$RSC_SERVER_CACHE_2 = $$cache__("default", "ff69348c79fce073bae2f70f139565a2fda1c74c74", 0, $$RSC_SERVER_CACHE_2_INNER, function f3(invoke) {
+    return invoke(Array.prototype.slice.call(arguments, 1));
+});
 registerServerReference($$RSC_SERVER_CACHE_2, "ff69348c79fce073bae2f70f139565a2fda1c74c74", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_2, "name", {
     value: "f3"
@@ -74,7 +78,9 @@ const $$RSC_SERVER_CACHE_5_INNER = async function f6(a, b, c, d, e, f, g) {
         g
     ];
 };
-export var $$RSC_SERVER_CACHE_5 = $$cache__("default", "ff471a5eb0be1c31686dd4ba938a80328b80b1615d", 0, $$RSC_SERVER_CACHE_5_INNER, 7);
+export var $$RSC_SERVER_CACHE_5 = $$cache__("default", "ff471a5eb0be1c31686dd4ba938a80328b80b1615d", 0, $$RSC_SERVER_CACHE_5_INNER, function f6(invoke) {
+    return invoke(Array.prototype.slice.call(arguments, 1, 8));
+});
 registerServerReference($$RSC_SERVER_CACHE_5, "ff471a5eb0be1c31686dd4ba938a80328b80b1615d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_5, "name", {
     value: "f6"

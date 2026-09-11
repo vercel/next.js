@@ -7,7 +7,9 @@ const $$RSC_SERVER_CACHE_0_INNER = async function // Should be 1 110000 0, which
 fn1([$$ACTION_ARG_0, $$ACTION_ARG_1], c) {
     return $$ACTION_ARG_0 + $$ACTION_ARG_1 + c;
 };
-export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 2, $$RSC_SERVER_CACHE_0_INNER, 2);
+export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 2, $$RSC_SERVER_CACHE_0_INNER, function fn1(invoke) {
+    return invoke(Array.prototype.slice.call(arguments, 1, 3));
+});
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "fn1"
@@ -17,7 +19,9 @@ const $$RSC_SERVER_CACHE_1_INNER = async function // Should be 1 100000 0, which
 fn2([$$ACTION_ARG_0, $$ACTION_ARG_1]) {
     return $$ACTION_ARG_0 + $$ACTION_ARG_1;
 };
-export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "c0951c375b4a6a6e89d67b743ec5808127cfde405d", 2, $$RSC_SERVER_CACHE_1_INNER, 1);
+export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "c0951c375b4a6a6e89d67b743ec5808127cfde405d", 2, $$RSC_SERVER_CACHE_1_INNER, function fn2(invoke) {
+    return invoke(Array.prototype.slice.call(arguments, 1, 2));
+});
 registerServerReference($$RSC_SERVER_CACHE_1, "c0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
     value: "fn2"

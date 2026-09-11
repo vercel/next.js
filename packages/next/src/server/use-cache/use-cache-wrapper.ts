@@ -1722,22 +1722,15 @@ export function cache(
   id: string,
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>,
-  argsLength: number | null
+  invocationAdapter: (
+    invoke: (args: unknown[]) => Promise<unknown>,
+    ...args: unknown[]
+  ) => Promise<unknown>
 ) {
-  const name = originalFn.name
-  const cachedFn = {
-    [name]: async function (...args: unknown[]) {
-      return cacheImpl(
-        kind,
-        id,
-        boundArgsLength,
-        originalFn,
-        argsLength === null ? args : args.slice(0, argsLength)
-      )
-    },
-  }[name]
+  const invoke = (args: unknown[]) =>
+    cacheImpl(kind, id, boundArgsLength, originalFn, args)
 
-  return React.cache(cachedFn)
+  return React.cache(invocationAdapter.bind(null, invoke))
 }
 
 async function cacheImpl(

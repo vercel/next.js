@@ -16,7 +16,9 @@ const $$RSC_SERVER_CACHE_1_INNER = async function getCachedRandom(x, children) {
         r: children
     };
 };
-export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "e0951c375b4a6a6e89d67b743ec5808127cfde405d", 0, $$RSC_SERVER_CACHE_1_INNER, 2);
+export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "e0951c375b4a6a6e89d67b743ec5808127cfde405d", 0, $$RSC_SERVER_CACHE_1_INNER, function getCachedRandom(invoke) {
+    return invoke(Array.prototype.slice.call(arguments, 1, 3));
+});
 registerServerReference($$RSC_SERVER_CACHE_1, "e0951c375b4a6a6e89d67b743ec5808127cfde405d", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_1, "name", {
     value: "getCachedRandom"

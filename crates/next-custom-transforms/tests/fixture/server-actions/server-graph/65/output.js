@@ -15,7 +15,9 @@ const $$RSC_SERVER_CACHE_1 = wrapItLikeItsHot(({ hot })=>{
 });
 let $$RSC_SERVER_CACHE_default = $$RSC_SERVER_CACHE_1;
 if (typeof $$RSC_SERVER_CACHE_1 === "function") {
-    $$RSC_SERVER_CACHE_default = $$cache__("default", "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", 0, $$RSC_SERVER_CACHE_1, null);
+    $$RSC_SERVER_CACHE_default = $$cache__("default", "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", 0, $$RSC_SERVER_CACHE_1, function(invoke) {
+        return invoke(Array.prototype.slice.call(arguments, 1));
+    });
     registerServerReference($$RSC_SERVER_CACHE_default, "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null);
 }
 export default $$RSC_SERVER_CACHE_default;

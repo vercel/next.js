@@ -29,7 +29,9 @@ const $$RSC_SERVER_CACHE_0_INNER = async function cache(a, b) {
       {b}
     </div>;
 };
-export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, 2);
+export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "e03128060c414d59f8552e4788b846c0d2b7f74743", 0, $$RSC_SERVER_CACHE_0_INNER, function cache(invoke) {
+    return invoke(Array.prototype.slice.call(arguments, 1, 3));
+});
 registerServerReference($$RSC_SERVER_CACHE_0, "e03128060c414d59f8552e4788b846c0d2b7f74743", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "cache"

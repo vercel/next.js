@@ -7,7 +7,9 @@ const $$RSC_SERVER_CACHE_0_INNER = async function([$$ACTION_ARG_0]) {
 Object["defineProperty"]($$RSC_SERVER_CACHE_0_INNER, "name", {
     value: ""
 });
-export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "c03128060c414d59f8552e4788b846c0d2b7f74743", 1, $$RSC_SERVER_CACHE_0_INNER, 1);
+export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "c03128060c414d59f8552e4788b846c0d2b7f74743", 1, $$RSC_SERVER_CACHE_0_INNER, function(invoke) {
+    return invoke(Array.prototype.slice.call(arguments, 1, 2));
+});
 registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
 /* __next_internal_action_entry_do_not_use__ {"4090b5db271335765a4b0eab01f044b381b5ebd5cd":{"name":"$$RSC_SERVER_ACTION_1"},"c03128060c414d59f8552e4788b846c0d2b7f74743":{"name":"$$RSC_SERVER_CACHE_0"}} */ function createCachedFn(start) {
     function fn() {

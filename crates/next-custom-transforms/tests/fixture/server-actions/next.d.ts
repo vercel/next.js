@@ -45,6 +45,9 @@ declare module 'private-next-rsc-cache-wrapper' {
     id: string,
     boundArgsLength: number,
     fn: TFn,
-    argsLength: number | null
-  ): TFn
+    invocationAdapter: (
+      invoke: (args: unknown[]) => ReturnType<TFn>,
+      ...args: Parameters<TFn>
+    ) => ReturnType<TFn>
+  ): (...args: any[]) => ReturnType<TFn>
 }

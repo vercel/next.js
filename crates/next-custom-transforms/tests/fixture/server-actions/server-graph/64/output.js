@@ -7,7 +7,9 @@ const Page = withSlug(function Page({ slug }) {
 });
 let $$RSC_SERVER_CACHE_default = Page;
 if (typeof Page === "function") {
-    $$RSC_SERVER_CACHE_default = $$cache__("default", "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", 0, Page, null);
+    $$RSC_SERVER_CACHE_default = $$cache__("default", "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", 0, Page, function(invoke) {
+        return invoke(Array.prototype.slice.call(arguments, 1));
+    });
     registerServerReference($$RSC_SERVER_CACHE_default, "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null);
     Object["defineProperty"]($$RSC_SERVER_CACHE_default, "name", {
         value: "Page"

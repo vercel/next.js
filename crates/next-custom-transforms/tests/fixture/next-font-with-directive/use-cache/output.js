@@ -5,7 +5,9 @@ import inter from '@next/font/google/target.css?{"path":"app/test.tsx","import":
 const $$RSC_SERVER_CACHE_0_INNER = async function Cached({ children }) {
     return <div className={inter.className}>{children}</div>;
 };
-export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "c0dd5bb6fef67f5ab84327f5164ac2c3111a159337", 0, $$RSC_SERVER_CACHE_0_INNER, 1);
+export var $$RSC_SERVER_CACHE_0 = $$cache__("default", "c0dd5bb6fef67f5ab84327f5164ac2c3111a159337", 0, $$RSC_SERVER_CACHE_0_INNER, function Cached(invoke) {
+    return invoke(Array.prototype.slice.call(arguments, 1, 2));
+});
 registerServerReference($$RSC_SERVER_CACHE_0, "c0dd5bb6fef67f5ab84327f5164ac2c3111a159337", null);
 Object["defineProperty"]($$RSC_SERVER_CACHE_0, "name", {
     value: "Cached"
