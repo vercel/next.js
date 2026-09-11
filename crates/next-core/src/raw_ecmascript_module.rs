@@ -202,10 +202,8 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                                     },
                                 ))
                             })
-                            .try_join()
+                            .try_join_collect::<FxIndexMap<_, _>>()
                             .await?
-                            .into_iter()
-                            .collect::<FxIndexMap<_, _>>()
                     )
                 )?;
                 code += "};\n";

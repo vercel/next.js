@@ -65,10 +65,8 @@ pub async fn map_client_references(
                 Ok(None)
             }
         })
-        .try_flat_join()
-        .await?
-        .into_iter()
-        .collect::<FxHashMap<_, _>>();
+        .try_flat_join_collect::<FxHashMap<_, _>>()
+        .await?;
 
     Ok(Vc::cell(manifest))
 }

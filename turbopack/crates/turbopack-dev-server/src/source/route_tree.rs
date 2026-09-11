@@ -165,22 +165,23 @@ impl RouteTree {
             self.dynamic_segments
                 .extend(other.dynamic_segments.iter().copied());
         }
-        self.static_segments.extend(
-            static_segments
-                .into_iter()
-                .map(async |(key, value)| {
-                    Ok((
-                        key,
-                        if value.len() == 1 {
-                            value.into_iter().next().unwrap()
-                        } else {
-                            Vc::<RouteTrees>::cell(value).merge().to_resolved().await?
-                        },
-                    ))
-                })
-                .try_join()
-                .await?,
-        );
+        static_segments
+            .into_iter()
+            .map(async |(key, value)| {
+                Ok((
+                    key,
+                    if value.len() == 1 {
+                        value.into_iter().next().unwrap()
+                    } else {
+                        Vc::<RouteTrees>::cell(value).merge().to_resolved().await?
+                    },
+                ))
+            })
+            .try_join_for_each(|(k, v)| {
+                self.static_segments.insert(k, v);
+                Ok(())
+            })
+            .await?;
         Ok(())
     }
 

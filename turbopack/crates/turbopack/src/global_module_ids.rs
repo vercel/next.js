@@ -55,10 +55,8 @@ pub async fn get_global_module_id_strategy(
                 let hash = hash_xxh3_hash64(&ident_str);
                 Ok((ident, (ident_str, hash)))
             })
-            .try_join()
-            .await?
-            .into_iter()
-            .collect::<FxHashMap<_, _>>();
+            .try_join_collect::<FxHashMap<_, _>>()
+            .await?;
 
         finalize_module_ids(&mut module_id_map);
 
