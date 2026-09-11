@@ -3,7 +3,7 @@
 
 import type { API, Collection, FileInfo, JSXElement } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
-import { NEXT_CODEMOD_ERROR_PREFIX } from './lib/async-request-api/utils'
+import { NEXT_CODEMOD_ERROR_PREFIX } from '../lib/migration-marker'
 
 export default function transformer(file: FileInfo, _api: API) {
   const j = createParserFromPath(file.path)
