@@ -123,19 +123,21 @@ function invalid(message: string): never {
   throw new Error(`Invalid NFT metadata: ${message}`)
 }
 
+function isRelativePathInside(relative: string): boolean {
+  return (
+    relative === '' ||
+    (!path.isAbsolute(relative) &&
+      relative !== '..' &&
+      !relative.startsWith(`..${path.sep}`))
+  )
+}
+
 function relativePathIfInside(
   root: string,
   candidate: string
 ): string | undefined {
   const relative = path.relative(root, candidate)
-  if (
-    relative === '' ||
-    (!path.isAbsolute(relative) &&
-      relative !== '..' &&
-      !relative.startsWith(`..${path.sep}`))
-  ) {
-    return relative
-  }
+  return isRelativePathInside(relative) ? relative : undefined
 }
 
 function mapBasePath(
@@ -144,11 +146,19 @@ function mapBasePath(
   relativePath: string
 ): { source: string; destination: string } {
   const source = path.resolve(traceFileDirectory, relativePath)
-  const destination = relativePathIfInside(baseRoot, source)
-  if (destination === undefined) {
+  return { source, destination: path.relative(baseRoot, source) }
+}
+
+function mapBasePathInsideRoot(
+  traceFileDirectory: string,
+  baseRoot: string,
+  relativePath: string
+): { source: string; destination: string } {
+  const mapped = mapBasePath(traceFileDirectory, baseRoot, relativePath)
+  if (!isRelativePathInside(mapped.destination)) {
     invalid(`path ${JSON.stringify(relativePath)} escapes the base root`)
   }
-  return { source, destination }
+  return mapped
 }
 
 function mapAdditionalRootPath(
@@ -170,7 +180,11 @@ function mapAdditionalRootPath(
 export function mapNftFileEntries(
   nft: NftJson,
   traceFilePath: string,
-  baseRoot: string
+  baseRoot: string,
+  options?: {
+    skipBaseRootEscapes?: boolean
+    onBaseRootEscape?: (source: string) => void
+  }
 ): MappedNftFileEntry[] {
   const traceFileDirectory = path.dirname(traceFilePath)
   const roots = nft.additionalRoots ?? []
@@ -186,21 +200,37 @@ export function mapNftFileEntries(
     for (let fileIndex = 0; fileIndex < files.length; fileIndex++) {
       const file = files[fileIndex]
 
+      let symlink: NftSymlink | undefined
+      if (nextSymlink?.[0] === fileIndex) {
+        symlink = nextSymlink
+        nextSymlink = symlinks[++symlinkCursor]
+      }
+
       // a currentRootIndex of -1 denotes a path relative to the *.nft.json file
       // (i.e. not an additional root)
       const mapped =
         currentRootIndex === -1
           ? mapBasePath(traceFileDirectory, baseRoot, file)
           : mapAdditionalRootPath(roots[currentRootIndex], file)
+      if (
+        currentRootIndex === -1 &&
+        options?.skipBaseRootEscapes &&
+        !isRelativePathInside(mapped.destination)
+      ) {
+        options.onBaseRootEscape?.(mapped.source)
+        continue
+      }
 
       let symlinkTarget: string | undefined
-      if (nextSymlink?.[0] === fileIndex) {
-        const [, target, rootIndex] = nextSymlink
-        nextSymlink = symlinks[++symlinkCursor]
+      if (symlink !== undefined) {
+        const [, target, rootIndex] = symlink
         const targetRootIndex = rootIndex ?? currentRootIndex
         symlinkTarget =
           targetRootIndex === -1
-            ? mapBasePath(traceFileDirectory, baseRoot, target).destination
+            ? (options?.skipBaseRootEscapes
+                ? mapBasePathInsideRoot(traceFileDirectory, baseRoot, target)
+                : mapBasePath(traceFileDirectory, baseRoot, target)
+              ).destination
             : mapAdditionalRootPath(roots[targetRootIndex], target).destination
       }
 

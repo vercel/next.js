@@ -1270,6 +1270,7 @@ export async function copyTracedFiles(
     await fs.writeFile(packageJsonOutputPath, packageJsonContent)
   } catch {}
   const copiedFiles = new Set()
+  const skippedTraceFiles = new Set<string>()
 
   async function createTracedSymlink(
     target: string,
@@ -1330,7 +1331,10 @@ export async function copyTracedFiles(
     const traceData = JSON.parse(
       await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
     ) as NftJson
-    const entries = mapNftFileEntries(traceData, traceFilePath, tracingRoot)
+    const entries = mapNftFileEntries(traceData, traceFilePath, tracingRoot, {
+      skipBaseRootEscapes: true,
+      onBaseRootEscape: (source) => skippedTraceFiles.add(source),
+    })
     const copySema = new Sema(10, { capacity: entries.length })
 
     await Promise.all(
@@ -1513,6 +1517,30 @@ startServer({
   process.exit(1);
 });`
   )
+
+  if (skippedTraceFiles.size > 0) {
+    const sample = [...skippedTraceFiles]
+    const sampleSize = Math.min(5, sample.length)
+    for (let i = 0; i < sampleSize; i++) {
+      const randomIndex = i + Math.floor(Math.random() * (sample.length - i))
+      ;[sample[i], sample[randomIndex]] = [sample[randomIndex], sample[i]]
+    }
+
+    const count = skippedTraceFiles.size
+    const sampleOutput = sample
+      .slice(0, sampleSize)
+      .map((file) => `  - ${path.relative(tracingRoot, file)}`)
+      .join('\n')
+    const warning = [
+      `${count} traced files were not included in the standalone output`,
+      'because their paths are outside of `outputFileTracingRoot`.',
+      'Random sample:',
+      sampleOutput,
+      'Set `outputFileTracingRoot` to a common parent directory',
+      'to include these files.',
+    ].join('\n')
+    Log.warn(warning)
+  }
 }
 
 export function isReservedPage(page: string) {
