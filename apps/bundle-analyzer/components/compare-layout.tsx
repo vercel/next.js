@@ -6,6 +6,7 @@ import { DiffTable } from '@/components/diff-table'
 import { DiffTreemap } from '@/components/diff-treemap'
 import { StatCard, CountCard } from '@/components/stat-cards'
 import { CompareView, Environment } from '@/components/top-bar'
+import { AlternateEnvironmentEmptyState } from '@/components/analyzer'
 import { TableSkeleton, TreemapSkeleton } from '@/components/ui/skeleton'
 import { AnalyzeData, ModulesData } from '@/lib/analyze-data'
 import {
@@ -36,6 +37,8 @@ export interface CompareLayoutModel {
   moduleDepthMap: Map<number, number>
   baselineModuleDepthMap: Map<number, number>
   environmentFilter: Environment
+  hasAlternateEnvironmentSources: boolean
+  setEnvironmentFilter: (environment: Environment) => void
   sidebarWidth: number
   compareView: CompareView
   isViewPending: boolean
@@ -81,6 +84,17 @@ export function CompareLayout({ model, onResizeSidebar }: CompareLayoutProps) {
             baselineAnalyzeData={model.baselineAnalyzeData}
             compressed
             searchQuery={model.searchQuery}
+            environmentFilter={model.environmentFilter}
+            hasAlternateEnvironmentSources={
+              model.hasAlternateEnvironmentSources
+            }
+            onSwitchEnvironment={() =>
+              model.setEnvironmentFilter(
+                model.environmentFilter === Environment.Client
+                  ? Environment.Server
+                  : Environment.Client
+              )
+            }
             baselineSnapshot={model.baselineSnapshot}
             comparisonSnapshot={model.comparisonSnapshot}
             compareSelectedKey={model.selectedKey}
@@ -334,6 +348,9 @@ export function ComparePerRoutePanel({
   baselineAnalyzeData,
   compressed,
   searchQuery,
+  environmentFilter,
+  hasAlternateEnvironmentSources,
+  onSwitchEnvironment,
   baselineSnapshot,
   comparisonSnapshot,
   compareSelectedKey,
@@ -347,6 +364,9 @@ export function ComparePerRoutePanel({
   baselineAnalyzeData: AnalyzeData | null
   compressed: boolean
   searchQuery: string
+  environmentFilter: Environment
+  hasAlternateEnvironmentSources: boolean
+  onSwitchEnvironment: () => void
   baselineSnapshot: SnapshotMetadata
   comparisonSnapshot: SnapshotMetadata | null
   compareSelectedKey: string | null
@@ -406,6 +426,14 @@ export function ComparePerRoutePanel({
               : 'Latest'
           }
           searchQuery={searchQuery}
+          emptyState={
+            hasAlternateEnvironmentSources ? (
+              <AlternateEnvironmentEmptyState
+                environment={environmentFilter}
+                onSwitch={onSwitchEnvironment}
+              />
+            ) : undefined
+          }
           selectedKey={compareSelectedKey}
           onRowSelect={(row) => onCompareSelectedKeyChange(row.key)}
         />
