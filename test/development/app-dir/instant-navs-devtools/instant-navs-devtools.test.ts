@@ -1,5 +1,5 @@
 import { nextTestSetup, type Playwright } from 'e2e-utils'
-import { retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
+import { waitFor, retry, toggleDevToolsIndicatorPopover } from 'next-test-utils'
 
 describe('instant-nav-panel', () => {
   const { isNextDev, isTurbopack, next } = nextTestSetup({
@@ -10,13 +10,8 @@ describe('instant-nav-panel', () => {
     // Run all the necessary CSS transitions
     // and click-outside event handler adjustment due to cascading update.
     // TODO: Consider disabling transitions entirely in Next.js tests.
-    await new Promise((resolve) =>
-      setTimeout(
-        resolve,
-        // MENU_DURATION_MS + some flakiness buffer
-        200 + 50
-      )
-    )
+    // MENU_DURATION_MS + some flakiness buffer
+    await waitFor(200 + 50)
   }
 
   async function waitForInstantModeCookie(browser: Playwright): Promise<void> {
@@ -926,6 +921,7 @@ describe('instant-nav-panel', () => {
       await clickStartCapturing(browser)
       await clickLink(browser, '/target-page/my-post?search=foo')
       await expectSpaPanel(browser)
+      await expectTargetPageSpaShell(browser)
       await retry(async () => {
         expect(await browser.url()).toContain('/target-page/my-post')
       }, 10000)

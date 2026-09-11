@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry } from 'next-test-utils'
+import { createRouterAct } from '../../../lib/router-act'
+import { waitFor, retry } from 'next-test-utils'
 
 describe('searchparams-reuse-loading', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -190,8 +191,13 @@ describe('searchparams-reuse-loading', () => {
         })
 
         let interceptRequests = false
+        let act: ReturnType<typeof createRouterAct>
+        let middlewareRedirectResponse:
+          | Promise<{ status: number; location: string | undefined }>
+          | undefined
         const browser = await next.browser(path, {
           beforePageLoad(page) {
+            act = createRouterAct(page)
             page.route(
               (url) => {
                 return url.pathname.includes('search-params')
@@ -229,6 +235,32 @@ describe('searchparams-reuse-loading', () => {
                   headers['rsc'] === '1' &&
                   !headers['next-router-prefetch']
                 ) {
+                  const fullPrefetchPath = `${path}/search-params?id=3`
+                  if (path !== '/' && promiseKey === fullPrefetchPath) {
+                    if (url.pathname.endsWith('/someValue')) {
+                      throw new Error(
+                        `Unexpected data fallback for ${fullPrefetchPath}`
+                      )
+                    }
+
+                    // Middleware may need to resolve the original URL's redirect
+                    // during navigation even though its target data is prefetched.
+                    const responsePromise = page.waitForResponse(
+                      (response) => response.request() === request
+                    )
+                    middlewareRedirectResponse = responsePromise.then(
+                      async (response) => {
+                        const responseHeaders = await response.allHeaders()
+                        return {
+                          status: response.status(),
+                          location: responseHeaders.location,
+                        }
+                      }
+                    )
+                    await route.continue()
+                    return
+                  }
+
                   // Create a promise that will be resolved by the later test code
                   let resolvePromise: () => void
                   const promise = new Promise<void>((res) => {
@@ -241,9 +273,13 @@ describe('searchparams-reuse-loading', () => {
 
                   rscRequestPromise.set(promiseKey, {
                     resolve: async () => {
+                      const responsePromise = page.waitForResponse(
+                        (response) => response.request() === request
+                      )
                       await route.continue()
-                      // wait a moment to ensure the response is received
-                      await new Promise((res) => setTimeout(res, 500))
+                      const response = await responsePromise
+                      const error = await response.finished()
+                      if (error) throw error
                       resolvePromise()
                     },
                   })
@@ -261,36 +297,59 @@ describe('searchparams-reuse-loading', () => {
         const basePath = path === '/' ? '' : path
         const searchParamsPagePath = `${basePath}/search-params`
 
-        // Wait for all expected prefetch requests to complete
-        await prefetchPromise
+        const fullPrefetchPath = `${searchParamsPagePath}?id=3`
+
+        // Reveal the full-prefetch link in a controlled act so it cannot become
+        // stale while the rest of the initial prefetch burst settles.
+        await act(async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${fullPrefetchPath}"]`)
+            .click()
+        })
+
         interceptRequests = true
-        // The first link we click is "auto" prefetched.
+        if (path === '/') {
+          await act(async () => {
+            await browser.elementByCss(`[href="${fullPrefetchPath}"]`).click()
+          }, 'no-requests')
+        } else {
+          await browser.elementByCss(`[href="${fullPrefetchPath}"]`).click()
+        }
+
+        const params3 = await browser.waitForElementByCss('#params').text()
+        expect(params3).toBe('{"id":"3"}')
+        if (middlewareRedirectResponse) {
+          expect(await middlewareRedirectResponse).toEqual({
+            status: 307,
+            location: `${path}/search-params/someValue?id=3`,
+          })
+        }
+
+        await browser.elementByCss(`[href='${path}']`).click()
+        await prefetchPromise
+
+        // The first "auto" prefetched link should show its loading state while
+        // the dynamic request is stalled.
         await browser
           .elementByCss(`[href="${searchParamsPagePath}?id=1"]`)
           .click()
-
-        // We expect to click it and immediately see a loading state
         expect(await browser.elementById('loading').text()).toBe('Loading...')
-        // We only resolve the dynamic request after we've confirmed loading exists,
-        // to avoid a race where the dynamic request handles the loading state instead.
+
         let dynamicRequest = rscRequestPromise.get(
           `${searchParamsPagePath}?id=1`
         )
-
         expect(dynamicRequest).toBeDefined()
 
-        // resolve the promise
         await dynamicRequest.resolve()
         dynamicRequest = undefined
 
-        // Confirm the params are correct
         const params = await browser.waitForElementByCss('#params').text()
         expect(params).toBe('{"id":"1"}')
 
         await browser.elementByCss(`[href='${path}']`).click()
 
-        // Do the exact same thing again, for another prefetch auto link, to ensure
-        // loading works as expected and we get different search params
+        // Repeat with another auto-prefetched link to ensure the loading state
+        // is reused with different search params.
         await browser
           .elementByCss(`[href="${searchParamsPagePath}?id=2"]`)
           .click()
@@ -298,25 +357,11 @@ describe('searchparams-reuse-loading', () => {
         dynamicRequest = rscRequestPromise.get(`${searchParamsPagePath}?id=2`)
         expect(dynamicRequest).toBeDefined()
 
-        // resolve the promise
         await dynamicRequest.resolve()
         dynamicRequest = undefined
 
         const params2 = await browser.waitForElementByCss('#params').text()
         expect(params2).toBe('{"id":"2"}')
-
-        // Dev mode doesn't perform full prefetches, so this test is conditional
-        await browser.elementByCss(`[href='${path}']`).click()
-
-        await browser
-          .elementByCss(`[href="${searchParamsPagePath}?id=3"]`)
-          .click()
-        expect(rscRequestPromise.has(`${searchParamsPagePath}?id=3`)).toBe(
-          false
-        )
-        // no need to resolve any dynamic requests, as this is a full prefetch
-        const params3 = await browser.waitForElementByCss('#params').text()
-        expect(params3).toBe('{"id":"3"}')
       })
     })
 
@@ -360,7 +405,7 @@ describe('searchparams-reuse-loading', () => {
                 resolve: async () => {
                   await route.continue()
                   // wait a moment to ensure the response is received
-                  await new Promise((res) => setTimeout(res, 500))
+                  await waitFor(500)
                   resolvePromise()
                 },
               })
@@ -446,7 +491,7 @@ describe('searchparams-reuse-loading', () => {
                 resolve: async () => {
                   await route.continue()
                   // wait a moment to ensure the response is received
-                  await new Promise((res) => setTimeout(res, 500))
+                  await waitFor(500)
                   resolvePromise()
                 },
               })
@@ -532,7 +577,7 @@ describe('searchparams-reuse-loading', () => {
                 resolve: async () => {
                   await route.continue()
                   // wait a moment to ensure the response is received
-                  await new Promise((res) => setTimeout(res, 500))
+                  await waitFor(500)
                   resolvePromise()
                 },
               })

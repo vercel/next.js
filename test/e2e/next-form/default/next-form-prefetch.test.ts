@@ -5,7 +5,7 @@ import {
   RSC_HEADER,
 } from 'next/src/client/components/app-router-headers'
 import type { Page, Request as PlaywrightRequest } from 'playwright'
-import { retry } from 'next-test-utils'
+import { waitFor, retry } from 'next-test-utils'
 
 const _describe =
   // prefetching is disabled in dev.
@@ -218,7 +218,7 @@ class RequestInterceptor {
             this.pendingRequests.delete(requestKey)
             await route.continue()
             // wait a moment to ensure the response is received
-            await new Promise((res) => setTimeout(res, 500))
+            await waitFor(500)
             blocked.resolve()
           },
         })
