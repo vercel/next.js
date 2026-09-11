@@ -8,7 +8,7 @@ The point: find places where agents get Next.js wrong because their training dat
 
 The runner is [`@vercel/agent-eval`](https://github.com/vercel-labs/agent-eval). It spins up a sandbox (Vercel or local Docker), copies the fixture in, runs the coding agent against `PROMPT.md`, then executes `EVAL.ts` as a vitest file against whatever the agent wrote. The `PROMPT.md` / `EVAL.ts` / fixture-dir convention you'll see below is that package's convention — see its README for the full spec.
 
-`run-evals.js` is a thin wrapper around it: pack the local `next` build into a tarball, generate the configured experiments, then invoke `agent-eval`. The two default experiments (`baseline` and `agents-md`) differ only in whether they drop an `AGENTS.md` pointing at the bundled docs. Everything from "spawn sandbox" onward is `@vercel/agent-eval`'s job.
+`run-evals.js` is a thin wrapper around it: pack the local `next` build and its matching `@next/playwright` helper into tarballs, generate the configured experiments, then invoke `agent-eval`. The helper is installed only in fixtures that depend on it. The two default experiments (`baseline` and `agents-md`) differ only in whether they drop an `AGENTS.md` pointing at the bundled docs. Everything from "spawn sandbox" onward is `@vercel/agent-eval`'s job.
 
 ## One-time setup
 
@@ -99,7 +99,7 @@ Full transcripts land in `evals/results/<variant>/<timestamp>/<eval>/run-1/`. Gr
 
 ## When to rebuild
 
-`pnpm eval` packs `packages/next/dist/` into a tarball and ships that to the sandbox. It does not build. If you changed `packages/next/src/**` or `docs/**`, run `pnpm --filter=next build` first or the sandbox will see stale code. If you only changed fixture files, no rebuild is needed.
+`pnpm eval` packs `packages/next/dist/` into a tarball and ships that to the sandbox. It builds and packs the matching `@next/playwright` helper automatically. If you changed `packages/next/src/**` or `docs/**`, run `pnpm --filter=next build` first or the sandbox will see stale code. If you only changed fixture files, no Next.js rebuild is needed.
 
 ## Workflow
 

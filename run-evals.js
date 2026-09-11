@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // @ts-check
 /**
- * Pack the locally-built `next` package and run agent evals against it.
+ * Pack the locally-built `next` and `@next/playwright` packages and run agent
+ * evals against them.
  *
  *   pnpm eval <eval-name>             run one eval and its configured variants
  *   pnpm eval <eval-name> --dry       preview without executing
@@ -10,7 +11,8 @@
  *
  * Mirrors run-tests.js: pack once, hand paths to child via env, forward args.
  *
- * We only pack `next`, not the whole workspace. The sandbox is remote Linux:
+ * We only pack `next` and its testing helper, not the whole workspace. The
+ * sandbox is remote Linux:
  *   - @next/swc: local darwin binary wouldn't run there; the sandbox downloads
  *     the right one at runtime (packages/next/src/build/swc/index.ts).
  *   - @next/env etc: resolved from npm at the pinned canary version.
@@ -30,7 +32,8 @@ const FIXTURES_DIR = path.join(EVALS_DIR, 'evals')
 const EVAL_CONFIG_PATH = path.join(EVALS_DIR, 'eval.config.json')
 const EXPERIMENTS_DIR = path.join(EVALS_DIR, 'experiments')
 const TARBALL_DIR = path.join(EVALS_DIR, '.tarballs')
-const TARBALL = path.join(TARBALL_DIR, 'next.tgz')
+const NEXT_TARBALL = path.join(TARBALL_DIR, 'next.tgz')
+const NEXT_PLAYWRIGHT_TARBALL = path.join(TARBALL_DIR, 'next-playwright.tgz')
 
 /** @typedef {{ skills?: string[], timeout?: number }} EvalConfig */
 /** @type {Record<string, EvalConfig>} */
@@ -52,18 +55,31 @@ const BASE_VARIANTS = [
   },
 ]
 
-function pack() {
+function packPackage(packageDir, destination) {
   fs.mkdirSync(TARBALL_DIR, { recursive: true })
   const out = execFileSync(
     'pnpm',
     ['pack', '--pack-destination', TARBALL_DIR],
-    { cwd: path.join(ROOT, 'packages/next'), encoding: 'utf8' }
+    { cwd: packageDir, encoding: 'utf8' }
   )
   const produced = out.trim().split('\n').pop()
   const src = path.isAbsolute(produced)
     ? produced
     : path.join(TARBALL_DIR, produced)
-  fs.renameSync(src, TARBALL)
+  fs.renameSync(src, destination)
+}
+
+function pack() {
+  packPackage(path.join(ROOT, 'packages/next'), NEXT_TARBALL)
+
+  execFileSync('pnpm', ['--filter', '@next/playwright', 'build'], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  })
+  packPackage(
+    path.join(ROOT, 'packages/next-playwright'),
+    NEXT_PLAYWRIGHT_TARBALL
+  )
 }
 
 /** @param {string | null} evalName  null means all evals */
@@ -223,13 +239,19 @@ function main() {
     process.exit(1)
   }
 
-  if (process.env.NEXT_SKIP_PACK && fs.existsSync(TARBALL)) {
-    console.log('> Reusing existing tarball (NEXT_SKIP_PACK=1)')
+  if (
+    process.env.NEXT_SKIP_PACK &&
+    fs.existsSync(NEXT_TARBALL) &&
+    fs.existsSync(NEXT_PLAYWRIGHT_TARBALL)
+  ) {
+    console.log('> Reusing existing tarballs (NEXT_SKIP_PACK=1)')
   } else {
-    console.log('> Packing next...')
+    console.log('> Packing next and @next/playwright...')
     pack()
-    const mb = (fs.statSync(TARBALL).size / 1024 / 1024).toFixed(1)
-    console.log(`  ${TARBALL} (${mb} MB)`)
+    for (const tarball of [NEXT_TARBALL, NEXT_PLAYWRIGHT_TARBALL]) {
+      const mb = (fs.statSync(tarball).size / 1024 / 1024).toFixed(1)
+      console.log(`  ${tarball} (${mb} MB)`)
+    }
   }
 
   // agent-eval loads .env / .env.local from its own cwd (evals/). `vc env pull`
@@ -260,7 +282,11 @@ function main() {
   const result = spawnSync(bin, agentEvalArgs, {
     cwd: EVALS_DIR,
     stdio: 'inherit',
-    env: { ...process.env, NEXT_EVAL_TARBALL: TARBALL },
+    env: {
+      ...process.env,
+      NEXT_EVAL_TARBALL: NEXT_TARBALL,
+      NEXT_PLAYWRIGHT_EVAL_TARBALL: NEXT_PLAYWRIGHT_TARBALL,
+    },
   })
   if (result.error) {
     // ENOENT (missing bin), EACCES, etc. — spawnSync returns status: null

@@ -663,7 +663,7 @@ The page now renders useful UI immediately while request-specific content stream
 
 ### Step 4: Verify the instant UI
 
-To prevent a future refactor from accidentally changing the instant UI, use [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to assert the exact UI available before request-time work resolves. The helper holds that work while its callback runs, then releases it so the completed page can be verified. This is the production RED-to-GREEN loop used by the [optimizer skill](#use-the-optimizer-skill-recommended).
+To prevent a future refactor from accidentally changing the instant UI, use [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) to assert the exact UI available before request-time work resolves. The linked testing setup covers both development and production builds. The helper holds that work while its callback runs, then releases it so the completed page can be verified. This is the production RED-to-GREEN loop used by the [optimizer skill](#use-the-optimizer-skill-recommended).
 
 ```ts filename="e2e/settings-navigation.test.ts" highlight={17,20-21,26-27}
 import { expect, test, type Page } from '@playwright/test'
