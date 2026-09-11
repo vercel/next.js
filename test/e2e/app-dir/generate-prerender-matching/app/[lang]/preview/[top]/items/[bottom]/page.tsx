@@ -1,7 +1,6 @@
 import { Suspense } from 'react'
 
 export const experimental_paramMatching = {
-  lang: 'blocking',
   top: 'fallback',
   bottom: 'dynamic',
 } as const
