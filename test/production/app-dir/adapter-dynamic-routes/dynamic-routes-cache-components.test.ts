@@ -44,32 +44,32 @@ describe('adapter dynamic routes (cache components)', () => {
      "7 entries
 
      /[lang]
-       ^[/]?/(?<nxtPlang>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /[lang]$rscSuffix?nxtPlang=$nxtPlang
+       ^[/]?/(?<nxtPlang>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[lang]$2?nxtPlang=$nxtPlang
 
-     /$shellPrefix/fallback-shell/[slug]
-       ^[/]?/(?<shellPrefix>de|en)/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /$shellPrefix/fallback-shell/[slug]$rscSuffix?nxtPslug=$nxtPslug
+     /$1/fallback-shell/[slug]
+       ^[/]?/(de|en)/fallback\\-shell/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /$1/fallback-shell/[slug]$3?nxtPslug=$nxtPslug
 
      /[lang]/fallback-shell/[slug]
-       ^[/]?/(?<nxtPlang>[^/]+?)/fallback\\-shell/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /[lang]/fallback-shell/[slug]$rscSuffix?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
+       ^[/]?/(?<nxtPlang>[^/]+?)/fallback\\-shell/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[lang]/fallback-shell/[slug]$3?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug
 
      /[lang]/ppr
-       ^[/]?/(?<nxtPlang>[^/]+?)/ppr(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /[lang]/ppr$rscSuffix?nxtPlang=$nxtPlang
+       ^[/]?/(?<nxtPlang>[^/]+?)/ppr(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[lang]/ppr$2?nxtPlang=$nxtPlang
 
      /[lang]/static
-       ^[/]?/(?<nxtPlang>[^/]+?)/static(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /[lang]/static$rscSuffix?nxtPlang=$nxtPlang
+       ^[/]?/(?<nxtPlang>[^/]+?)/static(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[lang]/static$2?nxtPlang=$nxtPlang
 
-     /$shellPrefix/[slug]
-       ^[/]?/(?<shellPrefix>de|en)/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /$shellPrefix/[slug]$rscSuffix?nxtPslug=$nxtPslug
+     /$1/[slug]
+       ^[/]?/(de|en)/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /$1/[slug]$3?nxtPslug=$nxtPslug
 
      /[lang]/[slug]
-       ^[/]?/(?<nxtPlang>[^/]+?)/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /[lang]/[slug]$rscSuffix?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug"
+       ^[/]?/(?<nxtPlang>[^/]+?)/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /[lang]/[slug]$3?nxtPlang=$nxtPlang&nxtPslug=$nxtPslug"
     `)
   })
 })

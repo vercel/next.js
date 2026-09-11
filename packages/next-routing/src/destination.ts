@@ -7,30 +7,54 @@ export function replaceDestination(
   regexMatches: RegExpMatchArray | null,
   hasCaptures: Record<string, string>
 ): string {
-  let result = destination
+  const captureKeys = Object.keys(hasCaptures)
 
-  // Replace numbered captures from regex ($1, $2, etc.)
   if (regexMatches) {
-    // Replace numbered groups (skip index 0 which is the full match)
-    for (let i = 1; i < regexMatches.length; i++) {
-      const value = regexMatches[i] ?? ''
-      result = result.replace(new RegExp(`\\$${i}`, 'g'), value)
+    for (let index = 1; index < regexMatches.length; index++) {
+      captureKeys.push(String(index))
     }
-
-    // Replace named groups ($name)
     if (regexMatches.groups) {
-      for (const [name, value] of Object.entries(regexMatches.groups)) {
-        result = result.replace(new RegExp(`\\$${name}`, 'g'), value ?? '')
-      }
+      captureKeys.push(...Object.keys(regexMatches.groups))
     }
   }
 
-  // Replace named captures from has conditions
-  for (const [name, value] of Object.entries(hasCaptures)) {
-    result = result.replace(new RegExp(`\\$${name}`, 'g'), value)
+  if (captureKeys.length === 0) {
+    return destination
   }
 
-  return result
+  const capturePattern = captureKeys
+    .sort((first, second) => second.length - first.length)
+    .map((key) => {
+      const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      return /^\d+$/.test(key) ? `${escapedKey}(?!\\d)` : escapedKey
+    })
+    .join('|')
+
+  // Replace placeholders once. Captured paths can contain literal text such as
+  // $2 or $d$segment that must not become another substitution.
+  return destination.replace(
+    new RegExp(`\\$(${capturePattern})`, 'g'),
+    (placeholder, key: string) => {
+      if (regexMatches) {
+        const index = Number(key)
+        if (
+          Number.isInteger(index) &&
+          index > 0 &&
+          index < regexMatches.length &&
+          String(index) === key
+        ) {
+          return regexMatches[index] ?? ''
+        }
+        if (regexMatches.groups && Object.hasOwn(regexMatches.groups, key)) {
+          return regexMatches.groups[key] ?? ''
+        }
+      }
+      if (Object.hasOwn(hasCaptures, key)) {
+        return hasCaptures[key]
+      }
+      return placeholder
+    }
+  )
 }
 
 /**

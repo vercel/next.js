@@ -2110,6 +2110,10 @@ export async function handleBuildComplete({
           (page) => prerenderManifest.dynamicRoutes[page]?.fallback === false
         )
       : undefined
+    const escapedBasePath =
+      config.basePath && config.basePath !== '/'
+        ? escapeStringRegexp(path.posix.join('/', config.basePath))
+        : ''
 
     for (const route of routesManifest.dynamicRoutes) {
       // An earlier entry in this loop serves this shell.
@@ -2133,6 +2137,10 @@ export async function handleBuildComplete({
       // An entry for a whole run of shells matches every prefix in that run.
       // The destination copies the prefix that matched.
       //
+      // The prefix and RSC suffix use unnamed captures. Adapters can forward
+      // named captures to the application query when they bypass prerendered
+      // output.
+      //
       // This replacement runs on the pattern for the page, and `sourceRegex`
       // below prefixes the result with the base path and the locale group. That
       // order is deliberate. The search text anchors at `^`, and here that
@@ -2143,18 +2151,24 @@ export async function handleBuildComplete({
       const pagePattern = fallbackShellRun
         ? routeRegex.namedRegex.replace(
             `^/${escapeStringRegexp(fallbackShellRun.prefixes[0])}/`,
-            `^/(?<shellPrefix>${fallbackShellRun.prefixes
-              .map((prefix) => escapeStringRegexp(prefix))
-              .join('|')})/`
+            () =>
+              `^/(${fallbackShellRun.prefixes
+                .map((prefix) => escapeStringRegexp(prefix))
+                .join('|')})/`
           )
         : routeRegex.namedRegex
       const pagePath = fallbackShellRun
-        ? path.posix.join('/', '$shellPrefix', fallbackShellRun.tail)
+        ? path.posix.join(
+            '/',
+            shouldLocalize ? '$2' : '$1',
+            fallbackShellRun.tail
+          )
         : route.page
 
       const sourceRegex = pagePattern.replace(
         '^',
-        `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
+        () =>
+          `^${escapedBasePath}[/]?${shouldLocalize ? '(?<nextLocale>[^/]{1,})' : ''}`
       )
       const destination =
         path.posix.join(
@@ -2163,6 +2177,13 @@ export async function handleBuildComplete({
           shouldLocalize ? '/$nextLocale' : '',
           pagePath
         ) + getDestinationQuery(route.routeKeys)
+      // Count capture names, not parameter names. An interception route can
+      // capture the same parameter with both nxtP and nxtI names.
+      const suffixCaptureIndex =
+        Object.keys(routeRegex.routeKeys).length +
+        (shouldLocalize ? 1 : 0) +
+        (fallbackShellRun ? 1 : 0) +
+        1
 
       const hasAppPages = Boolean(appPageKeys && appPageKeys.length > 0)
 
@@ -2196,15 +2217,18 @@ export async function handleBuildComplete({
         // An optional group is unsafe here. An adapter, or the router that
         // consumes its output, can resolve the placeholders in a destination
         // from the match result rather than from the pattern. A group that does
-        // not match is then absent from that result, and the literal text
-        // `$rscSuffix` stays in the destination.
+        // not match is then absent from that result, and the destination
+        // placeholder stays unresolved.
         dynamicRoutes.push({
           source: pagePath,
           sourceRegex: sourceRegex.replace(
             new RegExp(escapeStringRegexp('(?:/)?$')),
-            '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$'
+            '(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$'
           ),
-          destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
+          destination: destination.replace(
+            /($|\?)/,
+            (separator) => `$${suffixCaptureIndex}${separator}`
+          ),
           has: plainHas,
           missing: undefined,
         })
@@ -2218,9 +2242,12 @@ export async function handleBuildComplete({
             source: pagePath + '.rsc',
             sourceRegex: sourceRegex.replace(
               new RegExp(escapeStringRegexp('(?:/)?$')),
-              '(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
+              '(\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$'
             ),
-            destination: destination?.replace(/($|\?)/, '$rscSuffix$1'),
+            destination: destination.replace(
+              /($|\?)/,
+              (separator) => `$${suffixCaptureIndex}${separator}`
+            ),
             has: suffixedHas,
             missing: undefined,
           })
@@ -2246,7 +2273,7 @@ export async function handleBuildComplete({
             source: route.page,
             sourceRegex: segmentRoute.source.replace(
               '^',
-              `^${config.basePath && config.basePath !== '/' ? path.posix.join('/', config.basePath || '') : ''}[/]?`
+              () => `^${escapedBasePath}[/]?`
             ),
             destination: path.posix.join(
               '/',
