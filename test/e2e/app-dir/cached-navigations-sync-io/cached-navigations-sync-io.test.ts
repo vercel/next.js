@@ -41,43 +41,63 @@ describe('cached-navigations-sync-io', () => {
     return { browser, page, act, startDate, navigate }
   }
 
-  for (const source of ['dynamic RSC', 'initial HTML']) {
-    it(`does not reuse uncached time from ${source}`, async () => {
-      const { browser, page, act, startDate, navigate } = await startBrowser()
+  for (const { pathname, description } of [
+    { pathname: '/uncached-time', description: 'does not reuse uncached time' },
+    {
+      pathname: '/delayed-sync-io',
+      description: 'reuses content before synchronous IO',
+    },
+  ]) {
+    for (const source of ['dynamic RSC', 'initial HTML']) {
+      it(`${description} from ${source}`, async () => {
+        const { browser, page, act, startDate, navigate } = await startBrowser()
 
-      if (source === 'dynamic RSC') {
-        await act(() => navigate('/uncached-time'), {
-          includes: 'Dynamic content',
+        if (source === 'dynamic RSC') {
+          await act(() => navigate(pathname), {
+            includes: 'Dynamic content',
+          })
+        } else {
+          const response = await page.goto(next.url + pathname)
+          expect(response?.status()).toBe(200)
+          expect(await response?.text()).toContain('Uncached time:')
+        }
+
+        const timestamp = await browser.elementById('timestamp').text()
+        expect(timestamp).toMatch(/^Uncached time: \d+$/)
+        await browser.eval('window.navigationMarker = "same document"')
+
+        await act(() => navigate('/hub-b'), { includes: 'Hub B' })
+        expect(await browser.elementByCss('h1').text()).toBe('Hub B')
+        await page.clock.setFixedTime(startDate + 60_000)
+
+        await act(async () => {
+          await act(() => navigate(pathname), {
+            includes: 'Dynamic content',
+            block: true,
+          })
+
+          const content = await browser.elementByCss('main').text()
+          expect(content).not.toContain('Uncached time:')
+          expect(content).not.toContain('Dynamic content')
+          if (pathname === '/delayed-sync-io') {
+            expect(content).toContain('Content before sync IO')
+          }
+          expect(await browser.eval('window.navigationMarker')).toBe(
+            'same document'
+          )
         })
-      } else {
-        const response = await page.goto(next.url + '/uncached-time')
-        expect(response?.status()).toBe(200)
-        expect(await response?.text()).toContain('Uncached time:')
-      }
 
-      const timestamp = await browser.elementById('timestamp').text()
-      expect(timestamp).toMatch(/^Uncached time: \d+$/)
-
-      await act(() => navigate('/hub-b'), { includes: 'Hub B' })
-      expect(await browser.elementByCss('h1').text()).toBe('Hub B')
-      await page.clock.setFixedTime(startDate + 60_000)
-
-      await act(async () => {
-        await act(() => navigate('/uncached-time'), {
-          includes: 'Dynamic content',
-          block: true,
-        })
-
-        const content = await browser.elementByCss('main').text()
-        expect(content).not.toContain('Uncached time:')
-        expect(content).not.toContain('Dynamic content')
+        expect(await browser.elementById('timestamp').text()).not.toBe(
+          timestamp
+        )
+        expect(await browser.elementByCss('main').text()).toContain(
+          'Dynamic content'
+        )
+        expect(await browser.eval('window.navigationMarker')).toBe(
+          'same document'
+        )
       })
-
-      expect(await browser.elementById('timestamp').text()).not.toBe(timestamp)
-      expect(await browser.elementByCss('main').text()).toContain(
-        'Dynamic content'
-      )
-    })
+    }
   }
 
   it('finishes a full prefetch after synchronous IO interrupts its static stage', async () => {
@@ -85,6 +105,7 @@ describe('cached-navigations-sync-io', () => {
     await act(() => navigate('/uncached-time'), { includes: 'Dynamic content' })
     const timestamp = await browser.elementById('timestamp').text()
     expect(timestamp).toMatch(/^Uncached time: \d+$/)
+    await browser.eval('window.navigationMarker = "same document"')
 
     await act(() => navigate('/hub-b'), { includes: 'Hub B' })
     await act(
@@ -113,5 +134,6 @@ describe('cached-navigations-sync-io', () => {
     expect(await browser.elementByCss('main').text()).toContain(
       'Dynamic content'
     )
+    expect(await browser.eval('window.navigationMarker')).toBe('same document')
   })
 })

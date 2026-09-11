@@ -31,6 +31,9 @@ export default function Page() {
       <LinkAccordion href="/uncached-time" prefetch={false}>
         Target
       </LinkAccordion>
+      <LinkAccordion href="/delayed-sync-io" prefetch={false}>
+        Delayed sync IO
+      </LinkAccordion>
     </>
   )
 }

@@ -1071,13 +1071,14 @@ async function generateStagedDynamicFlightRenderResultNode(
 
   const selectStaleTime = createSelectStaleTime(experimental)
   const staleTimeIterable = new StaleTimeIterable()
+  const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
 
   const stageController = new StagedRenderingController({
     abortSignal: null,
     abandonController: null,
     // Synchronous request-time data ends the static stage before its result can
     // enter the Cached Navigation.
-    syncIO: SyncIOMode.AllowedInRuntimeOrDynamic,
+    syncIO: getSyncIOMode(prefetchMode),
     finalStage: null,
   })
 
@@ -1110,10 +1111,7 @@ async function generateStagedDynamicFlightRenderResultNode(
   // fill caches and then spawn a final runtime prerender whose result stream
   // is embedded in the RSC payload. This is gated because it adds extra server
   // processing and increases the response payload size.
-  if (
-    Boolean(renderOpts.partialPrefetching) ||
-    (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
-  ) {
+  if (prefetchMode === PrefetchingMode.Partial) {
     // Create a mutable cache that gets filled during the dynamic render.
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
     requestStore.resumeDataCache = prerenderResumeDataCache
@@ -1177,18 +1175,8 @@ async function generateStagedDynamicFlightRenderResultNode(
 
       void countShellAndStaticStageBytes(staticStream, stageController).then(
         (byteLengths) => {
-          // A sync interruption can precede the Flight root row. Do not expose
-          // that incomplete prefix as a cacheable payload.
-          staticStageByteLengthDeferred.resolve(
-            stageController.getSyncInterruptReason()
-              ? 0
-              : byteLengths[RenderStage.Static]
-          )
-          shellByteLengthDeferred.resolve(
-            stageController.getSyncInterruptReason()
-              ? 0
-              : byteLengths[RenderStage.ShellStatic]
-          )
+          staticStageByteLengthDeferred.resolve(byteLengths[RenderStage.Static])
+          shellByteLengthDeferred.resolve(byteLengths[RenderStage.ShellStatic])
         }
       )
 
@@ -3853,13 +3841,14 @@ async function renderToStream(
 
         const selectStaleTime = createSelectStaleTime(experimental)
         const staleTimeIterable = new StaleTimeIterable()
+        const prefetchMode = await getPrefetchingModeForPage(renderOpts, tree)
 
         const stageController = new StagedRenderingController({
           abortSignal: null,
           abandonController: null,
           // Synchronous request-time data ends the static stage before its
           // result can enter the Cached Navigation.
-          syncIO: SyncIOMode.AllowedInRuntimeOrDynamic,
+          syncIO: getSyncIOMode(prefetchMode),
           finalStage: null,
         })
 
@@ -3895,10 +3884,7 @@ async function renderToStream(
         // Partial Prefetching is on for the route, either per segment (a
         // `prefetch` of 'partial') or globally (the
         // `partialPrefetching` config).
-        if (
-          Boolean(renderOpts.partialPrefetching) ||
-          (await anySegmentHasPartialPrefetchingEnabled(tree))
-        ) {
+        if (prefetchMode === PrefetchingMode.Partial) {
           const prerenderResumeDataCache = createPrerenderResumeDataCache()
           requestStore.resumeDataCache = prerenderResumeDataCache
 
@@ -3962,14 +3948,10 @@ async function renderToStream(
               stageController
             ).then((byteLengths) => {
               staticStageByteLengthDeferred.resolve(
-                stageController.getSyncInterruptReason()
-                  ? 0
-                  : byteLengths[RenderStage.Static]
+                byteLengths[RenderStage.Static]
               )
               shellByteLengthDeferred.resolve(
-                stageController.getSyncInterruptReason()
-                  ? 0
-                  : byteLengths[RenderStage.ShellStatic]
+                byteLengths[RenderStage.ShellStatic]
               )
             })
 

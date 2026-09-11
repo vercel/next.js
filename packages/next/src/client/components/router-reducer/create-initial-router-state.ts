@@ -160,6 +160,9 @@ export function createInitialRouterState({
                 byteLength,
                 undefined
               )
+            if (staticStageResponse === null) {
+              return
+            }
             spawnStaticStageCacheWrite(
               Date.now(),
               staticStageResponse,

@@ -536,16 +536,42 @@ export async function resolveShellStageResponse<
 
 /**
  * Truncates and buffers a Flight stream clone at the given byte boundary and
- * decodes the prefix as a Flight payload. Used by the static-stage and
- * shell-stage extraction helpers.
+ * decodes the prefix as an optional Flight payload. Returns null if extraction
+ * fails or the root does not resolve before the next task. The caller can still
+ * use the full response.
  */
 export async function decodeStageUntilBoundary<T>(
   responseBodyClone: ReadableStream<Uint8Array>,
   byteLength: number,
   headers: RequestHeaders | undefined
-): Promise<T> {
-  const buffer = await bufferPrefetchResponseBody(responseBodyClone, byteLength)
-  return decodeBufferedStage<T>(buffer, headers)
+): Promise<T | null> {
+  try {
+    const buffer = await bufferPrefetchResponseBody(
+      responseBodyClone,
+      byteLength
+    )
+    const response = decodeBufferedStage<T>(buffer, headers)
+
+    // The caller already has the full response root, but this prefix may omit
+    // rows that the root needs. Bound this optional extraction so it cannot
+    // hold up the full response. This deadline applies to the outer root, not
+    // to Client Components that continue loading through lazy references.
+    return await new Promise<T | null>((resolve) => {
+      const timeout = setTimeout(() => resolve(null), 0)
+      response.then(
+        (root) => {
+          clearTimeout(timeout)
+          resolve(root)
+        },
+        () => {
+          clearTimeout(timeout)
+          resolve(null)
+        }
+      )
+    })
+  } catch {
+    return null
+  }
 }
 
 /**
