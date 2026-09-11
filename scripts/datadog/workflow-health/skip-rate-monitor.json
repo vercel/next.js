@@ -1,0 +1,64 @@
+{
+  "name": "Unattended workflow daily skip rate above 95%",
+  "type": "ci-pipelines alert",
+  "query": "formula(\"query1 / query2\").last(\"1d\") >= 1",
+  "message": "{{#is_alert}}Every completed run was skipped over the last day: \"{{ [@ci.pipeline.name].name }}\" @slack-TODO{{/is_alert}}\n{{#is_warning}}Daily skip rate above 95% (usually benign): \"{{ [@ci.pipeline.name].name }}\" @slack-TODO{{/is_warning}}\n{{#is_recovery}}Skip rate back to or below 95%: \"{{ [@ci.pipeline.name].name }}\" @slack-TODO{{/is_recovery}}\n{{#is_no_data}}No data: \"{{ [@ci.pipeline.name].name }}\" @slack-TODO{{/is_no_data}}",
+  "tags": ["team:nextjs", "monitor:workflow-health"],
+  "priority": 3,
+  "options": {
+    "thresholds": {
+      "critical": 1,
+      "warning": 0.95
+    },
+    "notify_no_data": true,
+    "no_data_timeframe": 2880,
+    "include_tags": false,
+    "notification_preset_name": "hide_all",
+    "renotify_interval": 10080,
+    "renotify_statuses": ["alert", "warn", "no data"],
+    "variables": [
+      {
+        "data_source": "ci_pipelines",
+        "name": "query1",
+        "search": {
+          "query": "ci_level:pipeline @git.repository.id:\"github.com/vercel/next.js\" @ci.status:skipped @ci.pipeline.name:(\"Lock Threads\" OR \"Next Maintainer Auto Close\" OR \"Rspack Next.js production integration tests\" OR \"Rspack Next.js development integration tests\" OR \"Update Rspack test manifest\" OR \"test-e2e-project-reset-cron\" OR \"Trigger Release\" OR \"Update Font Data\" OR \"Update React\" OR \"Poll React Sync\" OR \"Triage issues\" OR \"Allow issue participants to reopen issues\" OR \"PR CI Comment\" OR \"retry-tests\" OR \"retry-deploy-tests\" OR \"upload-preview-tarballs\")"
+        },
+        "indexes": ["*"],
+        "compute": {
+          "aggregation": "count"
+        },
+        "group_by": [
+          {
+            "facet": "@ci.pipeline.name",
+            "limit": 100,
+            "sort": {
+              "aggregation": "count",
+              "order": "desc"
+            }
+          }
+        ]
+      },
+      {
+        "data_source": "ci_pipelines",
+        "name": "query2",
+        "search": {
+          "query": "ci_level:pipeline @git.repository.id:\"github.com/vercel/next.js\" @ci.pipeline.name:(\"Lock Threads\" OR \"Next Maintainer Auto Close\" OR \"Rspack Next.js production integration tests\" OR \"Rspack Next.js development integration tests\" OR \"Update Rspack test manifest\" OR \"test-e2e-project-reset-cron\" OR \"Trigger Release\" OR \"Update Font Data\" OR \"Update React\" OR \"Poll React Sync\" OR \"Triage issues\" OR \"Allow issue participants to reopen issues\" OR \"PR CI Comment\" OR \"retry-tests\" OR \"retry-deploy-tests\" OR \"upload-preview-tarballs\")"
+        },
+        "indexes": ["*"],
+        "compute": {
+          "aggregation": "count"
+        },
+        "group_by": [
+          {
+            "facet": "@ci.pipeline.name",
+            "limit": 100,
+            "sort": {
+              "aggregation": "count",
+              "order": "desc"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}
