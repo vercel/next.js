@@ -37,13 +37,36 @@ describe('action-only fallback resume data cache', () => {
         'destination page rendered'
       )
     })
+
+    it('renders the concrete destination after an action revalidates it', async () => {
+      const browser = await next.browser('/concrete/foo')
+      const cachedValue = await browser
+        .elementByCss('#concrete-cached-value')
+        .text()
+
+      await browser.elementByCss('#revalidate-concrete').click()
+      await retry(async () => {
+        expect(
+          await browser.elementByCss('#concrete-action-result').text()
+        ).toBe('concrete action result')
+        expect(await browser.elementByCss('#concrete-destination').text()).toBe(
+          'concrete destination page rendered: foo'
+        )
+        expect(
+          await browser.elementByCss('#concrete-cached-value').text()
+        ).not.toBe(cachedValue)
+      })
+    })
   } else {
-    async function invokeAction(exportedName: string) {
-      const metadata = await next.readJSON(
-        '.next/server/app/events/[id]/group.meta'
-      )
+    async function invokeAction(
+      exportedName: string,
+      route = '/events/[id]/group',
+      pathname = route
+    ) {
+      const metadata = await next.readJSON(`.next/server/app${route}.meta`)
       const postponed = metadata.postponed as string
       expect(postponed).toEqual(expect.any(String))
+      expect(postponed).toMatch(/^\d+:\d+\[\["id",/)
 
       const manifest = await next.readJSON(
         '.next/server/server-reference-manifest.json'
@@ -51,19 +74,21 @@ describe('action-only fallback resume data cache', () => {
       const actionId = Object.keys(manifest.node).find(
         (id) => manifest.node[id].exportedName === exportedName
       )
-      expect(actionId).toEqual(expect.any(String))
+      if (!actionId) {
+        throw new Error(`Missing server action: ${exportedName}`)
+      }
 
       // Simulate the request received by the action worker after the platform
       // has selected the dynamic route's fallback and prepended its postponed
       // state to the action body.
       const actionBody = Buffer.from('[]')
       const postponedBody = Buffer.from(postponed)
-      return next.fetch('/events/[id]/group', {
+      return next.fetch(pathname, {
         method: 'POST',
         headers: {
           'content-type': 'text/plain;charset=UTF-8',
-          'next-action': actionId!,
-          'x-matched-path': '/events/[id]/group',
+          'next-action': actionId,
+          'x-matched-path': route,
           'x-next-resume-state-length': String(postponedBody.byteLength),
         },
         body: Buffer.concat([postponedBody, actionBody]),
@@ -78,6 +103,30 @@ describe('action-only fallback resume data cache', () => {
       const responseBody = await response.text()
       expect(responseBody).toContain('cached value')
       expect(responseBody).not.toContain('destination page rendered')
+    })
+
+    it('renders the concrete destination with postponed state and preserves the action result and revalidation', async () => {
+      const outputIndex = next.cliOutput.length
+
+      // The request has a concrete id, but the injected fallback artifact still
+      // records id in its staging mask.
+      const response = await invokeAction(
+        'revalidateConcretePage',
+        '/concrete/[id]',
+        '/concrete/foo'
+      )
+
+      expect(response.status).toBe(200)
+      expect(response.headers.get('content-type')).toContain('text/x-component')
+      expect(response.headers.get('x-action-revalidated')).toBe('1')
+      const responseBody = await response.text()
+      expect(responseBody).toContain('concrete action result')
+      expect(responseBody).toContain('concrete destination page rendered: foo')
+
+      const output = next.cliOutput.slice(outputIndex)
+      expect(output).toContain('ActionOnlyFallbackCacheHandler::updateTags')
+      expect(output).toContain('_N_T_/concrete/foo')
+      expect(output).not.toContain('Failed to parse postponed state')
     })
 
     it('applies pending revalidations without rendering the fallback route when the action calls notFound', async () => {

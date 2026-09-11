@@ -1277,12 +1277,12 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
           // Regression test for NAR-491: after adding `generateStaticParams`
           // that covers the requested slug, the slug is no longer a fallback
           // param, so the blocking-route validation must clear. This requires
-          // the render to pick up the fresh `fallbackParams`. Because
+          // the render to pick up the fresh `stagedFallbackParams`. Because
           // `generateStaticParams` is recomputed in the background (the static
           // paths cache serves the previous result until then), the render
-          // triggered by the edit itself still uses the stale `fallbackParams`;
-          // a follow-up HMR update, sent once the recompute lands, is what
-          // syncs them.
+          // triggered by the edit itself still uses the stale
+          // `stagedFallbackParams`; a follow-up HMR update, sent once the
+          // recompute lands, is what syncs them.
           const browser = await next.browser('/use-cache-params/foo')
 
           await expect(browser).toDisplayCollapsedRedbox(`

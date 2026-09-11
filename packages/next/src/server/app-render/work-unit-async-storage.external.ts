@@ -98,7 +98,11 @@ export interface RequestStore extends CommonWorkUnitStore {
   hasIncompatibleShellContent?: boolean
 
   cacheSignal?: CacheSignal | null
-  fallbackParams?: OpaqueFallbackRouteParams | null
+  /**
+   * These params resolve after the static stage without replacing their
+   * concrete values.
+   */
+  stagedFallbackParams?: OpaqueFallbackRouteParams | null
   varyParamsAccumulator?: ResponseVaryParamsAccumulator | null
 
   // Only in build-time instant-validation or when rendering

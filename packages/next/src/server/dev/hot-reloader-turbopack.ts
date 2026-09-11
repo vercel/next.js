@@ -1063,10 +1063,14 @@ export async function createHotReloaderTurbopack(
     const subscription = project!.clientHmrEvents(id)
     state.subscriptions.set(id, subscription)
 
-    // The subscription will always emit once, which is the initial
-    // computation. This is not a change, so swallow it.
+    // Baseline capture and subscription setup are not atomic, so the first
+    // emission can be a real update. Ignore only the usual issues-only result.
     try {
-      await subscription.next()
+      const initial = await subscription.next()
+      if (!initial.done && initial.value.type !== 'issues') {
+        processIssues(state.clientIssues, key, initial.value, false, true)
+        sendTurbopackMessage(initial.value as TurbopackUpdate)
+      }
 
       for await (const data of subscription) {
         processIssues(state.clientIssues, key, data, false, true)
