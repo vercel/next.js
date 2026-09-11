@@ -1302,6 +1302,10 @@ export async function copyTracedFiles(
               '.'
             let isDirectory = false
             if (process.platform === 'win32') {
+              // Windows requires the target type when creating a symlink. Files
+              // are copied in an arbitrary order. The target might not exist in
+              // the output yet; inspect the original target through the source
+              // symlink instead.
               try {
                 isDirectory = (await fs.stat(tracedFilePath)).isDirectory()
               } catch (err: any) {
@@ -1318,6 +1322,16 @@ export async function copyTracedFiles(
                 isDirectory ? 'dir' : 'file'
               )
             } catch (err: any) {
+              // Windows doesn't support creating symlinks without elevated
+              // privileges, unless "Developer Mode" is turned on. If we failed
+              // to create a symlink due to EPERM, try creating a junction point
+              // instead.
+              //
+              // Ideally we'd just preserve the input file type (junction point
+              // or symlink), but there's no API in node.js to differentiate
+              // between a junction point and a symlink, so we just try making a
+              // symlink first. Symlinks are preferred because they support
+              // relative paths and non-directory (file) targets.
               if (
                 process.platform === 'win32' &&
                 err.code === 'EPERM' &&

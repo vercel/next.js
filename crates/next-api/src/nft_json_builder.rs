@@ -27,7 +27,8 @@ impl AssetLocation {
 struct AssetReference {
     location: AssetLocation,
     hash: RcStr,
-    target: Option<AssetLocation>,
+    /// Present for symlinks.
+    symlink_target: Option<AssetLocation>,
 }
 
 struct AdditionalRootConfig {
@@ -47,7 +48,7 @@ struct NftSymlink {
 }
 
 impl Serialize for NftSymlink {
-    fn serialize<S>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -107,11 +108,11 @@ impl NftJsonBuilder {
         // can assume that the project directory is a parent of the output directory.
         let project_root = project.project_fs().root().owned().await?;
         let output_base = nft_path.parent();
-        let project_base = project_root.join(&output_base.path)?;
+        let project_output_base = project_root.join(&output_base.path)?;
         root_configs.insert(
             project_root.fs,
             RootConfig {
-                base: project_base,
+                base: project_output_base,
                 additional_root_index: None,
             },
         );
@@ -174,7 +175,7 @@ impl NftJsonBuilder {
         content: &AssetContent,
     ) -> Result<()> {
         let location = self.classify(&path)?;
-        let target = match content {
+        let symlink_target = match content {
             AssetContent::File(_) => None,
             AssetContent::Redirect(content) => {
                 Some(self.classify_link_target(&path, content).await?)
@@ -183,7 +184,7 @@ impl NftJsonBuilder {
         self.asset_refs.push(AssetReference {
             location,
             hash,
-            target,
+            symlink_target,
         });
         Ok(())
     }
@@ -208,7 +209,7 @@ impl NftJsonBuilder {
             list.files.push(path.clone());
             list.file_hashes.push(asset.hash);
 
-            if let Some(target) = asset.target {
+            if let Some(target) = asset.symlink_target {
                 let (target_root, target_path) = target.parts();
                 let root = if source_root == target_root {
                     None
