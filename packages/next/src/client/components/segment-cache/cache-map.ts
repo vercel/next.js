@@ -73,7 +73,7 @@ import { lruPut, updateLruSize, deleteFromLru } from './lru'
  * This is defined here, rather than in cache.ts, because cache-map.ts needs to
  * inspect the status when performing a `onlyMatchFulfilled` lookup.
  */
-export const enum EntryStatus {
+export enum EntryStatus {
   Empty = 0,
   Pending = 1,
   Fulfilled = 2,

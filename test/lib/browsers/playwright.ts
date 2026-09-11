@@ -412,6 +412,11 @@ export class Playwright<TCurrent = undefined> {
       await page.reload({ waitUntil: opts?.waitUntil ?? 'load' })
     })
   }
+
+  setOffline(isOffline: boolean) {
+    context!.setOffline(isOffline)
+  }
+
   /**
    * Evict the browser HTTP cache via CDP (`Network.clearBrowserCache`). This is
    * only supported in Chromium; gate the calling test on `global.browserName
