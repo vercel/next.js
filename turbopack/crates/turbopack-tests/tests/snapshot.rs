@@ -56,7 +56,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     AnalyzeMode, CustomTransformer, EcmascriptInputTransform, TransformPlugin,
-    chunk::EcmascriptChunkType, transform::ReactCompilerCompilationMode,
+    chunk::EcmascriptChunkType,
+    transform::{ReactCompilerCompilationMode, ReactCompilerTransformOptions},
 };
 use turbopack_ecmascript_plugins::transform::{
     emotion::{EmotionTransformConfig, EmotionTransformer},
@@ -429,9 +430,12 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 cjs_scope_hoisting: options.cjs_scope_hoisting,
                 cross_module_constants: options.cross_module_constants,
                 enable_exports_info_inlining: true,
-                enable_rust_react_compiler: options
-                    .enable_rust_react_compiler
-                    .then_some(ReactCompilerCompilationMode::Infer),
+                enable_rust_react_compiler: options.enable_rust_react_compiler.then_some(
+                    ReactCompilerTransformOptions {
+                        compilation_mode: ReactCompilerCompilationMode::Infer,
+                        ..Default::default()
+                    },
+                ),
                 ..Default::default()
             },
             environment: Some(env),

@@ -19,7 +19,7 @@ use turbopack_ecmascript::transform::{ReactCompilerCompilationMode, ReactCompile
 use turbopack_node::transforms::webpack::WebpackLoaderItem;
 
 use crate::{
-    next_config::{NextConfig, ReactCompilerOptions},
+    next_config::{NextConfig, ReactCompilerOptions, ReactCompilerPanicThreshold},
     next_import_map::try_get_next_package,
     next_shared::webpack_rules::{
         ManuallyConfiguredBuiltinLoaderIssue, WebpackLoaderBuiltinCondition,
@@ -171,20 +171,41 @@ pub async fn get_babel_loader_rules(
         #[serde(rename_all = "camelCase")]
         struct EnvironmentOptions {
             enable_name_anonymous_functions: bool,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            enable_preserve_existing_memoization_guarantees: Option<bool>,
         }
 
         #[derive(Serialize)]
         struct ResolvedOptions<'a> {
             #[serde(flatten)]
-            base: &'a ReactCompilerOptions,
+            base: ReactCompilerOptionsWithoutEnvironment<'a>,
             environment: EnvironmentOptions,
         }
 
+        #[derive(Serialize)]
+        #[serde(rename_all = "camelCase")]
+        struct ReactCompilerOptionsWithoutEnvironment<'a> {
+            compilation_mode: ReactCompilerCompilationMode,
+            panic_threshold: &'a ReactCompilerPanicThreshold,
+            #[serde(skip_serializing_if = "Option::is_none")]
+            target: Option<ReactCompilerTarget>,
+        }
+
         let resolved_options = ResolvedOptions {
-            base: &react_compiler_options_with_target,
+            base: ReactCompilerOptionsWithoutEnvironment {
+                compilation_mode: react_compiler_options_with_target.compilation_mode,
+                panic_threshold: &react_compiler_options_with_target.panic_threshold,
+                target: react_compiler_options_with_target.target,
+            },
             environment: EnvironmentOptions {
                 enable_name_anonymous_functions: builtin_conditions
                     .contains(&WebpackLoaderBuiltinCondition::Development),
+                enable_preserve_existing_memoization_guarantees: react_compiler_options_with_target
+                    .environment
+                    .as_ref()
+                    .and_then(|environment| {
+                        environment.enable_preserve_existing_memoization_guarantees
+                    }),
             },
         };
         let react_compiler_plugins =
