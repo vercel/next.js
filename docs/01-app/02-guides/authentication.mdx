@@ -1152,7 +1152,7 @@ export const verifySession = cache(async () => {
     redirect('/login')
   }
 
-  return { isAuth: true, userId: session.userId }
+  return { isAuth: true, userId: session.userId, role: session.role }
 })
 ```
 
@@ -1172,7 +1172,7 @@ export const verifySession = cache(async () => {
     redirect('/login')
   }
 
-  return { isAuth: true, userId: session.userId }
+  return { isAuth: true, userId: session.userId, role: session.role }
 })
 ```
 
@@ -1243,7 +1243,7 @@ export async function getSession() {
     return null
   }
 
-  return { isAuth: true, userId: session.userId }
+  return { isAuth: true, userId: session.userId, role: session.role }
 }
 ```
 
@@ -1256,7 +1256,7 @@ export async function getSession() {
     return null
   }
 
-  return { isAuth: true, userId: session.userId }
+  return { isAuth: true, userId: session.userId, role: session.role }
 }
 ```
 
@@ -1350,7 +1350,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export default async function Dashboard() {
   const session = await verifySession()
-  const userRole = session?.user?.role // Assuming 'role' is part of the session object
+  const userRole = session?.role // Assuming you included 'role' in the session payload
 
   if (userRole === 'admin') {
     return <AdminDashboard />
@@ -1367,7 +1367,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export default async function Dashboard() {
   const session = await verifySession()
-  const userRole = session?.user?.role // Assuming 'role' is part of the session object
+  const userRole = session?.role // Assuming you included 'role' in the session payload
 
   if (userRole === 'admin') {
     return <AdminDashboard />
@@ -1450,7 +1450,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export default async function AdminActions() {
   const session = await verifySession()
-  const userRole = session?.user?.role
+  const userRole = session?.role
 
   if (userRole !== 'admin') {
     return null
@@ -1470,7 +1470,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export default async function AdminActions() {
   const session = await verifySession()
-  const userRole = session?.user?.role
+  const userRole = session?.role
 
   if (userRole !== 'admin') {
     return null
@@ -1504,7 +1504,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export async function serverAction(formData: FormData) {
   const session = await verifySession()
-  const userRole = session?.user?.role
+  const userRole = session?.role
 
   // Return early if user is not authorized to perform the action
   if (userRole !== 'admin') {
@@ -1521,7 +1521,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export async function serverAction() {
   const session = await verifySession()
-  const userRole = session?.user?.role // Assuming 'role' is part of the session object
+  const userRole = session?.role // Assuming you included 'role' in the session payload
 
   // Return early if user is not authorized to perform the action
   if (userRole !== 'admin') {
@@ -1554,7 +1554,7 @@ export async function GET() {
   }
 
   // Check if the user has the 'admin' role
-  if (session?.user?.role !== 'admin') {
+  if (session?.role !== 'admin') {
     // User is authenticated but does not have the right permissions
     return new Response(null, { status: 403 })
   }
@@ -1577,7 +1577,7 @@ export async function GET() {
   }
 
   // Check if the user has the 'admin' role
-  if (session?.user?.role !== 'admin') {
+  if (session?.role !== 'admin') {
     // User is authenticated but does not have the right permissions
     return new Response(null, { status: 403 })
   }
