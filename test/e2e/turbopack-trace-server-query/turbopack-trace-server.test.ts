@@ -512,50 +512,68 @@ describe('turbopack-trace-server', () => {
   // ─── heaviest span ───────────────────────────────────────────────────────
 
   it('should point heaviestSpanId at the group member holding the most bytes', async () => {
-    // Multi-member groups do not always exist at the root, so descend until one
-    // turns up. Whether a given trace has one depends on what was compiled.
+    // A group's members are the raw spans under the group's *parent* that
+    // share its name — not the children of the group id, which belong to the
+    // example span alone. So the walk has to keep the parent it descended
+    // from.
     const isGroup = (s: SpanData) =>
       s.isAggregated && (s.count as number) > 1 && s.heaviestSpanId
-    let frontier = (await querySpansJson(mcpPort, { sort: 'value' })).spans
-    let group: SpanData | undefined
-    for (let level = 0; level < 4 && !group && frontier.length > 0; level++) {
-      group = frontier.find(isGroup)
-      if (group) break
-      const next: SpanData[] = []
-      for (const span of frontier.slice(0, 5)) {
-        next.push(
-          ...(await querySpansJson(mcpPort, { parent: span.id, sort: 'value' }))
-            .spans
-        )
+
+    // Multi-member groups do not always exist at the root; descend until one
+    // turns up, remembering which parent each candidate came from.
+    let frontier: Array<{ parent: string | undefined; span: SpanData }> = (
+      await querySpansJson(mcpPort, { sort: 'value' })
+    ).spans.map((span) => ({ parent: undefined, span }))
+    let found: { parent: string | undefined; span: SpanData } | undefined
+
+    for (let level = 0; level < 4 && !found && frontier.length > 0; level++) {
+      found = frontier.find((entry) => isGroup(entry.span))
+      if (found) break
+      const next: typeof frontier = []
+      for (const entry of frontier.slice(0, 5)) {
+        const { spans } = await querySpansJson(mcpPort, {
+          parent: entry.span.id,
+          sort: 'value',
+        })
+        next.push(...spans.map((span) => ({ parent: entry.span.id, span })))
       }
       frontier = next
     }
-    if (!group) return
+    if (!found) return
 
+    const group = found.span
     const heaviestId = group.heaviestSpanId as string
     const firstId = group.firstSpanId as string
 
-    // Look the group's members up as raw spans and check that the one
-    // heaviestSpanId names really does hold the most persistent bytes.
-    const { spans: members } = await querySpansJson(mcpPort, {
-      parent: group.id,
+    // Raw siblings under the group's parent, filtered to the group's name.
+    const { spans: siblings } = await querySpansJson(mcpPort, {
+      parent: found.parent,
       aggregated: false,
       pageSize: 500,
     })
+    const members = siblings.filter((s) => s.name.startsWith(group.name))
+
+    // A group can collect spans from different parents, so the siblings here
+    // are not always the whole group. Only assert when we have recovered every
+    // member — otherwise `max` is taken over a subset and holds trivially.
+    if (members.length !== group.count) return
+
     const byIndex = new Map(
       members.map((m) => [m.id.split('-').pop() as string, m])
     )
     const heaviest = byIndex.get(heaviestId)
     const first = byIndex.get(firstId)
+    expect(heaviest).toBeDefined()
+    expect(first).toBeDefined()
     if (!heaviest || !first) return
 
-    expect(heaviest.persistentAllocations as number).toBeGreaterThanOrEqual(
-      first.persistentAllocations as number
-    )
     const max = Math.max(
       ...members.map((m) => m.persistentAllocations as number)
     )
     expect(heaviest.persistentAllocations as number).toBe(max)
+    expect(heaviest.persistentAllocations as number).toBeGreaterThanOrEqual(
+      first.persistentAllocations as number
+    )
   })
 
   // ─── CLI tests ───────────────────────────────────────────────────────────
