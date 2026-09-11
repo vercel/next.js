@@ -551,10 +551,15 @@ const transform = (
           ipc.sendInfo({ type: 'log', logs: logs })
           logs.length = 0
         }
+        const { missingDependencies } = result as typeof result & {
+          missingDependencies: string[]
+        }
         ipc.sendInfo({
           type: 'dependencies',
           envVariables: getReadEnvVariables(),
-          filePaths: result.fileDependencies.map(toPath),
+          filePaths: [...result.fileDependencies, ...missingDependencies].map(
+            toPath
+          ),
           directories: result.contextDependencies.map((dep) => [
             toPath(dep),
             '**',

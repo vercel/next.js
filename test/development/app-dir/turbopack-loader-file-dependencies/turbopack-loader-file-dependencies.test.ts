@@ -22,4 +22,20 @@ describe('turbopack-loader-file-dependencies', () => {
     const newText = await $2('p').text()
     expect(newText).not.toBe(initialText)
   })
+
+  it('should update when a missing dependency is created', async () => {
+    const $ = await next.render$('/')
+    const initialText = $('p').text()
+    expect(initialText).toContain('missing dependency: false')
+
+    await next.patchFile(
+      'utils/missing-dependency.ts',
+      'export const value = "created"'
+    )
+
+    await waitFor(1000)
+
+    const $2 = await next.render$('/')
+    expect($2('p').text()).toContain('missing dependency: true')
+  })
 })
