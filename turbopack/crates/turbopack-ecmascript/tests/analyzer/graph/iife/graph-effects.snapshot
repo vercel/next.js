@@ -129,57 +129,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
+                    AstPath(
+                        AstPathId(
+                            15,
                         ),
-                        Script(
-                            Body(
-                                3,
-                            ),
-                        ),
-                        Stmt(
-                            Expr,
-                        ),
-                        ExprStmt(
-                            Expr,
-                        ),
-                        Expr(
-                            Call,
-                        ),
-                        CallExpr(
-                            Callee,
-                        ),
-                        Callee(
-                            Expr,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        ArrowFunctionBody(
-                            FunctionBody,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },

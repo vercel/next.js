@@ -123,45 +123,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
+                    AstPath(
+                        AstPathId(
+                            11,
                         ),
-                        Module(
-                            Body(
-                                2,
-                            ),
-                        ),
-                        ModuleItem(
-                            ModuleDecl,
-                        ),
-                        ModuleDecl(
-                            ExportDecl,
-                        ),
-                        ExportDecl(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },
@@ -517,45 +483,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
+                    AstPath(
+                        AstPathId(
+                            21,
                         ),
-                        Module(
-                            Body(
-                                5,
-                            ),
-                        ),
-                        ModuleItem(
-                            ModuleDecl,
-                        ),
-                        ModuleDecl(
-                            ExportDecl,
-                        ),
-                        ExportDecl(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },

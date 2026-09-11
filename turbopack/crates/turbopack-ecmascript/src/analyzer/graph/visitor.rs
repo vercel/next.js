@@ -29,6 +29,7 @@ use crate::{
         graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
         is_unresolved_id,
     },
+    ast_path_trie::AstPathTrie,
     chunk::CjsStaticExports,
     code_gen::CodeGen,
     references::{
@@ -88,6 +89,8 @@ pub(super) struct Analyzer<'arena, 'eval> {
 
     // Some unconditional codegens, usually for ESM items.
     pub(super) code_gens: Vec<CodeGen>,
+    /// Interns the AST paths used by `code_gens`; handed to the [`VarGraph`] at the end.
+    pub(super) ast_paths: AstPathTrie,
 
     /// Whether we may codegen `let` and `const` or if we should fallback to var (at the cost of
     /// slightly less correct circular import errors) for EsmModuleItem
@@ -502,7 +505,9 @@ mod analyzer_state {
                     } => {
                         let block = EffectsBlock {
                             effects: take(&mut self.effects).into_boxed_slice(),
-                            range: AstPathRange::StartAfter(start_ast_path.to_vec()),
+                            range: AstPathRange::StartAfter(
+                                self.ast_paths.intern(&start_ast_path).into(),
+                            ),
                         };
                         self.effects = prev_effects;
                         let kind = match (then, r#else, early_return_condition_value) {
@@ -1300,7 +1305,7 @@ impl<'a> Analyzer<'a, '_> {
                             BumpBox::new_in(
                                 EffectsBlock {
                                     effects: effects.into_boxed_slice(),
-                                    range: AstPathRange::Exact(path),
+                                    range: AstPathRange::Exact(self.ast_paths.intern(&path).into()),
                                 },
                                 self.arena,
                             ),
@@ -1404,10 +1409,9 @@ impl<'a> Analyzer<'a, '_> {
 
     fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
         if self.analyze_mode.is_code_gen() {
-            self.code_gens.push(
-                EsmModuleItem::new(as_parent_path(ast_path).into(), self.supports_block_scoping)
-                    .into(),
-            );
+            let path = self.ast_paths.intern(ast_path.kinds()).into();
+            self.code_gens
+                .push(EsmModuleItem::new(path, self.supports_block_scoping).into());
         }
     }
 
@@ -1449,7 +1453,7 @@ impl<'a> Analyzer<'a, '_> {
 
         // The RHS isn't inspected; the code-gen keeps it as `<value>`.
         let name = RcStr::from(name.sym.as_str());
-        let path = as_parent_path(ast_path).into();
+        let path = self.ast_paths.intern(ast_path.kinds()).into();
         if dead {
             self.record_dead_cjs_write(name, path);
         } else {
@@ -1485,7 +1489,8 @@ impl<'a> Analyzer<'a, '_> {
             }
             return;
         }
-        let (name, path) = (RcStr::from(name), as_parent_path(ast_path).into());
+        let path = self.ast_paths.intern(ast_path.kinds()).into();
+        let name = RcStr::from(name);
         if dead {
             self.record_dead_cjs_write(name, path);
         } else {
@@ -1558,7 +1563,8 @@ impl<'a> Analyzer<'a, '_> {
             names.push(name);
         }
         if !names.is_empty() {
-            self.record_cjs_object_literal_exports(names, as_parent_path(ast_path).into());
+            let path = self.ast_paths.intern(ast_path.kinds()).into();
+            self.record_cjs_object_literal_exports(names, path);
         }
     }
 }
@@ -2537,6 +2543,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         self.data.cjs_static_exports = cjs_static_exports;
 
         self.data.code_gens = take(&mut self.code_gens);
+        self.data.ast_paths = take(&mut self.ast_paths);
     }
 
     fn visit_cond_expr<'ast: 'r, 'r>(
@@ -2557,7 +2564,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             expr.cons.visit_with_ast_path(self, &mut ast_path);
             EffectsBlock {
                 effects: take(&mut self.effects).into_boxed_slice(),
-                range: AstPathRange::Exact(as_parent_path(&ast_path)),
+                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds()).into()),
             }
         };
         let r#else = {
@@ -2566,7 +2573,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             expr.alt.visit_with_ast_path(self, &mut ast_path);
             EffectsBlock {
                 effects: take(&mut self.effects).into_boxed_slice(),
-                range: AstPathRange::Exact(as_parent_path(&ast_path)),
+                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds()).into()),
             }
         };
         self.effects = prev_effects;
@@ -2603,7 +2610,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
 
             EffectsBlock {
                 effects: take(&mut self.effects).into_boxed_slice(),
-                range: AstPathRange::Exact(as_parent_path(&ast_path)),
+                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds()).into()),
             }
         };
         let mut else_returning = false;
@@ -2618,7 +2625,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
 
             EffectsBlock {
                 effects: take(&mut self.effects).into_boxed_slice(),
-                range: AstPathRange::Exact(as_parent_path(&ast_path)),
+                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds()).into()),
             }
         });
         self.effects = prev_effects;
@@ -2778,6 +2785,13 @@ impl VisitAstPath for Analyzer<'_, '_> {
         });
 
         let effects = take(&mut self.effects);
+        let labeled_body_path = self
+            .ast_paths
+            .intern(&as_parent_path_with(
+                ast_path,
+                AstParentKind::LabeledStmt(LabeledStmtField::Body),
+            ))
+            .into();
 
         prev_effects.push(
             self.arena,
@@ -2790,10 +2804,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     ConditionalKind::Labeled {
                         body: EffectsBlock {
                             effects: effects.into_boxed_slice(),
-                            range: AstPathRange::Exact(as_parent_path_with(
-                                ast_path,
-                                AstParentKind::LabeledStmt(LabeledStmtField::Body),
-                            )),
+                            range: AstPathRange::Exact(labeled_body_path),
                         },
                     },
                     self.arena,

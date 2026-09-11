@@ -14,6 +14,7 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::AstPathTrie,
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
@@ -41,12 +42,14 @@ impl EsmModuleItem {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
         let supports_block_scoping = self.supports_block_scoping;
 
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_module_item,
             |module_item: &mut ModuleItem| {

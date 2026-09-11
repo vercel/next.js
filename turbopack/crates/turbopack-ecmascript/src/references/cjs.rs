@@ -29,6 +29,7 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    ast_path_trie::AstPathTrie,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
@@ -180,6 +181,7 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
 
     fn into_code_gen_reference(
         self,
+        _trie: &AstPathTrie,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
@@ -204,6 +206,7 @@ pub struct CjsRequireAssetReferenceCodeGen {
 impl CjsRequireAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -220,6 +223,7 @@ impl CjsRequireAssetReferenceCodeGen {
         let mut visitors = Vec::new();
 
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {
@@ -326,6 +330,7 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
 
     fn into_code_gen_reference(
         self,
+        _trie: &AstPathTrie,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
@@ -349,6 +354,7 @@ pub struct CjsRequireResolveAssetReferenceCodeGen {
 impl CjsRequireResolveAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let reference = self.reference.await?;
@@ -366,6 +372,7 @@ impl CjsRequireResolveAssetReferenceCodeGen {
 
         // Inline the result of the `require.resolve` call as a literal.
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {
@@ -414,11 +421,13 @@ impl CjsRequireCacheAccess {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {
@@ -483,6 +492,7 @@ impl CjsExportsDropCodeGen {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         _exports: ResolvedVc<EcmascriptExports>,
@@ -513,24 +523,29 @@ impl CjsExportsDropCodeGen {
                     if !dead && export_usage_info.is_export_used(name) {
                         continue;
                     }
-                    visitors.push(create_visitor!(path, visit_mut_expr, |expr: &mut Expr| {
-                        match expr {
-                            // `exports.NAME = <value>` → `<value>` (keep side effects).
-                            Expr::Assign(assign) => {
-                                let value = assign.right.take();
-                                *expr = *value;
+                    visitors.push(create_visitor!(
+                        trie,
+                        *path,
+                        visit_mut_expr,
+                        |expr: &mut Expr| {
+                            match expr {
+                                // `exports.NAME = <value>` → `<value>` (keep side effects).
+                                Expr::Assign(assign) => {
+                                    let value = assign.right.take();
+                                    *expr = *value;
+                                }
+                                // `Object.defineProperty(exports, …)`: keep an eager
+                                // `value`'s side effects; a getter is lazy, drop the call.
+                                Expr::Call(call) => {
+                                    *expr = match take_define_property_value(call) {
+                                        Some(value) => *value,
+                                        None => quote!("0" as Expr),
+                                    };
+                                }
+                                _ => {}
                             }
-                            // `Object.defineProperty(exports, …)`: keep an eager
-                            // `value`'s side effects; a getter is lazy, drop the call.
-                            Expr::Call(call) => {
-                                *expr = match take_define_property_value(call) {
-                                    Some(value) => *value,
-                                    None => quote!("0" as Expr),
-                                };
-                            }
-                            _ => {}
                         }
-                    }));
+                    ));
                 }
                 DroppableCjsExportAssignment::ObjectLiteral { names, path } => {
                     let unused = names
@@ -543,13 +558,18 @@ impl CjsExportsDropCodeGen {
                     }
                     // `module.exports = { …, NAME: v, … }` → drop each unused `NAME`,
                     // keeping a data value's side effects in place via `...(void v)`.
-                    visitors.push(create_visitor!(path, visit_mut_expr, |expr: &mut Expr| {
-                        if let Expr::Assign(assign) = expr
-                            && let Expr::Object(obj) = &mut *assign.right
-                        {
-                            drop_object_literal_exports(obj, &unused);
+                    visitors.push(create_visitor!(
+                        trie,
+                        *path,
+                        visit_mut_expr,
+                        |expr: &mut Expr| {
+                            if let Expr::Assign(assign) = expr
+                                && let Expr::Object(obj) = &mut *assign.right
+                            {
+                                drop_object_literal_exports(obj, &unused);
+                            }
                         }
-                    }));
+                    ));
                 }
             }
         }

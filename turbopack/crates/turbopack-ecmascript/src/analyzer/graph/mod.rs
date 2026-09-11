@@ -15,6 +15,7 @@ pub use crate::analyzer::graph::{
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
     analyzer::{Bump, JsValue, graph::visitor::Analyzer},
+    ast_path_trie::AstPathTrie,
     chunk::CjsStaticExports,
     code_gen::CodeGen,
 };
@@ -36,6 +37,9 @@ pub struct VarGraph<'a> {
     pub effects: Vec<Effect<'a>>,
     // Some unconditional codegens, usually for ESM items.
     pub code_gens: Vec<CodeGen>,
+    /// Interns the AST paths used by `code_gens`. Effect processing keeps interning into
+    /// this same trie, so every path for the module ends up sharing one arena.
+    pub ast_paths: AstPathTrie,
 
     /// [`ExportUsage`] per `require("…")` call, keyed by call position; absent
     /// calls fall back to `ExportUsage::All`.
@@ -75,6 +79,7 @@ pub fn create_graph<'a>(
             free_var_ids: Default::default(),
             effects: Default::default(),
             code_gens: Default::default(),
+            ast_paths: Default::default(),
             require_usage: Default::default(),
             cjs_static_exports: Default::default(),
         },
@@ -83,6 +88,7 @@ pub fn create_graph<'a>(
         effects: Default::default(),
         hoisted_effects: Default::default(),
         code_gens: Default::default(),
+        ast_paths: Default::default(),
         supports_block_scoping,
     };
 
