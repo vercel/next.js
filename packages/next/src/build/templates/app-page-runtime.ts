@@ -545,6 +545,18 @@ export function createAppPageEntrypoint({
     const supportsRDCForNavigations =
       isRoutePPREnabled && nextConfig.cacheComponents === true
 
+    // Cached Navigations produce a reusable static stage during production
+    // HTML renders, dynamic RSC renders, and postponed resumes. All of these
+    // paths need prerender fallback params in the RequestStore even though the
+    // response itself is dynamic.
+    const needsFallbackParamsForCachedNavigationStage =
+      (isDynamicRSCRequest ||
+        hasPostponedState ||
+        (routeModule.isDev === false && !isRSCRequest)) &&
+      nextConfig.experimental.cachedNavigations === true &&
+      // Actions use separate fallback handling rather than this navigation path.
+      !isPossibleServerAction
+
     // In development, we always want to generate dynamic HTML.
     const supportsDynamicResponse: boolean =
       // If we're in development, we always support dynamic HTML, unless it's
@@ -1495,6 +1507,13 @@ export function createAppPageEntrypoint({
             placeholderFallbackRouteParams != null &&
             placeholderFallbackRouteParams.length > 0
 
+          // Forced static and debug renders are prerenders even when the
+          // surrounding request otherwise supports dynamic rendering.
+          const isRequestSpecificRender =
+            !forceStaticRender &&
+            !isDebugPrerender &&
+            (supportsDynamicResponse || isPossibleServerAction)
+
           // When route-module.ts resolved partial nxtP* params during
           // background revalidation, filter fallbackRouteParams to only the
           // params that are still unresolved. This lets doRender produce an
@@ -1513,14 +1532,17 @@ export function createAppPageEntrypoint({
             }
           }
 
-          const fallbackRouteParams =
-            // In production or when debugging the static shell for a
-            // non-prerendered URL, use the prerender manifest's fallback route
-            // params which correctly identifies which params are unknown.
-            ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
-              hasPlaceholderFallbackRouteParams ||
-              (isDebugStaticShell && !isPrerendered)) &&
-            fallbackRouteParamsForRender
+          // Request-specific renders must keep concrete params rather than
+          // replacing them with prerender placeholders during segment resolution.
+          const fallbackRouteParams = isRequestSpecificRender
+            ? null
+            : // In production or when debugging the static shell for a
+              // non-prerendered URL, use the prerender manifest's fallback route
+              // params which correctly identifies which params are unknown.
+              ((isProduction && getRequestMeta(req, 'renderFallbackShell')) ||
+                  hasPlaceholderFallbackRouteParams ||
+                  (isDebugStaticShell && !isPrerendered)) &&
+                fallbackRouteParamsForRender
               ? createOpaqueFallbackRouteParams(fallbackRouteParamsForRender)
               : // For intermediate shells where some params are resolved and
                 // others still have placeholders, use the filtered subset so the
@@ -1555,6 +1577,12 @@ export function createAppPageEntrypoint({
           // fallbackRouteParams because that would replace actual param values
           // with opaque placeholders during segment resolution.
           if (
+            // Request-specific renders keep concrete values, but actions still
+            // need fallback metadata to skip unresolved fallback page renders,
+            // and staged navigations need it to defer params in reusable shells.
+            (!isRequestSpecificRender ||
+              isPossibleServerAction ||
+              needsFallbackParamsForCachedNavigationStage) &&
             (isProduction || isDebugStaticShell) &&
             nextConfig.cacheComponents &&
             !isPrerendered &&
@@ -1568,13 +1596,6 @@ export function createAppPageEntrypoint({
               addRequestMeta(req, 'fallbackParams', fallbackParams)
             }
           }
-
-          // Forced static and debug renders are prerenders even when the
-          // surrounding request otherwise supports dynamic rendering.
-          const isRequestSpecificRender =
-            !forceStaticRender &&
-            !isDebugPrerender &&
-            (supportsDynamicResponse || isPossibleServerAction)
 
           // Perform the render.
           return doRender({
@@ -2100,7 +2121,15 @@ export function createAppPageEntrypoint({
         // would replace actual param values with opaque placeholders during
         // segment resolution; the resolved values are baked into the URL and
         // already interpolated into the postponed state.
-        if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
+        if (
+          nextConfig.cacheComponents &&
+          prerenderInfo?.fallbackRouteParams &&
+          // Dynamic responses still need this metadata for action fallback
+          // handling and for deferring params in staged navigation shells.
+          (!supportsDynamicResponse ||
+            isPossibleServerAction ||
+            needsFallbackParamsForCachedNavigationStage)
+        ) {
           const fallbackParams = createOpaqueFallbackRouteParams(
             prerenderInfo.fallbackRouteParams
           )

@@ -937,6 +937,63 @@ describe('cached navigations', () => {
     )
   })
 
+  it('reuses cached page segment across fallback params after a draft mode HTML load', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser(
+      '/api/draft/enable?to=/with-fallback-params/foo',
+      {
+        async beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      }
+    )
+    const act = createRouterAct(page)
+
+    try {
+      await retry(async () => {
+        expect(
+          await browser.elementById('connection-boundary').text()
+        ).toContain('Dynamic content')
+      })
+      expect(await browser.elementById('params-boundary').text()).toContain(
+        'Param: foo'
+      )
+
+      await act(async () => {
+        await act(
+          async () => {
+            await browser
+              .elementByCss('a[href="/with-fallback-params/bar"]')
+              .click()
+          },
+          {
+            includes: 'Dynamic content',
+            block: true,
+          }
+        )
+
+        expect(await browser.elementById('cached-content').text()).toContain(
+          'Cached content'
+        )
+        expect(await browser.elementById('params-boundary').text()).toBe(
+          'Loading params...'
+        )
+        expect(await browser.elementById('connection-boundary').text()).toBe(
+          'Loading connection...'
+        )
+      })
+
+      expect(await browser.elementById('params-boundary').text()).toContain(
+        'Param: bar'
+      )
+      expect(await browser.elementById('connection-boundary').text()).toContain(
+        'Dynamic content'
+      )
+    } finally {
+      await page.context().clearCookies()
+    }
+  })
+
   it('does not leak resolved param-specific content across params when using prefetch={true}', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/with-fallback-params', {
