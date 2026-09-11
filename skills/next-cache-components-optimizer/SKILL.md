@@ -210,6 +210,11 @@ Prefer the self-validating variant when the route has deferred content. If the
 route cannot build while blocked, or a cookie/session read stays GREEN, use the
 RED recipes in `reference/red-test-robustness.md`.
 
+Do not weaken or remove assertions for deferred UI when a lock behaves
+unexpectedly. If a named contract cannot prove that its shell commits while
+request-time UI remains deferred, treat the verdict as untrustworthy and repair
+the rig or report the blocker.
+
 > **C-gate: do not start optimizing until the RED is verified trustworthy.** A
 > RED that is red for the wrong reason sends you optimizing a route that was
 > never broken.
@@ -337,6 +342,9 @@ now commits instantly. Verify:
 - **Same render output.** The moved `await`s compute and return the same
   values; after the stream, the route shows the same content as the base
   branch for the test user.
+- **Request inputs still work.** Exercise any relevant authentication,
+  session, cookie, parameter, or search-parameter variants named by the route
+  or rig. Checking only the default completed content is not parity.
 - **Side effects still fire.** A deferred `redirect()` or `notFound()` still
   happens, at request time rather than during prerender. Confirm an
   unauthorized user is still redirected and a missing record still renders
@@ -360,8 +368,10 @@ If anything other than whether the route is instant changed, reduce the refactor
 ### F. Prove the differential
 
 Revert only the fix → RED; re-apply → GREEN; link both runs
-(`reference/red-test-robustness.md`). On a deployed rig, confirm each run is live
-(LIVENESS, phase A) before trusting its color.
+(`reference/red-test-robustness.md`). Every contract intended to distinguish
+the optimization must be RED after the revert and GREEN after the re-apply. A
+partial RED does not complete the differential. On a deployed rig, confirm each
+run is live (LIVENESS, phase A) before trusting its color.
 
 ## Completion checklist
 
