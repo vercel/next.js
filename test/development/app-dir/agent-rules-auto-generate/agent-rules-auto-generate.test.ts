@@ -230,6 +230,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain('"whatWouldHaveHelped"')
     expect(content).toContain('first-person')
     expect(content).toContain('independently triageable data point')
+    expect(content).toContain('only for a genuinely distinct observation')
     expect(content).toContain('Never estimate elapsed time, token usage')
   })
 
