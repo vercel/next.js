@@ -192,6 +192,9 @@ describe('searchparams-reuse-loading', () => {
 
         let interceptRequests = false
         let act: ReturnType<typeof createRouterAct>
+        let middlewareRedirectResponse:
+          | Promise<{ status: number; location: string | undefined }>
+          | undefined
         const browser = await next.browser(path, {
           beforePageLoad(page) {
             act = createRouterAct(page)
@@ -232,6 +235,32 @@ describe('searchparams-reuse-loading', () => {
                   headers['rsc'] === '1' &&
                   !headers['next-router-prefetch']
                 ) {
+                  const fullPrefetchPath = `${path}/search-params?id=3`
+                  if (path !== '/' && promiseKey === fullPrefetchPath) {
+                    if (url.pathname.endsWith('/someValue')) {
+                      throw new Error(
+                        `Unexpected data fallback for ${fullPrefetchPath}`
+                      )
+                    }
+
+                    // Middleware may need to resolve the original URL's redirect
+                    // during navigation even though its target data is prefetched.
+                    const responsePromise = page.waitForResponse(
+                      (response) => response.request() === request
+                    )
+                    middlewareRedirectResponse = responsePromise.then(
+                      async (response) => {
+                        const responseHeaders = await response.allHeaders()
+                        return {
+                          status: response.status(),
+                          location: responseHeaders.location,
+                        }
+                      }
+                    )
+                    await route.continue()
+                    return
+                  }
+
                   // Create a promise that will be resolved by the later test code
                   let resolvePromise: () => void
                   const promise = new Promise<void>((res) => {
@@ -279,12 +308,22 @@ describe('searchparams-reuse-loading', () => {
         })
 
         interceptRequests = true
-        await act(async () => {
+        if (path === '/') {
+          await act(async () => {
+            await browser.elementByCss(`[href="${fullPrefetchPath}"]`).click()
+          }, 'no-requests')
+        } else {
           await browser.elementByCss(`[href="${fullPrefetchPath}"]`).click()
-        }, 'no-requests')
+        }
 
         const params3 = await browser.waitForElementByCss('#params').text()
         expect(params3).toBe('{"id":"3"}')
+        if (middlewareRedirectResponse) {
+          expect(await middlewareRedirectResponse).toEqual({
+            status: 307,
+            location: `${path}/search-params/someValue?id=3`,
+          })
+        }
 
         await browser.elementByCss(`[href='${path}']`).click()
         await prefetchPromise
