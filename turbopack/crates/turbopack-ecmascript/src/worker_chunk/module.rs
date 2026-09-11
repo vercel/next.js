@@ -2,7 +2,7 @@ use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
-use turbo_tasks_fs::FileSystem;
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
@@ -13,7 +13,9 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{
+        ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
+    },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::ModuleReferences,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -177,26 +179,42 @@ impl WorkerLoaderModule {
             }
             // WorkerThreads are treated as an entry point, webworkers probably should too but
             // currently it would lead to a cascade that we need to address.
+            //
+            // Unlike the web-worker branch this keeps `AvailabilityInfo::root()`, so the emitted
+            // entry chunk stays self-contained. A Node worker thread runs in a fresh thread that
+            // loads only this entry chunk (and the chunks it requires relative to `__dirname`);
+            // there is no equivalent of the browser `createWorker` preload list, so pruning
+            // already-available modules here would produce a worker missing module factories.
+            //
+            // Termination for a self-spawning worker (e.g. `new Worker(__filename)`) is handled
+            // by the check below instead: when the worker's own chunk group already contains the
+            // worker entry, the nested loader skips building a second entry chunk group. It does
+            // not need one — the path it emits is derived from the ident, and the outer level
+            // already emitted the file at that path.
             WorkerType::NodeWorkerThread => {
+                if *self
+                    .inner_is_available(chunking_context, module_graph)
+                    .await?
+                {
+                    return Ok(OutputAssetsWithReferenced {
+                        assets: ResolvedVc::cell(vec![]),
+                        referenced_assets: ResolvedVc::cell(vec![]),
+                        references: ResolvedVc::cell(vec![]),
+                    }
+                    .cell());
+                }
+
                 let Some(evaluatable) =
                     ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(this.inner)
                 else {
                     bail!("Worker module must be evaluatable");
                 };
 
-                let worker_path = chunking_context
-                    .chunk_path(
-                        None,
-                        this.inner.ident(),
-                        Some(rcstr!("[worker thread]")),
-                        rcstr!(".js"),
-                    )
-                    .owned()
-                    .await?;
-
                 let entry_result = chunking_context
                     .root_entry_chunk_group(
-                        worker_path,
+                        Self::node_worker_entry_path(chunking_context, *this.inner)
+                            .owned()
+                            .await?,
                         ChunkGroup::Worker(ResolvedVc::upcast(evaluatable)),
                         module_graph,
                         OutputAssets::empty(),
@@ -240,6 +258,48 @@ impl WorkerLoaderModule {
     async fn create_worker_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
         Ok(create_worker_module(*this.asset_context, this.worker_type))
+    }
+
+    /// The path of the entry chunk emitted for a Node worker thread.
+    ///
+    /// Derived purely from the inner module's ident, so it is the same whether or not this
+    /// loader actually built the entry chunk group. That is what lets a self-spawning worker's
+    /// nested loader emit the right path without recursing (see [`Self::chunk_group`]).
+    #[turbo_tasks::function]
+    fn node_worker_entry_path(
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        inner: Vc<Box<dyn ChunkableModule>>,
+    ) -> Vc<FileSystemPath> {
+        chunking_context.chunk_path(
+            None,
+            inner.ident(),
+            Some(rcstr!("[worker thread]")),
+            rcstr!(".js"),
+        )
+    }
+
+    /// Whether the worker's entry module is already part of the chunk group that created this
+    /// loader — i.e. this is a worker spawning itself.
+    ///
+    /// Mirrors the availability check in `AsyncLoaderModule::chunk_group`.
+    #[turbo_tasks::function]
+    async fn inner_is_available(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+    ) -> Result<Vc<bool>> {
+        if let Some(available_modules) = self.availability_info.available_modules() {
+            let batches = module_graph
+                .module_batches(chunking_context.batching_config())
+                .await?;
+            let module_or_batch = batches.get_entry(ResolvedVc::upcast(self.inner)).await?;
+            if let Some(chunkable) = ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
+                && *available_modules.get(chunkable.into()).await?
+            {
+                return Ok(Vc::cell(true));
+            }
+        }
+        Ok(Vc::cell(false))
     }
 
     /// Returns output assets including the worker entrypoint for web workers.
@@ -405,25 +465,18 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
                 // For Node.js workers, export a function to create the worker.
                 // The function takes (WorkerConstructor, workerOptions) and calls createWorker
                 // with the worker path baked in.
-                let chunk_group = self.chunk_group(chunking_context, module_graph).await?;
-                let assets = chunk_group.assets.await?;
+                //
+                // The path is derived from the inner module's ident rather than read off the
+                // chunk group's assets, because a self-spawning worker's nested loader
+                // deliberately builds no chunk group (see `chunk_group`) — the outer level
+                // already emitted the entry chunk at exactly this path.
+                //
+                // We use just the filename because both the loader module and the worker entry
+                // chunk are in the same directory (typically server/chunks/), so we don't need a
+                // relative path — `__dirname` already points at the right directory.
+                let entry_path =
+                    Self::node_worker_entry_path(chunking_context, *this.inner).await?;
 
-                // The last asset is the evaluate chunk (entry point) for the worker.
-                // The evaluated_chunk_group adds regular chunks first, then pushes the
-                // evaluate chunk last. The evaluate chunk contains the bootstrap code that
-                // loads the runtime and other chunks. For Node.js workers, we need a single
-                // file path (not a blob URL like browser workers), so we use the evaluate
-                // chunk which serves as the entry point.
-                let Some(entry_asset) = assets.last() else {
-                    bail!("cannot find worker entry point asset");
-                };
-                let entry_path = entry_asset.path().await?;
-
-                // Get the filename of the worker entry chunk
-                // We use just the filename because both the loader module and the worker
-                // entry chunk are in the same directory (typically server/chunks/), so we
-                // don't need a relative path - __dirname will already point to the correct
-                // directory
                 formatdoc! {
                     r#"
                         {TURBOPACK_EXPORT_VALUE}({TURBOPACK_REQUIRE}({workers_module})[{export:#}](__dirname + "/" + {worker_path:#}));
