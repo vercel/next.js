@@ -40,7 +40,10 @@ export async function spawnNextUpgrade(
       const packet = await prepareUpgradeResources(result, {
         dryRun: options.dryRun,
       })
-      await handoffUpgrade(packet.prompt)
+      await handoffUpgrade(packet.prompt, baseDir, {
+        current: result.app.nextVersion,
+        target: result.target.nextVersion,
+      })
     } catch (error) {
       console.error(
         '[next upgrade: blocked]',
