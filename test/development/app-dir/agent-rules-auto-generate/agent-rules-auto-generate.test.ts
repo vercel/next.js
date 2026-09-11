@@ -224,14 +224,10 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     )
     expect(content).toContain(AGENT_RULES_MARKER)
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
-    expect(content).toContain('"schemaVersion":3')
-    expect(content).toContain('"whatIWasDoing"')
-    expect(content).toContain('"whatWentWrong"')
-    expect(content).toContain('"whatWouldHaveHelped"')
-    expect(content).toContain('first-person')
-    expect(content).toContain('independently triageable data point')
-    expect(content).toContain('only for a genuinely distinct observation')
-    expect(content).toContain('Never estimate elapsed time, token usage')
+    expect(content).toContain(
+      'node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/agentFeedback.md'
+    )
+    expect(content).not.toContain('"schemaVersion":3')
   })
 
   it('is idempotent across dev server restarts', async () => {
@@ -303,7 +299,9 @@ describe('agent-feedback auto-generate on next dev (stale CLAUDE.md block)', () 
       'utf-8'
     )
     expect(content).toContain('# Team rules\r\n')
-    expect(content).toContain('"schemaVersion":3')
+    expect(content).toContain(
+      'node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/agentFeedback.md'
+    )
     expect(content).not.toContain('stale')
     expect(content).not.toMatch(/(?<!\r)\n/)
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
