@@ -486,6 +486,8 @@ export function resolveCssChunkingMode(
 }
 
 export interface ExperimentalConfig {
+  /** Enable the experimental agent-assisted security upgrade workflow. */
+  agenticAutoUpgrade?: false | 'security'
   /**
    * @deprecated Use the top-level `outputHashSalt` option instead.
    */
@@ -2277,6 +2279,7 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
+    agenticAutoUpgrade: false,
     coldCacheBadge: false,
     collapseAdapterRoutes: true,
     devValidationWorker: true,
