@@ -1931,7 +1931,7 @@ async fn handle_dynamic_import_with_linked_args(
             if ignore_dynamic_requests {
                 if link_context != ValueLinkContext::InAlternative {
                     analysis.add_code_gen(DynamicExpression::new_promise(
-                        analysis.intern_path(&ast_path),
+                        analysis.intern_path(ast_path),
                     ));
                 }
                 return Ok(());
@@ -1960,7 +1960,7 @@ async fn handle_dynamic_import_with_linked_args(
                 lazy_compilation,
             )
             .await?,
-            analysis.intern_path(&ast_path),
+            analysis.intern_path(ast_path),
             link_context,
         );
         return Ok(());
@@ -2092,7 +2092,7 @@ where
                             error_mode,
                             url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
                         ),
-                        analysis.intern_path(&ast_path),
+                        analysis.intern_path(ast_path),
                         link_context,
                     );
                 }
@@ -2137,7 +2137,7 @@ where
                                 tracing_only,
                                 is_shared,
                             ),
-                            analysis.intern_path(&ast_path),
+                            analysis.intern_path(ast_path),
                             link_context,
                         );
                     }
@@ -2242,7 +2242,7 @@ where
                             error_mode,
                             tracing_only,
                         ),
-                        analysis.intern_path(&ast_path),
+                        analysis.intern_path(ast_path),
                         link_context,
                     );
 
@@ -2307,7 +2307,7 @@ where
                     if ignore_dynamic_requests {
                         if link_context != ValueLinkContext::InAlternative {
                             analysis.add_code_gen(DynamicExpression::new(
-                                analysis.intern_path(&ast_path),
+                                analysis.intern_path(ast_path),
                             ));
                         }
                         return Ok(());
@@ -2334,7 +2334,7 @@ where
                         call_usage.clone(),
                         state.cjs_tree_shaking,
                     ),
-                    analysis.intern_path(&ast_path),
+                    analysis.intern_path(ast_path),
                     link_context,
                 );
                 return Ok(());
@@ -2362,7 +2362,7 @@ where
                     if ignore_dynamic_requests {
                         if link_context != ValueLinkContext::InAlternative {
                             analysis.add_code_gen(DynamicExpression::new(
-                                analysis.intern_path(&ast_path),
+                                analysis.intern_path(ast_path),
                             ));
                         }
                         return Ok(());
@@ -2393,7 +2393,7 @@ where
                         call_usage.clone(),
                         state.cjs_tree_shaking,
                     ),
-                    analysis.intern_path(&ast_path),
+                    analysis.intern_path(ast_path),
                     link_context,
                 );
                 return Ok(());
@@ -2438,7 +2438,7 @@ where
                     if ignore_dynamic_requests {
                         if link_context != ValueLinkContext::InAlternative {
                             analysis.add_code_gen(DynamicExpression::new(
-                                analysis.intern_path(&ast_path),
+                                analysis.intern_path(ast_path),
                             ));
                         }
                         return Ok(());
@@ -2463,7 +2463,7 @@ where
                         attributes.chunking_type,
                         resolve_override,
                     ),
-                    analysis.intern_path(&ast_path),
+                    analysis.intern_path(ast_path),
                     link_context,
                 );
                 return Ok(());
@@ -2503,7 +2503,7 @@ where
                     Some(issue_source(source, span)),
                     error_mode,
                 ),
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
                 link_context,
             );
         }
@@ -2539,7 +2539,7 @@ where
                     error_mode,
                 )
                 .await?,
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
                 link_context,
             );
         }
@@ -3223,7 +3223,7 @@ where
                     analysis.add_code_gen(ModuleHotReferenceCodeGen::new(
                         references,
                         esm_references,
-                        analysis.intern_path(&ast_path),
+                        analysis.intern_path(ast_path),
                     ));
                 } else if first_arg.is_unknown() {
                     let (args_str, hints) = explain_args(args);
@@ -3336,7 +3336,7 @@ where
                             issue_source(source, span),
                             error_mode,
                         ),
-                        analysis.intern_path(&ast_path),
+                        analysis.intern_path(ast_path),
                         link_context,
                     );
                 }
@@ -3466,7 +3466,7 @@ where
                         },
                         emit_to_all_entries,
                     ),
-                    analysis.intern_path(&ast_path),
+                    analysis.intern_path(ast_path),
                     link_context,
                 );
                 return Ok(());
@@ -3519,7 +3519,7 @@ where
 
                 analysis.add_reference_code_gen(
                     CollectReference::new(origin, parent_module, namespace.as_rcstr()),
-                    analysis.intern_path(&ast_path),
+                    analysis.intern_path(ast_path),
                     link_context,
                 );
                 return Ok(());
@@ -3606,7 +3606,7 @@ async fn handle_membership<'a>(
                         {
                             analysis.add_code_gen(ConstantValueCodeGen::new(
                                 CompileTimeDefineValue::Bool(true),
-                                analysis.intern_path(&ast_path),
+                                analysis.intern_path(ast_path),
                             ));
                             return Ok(());
                         }
@@ -3618,11 +3618,11 @@ async fn handle_membership<'a>(
             {
                 analysis.add_code_gen::<CodeGen>(match ty {
                     MembershipType::Member { .. } => {
-                        CjsRequireCacheAccess::new(analysis.intern_path(&ast_path)).into()
+                        CjsRequireCacheAccess::new(analysis.intern_path(ast_path)).into()
                     }
                     MembershipType::In => ConstantValueCodeGen::new(
                         CompileTimeDefineValue::Bool(true),
-                        analysis.intern_path(&ast_path),
+                        analysis.intern_path(ast_path),
                     )
                     .into(),
                 });
@@ -3743,20 +3743,20 @@ async fn handle_free_var_reference(
         FreeVarReference::Value(value) => {
             analysis.add_code_gen(ConstantValueCodeGen::new(
                 value.clone(),
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
             ));
         }
         FreeVarReference::Ident(value) => {
             analysis.add_code_gen(IdentReplacement::new(
                 value.clone(),
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
             ));
         }
         FreeVarReference::Member(key, value) => {
             analysis.add_code_gen(MemberReplacement::new(
                 key.clone(),
                 value.clone(),
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
             ));
         }
         FreeVarReference::EcmaScriptModule {
@@ -3810,7 +3810,7 @@ async fn handle_free_var_reference(
             analysis.add_code_gen(EsmBinding::new(
                 esm_reference,
                 export.clone(),
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
             ));
         }
         FreeVarReference::InputRelative(kind) => {
@@ -3821,7 +3821,7 @@ async fn handle_free_var_reference(
             };
             analysis.add_code_gen(ConstantValueCodeGen::new(
                 as_abs_path(source_path).into(),
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
             ));
         }
         FreeVarReference::ReportUsage {
@@ -3900,7 +3900,7 @@ async fn analyze_amd_define(
                     AmdDefineDependencyElement::Module,
                 ],
                 origin,
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
                 AmdDefineFactoryType::Function,
                 issue_source(source, span),
                 error_mode,
@@ -3914,7 +3914,7 @@ async fn analyze_amd_define(
                     AmdDefineDependencyElement::Module,
                 ],
                 origin,
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
                 AmdDefineFactoryType::Unknown,
                 issue_source(source, span),
                 error_mode,
@@ -3928,7 +3928,7 @@ async fn analyze_amd_define(
                     AmdDefineDependencyElement::Module,
                 ],
                 origin,
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
                 AmdDefineFactoryType::Function,
                 issue_source(source, span),
                 error_mode,
@@ -3938,7 +3938,7 @@ async fn analyze_amd_define(
             analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
                 vec![],
                 origin,
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
                 AmdDefineFactoryType::Value,
                 issue_source(source, span),
                 error_mode,
@@ -3952,7 +3952,7 @@ async fn analyze_amd_define(
                     AmdDefineDependencyElement::Module,
                 ],
                 origin,
-                analysis.intern_path(&ast_path),
+                analysis.intern_path(ast_path),
                 AmdDefineFactoryType::Unknown,
                 issue_source(source, span),
                 error_mode,
@@ -4040,7 +4040,7 @@ async fn analyze_amd_define_with_deps(
     analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
         requests,
         origin,
-        analysis.intern_path(&ast_path),
+        analysis.intern_path(ast_path),
         AmdDefineFactoryType::Function,
         issue_source(source, span),
         error_mode,
