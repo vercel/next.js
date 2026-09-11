@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('Numeric Separator Support', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // No deploy-specific incompatibility is documented.
+  // This scope only checks compiler output for a numeric-separator build regression.
+  // It belongs to local build validation and has no deployed runtime assertion.
   // @force-gate !deploy
   describe('production mode', () => {
     const { next } = nextTestSetup({
