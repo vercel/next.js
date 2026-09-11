@@ -5,15 +5,20 @@ use bincode::{Decode, Encode};
 use next_core::app_structure::FileSystemPathVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    Completion, FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
+    TryFlatJoinIterExt, TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     module_graph::{GraphEntries, ModuleGraph},
     output::OutputAssets,
 };
 
-use crate::{operation::OptionEndpoint, paths::AssetPath, project::Project};
+use crate::{
+    aggregate_hmr::{ServerHmrChunkLists, ServerHmrEntryKey},
+    operation::OptionEndpoint,
+    paths::AssetPath,
+    project::Project,
+};
 
 #[derive(
     TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Clone, Debug, NonLocalValue, Encode, Decode,
@@ -216,10 +221,32 @@ pub struct EndpointGroups(Vec<(EndpointGroupKey, EndpointGroup)>);
 #[turbo_tasks::value(transparent)]
 pub struct Endpoints(Vec<ResolvedVc<Box<dyn Endpoint>>>);
 
+#[turbo_tasks::value(serialization = "skip")]
+pub struct EndpointWriteResult {
+    pub output_paths: ReadRef<EndpointOutputPaths>,
+    registration: Option<ServerHmrRegistration>,
+}
+
+#[derive(TraceRawVcs, NonLocalValue, PartialEq, Eq, ValueDebugFormat)]
+struct ServerHmrRegistration {
+    project: ReadRef<Project>,
+    output: OperationVc<EndpointOutput>,
+}
+
+impl EndpointWriteResult {
+    pub fn register_server_hmr_entry(&self, entry_key: ServerHmrEntryKey) {
+        if let Some(registration) = &self.registration {
+            registration
+                .project
+                .register_server_hmr_entry(entry_key, registration.output);
+        }
+    }
+}
+
 #[turbo_tasks::function]
 pub async fn endpoint_write_to_disk(
     endpoint: ResolvedVc<Box<dyn Endpoint>>,
-) -> Result<Vc<EndpointOutputPaths>> {
+) -> Result<Vc<EndpointWriteResult>> {
     let output_op = output_assets_operation(endpoint);
     let EndpointOutput {
         project,
@@ -232,7 +259,14 @@ pub async fn endpoint_write_to_disk(
         .as_side_effect()
         .await?;
 
-    Ok(*output_paths)
+    Ok(EndpointWriteResult {
+        output_paths: output_paths.await?,
+        registration: Some(ServerHmrRegistration {
+            project: project.await?,
+            output: output_op,
+        }),
+    }
+    .cell())
 }
 
 #[turbo_tasks::function(operation)]
@@ -250,11 +284,15 @@ async fn endpoint_output_assets_operation(
 #[turbo_tasks::function(operation, root)]
 pub async fn endpoint_write_to_disk_operation(
     endpoint: OperationVc<OptionEndpoint>,
-) -> Result<Vc<EndpointOutputPaths>> {
+) -> Result<Vc<EndpointWriteResult>> {
     Ok(if let Some(endpoint) = *endpoint.connect().await? {
         endpoint_write_to_disk(*endpoint)
     } else {
-        EndpointOutputPaths::NotFound.cell()
+        EndpointWriteResult {
+            output_paths: ReadRef::new_owned(EndpointOutputPaths::NotFound),
+            registration: None,
+        }
+        .cell()
     })
 }
 
@@ -286,6 +324,7 @@ pub struct EndpointOutput {
     pub output_assets: ResolvedVc<OutputAssets>,
     pub output_paths: ResolvedVc<EndpointOutputPaths>,
     pub project: ResolvedVc<Project>,
+    pub server_hmr_chunks: Option<ResolvedVc<ServerHmrChunkLists>>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -294,7 +333,6 @@ pub enum EndpointOutputPaths {
     NodeJs {
         /// Relative to the root_path
         server_entry_path: RcStr,
-        server_hmr_entry_paths: Vec<RcStr>,
         server_paths: Vec<AssetPath>,
         client_paths: Vec<RcStr>,
     },
