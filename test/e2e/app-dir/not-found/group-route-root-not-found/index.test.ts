@@ -1,14 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app dir - group routes with root not-found', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should render default 404 with root layout for non-existent page', async () => {
     const browser = await next.browser('/non-existent')

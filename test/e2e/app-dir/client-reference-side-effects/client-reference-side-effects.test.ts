@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('client-reference-side-effects', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('side effect behavior when only importing', async () => {
