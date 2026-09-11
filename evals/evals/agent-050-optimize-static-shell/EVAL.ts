@@ -47,18 +47,21 @@ test('removes the route opt-out while keeping Cache Components enabled', () => {
   expect(source).not.toMatch(/export\s+(?:const|var|let)\s+instant\s*=\s*false/)
 })
 
-test('retains production instant navigation regression coverage', () => {
+test('covers direct visits and client navigations with instant()', () => {
   expect(testSource).toMatch(/from\s+['"]@next\/playwright['"]/)
   expect(testSource).toMatch(/\binstant\s*\(/)
   expect(testSource).toMatch(/\.click\s*\(/)
   expect(testSource).toMatch(/\.goto\s*\(/)
+})
+
+test('asserts the complete instant shell contract', () => {
   expect(testSource).toMatch(/release-shell/)
   expect(testSource).toMatch(/release-heading/)
   expect(testSource).toMatch(/launch-checklist/)
-  expect(testSource).toMatch(/viewer-controls/)
-  expect(testSource).toMatch(/live-rollout/)
   expect(testSource).toMatch(/viewer-skeleton/)
   expect(testSource).toMatch(/rollout-skeleton/)
+  expect(testSource).toMatch(/viewer-controls/)
+  expect(testSource).toMatch(/live-rollout/)
 })
 
 test('caches the reusable checklist without replacing its data source', () => {
@@ -67,20 +70,44 @@ test('caches the reusable checklist without replacing its data source', () => {
   expect(releaseDataSource).not.toMatch(/import\s+launchChecklist\s+from/)
 })
 
-test('produces the intended shell and request-time split', async () => {
+test('puts the intended reusable UI in the static shell', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The final /releases/aurora implementation keeps the release frame/navigation, Release operations heading, and launch checklist in the static shell. The existing viewer and rollout loading states are reused in focused Suspense boundaries. Only the existing launch-checklist read is cached; the implementation preserves that read instead of replacing it with a build-time import. The viewer cookie and live rollout remain request-time and are not placed in a public cache. The page or a high-level boundary is not replaced with an empty or duplicate full-page fallback. Separate production @next/playwright instant() tests cover a direct visit and a real Link click. Under the lock they assert the complete shell, both focused skeletons, and the absence of viewer controls and live rollout. After release, the request-time UI renders.`
+    `The final /releases/aurora implementation keeps the release frame/navigation, Release operations heading, and launch checklist in the static shell. Only the existing launch-checklist read is cached, and the implementation preserves that read rather than replacing it with a build-time import. The page or a high-level boundary is not replaced with an empty or duplicate full-page fallback.`
   )
 })
 
-test('preserves the completed route behavior', async () => {
-  await expect(transcript).toSatisfyCriterion(
-    `Using the existing production rig, the agent executed completed-route parity checks rather than only inspecting source or the static shell. The viewer controls still use a supplied viewer cookie, the Aurora rollout still renders 72 percent and Global, the Nebula release still renders 18 percent and Europe, and an unknown release still renders the not-found UI.`
+test('keeps request-time UI behind focused loading states', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The viewer cookie and live rollout remain request-time and are not placed in a public cache. The existing viewer and rollout loading states are reused in focused Suspense boundaries. Under the instant() lock, both skeletons are visible while viewer controls and live rollout are absent. After release, the request-time UI renders and replaces those loading states.`
   )
 })
 
-test('completed a bounded RED-to-GREEN differential', async () => {
+test('preserves all completed release variants', async () => {
   await expect(transcript).toSatisfyCriterion(
-    `The agent reused instant-nav.rig.md and its production Playwright command instead of creating another server lifecycle. It confirmed the intended UI once without instant(), observed a trustworthy locked RED on the unfixed route, reached GREEN after the fix, reverted only the implementation to observe RED again, and reapplied it to observe final GREEN. It ran one conclusive check per gate and repeated a build or test only after changing code or observing an infrastructure failure, not as an arbitrary stress or flake loop. Merely writing tests or commands does not satisfy this criterion.`
+    `Using the existing production rig, the agent executed completed-route parity checks rather than only inspecting source or the static shell. The Aurora rollout still renders 72 percent and Global, the Nebula release still renders 18 percent and Europe, and an unknown release still renders the not-found UI.`
+  )
+})
+
+test('preserves the request-specific viewer cookie', async () => {
+  await expect(transcript).toSatisfyCriterion(
+    `Using the existing production rig, the agent verified that viewer controls render the viewer supplied through the rig's optional viewer cookie after the instant() lock releases. Merely retaining cookie-reading source code does not satisfy this criterion.`
+  )
+})
+
+test('proved the unlocked baseline and trustworthy RED', async () => {
+  await expect(transcript).toSatisfyCriterion(
+    `The agent reused instant-nav.rig.md and its production Playwright command instead of creating another server lifecycle. Before changing production code, it confirmed the complete intended UI rendered once without instant(), then observed a locked RED on the unfixed route for the intended missing shell behavior. A timeout before navigation, missing fixture data, stale build, or unavailable selector does not satisfy this criterion.`
+  )
+})
+
+test('reached GREEN and ran the complete production suite', async () => {
+  await expect(transcript).toSatisfyCriterion(
+    `After applying the optimization, the agent ran the required direct-visit and client-navigation instant() contracts successfully on the production rig. It also ran the complete in-scope production command with no required test skipped, and verified completed content after the lock released. Merely writing the tests, passing a filtered subset, or obtaining a successful build does not satisfy this criterion.`
+  )
+})
+
+test('completed the bounded differential', async () => {
+  await expect(transcript).toSatisfyCriterion(
+    `After reaching GREEN, the agent reverted only the implementation fix and observed every intended instant() contract return to RED. It then reapplied the fix and observed final GREEN. It ran one conclusive check per gate and repeated a build or test only after changing code or observing an infrastructure failure, not as an arbitrary stress or flake loop. Merely describing the differential or changing the tests during it does not satisfy this criterion.`
   )
 })

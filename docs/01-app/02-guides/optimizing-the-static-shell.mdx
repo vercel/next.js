@@ -22,6 +22,8 @@ In this guide, you'll learn how to expand the shell by tracing each data read to
 
 The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) skill applies this guide with a coding agent. It uses the [`instant()` verification loop](#step-4-verify-the-instant-ui) below to capture the intended static shell, prove the current behavior, and keep the passing test as regression coverage.
 
+The skill can also target a client navigation whose destination UI does not commit immediately. It applies the same patterns to the destination segments that change, then verifies the named navigation through its real link. If the destination already has instant UI and you want to include additional URL-specific content before the click, use [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) instead.
+
 Install the skill:
 
 ```bash filename="Terminal"
@@ -325,7 +327,7 @@ Learn more about cache scopes and lifetimes in [Caching](/docs/app/getting-start
 
 With Cache Components enabled, [`next dev` validates whether each page load or client navigation has instant UI](/docs/app/guides/instant-navigation#validate-instant-navigation). A route may already have instant UI for one entry point but show an insight for another. For example, a fallback in a shared layout may cover a page load without covering a client navigation within that layout.
 
-If an insight appears while you refactor, that page load or navigation needs an immediate result or fallback. Its suggested fixes map to the patterns above:
+If an insight appears while you refactor, that specific page load or client navigation needs an immediate result or fallback. It is a useful target for the patterns above or the optimizer skill, even when another entry point to the same route is already instant. The suggested fixes map to the patterns above:
 
 <FixCardGrid>
   <FixCard

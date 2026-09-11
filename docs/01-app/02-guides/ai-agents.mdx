@@ -206,7 +206,7 @@ The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/nex
 2. Refactors the route until it passes, often by moving a data read below a `<Suspense>` boundary.
 3. Commits the passing test with the refactoring, so it catches future regressions.
 
-It needs a route that already builds with [Cache Components](/docs/app/getting-started/caching). It can also verify a client-navigation entry point when shared layouts produce a different instant shell. For URL-specific content that should be ready before a click, use the [`next-partial-prefetching-optimizer`](#next-partial-prefetching-optimizer) instead.
+It needs a route that already builds with [Cache Components](/docs/app/getting-started/caching). It can also optimize a named client navigation when the destination segments do not yet have useful instant UI. For URL-specific content that should be ready before a click after the destination App Shell is already instant, use the [`next-partial-prefetching-optimizer`](#next-partial-prefetching-optimizer) instead.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-optimizer
