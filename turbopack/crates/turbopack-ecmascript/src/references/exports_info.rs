@@ -10,6 +10,7 @@ use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace:
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::AstPathTrie,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
@@ -36,6 +37,7 @@ impl ExportsInfoBinding {
 
     pub async fn code_generation(
         &self,
+        _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         exports: ResolvedVc<EcmascriptExports>,
@@ -135,9 +137,10 @@ impl ExportsInfoRef {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
-        let visitor = create_visitor!(self.ast_path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.ast_path, visit_mut_expr, |expr: &mut Expr| {
             *expr = Expr::Ident(exports_ident());
         });
 

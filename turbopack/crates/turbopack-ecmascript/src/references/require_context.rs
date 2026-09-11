@@ -38,6 +38,7 @@ use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
     EcmascriptChunkPlaceable,
+    ast_path_trie::AstPathTrie,
     chunk::{EcmascriptChunkItemContent, EcmascriptExports, ecmascript_chunk_item},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
@@ -320,6 +321,7 @@ impl IntoCodeGenReference for RequireContextAssetReference {
 
     fn into_code_gen_reference(
         self,
+        _trie: &AstPathTrie,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
@@ -344,6 +346,7 @@ pub struct RequireContextAssetReferenceCodeGen {
 impl RequireContextAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let module_id = self
@@ -356,6 +359,7 @@ impl RequireContextAssetReferenceCodeGen {
         let mut visitors = Vec::new();
 
         visitors.push(create_visitor!(
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {

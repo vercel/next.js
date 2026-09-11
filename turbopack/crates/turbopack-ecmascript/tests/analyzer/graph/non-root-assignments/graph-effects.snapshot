@@ -135,45 +135,11 @@
                 EffectsBlock {
                     effects: [],
                     range: Exact(
-                        [
-                            Program(
-                                Module,
+                        AstPath(
+                            AstPathId(
+                                30,
                             ),
-                            Module(
-                                Body(
-                                    11,
-                                ),
-                            ),
-                            ModuleItem(
-                                Stmt,
-                            ),
-                            Stmt(
-                                Expr,
-                            ),
-                            ExprStmt(
-                                Expr,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Arrow,
-                            ),
-                            ArrowExpr(
-                                Body,
-                            ),
-                            ArrowFunctionBody(
-                                FunctionBody,
-                            ),
-                        ],
+                        ),
                     ),
                 },
             ),

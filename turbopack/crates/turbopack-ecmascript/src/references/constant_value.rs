@@ -16,6 +16,7 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::{chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue};
 
 use crate::{
+    ast_path_trie::AstPathTrie,
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::AstPath,
@@ -35,21 +36,22 @@ impl ConstantValueCodeGen {
     }
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let value = self.value.clone();
         let mut visitors = Vec::new();
-        let mut ast_path = self.path.0.clone();
 
         if matches!(
-            ast_path.last(),
+            trie.last(self.path.id()),
             Some(swc_core::ecma::visit::AstParentKind::Prop(
                 PropField::Shorthand
             ))
         ) {
-            ast_path.pop();
+            let ast_path = AstPath::from(trie.parent_or_root(self.path.id()));
             visitors.push(create_visitor!(
                 exact,
+                trie,
                 ast_path,
                 visit_mut_prop,
                 |prop: &mut Prop| {
@@ -63,6 +65,7 @@ impl ConstantValueCodeGen {
             ));
         } else {
             visitors.push(create_visitor!(
+                trie,
                 self.path,
                 visit_mut_expr,
                 |expr: &mut Expr| {

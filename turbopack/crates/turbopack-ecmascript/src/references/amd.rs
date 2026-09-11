@@ -24,6 +24,7 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
+    ast_path_trie::AstPathTrie,
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::{
@@ -151,6 +152,7 @@ impl AmdDefineWithDependenciesCodeGen {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
@@ -199,6 +201,7 @@ impl AmdDefineWithDependenciesCodeGen {
 
         visitors.push(create_visitor!(
             exact,
+            trie,
             self.path,
             visit_mut_call_expr,
             |call_expr: &mut CallExpr| {
