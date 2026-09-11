@@ -1,0 +1,7 @@
+{
+  "id": "lookup-blocked",
+  "major": false,
+  "entry": "active",
+  "source": "15.5.23",
+  "target": "15.5.24"
+}

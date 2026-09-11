@@ -1,0 +1,21 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "check:runtime": "node /tmp/next-upgrade-tools/runtime.cjs"
+  },
+  "dependencies": {
+    "next": "15.5.23",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "typescript": "5.8.2",
+    "@types/node": "22.10.1",
+    "@types/react": "18.3.18",
+    "@types/react-dom": "18.3.5",
+    "vitest": "^3.1.3"
+  },
+  "packageManager": "pnpm@10.28.0",
+  "type": "module"
+}
