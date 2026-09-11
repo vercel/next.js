@@ -6,7 +6,7 @@ use next_core::{
 };
 use rustc_hash::FxHashMap;
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    JoinIterExt, NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{module::Module, module_graph::ModuleGraphLayer};
 use turbopack_css::chunk::CssChunkPlaceable;
@@ -65,8 +65,11 @@ pub async fn map_client_references(
                 Ok(None)
             }
         })
-        .try_flat_join_collect::<FxHashMap<_, _>>()
-        .await?;
+        .join()
+        .await
+        .into_iter()
+        .filter_map(Result::transpose)
+        .collect::<Result<FxHashMap<_, _>>>()?;
 
     Ok(Vc::cell(manifest))
 }

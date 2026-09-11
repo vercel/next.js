@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
+    CollectiblesSource, FxIndexMap, JoinIterExt, NonLocalValue, OperationVc, ReadRef, ResolvedVc,
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
@@ -1129,8 +1129,10 @@ impl ModuleGraphSnapshot {
     pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
         self.iter_nodes()
             .map(async |n| Ok((n, n.ident().to_string().await?)))
-            .try_join_collect::<FxHashMap<_, _>>()
+            .join()
             .await
+            .into_iter()
+            .collect()
     }
 
     /// Traverses all reachable nodes exactly once and calls the visitor.

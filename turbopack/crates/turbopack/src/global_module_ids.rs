@@ -3,7 +3,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{JoinIterExt, ReadRef, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     chunk::{
@@ -55,8 +55,10 @@ pub async fn get_global_module_id_strategy(
                 let hash = hash_xxh3_hash64(&ident_str);
                 Ok((ident, (ident_str, hash)))
             })
-            .try_join_collect::<FxHashMap<_, _>>()
-            .await?;
+            .join()
+            .await
+            .into_iter()
+            .collect::<Result<FxHashMap<_, _>>>()?;
 
         finalize_module_ids(&mut module_id_map);
 

@@ -5,7 +5,7 @@ use regex::Regex;
 use smallvec::smallvec;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, JoinIterExt, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, rope::Rope};
 use turbopack::{ModuleAssetContext, module_options::CustomModuleType};
 use turbopack_core::{
@@ -202,8 +202,10 @@ impl EcmascriptChunkPlaceable for RawEcmascriptModule {
                                     },
                                 ))
                             })
-                            .try_join_collect::<FxIndexMap<_, _>>()
-                            .await?
+                            .join()
+                            .await
+                            .into_iter()
+                            .collect::<Result<FxIndexMap<_, _>>>()?
                     )
                 )?;
                 code += "};\n";

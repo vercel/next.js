@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use next_core::app_structure::FileSystemPathVec;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    Completion, FxIndexMap, FxIndexSet, NonLocalValue, OperationVc, ResolvedVc, TryFlatJoinIterExt,
+    Completion, FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, OperationVc, ResolvedVc,
     TryJoinIterExt, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
@@ -187,13 +187,17 @@ async fn output_of_endpoints(endpoints: Vec<Vc<Box<dyn Endpoint>>>) -> Result<Vc
 async fn module_graphs_of_endpoints(
     endpoints: Vec<Vc<Box<dyn Endpoint>>>,
 ) -> Result<Vc<ModuleGraphs>> {
-    let module_graphs = endpoints
+    let module_graph_results = endpoints
         .iter()
-        .map(async |endpoint| Ok(endpoint.module_graphs().await?.into_iter()))
-        .try_flat_join_collect::<FxIndexSet<_>>()
-        .await?
-        .into_iter()
-        .collect::<Vec<_>>();
+        .map(async |endpoint| anyhow::Ok(endpoint.module_graphs().await?.into_iter()))
+        .join()
+        .await;
+    // Deduplicate while preserving first-seen order, then hand back a `Vec`.
+    let mut seen: FxIndexSet<_> = FxIndexSet::default();
+    for result in module_graph_results {
+        seen.extend(result?);
+    }
+    let module_graphs = seen.into_iter().collect::<Vec<_>>();
     Ok(Vc::cell(module_graphs))
 }
 
