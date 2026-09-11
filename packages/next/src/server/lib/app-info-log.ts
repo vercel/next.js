@@ -7,7 +7,10 @@ import { experimentalSchema } from '../config-schema'
 import { getAgentName } from '../../telemetry/agent-name'
 import { bundlerName, getBundlerFromEnv } from '../../lib/bundler'
 import {
+  hasCurrentAgentFeedback,
   hasCurrentAgentRules,
+  removeAgentFeedbackFiles,
+  writeAgentFeedbackFiles,
   writeAgentFiles,
   type AgentFilesResult,
 } from './generate-agent-files'
@@ -131,6 +134,22 @@ export async function ensureAgentRulesForDev(
   if (hasCurrentAgentRules(dir)) return null
 
   return writeAgentFiles(dir)
+}
+
+/**
+ * Keep the opt-in agent-feedback block in sync with next.config. Enabling it
+ * still requires a detected agent; disabling it removes only that managed
+ * block, even when no agent is currently detected.
+ */
+export async function syncAgentFeedbackForDev(
+  dir: string,
+  enabled: boolean
+): Promise<AgentFilesResult | null> {
+  if (!enabled) return removeAgentFeedbackFiles(dir)
+  if ((await getAgentName()) === null) return null
+  if (hasCurrentAgentFeedback(dir)) return null
+
+  return writeAgentFeedbackFiles(dir)
 }
 
 /**
