@@ -1271,6 +1271,61 @@ export async function copyTracedFiles(
   } catch {}
   const copiedFiles = new Set()
 
+  async function createTracedSymlink(
+    target: string,
+    linkPath: string,
+    sourcePath: string
+  ) {
+    let isDirectory = false
+    if (process.platform === 'win32') {
+      // Windows requires the target type when creating a symlink. Files are
+      // copied in an arbitrary order, so the target might not exist in the
+      // output yet. Inspect the original target through the source symlink
+      // instead.
+      try {
+        isDirectory = (await fs.stat(sourcePath)).isDirectory()
+      } catch (err: any) {
+        if (err.code !== 'ENOENT' && err.code !== 'ELOOP') {
+          throw err
+        }
+      }
+    }
+
+    try {
+      // the target type argument is ignored on non-windows platforms
+      await fs.symlink(target, linkPath, isDirectory ? 'dir' : 'file')
+    } catch (err: any) {
+      // Windows doesn't support creating symlinks without elevated privileges,
+      // unless "Developer Mode" is turned on. If we failed to create a symlink
+      // due to EPERM, try creating a junction point instead.
+      //
+      // Ideally we'd just preserve the input file type (junction point or
+      // symlink), but there's no API in node.js to differentiate between a
+      // junction point and a symlink, so we just try making a symlink first.
+      // Symlinks are preferred because they support relative paths and
+      // non-directory (file) targets.
+      //
+      // Note: Junction targets are stored as absolute paths, so this fallback
+      // is not relocatable even when the preferred symlink above is relative,
+      // but it's the best we can do.
+      if (process.platform === 'win32' && err.code === 'EPERM' && isDirectory) {
+        try {
+          await fs.symlink(
+            path.resolve(path.dirname(linkPath), target),
+            linkPath,
+            'junction'
+          )
+        } catch (junctionErr: any) {
+          if (junctionErr.code !== 'EEXIST') {
+            throw junctionErr
+          }
+        }
+      } else if (err.code !== 'EEXIST') {
+        throw err
+      }
+    }
+  }
+
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(
       await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
@@ -1297,81 +1352,14 @@ export async function copyTracedFiles(
               outputPath,
               entry.symlinkTarget
             )
-            const symlink =
+            const target =
               path.relative(path.dirname(fileOutputPath), targetOutputPath) ||
               '.'
-            let isDirectory = false
-            if (process.platform === 'win32') {
-              // Windows requires the target type when creating a symlink. Files
-              // are copied in an arbitrary order. The target might not exist in
-              // the output yet; inspect the original target through the source
-              // symlink instead.
-              try {
-                isDirectory = (await fs.stat(tracedFilePath)).isDirectory()
-              } catch (err: any) {
-                if (err.code !== 'ENOENT' && err.code !== 'ELOOP') {
-                  throw err
-                }
-              }
-            }
-
-            try {
-              await fs.symlink(
-                symlink,
-                fileOutputPath,
-                isDirectory ? 'dir' : 'file'
-              )
-            } catch (err: any) {
-              // Windows doesn't support creating symlinks without elevated
-              // privileges, unless "Developer Mode" is turned on. If we failed
-              // to create a symlink due to EPERM, try creating a junction point
-              // instead.
-              //
-              // Ideally we'd just preserve the input file type (junction point
-              // or symlink), but there's no API in node.js to differentiate
-              // between a junction point and a symlink, so we just try making a
-              // symlink first. Symlinks are preferred because they support
-              // relative paths and non-directory (file) targets.
-              if (
-                process.platform === 'win32' &&
-                err.code === 'EPERM' &&
-                isDirectory
-              ) {
-                try {
-                  // Junction targets are stored as absolute paths, so this fallback is not
-                  // relocatable even though the preferred symlink above is relative.
-                  await fs.symlink(targetOutputPath, fileOutputPath, 'junction')
-                } catch (junctionErr: any) {
-                  if (junctionErr.code !== 'EEXIST') {
-                    throw junctionErr
-                  }
-                }
-              } else if (err.code !== 'EEXIST') {
-                throw err
-              }
-            }
+            await createTracedSymlink(target, fileOutputPath, tracedFilePath)
           } else if (traceData.symlinks === undefined) {
-            const symlink = await fs.readlink(tracedFilePath).catch(() => null)
-            if (symlink) {
-              try {
-                await fs.symlink(symlink, fileOutputPath)
-              } catch (err: any) {
-                if (
-                  process.platform === 'win32' &&
-                  err.code === 'EPERM' &&
-                  path.isAbsolute(symlink)
-                ) {
-                  try {
-                    await fs.symlink(symlink, fileOutputPath, 'junction')
-                  } catch (junctionErr: any) {
-                    if (junctionErr.code !== 'EEXIST') {
-                      throw junctionErr
-                    }
-                  }
-                } else if (err.code !== 'EEXIST') {
-                  throw err
-                }
-              }
+            const target = await fs.readlink(tracedFilePath).catch(() => null)
+            if (target) {
+              await createTracedSymlink(target, fileOutputPath, tracedFilePath)
             } else {
               await fs.copyFile(tracedFilePath, fileOutputPath)
             }
