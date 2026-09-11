@@ -4,7 +4,13 @@ async function getCodeHashes(
   next: NextInstance,
   pages?: string[]
 ): Promise<
-  { id: string; page: string; codeHash?: string; runtimeEnvVars?: string[] }[]
+  {
+    id: string
+    page: string
+    codeHash?: string
+    runtimeEnvVarsRead?: string[]
+    runtimeEnvVarsExistence?: string[]
+  }[]
 > {
   const manifest = await next.readJSON(
     '.next/server/server-reference-manifest.json'
@@ -14,7 +20,8 @@ async function getCodeHashes(
     id: string
     page: string
     codeHash?: string
-    runtimeEnvVars?: string[]
+    runtimeEnvVarsRead?: string[]
+    runtimeEnvVarsExistence?: string[]
   }[] = []
   for (const [actionId, entry] of Object.entries<any>(manifest.node)) {
     for (const [workerKey, worker] of Object.entries<any>(entry.workers)) {
@@ -23,12 +30,13 @@ async function getCodeHashes(
           id: actionId,
           page: workerKey,
           codeHash: worker?.durability?.codeHash,
-          runtimeEnvVars: worker?.durability?.runtimeEnvVars,
+          runtimeEnvVarsRead: worker?.durability?.runtimeEnvVarsRead,
+          runtimeEnvVarsExistence: worker?.durability?.runtimeEnvVarsExistence,
         })
       }
     }
   }
-
+  hashes.sort((a, b) => a.page.localeCompare(b.page))
   return hashes
 }
 
@@ -43,45 +51,90 @@ async function getCodeHashes(
 
       it('emits codeHash only for use-cache functions', async () => {
         const values = Object.values(await getCodeHashes(next))
-        expect(values.length).toBe(4)
-
         const valuesWithoutCodeHash = values.filter(
           (e) => typeof e.codeHash !== 'string'
         )
-        expect(valuesWithoutCodeHash.length).toBe(1)
-        expect(valuesWithoutCodeHash[0].page).toBe('app/use-server/page')
+        expect(valuesWithoutCodeHash.map((v) => v.page)).toMatchInlineSnapshot(`
+         [
+           "app/use-server/page",
+         ]
+        `)
       })
 
       it('lists non-inlined runtime env vars', async () => {
+        // TODO ideally app/next-image/page wouldn't include NEXT_DEPLOYMENT_ID.
+        // But currently the import chain
+        // next/image.js
+        // -> packages/next/src/shared/lib/get-img-props.ts
+        // -> packages/next/src/shared/lib/deployment-id.ts
+        // reads NEXT_DEPLOYMENT_ID
+
         const data = await getCodeHashes(next)
-
-        expect(data.find((e) => e.page === 'app/use-cache/page').runtimeEnvVars)
-          .toMatchInlineSnapshot(`
-         [
-           "BUNDLED_NON_INLINED_ENVVAR",
-           "NEXT_PRIVATE_DEBUG_CACHE",
-           "__NEXT_DEV_SERVER",
-           "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
-           "NEXT_PRIVATE_DEBUG_VALIDATION",
-           "NEXT_OTEL_VERBOSE",
-           "NEXT_OTEL_PERFORMANCE_PREFIX",
-           "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
-           "EXTERNAL_ENV_VAR",
-         ]
-        `)
-
         expect(
-          data.find((e) => e.page === 'app/env-dynamic/page').runtimeEnvVars
+          Object.fromEntries(
+            data
+              .filter((d) => d.runtimeEnvVarsRead || d.runtimeEnvVarsExistence)
+              .map((d) => [
+                d.page,
+                [
+                  ...d.runtimeEnvVarsRead,
+                  ...d.runtimeEnvVarsExistence.map((v) => `exist ${v}`),
+                ],
+              ])
+          )
         ).toMatchInlineSnapshot(`
-         [
-           "NEXT_PRIVATE_DEBUG_CACHE",
-           "__NEXT_DEV_SERVER",
-           "NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
-           "NEXT_PRIVATE_DEBUG_VALIDATION",
-           "NEXT_OTEL_VERBOSE",
-           "NEXT_OTEL_PERFORMANCE_PREFIX",
-           "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
-         ]
+         {
+           "app/env-dynamic/page": [
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+           "app/env-existence/page": [
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist FOO",
+             "exist BAR",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+           "app/next-image/page": [
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "NEXT_DEPLOYMENT_ID",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+           "app/use-cache-client/page": [
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+           "app/use-cache/page": [
+             "BUNDLED_NON_INLINED_ENVVAR",
+             "NEXT_OTEL_VERBOSE",
+             "NEXT_OTEL_PERFORMANCE_PREFIX",
+             "NEXT_SERVER_ACTIONS_ENCRYPTION_KEY",
+             "EXTERNAL_ENV_VAR",
+             "exist NEXT_PRIVATE_DEBUG_CACHE",
+             "exist __NEXT_DEV_SERVER",
+             "exist NEXT_PRIVATE_DEBUG_RUNTIME_DATA",
+             "exist NEXT_PRIVATE_DEBUG_VALIDATION",
+           ],
+         }
         `)
       })
     })

@@ -83,9 +83,9 @@ use swc_core::{
 use tracing::{Instrument, Level, instrument};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxDashMap, FxIndexMap, ReadRef, ResolvedVc, SerializationInvalidator, TryJoinIterExt, Upcast,
-    ValueToString, Vc, get_serialization_invalidator, parking_lot_mutex_bincode,
-    trace::TraceRawVcs, turbofmt,
+    FxDashMap, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, SerializationInvalidator,
+    TryJoinIterExt, Upcast, ValueToString, Vc, get_serialization_invalidator,
+    parking_lot_mutex_bincode, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileJsonContent, FileSystemPath, glob::Glob, rope::Rope};
 use turbopack_core::{
@@ -434,12 +434,21 @@ pub trait EcmascriptParsable {
 #[turbo_tasks::value(shared)]
 #[derive(Default, Debug)]
 pub struct EnvVarInfo {
-    /// List of environment variables that are referenced (but not inlined) in the module.
-    pub runtime: Vec<RcStr>,
+    /// List of environment variables accessed at runtime (not inlined) in the module.
+    #[bincode(with = "turbo_bincode::indexmap")]
+    pub runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
     // TODO add this back once we can do it without regressing performance
     // Whether the module potentially references all environment variables (because of a
     // non-statically analyzeable `process.env`).
     // pub runtime_all: Option<IssueSource>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum EnvVarAccessMode {
+    /// The value is read.
+    Read,
+    /// Only the existence of the variable is checked, we only care about unset vs falsy vs truthy.
+    Existence,
 }
 
 #[turbo_tasks::value_impl]

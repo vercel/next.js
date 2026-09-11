@@ -373,6 +373,63 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       }
     })
 
+    it('should recompute when runtime env var truthiness changes', async () => {
+      await next.patchFile(
+        'app/logic.ts',
+        `export function getDate() {
+  return new Date().toISOString() + ':' + Boolean(process.env.FOOBAR)
+}`,
+        async () => {
+          try {
+            delete next.env['FOOBAR']
+            const unset = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-unset'
+            )
+
+            next.env['FOOBAR'] = ''
+            const falsy = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-falsy'
+            )
+
+            // unset -> falsy revalidates
+            expect(unset.keyRoot).not.toBe(falsy.keyRoot)
+            expect(unset.dataRoot).not.toBe(falsy.dataRoot)
+            expect(unset.dataRoot).toEndWith(':false')
+
+            next.env['FOOBAR'] = 'truthy-1'
+            const truthy1 = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-truthy-1'
+            )
+
+            // falsy -> truthy revalidates
+            expect(falsy.keyRoot).not.toBe(truthy1.keyRoot)
+            expect(falsy.dataRoot).not.toBe(truthy1.dataRoot)
+            expect(falsy.dataRoot).toEndWith(':false')
+            expect(truthy1.dataRoot).toEndWith(':true')
+
+            next.env['FOOBAR'] = 'truthy-2'
+            const truthy2 = await execute(
+              next,
+              'NEXT_DEPLOYMENT_ID',
+              'dpl-id-truthy-2'
+            )
+
+            // truthy -> different truthy DOESN'T revalidate
+            expect(truthy1.keyRoot).toBe(truthy2.keyRoot)
+            expect(truthy1.dataRoot).toBe(truthy2.dataRoot)
+          } finally {
+            delete next.env['FOOBAR']
+          }
+        }
+      )
+    })
+
     it('should still work when imported client reference changes', async () => {
       const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
       const browser = await next.browser('/import-use-client')
