@@ -96,7 +96,7 @@ export default nextConfig
 
 ### Opting in to agent feedback
 
-The experimental [`agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) option adds a separate managed block that lets detected AI coding agents prepare de-identified reports about significant Next.js friction. The report opens in a review form where you can edit or remove individual data points before choosing whether to submit it. Agents never submit reports on your behalf.
+The experimental [`agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) option adds a separate managed block that lets detected AI coding agents prepare de-identified reports about significant Next.js friction. The report opens as a short, first-person account of the agent's journey. You can edit or remove individual steps before choosing whether to submit it. Agents never submit reports on your behalf.
 
 ```ts filename="next.config.ts"
 import type { NextConfig } from 'next'

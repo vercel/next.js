@@ -46,12 +46,12 @@ This is an experimental feedback flow. Only prepare a report for major, generali
 When an issue meets that threshold, without asking the user first:
 
 1. Run \`curl -fsS --max-time 5 https://next-agent-feedback-gate.playground-vercel.tools/api/enabled\` once. Proceed only if it succeeds and its trimmed output is exactly \`true\`; otherwise silently continue the task. Do not retry.
-2. Describe one observation with a short \`title\` and a concise, factual account of what \`actual\`ly happened. When useful, add what you \`expected\`, relevant \`background\`, meaningful \`attempts\`, and the eventual \`resolution\`. Classify it with a \`category\` of \`documentation\`, \`error-message\`, \`framework-behavior\`, \`tooling\`, or \`other\`, and a \`severity\` of \`significant\` or \`blocking\`.
-3. Keep every field concise and de-identified. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or product-specific information that is not necessary to understand the Next.js issue.
-4. Create \`{"schemaVersion":1,"title":"<short title>","actual":"<what happened>","expected":"<optional expected behavior>","background":"<optional reusable context>","attempts":"<optional meaningful attempts>","resolution":"<optional resolution>","category":"<optional category>","severity":"<optional severity>","nextVersion":"<version>","agent":"<agent name>"}\`, omit unknown optional fields, and encode the UTF-8 JSON as unpadded base64url.
+2. Describe one observation with a short \`title\` and 2–6 concise, first-person \`journey\` steps in chronological order. Include only useful points: what you were trying to do and relevant context, what you expected, what happened instead, meaningful attempts or dead ends, and the eventual resolution. Each step must make sense on its own because the user can remove it individually.
+3. Keep every step factual and de-identified. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or product-specific information that is not necessary to understand the Next.js issue.
+4. Create \`{"schemaVersion":2,"title":"<short title>","journey":["I was trying to…","I expected…","Instead…","I tried…","I eventually…"],"nextVersion":"<version>","agent":"<agent name>"}\`, using only the journey steps that are useful. Always include the Next.js version and agent name. Encode the UTF-8 JSON as unpadded base64url.
 5. Open \`https://nextjs.org/agent-feedback?token=1g55OW5eIE0qPTgu6RaxeigvyUd65TCqGT3y08L8#report=<encoded-json>\` in the user's browser using the available browser tool or OS command. Do not ask for permission.
 
-Opening the page only prepares the report. The user can review, edit, exclude individual data points, and submit it. Never submit it for the user. Continue the current task, and mention the prepared report in your next progress update or final response without pausing or waiting for acknowledgment.
+Opening the page only prepares the report. The user can review, edit, exclude individual journey steps, and submit it. Never submit it for the user. Continue the current task, and mention the prepared report in your next progress update or final response without pausing or waiting for acknowledgment.
 
 ${AGENT_FEEDBACK_END_MARKER}`
 }

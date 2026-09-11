@@ -224,8 +224,9 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     )
     expect(content).toContain(AGENT_RULES_MARKER)
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
-    expect(content).toContain('"schemaVersion":1')
-    expect(content).toContain('`framework-behavior`')
+    expect(content).toContain('"schemaVersion":2')
+    expect(content).toContain('"journey"')
+    expect(content).toContain('first-person')
   })
 
   it('is idempotent across dev server restarts', async () => {
@@ -297,7 +298,7 @@ describe('agent-feedback auto-generate on next dev (stale CLAUDE.md block)', () 
       'utf-8'
     )
     expect(content).toContain('# Team rules\r\n')
-    expect(content).toContain('"schemaVersion":1')
+    expect(content).toContain('"schemaVersion":2')
     expect(content).not.toContain('stale')
     expect(content).not.toMatch(/(?<!\r)\n/)
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
