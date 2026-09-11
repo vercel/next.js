@@ -111,7 +111,10 @@ function countSubstring(str: string, substr: string): number {
 
     describe('Cache Components metadata streaming', () => {
       it('should generate metadata in head when page is fully static', async () => {
-        const $ = await next.render$('/fully-static')
+        const response = await next.fetch('/fully-static')
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+
+        const $ = cheerio.load(await response.text())
         expect($('head title').text()).toBe('fully static')
         expect(countSubstring($.html(), '<title>')).toBe(1)
 
@@ -159,7 +162,10 @@ function countSubstring(str: string, substr: string): number {
       })
 
       it('should insert dynamic metadata in body under a layout Suspense boundary', async () => {
-        const $ = await next.render$('/dynamic-metadata/partial')
+        const response = await next.fetch('/dynamic-metadata/partial')
+        expect(response.headers.get('x-next-prelude-metadata')).toBe('0')
+
+        const $ = cheerio.load(await response.text())
         expect($('body title').text()).toBe('dynamic-metadata - partial')
         expect(countSubstring($.html(), '<title>')).toBe(1)
 
@@ -174,8 +180,20 @@ function countSubstring(str: string, substr: string): number {
         await assertNoConsoleErrors(browser)
       })
 
+      it('should omit the header when dynamic metadata has an empty static shell', async () => {
+        const response = await next.fetch('/dynamic-metadata/empty')
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+
+        const $ = cheerio.load(await response.text())
+        expect($('title').text()).toBe('dynamic-metadata - empty')
+        expect($('#empty-shell-content').text()).toBe('empty shell content')
+      })
+
       it('should insert static metadata in head when dynamic page content is under a layout Suspense boundary', async () => {
-        const $ = await next.render$('/dynamic-page/partial')
+        const response = await next.fetch('/dynamic-page/partial')
+        expect(response.headers.get('x-next-prelude-metadata')).toBeNull()
+
+        const $ = cheerio.load(await response.text())
         expect($('head title').text()).toBe('dynamic-page - partial')
         expect(countSubstring($.html(), '<title>')).toBe(1)
 
