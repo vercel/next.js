@@ -1323,8 +1323,8 @@ describe('instant-navigation-testing-api - partial prefetching (App Shells)', ()
 // lock) is a dev-time concern, so this suite uses a dedicated fixture and runs
 // in dev only; `next start`/deploy register a single placeholder so the build
 // is never attempted.
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
+// This suite exercises the development navigation/validation testing API.
+// A deployed production build does not provide that dev-server behavior.
 // @force-gate !deploy
 describe('instant-navigation-testing-api - blocking routes (dev only)', () => {
   if (!isNextDev) {

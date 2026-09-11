@@ -5,8 +5,8 @@ import {
 } from 'e2e-utils/instant-validation'
 import { waitForNoErrorToast } from '../../../lib/next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This suite runs next.build() to inspect build output or errors.
+// Deploy mode requires a successful deployment and cannot run these local builds.
 // @force-gate !deploy
 describe('instant validation - level error', () => {
   const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({

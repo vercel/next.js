@@ -11,8 +11,8 @@ import { waitForNoErrorToast } from '../../../lib/next-test-utils'
 // For exhaustive coverage of explicit levels and per-segment overrides,
 // see the sibling `instant-validation-level-{warning,manual-warning,error,
 // manual-error}` fixtures.
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
+// This suite invokes next.build() and inspects local build results.
+// Deployment mode cannot run these additional local builds.
 // @force-gate !deploy
 describe('instant validation - default level', () => {
   const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({

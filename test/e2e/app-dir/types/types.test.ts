@@ -1,8 +1,8 @@
 import { execSync } from 'child_process'
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
+// This suite invokes the local typegen CLI and checks generated types.
+// Deployment mode does not expose that local command or its output files.
 // @force-gate !deploy
 describe('app-dir types', () => {
   const { next } = nextTestSetup({
