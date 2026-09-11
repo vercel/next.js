@@ -107,6 +107,21 @@ export function registerClientTests(ctx: InstantValidationCaseContext) {
       }
     })
 
+    it('valid - dynamically imported client component', async () => {
+      if (isNextDev) {
+        const browser = await navigateTo(
+          '/suspense-in-root/static/valid-dynamically-imported-client-component'
+        )
+        await expectNoDevValidationErrors(browser, await browser.url())
+        expect(getCliOutputSinceMark()).not.toContain('Could not validate')
+      } else {
+        const result = await prerender(
+          '/suspense-in-root/static/valid-dynamically-imported-client-component'
+        )
+        expectNoBuildValidationErrors(result)
+      }
+    })
+
     it('valid - parent uses sync IO in a client component', async () => {
       if (isNextDev) {
         const browser = await navigateTo(
