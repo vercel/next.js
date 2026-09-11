@@ -323,25 +323,39 @@ struct Located<T> {
 
 /// Does this name match the search query?
 ///
-/// Comma-separated terms are ANDed. A term is split on spaces and each word
-/// must appear in the category or the title, so a term copied from a result's
-/// `name` (which is `"category title"`) matches even though it spans both
-/// fields. Splitting the term rather than joining the fields keeps this
-/// allocation-free — it runs for every span in the searched subtree.
-///
-/// The split makes matching insensitive to word order and lets different words
-/// match different fields. That only widens the result set, so a term that
-/// matched before still matches.
+/// Comma-separated terms are ANDed. Each term is a plain substring match
+/// against the span's display name, `"category title"` — the `name` a result
+/// reports — which is why a term copied out of a response finds its span
+/// again.
 fn name_matches(cat: &str, title: &str, query: &str) -> bool {
     query
         .split(',')
         .map(str::trim)
         .filter(|term| !term.is_empty())
-        .all(|term| {
-            term.split(' ')
-                .filter(|word| !word.is_empty())
-                .all(|word| cat.contains(word) || title.contains(word))
-        })
+        .all(|term| contains_in_joined(cat, title, term))
+}
+
+/// Is `term` a substring of `"{cat} {title}"`, without building that string?
+///
+/// This runs for every span in the searched subtree, so the concatenation is
+/// worth avoiding: it was the dominant cost of a search.
+///
+/// A substring of the joined name either lies within one field or straddles
+/// the single space between them, so the straddling case splits the term at a
+/// space and checks that `cat` ends with the head and `title` starts with the
+/// tail. Every space in the term is tried, since both sides may contain their
+/// own.
+fn contains_in_joined(cat: &str, title: &str, term: &str) -> bool {
+    if cat.contains(term) || title.contains(term) {
+        return true;
+    }
+    // With an empty category the display name is just the title, so there is
+    // no joining space for a term to straddle.
+    if cat.is_empty() {
+        return false;
+    }
+    term.match_indices(' ')
+        .any(|(i, _)| cat.ends_with(&term[..i]) && title.starts_with(&term[i + 1..]))
 }
 
 /// Collect the aggregated children of a graph node.
@@ -1205,6 +1219,53 @@ mod tests {
         // Every word still has to land somewhere.
         assert!(!name_matches("turbopack", "build", "turbopack missing"));
         assert!(!name_matches("turbopack", "build", "nope"));
+    }
+
+    #[test]
+    fn search_term_is_a_substring_of_the_display_name() {
+        // Contiguous, in order — exactly what a term copied from a `name` is.
+        assert!(name_matches("turbopack", "build", "turbopack build"));
+        assert!(!name_matches("turbopack", "build", "build turbopack"));
+        // Words with something between them are not a substring.
+        assert!(name_matches(
+            "a",
+            "analyze ecmascript module",
+            "analyze ecmascript"
+        ));
+        assert!(!name_matches(
+            "a",
+            "analyze ecmascript module",
+            "analyze module"
+        ));
+        // A term may straddle the space joining the two fields.
+        assert!(name_matches(
+            "turbopack_ecmascript",
+            "analyze module",
+            "ecmascript analyze"
+        ));
+        assert!(!name_matches(
+            "turbopack_ecmascript",
+            "analyze module",
+            "analyze ecmascript"
+        ));
+        // Straddling requires the exact boundary, not just both halves present.
+        assert!(!name_matches(
+            "turbopack_ecmascript",
+            "analyze module",
+            "turbopack module"
+        ));
+    }
+
+    #[test]
+    fn search_handles_non_ascii_without_panicking() {
+        // The cursor slices `cat`/`title` by byte offset, so every offset has
+        // to land on a char boundary.
+        assert!(name_matches("café", "über naïve", "café über"));
+        assert!(name_matches("café", "über naïve", "é ü"));
+        assert!(name_matches("café", "über naïve", "über naïve"));
+        assert!(!name_matches("café", "über naïve", "naïve café"));
+        assert!(!name_matches("日本語", "テスト", "テスト 日本語"));
+        assert!(name_matches("日本語", "テスト", "日本語 テスト"));
     }
 
     #[test]
