@@ -87,7 +87,8 @@ type MetadataBranchOutcome =
 type ViewportBranchOutcome = ResolutionOutcome<ResolvedViewport>
 
 type MetadataResolution = {
-  selectedKeyPath: string[]
+  selectedMetadataKeyPath: Promise<string[]>
+  selectedViewportKeyPath: Promise<string[]>
   selectedMetadata: Promise<MetadataBranchOutcome>
   selectedViewport: Promise<ViewportBranchOutcome>
   outlets: Map<LoaderTree, Promise<null>>
@@ -95,6 +96,7 @@ type MetadataResolution = {
 
 type MetadataAccumulator = {
   metadata: ResolvedMetadata
+  weight: number
   titleTemplates: TitleTemplates
   favicon: IconDescriptor | null
   leafSegmentStaticIcons: StaticIcons
@@ -105,6 +107,7 @@ type MetadataAccumulator = {
 // structurally parallel to metadata, even though it currently has one field.
 type ViewportAccumulator = {
   viewport: ResolvedViewport
+  weight: number
 }
 
 type MetadataLayer = {
@@ -115,11 +118,24 @@ type MetadataLayer = {
 }
 
 type MetadataBranch = {
-  metadata: Promise<MetadataBranchOutcome>
-  viewport: Promise<ViewportBranchOutcome>
+  metadata: MetadataBranchSelection | Promise<MetadataBranchSelection>
+  viewport: ViewportBranchSelection | Promise<ViewportBranchSelection>
+}
+
+type SelectableBranch = {
   keyPath: string[]
   definitionDepth: number
   isBuiltinFallback: boolean
+}
+
+type MetadataBranchSelection = SelectableBranch & {
+  outcome: Promise<MetadataBranchOutcome>
+  weight: Promise<number>
+}
+
+type ViewportBranchSelection = SelectableBranch & {
+  outcome: Promise<ViewportBranchOutcome>
+  weight: Promise<number>
 }
 
 type CollectedMetadata = MetadataLayer & {
@@ -293,6 +309,7 @@ function cloneStaticMetadata(metadata: StaticMetadata): StaticMetadata {
 function createMetadataAccumulator(): MetadataAccumulator {
   return {
     metadata: createDefaultMetadata(),
+    weight: 0,
     titleTemplates: {
       title: null,
       twitter: null,
@@ -314,6 +331,7 @@ function cloneMetadataAccumulator(
 ): MetadataAccumulator {
   return {
     metadata: structuredClone(accumulator.metadata),
+    weight: accumulator.weight,
     titleTemplates: { ...accumulator.titleTemplates },
     favicon: accumulator.favicon ? structuredClone(accumulator.favicon) : null,
     leafSegmentStaticIcons: {
@@ -331,7 +349,18 @@ function cloneViewportAccumulator(
 ): ViewportAccumulator {
   return {
     viewport: structuredClone(accumulator.viewport),
+    weight: accumulator.weight,
   }
+}
+
+function getAccumulatorWeight<T extends { weight: number }>(
+  accumulator: Promise<T>,
+  inheritedWeight: Promise<number>
+): Promise<number> {
+  return accumulator.then(
+    (value) => value.weight,
+    () => inheritedWeight
+  )
 }
 
 async function accumulateMetadataLayer(
@@ -366,6 +395,10 @@ async function accumulateMetadataLayer(
     metadata = prerendered.result
   }
 
+  if (metadata?.weight !== undefined) {
+    accumulator.weight = metadata.weight
+  }
+
   await mergeMetadata(route, pathname, {
     metadata,
     resolvedMetadata: accumulator.metadata,
@@ -395,6 +428,10 @@ async function accumulateViewportLayer(
     viewport = await prerendered.result
   } else {
     viewport = prerendered.result
+  }
+
+  if (viewport?.weight !== undefined) {
+    accumulator.weight = viewport.weight
   }
 
   mergeViewport({
@@ -492,9 +529,16 @@ type MetadataTreeState = {
   parentOptionalCatchAllParamName: string | null
   metadataParent: Promise<MetadataAccumulator>
   viewportParent: Promise<ViewportAccumulator>
+  metadataWeight: Promise<number>
+  viewportWeight: Promise<number>
   errorLayer: MetadataLayer | null
   definitionDepth: number
   keyPath: string[]
+}
+
+type BranchAtFork<T extends SelectableBranch> = {
+  key: string
+  branch: T
 }
 
 type MetadataBranchAtFork = {
@@ -629,10 +673,10 @@ function hasStaticMetadataFiles(tree: LoaderTree): boolean {
   )
 }
 
-function selectDefaultMetadataBranch(
-  branches: MetadataBranchAtFork[],
+function selectDefaultMetadataBranch<T extends SelectableBranch>(
+  branches: Array<BranchAtFork<T>>,
   forkDepth: number
-): MetadataBranch {
+): T {
   if (branches.length === 0) {
     throw new InvariantError('Expected at least one metadata branch')
   }
@@ -686,6 +730,39 @@ function selectDefaultMetadataBranch(
   return selected.branch
 }
 
+async function selectWeightedBranch<
+  T extends SelectableBranch & {
+    weight: Promise<number>
+  },
+>(
+  pendingBranches: Array<{
+    key: string
+    branch: T | Promise<T>
+  }>,
+  forkDepth: number
+): Promise<T> {
+  const branches = await Promise.all(
+    pendingBranches.map(async ({ key, branch }) => ({
+      key,
+      branch: await branch,
+    }))
+  )
+  const weights = await Promise.all(branches.map(({ branch }) => branch.weight))
+  let highestWeight = weights[0]
+  const highestWeightedBranches: Array<BranchAtFork<T>> = [branches[0]]
+  for (let i = 1; i < weights.length; i++) {
+    if (weights[i] > highestWeight) {
+      highestWeight = weights[i]
+      highestWeightedBranches.length = 0
+      highestWeightedBranches.push(branches[i])
+    } else if (weights[i] === highestWeight) {
+      highestWeightedBranches.push(branches[i])
+    }
+  }
+
+  return selectDefaultMetadataBranch(highestWeightedBranches, forkDepth)
+}
+
 async function walkMetadataTree(
   context: MetadataTreeContext,
   state: MetadataTreeState
@@ -735,6 +812,7 @@ async function walkMetadataTree(
   // Invoke each active generator as soon as this layer is discovered. Its
   // parent promise is resolved later when the preceding accumulator is ready.
   let metadata = state.metadataParent
+  let metadataWeight = state.metadataWeight
   if (shouldResolveMetadata) {
     const prerenderedMetadata = getResult<Metadata, ResolvedMetadata>(
       layer.metadata
@@ -748,13 +826,16 @@ async function walkMetadataTree(
       context.pathname,
       context.metadataContext
     )
+    metadataWeight = getAccumulatorWeight(metadata, metadataWeight)
   }
   let viewport = state.viewportParent
+  let viewportWeight = state.viewportWeight
   if (shouldResolveViewport) {
     const prerenderedViewport = getResult<Viewport, ResolvedViewport>(
       layer.viewport
     )
     viewport = accumulateViewportLayer(viewport, prerenderedViewport)
+    viewportWeight = getAccumulatorWeight(viewport, viewportWeight)
   }
   const errorLayer = layer.errorLayer || state.errorLayer
 
@@ -795,12 +876,14 @@ async function walkMetadataTree(
           context.pathname,
           context.metadataContext
         )
+        metadataWeight = getAccumulatorWeight(metadata, metadataWeight)
       }
       if (shouldResolveViewport) {
         const errorViewport = getResult<Viewport, ResolvedViewport>(
           errorLayer?.viewport || null
         )
         viewport = accumulateViewportLayer(viewport, errorViewport)
+        viewportWeight = getAccumulatorWeight(viewport, viewportWeight)
       }
     }
 
@@ -813,12 +896,22 @@ async function walkMetadataTree(
       state.tree,
       createOutletPromise(metadataOutcome, viewportOutcome)
     )
-    return {
-      metadata: metadataOutcome,
-      viewport: viewportOutcome,
+    const branchProperties = {
       keyPath: state.keyPath,
       definitionDepth,
       isBuiltinFallback: isBuiltinFallback(state.tree),
+    }
+    return {
+      metadata: {
+        outcome: metadataOutcome,
+        weight: metadataWeight,
+        ...branchProperties,
+      },
+      viewport: {
+        outcome: viewportOutcome,
+        weight: viewportWeight,
+        ...branchProperties,
+      },
     }
   }
 
@@ -845,6 +938,8 @@ async function walkMetadataTree(
         viewport,
         cloneAtFork && shouldResolveViewport
       ),
+      metadataWeight,
+      viewportWeight,
       errorLayer,
       definitionDepth,
       keyPath: childKeyPath,
@@ -868,7 +963,26 @@ async function walkMetadataTree(
     })
   }
 
-  return selectDefaultMetadataBranch(childBranches, depth)
+  if (!cloneAtFork) {
+    return childBranches[0].branch
+  }
+
+  return {
+    metadata: selectWeightedBranch(
+      childBranches.map(({ key, branch }) => ({
+        key,
+        branch: branch.metadata,
+      })),
+      depth
+    ),
+    viewport: selectWeightedBranch(
+      childBranches.map(({ key, branch }) => ({
+        key,
+        branch: branch.viewport,
+      })),
+      depth
+    ),
+  }
 }
 
 async function resolveMetadataTree(
@@ -907,26 +1021,38 @@ async function resolveMetadataTree(
       metadataParent: Promise.resolve(createMetadataAccumulator()),
       viewportParent: Promise.resolve({
         viewport: createDefaultViewport(),
+        weight: 0,
       }),
+      metadataWeight: Promise.resolve(0),
+      viewportWeight: Promise.resolve(0),
       errorLayer: null,
       definitionDepth: -1,
       keyPath: [],
     }
   )
 
-  const selected = selectedBranch.metadata.then((outcome) => {
-    if (outcome.status === 'resolved') {
-      for (const warning of outcome.warnings) {
-        Log.warn(warning)
+  const selectedMetadataBranch = Promise.resolve(selectedBranch.metadata)
+  const selectedViewportBranch = Promise.resolve(selectedBranch.viewport)
+  const selected = selectedMetadataBranch
+    .then((branch) => branch.outcome)
+    .then((outcome) => {
+      if (outcome.status === 'resolved') {
+        for (const warning of outcome.warnings) {
+          Log.warn(warning)
+        }
       }
-    }
-    return outcome
-  })
+      return outcome
+    })
 
   return {
-    selectedKeyPath: selectedBranch.keyPath,
+    selectedMetadataKeyPath: selectedMetadataBranch.then(
+      (branch) => branch.keyPath
+    ),
+    selectedViewportKeyPath: selectedViewportBranch.then(
+      (branch) => branch.keyPath
+    ),
     selectedMetadata: selected,
-    selectedViewport: selectedBranch.viewport,
+    selectedViewport: selectedViewportBranch.then((branch) => branch.outcome),
     outlets,
   }
 }

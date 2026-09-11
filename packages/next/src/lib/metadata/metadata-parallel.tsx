@@ -73,7 +73,7 @@ export function createMetadataComponents({
             selected.status,
             interpolatedParams,
             metadataContext,
-            resolution.selectedKeyPath
+            await resolution.selectedViewportKeyPath
           )
           if (convention.status === 'resolved') {
             return <>{createViewportElements(convention.value)}</>
@@ -218,7 +218,7 @@ async function getResolvedParallelMetadataImpl(
       selected.status,
       interpolatedParams,
       metadataContext,
-      resolution.selectedKeyPath
+      await resolution.selectedMetadataKeyPath
     )
     if (convention.status === 'resolved') {
       return <>{createMetadataElements(convention.value)}</>

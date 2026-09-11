@@ -412,6 +412,11 @@ export async function mergeMetadata(
           : null
         break
 
+      // Used by parallel route selection and intentionally omitted from the
+      // resolved metadata that is rendered into tags.
+      case 'weight':
+        break
+
       case 'apple-touch-fullscreen': {
         buildState.warnings.add(
           `Use appleWebApp instead\nRead more: https://nextjs.org/docs/app/api-reference/functions/generate-metadata`
@@ -472,6 +477,10 @@ export function mergeViewport({
       const key = key_ as keyof Viewport
 
       switch (key) {
+        // Used by parallel route selection and intentionally omitted from the
+        // resolved viewport that is rendered into tags.
+        case 'weight':
+          break
         case 'themeColor': {
           newResolvedViewport.themeColor = resolveThemeColor(
             viewport.themeColor
