@@ -284,7 +284,7 @@ The guide's example covers the common implementation shapes:
 Preserve the route's existing data source, freshness, authorization, and
 completed behavior. Do not replace a mutable read with a build-time import to
 make it appear static. Cache the existing read when it can be reused. Stream it
-when it must remain request-time.
+when it must be computed for each request.
 
 If development or a build surfaces another instant-navigation Insight during
 the refactor, follow [validation as you
