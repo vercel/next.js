@@ -373,7 +373,7 @@ describe('basePath', () => {
       { redirect: 'manual' }
     )
     expect(res.status).toBe(308)
-    const { pathname } = new URL(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'), res.url)
     expect(pathname).toBe(`${basePath}/hello`)
     const text = await res.text()
     expect(text).toContain(`${basePath}/hello`)
@@ -387,7 +387,7 @@ describe('basePath', () => {
       { redirect: 'manual' }
     )
     expect(res.status).toBe(308)
-    const { pathname } = new URL(res.headers.get('location'))
+    const { pathname } = new URL(res.headers.get('location'), res.url)
     expect(pathname).toBe(`${basePath}`)
     const text = await res.text()
     expect(text).toContain(`${basePath}`)

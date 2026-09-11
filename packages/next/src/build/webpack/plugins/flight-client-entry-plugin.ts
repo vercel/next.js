@@ -75,7 +75,6 @@ type Actions = {
         durability?: {
           codeHash: string
           runtimeEnvVars: string[]
-          referencesClientComponent?: boolean
         }
       }
     }

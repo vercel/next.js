@@ -116,7 +116,7 @@ Run `next dev` and let the agent work against the running server. Runtime errors
 
 First, `next dev` forwards browser console errors and warnings to the terminal (the [`logging.browserToTerminal`](/docs/app/api-reference/config/next-config-js/logging) config), so the output agents already read carries the client-side failures they're asked to fix.
 
-`next dev` also writes its PID, port, and URL to `.next/dev/lock`. A second `next dev` in the same project prints the running server's URL and the PID to kill, so an agent connects to the existing server instead of starting a duplicate.
+`next dev` also writes its PID, port, and URL to `.next/dev/lock`. If you run `next dev` while another development server is already running for the project, the command prints the existing server's URL and PID, along with a command to stop it. Continue with the existing server when possible to avoid interrupting the active development session.
 
 The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`, which exposes the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
 
@@ -236,4 +236,24 @@ Then give the agent this prompt:
 
 ```prompt
 Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption Skill.
+```
+
+### `next-partial-prefetching-optimizer`
+
+The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill takes a target navigation or set of navigations and works toward the UI you want ready before each click:
+
+1. Turns the requested behavior for each navigation into a contract for what is prefetched, what waits for navigation, and when prefetching begins.
+2. Captures each contract in an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test.
+3. Applies the [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) patterns and keeps the passing tests as regression coverage.
+
+It needs Cache Components and Partial Prefetching already adopted.
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-partial-prefetching-optimizer
+```
+
+Then give the agent a prompt like:
+
+```prompt
+Make the product title instant when navigating from /products to /products/[id]. Use the next-partial-prefetching-optimizer Skill.
 ```

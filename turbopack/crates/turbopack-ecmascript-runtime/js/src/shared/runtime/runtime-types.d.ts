@@ -62,9 +62,16 @@ type EsmImport = (
   allowExportDefault: boolean
 ) => EsmNamespaceObject | Promise<EsmNamespaceObject>
 type InvokeAsyncLoader = (moduleId: ModuleId) => Promise<Exports>
+type ModuleFactoryFunction<
+  M extends Module,
+  C extends TurbopackBaseContext<M>,
+> = {
+  bivarianceHack(this: M['exports'], context: C): unknown
+}['bivarianceHack']
 type EsmExport = (
-  exportGetters: Record<string, () => any>,
-  id: ModuleId | undefined
+  bindings: EsmBindings,
+  id: ModuleId | undefined,
+  dynamic?: boolean
 ) => void
 type ExportValue = (value: any, id: ModuleId | undefined) => void
 type ExportUrl = (url: string, id: ModuleId | undefined) => void

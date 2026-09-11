@@ -4,8 +4,7 @@ const execa = require('execa')
 const fs = require('fs-extra')
 const childProcess = require('child_process')
 const { randomBytes } = require('crypto')
-const { linkPackages } =
-  require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
+const { linkPackages } = require('./link-packed-packages')
 const yaml = require('js-yaml')
 const {
   getPnpmSecuritySettings,
@@ -141,6 +140,35 @@ async function applyWorkspaceOverrides(installDir, isolationRoot, overrides) {
 }
 
 /**
+ * @param {import('next/dist/trace').Span} parentSpan
+ * @returns {Promise<Map<string, string>>}
+ */
+async function packPackages(parentSpan) {
+  const repositoryDirectory = path.join(__dirname, '../..')
+  await parentSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
+    execa(
+      'pnpm',
+      [
+        'turbo',
+        'run',
+        'pack-for-isolated-tests',
+        '--output-logs',
+        'new-only',
+        '--ui',
+        'stream',
+      ],
+      {
+        cwd: repositoryDirectory,
+        stdio: ['ignore', 'inherit', 'inherit'],
+      }
+    )
+  )
+  return parentSpan
+    .traceChild('linkPackages')
+    .traceAsyncFn(() => linkPackages({ repoDir: repositoryDirectory }))
+}
+
+/**
  *
  * @param {object} param0
  * @param {import('@next/telemetry').Span} param0.parentSpan
@@ -182,26 +210,7 @@ async function createNextInstall({
         pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
-        await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-          execa(
-            'pnpm',
-            [
-              'turbo',
-              'run',
-              'pack-for-isolated-tests',
-              '--output-logs',
-              'new-only',
-              // Jest tui can't handle Turborepo tui. But we're cutting off stdin
-              // so Turborepo's tui isn't interactive anyway.
-              '--ui',
-              'stream',
-            ],
-            {
-              cwd: origRepoDir,
-              stdio: ['ignore', 'inherit', 'inherit'],
-            }
-          )
-        )
+        pkgPaths = await packPackages(rootSpan)
 
         if (process.env.NEXT_TEST_WASM) {
           const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
@@ -235,19 +244,25 @@ async function createNextInstall({
           swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
           swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
         })
-
-        pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
-          linkPackages({
-            repoDir: origRepoDir,
-          })
-        )
       }
 
       const combinedDependencies = {
         next: pkgPaths.get('next'),
         ...Object.keys(dependencies).reduce((prev, pkg) => {
           const pkgPath = pkgPaths.get(pkg)
-          prev[pkg] = pkgPath || dependencies[pkg]
+          const version = dependencies[pkg]
+          if (version === 'workspace:*') {
+            if (pkgPath) {
+              prev[pkg] = pkgPath
+            } else {
+              throw new Error(
+                `"${pkg}" is declared as "workspace:*" but no packed tarball was found for it. ` +
+                  `Only packages in this repository with a "pack-for-isolated-tests" script can be used with "workspace:*".`
+              )
+            }
+          } else {
+            prev[pkg] = pkgPath || version
+          }
           return prev
         }, {}),
       }
@@ -385,4 +400,5 @@ async function createNextInstall({
 module.exports = {
   createNextInstall,
   getPkgPaths: linkPackages,
+  packPackages,
 }

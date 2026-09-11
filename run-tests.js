@@ -244,7 +244,6 @@ const testFilters = {
   development: new RegExp('^(test/(development|e2e))'),
   production: new RegExp('^(test/(production|e2e))'),
   unit: new RegExp('^(test/unit|packages/.*/src|packages/next-codemod)'),
-  examples: 'examples/',
   e2e: 'test/e2e/',
 }
 
@@ -255,7 +254,9 @@ const mockTrace = () => ({
 })
 
 // which types we have configured to run separate
-const configuredTestTypes = Object.values(testFilters)
+// `examples/` additionally excludes test files inside example apps, which run
+// with each example's own jest/vitest setup instead of this runner.
+const configuredTestTypes = [...Object.values(testFilters), 'examples/']
 /** @type {Map<string, { output: string, failedCases: string[] }>} */
 const errorsPerTests = new Map()
 

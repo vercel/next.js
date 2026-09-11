@@ -1,19 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('use-cache-default-handler-expire-zero', () => {
-  const { next, skipped, isNextStart } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
     // Enable the built-in default cache handler's debug logging so we can
     // assert on its `set()` decisions in the CLI output. That output is not
     // available on deploy, so skip the deploy variant.
     env: { NEXT_PRIVATE_DEBUG_CACHE: '1' },
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextStart) {
     it('does not save an expire:0 cache to the built-in default handler, but saves a short-lived one', async () => {

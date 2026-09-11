@@ -102,7 +102,11 @@ async function main() {
   const buildAndDeploy = await fs.promises.readFile(buildAndDeployPath, 'utf8')
   await fs.promises.writeFile(
     buildAndDeployPath,
-    buildAndDeploy.replace(/refs\/heads\/canary/g, `refs/heads/${branchName}`)
+    buildAndDeploy
+      // The push trigger is limited to the default branch, same as
+      // build_and_test.yml below, so point it at the release branch as well.
+      .replace(`branches: ['canary']`, `branches: ['${branchName}']`)
+      .replace(/refs\/heads\/canary/g, `refs/heads/${branchName}`)
   )
 
   const buildAndTestPath = path.join(

@@ -169,7 +169,7 @@ export async function probeUseCache(msg: ProbeMessage): Promise<boolean> {
       isHmrRefresh: msg.request.isHmrRefresh,
       serverComponentsHmrCache: undefined,
       hmrRefreshHash: msg.request.hmrRefreshHash,
-      fallbackParams: null,
+      stagedFallbackParams: null,
     })
 
     await workAsyncStorage.run(workStore, () =>

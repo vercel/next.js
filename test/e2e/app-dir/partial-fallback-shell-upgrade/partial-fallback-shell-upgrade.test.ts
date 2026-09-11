@@ -1,10 +1,9 @@
 import cheerio from 'cheerio'
+import { randomUUID } from 'crypto'
 import { nextTestSetup } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { retry, waitFor } from 'next-test-utils'
 import path from 'path'
-
-const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
@@ -32,14 +31,15 @@ function createSplitHTMLFetcher(next: NextInstance) {
   }
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// The latest changes to support this behavior on deployed infra are available in the adapter,
+// and are not being backported to the CLI
+// @force-gate !deploy || adapter
 describe('partial-fallback-shell-upgrade', () => {
   const { next, isNextDev } = nextTestSetup({
     // Deployed shell upgrades require `partialFallback` metadata, which the
     // adapter only emits when Partial Prefetching is enabled in the fixture.
     files: path.join(__dirname, 'fixtures', 'default'),
-    // The latest changes to support this behavior on deployed infra are available in the adapter,
-    // and are not being backported to the CLI
-    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {
@@ -133,6 +133,51 @@ describe('partial-fallback-shell-upgrade', () => {
     expect(result.dynamicPart).not.toContain('<div id="two">foo</div>')
   })
 
+  it('should upgrade a required fallback shell with mixed generateStaticParams lengths', async () => {
+    // A second cold path must still use the required source shell after the
+    // first exact path completes.
+    for (const bottom of [`first-${randomUUID()}`, `second-${randomUUID()}`]) {
+      const pathname = `/mixed/short/${bottom}`
+      const firstResult = await fetchSplitHTML(pathname)
+
+      expect(firstResult.static$('#top').text()).toBe('short')
+      expect(firstResult.static$('#top-fallback').length).toBe(0)
+      expect(firstResult.static$('#bottom').length).toBe(0)
+      expect(firstResult.static$('#bottom-fallback').text()).toBe(
+        'loading bottom...'
+      )
+      expect(firstResult.dynamicPart).toContain(
+        `<div id="bottom">${bottom}</div>`
+      )
+      expect(firstResult.static$('#dynamic').length).toBe(0)
+      expect(firstResult.static$('#dynamic-fallback').text()).toBe(
+        'loading dynamic...'
+      )
+      expect(firstResult.dynamicPart).toContain(
+        '<div id="dynamic">Dynamic content</div>'
+      )
+
+      await retry(async () => {
+        const completedResult = await fetchSplitHTML(pathname)
+
+        expect(completedResult.static$('#top').text()).toBe('short')
+        expect(completedResult.static$('#top-fallback').length).toBe(0)
+        expect(completedResult.static$('#bottom').text()).toBe(bottom)
+        expect(completedResult.static$('#bottom-fallback').length).toBe(0)
+        expect(completedResult.dynamicPart).not.toContain(
+          `<div id="bottom">${bottom}</div>`
+        )
+        expect(completedResult.static$('#dynamic').length).toBe(0)
+        expect(completedResult.static$('#dynamic-fallback').text()).toBe(
+          'loading dynamic...'
+        )
+        expect(completedResult.dynamicPart).toContain(
+          '<div id="dynamic">Dynamic content</div>'
+        )
+      })
+    }
+  })
+
   it('should not keep upgrading once only fully dynamic params remain', async () => {
     const firstResult = await fetchSplitHTML('/prefix/b/foo')
     const start = Date.now()
@@ -171,12 +216,13 @@ describe('partial-fallback-shell-upgrade', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// The latest changes to support this behavior on deployed infra are available in the adapter,
+// and are not being backported to the CLI
+// @force-gate !deploy || adapter
 describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures', 'partial-prefetching-disabled'),
-    // The latest changes to support this behavior on deployed infra are available in the adapter,
-    // and are not being backported to the CLI
-    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {
