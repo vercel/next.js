@@ -24,7 +24,7 @@ impl UpdateCollectibleOperation {
         count: i32,
         ctx: impl ExecuteContext<'_>,
     ) {
-        Self::run_internal(task_id, collectible, count, false, ctx);
+        Self::run_internal(task_id, collectible, count, /* rollback= */ false, ctx);
     }
 
     /// Reverses a collectible update made by an aborted execution. Unlike a user-level `unemit`,
@@ -36,7 +36,7 @@ impl UpdateCollectibleOperation {
         count: i32,
         ctx: impl ExecuteContext<'_>,
     ) {
-        Self::run_internal(task_id, collectible, count, true, ctx);
+        Self::run_internal(task_id, collectible, count, /* rollback= */ true, ctx);
     }
 
     fn run_internal(

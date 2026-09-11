@@ -3191,6 +3191,7 @@ impl AggregationUpdateQueue {
         if is_empty {
             task.take_activeness();
         }
+        // If activeness dropped to zero, no caller cares anymore, abort it if in flight.
         if is_zero && let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress() {
             let native_fn = in_progress.native_fn;
             let outcome = in_progress.request_abort(TaskExecutionAbortReason::Inactive);
