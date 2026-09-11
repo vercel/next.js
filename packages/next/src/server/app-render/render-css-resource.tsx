@@ -42,6 +42,16 @@ export function renderCssResource(
     )}${getAssetQueryString(ctx, true)}`
 
     if (entryCssFile.inlined && !ctx.parsedRequestHeaders.isRSCRequest) {
+      const cssText = entryCssFile.content
+      // Same CSS text can be reached via multiple manifest entries. Emitting
+      // it twice produces a second Flight T-row (#98079). Keep a hoistable
+      // <style> so React still dedupes by href; omit the children.
+      const alreadyInlined = cssText
+        ? ctx.inlinedCssContent.has(cssText)
+        : false
+      if (cssText && !alreadyInlined) {
+        ctx.inlinedCssContent.add(cssText)
+      }
       elements.push(
         createElement(
           'style',
@@ -51,7 +61,7 @@ export function renderCssResource(
             precedence: precedence,
             href: fullHref,
           },
-          entryCssFile.content
+          alreadyInlined ? undefined : cssText
         )
       )
     } else {
