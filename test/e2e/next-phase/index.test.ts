@@ -1,8 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// This test is skipped when deployed because it asserts against runtime
-// logs that cannot be queried in a deployed environment.
+// This scope checks the phase passed when the local production server starts.
+// Deploy build logs do not expose the next start configuration phase under test.
 // @force-gate !deploy
 describe('next-phase', () => {
   const { next, isNextDev } = nextTestSetup({

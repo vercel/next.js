@@ -2,8 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { fetchViaHTTP } from 'next-test-utils'
 
 describe('client-max-body-size', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // Deployed environment has it's own configured limits.
+  // These assertions require large requests to reach Next.js for body buffering.
+  // The deployment rejects the tested requests with 413 before that behavior can be checked.
   // @force-gate !deploy
   describe('default 10MB limit', () => {
     const { next } = nextTestSetup({
@@ -76,8 +76,8 @@ describe('client-max-body-size', () => {
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // These assertions require large requests to reach Next.js for body buffering.
+  // The deployment rejects the tested requests with 413 before that behavior can be checked.
   // @force-gate !deploy
   describe('custom limit with string format', () => {
     const { next } = nextTestSetup({
@@ -194,8 +194,8 @@ describe('client-max-body-size', () => {
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // These assertions require large requests to reach Next.js for body buffering.
+  // The deployment rejects the tested requests with 413 before that behavior can be checked.
   // @force-gate !deploy
   describe('large custom limit', () => {
     const { next } = nextTestSetup({

@@ -25,8 +25,8 @@ function createTemporaryFixture(fixtureName: string) {
   return dir
 }
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// This doesn't need to be deployed as it's using `experimental-test` mode
+// This scope exercises the local next test CLI rather than a deployed application.
+// The deployment harness does not run the configured local command.
 // @force-gate !deploy
 // @force-gate TODO
 describe('next test', () => {

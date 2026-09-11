@@ -2,8 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
 import path from 'path'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely mutates files in the isolated local fixture after setup.
+// This fixture builds multiple zones and runs a custom server to route between them.
+// The deploy harness does not reproduce that multi-server setup.
 // @force-gate !deploy
 describe('multi-zone', () => {
   const { next, isNextDev } = nextTestSetup({

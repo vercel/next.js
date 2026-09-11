@@ -1,6 +1,6 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
-// TODO(deploy-test-completion): This asserts local build/runtime output that
-// deploy tests do not expose.
+// This suite runs next.build() to inspect build output or errors.
+// Deploy mode requires a successful deployment and cannot run these local builds.
 // @force-gate !deploy
 // @force-gate !start || !turbopackDev
 // @force-gate !dev || !turbopackBuild
