@@ -1071,14 +1071,14 @@ async function generateStagedDynamicFlightRenderResultNode(
 
   const selectStaleTime = createSelectStaleTime(experimental)
   const staleTimeIterable = new StaleTimeIterable()
+  const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
 
   const stageController = new StagedRenderingController({
     abortSignal: null,
     abandonController: null,
-    // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-    // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-    // we should change this to track sync IO, log an error and advance to dynamic.
-    syncIO: SyncIOMode.Untracked,
+    // Synchronous request-time data ends the static stage before its result can
+    // enter the Cached Navigation.
+    syncIO: getSyncIOMode(prefetchMode),
     finalStage: null,
   })
 
@@ -1111,10 +1111,7 @@ async function generateStagedDynamicFlightRenderResultNode(
   // fill caches and then spawn a final runtime prerender whose result stream
   // is embedded in the RSC payload. This is gated because it adds extra server
   // processing and increases the response payload size.
-  if (
-    Boolean(renderOpts.partialPrefetching) ||
-    (await anySegmentHasPartialPrefetchingEnabled(loaderTree))
-  ) {
+  if (prefetchMode === PrefetchingMode.Partial) {
     // Create a mutable cache that gets filled during the dynamic render.
     const prerenderResumeDataCache = createPrerenderResumeDataCache()
     requestStore.resumeDataCache = prerenderResumeDataCache
@@ -3844,14 +3841,14 @@ async function renderToStream(
 
         const selectStaleTime = createSelectStaleTime(experimental)
         const staleTimeIterable = new StaleTimeIterable()
+        const prefetchMode = await getPrefetchingModeForPage(renderOpts, tree)
 
         const stageController = new StagedRenderingController({
           abortSignal: null,
           abandonController: null,
-          // TODO(cached-navs): this assumes that we checked during build that there's no sync IO.
-          // but it can happen e.g. after a revalidation or conditionally for a param that wasn't prerendered.
-          // we should change this to track sync IO, log an error and advance to dynamic.
-          syncIO: SyncIOMode.Untracked,
+          // Synchronous request-time data ends the static stage before its
+          // result can enter the Cached Navigation.
+          syncIO: getSyncIOMode(prefetchMode),
           finalStage: null,
         })
 
@@ -3887,10 +3884,7 @@ async function renderToStream(
         // Partial Prefetching is on for the route, either per segment (a
         // `prefetch` of 'partial') or globally (the
         // `partialPrefetching` config).
-        if (
-          Boolean(renderOpts.partialPrefetching) ||
-          (await anySegmentHasPartialPrefetchingEnabled(tree))
-        ) {
+        if (prefetchMode === PrefetchingMode.Partial) {
           const prerenderResumeDataCache = createPrerenderResumeDataCache()
           requestStore.resumeDataCache = prerenderResumeDataCache
 
