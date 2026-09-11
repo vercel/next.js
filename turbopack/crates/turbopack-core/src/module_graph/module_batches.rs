@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, Vc, trace::TraceRawVcs, turbobail,
+    FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString,
+    Vc, trace::TraceRawVcs, turbobail,
 };
 
 use crate::{
@@ -844,11 +844,11 @@ pub async fn compute_module_batches(
         }
 
         // Create the batch group instances
-        let batch_groups = batch_groups
+        let batch_group_results = batch_groups
             .into_iter()
             .map(async |(key, items)| {
                 if items.len() == 1 {
-                    Ok(Either::Left(std::iter::empty()))
+                    anyhow::Ok(Either::Left(std::iter::empty()))
                 } else {
                     let batch_group = ModuleBatchGroup::new(items.clone(), (*key).clone())
                         .to_resolved()
@@ -858,8 +858,12 @@ pub async fn compute_module_batches(
                     ))
                 }
             })
-            .try_flat_join_collect::<FxHashMap<_, _>>()
-            .await?;
+            .join()
+            .await;
+        let mut batch_groups: FxHashMap<_, _> = FxHashMap::default();
+        for result in batch_group_results {
+            batch_groups.extend(result?);
+        }
 
         // Insert batches into the graph and store the NodeIndices
         let mut batches_count = 0;

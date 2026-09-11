@@ -17,8 +17,8 @@ use tracing::{Instrument, Level};
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
+    FxIndexMap, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathErrorType};
 use turbo_unix_path::normalize_request;
@@ -320,8 +320,12 @@ impl ModuleResolveResult {
         self.primary
             .iter()
             .map(async |(_, item)| item.as_module().await)
-            .try_flat_join_collect()
+            .join()
             .await
+            .into_iter()
+            // `as_module` yields `Option`, so this filters rather than flattens.
+            .filter_map(Result::transpose)
+            .collect()
     }
 
     /// Returns the first module in the result, or None.

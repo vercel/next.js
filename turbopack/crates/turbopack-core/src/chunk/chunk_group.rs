@@ -6,7 +6,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
+    FxIndexSet, JoinIterExt, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    trace::TraceRawVcs,
 };
 
 use super::{
@@ -90,8 +91,11 @@ pub async fn make_chunk_group(
                 *chunking_context,
             )
         })
-        .try_flat_join_collect::<Vec<_>>()
-        .await?;
+        .join()
+        .await
+        .into_iter()
+        .filter_map(Result::transpose)
+        .collect::<Result<Vec<_>>>()?;
 
     let chunk_item_batch_groups = batch_groups
         .iter()
