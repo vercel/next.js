@@ -24,13 +24,10 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::{
-        AstPath,
-        pattern_mapping::{PatternMapping, ResolveType},
-    },
+    references::pattern_mapping::{PatternMapping, ResolveType},
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
 };
 
@@ -125,7 +122,7 @@ pub enum AmdDefineFactoryType {
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    path: AstPath,
+    path: AstPathId,
     factory_type: AmdDefineFactoryType,
     issue_source: IssueSource,
     error_mode: ResolveErrorMode,
@@ -135,7 +132,7 @@ impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        path: AstPath,
+        path: AstPathId,
         factory_type: AmdDefineFactoryType,
         issue_source: IssueSource,
         error_mode: ResolveErrorMode,

@@ -129,10 +129,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            15,
-                        ),
+                    AstPathId(
+                        15,
                     ),
                 ),
             },

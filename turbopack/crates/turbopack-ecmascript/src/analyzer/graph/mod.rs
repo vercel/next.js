@@ -15,7 +15,7 @@ pub use crate::analyzer::graph::{
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
     analyzer::{Bump, JsValue, graph::visitor::Analyzer},
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::AstPathTrieBuilder,
     chunk::CjsStaticExports,
     code_gen::CodeGen,
 };
@@ -39,7 +39,7 @@ pub struct VarGraph<'a> {
     pub code_gens: Vec<CodeGen>,
     /// Interns the AST paths used by `code_gens`. Effect processing keeps interning into
     /// this same trie, so every path for the module ends up sharing one arena.
-    pub ast_paths: AstPathTrie,
+    pub ast_paths: AstPathTrieBuilder,
 
     /// [`ExportUsage`] per `require("…")` call, keyed by call position; absent
     /// calls fall back to `ExportUsage::All`.

@@ -135,10 +135,8 @@
                 EffectsBlock {
                     effects: [],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                30,
-                            ),
+                        AstPathId(
+                            30,
                         ),
                     ),
                 },
