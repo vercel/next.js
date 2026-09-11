@@ -99,8 +99,8 @@ export default function EvilPage(): JSX.Element {
     })
   }
 })
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This scope deliberately triggers compiler or configuration errors and checks diagnostics.
+// The deploy harness requires a successful build before test assertions can run.
 // @force-gate !deploy
 // @force-gate start
 describe('TypeScript production compilation', () => {

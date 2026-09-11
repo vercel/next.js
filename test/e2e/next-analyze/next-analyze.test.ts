@@ -4,8 +4,8 @@ import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely inspects local build artifacts that deploy tests do not expose.
+// This suite starts a local analyzer process and reads .next/diagnostics/analyze files.
+// Deployment mode does not expose that process or its generated files.
 // @force-gate !deploy
 describe('next experimental-analyze', () => {
   if (!shouldUseTurbopack()) {

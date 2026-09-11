@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { runNextCommand } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
+// This fixture intentionally rejects production configuration to test typegen errors.
+// Deployment setup fails before the diagnostic assertions can run.
 // @force-gate !deploy
 describe('typegen error diagnostic', () => {
   const { next } = nextTestSetup({

@@ -5,8 +5,8 @@ import { getDistDir, retry } from 'next-test-utils'
 const strictRouteTypes =
   process.env.__NEXT_EXPERIMENTAL_STRICT_ROUTE_TYPES === 'true'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This suite runs next.build() to inspect build output or errors.
+// Deploy mode requires a successful deployment and cannot run these local builds.
 // @force-gate !deploy
 describe('typed-routes-validator', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({

@@ -10,8 +10,8 @@ async function testDev(browser, errorRegex) {
 }
 
 describe('Error test if the loader file export a named function', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely expects a local build failure instead of a successful deployment.
+  // This scope asserts a development error overlay for an invalid image loader.
+  // A deployed production build cannot exercise the dev overlay.
   // @force-gate !deploy
   describe('in Development', () => {
     const { next, isNextDev } = nextTestSetup({
@@ -31,8 +31,8 @@ describe('Error test if the loader file export a named function', () => {
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely expects a local build failure instead of a successful deployment.
+  // This scope deliberately triggers compiler or configuration errors and checks diagnostics.
+  // The deploy harness requires a successful build before test assertions can run.
   // @force-gate !deploy
   describe('in Build and Start', () => {
     const { next, isNextStart } = nextTestSetup({

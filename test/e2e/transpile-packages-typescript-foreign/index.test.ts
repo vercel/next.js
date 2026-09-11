@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('transpile-packages-typescript-foreign', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This suite starts an intentionally invalid fixture and asserts build diagnostics.
+  // The deploy harness requires setup to succeed, so the fixture cannot be deployed.
   // @force-gate !deploy
   describe('without transpilePackages', () => {
     const { next } = nextTestSetup({

@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite changes configuration to test Server Actions with static export.
+// The export/build validation requires local fixture and build control.
 // @force-gate !deploy
 describe('app-dir action handling - next export', () => {
   const { next, isNextStart } = nextTestSetup({

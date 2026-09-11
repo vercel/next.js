@@ -12,8 +12,8 @@ type RewriteRoutes = "/api-legacy/[version]/[[...endpoint]]" | "/docs-old/[...pa
 type Routes = AppRoutes | PageRoutes | LayoutRoutes | RedirectRoutes | RewriteRoutes | AppRouteHandlerRoutes
 `
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite calls next.deleteFile() to change fixture files after setup.
+// Deployment mode cannot mutate the deployed fixture.
 // @force-gate !deploy
 describe('typed-routes', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({

@@ -15,8 +15,8 @@ To fix it:
 
 Learn more: https://nextjs.org/docs/messages/middleware-to-proxy`
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite invokes next.build() and inspects local build results.
+// Deployment mode cannot run these additional local builds.
 // @force-gate !deploy
 describe('proxy-missing-export', () => {
   const { next, isNextDev } = nextTestSetup({

@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This fixture deliberately uses an old TypeScript version and inspects build diagnostics.
+// Its compiler rejects the production build, so deployment setup cannot complete.
 // @force-gate !deploy
 describe('typescript-version-warning', () => {
   const { next, isNextDeploy, isNextDev } = nextTestSetup({

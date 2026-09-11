@@ -6,8 +6,8 @@ import {
   parseValidationMessages,
 } from 'e2e-utils/instant-validation'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This suite runs next.build() and inspects generated validation output.
+// Deployment mode cannot perform that local build or read its artifacts.
 // @force-gate !deploy
 describe('instant-validation-build', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({

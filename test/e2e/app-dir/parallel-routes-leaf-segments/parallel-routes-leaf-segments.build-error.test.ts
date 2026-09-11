@@ -2,8 +2,8 @@ import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, retry } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This suite runs next.build() to inspect build output or errors.
+// Deploy mode requires a successful deployment and cannot run these local builds.
 // @force-gate !deploy
 describe('parallel-routes-leaf-segments-build-error', () => {
   const { next, isNextDev } = nextTestSetup({

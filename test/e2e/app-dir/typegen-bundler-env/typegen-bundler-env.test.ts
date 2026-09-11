@@ -11,8 +11,8 @@ const baseEnv = {
 
 // cssChunking: "graph", is Turbopack-only, so we use this as to verify whether
 // typegen is selecting the right bundler
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
+// This suite invokes the local typegen CLI with different bundler flags.
+// Deploying the fixture does not exercise those local command invocations.
 // @force-gate !deploy
 describe('typegen bundler env', () => {
   const { next } = nextTestSetup({
