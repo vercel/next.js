@@ -23,8 +23,8 @@ function filterToErrorHeaders(output: string): string {
 
 // Only Turbopack runs the transform on the layout once in edge and non-edge contexts
 // so we only test this on Turbopack
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This suite starts an intentionally invalid fixture and asserts build diagnostics.
+// The deploy harness requires setup to succeed, so the fixture cannot be deployed.
 // @force-gate !deploy
 // @force-gate turbopack
 describe('cache-components-edge-deduplication', () => {

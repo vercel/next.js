@@ -1,8 +1,8 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { waitForNoRedbox } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite invokes next.build() and inspects local build results.
+// Deployment mode cannot run these additional local builds.
 // @force-gate !deploy
 describe('hello-world', () => {
   const { next } = nextTestSetup({

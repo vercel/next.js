@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite reads and rewrites fixture source/configuration before restarting Next.js.
+// Deployment mode cannot read or mutate the deployed fixture.
 // @force-gate !deploy
 describe('app-invalid-revalidate', () => {
   const { next, isNextDev } = nextTestSetup({

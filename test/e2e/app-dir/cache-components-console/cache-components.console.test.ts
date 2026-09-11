@@ -3,8 +3,8 @@ import { retry } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
 // TODO(restart-on-cache-miss): cacheSignal timing changes break console log dimming/hiding tests
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// These console-dimming checks exercise dev diagnostics or explicit local builds.
+// A deployed production app does not expose those dev/build operations.
 // @force-gate !deploy
 // @force-gate TODO
 describe('cache-components - Console Dimming - Validation', () => {
@@ -201,8 +201,8 @@ describe('cache-components - Console Dimming - Validation', () => {
 
 // TODO(restart-on-cache-miss): cacheSignal timing changes break console log dimming/hiding tests
 describe.skip('cache-components - Logging after Abort', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // These console-dimming checks exercise dev diagnostics or explicit local builds.
+  // A deployed production app does not expose those dev/build operations.
   // @force-gate !deploy
   describe('(default) With Dimming - Server', () => {
     const { next, isTurbopack } = nextTestSetup({
@@ -377,8 +377,8 @@ describe.skip('cache-components - Logging after Abort', () => {
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // These console-dimming checks exercise dev diagnostics or explicit local builds.
+  // A deployed production app does not expose those dev/build operations.
   // @force-gate !deploy
   describe('(default) With Dimming - Client', () => {
     const { next, isTurbopack } = nextTestSetup({
@@ -544,8 +544,8 @@ describe.skip('cache-components - Logging after Abort', () => {
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // These console-dimming checks exercise dev diagnostics or explicit local builds.
+  // A deployed production app does not expose those dev/build operations.
   // @force-gate !deploy
   describe('With Hiding - Server', () => {
     const { next } = nextTestSetup({
@@ -643,8 +643,8 @@ describe.skip('cache-components - Logging after Abort', () => {
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // These console-dimming checks exercise dev diagnostics or explicit local builds.
+  // A deployed production app does not expose those dev/build operations.
   // @force-gate !deploy
   describe('With Hiding - Client', () => {
     const { next } = nextTestSetup({

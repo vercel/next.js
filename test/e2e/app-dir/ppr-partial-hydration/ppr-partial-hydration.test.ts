@@ -7,9 +7,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// the file-patching strategy we use for synchronizing the test doesn't work
-// on deployments
+// This suite calls next.patchFile() to change fixture files after setup.
+// Deployment mode cannot mutate the deployed fixture.
 // @force-gate !deploy
 describe('PPR - partial hydration', () => {
   const { next, isNextDev } = nextTestSetup({

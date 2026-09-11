@@ -24,8 +24,8 @@ function expectedDeadlockMessage(route: string) {
 // than detected as a deadlock. Revisit by surfacing these deadlocks at build
 // time via `next build --debug-prerender`, then re-enable (and retarget) this
 // suite.
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// The deadlock probe and its error overlay are development-only behavior.
+// A deployed production build does not run the dev probe.
 // @force-gate !deploy
 // @force-gate TODO
 describe('use-cache-deadlock-probe', () => {

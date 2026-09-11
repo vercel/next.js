@@ -18,8 +18,8 @@ const CASES = [
 
 describe('persistent-caching-migration', () => {
   for (const [option, error] of CASES) {
-    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-    // It likely expects a local build failure instead of a successful deployment.
+    // This suite runs next.build() to inspect build output or errors.
+    // Deploy mode requires a successful deployment and cannot run these local builds.
     // @force-gate !deploy
     describe(option, () => {
       const { next, isTurbopack, isNextStart } = nextTestSetup({
