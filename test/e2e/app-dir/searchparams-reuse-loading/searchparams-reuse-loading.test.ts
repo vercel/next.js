@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { createRouterAct } from '../../../lib/router-act'
 import { waitFor, retry } from 'next-test-utils'
 
 describe('searchparams-reuse-loading', () => {
@@ -189,31 +190,11 @@ describe('searchparams-reuse-loading', () => {
           setTimeout(() => resolve(), 5000)
         })
 
-        const nonPrefetchRscRequests = new Set<string>()
         let interceptRequests = false
-        let shouldStallDynamicRequests = true
-        let id3FullPrefetchResponse: Promise<void> | undefined
+        let act: ReturnType<typeof createRouterAct>
         const browser = await next.browser(path, {
           beforePageLoad(page) {
-            page.on('response', (response) => {
-              const requestHeaders = response.request().headers()
-              const url = new URL(response.url())
-              const normalizedPath = url.pathname.replace(/\/someValue$/, '')
-              const expectedPath =
-                path === '/' ? '/search-params' : `${path}/search-params`
-
-              if (
-                requestHeaders['next-router-prefetch'] &&
-                normalizedPath === expectedPath &&
-                url.searchParams.get('id') === '3' &&
-                response.ok()
-              ) {
-                id3FullPrefetchResponse = response.finished().then((error) => {
-                  if (error) throw error
-                })
-              }
-            })
-
+            act = createRouterAct(page)
             page.route(
               (url) => {
                 return url.pathname.includes('search-params')
@@ -251,12 +232,6 @@ describe('searchparams-reuse-loading', () => {
                   headers['rsc'] === '1' &&
                   !headers['next-router-prefetch']
                 ) {
-                  nonPrefetchRscRequests.add(promiseKey)
-                  if (!shouldStallDynamicRequests) {
-                    await route.continue()
-                    return
-                  }
-
                   // Create a promise that will be resolved by the later test code
                   let resolvePromise: () => void
                   const promise = new Promise<void>((res) => {
@@ -293,38 +268,26 @@ describe('searchparams-reuse-loading', () => {
         const basePath = path === '/' ? '' : path
         const searchParamsPagePath = `${basePath}/search-params`
 
-        // Wait for the full id=3 prefetch response, including any middleware
-        // redirect, before intercepting navigations. Counting requests alone is
-        // racy because the redirect response can still be in flight.
-        await retry(
-          () => expect(id3FullPrefetchResponse).toBeDefined(),
-          30_000,
-          500,
-          'Waiting for id=3 full prefetch response'
-        )
-        await id3FullPrefetchResponse
-        interceptRequests = true
+        const fullPrefetchPath = `${searchParamsPagePath}?id=3`
 
-        // Exercise the full prefetch as soon as its response is ready. Do not
-        // wait for the broader initial prefetch burst first: its fallback timer
-        // can outlive this entry's stale time on a slow CI worker.
-        shouldStallDynamicRequests = false
-        await browser
-          .elementByCss(`[href="${searchParamsPagePath}?id=3"]`)
-          .click()
+        // Reveal the full-prefetch link in a controlled act so it cannot become
+        // stale while the rest of the initial prefetch burst settles.
+        await act(async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${fullPrefetchPath}"]`)
+            .click()
+        })
+
+        interceptRequests = true
+        await act(async () => {
+          await browser.elementByCss(`[href="${fullPrefetchPath}"]`).click()
+        }, 'no-requests')
 
         const params3 = await browser.waitForElementByCss('#params').text()
         expect(params3).toBe('{"id":"3"}')
-        expect(nonPrefetchRscRequests.has(`${searchParamsPagePath}?id=3`)).toBe(
-          false
-        )
 
         await browser.elementByCss(`[href='${path}']`).click()
-
-        // The auto-prefetched links below rely on the complete initial prefetch
-        // burst, but waiting for it is safe after the full prefetch is consumed.
         await prefetchPromise
-        shouldStallDynamicRequests = true
 
         // The first "auto" prefetched link should show its loading state while
         // the dynamic request is stalled.

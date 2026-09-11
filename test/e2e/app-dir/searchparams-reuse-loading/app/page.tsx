@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { LinkAccordion } from './link-accordion'
 
 export default async function Page(props) {
   const searchParams = await props.searchParams
@@ -16,9 +17,7 @@ export default async function Page(props) {
           <Link href="/search-params?id=2">/search-params?id=2</Link>
         </li>
         <li>
-          <Link href="/search-params?id=3" prefetch={true}>
-            /search-params?id=3 (prefetch: true)
-          </Link>
+          <LinkAccordion href="/search-params?id=3" />
         </li>
         <li>
           <Link href="/search-params" prefetch={true}>

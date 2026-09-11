@@ -1,10 +1,11 @@
 import Link from 'next/link'
+import { LinkAccordion } from '../link-accordion'
 
 export default function Page() {
   // Link order is significant: viewport prefetches are prioritized by document
-  // order (links nearest the top are prefetched first). The full-prefetch links
-  // are listed first so they win priority and complete their full prefetch
-  // before the auto-prefetch links resolve the middleware redirect.
+  // order. The parameter-less full-prefetch link stays first, while the id=3
+  // link is hidden behind an accordion so its prefetch can be controlled by the
+  // test instead of racing the initial automatic burst.
   return (
     <ul>
       <li>
@@ -13,9 +14,7 @@ export default function Page() {
         </Link>
       </li>
       <li>
-        <Link href="/with-middleware/search-params?id=3" prefetch={true}>
-          /search-params?id=3 (prefetch: true)
-        </Link>
+        <LinkAccordion href="/with-middleware/search-params?id=3" />
       </li>
       <li>
         <Link href="/with-middleware/search-params?id=2">
