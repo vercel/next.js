@@ -2,8 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import type { ValidationEvent } from 'next/dist/server/app-render/dev-validation-events'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite exercises the development navigation/validation testing API.
+// A deployed production build does not provide that dev-server behavior.
 // @force-gate !deploy
 describe('instant validation causes', () => {
   const { next, isNextDev } = nextTestSetup({

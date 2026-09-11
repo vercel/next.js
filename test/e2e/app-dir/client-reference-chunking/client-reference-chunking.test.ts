@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { getClientReferenceManifest } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
+// This suite reads page_client-reference-manifest.js from the local .next directory.
+// Deployment mode does not expose the generated client-reference manifest.
 // @force-gate !deploy
 describe('client-reference-chunking', () => {
   const { next } = nextTestSetup({
