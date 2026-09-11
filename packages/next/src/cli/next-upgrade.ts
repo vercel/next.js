@@ -6,12 +6,21 @@ type NextUpgradeOptions = {
   revision: string | undefined
   verbose: boolean
   experimentalAgent: boolean
+  experimentalAgentDryRun: boolean
 }
 
 export async function spawnNextUpgrade(
   directory: string | undefined,
   options: NextUpgradeOptions
 ) {
+  if (options.experimentalAgentDryRun && !options.experimentalAgent) {
+    console.error(
+      '[next upgrade: blocked] --experimental-agent-dry-run requires --experimental-agent.'
+    )
+    process.exitCode = 1
+    return
+  }
+
   const baseDir = getProjectDir(directory)
 
   if (options.experimentalAgent) {
@@ -33,9 +42,18 @@ export async function spawnNextUpgrade(
         return
       }
 
-      console.log(
-        `[next upgrade: ready] Security upgrade target: ${result.app.nextVersion} → ${result.targetVersion}.`
+      // Only ready upgrades reach the agent. Retain the resolved inputs and
+      // guides first; the agent owns repository preflight, edits and verification.
+      const { prepareUpgradeResources } =
+        require('../lib/upgrade/resources') as typeof import('../lib/upgrade/resources')
+      const prompt = await prepareUpgradeResources(
+        result,
+        options.experimentalAgentDryRun
       )
+
+      const { handoffUpgrade } =
+        require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
+      await handoffUpgrade(prompt)
     } catch (error) {
       console.error(
         '[next upgrade: blocked]',
