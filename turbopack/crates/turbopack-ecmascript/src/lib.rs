@@ -9,6 +9,7 @@
 
 pub mod analyzer;
 pub mod annotations;
+pub mod ast_path_trie;
 pub mod async_chunk;
 pub mod bytes_source_transform;
 pub mod chunk;
