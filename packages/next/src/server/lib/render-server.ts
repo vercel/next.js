@@ -1,6 +1,10 @@
 import type { NextServer, RequestHandler, UpgradeHandler } from '../next'
 import type { DevBundlerService } from './dev-bundler-service'
-import type { PropagateToWorkersField } from './router-utils/types'
+import type {
+  DevServerState,
+  DevServerStateUpdate,
+} from '../dev/dev-server-state'
+import type { WorkerRequestHandler } from './types'
 
 import next from '../next'
 import type { Span } from '../../trace'
@@ -47,44 +51,27 @@ export function clearModuleContext(target: string) {
   return sandboxContext?.clearModuleContext(target)
 }
 
-export async function getServerField(
-  dir: string,
-  field: PropagateToWorkersField
-) {
+async function getInitialization(dir: string) {
   const initialization = await initializations[dir]
   if (!initialization) {
-    throw new Error('Invariant cant propagate server field, no app initialized')
+    throw new Error('Invariant: no app initialized')
   }
-  const { server } = initialization
-  let wrappedServer = server['server']! // NextServer.server is private
-  return wrappedServer[field as keyof typeof wrappedServer]
+  return initialization
 }
 
-export async function propagateServerField(
+export async function updateDevServerState(
   dir: string,
-  field: PropagateToWorkersField,
-  value: any
+  update: DevServerStateUpdate
 ) {
-  const initialization = await initializations[dir]
-  if (!initialization) {
-    throw new Error('Invariant cant propagate server field, no app initialized')
-  }
+  const initialization = await getInitialization(dir)
   const { server } = initialization
-  let wrappedServer = server['server']
-  const _field = field as keyof NonNullable<typeof wrappedServer>
+  await server.updateDevServerState(update)
+}
 
-  if (wrappedServer) {
-    if (typeof wrappedServer[_field] === 'function') {
-      // @ts-expect-error
-      await wrappedServer[_field].apply(
-        wrappedServer,
-        Array.isArray(value) ? value : []
-      )
-    } else {
-      // @ts-expect-error
-      wrappedServer[_field] = value
-    }
-  }
+export async function reloadEnv(dir: string) {
+  const initialization = await getInitialization(dir)
+  const { server } = initialization
+  await server.reloadEnv()
 }
 
 async function initializeImpl(opts: {
@@ -94,7 +81,8 @@ async function initializeImpl(opts: {
   minimalMode?: boolean
   hostname?: string
   keepAliveTimeout?: number
-  serverFields?: any
+  devServerState?: DevServerState
+  routerServerHandler?: WorkerRequestHandler
   server?: any
   experimentalTestProxy: boolean
   experimentalHttpsServer: boolean
@@ -118,8 +106,9 @@ async function initializeImpl(opts: {
   let requestHandler: RequestHandler
   let upgradeHandler: UpgradeHandler
 
+  const { devServerState, ...serverOptions } = opts
   const server = next({
-    ...opts,
+    ...serverOptions,
     hostname: opts.hostname || 'localhost',
     customServer: false,
     httpServer: opts.server,
@@ -175,7 +164,10 @@ async function initializeImpl(opts: {
     upgradeHandler = server.getUpgradeHandler()
   }
 
-  await server.prepare(opts.serverFields)
+  if (devServerState) {
+    await server.updateDevServerState(devServerState)
+  }
+  await server.prepare()
 
   return {
     requestHandler,
