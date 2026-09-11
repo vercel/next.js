@@ -71,12 +71,16 @@ pub fn connect_children(
             "connect_children parent_count + dirty",
             |mut child, ctx| {
                 // Bump before `make_task_dirty_internal`, which consumes the guard.
-                if !child.id().is_transient() {
-                    if parent_is_transient {
-                        child.update_and_get_transient_ref_count(1);
-                    } else {
-                        child.update_and_get_parent_count(1);
-                    }
+                //
+                // `parent_count` is the *durable* count, so it may only track an edge that will
+                // itself be persisted: a persistent parent holding a persistent child. Every
+                // other combination is session-only and belongs in `transient_ref_count` --
+                // including a transient child, whose incoming edges can never outlive the
+                // session no matter what kind of parent holds them.
+                if parent_is_transient || child.id().is_transient() {
+                    child.update_and_get_transient_ref_count(1);
+                } else {
+                    child.update_and_get_parent_count(1);
                 }
                 if !child.has_output() {
                     make_task_dirty_internal(

@@ -31,7 +31,7 @@ use crate::{
         cell_data::CellData,
         snapshot_coordinator::{OperationGuard, SnapshotPhase},
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TrackOutcome},
-        storage_schema::{TaskStorage, TaskStorageAccessors},
+        storage_schema::{GC_UNOWNED_ENTRY_REF, TaskStorage, TaskStorageAccessors},
     },
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
@@ -1402,6 +1402,20 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
             .expect("transient_ref_count underflow");
         self.set_transient_ref_count(new_value);
         new_value
+    }
+
+    /// Adds one *unowned* entry-point reference, keeping the marker bit set so it stays
+    /// distinguishable from references a handle will release. See `ConnectChildOperation::run`.
+    fn add_entry_ref(&mut self) {
+        let current = self.get_transient_ref_count().copied().unwrap_or(0);
+        // Saturate rather than wrap: the low bits count entry points and the top bit marks them
+        // as unowned; a count large enough to collide with the marker is not a real scenario.
+        let counted = (current & !GC_UNOWNED_ENTRY_REF).saturating_add(1);
+        debug_assert!(
+            counted & GC_UNOWNED_ENTRY_REF == 0,
+            "entry reference count overflowed into the marker bit"
+        );
+        self.set_transient_ref_count(counted | GC_UNOWNED_ENTRY_REF);
     }
 
     /// Whether a GC pass may collect this task: it is non-transient and nothing references it.

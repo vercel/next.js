@@ -610,6 +610,9 @@ pub fn project_new<'env>(
                 })
                 .or_else(|e| turbopack_ctx.throw_turbopack_internal_result(&e.into()))
                 .await?;
+            // Adds a pin rather than adopting the one a parentless task gets at creation: on a
+            // warm persistent cache this container is *restored* from backing storage rather than
+            // created, and the restore path never adds that reference.
             let container_gc_root = GcRoot::pin(turbo_tasks.clone(), container_op);
 
             if is_dev {
@@ -1444,28 +1447,32 @@ pub async fn project_write_all_entrypoints_to_disk(
     };
 
     let (mut entrypoints, mut issues) = tt
-        .run(async move {
-            let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
-                container,
-                app_dir_only,
-                first_phase,
-            );
+        .run({
+            async move {
+                // Parentless, so `initialize_new_task` already pinned it for the session; no
+                // explicit `GcRoot` needed here.
+                let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
+                    container,
+                    app_dir_only,
+                    first_phase,
+                );
 
-            let read =
-                read_strongly_consistent_and_apply_effects(entrypoints_with_issues_op, |v| {
-                    &v.effects
-                })
-                .await?;
-            let AllWrittenEntrypointsWithIssues {
-                entrypoints,
-                issues,
-                ..
-            } = &*read;
+                let read =
+                    read_strongly_consistent_and_apply_effects(entrypoints_with_issues_op, |v| {
+                        &v.effects
+                    })
+                    .await?;
+                let AllWrittenEntrypointsWithIssues {
+                    entrypoints,
+                    issues,
+                    ..
+                } = &*read;
 
-            Ok((
-                entrypoints.clone(),
-                issues.iter().cloned().collect::<Vec<_>>(),
-            ))
+                Ok((
+                    entrypoints.clone(),
+                    issues.iter().cloned().collect::<Vec<_>>(),
+                ))
+            }
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;
@@ -1508,28 +1515,31 @@ pub async fn project_write_all_entrypoints_to_disk(
         }
 
         let (deferred_entrypoints, deferred_issues) = tt
-            .run(async move {
-                let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
-                    container,
-                    app_dir_only,
-                    EntrypointsWritePhase::Deferred,
-                );
+            .run({
+                async move {
+                    let entrypoints_with_issues_op =
+                        get_all_written_entrypoints_with_issues_operation(
+                            container,
+                            app_dir_only,
+                            EntrypointsWritePhase::Deferred,
+                        );
 
-                let read =
-                    read_strongly_consistent_and_apply_effects(entrypoints_with_issues_op, |v| {
-                        &v.effects
-                    })
+                    let read = read_strongly_consistent_and_apply_effects(
+                        entrypoints_with_issues_op,
+                        |v| &v.effects,
+                    )
                     .await?;
-                let AllWrittenEntrypointsWithIssues {
-                    entrypoints,
-                    issues,
-                    ..
-                } = &*read;
+                    let AllWrittenEntrypointsWithIssues {
+                        entrypoints,
+                        issues,
+                        ..
+                    } = &*read;
 
-                Ok((
-                    entrypoints.clone(),
-                    issues.iter().cloned().collect::<Vec<_>>(),
-                ))
+                    Ok((
+                        entrypoints.clone(),
+                        issues.iter().cloned().collect::<Vec<_>>(),
+                    ))
+                }
             })
             .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
             .await?;
@@ -1541,17 +1551,20 @@ pub async fn project_write_all_entrypoints_to_disk(
     }
 
     let emit_issues = tt
-        .run(async move {
-            let emit_result_op = emit_all_output_assets_once_with_issues_operation(
-                container,
-                app_dir_only,
-                has_deferred_entrypoints,
-            );
-            let read =
-                read_strongly_consistent_and_apply_effects(emit_result_op, |v| &v.effects).await?;
-            let OperationResult { issues, .. } = &*read;
+        .run({
+            async move {
+                let emit_result_op = emit_all_output_assets_once_with_issues_operation(
+                    container,
+                    app_dir_only,
+                    has_deferred_entrypoints,
+                );
+                let read =
+                    read_strongly_consistent_and_apply_effects(emit_result_op, |v| &v.effects)
+                        .await?;
+                let OperationResult { issues, .. } = &*read;
 
-            Ok(issues.clone())
+                Ok(issues.clone())
+            }
         })
         .or_else(|e| ctx.throw_turbopack_internal_result(&e.into()))
         .await?;

@@ -13,7 +13,7 @@ use turbo_tasks::TurboTasks;
 use turbo_tasks_backend::TurboTasksBackend;
 
 use crate::{
-    gc_fixture::{create_generation, wide_root},
+    gc_fixture::{create_generation, generation_task_count, wide_root},
     util::create_tt_with_gc_min_progress,
 };
 
@@ -21,7 +21,7 @@ use crate::{
 /// difference.
 const WIDTH: u32 = 400;
 
-/// Builds generation `gen_value`, disconnecting the previous generation's `2 * WIDTH` tasks.
+/// Builds generation `gen_value`, disconnecting the previous generation's whole tree.
 async fn build_generation(tt: &Arc<TurboTasks<TurboTasksBackend>>, gen_value: u32) {
     turbo_tasks::run_once(tt.clone(), async move {
         let generation_op = create_generation();
@@ -81,11 +81,11 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
         stats.collected
     );
     // Generation 0 is fully disconnected by generation 1, and an uninterrupted pass must take all
-    // of it: `2 * WIDTH` tasks (an `intermediate` and a `leaf` per index). The live generation and
-    // the transient `run_once` roots are not collectible, so this is an exact count, not a floor.
+    // of it: every `subtree` node plus every `leaf`. The live generation and the transient
+    // `run_once` roots are not collectible, so this is an exact count, not a floor.
     assert_eq!(
         stats.collected,
-        2 * WIDTH as usize,
+        generation_task_count(WIDTH),
         "a completing pass must collect the whole disconnected generation: {stats}"
     );
 
@@ -122,7 +122,7 @@ async fn gc_interrupt_is_self_healing() {
     // Phase 2: a completing pass must recover exactly what phase 1 left behind.
     let healed = tt.backend().gc_for_testing(&tt);
 
-    let produced = (2 * WIDTH as usize) * (ROUNDS as usize);
+    let produced = generation_task_count(WIDTH) * (ROUNDS as usize);
     let total_collected = collected_in_phase_1 + healed;
     println!(
         "self-healing: collected_in_phase_1={collected_in_phase_1} healed={healed} \

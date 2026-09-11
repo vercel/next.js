@@ -67,7 +67,7 @@ enum GcJob {
     /// Scan one shard of the resident map (by index) and enqueue its candidates as
     /// [`GcJob::Collect`].
     ScanShard(usize),
-    /// Collect a single task
+    /// Collect a single task.
     Collect(TaskId),
 }
 
@@ -107,7 +107,7 @@ impl GcBudget<'_> {
 }
 
 /// Observability counters for one [`TurboTasksBackend::gc_collect`] pass.
-#[derive(Default, Debug)]
+#[derive(Default)]
 pub struct GcStats {
     /// Number of roots detected by the pass
     pub gc_roots: usize,
@@ -119,6 +119,13 @@ pub struct GcStats {
     pub aged_out_roots: usize,
     /// Persisted roots that this pass collected, to be dropped from the roots map.
     pub deleted_roots: Vec<TaskId>,
+    /// Aggregation rebalancing (`balance_edge` / `optimize`) held back from the parallel collect
+    /// and run once it is quiescent. See [`TurboTasksBackend::gc_collect`].
+    ///
+    /// One entry per worker accumulator; they are folded into a single queue (which dedupes the
+    /// repeated rebalances of shared edges) at drain time, where an `ExecuteContext` is available.
+    /// Not a statistic — this is the pass's deferred work list, like `deleted_roots`.
+    pub deferred_rebalance: Vec<AggregationUpdateQueue>,
     /// The gc loop was interrupted by competing work.
     pub interrupted: bool,
 }
@@ -152,6 +159,10 @@ impl GcStats {
         } else {
             self.deleted_roots.append(&mut other.deleted_roots);
         }
+        // Merging the queues themselves needs an `ExecuteContext` (a dropped optimize job has to
+        // mark its task pending), which `merge` does not have. Concatenate here and fold at drain.
+        self.deferred_rebalance
+            .append(&mut other.deferred_rebalance);
         self
     }
 }
@@ -203,7 +214,7 @@ impl TurboTasksBackend {
         };
 
         let mut stats: GcStats = scope_unbounded_with(
-            // Start by scanning all shards and collecting the aged out roots from prior sessions
+            // Start by scanning all shards and collecting the aged out roots from prior sessions.
             (0..self.storage.shard_count())
                 .map(GcJob::ScanShard)
                 .chain(aged_out.into_iter().map(GcJob::Collect)),
@@ -215,14 +226,15 @@ impl TurboTasksBackend {
                 {
                     return ControlFlow::Break(());
                 }
-                let collector = |task_id| spawner.spawn(GcJob::Collect(task_id));
                 let task_id = match job {
                     GcJob::ScanShard(index) => {
+                        let collector = |task_id| spawner.spawn(GcJob::Collect(task_id));
                         self.storage.gc_scan_shard(index, collector);
                         return ControlFlow::Continue(());
                     }
                     GcJob::Collect(task_id) => task_id,
                 };
+                let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
                 let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &collector);
                 // `All` restores Data so the edge capture below can read the Data-category dep
                 // sets.
@@ -230,7 +242,7 @@ impl TurboTasksBackend {
                 // Recheck under the guard, and note that this is the **authoritative** check:
                 // the shard scan that produced this candidate only had Meta, so it could not see
                 // dependency edges (see `TaskStorage::gc_maybe_collectible`). With `All` open the
-                // same predicate is exact. A racing teardown can also add uppers/followers that
+                // same predicate is exact. A racing teardown can also add uppers that
                 // temporarily remove collectibility; such a task is re-enqueued by a later pass.
                 if !task.is_gc_collectible() {
                     return ControlFlow::Continue(());
@@ -259,12 +271,28 @@ impl TurboTasksBackend {
                 if roots.contains_key(&task_id) {
                     stats.deleted_roots.push(task_id);
                 }
-                CleanupOldEdgesOperation::run(
+                // Tear the edges down now and hold the rebalance back. Collection only *removes*
+                // nodes and edges, and every removal path (dropping an upper edge, un-applying
+                // aggregated data, cascading into a follower's followers) is correct on its own.
+                // Rebalancing is the one part that *adds* edges — `balance_edge` converts follower
+                // edges to upper edges and adopts a task's followers — which is a shape
+                // optimization for later queries, not something deletion requires. Running it
+                // concurrently with collection is what produced edges pointing at tasks another
+                // worker had already deleted, so it is accumulated here and drained once the
+                // parallel phase is quiescent.
+                if let Some(queue) = CleanupOldEdgesOperation::run_edges_only(
                     task_id,
                     old_edges,
                     AggregationUpdateQueue::new(),
                     &mut ctx,
-                );
+                ) {
+                    match stats.deferred_rebalance.first_mut() {
+                        // Fold into this worker's accumulator, so dedup happens as we go rather
+                        // than building one queue per collected task.
+                        Some(existing) => existing.merge_rebalance(queue, &mut ctx),
+                        None => stats.deferred_rebalance.push(queue),
+                    }
+                }
                 ControlFlow::Continue(())
             },
             GcStats::merge,
@@ -273,6 +301,29 @@ impl TurboTasksBackend {
         // Drop the entries for the roots this pass collected, recorded as they were deleted.
         for id in &stats.deleted_roots {
             roots.remove(id);
+        }
+
+        // The parallel phase is done, so the graph is quiescent and rebalancing it is safe.
+        // Folding the per-worker accumulators into one queue collapses the repeated rebalances of
+        // shared edges (`balance_queue`/`optimize_queue` are ring *sets*) and keeps a single
+        // optimization budget.
+        //
+        // This runs before `gc_scan_roots` on purpose: rebalancing moves `upper` edges, and
+        // `gc_is_root` reads them, so classifying roots first would read a stale shape.
+        //
+        // NOTE: this drain is single-threaded and scales with the amount of garbage, so it is a
+        // latency risk on a large collection. Left unbounded for now; the existing
+        // `optimization_pending` mechanism is how a bound would defer the remainder.
+        let deferred = std::mem::take(&mut stats.deferred_rebalance);
+        if !deferred.is_empty() {
+            let noop_collector = |_task_id| {};
+            let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
+            let mut queues = deferred.into_iter();
+            let mut merged = queues.next().expect("checked non-empty");
+            for queue in queues {
+                merged.merge_rebalance(queue, &mut ctx);
+            }
+            while !merged.process(&mut ctx) {}
         }
 
         // Collect all active roots

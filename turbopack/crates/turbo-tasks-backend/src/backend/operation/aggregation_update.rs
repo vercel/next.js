@@ -1168,6 +1168,67 @@ impl AggregationUpdateQueue {
         queue.execute(ctx);
     }
 
+    /// Whether only rebalance work (`balance_edge` / `optimize`) is left.
+    ///
+    /// The queue drains in strict priority order — `jobs`, then aggregation-number updates, then
+    /// `balance_queue`, then `optimize_queue` — so once the first two are empty everything that
+    /// remains rebalances the graph rather than tearing edges out of it. GC uses this to stop at
+    /// that boundary and defer the rest until the parallel collect is quiescent.
+    pub fn only_rebalance_remains(&self) -> bool {
+        self.jobs.is_empty() && self.aggregation_number_updates.is_empty()
+    }
+
+    /// Whether any rebalance work is actually pending.
+    pub fn has_rebalance_work(&self) -> bool {
+        !self.balance_queue.is_empty() || !self.optimize_queue.is_empty()
+    }
+
+    /// Folds another queue's rebalance work into this one.
+    ///
+    /// GC defers one queue per collected task and drains them together once the parallel collect
+    /// is quiescent. Merging rather than draining them back to back matters for two reasons:
+    ///
+    /// - **Dedup.** `balance_queue` and `optimize_queue` are ring *sets* keyed by task id, and
+    ///   sibling collects in one subtree overwhelmingly rebalance the *same* shared parent edges.
+    ///   Merged, those collapse to one job each; drained separately, every queue carries its own
+    ///   copy and re-does the work.
+    /// - **Budget.** `MAX_OPTIMIZATIONS_PER_QUEUE` is a per-instance lifetime budget, so N separate
+    ///   queues would silently grant N times the optimizations that the previous inline code
+    ///   allowed. Folding into one queue keeps a single budget, carrying over the count already
+    ///   spent.
+    ///
+    /// Pushes go through the normal paths, so the `MAX_OPTIMIZE_QUEUE_SIZE` cap still applies and
+    /// a dropped optimize job still marks its task `optimization_pending` for later recovery.
+    pub fn merge_rebalance(&mut self, other: Self, ctx: &mut impl ExecuteContext<'_>) {
+        debug_assert!(
+            other.only_rebalance_remains(),
+            "merge_rebalance expects a queue stopped at the rebalance boundary"
+        );
+        // Keep the larger spend so the merged queue cannot hand out a fresh budget.
+        self.optimizations_executed =
+            max(self.optimizations_executed, other.optimizations_executed);
+        for job in other.balance_queue {
+            self.balance_queue.push_back(job);
+        }
+        for job in other.optimize_queue {
+            let OptimizeJob {
+                task_id,
+                optimization_pending_flag_already_set,
+                #[cfg(feature = "trace_aggregation_update_queue")]
+                    span: _,
+            } = job;
+            if !self.try_enqueue_optimize_job(task_id, optimization_pending_flag_already_set)
+                && !optimization_pending_flag_already_set
+            {
+                lock_and_mark_optimization_pending(ctx, task_id);
+            }
+        }
+        #[cfg(feature = "trace_aggregation_update_stats")]
+        {
+            self.stats.balance_edge_batches += other.stats.balance_edge_batches;
+        }
+    }
+
     /// Executes a single step of the queue. Returns true, when the queue is empty.
     pub fn process(&mut self, ctx: &mut impl ExecuteContext<'_>) -> bool {
         if let Some(job) = self.jobs.pop_front() {

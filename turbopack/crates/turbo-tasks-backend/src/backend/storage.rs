@@ -1,6 +1,6 @@
 use std::{
     cell::Cell,
-    fmt::{Display, Formatter},
+    fmt::{Display, Formatter, Write as _},
     hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
     sync::{
@@ -16,6 +16,8 @@ use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskTypeArc, event::Event, parallel};
 
+#[cfg(debug_assertions)]
+use crate::backend::storage_schema::GcRootHolders;
 use crate::{
     backend::storage_schema::{
         DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
@@ -579,19 +581,71 @@ impl Storage {
 
     /// Return the set of all known live roots.
     pub fn gc_scan_roots(&self) -> impl Iterator<Item = TaskId> {
+        // Roots that failed the "held by a transient pin" expectation, with the referencing tasks
+        // that kept them un-collectible. Collected during the scan and reported *after* it: naming
+        // a dependent means reading its storage, and the shard locks are held inside the closure.
+        #[cfg(debug_assertions)]
+        let unexpected = std::sync::Mutex::new(Vec::<(TaskId, GcRootHolders)>::new());
+
         let per_shard: Vec<Vec<TaskId>> =
             parallel::map_collect(&(0..self.shard_count()).collect::<Vec<_>>(), |&index| {
                 let mut roots = Vec::new();
                 self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
                     if storage.gc_is_root() {
-                        // The `is_root` criteria is conservative, in debug assert that we aren't m
-                        storage.gc_debug_assert_root_held_by_transient_pin();
+                        // The `is_root` criteria is conservative, in debug assert that we aren't
+                        // marking things as roots for surprising reasons
+                        #[cfg(debug_assertions)]
+                        if !storage.gc_is_held_by_transient_pin() {
+                            unexpected
+                                .lock()
+                                .unwrap()
+                                .push((task_id, storage.gc_root_holders()));
+                        }
                         roots.push(task_id);
                     }
                 });
                 roots
             });
+
+        #[cfg(debug_assertions)]
+        {
+            let unexpected = unexpected.into_inner().unwrap();
+            if !unexpected.is_empty() {
+                let mut report = String::new();
+                for (task_id, holders) in &unexpected {
+                    let _ = writeln!(
+                        report,
+                        "  {} ({task_id:?}) is held by:",
+                        self.describe_task(*task_id)
+                    );
+                    for (kind, holder) in holders.iter() {
+                        let _ = writeln!(
+                            report,
+                            "    via {kind}: {} ({holder:?})",
+                            self.describe_task(*holder)
+                        );
+                    }
+                }
+                panic!(
+                    "{} GC root(s) held by a non-transient pin.\nBeing held by another kind of \
+                     reference implies a bug in GC or the aggregation graph.\n{report}",
+                    unexpected.len()
+                );
+            }
+        }
+
         per_shard.into_iter().flatten()
+    }
+
+    /// A short `name (TaskId)`-style label for a task, for diagnostics. Falls back to the id alone
+    /// when the task is gone or has no persistent type (e.g. a transient task).
+    #[cfg(debug_assertions)]
+    fn describe_task(&self, task_id: TaskId) -> String {
+        self.access_mut(task_id)
+            .get_persistent_task_type()
+            // `NativeFunction`'s `Debug` is the public view of its name fields.
+            .map(|t| format!("{:?}", t.native_fn))
+            .unwrap_or_else(|| "<unknown>".to_string())
     }
 
     pub fn access_pair_mut(

@@ -68,9 +68,17 @@ fn create_generation() -> Vc<Generation> {
     Generation(State::new(0)).cell()
 }
 
-// WIDE shape: root -> `width` intermediates, each -> a leaf (2 tasks per index). Bumping the
-// generation disconnects the whole previous generation, so a collect tears down ~2*width tasks and
-// exercises the per-task fan-out plus a one-level cascade (intermediate -> its leaf).
+// TREE shape: a `BRANCHING`-ary tree of `subtree` nodes over `width` leaves. Bumping the
+// generation disconnects the whole previous tree.
+//
+// The depth matters. A node's `distance` is `children.ilog2() * 2` and, while a parent is still a
+// leaf, its children start at `parent_effective + 3` — so `effective` climbs down the levels and
+// crosses `LEAF_NUMBER` (16), which is the transition that turns a node's children into
+// `followers`. The previous flat root -> intermediate -> leaf shape never crossed it and so
+// produced *no follower edges at all*, leaving the aggregation-rebalance half of a collect
+// completely unmeasured.
+
+const BRANCHING: u32 = 4;
 
 #[turbo_tasks::function]
 fn wide_leaf(generation: u32, index: u32) -> Vc<u32> {
@@ -78,18 +86,70 @@ fn wide_leaf(generation: u32, index: u32) -> Vc<u32> {
 }
 
 #[turbo_tasks::function]
-async fn wide_intermediate(generation: u32, index: u32) -> Result<Vc<u32>> {
-    Ok(Vc::cell(1 + *wide_leaf(generation, index).await?))
+async fn subtree(generation: u32, index: u32, span: u32) -> Result<Vc<u32>> {
+    if span <= 1 {
+        return Ok(Vc::cell(1 + *wide_leaf(generation, index).await?));
+    }
+    let child_span = span.div_ceil(BRANCHING);
+    let mut sum = 0u32;
+    let mut start = index;
+    while start < index + span {
+        let this_span = child_span.min(index + span - start);
+        sum = sum.wrapping_add(*subtree(generation, start, this_span).await?);
+        start += this_span;
+    }
+    Ok(Vc::cell(sum))
+}
+
+/// A *retained* interior node: keyed on `index`/`span` only, so the same task survives every
+/// generation bump and re-executes with new children. This reproduces the common real shape —
+/// a live parent whose children are collected out from under it — where sibling children go
+/// garbage together, are found independently by the shard scan, and are collected concurrently
+/// while both mutate this parent's aggregation state.
+#[turbo_tasks::function]
+async fn live_parent(generation: ResolvedVc<Generation>, index: u32, span: u32) -> Result<Vc<u32>> {
+    let generation_value = *generation.await?.get();
+    Ok(Vc::cell(*subtree(generation_value, index, span).await?))
 }
 
 #[turbo_tasks::function(operation, root)]
 async fn wide_root(generation: ResolvedVc<Generation>, width: u32) -> Result<Vc<u32>> {
-    let generation = *generation.await?.get();
+    let child_span = width.div_ceil(BRANCHING);
     let mut sum = 0u32;
-    for index in 0..width {
-        sum = sum.wrapping_add(*wide_intermediate(generation, index).await?);
+    let mut start = 0;
+    while start < width {
+        let this_span = child_span.min(width - start);
+        sum = sum.wrapping_add(*live_parent(*generation, start, this_span).await?);
+        start += this_span;
     }
     Ok(Vc::cell(sum))
+}
+
+/// Tasks in one generation: every `subtree` node plus every leaf. Mirrors `subtree`'s recursion.
+fn generation_task_count(width: u32) -> u64 {
+    fn count(span: u32) -> u64 {
+        if span <= 1 {
+            return 2;
+        }
+        let child_span = span.div_ceil(BRANCHING);
+        let mut total = 1;
+        let mut start = 0;
+        while start < span {
+            let this_span = child_span.min(span - start);
+            total += count(this_span);
+            start += this_span;
+        }
+        total
+    }
+    let child_span = width.max(1).div_ceil(BRANCHING);
+    let mut total = 0;
+    let mut start = 0;
+    while start < width.max(1) {
+        let this_span = child_span.min(width.max(1) - start);
+        total += count(this_span);
+        start += this_span;
+    }
+    total
 }
 
 /// Build generation 0 of the WIDE graph then bump to generation 1, leaving generation 0 fully
@@ -131,8 +191,8 @@ pub fn gc(c: &mut Criterion) {
     group.sample_size(10);
 
     for width in [5_000u32, 25_000, 100_000] {
-        // ~2 tasks per index become garbage (intermediate + leaf).
-        let garbage = (2 * width) as u64;
+        // Every `subtree` node plus every leaf becomes garbage.
+        let garbage = generation_task_count(width);
         group.throughput(Throughput::Elements(garbage));
         group.bench_with_input(BenchmarkId::new("wide", garbage), &width, |b, &width| {
             // Must match `create_tt`'s `num_workers`.

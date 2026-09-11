@@ -269,7 +269,7 @@ pub struct TurboTasksBackend {
 
 /// What [`TurboTasksBackend::snapshot_and_evict_for_testing`] observed.
 #[doc(hidden)]
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct TestSnapshotOutcome {
     /// Whether the snapshot found modifications to persist.
     pub had_new_data: bool,
