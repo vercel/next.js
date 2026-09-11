@@ -63,18 +63,14 @@ pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<Sto
     store
 }
 
-/// Default number of spans returned per page when the caller doesn't ask for
-/// a specific size.
+/// Page size used when the caller doesn't ask for one.
 const DEFAULT_PAGE_SIZE: usize = 20;
 
-/// Upper bound on a caller-supplied page size. Large pages are useful when
-/// enumerating the children of a wide span (a few hundred at a time instead of
-/// dozens of round-trips), but the cap keeps a single response bounded.
+/// Upper bound on a caller-supplied page size, so one response stays bounded.
 const MAX_PAGE_SIZE: usize = 500;
 
-/// Default maximum depth for a recursive search, and the cap on
-/// `QueryOptions::max_depth`. Deep enough to reach any leaf in a realistic
-/// trace, shallow enough that a pathological cycle can't run away.
+/// Default and cap for `QueryOptions::max_depth`. Also bounds the subtree
+/// walks, which is why they need no cycle detection.
 const DEFAULT_SEARCH_MAX_DEPTH: u32 = 32;
 
 /// How spans should be sorted.
@@ -89,7 +85,7 @@ pub enum SortMode {
     Name,
     /// Sort by total allocated bytes, descending.
     Allocations,
-    /// Sort by total persistent (net retained) bytes, descending.
+    /// Sort by `SpanInfo::persistent_allocations`, descending.
     PersistentAllocations,
 }
 
@@ -104,17 +100,19 @@ pub struct QueryOptions {
     pub sort: SortMode,
     /// Optional substring search query.
     ///
-    /// The search is **recursive**: it matches the parent's entire subtree, not
-    /// just its direct children, and each result's `id` is the full navigable
-    /// path from `parent` down to the match. Without this, finding a span
-    /// requires already knowing which branch it lives on.
+    /// Matches the parent's entire subtree, not just its direct children. Each
+    /// result's `id` is the full path from `parent` down to the match, so it
+    /// can be passed straight back as `parent`.
+    ///
+    /// Cost scales with the size of that subtree, so a root search on a large
+    /// trace walks everything. Setting `parent`, or lowering `max_depth`,
+    /// bounds it.
     pub search: Option<String>,
     /// Maximum depth to descend below `parent` when `search` is set, or when
     /// `depth` requests a nested subtree. Clamped to `DEFAULT_SEARCH_MAX_DEPTH`.
     pub max_depth: u32,
-    /// When greater than 1, each returned span carries its descendants inline
-    /// (up to this many levels), so a caller can pull a subtree in one call
-    /// instead of one round-trip per level.
+    /// When greater than 1, each returned span carries this many levels of
+    /// descendants inline in `children`.
     pub depth: u32,
     /// 1-based page number.
     pub page: usize,
@@ -164,45 +162,34 @@ pub struct SpanInfo {
     pub total_corrected_duration: Option<u64>,
     /// Average corrected_duration across all spans in the group.
     pub avg_corrected_duration: Option<u64>,
-    /// Raw span ID of the group's **first** span (the example span whose
-    /// `cpu_duration`, `corrected_duration` and `memory_samples` are reported
-    /// above). First in execution order — *not* the largest or the most
-    /// representative. Drilling in here to explain a group's allocation total
-    /// will usually land on an unremarkable span; use `heaviest_span_id` for
-    /// that.
+    /// Raw span ID of the group's example span, whose `cpu_duration`,
+    /// `corrected_duration` and `memory_samples` are the ones reported above.
+    /// First in execution order — *not* the largest, so it can badly understate
+    /// a group's allocations. Use `heaviest_span_id` for those.
     pub first_span_id: Option<String>,
     /// Raw span ID of the group member with the largest
-    /// `total_persistent_allocations`, i.e. the one actually responsible for
-    /// most of the group's retained bytes. This is the span to drill into when
-    /// a group's allocation numbers are what drew your attention.
+    /// `total_persistent_allocations`.
     pub heaviest_span_id: Option<String>,
     /// Total bytes allocated by this span and all its children.
     ///
-    /// For aggregated groups this is the **group total** across every span in
-    /// the group. Note the asymmetry with the fields above: `cpu_duration`,
-    /// `corrected_duration` and `memory_samples` describe the *example* span
-    /// only, while every allocation field here is a group total. Carrying the
-    /// example-span mental model over to these fields reads a group's numbers
-    /// as one span's.
+    /// For aggregated groups this is the group total, unlike `cpu_duration`,
+    /// `corrected_duration` and `memory_samples`, which describe the example
+    /// span only. Every allocation field below follows this field, not those.
     pub allocations: u64,
     /// Total bytes deallocated by this span and all its children.
     /// Group total for aggregated spans.
     pub deallocations: u64,
-    /// Net bytes attributed to this span and its children: the sum over each
-    /// span of `max(0, self_allocations - self_deallocations)`. Group total for
-    /// aggregated spans.
+    /// Sum over each span of `max(0, self_allocations - self_deallocations)`,
+    /// for this span and its children. Group total for aggregated spans.
     ///
-    /// **This is a ranking signal, not a measure of retained memory.** It is
-    /// allocated-minus-freed as observed by TurboMalloc's per-span counters,
-    /// which never see memory released outside the allocating span's window —
-    /// turbo-tasks cell and cache drops in particular. A whole-trace total
-    /// running far above real peak RSS is expected, not a leak. Use
-    /// `memory_samples` for absolute memory; use this to rank who allocates.
+    /// **A ranking signal, not retained memory.** TurboMalloc's per-span
+    /// counters never see memory released outside the allocating span's window
+    /// — turbo-tasks cell and cache drops in particular — so a whole-trace
+    /// total far above real peak RSS is expected, not a leak. Use
+    /// `memory_summary` for absolute memory.
     ///
-    /// It is also not `allocations - deallocations`: the per-span floor at zero
-    /// means a span that frees more than it allocates contributes 0 rather than
-    /// a negative, so the two differ whenever any span has net-negative
-    /// self-allocation (see `self_deallocations` for why that is common).
+    /// The per-span floor at zero is also why this is not
+    /// `allocations - deallocations`.
     pub persistent_allocations: u64,
     /// Number of allocation operations by this span and all its children.
     /// Group total for aggregated spans.
@@ -213,20 +200,14 @@ pub struct SpanInfo {
     /// Bytes deallocated by this span itself, excluding children.
     /// Group total for aggregated spans.
     ///
-    /// Frees are charged to whichever span was on top of the thread's stack
-    /// **at free time**, which is often not the span that allocated the memory.
-    /// A child that allocates into a buffer its parent later drops shows up as
-    /// a child with large `self_allocations` and a parent with large
-    /// `self_deallocations` — which reads like "the child leaks" but is the
-    /// opposite: it is proof the memory was released.
-    ///
-    /// Read the pair as a diagnostic. Small `self_allocations` alongside large
-    /// `self_deallocations` means this span is where a child's arena gets
-    /// dropped, i.e. that arena is bounded. A large `self_persistent_allocations`
-    /// with no such counterpart anywhere above it is the shape that actually
-    /// warrants suspicion.
+    /// Frees are charged to whichever span was on top of the thread's stack at
+    /// free time, which is often not the span that allocated. So small
+    /// `self_allocations` with large `self_deallocations` means this span is
+    /// where a child's arena gets dropped — that arena is bounded, not leaking.
+    /// The shape to suspect is a large `self_persistent_allocations` with no
+    /// such counterpart above it.
     pub self_deallocations: u64,
-    /// Net retained bytes by this span itself, excluding children.
+    /// `max(0, self_allocations - self_deallocations)` for this span alone.
     /// Group total for aggregated spans.
     pub self_persistent_allocations: u64,
     /// Number of allocation operations by this span itself, excluding children.
@@ -234,6 +215,12 @@ pub struct SpanInfo {
     pub self_allocation_count: u64,
     /// TurboMalloc memory-usage samples recorded while this span (or its
     /// example span, for aggregated groups) was live.
+    ///
+    /// **Process-wide, not per-span.** There is one global sample series, and a
+    /// span's samples are just the slice covering its time range, so spans that
+    /// overlap in time report identical values no matter what each allocated.
+    /// Rank concurrent work by the allocation fields; use these for absolute
+    /// memory over a span that dominates its window.
     ///
     /// Each tuple is `(ts_offset_from_span_start_in_ticks, bytes, pressure)`,
     /// where `pressure` is the memory-pressure byte recorded with the sample
@@ -245,21 +232,17 @@ pub struct SpanInfo {
     /// group's max-memory sample (timestamp, value, and pressure kept
     /// together).
     pub memory_samples: Vec<(i64, u64, u8)>,
-    /// Summary of `memory_samples`, precomputed so callers don't each rederive
-    /// it from the raw triples. `None` when no samples fall in the span's
-    /// range.
+    /// Summary of `memory_samples`. `None` when the span's range holds none.
     pub memory_summary: Option<MemorySummary>,
-    /// Descendants of this span, present only when the query asked for a
-    /// nested subtree via `QueryOptions::depth`. Each child is a full
-    /// `SpanInfo` with its own navigable `id`, sorted and aggregated the same
-    /// way as this level.
+    /// Descendants of this span, populated only when `QueryOptions::depth` is
+    /// greater than 1. Sorted and aggregated the same way as this level.
     pub children: Vec<SpanInfo>,
 }
 
 /// Aggregate view of a span's TurboMalloc memory samples.
 ///
-/// Unlike the allocation counters, these are absolute live-heap readings, so
-/// `peak` is the number to quote for "how much memory was actually in use".
+/// Unlike the allocation counters these are absolute live-heap readings, so
+/// `peak` is the figure to quote for memory actually in use.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct MemorySummary {
     /// Number of samples in the span's range (after the store's downsampling).
@@ -331,22 +314,19 @@ fn build_span_id(parent: Option<&str>, leaf: &str) -> String {
     }
 }
 
-/// A candidate span found while walking, paired with the full navigable ID
-/// path that leads to it.
+/// A span found while walking, paired with the ID path that leads to it.
 struct Located<T> {
     item: T,
-    /// Full path ID, e.g. `"a5-a34-a91"`. Passing this back as `parent`
-    /// enumerates the located span's children.
+    /// Full path ID, e.g. `"a5-a34-a91"`, usable as a `parent`.
     id: String,
 }
 
 /// Does this name match the search query?
 ///
-/// Comma-separated terms are ANDed, and each term is a substring match against
-/// the category, the title, or the `"category title"` display name. Matching
-/// the display name matters because that is the `name` a caller sees in a
-/// result — searching for a name copied out of one response has to find it
-/// again, and a term spanning the two fields matches neither on its own.
+/// Comma-separated terms are ANDed, each a substring match against the
+/// category, the title, or the `"category title"` display name. The display
+/// name is included because that is the `name` a result reports, and a term
+/// spanning both fields matches neither on its own.
 fn name_matches(cat: &str, title: &str, query: &str) -> bool {
     let display = format_span_name(cat, title);
     query
@@ -380,15 +360,11 @@ fn span_graph_children<'a>(span: &SpanRef<'a>) -> Vec<SpanGraphRef<'a>> {
 /// Walk the aggregated graph below `roots`, returning every node whose name
 /// matches `query`, each tagged with its full path ID.
 ///
-/// The raw-span path gets recursion for free from the store's search index
-/// (`SpanRef::search` indexes the whole subtree), but the aggregated path has
-/// no such index — a graph node is built on demand. So we BFS it here, which
-/// is what makes `search` usable in the default `aggregated: true` mode: a
-/// caller can find a span by name without already knowing which branch holds
-/// it.
+/// Raw spans get recursion from the store's search index, but graph nodes are
+/// built on demand and have no index, so this walks them directly.
 ///
-/// A match does not stop the descent: a matching node's subtree is still
-/// searched, since nested spans often share a name with an ancestor.
+/// A match does not stop the descent — nested spans often share a name with an
+/// ancestor.
 fn search_graph_recursive<'a>(
     roots: Vec<Located<SpanGraphRef<'a>>>,
     query: &str,
@@ -484,7 +460,6 @@ fn sort_spans(items: &mut [Located<SpanRef<'_>>], sort: SortMode) {
             let (b_cat, b_title) = b.item.nice_name();
             a_title.cmp(b_title).then_with(|| a_cat.cmp(b_cat))
         }),
-        // Descending, matching the documented order and the aggregated path.
         SortMode::Allocations => {
             items.sort_by_key(|s| Reverse(s.item.total_allocations()));
         }
@@ -521,9 +496,6 @@ fn build_graph_span_info(
     let total_cpu = *graph.total_time();
     let total_corrected = *graph.corrected_total_time();
 
-    // The group member holding the most retained bytes. `first_span` is just
-    // whichever ran first, so drilling in on it to explain a group's
-    // allocations usually lands on the wrong span.
     let heaviest = graph
         .root_spans()
         .max_by_key(|span| span.total_persistent_allocations())
@@ -673,7 +645,6 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
     let store_guard = store.read();
     let store_ref = &*store_guard;
 
-    // Resolve the parent span.
     let parent_span: Option<SpanRef<'_>> = if let Some(ref parent_id) = options.parent {
         resolve_span_by_id(store_ref, parent_id)
     } else {
@@ -689,7 +660,6 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
         .clamp(1, MAX_PAGE_SIZE);
 
     if options.aggregated {
-        // Direct aggregated children of the resolved parent (or of the root).
         let direct: Vec<Located<SpanGraphRef<'_>>> = match parent_span {
             Some(ref parent) => span_graph_children(parent),
             None => span_graph_children(&store_ref.root_span()),
@@ -704,7 +674,7 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
         })
         .collect();
 
-        // Search descends the whole subtree; without a query we stay at this level.
+        // A search descends the subtree; without one we stay at this level.
         let mut filtered = match options.search {
             Some(ref query) => search_graph_recursive(direct, query, max_depth),
             None => direct,
@@ -729,20 +699,16 @@ pub fn query_spans(store: &Arc<StoreContainer>, options: QueryOptions) -> QueryR
             total_count,
         }
     } else {
-        // Raw spans mode. `SpanRef::search` is already recursive (the store's
-        // search index covers the whole subtree), so a search here returns
-        // descendants at any depth; the walk below only exists to recover each
-        // hit's full path ID.
+        // `SpanRef::search` is already recursive via the store's index, so the
+        // walk below exists only to recover each hit's full path ID.
         let filtered: Vec<Located<SpanRef<'_>>> = if let Some(ref query) = options.search {
             let mut matches: Vec<SpanRef<'_>> = match parent_span {
                 Some(ref parent) => parent.search(query).collect(),
                 None => store_ref.root_span().search(query).collect(),
             };
-            // The store's index keys category and title separately (it is
-            // shared with the WebSocket viewer), so a query spanning both —
-            // such as a `name` copied straight out of a previous result —
-            // misses. Fall back to a subtree scan for those, matching the
-            // aggregated path.
+            // That index keys category and title separately and is shared with
+            // the WebSocket viewer, so rather than change its keys, fall back
+            // to a scan for queries spanning both fields.
             if matches.is_empty() {
                 let roots: Vec<SpanRef<'_>> = match parent_span {
                     Some(ref parent) => parent.children().collect(),
@@ -872,12 +838,9 @@ mod tests {
     /// root
     ///  └─ outer            (index 1)
     ///      ├─ middle       (index 2)
-    ///      │   └─ needle   (index 3)   ← only reachable 3 levels down
+    ///      │   └─ cat needle (index 3)   ← only reachable 3 levels down
     ///      └─ other        (index 4)
     /// ```
-    ///
-    /// `needle` is deliberately not a direct child of anything a caller would
-    /// query first, so a non-recursive search cannot find it.
     fn nested_store() -> (Arc<StoreContainer>, Vec<SpanIndex>) {
         let container = Arc::new(StoreContainer::new());
         let mut indices = Vec::new();
@@ -901,10 +864,12 @@ mod tests {
                 SpanArgs::new(),
                 &mut outdated,
             );
+            // `needle` gets a category so its display name ("cat needle")
+            // spans both fields, which the display-name search test needs.
             let needle = store.add_span(
                 Some(middle),
                 Timestamp::from_micros(2),
-                RcStr::default(),
+                RcStr::from("cat"),
                 RcStr::from("needle"),
                 SpanArgs::new(),
                 &mut outdated,
@@ -918,8 +883,8 @@ mod tests {
                 &mut outdated,
             );
 
-            // Allocate most bytes in `other` so allocation sorting has a clear
-            // winner that differs from execution order.
+            // Most bytes in `other`, so allocation order differs from
+            // execution order.
             store.add_allocation(needle, 1_000, 10, &mut outdated);
             store.add_allocation(other, 50_000, 100, &mut outdated);
 
@@ -953,8 +918,7 @@ mod tests {
     fn aggregated_search_finds_deep_descendants() {
         let (store, _) = nested_store();
 
-        // `needle` is three levels below the root. A search that only filtered
-        // direct children would return nothing here.
+        // `needle` is three levels below the root.
         let result = query(
             &store,
             QueryOptions {
@@ -964,7 +928,7 @@ mod tests {
         );
 
         assert_eq!(result.total_count, 1, "expected to find the nested span");
-        assert_eq!(result.spans[0].name, "needle");
+        assert_eq!(result.spans[0].name, "cat needle");
     }
 
     #[test]
@@ -978,8 +942,6 @@ mod tests {
             },
         );
 
-        // The ID must be the whole path, not just the leaf, so it can be passed
-        // back as `parent`.
         let id = &result.spans[0].id;
         assert_eq!(
             id.split('-').count(),
@@ -987,7 +949,7 @@ mod tests {
             "expected a 3-segment path, got {id}"
         );
 
-        // And it must actually resolve back to `needle`.
+        // The path must resolve back to `needle`.
         let children = query(
             &store,
             QueryOptions {
@@ -1011,7 +973,7 @@ mod tests {
         );
 
         assert_eq!(result.total_count, 1);
-        assert_eq!(result.spans[0].name, "needle");
+        assert_eq!(result.spans[0].name, "cat needle");
         // outer-middle-needle
         assert_eq!(result.spans[0].id.split('-').count(), 3);
     }
@@ -1019,18 +981,19 @@ mod tests {
     #[test]
     fn raw_search_matches_the_display_name() {
         let (store, _) = nested_store();
-        // The store's index keys category and title separately; a display-name
-        // query must still resolve via the fallback scan.
+        // "cat needle" is the `name` a result reports, but the store's index
+        // keys "cat" and "needle" separately, so only the fallback scan
+        // resolves it.
         let result = query(
             &store,
             QueryOptions {
                 aggregated: false,
-                search: Some("needle".to_string()),
+                search: Some("cat needle".to_string()),
                 ..options()
             },
         );
         assert_eq!(result.total_count, 1);
-        assert_eq!(result.spans[0].name, "needle");
+        assert_eq!(result.spans[0].name, "cat needle");
     }
 
     #[test]
@@ -1071,7 +1034,7 @@ mod tests {
             .find(|c| c.name == "middle")
             .expect("middle present");
         assert_eq!(middle.children.len(), 1);
-        assert_eq!(middle.children[0].name, "needle");
+        assert_eq!(middle.children[0].name, "cat needle");
 
         // Nested IDs stay navigable.
         assert!(middle.children[0].id.starts_with(&outer.id));
