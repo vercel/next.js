@@ -1,6 +1,9 @@
 import { yellow } from 'picocolors'
 import isGitClean from 'is-git-clean'
 
+export const NEXT_CODEMOD_ERROR_PREFIX = '@next-codemod-error'
+export const NEXT_CODEMOD_IGNORE_ERROR_PREFIX = '@next-codemod-ignore'
+
 export function checkGitStatus(force) {
   let clean = false
   let errorMessage = 'Unable to determine if git directory is clean'

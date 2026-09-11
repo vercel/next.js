@@ -17,8 +17,11 @@ export type FunctionScope =
   | FunctionExpression
   | ArrowFunctionExpression
 
-export const NEXT_CODEMOD_ERROR_PREFIX = '@next-codemod-error'
-const NEXT_CODEMOD_IGNORE_ERROR_PREFIX = '@next-codemod-ignore'
+import {
+  NEXT_CODEMOD_ERROR_PREFIX,
+  NEXT_CODEMOD_IGNORE_ERROR_PREFIX,
+} from '../../../lib/utils'
+export { NEXT_CODEMOD_ERROR_PREFIX } from '../../../lib/utils'
 
 export const TARGET_ROUTE_EXPORTS = new Set([
   'GET',

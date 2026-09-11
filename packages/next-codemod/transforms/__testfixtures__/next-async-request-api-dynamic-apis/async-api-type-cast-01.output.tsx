@@ -9,7 +9,8 @@ import {
 } from 'next/headers';
 
 export function MyDraftComponent() {
-  if ((draftMode() as unknown as UnsafeUnwrappedDraftMode).isEnabled) {
+  if ((/* @next-codemod-error Await this API and update its callers; remove the temporary UnsafeUnwrappedDraftMode cast after repairing the migration. */
+  draftMode() as unknown as UnsafeUnwrappedDraftMode).isEnabled) {
     return null
   }
 
@@ -17,12 +18,14 @@ export function MyDraftComponent() {
 }
 
 export function MyCookiesComponent() {
-  const c = (cookies() as unknown as UnsafeUnwrappedCookies)
+  const c = (/* @next-codemod-error Await this API and update its callers; remove the temporary UnsafeUnwrappedCookies cast after repairing the migration. */
+  cookies() as unknown as UnsafeUnwrappedCookies)
   return c.get('name')
 }
 
 export function MyHeadersComponent() {
-  const h = (headers() as unknown as UnsafeUnwrappedHeaders)
+  const h = (/* @next-codemod-error Await this API and update its callers; remove the temporary UnsafeUnwrappedHeaders cast after repairing the migration. */
+  headers() as unknown as UnsafeUnwrappedHeaders)
   return <p>{h.get('x-foo')}</p>
 }
 
