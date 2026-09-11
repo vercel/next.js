@@ -80,9 +80,14 @@ export function initNextServerScript(
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [...((opts && opts.nodeArgs) || []), '--no-deprecation', scriptPath],
+      [
+        ...((opts && opts.nodeArgs) || []),
+        // Deprecated APIs may be vulnerable and must be flagged.
+        '--trace-deprecation',
+        scriptPath,
+      ],
       {
-        env: { HOSTNAME: '::', ...env },
+        env: { HOSTNAME: '::', NODE_PENDING_DEPRECATION: '1', ...env },
         cwd: opts && opts.cwd,
       }
     )
@@ -384,6 +389,7 @@ export function runNextCommand(
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
     __NEXT_TEST_MODE: 'true',
+    NODE_PENDING_DEPRECATION: '1',
     ...options.env,
   }
 
@@ -391,7 +397,13 @@ export function runNextCommand(
     debugPrint(`Running command "next ${argv.join(' ')}"`)
     const instance = spawn(
       'node',
-      [...(options.nodeArgs || []), '--no-deprecation', nextBin, ...argv],
+      [
+        ...(options.nodeArgs || []),
+        // Deprecated APIs can be vulnerable and must be flagged.
+        '--trace-deprecation',
+        nextBin,
+        ...argv,
+      ],
       {
         ...options.spawnOptions,
         cwd,
@@ -508,6 +520,7 @@ export function runNextCommandDev(
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
     __NEXT_TEST_MODE: 'true',
+    NODE_PENDING_DEPRECATION: '1',
     ...opts.env,
   }
 
@@ -515,7 +528,13 @@ export function runNextCommandDev(
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      [...nodeArgs, '--no-deprecation', nextBin, ...argv],
+      [
+        ...nodeArgs,
+        // Deprecated APIs can be vulnerable and must be flagged.
+        '--trace-deprecation',
+        nextBin,
+        ...argv,
+      ],
       {
         cwd,
         env,
@@ -661,12 +680,22 @@ export function buildTS(
   env?: any
 ): Promise<void> {
   cwd = cwd || path.dirname(require.resolve('next/package'))
-  env = { ...process.env, NODE_ENV: undefined, ...env }
+  env = {
+    ...process.env,
+    NODE_ENV: undefined,
+    NODE_PENDING_DEPRECATION: '1',
+    ...env,
+  }
 
   return new Promise((resolve, reject) => {
     const instance = spawn(
       'node',
-      ['--no-deprecation', require.resolve('typescript/lib/tsc'), ...args],
+      [
+        // Deprecated APIs can be vulnerable and must be flagged.
+        '--trace-deprecation',
+        require.resolve('typescript/lib/tsc'),
+        ...args,
+      ],
       { cwd, env }
     )
     let output = ''
