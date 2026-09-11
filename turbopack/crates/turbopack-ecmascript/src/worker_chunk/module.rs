@@ -13,9 +13,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
-    module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
-    },
+    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
     reference::ModuleReferences,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
@@ -121,6 +119,18 @@ pub struct WorkerLoaderModule {
 
 #[turbo_tasks::value_impl]
 impl WorkerLoaderModule {
+    /// Creates the loader for a worker reference found while chunking a chunk group.
+    ///
+    /// `availability_info` is only meaningful for web workers, where it is what unrolls a
+    /// self-spawning worker (see [`Self::chunk_group`]). The Node branch builds a
+    /// *self-contained* entry chunk and must not prune already-available modules, so it is
+    /// normalized to [`AvailabilityInfo::root()`] here.
+    ///
+    /// That normalization is only defensive. Callers must *already* pass
+    /// [`AvailabilityInfo::root()`] for [`WorkerType::NodeWorkerThread`]: the recursion a
+    /// self-spawning worker creates is broken by keeping the surrounding task's arguments
+    /// independent of nesting depth, and arguments are hashed to find the cached cell before
+    /// this body ever runs. `make_chunk_group` is where it actually takes effect.
     #[turbo_tasks::function]
     pub fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
@@ -132,18 +142,21 @@ impl WorkerLoaderModule {
             inner: module,
             worker_type,
             asset_context,
-            availability_info,
+            availability_info: match worker_type {
+                WorkerType::WebWorker | WorkerType::SharedWebWorker => availability_info,
+                WorkerType::NodeWorkerThread => AvailabilityInfo::root(),
+            },
         })
     }
 
-    /// The worker's chunk group, built with `self.availability_info` (the
-    /// availability of the chunk group that created this loader) rather than
-    /// `AvailabilityInfo::root()`.
+    /// The worker's chunk group.
     ///
-    /// This is what unrolls self-referencing workers: a worker that spawns
-    /// itself produces a nested `WorkerLoaderModule` whose availability already
-    /// contains the worker entry module, so the nested chunk group's traversal
-    /// excludes it and emits no regular chunks — breaking the
+    /// For **web workers** this is built with `self.availability_info` (the availability of the
+    /// chunk group that created this loader) rather than `AvailabilityInfo::root()`. That is
+    /// what unrolls a self-referencing worker: the worker's own chunk group rediscovers the
+    /// worker reference and creates a nested `WorkerLoaderModule` whose availability already
+    /// contains the worker entry module, so the nested chunk group's traversal excludes it and
+    /// emits no regular chunks — breaking the
     /// `chunk content -> chunk path -> chunk content` await cycle.
     ///
     /// Note this deliberately does *not* short-circuit to an empty asset list
@@ -153,6 +166,12 @@ impl WorkerLoaderModule {
     /// still needs its evaluate chunk to instantiate the entry module. The
     /// factories for already-available modules reach the worker via the
     /// preloaded chunk URLs that `createWorker` passes along.
+    ///
+    /// For **Node worker threads** the availability is always root (normalized in
+    /// [`Self::new`]) and the entry chunk is self-contained; recursion terminates through
+    /// memoization instead. See the `NodeWorkerThread` branch below.
+    ///
+    /// [`AsyncLoaderModule::chunk_group`]: crate::async_chunk::module::AsyncLoaderModule
     #[turbo_tasks::function]
     async fn chunk_group(
         self: Vc<Self>,
@@ -180,30 +199,18 @@ impl WorkerLoaderModule {
             // WorkerThreads are treated as an entry point, webworkers probably should too but
             // currently it would lead to a cascade that we need to address.
             //
-            // Unlike the web-worker branch this keeps `AvailabilityInfo::root()`, so the emitted
-            // entry chunk stays self-contained. A Node worker thread runs in a fresh thread that
-            // loads only this entry chunk (and the chunks it requires relative to `__dirname`);
-            // there is no equivalent of the browser `createWorker` preload list, so pruning
-            // already-available modules here would produce a worker missing module factories.
+            // This keeps `AvailabilityInfo::root()` so the emitted entry chunk stays
+            // self-contained: a Node worker thread runs in a fresh thread that loads only this
+            // entry chunk (and what it requires relative to `__dirname`), and there is no
+            // equivalent of the browser `createWorker` preload list, so pruning
+            // already-available modules would leave the worker without module factories.
             //
-            // Termination for a self-spawning worker (e.g. `new Worker(__filename)`) is handled
-            // by the check below instead: when the worker's own chunk group already contains the
-            // worker entry, the nested loader skips building a second entry chunk group. It does
-            // not need one — the path it emits is derived from the ident, and the outer level
-            // already emitted the file at that path.
+            // A self-spawning worker (`new Worker(__filename)`) does not recurse forever here
+            // because `make_chunk_group` passes `AvailabilityInfo::root()` for this worker type,
+            // keeping the `worker_loader_chunk_item` task arguments independent of nesting
+            // depth. Every nested discovery therefore resolves to the *same* memoized task
+            // rather than a new one per level.
             WorkerType::NodeWorkerThread => {
-                if *self
-                    .inner_is_available(chunking_context, module_graph)
-                    .await?
-                {
-                    return Ok(OutputAssetsWithReferenced {
-                        assets: ResolvedVc::cell(vec![]),
-                        referenced_assets: ResolvedVc::cell(vec![]),
-                        references: ResolvedVc::cell(vec![]),
-                    }
-                    .cell());
-                }
-
                 let Some(evaluatable) =
                     ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(this.inner)
                 else {
@@ -276,30 +283,6 @@ impl WorkerLoaderModule {
             Some(rcstr!("[worker thread]")),
             rcstr!(".js"),
         )
-    }
-
-    /// Whether the worker's entry module is already part of the chunk group that created this
-    /// loader — i.e. this is a worker spawning itself.
-    ///
-    /// Mirrors the availability check in `AsyncLoaderModule::chunk_group`.
-    #[turbo_tasks::function]
-    async fn inner_is_available(
-        &self,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        module_graph: Vc<ModuleGraph>,
-    ) -> Result<Vc<bool>> {
-        if let Some(available_modules) = self.availability_info.available_modules() {
-            let batches = module_graph
-                .module_batches(chunking_context.batching_config())
-                .await?;
-            let module_or_batch = batches.get_entry(ResolvedVc::upcast(self.inner)).await?;
-            if let Some(chunkable) = ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *available_modules.get(chunkable.into()).await?
-            {
-                return Ok(Vc::cell(true));
-            }
-        }
-        Ok(Vc::cell(false))
     }
 
     /// Returns output assets including the worker entrypoint for web workers.

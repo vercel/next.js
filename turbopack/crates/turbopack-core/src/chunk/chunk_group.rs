@@ -183,10 +183,30 @@ pub async fn make_chunk_group(
 
     chunk_items.extend(async_loader_chunk_items);
 
-    // Insert worker loaders for every worker module, passing the current
-    // chunk group's new_availability_info so self-referencing workers unroll.
+    // Insert worker loaders for every worker module.
     //
-    // The loader needs the `AssetContext` the worker reference was resolved with, so it can
+    // Web workers get this chunk group's `new_availability_info`, which is what unrolls a
+    // self-referencing worker: the nested loader sees the worker entry as already available, so
+    // its chunk group comes out empty and the recursion bottoms out.
+    //
+    // Node worker threads get `AvailabilityInfo::root()` instead, for two reasons:
+    //
+    // - Their entry chunk must stay self-contained. A Node worker thread runs in a fresh thread
+    //   that loads only that entry chunk, with no equivalent of the browser `createWorker` preload
+    //   list, so pruning already-available modules would leave it without factories.
+    // - It keeps the arguments of the `worker_loader_chunk_item` task — and therefore its
+    //   memoization key — independent of nesting depth. A worker that spawns itself (`new
+    //   Worker(__filename)`) is rediscovered while chunking its own entry chunk group, and that
+    //   rediscovery has to land on the *same* task, or every level would create a new one and
+    //   recurse without end. This has to happen here, before the task call: arguments are hashed to
+    //   find the cached cell, so normalizing inside the task body would be too late.
+    //
+    //   Availability cannot be used to *detect* that recursion either: for
+    //   `new Worker(__filename)` the target module is the module containing the call, so the
+    //   enclosing chunk group already lists it as its own entry and it looks "available" even
+    //   on the first, non-recursive call.
+    //
+    // The loader also needs the `AssetContext` the worker reference was resolved with, so it can
     // resolve the `createWorker` runtime helper to the same module `WorkerAssetReference`
     // registered in the graph. `url_resolve` / `process_resolve_result` resolved the worker
     // through `origin.asset_context()`, and the resolved module is itself a `ResolveOrigin`
@@ -202,13 +222,17 @@ pub async fn make_chunk_group(
                     module.ident().to_string().await?
                 );
             };
+            let availability_info = match worker_type {
+                WorkerType::WebWorker | WorkerType::SharedWebWorker => new_availability_info,
+                WorkerType::NodeWorkerThread => AvailabilityInfo::root(),
+            };
             chunking_context
                 .worker_loader_chunk_item(
                     *module,
                     *origin.into_trait_ref().await?.asset_context(),
                     worker_type,
                     *module_graph,
-                    new_availability_info,
+                    availability_info,
                 )
                 .to_resolved()
                 .await
