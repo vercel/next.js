@@ -68,8 +68,8 @@ use tokio::sync::OnceCell;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    FxIndexMap, FxIndexSet, JoinIterExt, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc,
+    TaskInput, TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -3106,11 +3106,11 @@ where
                         )
                         .to_resolved()
                     })
-                    .try_join()
-                    .await?;
+                    .join()
+                    .await;
 
                 for resolved_dir_ref in resolved_dirs {
-                    analysis.add_reference(resolved_dir_ref);
+                    analysis.add_reference(resolved_dir_ref?);
                 }
 
                 return Ok(());

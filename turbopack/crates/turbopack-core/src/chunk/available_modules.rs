@@ -1,7 +1,7 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    FxIndexSet, OperationVc, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, JoinIterExt, OperationVc, ReadRef, ResolvedVc, ValueToString, Vc,
     trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
@@ -100,9 +100,10 @@ impl AvailableModules {
             .await?
             .iter()
             .map(async |&module| module.ident_strings().await)
-            .try_join()
-            .await?;
+            .join()
+            .await;
         for idents in item_idents {
+            let idents = idents?;
             match idents {
                 IdentStrings::Single(ident) => hasher.write_value(ident),
                 IdentStrings::Multiple(idents) => {
