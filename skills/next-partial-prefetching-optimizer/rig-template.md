@@ -86,6 +86,24 @@ running while the test command executes. Follow the public
 Link is visible, then enter `instant()`, click, wait for the destination URL,
 and assert the prefetched UI.
 
+### Repeat and browser-back assertions
+
+On a repeat or browser-back navigation, the client router can reuse a previously
+visited segment. Its DOM may still exist while hidden, so `toHaveCount(0)` can
+fail even though that content is not part of the current instant UI.
+
+Match the assertion to the contract:
+
+- On a fresh destination, use `toHaveCount(0)` to prove navigation-only content
+  has not committed under the lock. Keep this assertion in a self-validating
+  test.
+- On a repeat or browser-back navigation, assert that excluded content has no
+  visible match, for example with `.filter({ visible: true })`, while the
+  intended prefetched UI is visible.
+
+Do not treat retained hidden DOM as prefetched content, and do not weaken a
+fresh-destination absence assertion to accommodate a repeat-navigation test.
+
 ### Test context
 
 Record the state required to reach the selected source Link and destination UI:

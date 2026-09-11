@@ -87,6 +87,23 @@ running while the test command executes. Follow the public
 [`instant()` testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): use `page.goto()` for an initial-load
 contract and click the real `<Link>` for a client-navigation contract.
 
+### Repeat and browser-back assertions
+
+On a repeat or browser-back navigation, the client router can reuse a previously
+visited segment. Its DOM may still exist while hidden, so `toHaveCount(0)` can
+fail even though that content is not part of the current instant UI.
+
+Match the assertion to the contract:
+
+- On a fresh destination, use `toHaveCount(0)` to prove deferred content has not
+  committed under the lock. Keep this assertion in a self-validating test.
+- On a repeat or browser-back navigation, assert that excluded content has no
+  visible match, for example with `.filter({ visible: true })`, while the
+  intended instant UI is visible.
+
+Do not treat retained hidden DOM as instant content, and do not weaken a
+fresh-destination absence assertion to accommodate a repeat-navigation test.
+
 ### Test context
 
 Record the state required to reach the target route and shell marker:

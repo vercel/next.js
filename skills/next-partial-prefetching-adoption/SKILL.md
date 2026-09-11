@@ -79,6 +79,8 @@ After the target UI is settled, inspect the existing test setup. The `instant()`
 - **No applicable production-mode suite:** set up the production-mode rig in **`rig-template.md`** using the project's package manager and test conventions. This is part of test-backed adoption and does not require a user to be present.
 - **Rig cannot run reliably:** work through **`rig-template.md`** setup and liveness checks. Fall back to manual preservation only for a concrete blocker the repository cannot resolve, such as unavailable credentials or an inaccessible production environment. Record the blocker and the deferred test coverage; do not claim test-backed verification.
 
+For a repeat or browser-back contract, follow the retained-DOM assertion guidance in `rig-template.md`. Test visible prefetched UI rather than treating a hidden node from a previously visited segment as current content.
+
 No user input is required to reuse an existing suite or create the rig. Ask only when the repository cannot answer an environment question or when the target UI itself is a product decision. If no user is available, use the guide's safe product default and reserve manual verification for a concrete rig blocker. Treat new prefetched UI as step 7 work; verify any deliberate removal separately after adoption.
 
 This workflow is specific to a clicked `<Link>`. A direct call such as `router.prefetch('/dashboard')` is a manual prefetch, not a Link prefetch; keep it in the source audit and verify it separately in step 6.

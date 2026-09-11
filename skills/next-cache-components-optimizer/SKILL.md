@@ -245,6 +245,10 @@ completed UI renders after release. Do not change an existing data source,
 production selector, or required route variant to make the test easier. A
 required contract may not be skipped or weakened.
 
+For a repeat or browser-back contract, follow the retained-DOM assertion
+guidance in `rig-template.md`. Test visible instant UI rather than treating a
+hidden node from a previously visited segment as current content.
+
 Prefer the self-validating variant when the route has deferred content. If the
 route cannot build while blocked, or a cookie/session read stays GREEN, use the
 RED recipes in `reference/red-test-robustness.md`.

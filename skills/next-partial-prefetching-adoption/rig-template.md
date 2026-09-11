@@ -92,6 +92,24 @@ Client Component text might not appear in the response bytes. Do not use a
 marker on `display: none`, `display: contents`, a fragment, off-screen content,
 or a hover-only overlay.
 
+### Repeat and browser-back assertions
+
+On a repeat or browser-back navigation, the client router can reuse a previously
+visited segment. Its DOM may still exist while hidden, so `toHaveCount(0)` can
+fail even though that content is not part of the current instant UI.
+
+Match the assertion to the contract:
+
+- On a fresh destination, use `toHaveCount(0)` to prove non-prefetched content
+  has not committed under the lock. Keep this assertion in a self-validating
+  test.
+- On a repeat or browser-back navigation, assert that excluded content has no
+  visible match, for example with `.filter({ visible: true })`, while the
+  intended prefetched UI is visible.
+
+Do not treat retained hidden DOM as prefetched content, and do not weaken a
+fresh-destination absence assertion to accommodate a repeat-navigation test.
+
 ### Test context
 
 Record the state required to reach the audited Links and destination UI:
