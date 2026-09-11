@@ -38,9 +38,16 @@ const InstantConfigSchema = z.union([
 
 const PrefetchSchema = z.enum(['auto', 'partial', 'force-disabled'])
 
+const RequireStaticSchema = z.union([
+  z.enum(['auto', 'shell', 'prefetch', 'navigation']),
+  z.literal(false),
+])
+
 export type Instant = InstantConfig | true | false
 
 export type Prefetch = 'auto' | 'partial' | 'force-disabled'
+
+export type RequireStatic = 'auto' | 'shell' | 'prefetch' | 'navigation' | false
 
 export type InstantConfigForTypeCheckInternal = __GenericInstantConfig | Instant
 // the __GenericInstantConfig type is used to avoid type widening issues with
@@ -138,6 +145,11 @@ const AppSegmentConfigSchema = z.object({
   prefetch: PrefetchSchema.optional(),
 
   /**
+   * Controls which rendering phases require static output for this segment.
+   */
+  unstable_requireStatic: RequireStaticSchema.optional(),
+
+  /**
    * The stale time for dynamic responses in seconds.
    * Controls how long the client-side router cache retains dynamic page data.
    * Pages only — not allowed in layouts.
@@ -190,6 +202,11 @@ export function parseAppSegmentConfig(
           case 'prefetch': {
             return {
               message: `Invalid prefetch value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "partial", or "force-disabled".`,
+            }
+          }
+          case 'unstable_requireStatic': {
+            return {
+              message: `Invalid unstable_requireStatic value ${JSON.stringify(ctx.data)} on "${route}", must be "auto", "shell", "prefetch", "navigation", or false.`,
             }
           }
           case 'unstable_dynamicStaleTime': {
@@ -260,6 +277,11 @@ export type AppSegmentConfig = {
    * - 'force-disabled' disables prefetching for the segment.
    */
   prefetch?: Prefetch
+
+  /**
+   * Controls which rendering phases require static output for this segment.
+   */
+  unstable_requireStatic?: RequireStatic
 
   /**
    * The stale time for dynamic responses in seconds.

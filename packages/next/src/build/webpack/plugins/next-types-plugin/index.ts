@@ -54,7 +54,7 @@ ${
     : `import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'`
 }
 
-import type { InstantConfigForTypeCheckInternal, Prefetch } from 'next/dist/build/segment-config/app/app-segment-config.js'
+import type { InstantConfigForTypeCheckInternal, Prefetch, RequireStatic } from 'next/dist/build/segment-config/app/app-segment-config.js'
 
 type TEntry = typeof import('${relativePath}.js')
 
@@ -73,6 +73,7 @@ checkFields<Diff<{
   generateStaticParams?: Function
   instant?: InstantConfigForTypeCheckInternal
   prefetch?: Prefetch
+  unstable_requireStatic?: RequireStatic
   unstable_dynamicStaleTime?: number
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'
