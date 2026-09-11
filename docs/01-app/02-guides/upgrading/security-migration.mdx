@@ -1,0 +1,129 @@
+---
+title: Complete a Next.js security migration
+description: Agent workflow for running codemods, completing repairs, and verifying a Next.js security upgrade.
+# Experimental agent workflow. Not ready for indexing; keep this document marked as draft.
+version: draft
+---
+
+Continue with the retained `context.json` after the repository preflight in
+`security-upgrade.md` succeeds. Record progress, checks and the final outcome in
+the same run directory’s `RESULT.md`.
+
+## 2. Establish the baseline and run the codemod
+
+Use an isolated branch or worktree when appropriate to protect the user's current
+task. Confirm the execution copy's installed Next.js version still matches
+`context.app.nextVersion`. If it changed, resolve fresh context before migrating.
+
+Identify checks supported by this app and record baseline failures before edits.
+Preserve its intended behavior and optional feature configuration. Scope shared
+workspace changes to required compatibility work, verify affected callers, and
+keep unrelated edits out of commits.
+
+Run `tools.command` with `tools.args` as an argument array, with `app.directory`
+(or the validated execution copy) as cwd. These arguments already select the exact
+Next.js target, `--yes`, and `--skip-adoption`; adoption and optimization remain
+outside this upgrade. Let the codemod select compatible React dependencies through
+its normal flow. Record stdout, stderr and exit status. The codemod may refresh its
+managed agent rules; account for that when inspecting the diff.
+
+Keep the security target fixed when examples in the guides say `latest`.
+
+## 3. Complete the migration using the guides
+
+Resolve every path in `docs.guides` against `docs.root`, read it, and build a
+checklist in `RESULT.md`, including the codemod reference. Cover every crossed
+major, or the target-major guide for a same-major update, plus relevant linked
+references. For each item, record its source section, applicability, and outcome:
+repaired with a check, verified not applicable with a reason, or blocked. Keep
+unread or unresolved items open and work through them alongside codemod findings.
+
+Run a separately documented required codemod if version-based selection missed it.
+For example, an app upgrading from Next.js 15 may still have synchronous Request
+APIs even though the upgrade command no longer selects their earlier codemod. Use
+the executable or package prefix recorded in `tools.command` and `tools.args`
+for that transform, with its noninteractive option. This preserves the selected
+codemod.
+
+Resolve `@next-codemod-error` comments, `UnsafeUnwrapped*` casts, emitted migration
+diagnostics and guide-required changes with no marker. For async Request APIs,
+repair helper signatures and every affected caller; verify request-specific behavior.
+A type cast or marker deletion is not a repair. Inspect the reason and choose the
+appropriate documented solution rather than mechanically applying the first suggestion.
+
+## 4. Verify and commit complete transitions
+
+Reconcile the checklist against the final diff before committing. Every selected
+guide must be reviewed and every item closed with evidence. Record the baseline
+and final value for each configuration decision, including the actual bundler used
+by the supported scripts.
+
+Preserve the configured `experimental.agenticAutoUpgrade` policy. The invoking
+upgrade CLI can be newer than the selected target, so the target may warn that
+it does not recognize this experimental setting. Keep the policy and record the
+warning as a compatibility limitation; removing it changes future upgrade behavior.
+
+Use the app's supported checks and the guides' observable completion criteria.
+Record each selected check's command, baseline result and post-upgrade result
+together, and run the same checks after migration. A check that passed before the
+upgrade and fails afterward is a regression that must be repaired before committing.
+A changed framework default can explain that regression; it does not make it an
+acceptable baseline limitation. If the required behavior cannot be restored, keep
+the migration unfinished and report the blocker.
+
+A build is appropriate when supported; a dev-only app needs meaningful dev/runtime
+checks. Exercise behavior that can regress without a type error, such as per-request
+cookies and caching. A clean codemod exit or build alone does not establish completion.
+
+Close every finding with repair evidence. Replace an error directive with the
+existing `@next-codemod-ignore` only when inspection and verification demonstrate
+that the flagged code already satisfies the target contract; retain a reason.
+A required unresolved repair keeps the attempt unfinished. Close retained log
+findings in `RESULT.md` with evidence instead of deleting historical logs.
+
+Create one complete commit per necessary version transition:
+
+```text
+Upgrade Next.js <source> to <target>
+
+Why?
+<Why this transition is required.>
+
+How?
+<Dependency changes, codemods, contextual repairs and verification evidence.>
+```
+
+Use the repository's format. Each commit must stand alone as a future PR description
+and include its version/lockfile changes, required repairs, and verification. Use
+intermediate versions only when required, and preserve each verified checkpoint.
+An intermediate vulnerable version is not completed security remediation.
+
+## 5. Report or deliver
+
+Confirm the final installed version equals the selected target and refresh the
+reviewed Next.js advisory evidence, including all pages and excluding withdrawn
+records. If fresh evidence changes the target, apply the same selection policy,
+then repair and reverify before delivery. Do not reuse stale security evidence.
+
+When `context.dryRun` is true or this session requests local commits only, finish
+after the verified commits exist. Update `RESULT.md` with the final outcome, including:
+
+```text
+Status: verified-local
+Commits: <actual checkpoint SHAs and their messages>
+Checks: <commands and observed outcomes>
+Limitations: <baseline limitations and remaining warnings>
+```
+
+This completes a local-only session. Stop before push or PR creation. A pre-commit
+report is not the final result; update it with the created checkpoints.
+For authorized PR delivery, recheck for relevant open PRs immediately before publishing.
+If another run already delivered one, report it and retain the local work without
+opening another PR. This recheck reduces races but is not an atomic provider lock.
+
+Publish one draft PR by default with the complete commits, the root/nested description
+marker and accurate verification evidence. Use the actual remote and base, inspect
+the returned PR's head/base/diff/marker, and report its real URL. If publication needs
+new authority, report `verified-local` and that boundary. A clean harness exit never
+proves publication. For any other unfinished outcome, record `blocked`, completed
+checkpoints, remaining work and the concrete condition needed to resume.
