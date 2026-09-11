@@ -567,6 +567,11 @@ export declare function parse(
   signal?: AbortSignal | undefined | null
 ): Promise<string>
 
+export declare function projectActivateLazyChunk(
+  project: { __napiType: 'Project' },
+  chunkPath: RcStr
+): Promise<boolean>
+
 export declare function projectClientHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
   func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void

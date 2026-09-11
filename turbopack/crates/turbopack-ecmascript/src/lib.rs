@@ -24,6 +24,7 @@ pub mod magic_identifier;
 pub mod manifest;
 mod merged_module;
 pub mod minify;
+pub mod module_canonicalization;
 pub mod module_fragments;
 pub mod parse;
 mod path_visitor;
@@ -250,6 +251,8 @@ pub struct EcmascriptOptions {
     pub cjs_scope_hoisting: bool,
     /// Whether to enable cross-module constant inlining. Defaults to false.
     pub cross_module_constants: bool,
+    /// Whether dynamic import targets are compiled after their runtime proxy is activated.
+    pub lazy_compilation: bool,
 }
 
 #[turbo_tasks::value(task_input)]
