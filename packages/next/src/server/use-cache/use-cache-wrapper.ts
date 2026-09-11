@@ -12,6 +12,7 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client'
 import { prerender } from 'react-server-dom-webpack/static'
+import * as React from 'react'
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
@@ -1716,7 +1717,30 @@ function createTrackedReadableStream(
   })
 }
 
-export async function cache(
+export function cache(
+  kind: string,
+  id: string,
+  boundArgsLength: number,
+  originalFn: (...args: unknown[]) => Promise<unknown>,
+  argsLength: number | null
+) {
+  const name = originalFn.name
+  const cachedFn = {
+    [name]: async function (...args: unknown[]) {
+      return cacheImpl(
+        kind,
+        id,
+        boundArgsLength,
+        originalFn,
+        argsLength === null ? args : args.slice(0, argsLength)
+      )
+    },
+  }[name]
+
+  return React.cache(cachedFn)
+}
+
+async function cacheImpl(
   kind: string,
   id: string,
   boundArgsLength: number,
@@ -1821,7 +1845,7 @@ export async function cache(
   }
 
   const timeoutError = new UseCacheTimeoutError(workStore.route)
-  Error.captureStackTrace(timeoutError, cache)
+  Error.captureStackTrace(timeoutError, cacheImpl)
   applyOwnerStack(timeoutError)
 
   // Only ever thrown by the dev-server's hang-detection probe.
@@ -1833,12 +1857,12 @@ export async function cache(
   let deadlockError: UseCacheDeadlockError | undefined
   if (process.env.__NEXT_DEV_SERVER) {
     deadlockError = new UseCacheDeadlockError(workStore.route)
-    Error.captureStackTrace(deadlockError, cache)
+    Error.captureStackTrace(deadlockError, cacheImpl)
     applyOwnerStack(deadlockError)
   }
 
   const wrapAsInvalidDynamicUsageError = (error: Error) => {
-    Error.captureStackTrace(error, cache)
+    Error.captureStackTrace(error, cacheImpl)
     workStore.invalidDynamicUsageError ??= error
 
     return error
@@ -1929,7 +1953,7 @@ export async function cache(
         // stage in dev requests, so a public cache nested inside one never
         // triggers the throw upstream.
         const dynamicNestedCacheError = new NestedDynamicUseCacheError()
-        Error.captureStackTrace(dynamicNestedCacheError, cache)
+        Error.captureStackTrace(dynamicNestedCacheError, cacheImpl)
         applyOwnerStack(dynamicNestedCacheError)
         cacheContext = {
           kind: 'public',

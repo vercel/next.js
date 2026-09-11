@@ -1,6 +1,5 @@
 /* __next_internal_action_entry_do_not_use__ {"006a88810ecce4a4e8b59d53b8327d7e98bbf251d7":{"name":"$$RSC_SERVER_ACTION_0"},"ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d":{"name":"default"}} */ import { registerServerReference } from "private-next-rsc-server-reference";
 import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
-import { cache as $$reactCache__ } from "react";
 // @ts-ignore
 import { wrapItLikeItsHot } from './wrap-it-like-its-hot';
 // @ts-ignore
@@ -16,9 +15,7 @@ const $$RSC_SERVER_CACHE_1 = wrapItLikeItsHot(({ hot })=>{
 });
 let $$RSC_SERVER_CACHE_default = $$RSC_SERVER_CACHE_1;
 if (typeof $$RSC_SERVER_CACHE_1 === "function") {
-    $$RSC_SERVER_CACHE_default = $$reactCache__(function() {
-        return $$cache__("default", "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", 0, $$RSC_SERVER_CACHE_1, Array.prototype.slice.call(arguments));
-    });
+    $$RSC_SERVER_CACHE_default = $$cache__("default", "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", 0, $$RSC_SERVER_CACHE_1, null);
     registerServerReference($$RSC_SERVER_CACHE_default, "ffc18c215a6b7cdc64bf709f3a714ffdef1bf9651d", null);
 }
 export default $$RSC_SERVER_CACHE_default;

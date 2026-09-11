@@ -2412,7 +2412,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
                     let wrapper_stmts = {
                         let mut stmts = vec![
-                            // $$RSC_SERVER_CACHE_exportName = $$reactCache__(...);
+                            // $$RSC_SERVER_CACHE_exportName = $$cache__(...);
                             Stmt::Expr(ExprStmt {
                                 span: DUMMY_SP,
                                 expr: Box::new(Expr::Assign(AssignExpr {
@@ -2425,13 +2425,9 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                         "default",
                                         ref_id.clone(),
                                         0,
-                                        // Don't use the same name as the original to avoid
-                                        // shadowing. We don't need it here for call stacks.
-                                        None,
                                         Expr::Ident(ident.clone()),
                                         ident.span,
                                         None,
-                                        self.unresolved_ctxt,
                                     )),
                                 })),
                             }),
@@ -2582,7 +2578,6 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         }
 
         // import { cache as $$cache__ } from "private-next-rsc-cache-wrapper";
-        // import { cache as $$reactCache__ } from "react";
         if self.has_cache && self.config.is_react_server_layer {
             new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
                 span: DUMMY_SP,
@@ -2602,26 +2597,8 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                 phase: Default::default(),
             })));
 
-            new.push(ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
-                span: DUMMY_SP,
-                specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
-                    span: DUMMY_SP,
-                    local: quote_ident!("$$reactCache__").into(),
-                    imported: Some(quote_ident!("cache").into()),
-                    is_type_only: false,
-                })],
-                src: Box::new(Str {
-                    span: DUMMY_SP,
-                    value: atom!("react").into(),
-                    raw: None,
-                }),
-                type_only: false,
-                with: None,
-                phase: Default::default(),
-            })));
-
-            // Make them the first items
-            new.rotate_right(2);
+            // Make it the first item
+            new.rotate_right(1);
         }
 
         if (self.has_action || self.has_cache) && self.config.is_react_server_layer {
@@ -2978,20 +2955,16 @@ fn may_need_cache_runtime_wrapper(expr: &Expr) -> bool {
     }
 }
 
-/// Creates a cache wrapper expression:
-/// $$reactCache__(function name() { return $$cache__(...) })
-#[allow(clippy::too_many_arguments)]
+/// Creates a cache wrapper expression: $$cache__(...)
 fn create_cache_wrapper(
     cache_kind: &str,
     reference_id: Atom,
     bound_args_length: usize,
-    fn_ident: Option<Ident>,
     target_expr: Expr,
     original_span: Span,
     params: Option<&[Param]>,
-    unresolved_ctxt: SyntaxContext,
 ) -> Expr {
-    let cache_call = CallExpr {
+    Expr::Call(CallExpr {
         span: original_span,
         callee: quote_ident!("$$cache__").as_callee(),
         args: vec![
@@ -3007,57 +2980,19 @@ fn create_cache_wrapper(
             match params {
                 // The params are statically known and rest params are not used.
                 Some(params) if !params.iter().any(|p| matches!(p.pat, Pat::Rest(_))) => {
-                    if params.is_empty() {
-                        // No params are declared, we can pass an empty array to ignore unused
-                        // arguments.
-                        Box::new(Expr::Array(ArrayLit {
-                            span: DUMMY_SP,
-                            elems: vec![],
-                        }))
-                        .as_arg()
-                    } else {
-                        // Slice to declared params length to ignore unused arguments.
-                        Box::new(quote!(
-                            "$array.prototype.slice.call(arguments, 0, $end)" as Expr,
-                            array = quote_ident!(unresolved_ctxt, "Array"),
-                            end: Expr = params.len().into(),
-                        ))
-                        .as_arg()
-                    }
-                }
-                // The params are statically unknown, or rest params are used.
-                _ => {
-                    // Pass all arguments as an array.
-                    Box::new(quote!(
-                        "$array.prototype.slice.call(arguments)" as Expr,
-                        array = quote_ident!(unresolved_ctxt, "Array"),
-                    ))
+                    // Pass the declared parameter count so the runtime wrapper can ignore
+                    // unused arguments.
+                    Box::new(Expr::Lit(Lit::Num(Number {
+                        span: DUMMY_SP,
+                        value: params.len() as f64,
+                        raw: None,
+                    })))
                     .as_arg()
                 }
+                // The params are statically unknown, or rest params are used.
+                _ => Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))).as_arg(),
             },
         ],
-        ..Default::default()
-    };
-
-    // This wrapper function ensures that we have a user-space call stack frame.
-    let wrapper_fn_expr = Box::new(Expr::Fn(FnExpr {
-        ident: fn_ident,
-        function: Box::new(Function {
-            body: Some(FunctionBody {
-                stmts: vec![Stmt::Return(ReturnStmt {
-                    span: DUMMY_SP,
-                    arg: Some(Box::new(Expr::Call(cache_call))),
-                })],
-                ..Default::default()
-            }),
-            span: original_span,
-            ..Default::default()
-        }),
-    }));
-
-    Expr::Call(CallExpr {
-        callee: quote_ident!("$$reactCache__").as_callee(),
-        args: vec![wrapper_fn_expr.as_arg()],
         ..Default::default()
     })
 }
@@ -3083,11 +3018,9 @@ fn create_and_hoist_cache_function(
         cache_kind,
         reference_id.clone(),
         bound_args_length,
-        fn_ident.clone(),
         Expr::Ident(inner_fn_ident.clone()),
         original_span,
         Some(&params),
-        unresolved_ctxt,
     ));
 
     let inner_fn_expr = FnExpr {
