@@ -87,3 +87,8 @@ evals/.tarballs/
 evals/experiments/
 evals/results/
 evals/agent-results.json
+
+# Independent security-upgrade eval evidence
+/evals/next-upgrade/.env
+/evals/next-upgrade/results/
+/evals/next-upgrade/.tarballs/

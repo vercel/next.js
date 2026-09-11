@@ -1,0 +1,7 @@
+{
+  "id": "same-major",
+  "major": false,
+  "entry": "terminal",
+  "source": "15.5.23",
+  "target": "15.5.24"
+}

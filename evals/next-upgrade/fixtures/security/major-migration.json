@@ -1,0 +1,20 @@
+{
+  "synthetic": true,
+  "recordedAt": "2026-09-10",
+  "advisories": [
+    {
+      "ghsa_id": "GHSA-fixture-security",
+      "html_url": "https://example.invalid/synthetic-next-advisory",
+      "withdrawn_at": null,
+      "vulnerabilities": [
+        {
+          "package": {
+            "ecosystem": "npm",
+            "name": "next"
+          },
+          "vulnerable_version_range": "<16.0.0"
+        }
+      ]
+    }
+  ]
+}
