@@ -62,10 +62,10 @@ export interface NftAdditionalRoot extends NftFileList {
    */
   name: string
   /**
-   * Source path on the build machine that the paths in `files` are relative to.
-   * The final build output directory should not depend on this path.
+   * Source root that the paths in `files` are relative to, represented relative
+   * to the directory containing the `.nft.json` file.
    */
-  absolutePath: string
+  path: string
   /** Always specified on `NftAdditionalRoot`. */
   symlinks: NftSymlink[]
 }
@@ -162,11 +162,13 @@ function mapBasePathInsideRoot(
 }
 
 function mapAdditionalRootPath(
+  traceFileDirectory: string,
   root: NftAdditionalRoot,
   relativePath: string
 ): { source: string; destination: string } {
-  const source = path.resolve(root.absolutePath, relativePath)
-  if (relativePathIfInside(root.absolutePath, source) === undefined) {
+  const rootPath = path.resolve(traceFileDirectory, root.path)
+  const source = path.resolve(rootPath, relativePath)
+  if (relativePathIfInside(rootPath, source) === undefined) {
     invalid(
       `path ${JSON.stringify(relativePath)} escapes additional root ${root.name}`
     )
@@ -211,7 +213,11 @@ export function mapNftFileEntries(
       const mapped =
         currentRootIndex === -1
           ? mapBasePath(traceFileDirectory, baseRoot, file)
-          : mapAdditionalRootPath(roots[currentRootIndex], file)
+          : mapAdditionalRootPath(
+              traceFileDirectory,
+              roots[currentRootIndex],
+              file
+            )
       if (
         currentRootIndex === -1 &&
         options?.skipBaseRootEscapes &&
@@ -231,7 +237,11 @@ export function mapNftFileEntries(
                 ? mapBasePathInsideRoot(traceFileDirectory, baseRoot, target)
                 : mapBasePath(traceFileDirectory, baseRoot, target)
               ).destination
-            : mapAdditionalRootPath(roots[targetRootIndex], target).destination
+            : mapAdditionalRootPath(
+                traceFileDirectory,
+                roots[targetRootIndex],
+                target
+              ).destination
       }
 
       result.push({

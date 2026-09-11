@@ -1,9 +1,10 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use rustc_hash::FxHashMap;
 use serde::{Serialize, Serializer, ser::SerializeTuple};
 use turbo_rcstr::RcStr;
 use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::{FileSystem, FileSystemPath, WriteLinkContent, WriteLinkTarget};
+use turbo_unix_path::get_relative_path_to;
 use turbopack_core::asset::AssetContent;
 
 use crate::project::Project;
@@ -33,11 +34,11 @@ struct AssetReference {
 
 struct AdditionalRootConfig {
     name: RcStr,
-    absolute_path: RcStr,
+    path: RcStr,
 }
 
 struct RootConfig {
-    base: FileSystemPath,
+    base: RcStr,
     additional_root_index: Option<usize>,
 }
 
@@ -76,7 +77,7 @@ struct NftAdditionalRoot {
     #[serde(flatten)]
     file_list: NftFileList,
     name: RcStr,
-    absolute_path: RcStr,
+    path: RcStr,
 }
 
 #[derive(Serialize)]
@@ -104,15 +105,14 @@ impl NftJsonBuilder {
         let mut root_configs = FxHashMap::default();
 
         // Files not listed under `additionalRoots` have paths relative to the nft.json file, which
-        // lives in the output filesystem. We need to remap that back to the project filesystem. We
-        // can assume that the project directory is a parent of the output directory.
+        // lives in the output filesystem. The project and output filesystems share a root path, so
+        // their paths can be compared directly even when the output is outside the project.
         let project_root = project.project_fs().root().owned().await?;
         let output_base = nft_path.parent();
-        let project_output_base = project_root.join(&output_base.path)?;
         root_configs.insert(
             project_root.fs,
             RootConfig {
-                base: project_output_base,
+                base: output_base.path.clone(),
                 additional_root_index: None,
             },
         );
@@ -122,7 +122,7 @@ impl NftJsonBuilder {
         root_configs.insert(
             output_base.fs,
             RootConfig {
-                base: output_base,
+                base: output_base.path,
                 additional_root_index: None,
             },
         );
@@ -138,10 +138,7 @@ impl NftJsonBuilder {
         let Some(root) = self.root_configs.get(&path.fs) else {
             bail!("NFT cannot handle filepath '{path}' because it is outside every accepted root")
         };
-        let relative_path = root
-            .base
-            .get_relative_path_to(path)
-            .context("path must be relative to its NFT root")?;
+        let relative_path = get_relative_path_to(&root.base, &path.path).into();
         if let Some(root_index) = root.additional_root_index {
             Ok(AssetLocation::AdditionalRoot {
                 root_index,
@@ -232,7 +229,7 @@ impl NftJsonBuilder {
                     .map(|(root, list)| NftAdditionalRoot {
                         file_list: list,
                         name: root.name,
-                        absolute_path: root.absolute_path,
+                        path: root.path,
                     })
                     .collect(),
             )
