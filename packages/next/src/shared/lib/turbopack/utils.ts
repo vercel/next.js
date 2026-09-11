@@ -50,10 +50,10 @@ export function getIssueKey(issue: Issue): IssueKey {
   )}-${JSON.stringify(issue.description)}`
 }
 
-export function processIssues(
+export function processIssues<T>(
   currentEntryIssues: EntryIssuesMap,
   key: EntryKey,
-  result: TurbopackResult,
+  result: TurbopackResult<T>,
   throwIssue: boolean,
   logErrors: boolean
 ) {

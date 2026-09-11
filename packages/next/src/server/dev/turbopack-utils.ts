@@ -75,9 +75,9 @@ export function printNonFatalIssue(issue: Issue) {
   }
 }
 
-export function processTopLevelIssues(
+export function processTopLevelIssues<T>(
   currentTopLevelIssues: TopLevelIssuesMap,
-  result: TurbopackResult
+  result: TurbopackResult<T>
 ) {
   currentTopLevelIssues.clear()
 
@@ -91,7 +91,7 @@ export { msToNs } from '../../shared/lib/turbopack/compilation-events'
 
 export type ChangeSubscriptions = Map<
   EntryKey,
-  Promise<AsyncIterableIterator<TurbopackResult>>
+  Promise<AsyncIterableIterator<TurbopackResult<void>>>
 >
 
 export type HandleWrittenEndpoint = (
@@ -105,7 +105,7 @@ export type StartChangeSubscription = (
   includeIssues: boolean,
   endpoint: Endpoint,
   createMessage: (
-    change: TurbopackResult,
+    change: TurbopackResult<void>,
     hash: string
   ) => Promise<HmrMessageSentToBrowser> | HmrMessageSentToBrowser | void,
   onError?: (

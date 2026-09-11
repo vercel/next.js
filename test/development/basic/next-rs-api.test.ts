@@ -599,7 +599,7 @@ describe('next.rs api', () => {
         expect(route.type).toBe(type)
 
         let serverSideSubscription:
-          | AsyncIterableIterator<TurbopackResult>
+          | AsyncIterableIterator<TurbopackResult<void>>
           | undefined
         switch (route.type) {
           case 'page': {

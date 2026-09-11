@@ -867,8 +867,10 @@ function bindingToApi(
       )) as TurbopackResult<WrittenEndpoint>
     }
 
-    async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>> {
-      const clientSubscription = subscribe<TurbopackResult>(
+    async clientChanged(): Promise<
+      AsyncIterableIterator<TurbopackResult<void>>
+    > {
+      const clientSubscription = subscribe<TurbopackResult<void>>(
         false,
         async (callback) =>
           binding.endpointClientChangedSubscribe(this._nativeEndpoint, callback)
@@ -879,8 +881,8 @@ function bindingToApi(
 
     async serverChanged(
       includeIssues: boolean
-    ): Promise<AsyncIterableIterator<TurbopackResult>> {
-      const serverSubscription = subscribe<TurbopackResult>(
+    ): Promise<AsyncIterableIterator<TurbopackResult<void>>> {
+      const serverSubscription = subscribe<TurbopackResult<void>>(
         false,
         async (callback) =>
           binding.endpointServerChangedSubscribe(

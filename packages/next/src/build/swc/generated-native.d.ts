@@ -79,13 +79,13 @@ export declare function codeFrameColumns(
 
 export declare function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
-  func: (err: Error, value: TurbopackResult) => void
+  func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
-  func: (err: Error, value: TurbopackResult) => void
+  func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
 export declare function endpointWriteToDisk(endpoint: {

@@ -999,7 +999,7 @@ export async function createHotReloaderTurbopack(
     includeIssues: boolean,
     endpoint: Endpoint,
     createMessage: (
-      change: TurbopackResult,
+      change: TurbopackResult<void>,
       hash: string
     ) => Promise<HmrMessageSentToBrowser> | HmrMessageSentToBrowser | void,
     onError?: (
