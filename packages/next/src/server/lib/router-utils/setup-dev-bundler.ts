@@ -296,6 +296,7 @@ async function startWatcher(
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
           restartServer: opts.restartServer,
+          webSocketRegistryScope: opts.webSocketRegistryScope,
         })
       })()
 
