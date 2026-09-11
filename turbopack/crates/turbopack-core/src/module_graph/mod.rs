@@ -1960,6 +1960,10 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     span =
                         tracing::info_span!("collected reference", namespace = debug(&namespace));
                 }
+                ChunkingType::Worker { ty } => {
+                    let _span = span.entered();
+                    span = tracing::info_span!("worker reference", ty = debug(&ty));
+                }
                 ChunkingType::Isolated { _ty: ty, merge_tag } => {
                     let _span = span.entered();
                     span = tracing::info_span!(

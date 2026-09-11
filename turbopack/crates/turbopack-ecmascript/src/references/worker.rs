@@ -13,6 +13,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ChunkingType, EvaluatableAsset},
+    chunk::worker_type::WorkerType,
     context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -32,7 +33,7 @@ use crate::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
     },
-    worker_chunk::{WorkerType, module::WorkerLoaderModule},
+    worker_chunk::module::WorkerLoaderModule,
 };
 
 /// A unified reference to a Worker (web or Node.js) that creates an isolated chunk group
