@@ -1367,7 +1367,12 @@ async fn find_package(
             ResolveModules::Nested(root, names) => {
                 let mut lookup_path = lookup_path.clone();
                 let mut lookup_path_value = lookup_path.clone();
-                while lookup_path_value.is_inside_ref(root) {
+                let lookup_root = if lookup_path.fs == root.fs {
+                    root.clone()
+                } else {
+                    lookup_path.root().owned().await?
+                };
+                while lookup_path_value.is_inside_ref(&lookup_root) {
                     for name in names.iter() {
                         let fs_path = lookup_path.join(name)?;
                         if let Some(fs_path) = dir_exists(

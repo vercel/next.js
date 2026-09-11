@@ -10,6 +10,7 @@ import { getSupportedBrowsers } from '../get-supported-browsers'
 import { trace } from '../../trace'
 import { normalizePath } from '../../lib/normalize-path'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
+import { printBuildErrors } from '../print-build-errors'
 
 export type AnalyzeContext = {
   config: NextConfigComplete
@@ -99,8 +100,9 @@ export async function turbopackAnalyze(
       isShortSession: true,
     }
   )
-
   try {
+    printBuildErrors(project, dev)
+
     const analyzeEventsSpan = trace('turbopack-analyze-events')
     // Stop immediately: this span is only used as a parent for
     // manualTraceChild calls which carry their own timestamps.

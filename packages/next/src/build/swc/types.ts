@@ -35,7 +35,7 @@ export interface Binding {
       options: ProjectOptions,
       turboEngineOptions: NapiTurboEngineOptions,
       callbacks?: TurbopackProjectCallbacks
-    ): Promise<Project>
+    ): Promise<TurbopackResult<Project>>
     startTurbopackTraceServerHandle(
       traceFilePath: string,
       port: number | undefined
@@ -479,7 +479,7 @@ export type WrittenEndpoint =
     }
 
 export interface ProjectOptions
-  extends Omit<NapiProjectOptions, 'nextConfig' | 'env'> {
+  extends Omit<NapiProjectOptions, 'nextConfig' | 'additionalRoots' | 'env'> {
   /**
    * The next.config.js contents.
    */
@@ -493,8 +493,6 @@ export interface ProjectOptions
 
 export interface PartialProjectOptions
   extends Omit<NapiPartialProjectOptions, 'nextConfig' | 'env'> {
-  rootPath: NapiProjectOptions['rootPath']
-  projectPath: NapiProjectOptions['projectPath']
   /**
    * The next.config.js contents.
    */

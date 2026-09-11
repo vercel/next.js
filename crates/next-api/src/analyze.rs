@@ -450,7 +450,7 @@ pub async fn analyze_output_assets(
             let decoded_source = urlencoding::decode(&chunk_part.source)?;
             let source = if let Some(stripped) = decoded_source.strip_prefix(&prefix) {
                 Cow::Borrowed(stripped)
-            } else if decoded_source.starts_with("[project]/") {
+            } else if decoded_source.starts_with('[') && decoded_source.contains("]/") {
                 decoded_source
             } else {
                 Cow::Owned(format!(

@@ -2,12 +2,60 @@
 #![feature(arbitrary_self_types_pointers)]
 #![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
+use std::time::Duration;
+
 use anyhow::Result;
 use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::{OperationVc, ResolvedVc, State, Vc};
-use turbo_tasks_testing::{Registration, register, run};
+use turbo_tasks_testing::{Registration, register, run, run_once_without_cache_check};
 
 static REGISTRATION: Registration = register!();
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn test_advisory_lock_blocks_state_reader() {
+    #[turbo_tasks::value(transparent)]
+    struct OptionalStep(State<Option<u32>>);
+
+    #[turbo_tasks::function(operation, root)]
+    fn create_optional_state_operation() -> Vc<OptionalStep> {
+        OptionalStep(State::new(None)).cell()
+    }
+
+    #[turbo_tasks::function(operation, root)]
+    async fn read_optional_state_operation(state: ResolvedVc<OptionalStep>) -> Result<Vc<u32>> {
+        let state = state.await?;
+        let _guard = state.advisory_lock().await;
+        Ok(Vc::cell(
+            *state
+                .get_untracked()
+                .as_ref()
+                .expect("state should be initialized"),
+        ))
+    }
+
+    run_once_without_cache_check(&REGISTRATION, async {
+        let state_op = create_optional_state_operation();
+        let state_vc = state_op.resolve().strongly_consistent().await?;
+        let state = state_op.read_strongly_consistent().await?;
+        let guard = state.advisory_lock().await;
+
+        let read = read_optional_state_operation(state_vc).read_strongly_consistent();
+        tokio::pin!(read);
+        assert!(
+            tokio::time::timeout(Duration::from_millis(10), &mut read)
+                .await
+                .is_err()
+        );
+
+        state.set(Some(42));
+        drop(guard);
+        assert_eq!(*read.await?, 42);
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
 
 #[turbo_tasks::value(transparent)]
 struct Step(State<u32>);

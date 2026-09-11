@@ -96,7 +96,7 @@ If you have a loader that is critically dependent upon one of these features ple
 
 Turbopack uses the root directory to resolve modules. Files outside of the project root are not resolved.
 
-The reason files are not resolved outside of the project root is to improve cache validation, reduce filesystem watching overhead, and reduce the number of resolving steps needed.
+Files are not resolved outside of the project root is to improve cache validation, reduce filesystem watching overhead, and reduce the number of [resolving steps](https://nodejs.org/api/esm.html#resolution-algorithm) needed.
 
 Next.js automatically detects the root directory of your project. It does so by looking for one of these files:
 
@@ -117,9 +117,46 @@ module.exports = {
 }
 ```
 
-To resolve files from linked dependencies outside the project root (via `npm link`, `yarn link`, `pnpm link`, etc.), you must configure the `turbopack.root` to the parent directory of both the project and the linked dependencies.
+To resolve files from linked dependencies outside the project root (via `npm link`, `yarn link`, `pnpm link`, etc.), you must either configure the `turbopack.root` to the parent directory of both the project and the linked dependencies or configure an additional root.
 
-While this expands the scope of filesystem watching, it's typically only necessary during development when actively working on linked packages.
+Do not extend the root directory too broadly (e.g. to your home directory). Turbopack may watch all files inside of roots, and configuring too broad of a root directory can cause significant performance problems.
+
+### Additional roots (experimental)
+
+`experimental.turbopackAdditionalRoots` allows Turbopack to follow symbolic links whose targets are outside `turbopack.root`. It is useful for linked packages that live outside the project.
+
+Additional roots are read-only. Additional roots can only be crossed at symlink boundaries. Direct relative imports that escape a root are unsupported.
+
+```js filename="next.config.js"
+const path = require('path')
+
+module.exports = {
+  experimental: {
+    turbopackAdditionalRoots: {
+      linkedPackages: { path: path.join(__dirname, '../packages') },
+    },
+  },
+}
+```
+
+Each key identifies one root. `path` can be absolute or relative to the directory where you run Next.js.
+
+If a root path is not found when `next build` or `next dev` starts, a warning will be issued, unless `ignoreIfMissing` is set to `true` (defaults to false).
+
+To ensure portability of your configuration across a variety of platforms, including Windows, a root name must meet all of these requirements:
+
+- It contains 1 to 40 ASCII characters.
+- It is not `.` or `..`.
+- It does not contain ASCII control characters or reserved characters (`<`, `>`, `:`, `"`, `/`, `\`, `|`, `?`, and `*`).
+- It does not end in a space or period.
+- It is not a Windows device name.
+- It does not duplicate an earlier name under ASCII case-insensitive comparison.
+
+To avoid ambiguous references to files, roots may not contain overlapping paths. For example, configuring both `foo/` and `foo/bar/` as roots would produce a warning, and the last-configured value will be ignored.
+
+Additional roots changes the [`trace format`](/docs/app/api-reference/config/next-config-js/output#turbopack-nft-extensions) and requires support from the [build adapter](/docs/app/api-reference/adapters).
+
+When using [`output: "standalone"`](/docs/app/api-reference/config/next-config-js/output#automatically-copying-traced-files), unbundled files stored in these additional roots will be copied to a subdirectory of the output directory containing the configured name of the root.
 
 ### Configuring webpack loaders
 
@@ -389,6 +426,7 @@ The option automatically adds a polyfill for debug IDs to the JavaScript bundle 
 
 | Version  | Changes                                              |
 | -------- | ---------------------------------------------------- |
+| `16.4.0` | `experimental.turbopackAdditionalRoots` was added    |
 | `16.2.0` | `turbopackLoader` import attributes were added.      |
 | `16.2.0` | `turbopack.rules.*.type` was added.                  |
 | `16.2.0` | `turbopack.rules.*.condition.contentType` was added. |

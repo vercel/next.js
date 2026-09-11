@@ -532,6 +532,9 @@ export async function createHotReloaderTurbopack(
       isShortSession: false,
     }
   )
+  for (const issue of project.issues) {
+    printNonFatalIssue(issue)
+  }
   backgroundLogCompilationEvents(project, {
     eventTypes: [
       'StartupCacheInvalidationEvent',
