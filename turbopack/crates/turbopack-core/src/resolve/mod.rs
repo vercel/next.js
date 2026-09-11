@@ -316,7 +316,7 @@ impl ModuleResolveResult {
     /// Returns primary modules (no duplicates). Emits errors for Unknown items.
     /// Duplicates are already marked at construction time so no extra dedup is
     /// needed here.
-    pub async fn primary_modules(&self) -> Result<SmallVec<[ResolvedVc<Box<dyn Module>>; 1]>> {
+    pub async fn primary_modules(&self) -> Result<SmallVec<[ResolvedVc<Box<dyn Module>>; 2]>> {
         self.primary
             .iter()
             .map(async |(_, item)| item.as_module().await)
