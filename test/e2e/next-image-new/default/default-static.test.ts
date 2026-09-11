@@ -1,8 +1,8 @@
 import { nextTestSetup, isNextDev, type Playwright } from 'e2e-utils'
 import cheerio from 'cheerio'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This suite changes fixture source or configuration with next.patchFile().
+// Deployment mode cannot modify the deployed application.
 // @force-gate !deploy
 describe('Build Error Tests', () => {
   const { next, isRspack } = nextTestSetup({

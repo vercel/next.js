@@ -14,8 +14,8 @@ function toQueryString(query: Record<string, any>): string {
 const largeSize = 1080
 
 describe('Image Optimizer', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This suite calls next.patchFile() to change fixture files after setup.
+  // Deployment mode cannot mutate the deployed fixture.
   // @force-gate !deploy
   describe('config checks', () => {
     const { next } = nextTestSetup({
@@ -362,8 +362,8 @@ describe('Image Optimizer', () => {
       )
     })
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope tests the development image endpoint with a Cloudinary loader.
+  // A deployed production app does not exercise that dev-server endpoint behavior.
   // @force-gate !deploy
   // @force-gate dev
   describe('dev support next.config.js cloudinary loader', () => {
@@ -405,8 +405,8 @@ describe('Image Optimizer', () => {
       expect(res.status).toBe(404)
     })
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope checks the local image optimizer's imgOptMaxInputPixels fallback.
+  // A response from the deployment image service does not validate that local optimizer setting.
   // @force-gate !deploy
   // @force-gate dev
   describe('experimental.imgOptMaxInputPixels in next.config.js', () => {
@@ -426,8 +426,8 @@ describe('Image Optimizer', () => {
       expect(res.headers.get('Content-Type')).toBe('image/jpeg')
     })
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope clears and inspects the local image cache while testing external rewrites.
+  // Deployment mode does not expose that cache directory.
   // @force-gate !deploy
   // @force-gate start
   describe('External rewrite support with for serving static content in images', () => {
@@ -479,8 +479,8 @@ describe('Image Optimizer', () => {
       await expectWidth(res, 64)
     })
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope tests the development-only blur-placeholder image size handling.
+  // A deployed production build does not run that dev image path.
   // @force-gate !deploy
   // @force-gate dev
   describe('dev support for dynamic blur placeholder', () => {

@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 
 // TODO: Test didn't (or maybe) never ran in CI but it should.
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
+// This scope starts next dev with --experimental-https to test its image loading.
+// Deployment HTTPS does not exercise the development server's HTTPS implementation.
 // @force-gate !deploy
 // @force-gate TODO
 describe('app dir - next-image (with https)', () => {

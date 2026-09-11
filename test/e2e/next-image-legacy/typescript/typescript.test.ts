@@ -2,8 +2,8 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This fixture intentionally fails TypeScript checking and inspects the failed build.
+// Deployment mode requires a successful build before the test can run.
 // @force-gate !deploy
 describe('TypeScript Image Component', () => {
   const { next, isNextDeploy } = nextTestSetup({

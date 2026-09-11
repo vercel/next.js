@@ -1,8 +1,8 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This fixture intentionally fails TypeScript checking and inspects the failed build.
+// Deployment mode requires a successful build before the test can run.
 // @force-gate !deploy
 describe('TypeScript Image Component Build Errors', () => {
   if (isNextDev) {
@@ -41,8 +41,8 @@ describe('TypeScript Image Component Build Errors', () => {
   })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This fixture intentionally fails TypeScript checking and inspects the failed build.
+// Deployment mode requires a successful build before the test can run.
 // @force-gate !deploy
 describe('TypeScript Image Component Dev', () => {
   if (!isNextDev) {

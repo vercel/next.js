@@ -3,8 +3,8 @@ import { listClientChunks } from 'next-test-utils'
 import fs from 'node:fs/promises'
 import path from 'node:path'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely reads files from the isolated local fixture.
+// This suite scans .next/static to inspect generated CSS chunks.
+// Deployment mode does not expose the local build output directory.
 // @force-gate !deploy
 describe('css-server-chunks', () => {
   const { next } = nextTestSetup({

@@ -3,8 +3,8 @@
 import { isNextStart, nextTestSetup } from 'e2e-utils'
 import { waitForRedbox, getRedboxSource } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This suite runs next.build() to inspect build output or errors.
+// Deploy mode requires a successful deployment and cannot run these local builds.
 // @force-gate !deploy
 describe('CSS Import from node_modules', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({
