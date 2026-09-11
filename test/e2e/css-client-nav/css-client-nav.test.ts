@@ -2,7 +2,7 @@
 import http from 'http'
 import httpProxy from 'http-proxy'
 import cheerio from 'cheerio'
-import { findPort } from 'next-test-utils'
+import { waitFor, findPort } from 'next-test-utils'
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
 describe('CSS Module client-side navigation', () => {
@@ -40,7 +40,7 @@ describe('CSS Module client-side navigation', () => {
           new URL(req.url, next.url).pathname.endsWith('.css')
         ) {
           console.log('stalling request for', req.url)
-          await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
+          await waitFor(5 * 1000)
         }
         proxy.web(req, res)
       })

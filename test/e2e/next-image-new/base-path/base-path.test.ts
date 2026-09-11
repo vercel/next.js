@@ -1,5 +1,6 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 import {
+  waitFor,
   waitForRedbox,
   waitForNoRedbox,
   getRedboxHeader,
@@ -142,7 +143,7 @@ describe('Image Component basePath Tests', () => {
       expect(result).toBeGreaterThan(0)
     })
 
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    await waitFor(1000)
 
     const computedWidth = await getComputed(browser, id, 'width')
     const computedHeight = await getComputed(browser, id, 'height')
