@@ -1,44 +1,113 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkData, ChunkGroupType, ChunkableModule, ChunkingContext,
-        ChunkingContextExt, ChunkingType, ChunksData, EvaluatableAsset, ModuleChunkItemIdExt,
-        ModuleId, availability_info::AvailabilityInfo, worker_type::WorkerType,
+        AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
+        ChunksData, EvaluatableAsset, ModuleChunkItemIdExt, ModuleId,
+        availability_info::AvailabilityInfo, worker_type::WorkerType,
     },
     context::AssetContext,
+    file_source::FileSource,
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
-    reference::{ModuleReference, ModuleReferences},
-    resolve::ModuleResolveResult,
+    reference::ModuleReferences,
+    reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
 };
 
-use super::entry_module::WorkerEntryModule;
 use crate::{
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkItemOptions, EcmascriptChunkPlaceable,
         EcmascriptExports, data::EcmascriptChunkData, ecmascript_chunk_item,
     },
+    embed_js::embed_fs,
     references::esm::generated_export_key,
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
 };
 
+/// The `createWorker` runtime helper for `worker_type`, resolved through `asset_context`.
+///
+/// This is a real, on-demand module (it is only chunked into apps that actually use workers),
+/// so it needs an `AssetContext` to be processed with. Two places resolve it and they *must*
+/// agree on the exact same `Vc`, because the generated loader code embeds this module's chunk
+/// item id:
+///
+/// - `WorkerAssetReference` declares a reference to it next to the worker reference itself, so the
+///   module graph discovers it during construction and assigns it an id.
+/// - `WorkerLoaderModule` (created later, during chunking) embeds that id.
+///
+/// Both pass `origin.asset_context()` — the loader recovers it from its inner module via
+/// [`ResolveOrigin`], which is the same context `url_resolve`/`process_resolve_result` used to
+/// resolve the worker in the first place. Since this function is memoized on its arguments,
+/// equal arguments yield the identical `Vc` and therefore the identical chunk item.
+///
+/// [`ResolveOrigin`]: turbopack_core::resolve::origin::ResolveOrigin
+#[turbo_tasks::function]
+pub async fn create_worker_module(
+    asset_context: Vc<Box<dyn AssetContext>>,
+    worker_type: WorkerType,
+) -> Result<Vc<Box<dyn Module>>> {
+    let helper = match worker_type {
+        WorkerType::WebWorker | WorkerType::SharedWebWorker => {
+            rcstr!("worker/browser/createWorker.ts")
+        }
+        WorkerType::NodeWorkerThread => rcstr!("worker/node/createWorker.ts"),
+    };
+    Ok(asset_context
+        .process(
+            Vc::upcast(FileSource::new(
+                embed_fs()
+                    .to_resolved()
+                    .await?
+                    .root()
+                    .await?
+                    .join(&helper)?,
+            )),
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::Import),
+        )
+        .module())
+}
+
+/// The ident of the `WorkerLoaderModule` for `(inner, worker_type)`.
+///
+/// Both the loader's own `Module::ident` and
+/// [`ChunkingContext::worker_loader_chunk_item_ident`] route through this single memoized
+/// function rather than each computing an equal `AssetIdent`: the module id map is keyed by the
+/// resolved `Vc<AssetIdent>`, so a lookup only hits when the ident originates from the same
+/// memoized call. This mirrors `AsyncLoaderModule::asset_ident_for`.
+///
+/// [`ChunkingContext::worker_loader_chunk_item_ident`]: turbopack_core::chunk::ChunkingContext::worker_loader_chunk_item_ident
+#[turbo_tasks::function]
+pub async fn worker_loader_asset_ident_for(
+    inner: Vc<Box<dyn ChunkableModule>>,
+    worker_type: WorkerType,
+) -> Result<Vc<AssetIdent>> {
+    Ok(inner
+        .ident()
+        .owned()
+        .await?
+        .with_modifier(worker_type.modifier_str())
+        .into_vc())
+}
+
 /// The WorkerLoaderModule is a module that creates a separate chunk group for the given module
 /// and exports a URL (for web workers) or file path (for Node.js workers) to pass to the worker
 /// constructor.
 ///
-/// It is **not** created while building the module graph. `WorkerAssetReference` resolves to a
-/// [`WorkerEntryModule`] marker instead, and this loader is constructed during chunking (see
-/// [`ChunkingContext::worker_loader_chunk_item`]) so it can be handed the enclosing chunk group's
-/// availability info. That is what makes a worker that spawns itself terminate instead of
-/// deadlocking — see [`Self::chunk_group`].
+/// It is **not** created while building the module graph — `WorkerAssetReference` resolves
+/// straight to the worker's entry module over a [`ChunkingType::Worker`] edge. This loader is
+/// constructed during chunking instead (see [`ChunkingContext::worker_loader_chunk_item`]) so it
+/// can be handed the enclosing chunk group's availability info. That is what makes a worker that
+/// spawns itself terminate instead of deadlocking — see [`Self::chunk_group`].
 ///
-/// [`WorkerEntryModule`]: super::entry_module::WorkerEntryModule
+/// Because it does not take part in graph construction, its `references()` are never traversed;
+/// everything its generated code needs an id for is declared by `WorkerAssetReference` instead.
+///
 /// [`ChunkingContext::worker_loader_chunk_item`]: turbopack_core::chunk::ChunkingContext::worker_loader_chunk_item
 #[turbo_tasks::value]
 pub struct WorkerLoaderModule {
@@ -163,17 +232,14 @@ impl WorkerLoaderModule {
     /// `createWorker` is stored in a module; for each worker we need to
     /// load, we require this module and then use it.
     ///
-    /// Delegates to the shared memoized helper that [`WorkerEntryModule`] also references, so
-    /// both resolve to the identical module (and therefore the identical chunk item id). The
-    /// marker is what puts this helper into the module graph — this loader is created during
-    /// chunking and so cannot contribute graph edges of its own.
+    /// Delegates to the shared memoized [`create_worker_module`], which `WorkerAssetReference`
+    /// also references, so both resolve to the identical module (and therefore the identical
+    /// chunk item id). That reference is what puts the helper into the module graph — this
+    /// loader is created during chunking and so cannot contribute graph edges of its own.
     #[turbo_tasks::function]
     async fn create_worker_module(self: Vc<Self>) -> Result<Vc<Box<dyn Module>>> {
         let this = self.await?;
-        Ok(super::entry_module::create_worker_module(
-            *this.asset_context,
-            this.worker_type,
-        ))
+        Ok(create_worker_module(*this.asset_context, this.worker_type))
     }
 
     /// Returns output assets including the worker entrypoint for web workers.
@@ -200,12 +266,11 @@ impl WorkerLoaderModule {
 impl Module for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        // Must be the *same* memoized call the `WorkerEntryModule` marker uses, so both
-        // resolve to the same `Vc<AssetIdent>` and therefore the same module id. The marker
-        // is what appears in the module graph (and gets registered in the module id map),
-        // while this loader is what becomes the chunk item `new Worker(...)` requires.
-        // `availability_info` is intentionally not part of the ident.
-        WorkerEntryModule::asset_ident_for(*self.inner, self.worker_type)
+        // Must be the *same* memoized call that `ChunkingContext::worker_loader_chunk_item_ident`
+        // uses, so the id the `new Worker(...)` codegen looks up and the id this chunk item is
+        // registered under agree. `availability_info` is intentionally not part of the ident, so
+        // the same worker has one id across chunk groups.
+        worker_loader_asset_ident_for(*self.inner, self.worker_type)
     }
 
     #[turbo_tasks::function]
@@ -215,10 +280,10 @@ impl Module for WorkerLoaderModule {
 
     #[turbo_tasks::function]
     fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
-        // Both of this loader's dependencies — the worker's own entry module and the
-        // `createWorker` runtime helper — are declared by the `WorkerEntryModule` marker that
-        // this loader is created from during chunking. This loader is not part of the module
-        // graph, so references declared here would never be traversed anyway.
+        // This loader is created during chunking, after the module graph is built, so any
+        // references declared here would never be traversed. Both of its dependencies — the
+        // worker's own entry module and the `createWorker` runtime helper — are declared by
+        // `WorkerAssetReference` on the module that contains the `new Worker(...)` call.
         Vc::cell(vec![])
     }
 
@@ -385,42 +450,5 @@ impl EcmascriptChunkPlaceable for WorkerLoaderModule {
         module_graph: Vc<ModuleGraph>,
     ) -> Vc<OutputAssetsWithReferenced> {
         self.chunk_group_with_type(chunking_context, module_graph)
-    }
-}
-
-#[turbo_tasks::value]
-#[derive(ValueToString)]
-#[value_to_string("{} module", self.worker_type.friendly_str())]
-pub struct WorkerModuleReference {
-    pub module: ResolvedVc<Box<dyn Module>>,
-    pub worker_type: WorkerType,
-}
-
-#[turbo_tasks::value_impl]
-impl WorkerModuleReference {
-    #[turbo_tasks::function]
-    pub fn new(module: ResolvedVc<Box<dyn Module>>, worker_type: WorkerType) -> Vc<Self> {
-        Self::cell(WorkerModuleReference {
-            module,
-            worker_type,
-        })
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl ModuleReference for WorkerModuleReference {
-    #[turbo_tasks::function]
-    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
-        *ModuleResolveResult::module(self.module)
-    }
-
-    fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Isolated {
-            _ty: match self.worker_type {
-                WorkerType::SharedWebWorker | WorkerType::WebWorker => ChunkGroupType::Evaluated,
-                WorkerType::NodeWorkerThread => ChunkGroupType::Entry,
-            },
-            merge_tag: None,
-        })
     }
 }

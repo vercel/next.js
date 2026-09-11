@@ -18,7 +18,9 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
+        worker_type::WorkerType,
     },
+    context::AssetContext,
     environment::{ChunkLoading, Environment},
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
@@ -36,7 +38,7 @@ use turbopack_ecmascript::{
         EcmascriptChunk, EcmascriptChunkContent, EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
     manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
-    worker_chunk::{entry_module::WorkerEntryModule, module::WorkerLoaderModule},
+    worker_chunk::module::{WorkerLoaderModule, worker_loader_asset_ident_for},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 
@@ -1213,25 +1215,27 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     async fn worker_loader_chunk_item(
         self: Vc<Self>,
-        module: Vc<Box<dyn Module>>,
+        module: Vc<Box<dyn ChunkableModule>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
+        worker_type: WorkerType,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
         let chunking_context =
             ResolvedVc::upcast::<Box<dyn ChunkingContext>>(self.to_resolved().await?);
-        let Some(entry) =
-            ResolvedVc::try_downcast_type::<WorkerEntryModule>(module.to_resolved().await?)
-        else {
-            bail!("worker_loader_chunk_item expects a WorkerEntryModule");
-        };
-        let entry_ref = entry.await?;
-        Ok(WorkerLoaderModule::new(
-            *entry_ref.inner,
-            entry_ref.worker_type,
-            *entry_ref.asset_context,
-            availability_info,
+        Ok(
+            WorkerLoaderModule::new(module, worker_type, asset_context, availability_info)
+                .as_chunk_item(module_graph, *chunking_context),
         )
-        .as_chunk_item(module_graph, *chunking_context))
+    }
+
+    #[turbo_tasks::function]
+    fn worker_loader_chunk_item_ident(
+        &self,
+        module: Vc<Box<dyn ChunkableModule>>,
+        worker_type: WorkerType,
+    ) -> Vc<AssetIdent> {
+        worker_loader_asset_ident_for(module, worker_type)
     }
 
     #[turbo_tasks::function]

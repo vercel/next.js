@@ -11,8 +11,9 @@ use crate::{
     asset::{Asset, AssetContent},
     chunk::{
         ChunkItem, ChunkType, ChunkableModule, availability_info::AvailabilityInfo,
-        chunk_id_strategy::ModuleIdStrategy,
+        chunk_id_strategy::ModuleIdStrategy, worker_type::WorkerType,
     },
+    context::AssetContext,
     environment::{ChunkLoading, Environment},
     ident::AssetIdent,
     module::Module,
@@ -486,18 +487,32 @@ pub trait ChunkingContext {
         chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     ) -> Vc<Box<dyn OutputAsset>>;
 
-    /// Creates a worker loader chunk item for the given module graph node.
-    /// The implementation downcasts to `WorkerEntryModule` (from
-    /// `turbopack‑ecmascript`) to construct a `WorkerLoaderModule`.  The
-    /// worker runs with the provided availability info so self‑referencing
-    /// workers unroll like async imports.
+    /// Creates a worker loader chunk item for the worker's entry module.
+    ///
+    /// `asset_context` is the context the worker reference was resolved with; the loader needs
+    /// it to resolve the `createWorker` runtime helper to the *same* module the corresponding
+    /// `WorkerAssetReference` put into the module graph. The loader runs with the provided
+    /// availability info so self-referencing workers unroll like async imports.
     #[turbo_tasks::function]
     async fn worker_loader_chunk_item(
         self: Vc<Self>,
-        module: Vc<Box<dyn Module>>,
+        module: Vc<Box<dyn ChunkableModule>>,
+        asset_context: Vc<Box<dyn AssetContext>>,
+        worker_type: WorkerType,
         module_graph: Vc<ModuleGraph>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<Box<dyn ChunkItem>>>;
+
+    /// The ident (and therefore module id) of the worker loader chunk item for `module`.
+    ///
+    /// Mirrors [`Self::async_loader_chunk_item_ident`]: the `new Worker(...)` codegen needs the
+    /// loader's id while building the module graph, long before the loader itself exists.
+    #[turbo_tasks::function]
+    fn worker_loader_chunk_item_ident(
+        &self,
+        module: Vc<Box<dyn ChunkableModule>>,
+        worker_type: WorkerType,
+    ) -> Vc<AssetIdent>;
 
     #[turbo_tasks::function]
     fn chunk_group(
