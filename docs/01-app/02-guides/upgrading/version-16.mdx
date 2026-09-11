@@ -93,6 +93,10 @@ The `upgrade` codemod does not run every migration codemod. If your app still us
 npx @next/codemod@canary next-async-request-api .
 ```
 
+After the codemod, review the applicable sections of this guide and any intervening major-version guides. Resolve `@next-codemod-error` findings and temporary `UnsafeUnwrapped*` casts, including [asynchronous helpers and their callers](/docs/app/guides/upgrading/version-15#migrating-helpers-and-their-callers). Next.js 16 removes the temporary synchronous Request API compatibility, so deleting a warning or casting a value does not repair the runtime behavior.
+
+Check the app using the scripts it supports, and record any check that cannot run in your environment.
+
 ## Install packages manually
 
 If you prefer to do it manually, install the latest Next.js and React versions:
