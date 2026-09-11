@@ -113,7 +113,7 @@ export function registerUseCachePrivateTests(
                  "Error: Route "/use-cache-private-in-unstable-cache": \`"use cache: private"\` can't be used inside \`unstable_cache()\` because \`unstable_cache()\` uses a shared cache that can't contain private request data. Call the private cached function outside \`unstable_cache()\`.
                  Learn more: https://nextjs.org/docs/messages/use-cache-private-composition
                      at <unknown> (app/use-cache-private-in-unstable-cache/page.tsx:21:38)
-                     at async g (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
+                     at async f (app/use-cache-private-in-unstable-cache/page.tsx:16:16)
                    19 | }
                    20 |
                  > 21 | const getCachedData = unstable_cache(async () => {

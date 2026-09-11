@@ -1727,8 +1727,8 @@ export function cache(
     ...args: unknown[]
   ) => Promise<unknown>
 ) {
-  const invoke = (args: unknown[]) =>
-    cacheImpl(kind, id, boundArgsLength, originalFn, args)
+  const invoke: (args: unknown[]) => Promise<unknown> = (args) =>
+    cacheImpl(kind, id, boundArgsLength, originalFn, args, invoke)
 
   return React.cache(invocationAdapter.bind(null, invoke))
 }
@@ -1738,7 +1738,8 @@ async function cacheImpl(
   id: string,
   boundArgsLength: number,
   originalFn: (...args: unknown[]) => Promise<unknown>,
-  args: unknown[]
+  args: unknown[],
+  stackStartFunction: (args: unknown[]) => Promise<unknown>
 ) {
   const isPrivate = kind === 'private'
 
@@ -1838,24 +1839,23 @@ async function cacheImpl(
   }
 
   const timeoutError = new UseCacheTimeoutError(workStore.route)
-  Error.captureStackTrace(timeoutError, cacheImpl)
+  Error.captureStackTrace(timeoutError, stackStartFunction)
   applyOwnerStack(timeoutError)
 
   // Only ever thrown by the dev-server's hang-detection probe.
-  // `Error.captureStackTrace` has to run while `cache()` is still on the
-  // synchronous stack, otherwise the user's `'use cache'` invocation frames
-  // would already be gone — that's why the construction sits up here rather
-  // than next to the trigger that actually consumes it. The `__NEXT_DEV_SERVER`
-  // gate lets the error class drop out of the production runtime bundle.
+  // `Error.captureStackTrace` has to run while the invocation adapter is still
+  // on the synchronous stack, otherwise the user's `'use cache'` invocation
+  // frames would already be gone. The `__NEXT_DEV_SERVER` gate lets the error
+  // class drop out of the production runtime bundle.
   let deadlockError: UseCacheDeadlockError | undefined
   if (process.env.__NEXT_DEV_SERVER) {
     deadlockError = new UseCacheDeadlockError(workStore.route)
-    Error.captureStackTrace(deadlockError, cacheImpl)
+    Error.captureStackTrace(deadlockError, stackStartFunction)
     applyOwnerStack(deadlockError)
   }
 
   const wrapAsInvalidDynamicUsageError = (error: Error) => {
-    Error.captureStackTrace(error, cacheImpl)
+    Error.captureStackTrace(error, stackStartFunction)
     workStore.invalidDynamicUsageError ??= error
 
     return error
@@ -1946,7 +1946,7 @@ async function cacheImpl(
         // stage in dev requests, so a public cache nested inside one never
         // triggers the throw upstream.
         const dynamicNestedCacheError = new NestedDynamicUseCacheError()
-        Error.captureStackTrace(dynamicNestedCacheError, cacheImpl)
+        Error.captureStackTrace(dynamicNestedCacheError, stackStartFunction)
         applyOwnerStack(dynamicNestedCacheError)
         cacheContext = {
           kind: 'public',

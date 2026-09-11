@@ -778,7 +778,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-low-expire/nested": A nested \`"use cache"\` with a short \`expire\` (under 5 minutes) is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a longer \`expire\` or keep it dynamic with a short \`expire\`.
                    Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async k (app/use-cache-low-expire/nested/page.tsx:20:14)
+                       at async j (app/use-cache-low-expire/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
                    > 20 |     result = await outerCache()
@@ -1175,7 +1175,7 @@ Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic`
                 expect(output).toMatchInlineSnapshot(`
                    "Error: Route "/use-cache-revalidate-0/nested": A nested \`"use cache"\` with \`revalidate: 0\` is inside an outer \`"use cache"\` that has no \`cacheLife()\`. Add \`cacheLife()\` to the outer one to choose whether to prerender it with a non-zero \`revalidate\` or keep it dynamic with \`revalidate: 0\`.
                    Learn more: https://nextjs.org/docs/messages/nested-use-cache-no-explicit-cachelife
-                       at async k (app/use-cache-revalidate-0/nested/page.tsx:20:14)
+                       at async j (app/use-cache-revalidate-0/nested/page.tsx:20:14)
                      18 |   let result: number | undefined
                      19 |   try {
                    > 20 |     result = await outerCache()
