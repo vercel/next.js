@@ -246,7 +246,16 @@ export function getParamValueFromCacheKey(
 ) {
   // Turn the cache key string sent by the server (as part of FlightRouterState)
   // into a value that can be passed to `useParams` and client components.
-  const isCatchAll = paramType === 'c' || paramType === 'oc'
+  // Keep in sync with intercepted catchall short types on DynamicParamTypesShort
+  // (`ci(.)`, …). Server-side `isCatchAll()` already includes those; splitting
+  // only `c`/`oc` leaves intercepted catchalls as a single joined string.
+  const isCatchAll =
+    paramType === 'c' ||
+    paramType === 'oc' ||
+    paramType === 'ci(.)' ||
+    paramType === 'ci(..)' ||
+    paramType === 'ci(...)' ||
+    paramType === 'ci(..)(..)'
   if (isCatchAll) {
     // Catch-all param keys are a concatenation of the path segments.
     // See equivalent logic in `getSelectedParams`.

@@ -1,4 +1,4 @@
-import { safeCompile } from './route-match-utils'
+import { safeCompile, safePathToRegexp } from './route-match-utils'
 import {
   PARAM_SEPARATOR,
   stripNormalizedSeparators,
@@ -103,6 +103,25 @@ describe('safeCompile', () => {
       const result = compile({ path: ['folder', 'subfolder', 'file.txt'] })
 
       expect(result).toBe('/files/folder/subfolder/file.txt')
+    })
+  })
+
+  describe('interception marker adjacent to repeating param', () => {
+    it('should compile string catchall values with path separators preserved', () => {
+      const compile = safeCompile('/photos/(.):slug+', { validate: false })
+      expect(
+        compile({
+          '0': '(.)',
+          slug: 'a/b/c',
+        })
+      ).toBe('/photos/(.)a/b/c')
+    })
+
+    it('should parse marker-adjacent catchall destinations via safePathToRegexp', () => {
+      const keys: Array<{ name: string | number }> = []
+      const re = safePathToRegexp('/photos/(.):slug+', keys)
+      expect(re).toBeInstanceOf(RegExp)
+      expect(keys.some((key) => key.name === 'slug')).toBe(true)
     })
   })
 
