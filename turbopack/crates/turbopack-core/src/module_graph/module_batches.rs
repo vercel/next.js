@@ -7,6 +7,7 @@ use std::{
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use either::Either;
+use itertools::Itertools;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use serde::{Deserialize, Serialize};
@@ -844,7 +845,7 @@ pub async fn compute_module_batches(
         }
 
         // Create the batch group instances
-        let batch_group_results = batch_groups
+        let batch_groups = batch_groups
             .into_iter()
             .map(async |(key, items)| {
                 if items.len() == 1 {
@@ -859,11 +860,10 @@ pub async fn compute_module_batches(
                 }
             })
             .join()
-            .await;
-        let mut batch_groups: FxHashMap<_, _> = FxHashMap::default();
-        for result in batch_group_results {
-            batch_groups.extend(result?);
-        }
+            .await
+            .into_iter()
+            .flatten_ok()
+            .collect::<Result<FxHashMap<_, _>>>()?;
 
         // Insert batches into the graph and store the NodeIndices
         let mut batches_count = 0;
