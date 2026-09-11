@@ -1342,7 +1342,7 @@ async fn app_route_filter_for_write_phase(
 }
 
 #[tracing::instrument(level = "info", name = "write all entrypoints to disk", skip_all)]
-#[napi(ts_return_type = "Promise<TurbopackResult<Partial<NapiEntrypoints>>>")]
+#[napi(ts_return_type = "Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>")]
 pub async fn project_write_all_entrypoints_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     app_dir_only: bool,
@@ -1729,7 +1729,7 @@ async fn output_assets_operation(
 }
 
 #[tracing::instrument(level = "info", name = "get entrypoints", skip_all)]
-#[napi(ts_return_type = "Promise<TurbopackResult<Partial<NapiEntrypoints>>>")]
+#[napi(ts_return_type = "Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>")]
 pub async fn project_entrypoints(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
 ) -> napi::Result<TurbopackResult<Option<NapiEntrypoints>>> {
@@ -1770,7 +1770,10 @@ pub async fn project_entrypoints(
 pub fn project_entrypoints_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<Partial<NapiEntrypoints>>) => void")]
+    #[napi(
+        ts_arg_type = "(err: Error, value: TurbopackResult<Partial<NapiEntrypoints> | null>) => \
+                       void"
+    )]
     func: FunctionRef<TurbopackResult<Option<NapiEntrypoints>>, ()>,
 ) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = project.turbopack_ctx.clone();
@@ -2245,8 +2248,10 @@ pub fn project_update_info_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
     aggregation_ms: u32,
-    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<UpdateMessage>) => void")]
-    func: FunctionRef<NapiUpdateMessage, ()>,
+    #[napi(ts_arg_type = "(err: Error, value: UpdateMessage) => void")] func: FunctionRef<
+        NapiUpdateMessage,
+        (),
+    >,
 ) -> napi::Result<()> {
     let func: ThreadsafeFunction<UpdateMessage, (), NapiUpdateMessage, Status, true> = func
         .borrow_back(&env)?
@@ -2322,8 +2327,10 @@ impl From<Arc<dyn CompilationEvent>> for NapiCompilationEvent {
 pub fn project_compilation_events_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: &External<ProjectInstance>,
-    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<CompilationEvent>) => void")]
-    func: FunctionRef<NapiCompilationEvent, ()>,
+    #[napi(ts_arg_type = "(err: Error, value: CompilationEvent) => void")] func: FunctionRef<
+        NapiCompilationEvent,
+        (),
+    >,
     event_types: Option<Vec<String>>,
 ) -> napi::Result<()> {
     let tsfn: ThreadsafeFunction<

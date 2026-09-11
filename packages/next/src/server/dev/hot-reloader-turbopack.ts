@@ -264,7 +264,7 @@ function setupServerHmr(
         // `issues` is intentionally dropped: this pull scans project-wide chunk
         // lists, so its issues may belong to an unrelated or removed route, and
         // endpoint writes already report route-scoped issues.
-        const update = await project.getServerHmrUpdate(
+        const { value: update } = await project.getServerHmrUpdate(
           versions.get(versionKey),
           entryPaths
         )
@@ -1000,7 +1000,7 @@ export async function createHotReloaderTurbopack(
     includeIssues: boolean,
     endpoint: Endpoint,
     createMessage: (
-      change: TurbopackResult,
+      change: TurbopackResult<void>,
       hash: string
     ) => Promise<HmrMessageSentToBrowser> | HmrMessageSentToBrowser | void,
     onError?: (
@@ -1068,15 +1068,15 @@ export async function createHotReloaderTurbopack(
     // emission can be a real update. Ignore only the usual issues-only result.
     try {
       const initial = await subscription.next()
-      if (!initial.done && initial.value.type !== 'issues') {
+      if (!initial.done && initial.value.value.type !== 'issues') {
         processIssues(state.clientIssues, key, initial.value, false, true)
-        sendTurbopackMessage(initial.value as TurbopackUpdate)
+        sendTurbopackMessage(initial.value.value)
       }
 
       for await (const data of subscription) {
         processIssues(state.clientIssues, key, data, false, true)
-        if (data.type !== 'issues') {
-          sendTurbopackMessage(data as TurbopackUpdate)
+        if (data.value.type !== 'issues') {
+          sendTurbopackMessage(data.value)
         }
       }
     } catch (e) {
@@ -1120,7 +1120,7 @@ export async function createHotReloaderTurbopack(
       processTopLevelIssues(currentTopLevelIssues, entrypoints)
 
       // Certain crtical issues prevent any entrypoints from being constructed so return early
-      if (!('routes' in entrypoints)) {
+      if (!('routes' in entrypoints.value)) {
         printBuildErrors(entrypoints, true)
 
         currentEntriesHandlingResolve!()
@@ -1128,7 +1128,7 @@ export async function createHotReloaderTurbopack(
         continue
       }
 
-      const routes = entrypoints.routes
+      const routes = entrypoints.value.routes
       const prevRouteKeys = previousRouteKeys
       const addedRoutes = prevRouteKeys
         ? [...routes.keys()].filter((route) => !prevRouteKeys.has(route))
@@ -1161,8 +1161,10 @@ export async function createHotReloaderTurbopack(
 
           hooks: {
             handleWrittenEndpoint: (id, result, forceDeleteCache) => {
-              currentWrittenEntrypoints.set(id, result)
-              return clearRequireCache(id, result, { force: forceDeleteCache })
+              currentWrittenEntrypoints.set(id, result.value)
+              return clearRequireCache(id, result.value, {
+                force: forceDeleteCache,
+              })
             },
             propagateServerField: propagateServerField.bind(null, opts),
             sendHmr,
@@ -1991,9 +1993,9 @@ export async function createHotReloaderTurbopack(
                 hooks: {
                   subscribeToChanges: subscribeToClientChanges,
                   handleWrittenEndpoint: (id, result, forceDeleteCache) => {
-                    currentWrittenEntrypoints.set(id, result)
-                    assetMapper.setPathsForKey(id, result.clientPaths)
-                    return clearRequireCache(id, result, {
+                    currentWrittenEntrypoints.set(id, result.value)
+                    assetMapper.setPathsForKey(id, result.value.clientPaths)
+                    return clearRequireCache(id, result.value, {
                       force: forceDeleteCache,
                     })
                   },
@@ -2069,13 +2071,16 @@ export async function createHotReloaderTurbopack(
                   : ((async () => {}) as StartChangeSubscription),
                 handleServerComponentChanges,
                 handleWrittenEndpoint: (id, result, forceDeleteCache) => {
-                  currentWrittenEntrypoints.set(id, result)
-                  assetMapper.setPathsForKey(id, result.clientPaths)
-                  shouldPullServerHmr ||= participatesInServerHmr(id, result)
-                  if (result.serverHmrEntryPaths.length > 0) {
-                    serverHmrEntryPaths = result.serverHmrEntryPaths
+                  currentWrittenEntrypoints.set(id, result.value)
+                  assetMapper.setPathsForKey(id, result.value.clientPaths)
+                  shouldPullServerHmr ||= participatesInServerHmr(
+                    id,
+                    result.value
+                  )
+                  if (result.value.serverHmrEntryPaths.length > 0) {
+                    serverHmrEntryPaths = result.value.serverHmrEntryPaths
                   }
-                  return clearRequireCache(id, result, {
+                  return clearRequireCache(id, result.value, {
                     force: forceDeleteCache,
                   })
                 },
