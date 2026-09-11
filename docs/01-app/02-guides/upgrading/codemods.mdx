@@ -291,7 +291,11 @@ npx @next/codemod@latest next-async-request-api .
 ```
 
 This codemod will transform dynamic APIs (`cookies()`, `headers()` and `draftMode()` from `next/headers`) that are now asynchronous to be properly awaited or wrapped with `React.use()` if applicable.
-When an automatic migration isn't possible, the codemod will either add a typecast (if a TypeScript file) or a comment to inform the user that it needs to be manually reviewed & updated.
+When an automatic migration isn't possible, the codemod adds an `@next-codemod-error` comment describing the remaining work. In TypeScript, it can also add a temporary `UnsafeUnwrappedCookies`, `UnsafeUnwrappedHeaders`, or `UnsafeUnwrappedDraftMode` cast. These casts do not complete the migration: update the API access and its callers, then remove the cast and comment.
+
+For a helper that reads request data, make the helper asynchronous and update each caller to await its result. Request APIs must remain inside the request that uses them. See [migrating helpers and their callers](/docs/app/guides/upgrading/version-15#migrating-helpers-and-their-callers).
+
+Search the changed source and codemod output for `@next-codemod-error` after running the codemod. Resolve each finding using the applicable version guide and check the affected behavior. Do not remove a comment just to make the build pass. If a finding is demonstrably inapplicable, replace its directive with `@next-codemod-ignore` and explain why next to it. An ignore records a verified exception; it must not hide an unfinished repair. A successful codemod exit does not establish that the migration is complete.
 
 For example:
 
@@ -323,7 +327,9 @@ import {
   type UnsafeUnwrappedCookies,
   type UnsafeUnwrappedHeaders,
 } from 'next/headers'
-const token = (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
+const token =
+  /* @next-codemod-error Await this API and update its callers; remove the temporary UnsafeUnwrappedCookies cast after repairing the migration. */
+  (cookies() as unknown as UnsafeUnwrappedCookies).get('token')
 
 function useToken() {
   const token = use(cookies()).get('token')
@@ -335,7 +341,10 @@ export default async function Page() {
 }
 
 function getHeader() {
-  return (headers() as unknown as UnsafeUnwrappedHeaders).get('x-foo')
+  return (
+    /* @next-codemod-error Await this API and update its callers; remove the temporary UnsafeUnwrappedHeaders cast after repairing the migration. */
+    (headers() as unknown as UnsafeUnwrappedHeaders).get('x-foo')
+  )
 }
 ```
 

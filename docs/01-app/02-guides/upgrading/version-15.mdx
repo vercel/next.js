@@ -69,6 +69,31 @@ Previously synchronous Request-time APIs that rely on request information are no
 
 To ease the burden of migration, a [codemod is available](/docs/app/guides/upgrading/codemods#150) to automate the process and the APIs can temporarily be accessed synchronously.
 
+### Migrating helpers and their callers
+
+The codemod can leave work that requires context beyond one file. For example, a synchronous helper may read cookies while its callers expect an immediate result:
+
+```tsx filename="lib/viewer.ts"
+import { cookies } from 'next/headers'
+
+export async function readViewer() {
+  return (await cookies()).get('viewer')?.value
+}
+```
+
+Update every caller to await the helper, including Server Components, route handlers, and other helpers:
+
+```tsx filename="app/page.tsx"
+import { readViewer } from '../lib/viewer'
+
+export default async function Page() {
+  const viewer = await readViewer()
+  return <p>{viewer ?? 'Guest'}</p>
+}
+```
+
+Remove the temporary unsafe cast and its `@next-codemod-error` comment after repairing the code. Type assertions only affect TypeScript; they do not await the runtime value. Check the affected route with different request cookies or headers to confirm that each request receives its own data. Do not move request reads to module scope or cache one user's request data for another user.
+
 ### `cookies`
 
 #### Recommended Async Usage
