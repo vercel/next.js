@@ -610,11 +610,14 @@ export declare function projectCompilationEventsSubscribe(
 
 export declare function projectEntrypoints(project: {
   __napiType: 'Project'
-}): Promise<TurbopackResult<Partial<NapiEntrypoints>>>
+}): Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>
 
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
-  func: (err: Error, value: TurbopackResult<Partial<NapiEntrypoints>>) => void
+  func: (
+    err: Error,
+    value: TurbopackResult<Partial<NapiEntrypoints> | null>
+  ) => void
 ): { __napiType: 'RootTask' }
 
 /**
@@ -722,7 +725,7 @@ export declare function projectUpdateInfoSubscribe(
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
-): Promise<TurbopackResult<Partial<NapiEntrypoints>>>
+): Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>
 
 export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },

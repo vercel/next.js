@@ -719,9 +719,9 @@ function bindingToApi(
       const napiEndpoints = (await binding.projectWriteAllEntrypointsToDisk(
         this._nativeProject,
         appDirOnly
-      )) as TurbopackResult<Partial<NapiEntrypoints>>
+      )) as TurbopackResult<Partial<NapiEntrypoints> | null>
 
-      if ('routes' in napiEndpoints.value) {
+      if (napiEndpoints.value && 'routes' in napiEndpoints.value) {
         return napiEntrypointsToRawEntrypoints(
           napiEndpoints as TurbopackResult<NapiEntrypoints>
         )
@@ -740,16 +740,14 @@ function bindingToApi(
     }
 
     entrypointsSubscribe() {
-      const subscription = subscribe<TurbopackResult<NapiEntrypoints | {}>>(
-        false,
-        async (callback) =>
-          binding.projectEntrypointsSubscribe(this._nativeProject, callback)
+      const subscription = subscribe<
+        TurbopackResult<NapiEntrypoints | {} | null>
+      >(false, async (callback) =>
+        binding.projectEntrypointsSubscribe(this._nativeProject, callback)
       )
       return (async function* () {
         for await (const entrypoints of subscription) {
-          if (
-            'routes' in (entrypoints as TurbopackResult<NapiEntrypoints>).value
-          ) {
+          if (entrypoints.value && 'routes' in entrypoints.value) {
             yield napiEntrypointsToRawEntrypoints(
               entrypoints as TurbopackResult<NapiEntrypoints>
             )
