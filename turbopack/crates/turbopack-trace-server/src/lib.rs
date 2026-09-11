@@ -349,8 +349,10 @@ fn contains_in_joined(cat: &str, title: &str, term: &str) -> bool {
     if cat.contains(term) || title.contains(term) {
         return true;
     }
-    // With an empty category the display name is just the title, so there is
-    // no joining space for a term to straddle.
+    // `format_span_name` drops the separator only for an empty category, so
+    // that is the one case with no joining space to straddle. An empty title
+    // still leaves a trailing space, which a term may legitimately end on, so
+    // it must not short-circuit here.
     if cat.is_empty() {
         return false;
     }
@@ -1254,6 +1256,25 @@ mod tests {
             "analyze module",
             "turbopack module"
         ));
+    }
+
+    #[test]
+    fn joined_match_is_equivalent_to_the_formatted_name() {
+        // `contains_in_joined` must agree with formatting the name and calling
+        // `contains`, including when a field is empty. `format_span_name` drops
+        // the separator only for an empty category, so an empty title still
+        // leaves a trailing space — guarding on `title.is_empty()` would lose
+        // the terms that end on it.
+        for (cat, title) in [("foo", ""), ("", "bar"), ("foo", "bar"), ("", "")] {
+            for term in ["foo", "bar", "foo ", " bar", "foo bar", "o b", "", " "] {
+                let expected = format_span_name(cat, title).contains(term);
+                assert_eq!(
+                    contains_in_joined(cat, title, term),
+                    expected,
+                    "cat={cat:?} title={title:?} term={term:?}"
+                );
+            }
+        }
     }
 
     #[test]
