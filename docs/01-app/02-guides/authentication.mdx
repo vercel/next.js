@@ -1139,7 +1139,9 @@ For example, create a separate file for your DAL that includes a `verifySession(
 ```tsx filename="app/lib/dal.ts" switcher
 import 'server-only'
 
+import { cache } from 'react'
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { decrypt } from '@/app/lib/session'
 
 export const verifySession = cache(async () => {
@@ -1157,7 +1159,9 @@ export const verifySession = cache(async () => {
 ```js filename="app/lib/dal.js" switcher
 import 'server-only'
 
+import { cache } from 'react'
 import { cookies } from 'next/headers'
+import { redirect } from 'next/navigation'
 import { decrypt } from '@/app/lib/session'
 
 export const verifySession = cache(async () => {
@@ -1172,7 +1176,9 @@ export const verifySession = cache(async () => {
 })
 ```
 
-You can then invoke the `verifySession()` function in your data requests, Server Actions, Route Handlers:
+You can then invoke the `verifySession()` function in your data requests, Server Actions, and Route Handlers:
+
+> **Good to know:** React's [`cache`](https://react.dev/reference/react/cache) only memoizes during a React render pass. Server Actions and Route Handlers do not render, so a `cache`-wrapped function runs again on every call there — it is not an error, and there is no warning. Call it once and pass the result down if you need the value more than once.
 
 ```tsx filename="app/lib/dal.ts" switcher
 export const getUser = cache(async () => {
@@ -1487,7 +1493,7 @@ import { verifySession } from '@/app/lib/dal'
 
 export async function serverAction() {
   const session = await verifySession()
-  const userRole = session.user.role
+  const userRole = session?.user?.role // Assuming 'role' is part of the session object
 
   // Return early if user is not authorized to perform the action
   if (userRole !== 'admin') {
@@ -1518,7 +1524,7 @@ export async function GET() {
   }
 
   // Check if the user has the 'admin' role
-  if (session.user.role !== 'admin') {
+  if (session?.user?.role !== 'admin') {
     // User is authenticated but does not have the right permissions
     return new Response(null, { status: 403 })
   }
@@ -1541,7 +1547,7 @@ export async function GET() {
   }
 
   // Check if the user has the 'admin' role
-  if (session.user.role !== 'admin') {
+  if (session?.user?.role !== 'admin') {
     // User is authenticated but does not have the right permissions
     return new Response(null, { status: 403 })
   }
