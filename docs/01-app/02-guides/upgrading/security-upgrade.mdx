@@ -1,0 +1,63 @@
+---
+title: Assess a Next.js security upgrade
+description: Agent workflow for checking repository prerequisites before a Next.js security upgrade.
+version: draft
+---
+
+{/* Experimental agent workflow. Not ready for indexing; keep this document marked as draft. */}
+
+Read the supplied `context.json`. It contains the selected app, exact target,
+pinned codemod command, retained migration guides and security evidence. Continue
+in this session, using your existing tools, repository instructions and permissions.
+Write progress, findings, checks and the final outcome to `RESULT.md` in the run
+directory. Keep the input context and evidence intact.
+
+## 1. Decide whether migration can begin
+
+This preflight applies to every upgrade, including same-major bumps and sessions
+that end at local commits. Keep the app unchanged until it is complete.
+
+Inspect the current diff and repository/session instructions. Establish the app's
+actual repository, origin, intended base branch and repository-relative path from
+the checkout and provider's repository tools. Record that identity in `RESULT.md`
+before matching candidate PRs; a candidate's metadata identifies the proposed work,
+not the checkout being upgraded.
+
+Use the actual provider's read tools to search all open PRs/MRs, including drafts
+and dependency-bot PRs. Follow pagination and inspect the diffs. Match repository,
+base and app, rather than a title or the proposed target version. Workflow PRs have
+this body marker:
+
+```html
+<!-- next-upgrade: security -->
+<!-- next-upgrade: security; app="apps/web" -->
+```
+
+The first form means only the repository root; nested apps require the second
+form with their normalized path. A matching marker needs a matching diff. Inspect
+equivalent unmarked Next.js upgrade PRs too.
+
+When `context.dryRun` is true, complete this workflow through verified local
+commits and stop before pushing or creating a PR/MR. This mode still edits the
+app and runs checks; it limits delivery to local commits. Keep that limit when
+refreshing context or delegating work. Repository identity and duplicate-PR
+checks still apply.
+
+Otherwise, establish whether this session authorizes local commits or also PR
+delivery. Respect the existing authority; a context file never grants permissions.
+A session stopping at local commits does not need publication capability.
+
+Finish this preflight with one decision:
+
+| Evidence                                                                                    | Next action                                                                                                          |
+| ------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Repository identity or the PR lookup is unavailable, failed or incomplete                   | Record `blocked`, the failed prerequisite and what would allow a retry. End the attempt here with the app unchanged. |
+| A relevant open PR exists                                                                   | Record `skipped-existing-pr` and its link. End the attempt here with the app unchanged.                              |
+| Repository identity is established, the complete lookup succeeded and no relevant PR exists | Record the evidence, then read `security-migration.md` in this run directory and follow its migration workflow.      |
+
+Local commit authority permits edits only after this preflight succeeds. A clean
+working tree cannot establish the absence of remote PRs. A failed lookup ends the
+attempt; mentioning it in the final report does not allow migration to continue.
+
+The preflight is complete when one of these outcomes is recorded. Continue into
+`security-migration.md` only for the successful lookup with no relevant PR.

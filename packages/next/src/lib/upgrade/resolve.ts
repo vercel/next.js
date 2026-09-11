@@ -14,13 +14,59 @@ import {
   readSecuritySnapshot,
   selectSecurityTarget,
 } from './security'
-import type {
-  UpgradeApp,
-  UpgradeConfig,
-  UpgradeInput,
-  UpgradeResolution,
-  SecuritySnapshot,
-} from './types'
+import type { NextConfig } from '../../server/config-shared'
+import type { SecuritySnapshot } from './security'
+
+export type UpgradeConfig = Pick<
+  NextConfig,
+  'cacheComponents' | 'partialPrefetching'
+> & {
+  experimental?: Pick<
+    NonNullable<NextConfig['experimental']>,
+    'agenticAutoUpgrade'
+  >
+}
+
+export interface UpgradeApp {
+  directory: string
+  nextVersion: string
+  reactVersion: string
+  reactDomVersion: string
+  routers: ('app' | 'pages')[]
+  packageManager: 'npm' | 'pnpm' | 'yarn' | 'bun'
+  config: UpgradeConfig
+  manifestPath: string
+  manifestHash: string
+  lockfilePath?: string
+  lockfileHash?: string
+}
+
+export type UpgradeResolution =
+  | {
+      status: 'disabled' | 'unaffected' | 'blocked'
+      reason: string
+    }
+  | {
+      status: 'ready'
+      app: UpgradeApp
+      target: { nextVersion: string; reason: string }
+      tools: {
+        command: string
+        args: string[]
+        invokingNextVersion: string
+        codemodVersion: string
+      }
+      snapshot: SecuritySnapshot
+    }
+
+export interface UpgradeInput {
+  directory: string
+  config?: { directory: string; value: UpgradeConfig }
+  app?: UpgradeApp
+  snapshot?: SecuritySnapshot
+  target?: string
+  revision?: string
+}
 
 const execFileAsync = promisify(execFile)
 const hash = (contents: string) =>

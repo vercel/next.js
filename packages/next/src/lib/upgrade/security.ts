@@ -1,5 +1,29 @@
 import semver from 'next/dist/compiled/semver'
-import type { Advisory, PackageRelease, SecuritySnapshot } from './types'
+
+export interface Advisory {
+  ghsa_id: string
+  html_url: string
+  withdrawn_at: string | null
+  vulnerabilities: {
+    package: { ecosystem: string; name: string }
+    vulnerable_version_range: string
+  }[]
+}
+
+export interface PackageRelease {
+  version: string
+  publishedAt: string
+  engines?: { node?: string }
+  peerDependencies?: Record<string, string>
+}
+
+export interface SecuritySnapshot {
+  complete: true
+  checkedAt: string
+  advisories: Advisory[]
+  releases: PackageRelease[]
+  evidenceReferences: string[]
+}
 
 const ADVISORIES =
   'https://api.github.com/advisories?ecosystem=npm&affects=next&type=reviewed&per_page=100'

@@ -13,8 +13,8 @@ import {
   selectSecurityTarget,
 } from './security'
 import { CONFIG_FILES } from '../../shared/lib/constants'
-import type { UpgradeDependencies } from './resolve'
-import type { Advisory, SecuritySnapshot, UpgradeApp } from './types'
+import type { UpgradeApp, UpgradeDependencies } from './resolve'
+import type { Advisory, SecuritySnapshot } from './security'
 
 const now = new Date('2026-09-10T12:00:00Z')
 const config = { experimental: { agenticAutoUpgrade: 'security' as const } }
