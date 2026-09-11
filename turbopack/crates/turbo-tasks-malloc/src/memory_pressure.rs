@@ -18,7 +18,7 @@ fn clamp_percent(value: f64) -> u8 {
     value.round().clamp(0.0, 100.0) as u8
 }
 
-#[cfg(all(target_os = "linux", not(target_family = "wasm")))]
+#[cfg(all(target_os = "linux", not(target_family = "wasm"), not(miri)))]
 mod platform {
     use super::clamp_percent;
 
@@ -184,7 +184,7 @@ mod platform {
 }
 
 #[cfg(not(any(
-    all(target_os = "linux", not(target_family = "wasm")),
+    all(target_os = "linux", not(target_family = "wasm"), not(miri)),
     target_os = "macos",
     windows,
 )))]

@@ -18,18 +18,18 @@ harness = false
 [dev-dependencies]
 criterion = { workspace = true }
 
-[target.'cfg(not(target_family = "wasm"))'.dependencies]
+[target.'cfg(all(not(target_family = "wasm"), not(miri)))'.dependencies]
 libmimalloc-sys = { version = "0.1.44", features = [
   "extended",
 ], optional = true }
 
-[target.'cfg(not(any(target_os = "linux", target_family = "wasm")))'.dependencies]
+[target.'cfg(not(any(target_os = "linux", target_family = "wasm", miri)))'.dependencies]
 mimalloc = { version = "0.1.48", features = [
   "v3",
   "extended",
 ], optional = true }
 
-[target.'cfg(all(target_os = "linux", not(target_family = "wasm")))'.dependencies]
+[target.'cfg(all(target_os = "linux", not(target_family = "wasm"), not(miri)))'.dependencies]
 mimalloc = { version = "0.1.48", features = [
   "v3",
   "extended",
