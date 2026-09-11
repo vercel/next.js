@@ -11,6 +11,10 @@ on:
         required: false
         description: 'whether to skip pnpm install && pnpm build'
         type: string
+      skipBuild:
+        required: false
+        description: 'whether to skip pnpm build while still running pnpm install'
+        type: string
       skipNativeBuild:
         required: false
         description: 'whether to skip building native modules'
@@ -410,7 +414,7 @@ jobs:
         run: pnpm dlx turbo@${TURBO_VERSION} run get-test-timings -- --build ${{ github.sha }}
 
       - run: ANALYZE=1 pnpm build
-        if: ${{ inputs.skipInstallBuild != 'yes' }}
+        if: ${{ inputs.skipInstallBuild != 'yes' && inputs.skipBuild != 'yes' }}
 
       - name: Normalize input step names into path key
         uses: actions/github-script@d746ffe35508b1917358783b479e04febd2b8f71 # v9.0.0
