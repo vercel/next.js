@@ -2300,7 +2300,7 @@ export const defaultConfig = Object.freeze({
     cssChunking: true,
     multiZoneDraftMode: false,
     appNavFailHandling: false,
-    parallelRouteMetadata: false,
+    parallelRouteMetadata: true,
     prerenderEarlyExit: true,
     serverMinification: true,
     linkNoTouchStart: false,
