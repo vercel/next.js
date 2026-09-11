@@ -1232,6 +1232,34 @@ export const getUser = cache(async () => {
 })
 ```
 
+`verifySession()` redirects, which suits pages. Callers that need to _respond_ rather than navigate — Route Handlers, for example — want a variant that reports failure instead of redirecting:
+
+```tsx filename="app/lib/dal.ts" switcher
+export async function getSession() {
+  const cookie = (await cookies()).get('session')?.value
+  const session = await decrypt(cookie)
+
+  if (!session?.userId) {
+    return null
+  }
+
+  return { isAuth: true, userId: session.userId }
+}
+```
+
+```js filename="app/lib/dal.js" switcher
+export async function getSession() {
+  const cookie = (await cookies()).get('session')?.value
+  const session = await decrypt(cookie)
+
+  if (!session?.userId) {
+    return null
+  }
+
+  return { isAuth: true, userId: session.userId }
+}
+```
+
 > **Tip**:
 >
 > - A DAL can be used to protect data fetched at request time. However, for static routes that share data between users, data will be fetched at build time and not at request time. Use [Proxy](#optimistic-checks-with-proxy-optional) to protect static routes.
@@ -1508,14 +1536,16 @@ export async function serverAction() {
 
 Treat [Route Handlers](/docs/app/api-reference/file-conventions/route) with the same security considerations as public-facing API endpoints, and verify if the user is allowed to access the Route Handler.
 
+Use `getSession()` rather than `verifySession()` here. A Route Handler should answer with a status code a programmatic caller can act on, not redirect it to a login page.
+
 For example:
 
 ```ts filename="app/api/route.ts" switcher
-import { verifySession } from '@/app/lib/dal'
+import { getSession } from '@/app/lib/dal'
 
 export async function GET() {
   // User authentication and role verification
-  const session = await verifySession()
+  const session = await getSession()
 
   // Check if the user is authenticated
   if (!session) {
@@ -1534,11 +1564,11 @@ export async function GET() {
 ```
 
 ```js filename="app/api/route.js" switcher
-import { verifySession } from '@/app/lib/dal'
+import { getSession } from '@/app/lib/dal'
 
 export async function GET() {
   // User authentication and role verification
-  const session = await verifySession()
+  const session = await getSession()
 
   // Check if the user is authenticated
   if (!session) {
