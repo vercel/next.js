@@ -3,8 +3,8 @@ import { nextTestSetup } from 'e2e-utils'
 // This test exercises `next build` outputs and `next start` behaviour, so it
 // is meaningless in dev mode where the dev server bypasses production build
 // artifacts (e.g. statically prerendered 500.html from getStaticProps).
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This suite calls next.patchFile() to change fixture files after setup.
+// Deployment mode cannot mutate the deployed fixture.
 // @force-gate !deploy
 // @force-gate !dev
 describe('500 Page build validation', () => {

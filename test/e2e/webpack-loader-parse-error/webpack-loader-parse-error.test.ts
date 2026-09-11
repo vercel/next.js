@@ -75,8 +75,8 @@ function extractErrorBlock(output: string, errorTitle: string): string {
   return block.trimEnd()
 }
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This scope deliberately triggers compiler or configuration errors and checks diagnostics.
+// The deploy harness requires a successful build before test assertions can run.
 // @force-gate !deploy
 describe('webpack-loader-parse-error (development)', () => {
   const { next, isTurbopack, isNextDev } = nextTestSetup({
@@ -199,8 +199,8 @@ describe('webpack-loader-parse-error (development)', () => {
   })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This scope deliberately triggers compiler or configuration errors and checks diagnostics.
+// The deploy harness requires a successful build before test assertions can run.
 // @force-gate !deploy
 describe('webpack-loader-parse-error (production)', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({

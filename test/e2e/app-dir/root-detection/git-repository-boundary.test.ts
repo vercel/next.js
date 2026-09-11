@@ -8,8 +8,8 @@ import { packageJson, packageLock } from './test-utils'
 //     ├── .git/
 //     ├── package-lock.json
 //     └── app/                 the Next.js app
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite creates a local Git boundary and checks diagnostics with next.testDir paths.
+// A deployment has a different checkout layout and filesystem paths.
 // @force-gate !deploy
 describe('root-detection - git repository boundary', () => {
   const { next, isTurbopack } = nextTestSetup({

@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This scope deliberately triggers compiler or configuration errors and checks diagnostics.
+// The deploy harness requires a successful build before test assertions can run.
 // @force-gate !deploy
 describe('next-config-ts-type-error-cjs', () => {
   // TODO: Remove this once we bump minimum Node.js version to v22

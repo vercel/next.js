@@ -18,8 +18,8 @@ describe('swcPlugins', () => {
       expect(html).not.toContain('data-custom-attribute')
     })
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely expects a local build failure instead of a successful deployment.
+  // This scope checks development diagnostics for an invalid SWC plugin.
+  // The invalid plugin cannot produce a successful deployment for these assertions.
   // @force-gate !deploy
   // @force-gate dev
   describe('incompatible plugin version', () => {
@@ -58,8 +58,8 @@ describe('swcPlugins', () => {
       }
     })
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely expects a local build failure instead of a successful deployment.
+  // This scope checks development diagnostics for an invalid SWC plugin.
+  // The invalid plugin cannot produce a successful deployment for these assertions.
   // @force-gate !deploy
   // @force-gate dev
   describe('invalid plugin name', () => {

@@ -1,7 +1,7 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite calls next.patchFile() to change fixture files after setup.
+// Deployment mode cannot mutate the deployed fixture.
 // @force-gate !deploy
 describe('Nullish configs in next.config.js', () => {
   const { next } = nextTestSetup({

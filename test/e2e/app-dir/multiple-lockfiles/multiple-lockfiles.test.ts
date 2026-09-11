@@ -2,8 +2,8 @@ import { join } from 'path'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This fixture creates parent-directory lockfiles to test workspace-root diagnostics.
+// The deployment upload does not preserve the local parent-directory layout under test.
 // @force-gate !deploy
 describe('multiple-lockfiles', () => {
   const { next, isTurbopack } = nextTestSetup({

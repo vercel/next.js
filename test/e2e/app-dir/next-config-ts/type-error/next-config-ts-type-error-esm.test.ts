@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite runs next.build() to inspect build output or errors.
+// Deploy mode requires a successful deployment and cannot run these local builds.
 // @force-gate !deploy
 describe('next-config-ts-type-error-esm', () => {
   const { next, isNextDev } = nextTestSetup({

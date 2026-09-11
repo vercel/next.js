@@ -2,8 +2,8 @@ import fs from 'fs/promises'
 import { join } from 'path'
 import { nextTestSetup, isNextStart, isNextDev } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely mutates files in the isolated local fixture after setup.
+// This suite inspects local build output to verify external dependency bundling.
+// Deployment mode cannot expose those generated files or run additional builds.
 // @force-gate !deploy
 describe('externals-pages-bundle', () => {
   const { next, isTurbopack } = nextTestSetup({

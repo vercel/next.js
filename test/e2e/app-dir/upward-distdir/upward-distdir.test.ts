@@ -1,7 +1,7 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
+// This fixture writes its build output above the project root.
+// Deployment setup expects project build artifacts and cannot find this fixture's BUILD_ID.
 // @force-gate !deploy
 describe('upward-distdir', () => {
   const { next } = nextTestSetup({

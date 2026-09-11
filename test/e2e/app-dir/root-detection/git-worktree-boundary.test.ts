@@ -13,8 +13,8 @@ import {
 //     ├── .git                         a file pointing at the Git directory
 //     ├── package-lock.json
 //     └── app/                         the Next.js app
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite creates local .git worktree metadata and asserts its absolute paths.
+// A deployment does not preserve that local worktree layout.
 // @force-gate !deploy
 describe('root-detection - git worktree boundary', () => {
   const { next } = nextTestSetup({
