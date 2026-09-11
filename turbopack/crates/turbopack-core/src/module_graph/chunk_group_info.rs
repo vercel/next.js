@@ -625,11 +625,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         ChunkingType::Isolated {
                             merge_tag: None, ..
                         }
-                        | ChunkingType::Worker { .. } => {
-                            ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                                ChunkGroupKey::Isolated(node),
-                            )))
-                        }
+                        | ChunkingType::Worker { .. } => ChunkGroupInheritance::ChunkGroup(
+                            Either::Left(std::iter::once(ChunkGroupKey::Isolated(node))),
+                        ),
                         ChunkingType::Shared {
                             merge_tag: None, ..
                         } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(

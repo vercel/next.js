@@ -541,6 +541,11 @@ pub struct ChunkGroupContentInner {
     /// All modules that implement CollectingModule
     #[bincode(with = "turbo_bincode::indexset")]
     pub collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
+    /// The `WorkerEntryModule` markers reached over `ChunkingType::Worker` edges. The real
+    /// `WorkerLoaderModule` is created from each of these during `make_chunk_group`, so it can
+    /// be given this chunk group's availability info.
+    #[bincode(with = "turbo_bincode::indexset")]
+    pub worker_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
     pub available_modules: ResolvedVc<AvailableModulesSet>,
 }
 

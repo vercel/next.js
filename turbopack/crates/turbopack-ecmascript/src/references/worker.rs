@@ -12,8 +12,9 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::{ChunkableModule, ChunkingContext, ChunkingType, EvaluatableAsset},
-    chunk::worker_type::WorkerType,
+    chunk::{
+        ChunkableModule, ChunkingContext, ChunkingType, EvaluatableAsset, worker_type::WorkerType,
+    },
     context::AssetContext,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -33,7 +34,7 @@ use crate::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
     },
-    worker_chunk::module::WorkerLoaderModule,
+    worker_chunk::entry_module::WorkerEntryModule,
 };
 
 /// A unified reference to a Worker (web or Node.js) that creates an isolated chunk group
@@ -168,12 +169,16 @@ impl ModuleReference for WorkerAssetReference {
         };
 
         // When tracing only (no code generation), return the resolved modules directly
-        // without wrapping them in WorkerLoaderModule
+        // without wrapping them in WorkerEntryModule
         if self.tracing_only {
             return Ok(result);
         }
 
-        // Wrap each resolved module in a WorkerLoaderModule
+        // Wrap each resolved module in a WorkerEntryModule. This is a graph-level
+        // marker carrying the worker type and asset context; the actual
+        // `WorkerLoaderModule` is created later, during chunking, so it can be given
+        // the enclosing chunk group's availability info (see
+        // `ChunkingContext::worker_loader_chunk_item`).
         let result_ref = result.await?;
         let mut primary = Vec::with_capacity(result_ref.primary.len());
 
@@ -234,14 +239,14 @@ impl ModuleReference for WorkerAssetReference {
                         continue;
                     }
 
-                    let loader =
-                        WorkerLoaderModule::new(*chunkable, self.worker_type, *asset_context)
+                    let entry_module =
+                        WorkerEntryModule::new(*chunkable, self.worker_type, *asset_context)
                             .to_resolved()
                             .await?;
 
                     primary.push((
                         request_key.clone(),
-                        ModuleResolveResultItem::Module(ResolvedVc::upcast(loader)),
+                        ModuleResolveResultItem::Module(ResolvedVc::upcast(entry_module)),
                     ));
                 }
                 // Pass through other result types (External, Ignore, etc.)
@@ -259,9 +264,19 @@ impl ModuleReference for WorkerAssetReference {
     }
 
     fn chunking_type(&self) -> Option<ChunkingType> {
-        Some(ChunkingType::Parallel {
-            inherit_async: false,
-            hoisted: false,
+        if self.tracing_only {
+            // Tracing-only references resolve to the raw worker module rather than a
+            // `WorkerEntryModule`, so they must not take the worker chunking path
+            // (which creates a `WorkerLoaderModule` from that marker during
+            // chunking). Keep following them as plain parallel references so the
+            // traced subgraph still lists the worker's files.
+            return Some(ChunkingType::Parallel {
+                inherit_async: false,
+                hoisted: false,
+            });
+        }
+        Some(ChunkingType::Worker {
+            ty: self.worker_type,
         })
     }
 

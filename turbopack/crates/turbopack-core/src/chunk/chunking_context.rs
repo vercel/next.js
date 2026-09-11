@@ -486,6 +486,19 @@ pub trait ChunkingContext {
         chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     ) -> Vc<Box<dyn OutputAsset>>;
 
+    /// Creates a worker loader chunk item for the given module graph node.
+    /// The implementation downcasts to `WorkerEntryModule` (from
+    /// `turbopack‑ecmascript`) to construct a `WorkerLoaderModule`.  The
+    /// worker runs with the provided availability info so self‑referencing
+    /// workers unroll like async imports.
+    #[turbo_tasks::function]
+    async fn worker_loader_chunk_item(
+        self: Vc<Self>,
+        module: Vc<Box<dyn Module>>,
+        module_graph: Vc<ModuleGraph>,
+        availability_info: AvailabilityInfo,
+    ) -> Result<Vc<Box<dyn ChunkItem>>>;
+
     #[turbo_tasks::function]
     fn chunk_group(
         self: Vc<Self>,
