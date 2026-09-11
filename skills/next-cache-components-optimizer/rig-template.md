@@ -89,9 +89,11 @@ contract and click the real `<Link>` for a client-navigation contract.
 
 ### Repeat and browser-back assertions
 
-On a repeat or browser-back navigation, the client router can reuse a previously
-visited segment. Its DOM may still exist while hidden, so `toHaveCount(0)` can
-fail even though that content is not part of the current instant UI.
+With Cache Components enabled, the client router uses React Activity to preserve
+some previously visited routes. On a repeat or browser-back navigation, the
+route's DOM may still exist with `display: none`, so `toHaveCount(0)` can fail
+even though that content is not part of the visible instant UI. See the public
+[`instant()` testing guidance](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
 
 Match the assertion to the contract:
 

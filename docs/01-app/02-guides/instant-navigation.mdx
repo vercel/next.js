@@ -373,6 +373,8 @@ Inside the callback, an initial page load shows the static UI and a client navig
 
 For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
 
+On a first visit to a destination, an absence assertion such as `toHaveCount(0)` can prove that deferred content has not committed. For repeat and browser-back navigations, Next.js may preserve a previously visited route in a hidden [React Activity boundary](/docs/app/guides/preserving-ui-state#testing). Its DOM remains in the document, but it is not part of the visible instant UI. In those tests, assert that the deferred content has no visible match while the intended instant UI is visible.
+
 Run these against `next dev`, where the testing API is enabled automatically. To run them in CI against a production build, set `exposeTestingApiInProductionBuild` so `next start` exposes the same API:
 
 ```ts filename="next.config.ts" highlight={5}
