@@ -21,6 +21,25 @@ export class LazyModule<TModule> {
     private readonly onLoad: (module: TModule) => void
   ) {}
 
+  /**
+   * Initializes an unloaded instance from an already resolved module without
+   * invoking the loader again. A concurrent or earlier load remains the
+   * authoritative baseline.
+   */
+  initializeIfNeeded(module: TModule): void {
+    if (this.state.status !== 'uninitialized') {
+      return
+    }
+
+    this.onLoad(module)
+    this.state = { status: 'resolved', module }
+  }
+
+  /** Whether neither the loader nor initializeIfNeeded has run yet. */
+  get isUninitialized(): boolean {
+    return this.state.status === 'uninitialized'
+  }
+
   loadIfNeeded(): void {
     if (this.state.status !== 'uninitialized') {
       return
