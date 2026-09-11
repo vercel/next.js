@@ -380,9 +380,6 @@ describe('app-root-param-getters - cache - at build', () => {
   }
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// In deploy mode, concurrent requests could hit different lambdas.
-// @force-gate !deploy
 describe('app-root-param-getters - cache dedup with root params', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
