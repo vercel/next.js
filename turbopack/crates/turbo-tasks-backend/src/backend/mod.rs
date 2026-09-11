@@ -2096,6 +2096,22 @@ impl TurboTasksBackend {
         drop(in_progress_cells);
     }
 
+    fn rollback_aborted_collectibles(
+        &self,
+        task_id: TaskId,
+        collectible_deltas: FxHashMap<CollectibleRef, i32>,
+        turbo_tasks: &TurboTasks<TurboTasksBackend>,
+    ) {
+        for (collectible, delta) in collectible_deltas {
+            operation::UpdateCollectibleOperation::run_rollback(
+                task_id,
+                collectible,
+                -delta,
+                self.execute_context(turbo_tasks),
+            );
+        }
+    }
+
     fn task_execution_aborted(
         &self,
         task_id: TaskId,
@@ -2107,15 +2123,14 @@ impl TurboTasksBackend {
             unreachable!("only cached native tasks have abort handles")
         };
         let native_fn = task_type.native_fn;
-        let Some(in_progress) = task.take_in_progress() else {
-            // Completion or another abort callback won the race.
-            return None;
-        };
-        let InProgressState::InProgress(in_progress) = in_progress else {
-            // Another state transition won the race. Preserve that state.
-            let old = task.set_in_progress(in_progress);
-            debug_assert!(old.is_none(), "InProgress already exists");
-            return None;
+        // This callback is reached only from CaptureFutureOutcome::Aborted. That outcome is
+        // mutually exclusive with successful completion, and no other abort request or connection
+        // transition consumes a running execution's state.
+        let in_progress = match task.take_in_progress() {
+            Some(InProgressState::InProgress(in_progress)) => in_progress,
+            state => panic!(
+                "aborted task execution must own InProgressState::InProgress, found {state:?}"
+            ),
         };
         let abort_reason = in_progress
             .abort_reason()
@@ -2133,10 +2148,21 @@ impl TurboTasksBackend {
             trigger = abort_reason.as_str(),
         );
         let aborted_as_unneeded = in_progress.abort_when_unneeded();
+        // `outdated_collectibles` is generation-local bookkeeping initialized at execution start.
+        // The aborted generation will never reach completion cleanup, so discard it before
+        // reversing that generation's actual current-collectible deltas below.
+        let outdated_collectibles = task
+            .iter_outdated_collectibles()
+            .map(|(collectible, _)| *collectible)
+            .collect::<Vec<_>>();
+        for collectible in outdated_collectibles {
+            task.remove_outdated_collectibles(&collectible);
+        }
         let InProgressStateInner {
             stale,
             done_event,
             mut new_children,
+            collectible_deltas,
             ..
         } = *in_progress;
 
@@ -2166,17 +2192,20 @@ impl TurboTasksBackend {
             });
             debug_assert!(old.is_none(), "InProgress already exists");
             drop(task);
+            self.rollback_aborted_collectibles(task_id, collectible_deltas, turbo_tasks);
             decrease_active_counts_of_new_children(new_children, &mut ctx);
             return Some(priority);
         }
-        drop(task);
-
-        decrease_active_counts_of_new_children(new_children, &mut ctx);
 
         // Discard the aborted execution state and make the task dirty without scheduling it while
-        // it is disconnected.
+        // it is disconnected. Queue child decrements first, but execute all recursive aggregation
+        // work only after releasing the parent guard.
         let mut queue = AggregationUpdateQueue::new();
-        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        if !new_children.is_empty() {
+            queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                task_ids: new_children.drain().collect(),
+            });
+        }
         make_task_dirty_internal(
             &mut task,
             MakeTaskDirtyOptions {
@@ -2191,6 +2220,7 @@ impl TurboTasksBackend {
             &mut ctx,
         );
         drop(task);
+        self.rollback_aborted_collectibles(task_id, collectible_deltas, turbo_tasks);
         queue.execute(&mut ctx);
 
         // A connection may race with dropping the aborted future. Re-check liveness after the
@@ -2282,6 +2312,7 @@ impl TurboTasksBackend {
                     marked_as_completed: false,
                     new_children: Default::default(),
                     native_fn,
+                    collectible_deltas: Default::default(),
                     abort_handle,
                     abort_state: AtomicU8::new(0),
                 },
