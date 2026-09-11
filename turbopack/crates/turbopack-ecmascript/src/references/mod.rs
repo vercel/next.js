@@ -35,7 +35,6 @@ use std::{
 };
 
 use anyhow::{Context, Result, bail};
-use bincode::{Decode, Encode};
 use bumpalo::boxed::Box as BumpBox;
 use constant_condition::{ConstantConditionCodeGen, ConstantConditionValue};
 use constant_value::ConstantValueCodeGen;
@@ -68,8 +67,8 @@ use tokio::sync::OnceCell;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, TaskInput,
-    TryJoinIterExt, Upcast, ValueToString, Vc, trace::TraceRawVcs, turbofmt,
+    FxIndexMap, FxIndexSet, PrettyPrintError, ReadRef, ResolvedVc, TryJoinIterExt, Upcast,
+    ValueToString, Vc, turbofmt,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -113,7 +112,7 @@ use crate::{
         top_level_await::has_top_level_await,
         well_known::replace_well_known,
     },
-    ast_path_trie::{AstPathId, AstPathTrie},
+    ast_path_trie::{AstPathId, AstPathTrieBuilder},
     chunk::CjsStaticExports,
     code_gen::{CodeGen, CodeGens, IntoCodeGenReference},
     errors,
@@ -235,7 +234,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     /// Handed to the resulting [`CodeGens`] once analysis finishes.
     ///
     /// `RefCell` so that interning composes with the `&mut self` `add_*` methods.
-    ast_paths: RefCell<AstPathTrie>,
+    ast_paths: RefCell<AstPathTrieBuilder>,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
@@ -273,7 +272,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     ///
     /// Must happen before any path is interned here, so that ids minted against `paths`
     /// keep pointing at the same nodes.
-    pub fn adopt_ast_paths(&mut self, paths: AstPathTrie) {
+    pub fn adopt_ast_paths(&mut self, paths: AstPathTrieBuilder) {
         debug_assert_eq!(
             self.ast_paths.borrow().node_count(),
             0,
@@ -286,8 +285,11 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     ///
     /// Takes `&self` so it composes with the `add_*` methods, which take `&mut self`: the
     /// common shape is `analysis.add_code_gen(X::new(analysis.intern_path(..)))`.
-    pub fn intern_path(&self, path: &[AstParentKind]) -> AstPath {
-        self.ast_paths.borrow_mut().intern(path).into()
+    pub fn intern_path(&self, path: &[AstParentKind]) -> AstPathId {
+        self.ast_paths
+            .borrow_mut()
+            .intern(path.iter().copied())
+            .into()
     }
 
     /// Adds an asset reference to the analysis result.
@@ -300,7 +302,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     pub fn add_reference_code_gen<R: IntoCodeGenReference>(
         &mut self,
         reference: R,
-        path: AstPath,
+        path: AstPathId,
         link_context: ValueLinkContext,
     ) {
         match link_context {
@@ -483,10 +485,13 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 esm_reexport_references: ResolvedVc::cell(
                     esm_reexport_references.unwrap_or_default(),
                 ),
-                code_generation: CodeGens::new(code_generation, self.ast_paths.into_inner())
-                    .into_cell()
-                    .to_resolved()
-                    .await?,
+                code_generation: CodeGens::new(
+                    code_generation,
+                    self.ast_paths.into_inner().build(),
+                )
+                .into_cell()
+                .to_resolved()
+                .await?,
                 async_module: self.async_module,
                 successful: self.successful,
                 source_map: self.source_map,
@@ -883,7 +888,7 @@ async fn analyze_ecmascript_module_internal(
 
     let span = tracing::trace_span!("effects processing");
     async {
-        // The graph's code gens carry `AstPath`s interned into the graph's own trie, so
+        // The graph's code gens carry `AstPathId`s interned into the graph's own trie, so
         // adopt that trie before taking them; effect processing then keeps interning into
         // it, and every path in the module ends up in one arena.
         analysis.adopt_ast_paths(take(&mut var_graph.ast_paths));
@@ -4416,38 +4421,6 @@ async fn require_context_visitor<'a>(
             RequireContextValue::from_context_map(map).await?,
         )),
     ))
-}
-
-/// A path to an AST node, stored as an index into a shared [`AstPathTrie`].
-///
-/// Paths overlap heavily - in a nested expression each one is typically a prefix of the
-/// next - so they are interned rather than stored flat, and code generation refers to them
-/// by this 4-byte handle. Resolving one needs the trie it was interned into, which is
-/// stored next to the code generations in [`CodeGens`](crate::code_gen::CodeGens).
-#[derive(Hash, Debug, Clone, Copy, Eq, PartialEq, TraceRawVcs, Encode, Decode)]
-pub struct AstPath(#[turbo_tasks(trace_ignore)] AstPathId);
-
-impl TaskInput for AstPath {
-    fn is_transient(&self) -> bool {
-        false
-    }
-}
-unsafe impl NonLocalValue for AstPath {}
-
-impl AstPath {
-    pub fn id(self) -> AstPathId {
-        self.0
-    }
-
-    pub fn is_empty(self) -> bool {
-        self.0.is_root()
-    }
-}
-
-impl From<AstPathId> for AstPath {
-    fn from(id: AstPathId) -> Self {
-        Self(id)
-    }
 }
 
 pub static TURBOPACK_HELPER: LazyLock<Atom> = LazyLock::new(|| atom!("__turbopack-helper__"));

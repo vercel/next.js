@@ -16,7 +16,7 @@ use crate::{
         ConstantNumber, ConstantValue, JsValue, JsValueUrlKind, ModuleValue, WellKnownFunctionKind,
         WellKnownObjectKind,
     },
-    references::AstPath,
+    ast_path_trie::AstPathId,
 };
 
 pub fn unparen(expr: &Expr) -> &Expr {
@@ -219,10 +219,10 @@ format_iter!(std::fmt::UpperHex);
 #[derive(Clone, Copy, PartialEq, Eq, TraceRawVcs, Debug, NonLocalValue, Hash, Encode, Decode)]
 pub enum AstPathRange {
     /// The ast path to the block or expression.
-    Exact(AstPath),
+    Exact(AstPathId),
     /// The ast path to a expression just before the range in the parent of the
     /// specific ast path.
-    StartAfter(AstPath),
+    StartAfter(AstPathId),
 }
 
 /// Converts a module value (ie an import) to a well known object,

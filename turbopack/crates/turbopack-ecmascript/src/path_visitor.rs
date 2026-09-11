@@ -1,4 +1,5 @@
-use rustc_hash::{FxHashMap, FxHashSet};
+use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 use swc_core::{
     common::pass::AstKindPath,
     ecma::{
@@ -12,65 +13,73 @@ use crate::{
     code_gen::{AstModifier, ModifiableAst},
 };
 
-/// The modifiers to run at each node of an [`AstPathTrie`], plus which subtrees are worth
-/// descending into.
+/// What to do at one node while applying code generation.
+#[derive(Default)]
+struct Target<'a> {
+    /// Modifiers to run at this node. Rarely more than one.
+    modifiers: SmallVec<[&'a dyn AstModifier; 1]>,
+    /// Children that lead to a modifier, keyed by the kind that reaches them. A kind absent
+    /// here has nothing below it, so its subtree is skipped.
+    children: FxHashMap<AstParentKind, AstPathId>,
+}
+
+/// The modifiers to run, indexed for a single downward walk of the AST.
 ///
-/// Built once per code generation pass. Paths are located by walking the trie alongside the
-/// AST, so matching a node costs one hash lookup per level instead of a binary search over
-/// a sorted list of full paths.
+/// The trie records every interned path, most of which no modifier is attached to, so this
+/// precomputes the part the walk actually needs: for each node on the way to a modifier,
+/// the children worth descending into. Matching a node is then one lookup against the
+/// current node's children.
+#[derive(Default)]
 pub struct Visitors<'a> {
-    trie: &'a AstPathTrie,
-    /// Modifiers to apply at a node, for nodes that have any.
-    at: FxHashMap<AstPathId, Vec<&'a dyn AstModifier>>,
-    /// Nodes that lie on the path to some entry in `at`. A node in neither this nor `at`
-    /// has no modifier below it, so its subtree is skipped.
-    on_path_to: FxHashSet<AstPathId>,
+    nodes: FxHashMap<AstPathId, Target<'a>>,
 }
 
 impl<'a> Visitors<'a> {
-    /// Indexes `visitors` by trie node. Paths that are empty (the program root) are not
-    /// accepted here; those are applied directly by the caller.
+    /// Indexes `visitors` for the walk. Root paths are applied directly by the caller and
+    /// are not accepted here.
     pub fn new(
-        trie: &'a AstPathTrie,
+        trie: &AstPathTrie,
         visitors: impl IntoIterator<Item = (AstPathId, &'a dyn AstModifier)>,
     ) -> Self {
-        let mut at: FxHashMap<AstPathId, Vec<&'a dyn AstModifier>> = FxHashMap::default();
-        let mut on_path_to: FxHashSet<AstPathId> = FxHashSet::default();
+        let mut nodes: FxHashMap<AstPathId, Target<'a>> = FxHashMap::default();
         for (id, visitor) in visitors {
             debug_assert!(
                 !id.is_root(),
                 "a root path should be applied as a root visitor, not matched by descent",
             );
-            at.entry(id).or_default().push(visitor);
-            // Mark the ancestors so the descent knows this subtree is worth entering.
-            let mut current = trie.parent(id);
-            while let Some(ancestor) = current {
-                // Once an ancestor is marked, everything above it already is.
-                if !on_path_to.insert(ancestor) {
+            nodes.entry(id).or_default().modifiers.push(visitor);
+
+            // Link this node back to the root so the walk can reach it. Everything above an
+            // already-linked node is linked too, so stop there.
+            let mut child = id;
+            while let Some(kind) = trie.get(child) {
+                let parent = trie.parent_or_root(child);
+                if nodes
+                    .entry(parent)
+                    .or_default()
+                    .children
+                    .insert(kind, child)
+                    .is_some()
+                {
                     break;
                 }
-                current = trie.parent(ancestor);
+                child = parent;
             }
         }
-        Self {
-            trie,
-            at,
-            on_path_to,
-        }
+        Self { nodes }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.at.is_empty()
+        self.nodes.is_empty()
     }
 }
 
-/// Applies the modifiers in [`Visitors`] to the nodes their paths point at.
+/// Applies the modifiers in [`Visitors`] to the nodes they address.
 ///
-/// Holds the trie node matching the AST node currently being visited; each visit step looks
-/// up the child for the kind the AST walk reports and recurses with it.
+/// Holds the indexed node matching the AST node being visited; each step looks up the child
+/// for the kind the walk reports and recurses with it.
 pub struct ApplyVisitors<'a, 'b> {
     visitors: &'b Visitors<'a>,
-    /// The trie node corresponding to the node being visited.
     current: AstPathId,
     /// How far along `ast_path` `current` accounts for.
     index: usize,
@@ -90,21 +99,25 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
     where
         N: ModifiableAst + for<'aa, 'bb> VisitMutWithAstPath<ApplyVisitors<'aa, 'bb>>,
     {
-        // The AST walk only reports a subset of node types, so `ast_path` may have grown by
-        // several elements since the last call. Step the trie down each of them.
+        // The walk only reports a subset of node types, so `ast_path` may have grown by
+        // several elements since the last call. Step down each of them.
         let mut current = self.current;
         for index in self.index..ast_path.len() {
-            let Some(child) = self.visitors.trie.child(current, ast_path[index]) else {
-                // No interned path goes through here, so nothing in this subtree matches.
+            let Some(target) = self.visitors.nodes.get(&current) else {
+                return;
+            };
+            let Some(&child) = target.children.get(&ast_path[index]) else {
+                // Nothing below here is addressed, so skip the whole subtree.
                 return;
             };
             current = child;
         }
 
-        let modifiers = self.visitors.at.get(&current);
-        let descend = self.visitors.on_path_to.contains(&current);
+        let Some(target) = self.visitors.nodes.get(&current) else {
+            return;
+        };
 
-        if descend {
+        if !target.children.is_empty() {
             n.visit_mut_children_with_ast_path(
                 &mut ApplyVisitors {
                     visitors: self.visitors,
@@ -117,10 +130,8 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
 
         // Modifiers run after descending, so a modifier that rewrites this node cannot
         // invalidate the paths of the nodes below it.
-        if let Some(modifiers) = modifiers {
-            for visitor in modifiers {
-                n.modify(*visitor);
-            }
+        for visitor in &target.modifiers {
+            n.modify(*visitor);
         }
     }
 }
@@ -168,7 +179,7 @@ mod tests {
     };
 
     use super::{ApplyVisitors, AstModifier, Visitors};
-    use crate::ast_path_trie::AstPathTrie;
+    use crate::ast_path_trie::AstPathTrieBuilder;
 
     fn parse(fm: &SourceFile) -> Module {
         let mut m = parse_file_as_module(
@@ -220,8 +231,9 @@ mod tests {
 
     /// Interns `path` into a fresh trie and applies `modifier` at it.
     fn apply(m: &Module, path: &[AstParentKind], modifier: &dyn AstModifier) -> Module {
-        let mut trie = AstPathTrie::new();
-        let id = trie.intern(path);
+        let mut builder = AstPathTrieBuilder::new();
+        let id = builder.intern(path.iter().copied());
+        let trie = builder.build();
         let visitors = Visitors::new(&trie, [(id, modifier)]);
         let mut m = m.clone();
         m.visit_mut_with_ast_path(&mut ApplyVisitors::new(&visitors), &mut Default::default());
@@ -296,8 +308,9 @@ mod tests {
             let fm = cm.new_source_file(FileName::Anon.into(), "('foo', 'bar', ['baz']);");
             let m = parse(&fm);
 
-            let mut trie = AstPathTrie::new();
-            let id = trie.intern(&seq_path());
+            let mut builder = AstPathTrieBuilder::new();
+            let id = builder.intern(seq_path());
+            let trie = builder.build();
             let first = replacer("bar", "one");
             let second = replacer("one", "two");
             let visitors = Visitors::new(&trie, [(id, &*first), (id, &*second)]);
@@ -322,10 +335,11 @@ mod tests {
 
             // Address the Str under the Lit; the Lit itself is only an ancestor.
             let full = seq_path();
-            let mut trie = AstPathTrie::new();
-            let leaf = trie.intern(&full);
+            let mut builder = AstPathTrieBuilder::new();
+            let leaf = builder.intern(full.iter().copied());
             // Intern the ancestor too, so it exists in the trie but has no modifier.
-            let _ancestor = trie.intern(&full[..full.len() - 1]);
+            let _ancestor = builder.intern(full[..full.len() - 1].iter().copied());
+            let trie = builder.build();
 
             let r = replacer("bar", "bar-success");
             let visitors = Visitors::new(&trie, [(leaf, &*r)]);

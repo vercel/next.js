@@ -10,11 +10,11 @@ use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, debug::ValueDebugFormat, trace:
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::{AstPath, esm::mangle::mangled_export_names},
+    references::esm::mangle::mangled_export_names,
 };
 
 /// Responsible for initializing the `ExportsInfoBinding` object binding, so that it may be
@@ -127,11 +127,11 @@ impl From<ExportsInfoBinding> for CodeGen {
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct ExportsInfoRef {
-    ast_path: AstPath,
+    ast_path: AstPathId,
 }
 
 impl ExportsInfoRef {
-    pub fn new(ast_path: AstPath) -> Self {
+    pub fn new(ast_path: AstPathId) -> Self {
         ExportsInfoRef { ast_path }
     }
 

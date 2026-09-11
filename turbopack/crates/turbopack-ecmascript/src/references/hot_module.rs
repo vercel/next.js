@@ -25,11 +25,10 @@ use turbopack_resolve::ecmascript::{cjs_resolve, esm_resolve};
 
 use crate::{
     ScopeHoistingContext,
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::{
-        AstPath,
         esm::{EsmAssetReference, base::ReferencedAsset},
         pattern_mapping::{PatternMapping, ResolveType},
     },
@@ -112,14 +111,14 @@ pub struct ModuleHotReferenceCodeGen {
     /// This is used to generate code that re-assigns the ESM namespace variable
     /// after an HMR update so that imported bindings reflect the updated module.
     esm_references: Vec<Option<ResolvedVc<EsmAssetReference>>>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl ModuleHotReferenceCodeGen {
     pub fn new(
         references: Vec<ResolvedVc<ModuleHotReferenceAssetReference>>,
         esm_references: Vec<Option<ResolvedVc<EsmAssetReference>>>,
-        path: AstPath,
+        path: AstPathId,
     ) -> Self {
         ModuleHotReferenceCodeGen {
             references,

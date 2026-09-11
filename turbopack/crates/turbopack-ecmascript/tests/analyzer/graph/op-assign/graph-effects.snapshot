@@ -1193,20 +1193,16 @@
             then: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            18,
-                        ),
+                    AstPathId(
+                        18,
                     ),
                 ),
             },
             else: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            19,
-                        ),
+                    AstPathId(
+                        19,
                     ),
                 ),
             },

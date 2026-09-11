@@ -26,13 +26,10 @@ use turbopack_core::{
 };
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{
-        AstPath,
-        pattern_mapping::{PatternMapping, ResolveType},
-    },
+    references::pattern_mapping::{PatternMapping, ResolveType},
     worker_chunk::{WorkerType, module::WorkerLoaderModule},
 };
 
@@ -315,8 +312,8 @@ impl IntoCodeGenReference for WorkerAssetReference {
 
     fn into_code_gen_reference(
         self,
-        _trie: &AstPathTrie,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -331,7 +328,7 @@ impl IntoCodeGenReference for WorkerAssetReference {
 )]
 pub struct WorkerAssetReferenceCodeGen {
     reference: ResolvedVc<WorkerAssetReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl WorkerAssetReferenceCodeGen {
@@ -438,11 +435,11 @@ pub enum WorkerGlobalPlaceholder {
 pub struct WorkerGlobalsReplacementCodeGen {
     /// Which placeholder this codegen replaces (determines the injected value).
     placeholder: WorkerGlobalPlaceholder,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl WorkerGlobalsReplacementCodeGen {
-    pub fn new(placeholder: WorkerGlobalPlaceholder, path: AstPath) -> Self {
+    pub fn new(placeholder: WorkerGlobalPlaceholder, path: AstPathId) -> Self {
         WorkerGlobalsReplacementCodeGen { placeholder, path }
     }
 

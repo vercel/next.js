@@ -16,10 +16,9 @@ use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
 use crate::{
     ScopeHoistingContext,
-    ast_path_trie::{AstPathId, AstPathTrie},
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
-        AstPath,
         amd::AmdDefineWithDependenciesCodeGen,
         cjs::{
             CjsExportsDropCodeGen, CjsRequireAssetReferenceCodeGen, CjsRequireCacheAccess,
@@ -257,7 +256,7 @@ impl CodeGen {
     }
 }
 
-/// The code generations for a module, together with the trie their [`AstPath`]s index into.
+/// The code generations for a module, together with the trie their [`AstPathId`]s index into.
 ///
 /// The trie is shared by every code generation here, so it is stored once alongside them
 /// rather than being cloned into each one.
@@ -286,7 +285,7 @@ impl CodeGens {
     pub fn empty() -> Vc<Self> {
         CodeGens {
             code_gens: Vec::new(),
-            ast_paths: AstPathTrie::new(),
+            ast_paths: AstPathTrie::default(),
         }
         .cell()
     }
@@ -296,8 +295,8 @@ pub trait IntoCodeGenReference {
     fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>>;
     fn into_code_gen_reference(
         self,
-        trie: &AstPathTrie,
-        path: AstPath,
+        trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen);
 }
 
@@ -306,22 +305,13 @@ pub trait IntoCodeGenReference {
 /// Returns the whole path when nothing matches.
 pub fn path_to(
     trie: &AstPathTrie,
-    path: AstPath,
-    mut f: impl FnMut(&AstParentKind) -> bool,
+    path: AstPathId,
+    f: impl FnMut(&AstParentKind) -> bool,
 ) -> AstPathId {
-    let mut current = path.id();
-    while let Some(kind) = trie.last(current) {
-        let parent = trie
-            .parent(current)
-            .expect("a node with a kind has a parent");
-        if f(&kind) {
-            // Innermost match: everything from here down is dropped.
-            return parent;
-        }
-        current = parent;
-    }
-    // Nothing matched, so the path is used as-is.
-    path.id()
+    // Everything from the innermost match down is dropped; with no match the path is used
+    // as-is.
+    trie.find_last(path, f)
+        .map_or(path, |found| trie.parent_or_root(found))
 }
 
 /// Creates a single-method visitor that will visit the AST nodes matching the
@@ -338,7 +328,7 @@ macro_rules! create_visitor {
     // `exact` means the path already points at the node to modify, so unlike the arm below
     // it needs no trie to find an enclosing node.
     (exact, $trie:expr, $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
-        $crate::create_visitor!(__ $ast_path.id(), $name, |$arg: &mut $ty| $b)
+        $crate::create_visitor!(__ $ast_path, $name, |$arg: &mut $ty| $b)
     };
     ($trie:expr, $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
         $crate::create_visitor!(__ $crate::code_gen::path_to($trie, $ast_path, |n| {

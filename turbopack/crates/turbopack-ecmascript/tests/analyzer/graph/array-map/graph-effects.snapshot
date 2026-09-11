@@ -159,10 +159,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                12,
-                            ),
+                        AstPathId(
+                            12,
                         ),
                     ),
                 },
@@ -359,10 +357,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                23,
-                            ),
+                        AstPathId(
+                            23,
                         ),
                     ),
                 },
@@ -799,10 +795,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                34,
-                            ),
+                        AstPathId(
+                            34,
                         ),
                     ),
                 },

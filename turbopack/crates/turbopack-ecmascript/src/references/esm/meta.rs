@@ -13,10 +13,9 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
-    references::AstPath,
     runtime_functions::{TURBOPACK_MODULE, TURBOPACK_RESOLVE_FILE_URL},
 };
 
@@ -142,11 +141,11 @@ impl From<ImportMetaBinding> for CodeGen {
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct ImportMetaRef {
-    ast_path: AstPath,
+    ast_path: AstPathId,
 }
 
 impl ImportMetaRef {
-    pub fn new(ast_path: AstPath) -> Self {
+    pub fn new(ast_path: AstPathId) -> Self {
         ImportMetaRef { ast_path }
     }
 

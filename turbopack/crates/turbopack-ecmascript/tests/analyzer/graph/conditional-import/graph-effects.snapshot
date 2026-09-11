@@ -7,20 +7,16 @@
             then: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            12,
-                        ),
+                    AstPathId(
+                        12,
                     ),
                 ),
             },
             else: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            13,
-                        ),
+                    AstPathId(
+                        13,
                     ),
                 ),
             },
@@ -373,20 +369,16 @@
             then: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            24,
-                        ),
+                    AstPathId(
+                        24,
                     ),
                 ),
             },
             else: EffectsBlock {
                 effects: [],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            25,
-                        ),
+                    AstPathId(
+                        25,
                     ),
                 ),
             },
@@ -594,10 +586,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            29,
-                        ),
+                    AstPathId(
+                        29,
                     ),
                 ),
             },
@@ -663,10 +653,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            30,
-                        ),
+                    AstPathId(
+                        30,
                     ),
                 ),
             },
@@ -744,10 +732,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            43,
-                        ),
+                    AstPathId(
+                        43,
                     ),
                 ),
             },
@@ -798,10 +784,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            44,
-                        ),
+                    AstPathId(
+                        44,
                     ),
                 ),
             },
@@ -885,20 +869,16 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            53,
-                        ),
+                    AstPathId(
+                        53,
                     ),
                 ),
             },
             else: EffectsBlock {
                 effects: [],
                 range: StartAfter(
-                    AstPath(
-                        AstPathId(
-                            52,
-                        ),
+                    AstPathId(
+                        52,
                     ),
                 ),
             },

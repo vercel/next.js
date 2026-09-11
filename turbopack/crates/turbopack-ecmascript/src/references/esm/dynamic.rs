@@ -24,15 +24,12 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     async_chunk::proxy::LazyCompilationProxyModule,
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{
-        AstPath,
-        pattern_mapping::{PatternMapping, ResolveType},
-    },
+    references::pattern_mapping::{PatternMapping, ResolveType},
 };
 
 #[turbo_tasks::value]
@@ -144,8 +141,8 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
 
     fn into_code_gen_reference(
         self,
-        _trie: &AstPathTrie,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -162,7 +159,7 @@ impl IntoCodeGenReference for EsmAsyncAssetReference {
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Hash, Debug, Encode, Decode,
 )]
 pub struct EsmAsyncAssetReferenceCodeGen {
-    path: AstPath,
+    path: AstPathId,
     reference: ResolvedVc<EsmAsyncAssetReference>,
 }
 

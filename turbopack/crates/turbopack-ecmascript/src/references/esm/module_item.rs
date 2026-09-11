@@ -14,11 +14,10 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
-    references::AstPath,
 };
 
 /// Makes code changes to remove export/import declarations and places the
@@ -28,12 +27,12 @@ use crate::{
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
 )]
 pub struct EsmModuleItem {
-    pub path: AstPath,
+    pub path: AstPathId,
     pub supports_block_scoping: bool,
 }
 
 impl EsmModuleItem {
-    pub fn new(path: AstPath, supports_block_scoping: bool) -> Self {
+    pub fn new(path: AstPathId, supports_block_scoping: bool) -> Self {
         EsmModuleItem {
             path,
             supports_block_scoping,

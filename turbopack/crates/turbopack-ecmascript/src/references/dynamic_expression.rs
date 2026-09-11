@@ -5,10 +5,9 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::AstPath,
 };
 
 #[derive(
@@ -23,19 +22,19 @@ enum DynamicExpressionType {
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
 )]
 pub struct DynamicExpression {
-    path: AstPath,
+    path: AstPathId,
     ty: DynamicExpressionType,
 }
 
 impl DynamicExpression {
-    pub fn new(path: AstPath) -> Self {
+    pub fn new(path: AstPathId) -> Self {
         DynamicExpression {
             path,
             ty: DynamicExpressionType::Normal,
         }
     }
 
-    pub fn new_promise(path: AstPath) -> Self {
+    pub fn new_promise(path: AstPathId) -> Self {
         DynamicExpression {
             path,
             ty: DynamicExpressionType::Promise,

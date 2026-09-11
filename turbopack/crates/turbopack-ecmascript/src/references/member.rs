@@ -15,10 +15,9 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::AstPath,
 };
 
 #[derive(
@@ -27,11 +26,11 @@ use crate::{
 pub struct MemberReplacement {
     key: RcStr,
     value: RcStr,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl MemberReplacement {
-    pub fn new(key: RcStr, value: RcStr, path: AstPath) -> Self {
+    pub fn new(key: RcStr, value: RcStr, path: AstPathId) -> Self {
         MemberReplacement { key, value, path }
     }
 

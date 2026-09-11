@@ -285,10 +285,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            35,
-                        ),
+                    AstPathId(
+                        35,
                     ),
                 ),
             },
@@ -359,10 +357,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            36,
-                        ),
+                    AstPathId(
+                        36,
                     ),
                 ),
             },
@@ -520,10 +516,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            45,
-                        ),
+                    AstPathId(
+                        45,
                     ),
                 ),
             },
@@ -582,10 +576,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            46,
-                        ),
+                    AstPathId(
+                        46,
                     ),
                 ),
             },
@@ -949,10 +941,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            12,
-                        ),
+                    AstPathId(
+                        12,
                     ),
                 ),
             },
@@ -1017,10 +1007,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            13,
-                        ),
+                    AstPathId(
+                        13,
                     ),
                 ),
             },

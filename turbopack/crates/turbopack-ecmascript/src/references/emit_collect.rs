@@ -27,12 +27,11 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     collect_module::{COLLECT_LIST_EXPORT, EcmascriptCollectModule},
     create_visitor,
     references::{
-        AstPath,
         esm::{base::ReferencedAsset, mangle::generated_export_key},
         pattern_mapping::{PatternMapping, ResolveType},
         removal::RemovalCodeGen,
@@ -149,12 +148,12 @@ impl IntoCodeGenReference for EmitReference {
 
     fn into_code_gen_reference(
         self,
-        trie: &AstPathTrie,
-        path: AstPath,
+        trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         // The reference is on the import specifier; the statement to remove is its parent.
-        let path = AstPath::from(trie.parent_or_root(path.id()));
+        let path = AstPathId::from(trie.parent_or_root(path));
         (
             ResolvedVc::upcast(reference),
             CodeGen::RemovalCodeGen(RemovalCodeGen::new(
@@ -228,11 +227,11 @@ impl IntoCodeGenReference for CollectReference {
 
     fn into_code_gen_reference(
         self,
-        trie: &AstPathTrie,
-        path: AstPath,
+        trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
-        let path = AstPath::from(trie.parent_or_root(path.id()));
+        let path = AstPathId::from(trie.parent_or_root(path));
         (
             ResolvedVc::upcast(reference),
             CodeGen::CollectReferenceCodeGen(CollectReferenceCodeGen { reference, path }),
@@ -245,7 +244,7 @@ impl IntoCodeGenReference for CollectReference {
 )]
 pub struct CollectReferenceCodeGen {
     reference: ResolvedVc<CollectReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl CollectReferenceCodeGen {

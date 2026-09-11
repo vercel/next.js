@@ -6,10 +6,9 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::AstPath,
 };
 
 #[derive(
@@ -17,11 +16,11 @@ use crate::{
 )]
 pub struct IdentReplacement {
     value: RcStr,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl IdentReplacement {
-    pub fn new(value: RcStr, path: AstPath) -> Self {
+    pub fn new(value: RcStr, path: AstPathId) -> Self {
         IdentReplacement { value, path }
     }
 

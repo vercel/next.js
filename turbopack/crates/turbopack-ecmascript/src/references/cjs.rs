@@ -29,12 +29,11 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::cjs_resolve;
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
-        AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
         util::SpecifiedChunkingType,
     },
@@ -181,8 +180,8 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
 
     fn into_code_gen_reference(
         self,
-        _trie: &AstPathTrie,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -200,7 +199,7 @@ impl IntoCodeGenReference for CjsRequireAssetReference {
 )]
 pub struct CjsRequireAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireAssetReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl CjsRequireAssetReferenceCodeGen {
@@ -330,8 +329,8 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
 
     fn into_code_gen_reference(
         self,
-        _trie: &AstPathTrie,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -348,7 +347,7 @@ impl IntoCodeGenReference for CjsRequireResolveAssetReference {
 )]
 pub struct CjsRequireResolveAssetReferenceCodeGen {
     reference: ResolvedVc<CjsRequireResolveAssetReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl CjsRequireResolveAssetReferenceCodeGen {
@@ -412,10 +411,10 @@ impl CjsRequireResolveAssetReferenceCodeGen {
     PartialEq, Eq, TraceRawVcs, ValueDebugFormat, NonLocalValue, Debug, Hash, Encode, Decode,
 )]
 pub struct CjsRequireCacheAccess {
-    pub path: AstPath,
+    pub path: AstPathId,
 }
 impl CjsRequireCacheAccess {
-    pub fn new(path: AstPath) -> Self {
+    pub fn new(path: AstPathId) -> Self {
         CjsRequireCacheAccess { path }
     }
 
@@ -471,10 +470,10 @@ pub struct CjsExportsDropCodeGen {
 pub enum DroppableCjsExportAssignment {
     /// A standalone `exports.NAME = …` write or `Object.defineProperty(exports, …)`
     /// call (the assignment is replaced by its value; the define call is removed).
-    Write { name: RcStr, path: AstPath },
+    Write { name: RcStr, path: AstPathId },
     /// A `module.exports = { … }` object literal. Every recognized property name
     /// shares `path` (the assignment), so the literal is rewritten in one pass.
-    ObjectLiteral { names: Vec<RcStr>, path: AstPath },
+    ObjectLiteral { names: Vec<RcStr>, path: AstPathId },
 }
 
 impl CjsExportsDropCodeGen {

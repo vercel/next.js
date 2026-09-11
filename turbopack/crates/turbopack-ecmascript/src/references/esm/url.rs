@@ -20,10 +20,10 @@ use turbopack_core::{
 };
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::{AstPath, esm::base::ReferencedAsset},
+    references::esm::base::ReferencedAsset,
     runtime_functions::{
         TURBOPACK_RELATIVE_URL, TURBOPACK_REQUIRE, TURBOPACK_RESOLVE_MODULE_ID_PATH,
     },
@@ -119,8 +119,8 @@ impl IntoCodeGenReference for UrlAssetReference {
 
     fn into_code_gen_reference(
         self,
-        _trie: &AstPathTrie,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
         (
@@ -135,7 +135,7 @@ impl IntoCodeGenReference for UrlAssetReference {
 )]
 pub struct UrlAssetReferenceCodeGen {
     reference: ResolvedVc<UrlAssetReference>,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl UrlAssetReferenceCodeGen {
