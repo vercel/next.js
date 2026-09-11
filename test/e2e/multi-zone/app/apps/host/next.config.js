@@ -1,1 +1,7 @@
-module.exports = {}
+module.exports = {
+  experimental: {
+    webSocketRouteHandlers: {
+      allowedOrigins: ['https://host.example'],
+    },
+  },
+}

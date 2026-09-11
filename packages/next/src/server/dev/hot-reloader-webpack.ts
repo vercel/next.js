@@ -257,6 +257,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   protected appDir?: string
   private telemetry: Telemetry
   private resetFetch: () => void
+  private restartServer: (() => Promise<void>) | undefined
   private lockfile: Lockfile | undefined
   private versionInfo: VersionInfo = {
     staleness: 'unknown',
@@ -290,6 +291,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch,
       lockfile,
       onDevServerCleanup,
+      restartServer,
     }: {
       config: NextConfigComplete
       isSrcDir: boolean
@@ -304,6 +306,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       resetFetch: () => void
       lockfile: Lockfile | undefined
       onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+      restartServer?: () => Promise<void>
     }
   ) {
     this.hasAppRouterEntrypoints = false
@@ -322,6 +325,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.serverPrevDocumentHash = null
     this.telemetry = telemetry
     this.resetFetch = resetFetch
+    this.restartServer = restartServer
     this.lockfile = lockfile
 
     this.config = config
@@ -1693,6 +1697,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       getDisableDevIndicatorMiddleware(),
       getRestartDevServerMiddleware({
         telemetry: this.telemetry,
+        restartServer: this.restartServer,
         webpackCacheDirectories:
           this.activeWebpackConfigs != null
             ? getCacheDirectories(this.activeWebpackConfigs)

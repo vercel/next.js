@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { check, waitFor } from 'next-test-utils'
+import { requestWebSocketUpgrade } from 'next-websocket-test-utils'
 import path from 'path'
+import WebSocket from 'ws'
 
 describe('multi-zone', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
@@ -95,4 +97,110 @@ describe('multi-zone', () => {
       await runHMRTest('guest')
     })
   }
+
+  it('fails closed with dispatcher guidance when no dispatcher is installed', async () => {
+    // Each app registers its automatic upgrade listener on its first HTTP
+    // request; make both register before the ambiguous upgrade arrives.
+    expect((await next.fetch('/')).status).toBe(200)
+    expect((await next.fetch('/guest')).status).toBe(200)
+
+    // With two Next.js apps' automatic listeners on one server and no outer
+    // dispatcher, an application WebSocket upgrade must be rejected once with
+    // actionable guidance instead of either app claiming it.
+    for (const [pathname, origin] of [
+      ['/socket', 'https://host.example'],
+      ['/guest/socket', 'https://guest.example'],
+    ] as const) {
+      const response = await requestWebSocketUpgrade(next, pathname, {
+        headers: { origin },
+      })
+      expect(response.status).toBe(501)
+      expect(response.body).toContain('single outer upgrade dispatcher')
+    }
+  })
+
+  it('isolates WebSocket routes and lifecycle state between apps', async () => {
+    const [hostReady, guestReady] = await Promise.all([
+      next.fetch('/'),
+      next.fetch('/guest'),
+    ])
+    expect(hostReady.status).toBe(200)
+    expect(guestReady.status).toBe(200)
+    expect(
+      await next.fetch('/__enable-upgrade-dispatcher', { method: 'POST' })
+    ).toHaveProperty('status', 204)
+
+    function connect(pathname: string, origin: string) {
+      return new Promise<{ socket: WebSocket; message: string }>(
+        (resolve, reject) => {
+          const socket = new WebSocket(
+            `ws://localhost:${next.appPort}${pathname}`,
+            { origin }
+          )
+          socket.once('message', (data) => {
+            resolve({ socket, message: data.toString() })
+          })
+          socket.once('error', reject)
+        }
+      )
+    }
+
+    function nextMessage(socket: WebSocket) {
+      return new Promise<string>((resolve) => {
+        socket.once('message', (data) => resolve(data.toString()))
+      })
+    }
+
+    expect(
+      await requestWebSocketUpgrade(next, '/missing-socket', {
+        statusOnly: true,
+        headers: { origin: 'https://host.example' },
+      })
+    ).toBe(404)
+    expect(
+      await requestWebSocketUpgrade(next, '/socket', {
+        statusOnly: true,
+        headers: { origin: 'https://guest.example' },
+      })
+    ).toBe(403)
+
+    const malformedLogStart = next.cliOutput.length
+    expect(
+      await requestWebSocketUpgrade(next, '/socket', {
+        statusOnly: true,
+        headers: {
+          origin: 'https://host.example',
+          'transfer-encoding': 'chunked',
+        },
+      })
+    ).toBe(400)
+    expect(next.cliOutput.slice(malformedLogStart)).not.toContain(
+      'raw HTTP response already committed'
+    )
+
+    const host = await connect('/socket', 'https://host.example')
+    const guest = await connect('/guest/socket', 'https://guest.example')
+    expect(host.message).toBe('host')
+    expect(guest.message).toBe('guest')
+
+    const hostClosed = new Promise<number>((resolve) => {
+      host.socket.once('close', resolve)
+    })
+    expect(
+      await next.fetch('/__close/host', { method: 'POST' })
+    ).toHaveProperty('status', 204)
+    expect(await hostClosed).toBe(1001)
+
+    const guestEcho = nextMessage(guest.socket)
+    guest.socket.send('still-open')
+    expect(await guestEcho).toBe('guest:still-open')
+
+    const guestClosed = new Promise<number>((resolve) => {
+      guest.socket.once('close', resolve)
+    })
+    expect(
+      await next.fetch('/__close/guest', { method: 'POST' })
+    ).toHaveProperty('status', 204)
+    expect(await guestClosed).toBe(1001)
+  })
 })

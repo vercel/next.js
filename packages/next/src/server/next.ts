@@ -6,8 +6,6 @@ import type {
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
 import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
-import { addRequestMeta } from './request-meta'
-import { createWebSocketUpgradeListenerOwnershipTracker } from './websocket-upgrade-listener'
 
 import './require-hook'
 import './node-polyfill-crypto'
@@ -24,6 +22,7 @@ import {
 import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
+import { flushAllTraces } from '../trace'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 import type { ServerInitResult } from './lib/render-server'
@@ -32,6 +31,35 @@ import {
   RouterServerContextSymbol,
   routerServerGlobal,
 } from './lib/router-utils/router-server-context'
+import { PendingWebSocketUpgradeTracker } from './websocket-lifecycle'
+import {
+  isRawHttpResponseCommitted,
+  isWebSocketUpgradeRequest,
+  writeRawHttpError,
+} from './websocket-http'
+import { addDistinctServerCleanupFailures } from './lib/server-cleanup'
+import { throwCombinedFailures } from './websocket-http'
+import { RESTART_EXIT_CODE } from './lib/utils'
+import { addRequestMeta } from './request-meta'
+import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
+import {
+  classifyWebSocketUpgradeOwnership,
+  createWebSocketUpgradeListenerOwnershipTracker,
+  hasEnabledNextOwnedWebSocketUpgradeListener,
+  hasMatchingNextOwnedWebSocketHMRListener,
+  markNextOwnedWebSocketUpgradeListener,
+  UPGRADE_DELEGATION_MESSAGE,
+  type WebSocketUpgradeListenerOwnershipTracker,
+} from './websocket-upgrade-listener'
+import { PREPARE_CLOSE_GRACE_PERIOD_MS } from './websocket-shutdown-budget'
+
+const rejectedSiblingUpgradeRequests = new WeakSet<IncomingMessage>()
+// Pins sole ownership across apps: an outer dispatcher which accidentally
+// invokes two apps' public handlers with the same request cannot double-own
+// it. Sibling HMR channels claim only per app and are tracked apart.
+const claimedUpgradeRequests = new WeakSet<IncomingMessage>()
+const SIBLING_UPGRADE_MESSAGE =
+  'Multiple Next.js apps on one HTTP server require a single outer upgrade dispatcher for WebSocket Route Handlers. Select the app and call app.getUpgradeHandler().'
 
 let ServerImpl: typeof NextNodeServer
 
@@ -68,11 +96,39 @@ export type RequestHandler = (
   parsedUrl?: NextUrlWithParsedQuery | undefined
 ) => Promise<void>
 
+/** @experimental WebSocket Route Handlers are an experimental feature. */
 export type UpgradeHandler = (
   req: IncomingMessage,
   socket: Duplex,
   head: Buffer
 ) => Promise<void>
+
+function removeUpgradeListenerRegistrations(
+  server: import('http').Server,
+  listener: UpgradeHandler
+): unknown[] {
+  const failures: unknown[] = []
+  let registrationCount = 1
+  try {
+    registrationCount = server
+      .listeners('upgrade')
+      .filter((registered) => registered === listener).length
+  } catch (error) {
+    failures.push(error)
+  }
+
+  // EventEmitter.off() removes one matching registration. Snapshot the count
+  // so a hostile removeListener observer cannot keep this loop alive by
+  // re-registering the handler while teardown is in progress.
+  for (let index = 0; index < registrationCount; index++) {
+    try {
+      server.off('upgrade', listener)
+    } catch (error) {
+      if (!failures.includes(error)) failures.push(error)
+    }
+  }
+  return failures
+}
 
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
@@ -127,9 +183,22 @@ interface NextWrapperServer {
   prepare(serverFields?: ServerFields): Promise<void>
   /** @deprecated Configure `assetPrefix` in `next.config.js` instead. */
   setAssetPrefix(assetPrefix: string): void
+  /**
+   * Closes the Next.js server.
+   *
+   * With experimental WebSocket Route Handlers enabled, repeated calls share
+   * one teardown promise. A single teardown failure is rethrown unchanged;
+   * multiple distinct failures reject with an ordered `AggregateError`.
+   */
   close(): Promise<void>
 
-  // used internally
+  /**
+   * Returns the handler for a custom server's Node.js `upgrade` event.
+   * Call this after `prepare()` and attach the returned handler before the
+   * server starts accepting connections.
+   *
+   * @experimental WebSocket Route Handlers are an experimental feature.
+   */
   getUpgradeHandler(): UpgradeHandler
 
   // legacy methods that we left exposed in the past
@@ -240,6 +309,7 @@ export class NextServer implements NextWrapperServer {
     }
   }
 
+  /** @experimental WebSocket Route Handlers are an experimental feature. */
   getUpgradeHandler(): UpgradeHandler {
     return async (req: IncomingMessage, socket: any, head: any) => {
       const server = await this.getServer()
@@ -424,16 +494,36 @@ export class NextServer implements NextWrapperServer {
   }
 }
 
+interface CustomServerPrepareGeneration {
+  promise: Promise<void>
+  init?: ServerInitResult
+  pendingUpgrades: PendingWebSocketUpgradeTracker
+  cleanupListeners?: AsyncCallbackSet
+  reportCleanupFailures?: boolean
+}
+
+interface CustomServerCloseGeneration {
+  prepare: CustomServerPrepareGeneration
+  promise: Promise<void>
+}
+
 /** The wrapper server used for `import next from "next" (in a custom server)` */
 class NextCustomServer implements NextWrapperServer {
   private didWebSocketSetup: boolean = false
   private isClosing: boolean = false
+  private prepareGeneration?: CustomServerPrepareGeneration
+  private closeGeneration?: CustomServerCloseGeneration
+  private pendingUpgrades = new PendingWebSocketUpgradeTracker()
   private webSocketServer?: import('http').Server
-  private webSocketServers = new Set<import('http').Server>()
-  private webSocketUpgradeListener?: UpgradeHandler
-  private webSocketOwnershipTracker?: ReturnType<
-    typeof createWebSocketUpgradeListenerOwnershipTracker
-  >
+  private readonly webSocketUpgradeServers = new Set<import('http').Server>()
+  private webSocketUpgradeOwnership?: WebSocketUpgradeListenerOwnershipTracker
+  private webSocketRegistration?: Promise<void>
+  private webSocketAutomaticUpgradeListener?: UpgradeHandler
+  private webSocketUpgradeListener?: (
+    req: IncomingMessage,
+    socket: Duplex,
+    head: Buffer
+  ) => Promise<void>
   protected cleanupListeners?: AsyncCallbackSet
 
   protected init?: ServerInitResult
@@ -471,7 +561,74 @@ class NextCustomServer implements NextWrapperServer {
     return this.options.port
   }
 
-  async prepare() {
+  prepare(): Promise<void> {
+    if (this.prepareGeneration) return this.prepareGeneration.promise
+
+    // Publish the preparation generation before running any user- or
+    // adapter-controlled initialization. close() can then wait for this exact
+    // generation without mistaking an in-flight prepare for a pre-prepare
+    // no-op, and concurrent prepare callers cannot install competing servers.
+    const preparing = createPromiseWithResolvers<void>()
+    const generation: CustomServerPrepareGeneration = {
+      promise: preparing.promise,
+      pendingUpgrades: new PendingWebSocketUpgradeTracker(),
+    }
+    this.prepareGeneration = generation
+    this.pendingUpgrades = generation.pendingUpgrades
+    this.cleanupListeners = undefined
+    this.isClosing = false
+    void this.prepareImpl(generation).then(
+      async (init) => {
+        try {
+          generation.init = init
+          if (this.prepareGeneration === generation) this.init = init
+          this.setupWebSocketHandler(this.options.httpServer)
+          preparing.resolve()
+        } catch (error) {
+          // Listener registration is the final prepare step. If it fails, the
+          // router is already live and must be rolled back through the same
+          // authoritative close generation used by a concurrent close().
+          generation.reportCleanupFailures = true
+          const failures = [error]
+          try {
+            await this.closeImpl(1011)
+          } catch (cleanupError) {
+            addDistinctServerCleanupFailures(failures, cleanupError)
+          }
+          generation.init = undefined
+          if (this.prepareGeneration === generation) {
+            this.prepareGeneration = undefined
+            this.init = undefined
+            this.cleanupListeners = undefined
+          }
+          if (this.closeGeneration?.prepare === generation) {
+            this.closeGeneration = undefined
+          }
+          this.isClosing = false
+          preparing.reject(
+            failures.length === 1
+              ? error
+              : new AggregateError(
+                  failures,
+                  'Failed to prepare the Next.js custom server',
+                  { cause: error }
+                )
+          )
+        }
+      },
+      (error) => {
+        if (this.prepareGeneration === generation) {
+          this.prepareGeneration = undefined
+        }
+        preparing.reject(error)
+      }
+    )
+    return preparing.promise
+  }
+
+  private async prepareImpl(
+    generation: CustomServerPrepareGeneration
+  ): Promise<ServerInitResult> {
     if (this.options.dev) {
       process.env.__NEXT_DEV_SERVER = '1'
     }
@@ -481,8 +638,11 @@ class NextCustomServer implements NextWrapperServer {
 
     let onDevServerCleanup: AsyncCallbackSet['add'] | undefined
     if (this.options.dev) {
-      this.cleanupListeners = new AsyncCallbackSet()
-      onDevServerCleanup = this.cleanupListeners.add.bind(this.cleanupListeners)
+      generation.cleanupListeners = new AsyncCallbackSet()
+      this.cleanupListeners = generation.cleanupListeners
+      onDevServerCleanup = generation.cleanupListeners.add.bind(
+        generation.cleanupListeners
+      )
     }
 
     const initResult = await getRequestHandlers({
@@ -493,120 +653,348 @@ class NextCustomServer implements NextWrapperServer {
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
       quiet: this.options.quiet,
+      restartServer: async () => {
+        try {
+          try {
+            if (generation.init) {
+              await this.closeImpl(1012)
+            } else {
+              // getRequestHandlers() may request a restart before it returns
+              // the initialized server. Waiting for prepare() from inside that
+              // callback would form prepare -> restart -> close -> prepare.
+              // Only pre-initialization resources are reachable here; drain
+              // them without publishing a terminal close generation. In the
+              // normal path, where initialization has completed, closeImpl()
+              // remains the authoritative teardown.
+              await Promise.allSettled([
+                generation.pendingUpgrades.closePending(),
+                generation.cleanupListeners?.runAll(),
+              ])
+            }
+          } catch (error) {
+            // A restart must still flush its trace receipt before the process
+            // exits, even when experimental WebSocket teardown reports a
+            // failure to ordinary app.close() callers.
+            console.error(
+              'Failed to close the Next.js custom server during restart',
+              error
+            )
+          }
+          await flushAllTraces()
+        } finally {
+          process.exit(RESTART_EXIT_CODE)
+        }
+      },
     })
-    this.init = initResult
-    this.setupWebSocketHandler(this.options.httpServer)
+    return initResult
   }
 
   private setupWebSocketHandler(
     customServer?: import('http').Server,
     _req?: IncomingMessage
   ) {
-    if (this.didWebSocketSetup || this.isClosing) return
+    if (this.isClosing) return
 
-    const requestServer = customServer || (_req?.socket as any)?.server
-    if (!requestServer) return
+    customServer = customServer || (_req?.socket as any)?.server
+    if (!customServer) return
 
-    const upgradeListener = this.getOrCreateWebSocketUpgradeListener()
-    if (requestServer.listeners('upgrade').includes(upgradeListener)) {
-      // `getUpgradeHandler()` may already have been attached explicitly. Do
-      // not install a second copy when the first ordinary request discovers
-      // the server. Since that registration bypassed the ownership observer,
-      // its listener remains delegated for WebSocket Route Handlers.
-      this.didWebSocketSetup = true
-      this.webSocketServer = requestServer
-      this.webSocketServers.add(requestServer)
+    // app.getUpgradeHandler() marks explicit custom-server wiring only when
+    // the returned listener is actually attached to this server. Merely
+    // calling the getter (probing, conditional wiring) must not permanently
+    // disable the automatic path.
+    if (
+      this.didWebSocketSetup &&
+      (this.webSocketServer === customServer ||
+        customServer
+          .listeners('upgrade')
+          .includes(this.getOrCreateWebSocketUpgradeListener()))
+    ) {
       return
     }
 
-    const ownershipTracker = createWebSocketUpgradeListenerOwnershipTracker(
-      requestServer,
-      upgradeListener
-    )
-
+    const publicUpgradeListener = this.getOrCreateWebSocketUpgradeListener()
+    const upgradeListener = this.webSocketAutomaticUpgradeListener!
+    const registration = createPromiseWithResolvers<void>()
+    this.didWebSocketSetup = true
+    this.webSocketServer = customServer
+    this.webSocketRegistration = registration.promise
+    const serverWasTracked = this.webSocketUpgradeServers.has(customServer)
+    this.webSocketUpgradeServers.add(customServer)
+    let ownership: WebSocketUpgradeListenerOwnershipTracker | undefined
+    let ownershipDisposed = false
+    const disposeOwnership = () => {
+      if (!ownership || ownershipDisposed) return
+      ownershipDisposed = true
+      ownership.dispose()
+    }
+    let registered = false
     try {
-      requestServer.on('upgrade', upgradeListener)
-      if (this.isClosing) {
-        requestServer.off('upgrade', upgradeListener)
-        ownershipTracker.dispose()
-        return
+      ownership = createWebSocketUpgradeListenerOwnershipTracker(
+        customServer,
+        upgradeListener,
+        [publicUpgradeListener]
+      )
+      this.webSocketUpgradeOwnership = ownership
+      customServer.on('upgrade', upgradeListener)
+      registered = true
+      if (
+        this.webSocketRegistration !== registration.promise ||
+        this.webSocketServer !== customServer ||
+        this.isClosing
+      ) {
+        // EventEmitter emits `newListener` before inserting the listener. A
+        // public observer can begin close() during that callback, so detach
+        // the listener which `on()` just inserted before publishing
+        // registration completion.
+        registered = false
+        customServer.off('upgrade', upgradeListener)
       }
     } catch (error) {
-      ownershipTracker.dispose()
-      throw error
-    }
-
-    this.didWebSocketSetup = true
-    this.webSocketServer = requestServer
-    this.webSocketServers.add(requestServer)
-    this.webSocketUpgradeListener = upgradeListener
-    this.webSocketOwnershipTracker = ownershipTracker
-  }
-
-  private removeWebSocketUpgradeListener(
-    server: import('http').Server,
-    listener: UpgradeHandler
-  ): void {
-    let registrationCount: number
-    try {
-      registrationCount = server
-        .listeners('upgrade')
-        .filter((registeredListener) => registeredListener === listener).length
-    } catch (error) {
-      console.error(
-        'Failed to inspect custom-server WebSocket upgrade listeners',
-        error
-      )
-      return
-    }
-
-    for (let index = 0; index < registrationCount; index++) {
+      const failures = [error]
+      // `EventEmitter.on()` is a public synchronous capability. A subclass can
+      // insert the listener and then throw, so registration failure still owes
+      // an explicit rollback before this instance drops ownership state.
       try {
-        server.off('upgrade', listener)
-      } catch (error) {
-        console.error(
-          'Failed to remove the custom-server WebSocket upgrade listener',
-          error
-        )
+        customServer.off('upgrade', upgradeListener)
+      } catch (cleanupError) {
+        if (!failures.includes(cleanupError)) failures.push(cleanupError)
+      }
+      try {
+        disposeOwnership()
+      } catch (cleanupError) {
+        if (!failures.includes(cleanupError)) failures.push(cleanupError)
+      }
+      throwCombinedFailures(
+        failures,
+        'Failed to register the custom-server WebSocket upgrade listener'
+      )
+    } finally {
+      registration.resolve()
+      if (!registered && this.webSocketRegistration === registration.promise) {
+        this.didWebSocketSetup = false
+        this.webSocketServer = undefined
+        this.webSocketUpgradeOwnership = undefined
+        this.webSocketRegistration = undefined
+        if (!serverWasTracked) this.webSocketUpgradeServers.delete(customServer)
+        disposeOwnership()
       }
     }
   }
 
   private getOrCreateWebSocketUpgradeListener(): UpgradeHandler {
     if (!this.webSocketUpgradeListener) {
-      const upgradeListener: UpgradeHandler = async (req, socket, head) => {
-        const requestServer = (
-          req.socket as typeof req.socket & {
-            server?: import('http').Server
-          }
-        ).server
-        if (this.isClosing) {
-          if (requestServer) {
-            this.removeWebSocketUpgradeListener(requestServer, upgradeListener)
-          }
-          socket.destroy()
-          return
-        }
-
-        if (requestServer) this.webSocketServers.add(requestServer)
-        const ownershipTracker =
-          requestServer === this.webSocketServer
-            ? this.webSocketOwnershipTracker
-            : undefined
-        addRequestMeta(
-          req,
-          'webSocketUpgradeExclusiveOwner',
-          ownershipTracker?.isExclusiveOwner() ?? false
-        )
+      const claimedRequests = new WeakSet<IncomingMessage>()
+      const dispatchUpgrade = async (
+        invokedListener: UpgradeHandler,
+        otherOwnedListener: UpgradeHandler,
+        req: IncomingMessage,
+        socket: Duplex,
+        head: Buffer
+      ) => {
+        let finishUpgrade: (() => void) | undefined
         try {
+          const requestServer = (
+            req.socket as typeof req.socket & {
+              server?: import('http').Server
+            }
+          ).server
+          const upgradeListeners = requestServer?.listeners('upgrade')
+          const ownsServerRegistration = Boolean(
+            requestServer &&
+              upgradeListeners?.some(
+                (listener) =>
+                  listener === invokedListener ||
+                  listener === otherOwnedListener
+              )
+          )
+          if (requestServer && ownsServerRegistration) {
+            this.webSocketUpgradeServers.add(requestServer)
+          }
+          const ownership =
+            invokedListener === this.webSocketAutomaticUpgradeListener &&
+            requestServer === this.webSocketServer &&
+            this.webSocketUpgradeOwnership
+              ? this.webSocketUpgradeOwnership.getOwnership()
+              : classifyWebSocketUpgradeOwnership(
+                  upgradeListeners,
+                  invokedListener,
+                  [otherOwnedListener]
+                )
+          const isSiblingHMRRequest =
+            ownership === 'sibling' &&
+            hasMatchingNextOwnedWebSocketHMRListener(upgradeListeners, req.url)
+
+          // Shared dispatch is intentionally left unclaimed so one outer
+          // dispatcher can call the public handler with coordinated ownership.
+          // Every Next-owned path claims synchronously before touching request
+          // metadata, upgrade admission, or the socket. Sibling deferral claims
+          // only within the app, so every sibling still processes its own HMR
+          // channel; sole ownership (coordinated through an outer dispatcher,
+          // or exclusive) is pinned across apps.
+          if (ownership !== 'shared') {
+            if (claimedRequests.has(req) || claimedUpgradeRequests.has(req)) {
+              return
+            }
+            claimedRequests.add(req)
+            if (ownership !== 'sibling') claimedUpgradeRequests.add(req)
+          }
+
+          if (this.isClosing) {
+            if (requestServer && ownsServerRegistration) {
+              const removalFailures = [
+                ...removeUpgradeListenerRegistrations(
+                  requestServer,
+                  invokedListener
+                ),
+                ...removeUpgradeListenerRegistrations(
+                  requestServer,
+                  otherOwnedListener
+                ),
+              ]
+              this.webSocketUpgradeServers.delete(requestServer)
+              if (removalFailures.length > 0) {
+                console.error(
+                  'Failed to remove a custom-server WebSocket upgrade listener during shutdown',
+                  removalFailures.length === 1
+                    ? removalFailures[0]
+                    : new AggregateError(removalFailures)
+                )
+              }
+            }
+            // Shared dispatchers may own this socket. A closing app that just
+            // de-registered its own listeners must reap upgrade sockets
+            // matched only by its own HMR endpoint (no remaining listener
+            // will ever claim them); sibling-owned sockets are left for the
+            // sibling.
+            if (
+              ownership !== 'shared' &&
+              !socket.destroyed &&
+              (!isSiblingHMRRequest ||
+                (ownsServerRegistration &&
+                  Boolean(this.init?.isWebSocketHMRRequest?.(req.url))))
+            ) {
+              socket.destroy()
+            }
+            return
+          }
+
+          // Node invokes sibling upgrade listeners synchronously without
+          // awaiting promises. Leave a shared dispatch untouched so another
+          // listener can make the ownership decision.
+          if (ownership === 'shared') {
+            if (this.getInit().webSocketRouteHandlersEnabled) {
+              // Warn only if no listener ultimately claims the request: a
+              // correctly configured outer dispatcher claims it during the
+              // same emit pass, so a next-tick check is what separates
+              // actionable guidance from noise.
+              setImmediate(() => {
+                if (!claimedUpgradeRequests.has(req) && !socket.destroyed) {
+                  log.warnOnce(UPGRADE_DELEGATION_MESSAGE)
+                }
+              })
+            }
+            return
+          }
+
+          // Track admitted sockets before any raw response write so the
+          // bounded pending-upgrade drain sees them (including the 501 path
+          // below, which can stall on a zero-window client).
+          if (!isSiblingHMRRequest) {
+            finishUpgrade = this.pendingUpgrades.track(socket)
+          }
+
+          if (
+            ownership === 'sibling' &&
+            !isSiblingHMRRequest &&
+            hasEnabledNextOwnedWebSocketUpgradeListener(upgradeListeners) &&
+            isWebSocketUpgradeRequest(req)
+          ) {
+            if (rejectedSiblingUpgradeRequests.has(req)) {
+              return
+            }
+            rejectedSiblingUpgradeRequests.add(req)
+            log.warnOnce(SIBLING_UPGRADE_MESSAGE)
+            await writeRawHttpError(req, socket, 501, SIBLING_UPGRADE_MESSAGE)
+            return
+          }
+
+          addRequestMeta(req, 'webSocketUpgradeOwnership', ownership)
+          if (ownership === 'sibling') {
+            // The router defers to the sibling only when a live sibling HMR
+            // matcher actually claims this request; URL shape alone is not
+            // enough (a route path containing `/_next/hmr` must not hang).
+            addRequestMeta(req, 'webSocketSiblingHMR', isSiblingHMRRequest)
+          }
+          if (
+            this.isClosing ||
+            socket.destroyed ||
+            socket.readableEnded ||
+            socket.writableEnded
+          ) {
+            if (!isSiblingHMRRequest && !socket.destroyed) socket.destroy()
+            return
+          }
           await this.upgradeHandler(req, socket, head)
         } catch (error) {
-          socket.destroy()
-          log.error(`Failed to handle request for ${req.url}`)
-          console.error(error)
+          let shouldDestroy = true
+          try {
+            shouldDestroy =
+              !this.isClosing || !isRawHttpResponseCommitted(socket)
+          } catch {}
+          if (shouldDestroy && !socket.destroyed) {
+            try {
+              socket.destroy()
+            } catch (destroyError) {
+              console.error(
+                'Failed to destroy a custom-server WebSocket upgrade after an error',
+                destroyError
+              )
+            }
+          }
+          console.error('Error handling upgrade request', error)
+        } finally {
+          try {
+            finishUpgrade?.()
+          } catch (error) {
+            console.error(
+              'Failed to release custom-server WebSocket upgrade tracking',
+              error
+            )
+          }
         }
       }
-      this.webSocketUpgradeListener = upgradeListener
+      let publicUpgradeListener!: UpgradeHandler
+      let automaticUpgradeListener!: UpgradeHandler
+      const isWebSocketRouteHandlersEnabled = () =>
+        Boolean(this.init?.webSocketRouteHandlersEnabled)
+      const isHMRRequest = (url: string | undefined) =>
+        Boolean(this.init?.isWebSocketHMRRequest?.(url))
+      publicUpgradeListener = markNextOwnedWebSocketUpgradeListener(
+        (req, socket, head) =>
+          dispatchUpgrade(
+            publicUpgradeListener,
+            automaticUpgradeListener,
+            req,
+            socket,
+            head
+          ),
+        isWebSocketRouteHandlersEnabled,
+        isHMRRequest
+      )
+      automaticUpgradeListener = markNextOwnedWebSocketUpgradeListener(
+        (req, socket, head) =>
+          dispatchUpgrade(
+            automaticUpgradeListener,
+            publicUpgradeListener,
+            req,
+            socket,
+            head
+          ),
+        isWebSocketRouteHandlersEnabled,
+        isHMRRequest
+      )
+      this.webSocketUpgradeListener = publicUpgradeListener
+      this.webSocketAutomaticUpgradeListener = automaticUpgradeListener
     }
     return this.webSocketUpgradeListener
   }
@@ -669,8 +1057,14 @@ class NextCustomServer implements NextWrapperServer {
     }
   }
 
+  /** @experimental WebSocket Route Handlers are an experimental feature. */
   getUpgradeHandler(): UpgradeHandler {
+    // Resolve the initialized router wrapper now so callers get a useful
+    // error if prepare() was skipped. The listener itself stays stable so an
+    // ordinary HTTP request cannot install a second copy after explicit
+    // custom-server wiring.
     this.getInit()
+    this.didWebSocketSetup = true
     return this.getOrCreateWebSocketUpgradeListener()
   }
 
@@ -711,40 +1105,166 @@ class NextCustomServer implements NextWrapperServer {
     return this.server.render404(...args)
   }
 
-  async close() {
-    const init = this.init
-    if (init) {
-      this.isClosing = true
-      const webSocketServer = this.webSocketServer
-      const webSocketServers = this.webSocketServers
-      const webSocketUpgradeListener = this.webSocketUpgradeListener
-      const webSocketOwnershipTracker = this.webSocketOwnershipTracker
-      this.webSocketServer = undefined
-      this.webSocketServers = new Set()
-      this.webSocketUpgradeListener = undefined
-      this.webSocketOwnershipTracker = undefined
+  private closeImpl(code?: number): Promise<void> {
+    const generation = this.prepareGeneration
+    if (!generation) {
+      if (this.closeGeneration && !this.closeGeneration.prepare.init) {
+        return this.closeGeneration.promise
+      }
+      // close() historically did nothing before prepare(). Do not memoize that
+      // no-op: a later preparation creates the first closeable generation.
+      return Promise.resolve()
+    }
+    if (this.closeGeneration?.prepare === generation) {
+      return this.closeGeneration.promise
+    }
 
-      if (webSocketServer) webSocketServers.add(webSocketServer)
-      if (webSocketUpgradeListener) {
-        for (const server of webSocketServers) {
-          this.removeWebSocketUpgradeListener(server, webSocketUpgradeListener)
+    // Install the authoritative promise before changing EventEmitter state or
+    // invoking any lifecycle capability. In particular, server.off() emits the
+    // public removeListener event synchronously and can re-enter app.close().
+    const closing = createPromiseWithResolvers<void>()
+    this.closeGeneration = { prepare: generation, promise: closing.promise }
+
+    this.isClosing = true
+    const closePending = generation.pendingUpgrades.closePending()
+    // Preparation can still be settling. Mark the eagerly-latched drain as
+    // observed until the ordered shutdown phase awaits its real result.
+    void closePending.catch(() => {})
+    const webSocketServer = this.webSocketServer
+    const webSocketUpgradeListener = this.webSocketUpgradeListener
+    const webSocketAutomaticUpgradeListener =
+      this.webSocketAutomaticUpgradeListener
+    const webSocketUpgradeOwnership = this.webSocketUpgradeOwnership
+    const webSocketRegistration = this.webSocketRegistration
+    const webSocketUpgradeServers = new Set(this.webSocketUpgradeServers)
+    if (webSocketServer) webSocketUpgradeServers.add(webSocketServer)
+
+    // Clear owned registration state before invoking public EventEmitter
+    // removal hooks. Re-entrant close() callers observe the promise above.
+    this.webSocketServer = undefined
+    this.webSocketUpgradeOwnership = undefined
+    this.webSocketRegistration = undefined
+    this.webSocketUpgradeServers.clear()
+
+    const runClose = async () => {
+      const failures: unknown[] = []
+      const addFailure = (error: unknown) => {
+        addDistinctServerCleanupFailures(failures, error)
+      }
+      const settle = async (stages: Array<() => void | PromiseLike<void>>) => {
+        const results = await Promise.allSettled(
+          stages.map(async (stage) => stage())
+        )
+        for (const result of results) {
+          if (result.status === 'rejected') addFailure(result.reason)
         }
       }
-      try {
-        webSocketOwnershipTracker?.dispose()
-      } catch (error) {
-        console.error(
-          'Failed to dispose the custom-server WebSocket ownership tracker',
-          error
-        )
+
+      await settle([
+        async () => {
+          await webSocketRegistration
+          if (webSocketUpgradeListener || webSocketAutomaticUpgradeListener) {
+            const removalFailures: unknown[] = []
+            try {
+              webSocketUpgradeOwnership?.dispose()
+            } catch (error) {
+              removalFailures.push(error)
+            }
+            for (const server of webSocketUpgradeServers) {
+              for (const listener of [
+                webSocketAutomaticUpgradeListener,
+                webSocketUpgradeListener,
+              ]) {
+                if (!listener) continue
+                for (const error of removeUpgradeListenerRegistrations(
+                  server,
+                  listener
+                )) {
+                  addDistinctServerCleanupFailures(removalFailures, error)
+                }
+              }
+            }
+            throwCombinedFailures(
+              removalFailures,
+              'Failed to remove the custom-server WebSocket upgrade listener'
+            )
+          }
+        },
+      ])
+
+      let prepareFailed = false
+      if (!generation.init) {
+        // Bound the wait: a dev compile can take minutes while close() must
+        // return. Past the grace period proceed without the init stage; a
+        // later completing prepare never becomes closeable.
+        let prepareTimer: ReturnType<typeof setTimeout> | undefined
+        try {
+          await new Promise<void>((resolve, reject) => {
+            prepareTimer = setTimeout(() => {
+              prepareFailed = true
+              log.warnOnce(
+                'Custom server close() is proceeding without an in-flight prepare() settling.'
+              )
+              resolve()
+            }, PREPARE_CLOSE_GRACE_PERIOD_MS)
+            prepareTimer.unref?.()
+            generation.promise.then(() => resolve(), reject)
+          })
+        } catch {
+          prepareFailed = true
+        } finally {
+          if (prepareTimer !== undefined) clearTimeout(prepareTimer)
+        }
       }
 
-      await init.closeUpgraded(1001).catch(console.error)
+      const init = generation.init
+      // Complete every admitted raw handler before taking the one
+      // authoritative registry snapshot. No peer can register after this
+      // phase because closePending() latched admission synchronously above.
+      await settle([() => closePending])
+      await settle([() => init?.closeUpgraded(code)])
+      await settle([
+        () => init?.server.close(),
+        () => generation.cleanupListeners?.runAll(),
+      ])
+
+      // close() predates WebSocket Route Handlers and historically swallowed
+      // every cleanup rejection. Preserve that behavior unless the application
+      // explicitly opts into the experimental public teardown contract.
+      if (
+        prepareFailed ||
+        (!init?.webSocketRouteHandlersEnabled &&
+          !generation.reportCleanupFailures)
+      ) {
+        return
+      }
+      throwCombinedFailures(
+        failures,
+        'Failed to close the Next.js custom server'
+      )
     }
-    await Promise.allSettled([
-      init?.server.close(),
-      this.cleanupListeners?.runAll(),
-    ])
+
+    void runClose().then(
+      () => {
+        // A failed preparation never created a closeable generation. Release
+        // the terminal state so a later successful prepare() can be closed.
+        if (!generation.init) {
+          if (this.closeGeneration?.promise === closing.promise) {
+            this.closeGeneration = undefined
+          }
+          if (!this.prepareGeneration) this.isClosing = false
+        }
+        closing.resolve()
+      },
+      (error) => {
+        closing.reject(error)
+      }
+    )
+    return closing.promise
+  }
+
+  close(): Promise<void> {
+    return this.closeImpl()
   }
 }
 
