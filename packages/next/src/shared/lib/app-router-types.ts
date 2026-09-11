@@ -278,6 +278,10 @@ export const enum PrefetchHint {
   // fallbacks — simply never carry it.) Set on every node of the tree, but
   // does not propagate.
   ShouldAttemptStaticPrefetch = 0b100000000000000,
+  // Route-level restriction: at least one parameter only accepts build-time
+  // values. A successful URL cannot establish that another URL with the same
+  // shape exists, so this route must not be used for optimistic prediction.
+  HasNotFoundParams = 0b1000000000000000,
 }
 
 /**

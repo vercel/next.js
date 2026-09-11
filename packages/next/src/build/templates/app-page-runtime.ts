@@ -905,6 +905,9 @@ export function createAppPageEntrypoint({
 
             multiZoneDraftMode,
             prefetchHints: prefetchHintsManifest,
+            hasNotFoundParams:
+              prerenderManifest.dynamicRoutes[normalizedSrcPage]?.fallback ===
+              false,
             incrementalCache,
             cacheLifeProfiles: nextConfig.cacheLife,
             staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,

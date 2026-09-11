@@ -3198,6 +3198,9 @@ export default async function build(
                     page: originalAppPath,
                     _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
+                    _hasNotFoundParams:
+                      fallbackModes.get(originalAppPath) ===
+                      FallbackMode.NOT_FOUND,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
