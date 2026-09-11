@@ -20,24 +20,33 @@ guide at
 `node_modules/next/dist/docs/01-app/02-guides/optimizing-the-static-shell.md`.
 If it is unavailable, use the [online
 guide](https://nextjs.org/docs/app/guides/optimizing-the-static-shell). The
-guide owns Cache Components, Suspense, loading UI, caching, and authorization
-patterns and is the source of truth for the framework behavior. Follow its
-links to the relevant API references and error pages when choosing and applying
-the fix. This skill owns the production test rig, trustworthy RED-to-GREEN loop,
-parity check, differential, and reporting.
+guide is the source of truth for Cache Components, Suspense, loading UI,
+caching, authorization, and the framework behavior behind each pattern.
 
-Use one conclusive run at each gate. Do not stress-run a passing or failing
-test, create ad hoc probes, or repeatedly rebuild the same source unless two
-results conflict or an infrastructure failure makes the verdict
-untrustworthy. A normal run needs one unlocked baseline, one locked RED, one
-final GREEN for each contract, the parity check, and one RED/GREEN
-differential. Run all in-scope contracts together when the test runner supports
-it.
+The guide owns implementation patterns. This skill owns the navigation
+contract, production rig, trustworthy RED-to-GREEN loop, parity check,
+differential, and report.
 
 This is not an adoption or Partial Prefetching skill. If Cache Components are
 not adopted, use `next-cache-components-adoption` first. If the static shell is
 already instant and the user wants URL-specific content ready before a click,
 use `next-partial-prefetching-optimizer` instead.
+
+Run the workflow unattended. Stop for user input only when a product decision
+cannot be inferred safely without changing freshness, authorization, or
+user-visible behavior.
+
+## What stays fixed
+
+The verification loop is the invariant. Use `instant()` as a ruler, not a
+stopwatch. Under its lock, request-time work is paused while the intended shell
+must still commit. RED proves the gap, GREEN proves it closed, and the final
+test prevents the same regression.
+
+The rig is project-specific. Reuse the repository's build, authentication,
+data, and Playwright setup. A local production build or a preview deployment
+can both work. The verdict must come from a production build with the testing
+API exposed, never from `next dev` or elapsed time.
 
 ## Goal
 
@@ -78,12 +87,24 @@ hear those words.
 ## Define the contract
 
 Start with an initial page load because it directly captures the target route's
-static shell. Identify a meaningful, visible DOM node in that shell. Add a
-separate client-navigation contract when the user names that navigation or a
-shared layout gives it a different entry point. Follow the [Instant
-navigation](https://nextjs.org/docs/app/guides/instant-navigation) guide for
-that distinction. Use `instant()` as a ruler, not a stopwatch: assert what
-commits while dynamic data is paused, never elapsed time.
+static shell. Add a separate client-navigation contract when the user names
+that navigation or when a shared layout gives it a different entry point. The
+[Instant navigation](https://nextjs.org/docs/app/guides/instant-navigation)
+guide explains why the two entry points can have different instant UI.
+
+For each contract, identify:
+
+- the meaningful visible UI that must be present under the lock;
+- the existing loading states that must be visible under the lock;
+- the request-time UI that must be absent under the lock and render after it
+  releases;
+- the pathname, query, authentication, session, parameter, and viewport
+  variants that must keep working.
+
+Record the exact existing markers for that contract before editing production
+code. Preserve those markers and the completed DOM contract through the
+refactor. Do not rename or remove an existing test ID, substitute a looser
+selector, or change production markup merely to make the test easier to write.
 
 For a client navigation, place the relevant boundary below the layout shared
 by the source and destination. When the destination uses parallel routes,
@@ -103,128 +124,74 @@ several contracts in one test.
 
 ```
 - [ ] P  PREREQS      Next.js 16.3+ with Cache Components already adopted
-- [ ] 0  SETUP        once per repo: discover + write instant-nav.rig.md     → rig-template.md
-- [ ] A  RIG          production build with the testing API exposed          → below
-- [ ] B  BASELINE     unlocked: the marker renders for the test user         → test-template.md
-- [ ] C  RED          locked instant(): the shell does not commit            → test-template.md
-- [ ] C-gate          VERIFY-RED: stop until the RED is trustworthy          → reference/red-test-robustness.md
-- [ ] D  FIX          apply the public static-shell patterns to reach GREEN
-- [ ]      apply and verify one visible region at a time
-- [ ]      reuse existing loading UI; do not hand-build page skeletons
-- [ ]      match the completed render at every supported breakpoint
-- [ ] E  PARITY       the refactor changed only whether the route is instant
-- [ ] F  DIFFERENTIAL revert only the fix → RED; re-apply → GREEN            → reference/red-test-robustness.md
-- [ ] G  REVIEW       PR checklist (below)
+- [ ] 0  SETUP        reuse or document the production instant-nav rig
+- [ ] A  RIG          production build with the testing API exposed
+- [ ] B  BASELINE     unlocked: every contract eventually renders
+- [ ] C  RED          locked: the complete intended shell contract fails
+- [ ] C-gate          verify RED is caused by the missing optimization
+- [ ] D  FIX          apply the matching documented pattern
+- [ ] E  GREEN        every locked contract passes; completed UI still renders
+- [ ] F  PARITY       data, variants, errors, redirects, and interactions match
+- [ ] G  DIFFERENTIAL remove only the fix -> all contracts RED; restore -> GREEN
 ```
 
-Phases B and C build the test; only the locked test from C ships.
+Only the locked tests ship. The unlocked baseline is temporary.
 
 ---
 
 ## Reuse the production rig
 
-### P. Prerequisites
+Confirm the app uses Next.js 16.3 or newer with `cacheComponents: true`. If it
+does not, stop and use `next-cache-components-adoption` first.
 
-Confirm the app uses Next.js 16.3 or newer with `cacheComponents: true` and
-already builds successfully. If not, stop and use
-`next-cache-components-adoption` first.
+Read an existing `instant-nav.rig.md`. Cache Components optimization, Partial
+Prefetching adoption, and both optimizers share the same build, auth, data, and
+Playwright contract. Treat its server lifecycle and commands as fixed. Do not
+start a second server when the rig already uses Playwright `webServer` or an
+equivalent lifecycle.
 
-Install `@next/playwright` on the same release line as `next`. The measured
-production build must enable
-`experimental.exposeTestingApiInProductionBuild` only in its test environment,
-as described in phase A.
+If the project has no rig, use [`rig-template.md`](rig-template.md) to discover
+and record one. Install `@next/playwright` on the same release line as `next`.
+The measured build must enable
+`experimental.exposeTestingApiInProductionBuild` only in its test environment.
 
-### 0. Set up the project's rig
-
-The principles in this skill are fixed; the infrastructure they run on is
-yours. On first use in a repository, discover how the project builds, deploys,
-authenticates, and tests (inspect the repository first, and ask the user only
-what it cannot answer), then write the answers to a committed
-`instant-nav.rig.md`. Every later run reads that file instead of
-rediscovering. The required build, test context, navigation contracts,
-iteration loop, and file template are in **`rig-template.md`**.
-
-If the repo has no Playwright e2e harness yet, standing up a minimal one
-(`@next/playwright`, a config with `baseURL`, one authenticated path) is part
-of this step; the loop does not assume a pre-existing suite.
-
-### A. Run a production build with the testing API exposed
-
-Stand up the rig described by `instant-nav.rig.md`. Two invariants hold on
-every platform:
-
-1. **Never measure on `next dev`.** It does not prefetch, and its lock is
-   unreliable for blocking routes, so a dev `instant()` result is not a valid
-   RED or GREEN.
-2. **The measured build must expose the testing API.** Otherwise `instant()`
-   silently no-ops and the test passes vacuously (see
-   `reference/red-test-robustness.md`). The lock-engagement proof is the phase-C
-   RED itself: the unfixed target route is the known-blocking route, and its
-   RED under the lock shows the lock engages on this build (C-gate); the
-   self-validating variant in `test-template.md` is the in-band guarantee. Wire
-   `experimental.exposeTestingApiInProductionBuild` to a condition that is
-   true for every build you measure and never true in production:
-
-   ```ts
-   experimental: {
-     // Use the condition your platform provides, and record it in the rig file:
-     //   local:       an explicit opt-in, as below
-     //   generic CI:  process.env.DEPLOY_ENV === 'staging'
-     //   Vercel:      process.env.VERCEL_ENV === 'preview'
-     exposeTestingApiInProductionBuild:
-       process.env.EXPOSE_TESTING_API === '1',
-   }
-   ```
-
-The rig is any production-like build that exposes the testing API: a local
-`next build && next start`, a CI/staging container, and a preview deploy are
-all equally valid; the verdict comes from the build, not the platform. See
-`rig-template.md` for the setup requirements.
-
-For any deployed or remote build, poll the rig's LIVENESS probe to confirm the
-artifact contains `HEAD` before trusting a verdict (a stale deploy reads as a
-false RED or GREEN); a local `next build && next start` needs none. The probe
-mechanism is in `rig-template.md`.
+Run the test against a production build or preview. Development can help
+diagnose the route, but it is not a valid RED or GREEN. For a remote build, use
+the rig's liveness probe to confirm it contains the current commit before
+trusting the result.
 
 ## Prove the current behavior
 
-### B. Prove the target renders without the lock
+First run an unlocked scaffold that reaches the exact destination and proves
+all completed-route variants render for the test user. This catches redirects,
+missing data, stale builds, and guessed selectors. Do not ship the scaffold.
 
-Drive the real navigation with no `instant()` lock and assert that the
-destination's `SHELL_MARKER` renders **as the test user**: the account the
-e2e suite authenticates as (in CI, the CI account; locally, your e2e login
-fixture), with its flags, plan, role, and data. This establishes that the
-marker is real and reachable: not flag-gated, not redirected away, not a
-guessed selector. The suite runs as the test account, not the author's session;
-that environment drift (the rig DRIFT list) is a common source of
-untrustworthy REDs. Scaffold and run command: **`test-template.md`**.
-**Delete this baseline before the PR.**
+Then run the same navigation inside `instant()`. Assert the complete contract:
 
-### C. Record a trustworthy RED
+- every selected shell marker is visible;
+- every selected loading state is visible;
+- every request-time marker is absent;
+- after the lock releases, request-time content renders and the loading states
+  disappear.
 
-Wrap the same navigation in `instant()`; assert the shell commits under the
-lock. A RED here is the gap. **This is the test that ships**
-(`test-template.md`).
+Read [`reference/red-test-robustness.md`](reference/red-test-robustness.md)
+before treating the failure as RED. A timeout before the URL changes, a missing
+shell, a redirect, missing test data, a stale preview, or an unengaged lock is a
+rig failure rather than proof that the route needs optimization.
 
-Prefer the self-validating variant when the route has deferred content. If the
-route cannot build while blocked, or a cookie/session read stays GREEN, use the
-RED recipes in `reference/red-test-robustness.md`.
+Do not weaken positive, fallback, or deferred-content assertions to make the
+test pass. If the complete desired contract already passes, stop. Never add
+`prefetch={false}` merely to manufacture a RED.
 
-Do not weaken or remove assertions for deferred UI when a lock behaves
-unexpectedly. If a named contract cannot prove that its shell commits while
-request-time UI remains deferred, treat the verdict as untrustworthy and repair
-the rig or report the blocker.
+A required contract may not be changed to `skip`, `fixme`, or a soft assertion.
+If it behaves unexpectedly, diagnose the production build, testing API,
+server lifecycle, URL, and lock before changing the test. Do not label a
+failure as a framework limitation merely because a narrower contract passes.
+If the required contract cannot be made trustworthy, report the blocker rather
+than shipping or claiming GREEN.
 
-> **C-gate: do not start optimizing until the RED is verified trustworthy.** A
-> RED that is red for the wrong reason sends you optimizing a route that was
-> never broken.
-
-The question that settles it: **does `SHELL_MARKER` render without the lock,
-as the test user?** Answer it by re-running phase B as the test user, not by
-adding assertions to the shipped test. The two-branch resolution (No → marker
-or environment bug; Yes → genuine gap, proceed to D), the full taxonomy of
-untrustworthy REDs, the checklist, and worked cases are in
-**`reference/red-test-robustness.md`**. Read it now.
+Only test files and configuration needed to expose the testing API may change
+before the baseline and RED are complete.
 
 ---
 
@@ -233,104 +200,53 @@ untrustworthy REDs, the checklist, and worked cases are in
 ### D. Apply the documented static-shell pattern
 
 Use the **Optimizing the static shell** guide you read at the start. Follow the
-section that matches the route's blocker:
+anchor that matches the blocker:
 
-- [Keep static UI in the
-  shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-static-ui-in-the-shell)
-- [Push data access
-  down](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#push-data-access-down)
-  for top-level `await`, `params`, `searchParams`, `cookies()`, `headers()`, and
-  data that must be recomputed for each request
-- [Design loading
-  states](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#design-loading-states)
-  when new or changed boundaries affect how the UI reveals
-- [Cache reusable
-  work](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#cache-reusable-work)
+| Decision                                                       | Guide pattern                                                                                                             |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Stable UI is hidden by a broader loading state                 | [Keep static UI in the shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-static-ui-in-the-shell) |
+| A layout or page awaits request-time data too high in the tree | [Push data access down](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#push-data-access-down)             |
+| New or moved boundaries need useful, stable fallbacks          | [Design loading states](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#design-loading-states)             |
+| A result can be safely reused across requests                  | [Cache reusable work](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#cache-reusable-work)                 |
 
-When multiple independent requests must stay in one region, use [parallel data
-fetching](https://nextjs.org/docs/app/getting-started/fetching-data#parallel-data-fetching)
-to start them together. When React reaches a dependency later in the render,
-use [preloading
-data](https://nextjs.org/docs/app/getting-started/fetching-data#preloading-data)
-to start it sooner.
+The guide's example applies the same patterns to common blockers:
 
-For dynamic params that can be enumerated, follow [ISR with Cache
-Components](https://nextjs.org/docs/app/guides/incremental-static-regeneration-cache-components).
-Use [Follow validation as you
+- [`params`, `searchParams`, and focused boundaries](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-1-move-url-dependent-work-behind-suspense)
+- [authentication, `cookies()`, and `headers()`](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-2-move-authentication-behind-suspense)
+- [cache placement and revalidation](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-3-cache-the-reusable-plan-data)
+- [the production `instant()` contract](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-4-verify-the-instant-ui)
+
+Preserve the route's existing data source, freshness, and authorization
+behavior. Do not replace a mutable read with a build-time import to make it
+appear static. Cache the existing read when it can be reused. Stream it when it
+must stay request-time. Keep the underlying read mechanism and inputs intact
+unless the user explicitly asked to change the data layer.
+
+Reuse existing loading UI. Do not create a second page-shaped skeleton. Keep
+the shell meaningful at every supported breakpoint. An empty fallback is valid
+only when the resolved component also has no visual footprint.
+
+If `next dev` or a build surfaces another instant-navigation insight during the
+refactor, use [Follow validation as you
 refactor](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#follow-validation-as-you-refactor),
-then open any canonical Insight link printed by the build for the specific API
-involved. Do not recreate those framework recipes in this Skill.
-
-Metadata and viewport resolve outside the page's component tree, so page-level
-boundaries do not cover them. When validation identifies one of these APIs,
-follow its specific Insight: [request data in
-`generateMetadata()`](https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime),
-[uncached data in
-`generateMetadata()`](https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic),
-[request data in
-`generateViewport()`](https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime),
-or [uncached data in
-`generateViewport()`](https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic).
-
-For synchronous non-deterministic values such as `Date.now()`, `Math.random()`,
-or `crypto.randomUUID()`, follow [Random values and
-timestamps](https://nextjs.org/docs/app/getting-started/caching#random-values-and-timestamps).
-When production output does not identify the source, use the
-[`next build` debugging
-options](https://nextjs.org/docs/app/guides/building#debugging-build-errors)
-to get source-mapped errors or scope the build to the target route. Do not
-deploy a build produced with `--debug-prerender`.
-
-Preserve the route's existing freshness and authorization behavior. For a
-top-level session gate, follow [Move authentication behind
-Suspense](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-2-move-authentication-behind-suspense).
-Do not replace a mutable or reloadable data source with a build-time import to
-make it appear static. Cache the existing read when it can be reused, or stream
-it when it must stay request-time.
-Reuse the route's loading UI, keep the shell meaningful, and verify every
-render path and breakpoint in scope. If the guide does not cover the blocker,
-stop and report the missing case instead of inventing a new general pattern
-here.
-
-Before creating a fallback, read [Design loading
-states](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#design-loading-states),
-then inspect the target route for existing loading UI:
-
-1. Use its `loading.tsx` when the whole segment shares one loading state.
-2. Reuse an exported `*Skeleton` colocated with the deferred component.
-3. Reuse the fallback from an existing `<Suspense>` boundary.
-
-If none applies, extract loading markup next to the component it represents.
-Do not create a second skeleton that mirrors the whole page and can drift from
-the completed layout.
-
-For a client-navigation contract, make sure the reused `loading.tsx` or
-boundary is below the layout shared by the source and destination. A boundary
-above that layout can cover an initial load without participating in the client
-navigation.
-
-Do not use `export const instant = false` as the optimization. It allows the
-segment to block and only opts it out of validation. Do not move `<Suspense>`
-above the document `<body>` to make the test green either; an empty document
-shell is not meaningful instant UI. See [Opting
-out](https://nextjs.org/docs/app/guides/instant-navigation#opting-out) for the
-behavior of both escape hatches.
-
-Apply focused changes one region at a time, then run the scoped production
-build and locked contracts once the implementation is coherent. Re-run after
-a code change or an infrastructure failure, not merely to accumulate passing
-runs. Phase D is complete only when the phase-C test passes on the production
-rig. A successful build by itself is not GREEN.
-
-If the route already has a meaningful static shell and only URL-specific
-content is missing before a client navigation, stop at [Include URL-specific
-content in the instant
-UI](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#include-url-specific-content-in-the-instant-ui).
-That is a Partial Prefetching optimization, not a static-shell change.
+then open the canonical Insight it provides. For metadata, viewport, random
+values, and other API-specific blockers, follow that canonical page instead of
+inventing another recipe in this skill.
 
 If the optimization adds or expands a cache boundary, follow
-[Revalidating](https://nextjs.org/docs/app/getting-started/revalidating).
-A passing `instant()` test proves shell readiness, not mutation freshness.
+[Revalidating](https://nextjs.org/docs/app/getting-started/revalidating). When a
+writer can change the cached data, populate the cache, perform the mutation,
+and verify the next read returns the updated value. `instant()` proves shell
+readiness, not mutation freshness.
+
+Do not use `export const instant = false` or an empty document shell as the
+optimization. Apply focused changes until every locked contract is GREEN on
+the production rig. A successful build alone is not GREEN.
+
+If URL-specific content is the only missing instant UI, stop at [Include
+URL-specific content in the instant
+UI](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#include-url-specific-content-in-the-instant-ui)
+and hand off to `next-partial-prefetching-optimizer`.
 
 ### E. Confirm parity
 
@@ -372,6 +288,11 @@ Revert only the fix → RED; re-apply → GREEN; link both runs
 the optimization must be RED after the revert and GREEN after the re-apply. A
 partial RED does not complete the differential. On a deployed rig, confirm each
 run is live (LIVENESS, phase A) before trusting its color.
+
+Run the rig's complete in-scope command after the final re-apply. A filtered
+test, a passing subset, a written note, or a suite with a required test skipped
+does not establish GREEN or parity. The command must exit successfully with
+every required contract executed.
 
 ## Completion checklist
 
