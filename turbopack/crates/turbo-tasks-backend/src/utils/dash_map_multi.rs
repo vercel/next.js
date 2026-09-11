@@ -228,6 +228,8 @@ mod tests {
 
     use super::*;
 
+    // This test is too slow to run under Miri.
+    #[cfg(not(miri))]
     #[test]
     fn stress_deadlock() {
         const N: usize = 100000;
