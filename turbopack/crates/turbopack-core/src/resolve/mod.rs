@@ -353,7 +353,6 @@ impl ModuleResolveResult {
             .join()
             .await
             .into_iter()
-            // `as_module` yields `Option`, so this filters rather than flattens.
             .filter_map(Result::transpose)
             .collect()
     }

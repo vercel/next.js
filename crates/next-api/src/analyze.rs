@@ -8,7 +8,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, ValueToStringRef, Vc,
+    FxIndexSet, JoinIterExt, ResolvedVc, TryFlatJoinIterExt, ValueToString, ValueToStringRef, Vc,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemPath,
@@ -561,11 +561,12 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
         .map(async |module| {
             let ident = module.ident().to_string().owned().await?;
             let path = module.ident().await?.path.to_string_ref().await?;
-            Ok((ident, path))
+            anyhow::Ok((ident, path))
         })
-        .try_join()
-        .await?;
-    for (ident, path) in modules {
+        .join()
+        .await;
+    for module in modules {
+        let (ident, path) = module?;
         builder.ensure_module(&ident, &path);
     }
 
