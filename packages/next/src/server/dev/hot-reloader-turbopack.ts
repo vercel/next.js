@@ -2104,7 +2104,7 @@ export async function createHotReloaderTurbopack(
   async function handleProjectUpdates() {
     const BUILDING_MESSAGE_DEFER_MS = 100
     for await (const updateMessage of project.updateInfoSubscribe(30)) {
-      switch (updateMessage.value.updateType) {
+      switch (updateMessage.updateType) {
         case 'start': {
           updateInProgress = true
           pendingBuilding.schedule(BUILDING_MESSAGE_DEFER_MS, () => {
@@ -2184,7 +2184,7 @@ export async function createHotReloaderTurbopack(
           }
 
           if (hmrEventHappened) {
-            const time = updateMessage.value.value.duration
+            const time = updateMessage.value.duration
             const timeMessage =
               time > 2000 ? `${Math.round(time / 100) / 10}s` : `${time}ms`
             Log.event(`Compiled in ${timeMessage}`)

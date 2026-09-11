@@ -819,7 +819,7 @@ function bindingToApi(
     }
 
     updateInfoSubscribe(aggregationMs: number) {
-      return subscribe<TurbopackResult<UpdateMessage>>(true, async (callback) =>
+      return subscribe<UpdateMessage>(true, async (callback) =>
         binding.projectUpdateInfoSubscribe(
           this._nativeProject,
           aggregationMs,
@@ -829,16 +829,13 @@ function bindingToApi(
     }
 
     compilationEventsSubscribe(eventTypes?: string[]) {
-      return subscribe<TurbopackResult<CompilationEvent>>(
-        true,
-        async (callback) => {
-          binding.projectCompilationEventsSubscribe(
-            this._nativeProject,
-            callback,
-            eventTypes
-          )
-        }
-      )
+      return subscribe<CompilationEvent>(true, async (callback) => {
+        binding.projectCompilationEventsSubscribe(
+          this._nativeProject,
+          callback,
+          eventTypes
+        )
+      })
     }
 
     invalidateFileSystemCache(): Promise<void> {

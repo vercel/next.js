@@ -41,8 +41,7 @@ export function backgroundLogCompilationEvents(
   })
 
   const promise = (async function () {
-    for await (const result of iterator) {
-      const event = result.value
+    for await (const event of iterator) {
       // Record TraceEvent compilation events as trace spans in .next/trace.
       if (parentSpan && event.typeName === 'TraceEvent' && event.eventJson) {
         try {

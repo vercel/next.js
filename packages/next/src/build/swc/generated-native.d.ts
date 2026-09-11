@@ -604,7 +604,7 @@ export declare function projectClientHmrEvents(
 /** Subscribes to all compilation events that are not cached like timing and progress information. */
 export declare function projectCompilationEventsSubscribe(
   project: { __napiType: 'Project' },
-  func: (err: Error, value: TurbopackResult<CompilationEvent>) => void,
+  func: (err: Error, value: CompilationEvent) => void,
   eventTypes?: Array<string> | undefined | null
 ): void
 
@@ -716,7 +716,7 @@ export declare function projectUpdate(
 export declare function projectUpdateInfoSubscribe(
   project: { __napiType: 'Project' },
   aggregationMs: number,
-  func: (err: Error, value: TurbopackResult<UpdateMessage>) => void
+  func: (err: Error, value: UpdateMessage) => void
 ): void
 
 export declare function projectWriteAllEntrypointsToDisk(

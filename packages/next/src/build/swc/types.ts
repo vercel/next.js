@@ -366,11 +366,11 @@ export interface Project {
 
   updateInfoSubscribe(
     aggregationMs: number
-  ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+  ): AsyncIterableIterator<UpdateMessage>
 
   compilationEventsSubscribe(
     eventTypes?: string[]
-  ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
+  ): AsyncIterableIterator<CompilationEvent>
 
   invalidateFileSystemCache(): Promise<void>
 

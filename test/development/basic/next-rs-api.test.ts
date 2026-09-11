@@ -363,8 +363,7 @@ describe('next.rs api', () => {
     )
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
-      (update) =>
-        update.value.updateType === 'end' ? update.value.value : undefined
+      (update) => (update.updateType === 'end' ? update.value : undefined)
     )
   })
 
