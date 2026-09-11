@@ -444,9 +444,19 @@ export function runTests({
 
       if (!isNextDev) {
         let outputDir = join(next.testDir, 'out')
-        const expected = trailingSlash
+        const buildId = (
+          await fs.readFile(join(next.testDir, '.next', 'BUILD_ID'), 'utf8')
+        ).trim()
+        const expectedWithoutBuildId = trailingSlash
           ? expectedWhenTrailingSlashTrue
           : expectedWhenTrailingSlashFalse
+        const expected = expectedWithoutBuildId.map((filename) =>
+          typeof filename === 'string' &&
+          filename.endsWith('.txt') &&
+          filename !== 'robots.txt'
+            ? filename.replace(/\.txt$/, `.${buildId}.txt`)
+            : filename
+        )
         const actualFiles = await getFiles(outputDir)
         expect(actualFiles).toEqual(expect.arrayContaining(expected))
         expect(actualFiles).toHaveLength(expected.length)
