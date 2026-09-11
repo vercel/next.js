@@ -16,6 +16,10 @@ import {
   addPackageDependency,
   runInstallation,
 } from '../lib/handle-package'
+import {
+  eslintSpecifierSatisfiesPeer,
+  resolveEslintUpgradeVersion,
+} from '../lib/resolve-eslint-upgrade'
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 import { refreshAgentRulesBlock } from '../lib/agents-md'
@@ -385,12 +389,27 @@ export async function runUpgrade(
           : JSON.parse(eslintConfigNextPeerDepsJSON)
       const eslintRange = eslintConfigNextPeerDeps?.eslint
       if (eslintRange) {
-        const targetEslintVersion = await loadHighestNPMVersionMatching(
-          `eslint@${eslintRange}`
-        )
-        versionMapping['eslint'] = {
-          version: targetEslintVersion,
-          required: false,
+        const currentEslint = allDependencies['eslint']
+        if (!eslintSpecifierSatisfiesPeer(currentEslint, eslintRange)) {
+          const versionsJSON = execSync(
+            `npm --silent view "eslint@${eslintRange}" --json --field version`,
+            { encoding: 'utf-8' }
+          )
+          const versionOrVersions = JSON.parse(versionsJSON)
+          const versionsMatchingPeer = Array.isArray(versionOrVersions)
+            ? versionOrVersions
+            : [versionOrVersions]
+          const targetEslintVersion = resolveEslintUpgradeVersion(
+            currentEslint,
+            eslintRange,
+            versionsMatchingPeer
+          )
+          if (targetEslintVersion) {
+            versionMapping['eslint'] = {
+              version: targetEslintVersion,
+              required: false,
+            }
+          }
         }
       }
     } catch (e) {
