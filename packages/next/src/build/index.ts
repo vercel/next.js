@@ -147,6 +147,8 @@ import type {
   PrerenderedRoute,
 } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
+import type { PrerenderMatcher } from './segment-config/app/app-segments'
+import { validatePrerenderMatcherCoherence } from './static-paths/prerender-matcher'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -2178,6 +2180,10 @@ export default async function build(
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
+      const paramMatchingByRoute = new Map<
+        string,
+        PrerenderMatcher | undefined
+      >()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -2564,6 +2570,17 @@ export default async function build(
                       )
 
                       if (pageType === 'app' && originalAppPath) {
+                        if (
+                          config.experimental.paramMatching &&
+                          !isAppRouteRoute(originalAppPath)
+                        ) {
+                          // Include pages without exports: an omitted policy
+                          // cannot silently inherit another route's closure.
+                          paramMatchingByRoute.set(
+                            originalAppPath,
+                            workerResult.prerenderMatcher
+                          )
+                        }
                         appNormalizedPaths.set(originalAppPath, page)
                         // TODO-APP: handle prerendering with edge
                         if (isEdgeRuntime(pageRuntime)) {
@@ -2788,6 +2805,10 @@ export default async function build(
               })
             })
         )
+
+        if (config.experimental.paramMatching) {
+          validatePrerenderMatcherCoherence(paramMatchingByRoute)
+        }
 
         const errorPageResult = await errorPageStaticResult
         const nonStaticErrorPage =

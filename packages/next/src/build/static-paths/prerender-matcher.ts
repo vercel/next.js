@@ -6,6 +6,8 @@ import {
 } from '../segment-config/app/app-segments'
 import type { FallbackRouteParam } from './types'
 import { FallbackMode } from '../../lib/fallback'
+import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
+import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 
 function isTreePathPrefix(
   prefix: readonly string[],
@@ -45,6 +47,7 @@ export async function compilePrerenderMatcher(
     pathnameSegments.map(({ paramName }) => paramName)
   )
   const candidates = new Map<string, MatcherCandidate[]>()
+  const paramsMissingPolicy = new Set<string>()
   const fragments = await Promise.all(
     matcherSegments.map(async (segment) => {
       const matcherExport = segment.prerenderMatcher!
@@ -99,6 +102,18 @@ export async function compilePrerenderMatcher(
       }
     }
 
+    for (const segment of segments) {
+      if (
+        segment.paramName &&
+        !branchCandidates.has(segment.paramName) &&
+        segment.treePaths.some((treePath) =>
+          isTreePathPrefix(treePath, branchPath)
+        )
+      ) {
+        paramsMissingPolicy.add(segment.paramName)
+      }
+    }
+
     for (const [paramName, candidate] of branchCandidates) {
       const parallelCandidates = candidates.get(paramName)
       if (!parallelCandidates) {
@@ -127,6 +142,11 @@ export async function compilePrerenderMatcher(
         `Route "${page}" has conflicting parallel parameter matching modes for parameter "${paramName}": ${definitions}.`
       )
     }
+    if (mode === 'not-found' && paramsMissingPolicy.has(paramName)) {
+      throw new Error(
+        `Parameter "${paramName}" in route "${page}" uses "not-found" in one parallel branch, but another branch has no explicit policy. Every parallel branch sharing this parameter must explicitly configure "not-found", either directly or through an inherited layout.`
+      )
+    }
     policy[paramName] = mode
   }
 
@@ -146,6 +166,42 @@ export async function compilePrerenderMatcher(
   }
 
   return policy
+}
+
+/**
+ * Validate closure after every page's policies have been evaluated and merged.
+ * Compare parameter positions, not names: /blog/[slug] and /shop/[slug] are
+ * independent, while route groups and parallel slots do not change a position.
+ */
+export function validatePrerenderMatcherCoherence(
+  matchers: ReadonlyMap<string, PrerenderMatcher | undefined>
+): void {
+  const parameters = new Map<string, [route: string, notFound: boolean]>()
+
+  for (const [appPath, matcher] of [...matchers].sort(([a], [b]) =>
+    a.localeCompare(b)
+  )) {
+    const route = normalizeAppPath(appPath)
+    let prefix = ''
+    for (const segment of route.split('/')) {
+      if (!segment) continue
+      prefix += `/${segment}`
+      const param = getSegmentParam(segment)
+      if (!param) continue
+
+      const notFound = matcher?.[param.paramName] === 'not-found'
+      const previous = parameters.get(prefix)
+      if (previous === undefined) {
+        parameters.set(prefix, [route, notFound])
+      } else if (previous[1] !== notFound) {
+        const closedRoute = notFound ? route : previous[0]
+        const openRoute = notFound ? previous[0] : route
+        throw new Error(
+          `Parameter "${param.paramName}" at "${prefix}" uses "not-found" in route "${closedRoute}". Route "${openRoute}" must explicitly configure "not-found" for this parameter, either directly or through an inherited layout.`
+        )
+      }
+    }
+  }
 }
 
 export function getPrerenderMatcherFallbackMode(
