@@ -53,7 +53,10 @@ export async function spawnNextUpgrade(
 
       const { handoffUpgrade } =
         require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
-      await handoffUpgrade(prompt)
+      await handoffUpgrade(prompt, baseDir, {
+        current: result.app.nextVersion,
+        target: result.targetVersion,
+      })
     } catch (error) {
       console.error(
         '[next upgrade: blocked]',
