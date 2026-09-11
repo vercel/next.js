@@ -58,22 +58,26 @@ export async function ConditionalCookies() {
   return (
     <div>
       <p>{`Cached value: ${cachedValue.tag}, cookies used: ${shouldUseCookies}`}</p>
-      {shouldUseCookies && (
-        <Suspense
-          fallback={<div id="cookie-data-fallback">Loading cookie data...</div>}
-        >
-          <CookieData />
-        </Suspense>
-      )}
+      {shouldUseCookies && <CookieData />}
     </div>
   )
 }
 
-async function CookieData() {
+export async function CookieData({ label }: { label?: string }) {
+  return (
+    <Suspense
+      fallback={<div id="cookie-data-fallback">Loading cookie data...</div>}
+    >
+      <CookieDataImpl label={label} />
+    </Suspense>
+  )
+}
+
+async function CookieDataImpl({ label }: { label?: string }) {
   await cookies()
   return (
     <>
-      <div id="cookie-data">Cookie data</div>
+      <div id="cookie-data">{`Cookie data${label ? ' ' + label : ''}`}</div>
       <Suspense
         fallback={
           <div id="cookies-runtime-prefetch-data-fallback">

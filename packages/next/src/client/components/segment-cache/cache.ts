@@ -1,6 +1,9 @@
 import type React from 'react'
 import type { Segment as FlightRouterStateSegment } from '../../../shared/lib/app-router-types'
-import { PrefetchHint } from '../../../shared/lib/app-router-types'
+import {
+  PrefetchHint,
+  StaticAttemptHints,
+} from '../../../shared/lib/app-router-types'
 import type { VaryParams } from '../../../shared/lib/segment-cache/vary-params-decoding'
 import { readFulfilledValue } from '../../../shared/lib/rsc-transport'
 import {
@@ -1443,13 +1446,16 @@ export function createMetadataRouteTree(
     // one. If this logic ever gets more complex we can change this to an enum.
     isPage: true,
     slots: null,
-    // Only the static-attempt bit applies to the head: it's a route-level
+    // TODO(require-static): this explanation seems inconsistent with other places
+    // like `pingNewPartsOfComponentTree` which treat static hints as segment-level?
+    //
+    // Only the static-attempt bits apply to the head: it's a route-level
     // fact ("static per-segment responses may exist for this route"), and
     // it's what lets a shell-tier cached head attempt a static head fetch
     // before deopting to a runtime request (see the shell-tier eligibility
     // check in pingSegmentBundle). The other bits describe tree structure
     // the head doesn't participate in.
-    prefetchHints: rootPrefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch,
+    prefetchHints: rootPrefetchHints & StaticAttemptHints,
   }
   return metadata
 }

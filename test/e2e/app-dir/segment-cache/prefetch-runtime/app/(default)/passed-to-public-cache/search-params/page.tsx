@@ -6,7 +6,6 @@ import { cookies } from 'next/headers'
 export const instant = {
   unstable_samples: [{ searchParams: { searchParam: 'value' } }],
 }
-export const prefetch = 'partial'
 
 type AnySearchParams = { [key: string]: string | string[] | undefined }
 
@@ -19,8 +18,9 @@ export default async function Page({
     <main>
       <DebugRenderKind />
       <p>
-        This page passes search params to a public cache, and uses some uncached
-        IO, so parts of it should be prefetchable with a runtime prefetch.
+        This page uses search params (passed to a public cache), and uses some
+        uncached IO, so parts of it should be prefetchable with a runtime
+        prefetch.
       </p>
       <Suspense fallback={<div style={{ color: 'grey' }}>Loading 1...</div>}>
         <RuntimePrefetchable searchParams={searchParams} />

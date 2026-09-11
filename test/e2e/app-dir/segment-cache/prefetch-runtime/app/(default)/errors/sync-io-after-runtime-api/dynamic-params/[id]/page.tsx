@@ -1,5 +1,6 @@
 import { Suspense } from 'react'
 import { DebugRenderKind } from '../../../../../shared'
+import { ForceRuntimeShell } from '../../../../../../components/force-runtime-shell'
 
 type Params = { id: string }
 
@@ -14,6 +15,7 @@ export const prefetch = 'partial'
 export default async function Page({ params }: { params: Promise<Params> }) {
   return (
     <main>
+      <ForceRuntimeShell />
       <DebugRenderKind />
       <p id="intro">
         This page performs sync IO after awaiting params, so we should only see
