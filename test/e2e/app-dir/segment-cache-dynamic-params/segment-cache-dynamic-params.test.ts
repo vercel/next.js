@@ -4,7 +4,7 @@ import type { PrerenderManifest } from 'next/dist/build'
 import { createRouterAct } from 'router-act'
 
 // @force-gate prefetching
-describe('segment cache closed params (paramMatching: not-found)', () => {
+describe('segment cache closed params (dynamicParams = false)', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
