@@ -87,24 +87,27 @@ running while the test command executes. Follow the public
 [`instant()` testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): use `page.goto()` for an initial-load
 contract and click the real `<Link>` for a client-navigation contract.
 
-### Repeat and browser-back assertions
+### Fresh, repeat, and browser-back assertions
 
 With Cache Components enabled, the client router uses React Activity to preserve
 some previously visited routes. On a repeat or browser-back navigation, the
-route's DOM may still exist with `display: none`, so `toHaveCount(0)` can fail
-even though that content is not part of the visible instant UI. See the public
+route's DOM may stay hidden during the transition or reappear with its
+completed state. A DOM-count assertion therefore does not describe the UI the
+user currently sees. See the public
 [`instant()` testing guidance](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests).
 
 Match the assertion to the contract:
 
 - On a fresh destination, use `toHaveCount(0)` to prove deferred content has not
   committed under the lock. Keep this assertion in a self-validating test.
-- On a repeat or browser-back navigation, assert that excluded content has no
-  visible match, for example with `.filter({ visible: true })`, while the
-  intended instant UI is visible.
+- On a repeat or browser-back navigation, use visibility-aware locators to
+  assert the restoration behavior the user sees. Previously completed content
+  may be restored immediately. If the contract expects content to stay
+  hidden, assert that it has no visible match with `.filter({ visible: true })`.
 
-Do not treat retained hidden DOM as instant content, and do not weaken a
-fresh-destination absence assertion to accommodate a repeat-navigation test.
+Keep these as separate contracts. Do not treat retained hidden DOM as visible
+instant content, and do not weaken a fresh-destination absence assertion to
+accommodate a repeat-navigation test.
 
 ### Test context
 
