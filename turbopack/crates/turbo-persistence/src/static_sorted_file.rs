@@ -321,7 +321,7 @@ impl StaticSortedFile {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
         let file = File::open(&path)?;
-        let backing = match access_mode {
+        let backing = match access_mode.effective() {
             AccessMode::Mmap => {
                 let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
                     format!(
@@ -1126,7 +1126,7 @@ impl StaticSortedFileIter {
         let filename = format!("{:08}.sst", meta.sequence_number);
         let path = db_path.join(&filename);
         let file = File::open(&path)?;
-        let backing = match access_mode {
+        let backing = match access_mode.effective() {
             AccessMode::Mmap => {
                 let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
                     format!(

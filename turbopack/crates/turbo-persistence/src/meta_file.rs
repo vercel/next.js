@@ -3,7 +3,7 @@ use std::{
     fmt::Display,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::OnceLock,
+    sync::{Arc, OnceLock},
 };
 
 use anyhow::{Context, Result, bail, ensure};
@@ -243,7 +243,13 @@ pub struct StaticSortedFileRange {
 
 enum MetaFileBacking {
     Mmap(Mmap),
-    Bytes(Box<[u8]>),
+    /// Heap bytes for [`AccessMode::File`].
+    ///
+    /// This is an `Arc<[u8]>` rather than a `Box<[u8]>` so that moving the backing into
+    /// [`MetaFile`] does not reborrow the bytes: a `Box` is a unique pointer, so the move
+    /// invalidates the `FilterRef`s that already borrow from it, which Miri reports as undefined
+    /// behavior under Stacked Borrows. An `Arc` moves its handle without retagging the allocation.
+    Bytes(Arc<[u8]>),
 }
 
 impl Deref for MetaFileBacking {
@@ -316,7 +322,7 @@ impl MetaFile {
         family_configs: Option<&[FamilyConfig]>,
         access_mode: AccessMode,
     ) -> Result<Self> {
-        let backing = match access_mode {
+        let backing = match access_mode.effective() {
             AccessMode::Mmap => {
                 let file = File::open(path)?;
                 let mmap = unsafe { MmapOptions::new().map(file.file()) }
@@ -327,7 +333,7 @@ impl MetaFile {
                 advise_mmap_for_persistence(&mmap)?;
                 MetaFileBacking::Mmap(mmap)
             }
-            AccessMode::File => MetaFileBacking::Bytes(fs_err::read(path)?.into_boxed_slice()),
+            AccessMode::File => MetaFileBacking::Bytes(fs_err::read(path)?.into()),
         };
         // Parse the header from stable backing bytes via ReadBytesExt on &[u8].
         let mut reader: &[u8] = &backing;
