@@ -24,19 +24,22 @@ pub struct TraceQueryOptions {
     pub aggregated: Option<bool>,
     /// Sort mode: `"value"` for duration descending, `"name"` for alphabetical,
     /// `"allocations"` for total allocated bytes descending,
-    /// `"persistent-allocations"` for net retained bytes descending.
+    /// `"persistent-allocations"` for `persistentAllocations` descending.
     /// Omit for execution order (no sorting).
     pub sort: Option<String>,
     /// Optional substring search query applied to span name/category.
     ///
-    /// Recursive: matches anywhere in the parent's subtree, and each result's
-    /// `id` is the full path from `parent` down to the match.
+    /// Matches anywhere in the parent's subtree. Each result's `id` is the full
+    /// path from `parent` to the match, so it can be passed back as `parent`.
+    ///
+    /// Cost scales with subtree size, so a root search on a large trace walks
+    /// everything. Setting `parent`, or lowering `maxDepth`, bounds it.
     pub search: Option<String>,
-    /// Maximum depth to descend below `parent` when searching, or when `depth`
-    /// requests a nested subtree. Default `32`, which is also the cap.
+    /// Maximum depth to descend below `parent` for `search` and `depth`.
+    /// Default `32`, which is also the cap.
     pub max_depth: Option<u32>,
-    /// When greater than `1`, each returned span carries its descendants inline
-    /// in `children`, up to this many levels. Default `1` (no nesting).
+    /// When greater than `1`, each returned span carries this many levels of
+    /// descendants inline in `children`. Default `1` (no nesting).
     pub depth: Option<u32>,
     /// 1-based page number. Default `1`.
     pub page: Option<u32>,
@@ -73,40 +76,33 @@ pub struct TraceSpanInfo {
     pub total_corrected_duration: Option<i64>,
     /// Average corrected duration across spans in the group.
     pub avg_corrected_duration: Option<i64>,
-    /// Raw span ID of the group's **first** span — the example span whose
-    /// `cpuDuration`, `correctedDuration` and `memorySamples` are reported on
-    /// this entry. First in execution order, *not* the largest: drilling in
-    /// here to explain a group's allocation total usually lands on an
-    /// unremarkable span. Use `heaviestSpanId` for that.
+    /// Raw span ID of the group's example span, whose `cpuDuration`,
+    /// `correctedDuration` and `memorySamples` are the ones reported here.
+    /// First in execution order — *not* the largest, so it can badly understate
+    /// a group's allocations. Use `heaviestSpanId` for those.
     pub first_span_id: Option<String>,
     /// Raw span ID of the group member with the largest persistent
-    /// allocations — the one actually responsible for most of the group's
-    /// retained bytes, and the right span to drill into when a group's
-    /// allocation numbers are what drew your attention.
+    /// allocations.
     pub heaviest_span_id: Option<String>,
     /// Total bytes allocated by this span and all its children.
     ///
-    /// For aggregated groups this is the **group total** across every span in
-    /// the group. Note the asymmetry with the fields above: `cpuDuration`,
-    /// `correctedDuration` and `memorySamples` describe the *example* span
-    /// only, while every allocation field is a group total.
+    /// For aggregated groups this is the group total, unlike `cpuDuration`,
+    /// `correctedDuration` and `memorySamples`, which describe the example span
+    /// only. Every allocation field below follows this field, not those.
     pub allocations: i64,
     /// Total bytes deallocated by this span and all its children.
     /// Group total for aggregated spans.
     pub deallocations: i64,
-    /// Net bytes attributed to this span and its children: the sum over each
-    /// span of `max(0, selfAllocations - selfDeallocations)`. Group total for
-    /// aggregated spans.
+    /// Sum over each span of `max(0, selfAllocations - selfDeallocations)`,
+    /// for this span and its children. Group total for aggregated spans.
     ///
-    /// **A ranking signal, not retained memory.** It is allocated-minus-freed
-    /// as seen by TurboMalloc's per-span counters, which never observe
-    /// turbo-tasks cell and cache drops, so a whole-trace total far above real
-    /// peak RSS is expected rather than a leak. Use `memorySummary.peak` for
-    /// absolute memory; use this to rank who allocates.
+    /// **A ranking signal, not retained memory.** TurboMalloc's per-span
+    /// counters never observe turbo-tasks cell and cache drops, so a
+    /// whole-trace total far above real peak RSS is expected, not a leak. Use
+    /// `memorySummary.peak` for absolute memory.
     ///
-    /// Not simply `allocations - deallocations`: the per-span floor at zero
-    /// means a span that frees more than it allocates contributes 0, not a
-    /// negative.
+    /// The per-span floor at zero is also why this is not
+    /// `allocations - deallocations`.
     pub persistent_allocations: i64,
     /// Number of allocation operations by this span and all its children.
     /// Group total for aggregated spans.
@@ -117,16 +113,14 @@ pub struct TraceSpanInfo {
     /// Bytes deallocated by this span itself, excluding children.
     /// Group total for aggregated spans.
     ///
-    /// Frees are charged to whichever span was on top of the thread's stack
-    /// **at free time**, which is often not the span that allocated. A child
-    /// that allocates into a buffer its parent later drops appears as a child
-    /// with large `selfAllocations` and a parent with large
-    /// `selfDeallocations` — which reads like "the child leaks" but is proof
-    /// the memory was released. Small `selfAllocations` with large
-    /// `selfDeallocations` means this span is where a child's arena is
-    /// dropped, i.e. that arena is bounded.
+    /// Frees are charged to whichever span was on top of the thread's stack at
+    /// free time, which is often not the span that allocated. So small
+    /// `selfAllocations` with large `selfDeallocations` means this span is
+    /// where a child's arena gets dropped — that arena is bounded, not leaking.
+    /// The shape to suspect is a large `selfPersistentAllocations` with no such
+    /// counterpart above it.
     pub self_deallocations: i64,
-    /// Net retained bytes by this span itself, excluding children.
+    /// `max(0, selfAllocations - selfDeallocations)` for this span alone.
     /// Group total for aggregated spans.
     pub self_persistent_allocations: i64,
     /// Number of allocation operations by this span itself, excluding children.
@@ -135,18 +129,21 @@ pub struct TraceSpanInfo {
     /// TurboMalloc memory-usage samples recorded while this span
     /// (or its example span, for aggregated groups) was live.
     ///
+    /// **Process-wide, not per-span.** One global series is sliced by the
+    /// span's time range, so spans that overlap in time report identical values
+    /// no matter what each allocated. Rank concurrent work by the allocation
+    /// fields instead.
+    ///
     /// Each entry is `[ts_offset_from_span_start_in_ticks, bytes, pressure]`,
     /// where `pressure` is the memory-pressure byte (0 = no pressure, higher
     /// = more pressure). `100 ticks = 1 µs`. The offset is always `>= 0` and
     /// `<= span_duration`. Capped and downsampled by the store.
     pub memory_samples: Vec<Vec<i64>>,
-    /// Precomputed summary of `memorySamples`. Absent when the span's range
-    /// holds no samples. Unlike the allocation counters these are absolute
-    /// live-heap readings, so `peak` is the figure to quote for how much
-    /// memory was actually in use.
+    /// Summary of `memorySamples`; absent when the span's range holds none.
+    /// Unlike the allocation counters these are absolute live-heap readings, so
+    /// `peak` is the figure to quote for memory actually in use.
     pub memory_summary: Option<TraceMemorySummary>,
-    /// Descendants of this span, populated only when the query set `depth > 1`.
-    /// Each child is a full span entry with its own navigable `id`.
+    /// Descendants of this span, populated only when `depth > 1`.
     pub children: Vec<TraceSpanInfo>,
 }
 
@@ -188,7 +185,7 @@ pub fn start_turbopack_trace_server_handle(path: String, port: Option<u16>) -> T
     TraceServerHandle { store }
 }
 
-/// Convert a core `SpanInfo` (and its nested children) into the napi shape.
+/// Convert a core `SpanInfo` and its nested children into the napi shape.
 fn convert_span(s: turbopack_trace_server::SpanInfo) -> TraceSpanInfo {
     TraceSpanInfo {
         id: s.id,
