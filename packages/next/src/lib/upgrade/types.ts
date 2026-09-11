@@ -54,16 +54,51 @@ export interface UpgradeCommand {
   args: string[]
 }
 
+export interface UpgradeContext {
+  schemaVersion: 1
+  runDirectory: string
+  policy: 'security'
+  /** Complete and verify local commits, then stop before publication. */
+  dryRun: boolean
+  app: UpgradeApp
+  target: { nextVersion: string; reason: string }
+  tools: UpgradeCommand & {
+    invokingNextVersion: string
+    codemodVersion: string
+  }
+  docs: {
+    root: string
+    guides: string[]
+    sources: {
+      path: string
+      source: string
+      sourceRevision: string
+      major?: number
+    }[]
+  }
+  security: {
+    checkedAt: string
+    evidenceReferences: string[]
+    snapshotPath: string
+  }
+  baseline: {
+    manifestPath: string
+    manifestHash: string
+    lockfilePath?: string
+    lockfileHash?: string
+  }
+}
+
 export type UpgradeResolution =
-  | { status: 'disabled' | 'unaffected' | 'blocked'; reason: string }
+  | {
+      status: 'disabled' | 'unaffected' | 'blocked'
+      reason: string
+    }
   | {
       status: 'ready'
       app: UpgradeApp
-      target: { nextVersion: string; reason: string }
-      tools: UpgradeCommand & {
-        invokingNextVersion: string
-        codemodVersion: string
-      }
+      target: UpgradeContext['target']
+      tools: UpgradeContext['tools']
       snapshot: SecuritySnapshot
     }
 
