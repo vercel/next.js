@@ -217,7 +217,7 @@
     "@types/text-table": "0.2.1",
     "@types/ua-parser-js": "0.7.36",
     "@types/webpack-sources1": "npm:@types/webpack-sources@0.1.5",
-    "@types/ws": "8.2.0",
+    "@types/ws": "8.18.1",
     "@vercel/blob": "2.3.2",
     "@vercel/detect-agent": "1.2.3",
     "@vercel/ncc": "0.38.4",
@@ -354,7 +354,7 @@
     "webpack-sources1": "npm:webpack-sources@1.4.3",
     "webpack-sources3": "npm:webpack-sources@3.2.3",
     "write-file-atomic": "7.0.1",
-    "ws": "8.2.3",
+    "ws": "8.21.2",
     "zod": "3.25.76",
     "zod-validation-error": "3.4.0"
   },
