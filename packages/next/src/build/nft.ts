@@ -112,6 +112,10 @@ export interface MappedNftFileEntry {
   source: string
   destination: string
   hash?: string
+  /**
+   * If the `NftJson` has a top-level `symlink` field, it can be assumed that an
+   * `undefined` value here means that the file is not a symlink.
+   */
   symlinkTarget?: string
 }
 

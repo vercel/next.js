@@ -2768,6 +2768,8 @@ async function loadNFT(
 ): Promise<{ entryHash?: string }> {
   const nft = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as NftJson
 
+  // This call site only records source locations and hashes, so it does not need
+  // the mapped symlink targets.
   for (const entry of mapNftFileEntries(nft, traceFilePath, repoRoot)) {
     assets[entry.destination] = entry.source
     if (entry.hash) {

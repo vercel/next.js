@@ -103,6 +103,8 @@ impl Asset for FileSource {
                     .cell())
                 }
                 LinkContent::NotFound => {
+                    // This should not normally happen because the path was already identified as
+                    // a symlink, but it may be removed between get_type and read_link.
                     Ok(AssetContent::File(FileContent::NotFound.resolved_cell()).cell())
                 }
                 LinkContent::Invalid { reason } => bail!("Invalid symlink: {reason}"),

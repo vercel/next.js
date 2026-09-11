@@ -144,7 +144,7 @@ impl Asset for NftJsonAsset {
                 .map(async |referenced| {
                     let (referenced_chunk_path, hash, content) = match referenced {
                         AssetOrModule::Asset(v) => {
-                            let content = v.content();
+                            let content = v.content().to_resolved().await?;
                             (
                                 v.path().owned().await?,
                                 content

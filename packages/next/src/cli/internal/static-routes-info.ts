@@ -357,6 +357,9 @@ function collectServerEntryFiles(
   const entries = mapNftFileEntries(nft, nftPath, path.parse(nftPath).root)
 
   for (const entry of entries) {
+    // NFT paths are relative to the entry's directory. If the mapped source
+    // stays inside distDir it's a server chunk; if it leaves distDir it's an
+    // unbundled trace dependency (e.g. ../../../node_modules/...).
     const inDistDirPath = path.relative(distDir, entry.source)
     const outsideDistDir =
       path.isAbsolute(inDistDirPath) ||
