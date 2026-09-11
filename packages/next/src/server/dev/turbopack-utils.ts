@@ -144,6 +144,58 @@ type HandleRouteTypeHooks = {
   handleServerComponentChanges?: () => void
 }
 
+/**
+ * Tracks whether an edge-runtime consumer (edge middleware or a route using
+ * `runtime = 'edge'`) has been seen for the given entrypoints.
+ *
+ * The edge variant of the instrumentation hook is only ever loaded by edge
+ * functions (its files are merged into edge function definitions in the
+ * middleware manifest), so it's only compiled once an edge consumer is
+ * discovered. Otherwise apps without any edge-runtime code would get
+ * irrelevant edge-compat issues reported for `instrumentation.ts` (e.g. when
+ * it uses Node.js APIs). See https://github.com/vercel/next.js/issues/86479
+ */
+const seenEdgeRuntimeConsumer = new WeakSet<Entrypoints>()
+
+export async function ensureEdgeInstrumentationBuilt({
+  entrypoints,
+  currentEntryIssues,
+  manifestLoader,
+  logErrors,
+  handleWrittenEndpoint,
+  startBuilding,
+}: {
+  entrypoints: Entrypoints
+  currentEntryIssues: EntryIssuesMap
+  manifestLoader: TurbopackManifestLoader
+  logErrors: boolean
+  handleWrittenEndpoint?: HandleWrittenEndpoint
+  startBuilding?: StartBuilding
+}): Promise<void> {
+  seenEdgeRuntimeConsumer.add(entrypoints)
+
+  const instrumentation = entrypoints.global.instrumentation
+  if (!instrumentation) {
+    return
+  }
+
+  const finishBuilding = startBuilding?.(
+    'instrumentation Edge',
+    undefined,
+    true
+  )
+  const key = getEntryKey('root', 'server', 'instrumentation.edge')
+
+  const writtenEndpoint = await instrumentation.edge.writeToDisk()
+  handleWrittenEndpoint?.(key, writtenEndpoint, false)
+  processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+  await manifestLoader.loadMiddlewareManifest(
+    'instrumentation',
+    'instrumentation'
+  )
+  finishBuilding?.()
+}
+
 export async function handleRouteType({
   dev,
   page,
@@ -235,6 +287,13 @@ export async function handleRouteType({
         await manifestLoader.loadPagesManifest(page)
         if (type === 'edge') {
           warnAboutEdgeRuntime()
+          await ensureEdgeInstrumentationBuilt({
+            entrypoints,
+            currentEntryIssues,
+            manifestLoader,
+            logErrors,
+            handleWrittenEndpoint: hooks?.handleWrittenEndpoint,
+          })
           await manifestLoader.loadMiddlewareManifest(page, 'pages')
         } else {
           manifestLoader.deleteMiddlewareManifest(serverKey)
@@ -329,6 +388,13 @@ export async function handleRouteType({
       await manifestLoader.loadPagesManifest(page)
       if (type === 'edge') {
         warnAboutEdgeRuntime()
+        await ensureEdgeInstrumentationBuilt({
+          entrypoints,
+          currentEntryIssues,
+          manifestLoader,
+          logErrors,
+          handleWrittenEndpoint: hooks?.handleWrittenEndpoint,
+        })
         await manifestLoader.loadMiddlewareManifest(page, 'pages')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
@@ -380,6 +446,13 @@ export async function handleRouteType({
 
       if (type === 'edge') {
         warnAboutEdgeRuntime()
+        await ensureEdgeInstrumentationBuilt({
+          entrypoints,
+          currentEntryIssues,
+          manifestLoader,
+          logErrors,
+          handleWrittenEndpoint: hooks?.handleWrittenEndpoint,
+        })
         manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
@@ -443,6 +516,13 @@ export async function handleRouteType({
 
       if (type === 'edge') {
         warnAboutEdgeRuntime()
+        await ensureEdgeInstrumentationBuilt({
+          entrypoints,
+          currentEntryIssues,
+          manifestLoader,
+          logErrors,
+          handleWrittenEndpoint: hooks?.handleWrittenEndpoint,
+        })
         manifestLoader.loadMiddlewareManifest(page, 'app')
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
@@ -689,32 +769,32 @@ export async function handleEntrypoints({
   currentEntrypoints.global.middleware = middleware
 
   if (instrumentation) {
-    const processInstrumentation = async (
-      name: string,
-      prop: 'nodeJs' | 'edge'
-    ) => {
-      const prettyName = {
-        nodeJs: 'Node.js',
-        edge: 'Edge',
-      }
-      const finishBuilding = dev.hooks.startBuilding(
-        `instrumentation ${prettyName[prop]}`,
-        undefined,
-        true
-      )
-      const key = getEntryKey('root', 'server', name)
-
-      const writtenEndpoint = await instrumentation[prop].writeToDisk()
-      dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
-      processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
-      finishBuilding()
-    }
-    await processInstrumentation('instrumentation.nodeJs', 'nodeJs')
-    await processInstrumentation('instrumentation.edge', 'edge')
-    await manifestLoader.loadMiddlewareManifest(
-      'instrumentation',
-      'instrumentation'
+    const finishBuilding = dev.hooks.startBuilding(
+      'instrumentation Node.js',
+      undefined,
+      true
     )
+    const key = getEntryKey('root', 'server', 'instrumentation.nodeJs')
+
+    const writtenEndpoint = await instrumentation.nodeJs.writeToDisk()
+    dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
+    processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+    finishBuilding()
+
+    // The edge variant is only compiled when an edge-runtime consumer exists.
+    // If one was seen before (e.g. the instrumentation file changed), rebuild
+    // it here; otherwise it's built on demand when the first edge middleware
+    // or edge route is compiled.
+    if (seenEdgeRuntimeConsumer.has(currentEntrypoints)) {
+      await ensureEdgeInstrumentationBuilt({
+        entrypoints: currentEntrypoints,
+        currentEntryIssues,
+        manifestLoader,
+        logErrors,
+        handleWrittenEndpoint: dev.hooks.handleWrittenEndpoint,
+        startBuilding: dev.hooks.startBuilding,
+      })
+    }
     manifestLoader.writeManifests({
       devRewrites,
       productionRewrites: undefined,
@@ -751,6 +831,16 @@ export async function handleEntrypoints({
       const writtenEndpoint = await endpoint.writeToDisk()
       dev.hooks.handleWrittenEndpoint(key, writtenEndpoint, false)
       processIssues(currentEntryIssues, key, writtenEndpoint, false, logErrors)
+      if (writtenEndpoint.type === 'edge') {
+        await ensureEdgeInstrumentationBuilt({
+          entrypoints: currentEntrypoints,
+          currentEntryIssues,
+          manifestLoader,
+          logErrors,
+          handleWrittenEndpoint: dev.hooks.handleWrittenEndpoint,
+          startBuilding: dev.hooks.startBuilding,
+        })
+      }
       await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
       const middlewareConfig =
         manifestLoader.getMiddlewareManifest(key)?.middleware['/']
