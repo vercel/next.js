@@ -87,6 +87,9 @@ use turbopack_core::{
         NotFoundVersion, OptionVersionedContent, Update, Version, VersionState, VersionedContent,
     },
 };
+use turbopack_ecmascript::async_chunk::proxy::{
+    activation_key_from_chunk_path, lazy_compilation_state,
+};
 #[cfg(all(feature = "process_pool", not(target_family = "wasm")))]
 use turbopack_node::child_process_backend;
 use turbopack_node::execution_context::ExecutionContext;
@@ -289,13 +292,18 @@ impl DebugBuildPathsRouteKeys {
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
-    /// An absolute root path (Unix or Windows path) from which all files must be nested under.
-    /// Trying to access a file outside this root will fail, so think of this as a chroot.
-    /// E.g. `/home/user/projects/my-repo`.
+    /// An [canonicalized][std::fs::canonicalize] root path (Unix or Windows path) from which all
+    /// files must be nested under. Trying to access a file outside this root will fail, so think
+    /// of this as a weak chroot. E.g. `/home/user/projects/my-repo`.
+    ///
+    /// This serves two purposes:
+    /// - It gives us a root to configure the file system watcher with.
+    /// - It ensures the cache is portable when the root path is moved, since every other path is
+    ///   relative to it.
     pub root_path: RcStr,
 
-    /// A path which contains the app/pages directories, relative to [`Project::project_path`],
-    /// always Unix path. E.g. `apps/my-app`
+    /// A path which contains the app/pages directories, relative to [`Project::project_path`].
+    /// Always a Unix-style (`/`-separated) path. E.g. `apps/my-app`.
     pub project_path: RcStr,
 
     /// The contents of next.config.js, serialized to JSON.
@@ -304,8 +312,7 @@ pub struct ProjectOptions {
     /// A map of environment variables to use when compiling code.
     pub env: Vec<(RcStr, RcStr)>,
 
-    /// A map of environment variables which should get injected at compile
-    /// time.
+    /// A map of environment variables which should get injected at compile time.
     pub define_env: DefineEnv,
 
     /// Filesystem watcher options.
@@ -326,9 +333,8 @@ pub struct ProjectOptions {
     /// The browserslist query to use for targeting browsers.
     pub browserslist_query: RcStr,
 
-    /// When the code is minified, this opts out of the default mangling of
-    /// local names for variables, functions etc., which can be useful for
-    /// debugging/profiling purposes.
+    /// When the code is minified, this opts out of the default mangling of local names for
+    /// variables, functions etc., which can be useful for debugging/profiling purposes.
     pub no_mangling: bool,
 
     /// Whether to write the route hashes manifest.
@@ -337,8 +343,8 @@ pub struct ProjectOptions {
     /// The version of Node.js that is available/currently running.
     pub current_node_js_version: RcStr,
 
-    /// Debug build paths for selective builds.
-    /// When set, only routes matching these paths will be included in the build.
+    /// Debug build paths for selective builds. When set, only routes matching these paths will be
+    /// included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
 
     /// App-router page routes that should be built after non-deferred routes.
@@ -350,57 +356,42 @@ pub struct ProjectOptions {
     /// The version of Next.js that is running.
     pub next_version: RcStr,
 
-    /// Whether server-side HMR is enabled (disabled with --no-server-fast-refresh).
+    /// Whether server-side HMR is enabled (disabled with `--no-server-fast-refresh`).
     pub server_hmr: bool,
 }
 
+/// The subset of [`ProjectOptions`] that may change without restarting the process. Used by
+/// [`ProjectContainer::update`].
+///
+/// Refer to [`ProjectOptions`] for documentation on this struct's fields.
 #[derive(Default)]
 pub struct PartialProjectOptions {
-    /// A root path from which all files must be nested under. Trying to access
-    /// a file outside this root will fail. Think of this as a chroot.
     pub root_path: Option<RcStr>,
 
-    /// A path inside the root_path which contains the app/pages directories.
     pub project_path: Option<RcStr>,
 
-    /// The contents of next.config.js, serialized to JSON.
     pub next_config: Option<RcStr>,
 
-    /// A map of environment variables to use when compiling code.
     pub env: Option<Vec<(RcStr, RcStr)>>,
 
-    /// A map of environment variables which should get injected at compile
-    /// time.
     pub define_env: Option<DefineEnv>,
 
-    /// Filesystem watcher options.
     pub watch: Option<WatchOptions>,
 
-    /// The mode in which Next.js is running.
     pub dev: Option<bool>,
 
-    /// The server actions encryption key.
     pub encryption_key: Option<RcStr>,
 
-    /// The build id.
     pub build_id: Option<RcStr>,
 
-    /// Options for draft mode.
     pub preview_props: Option<DraftModeOptions>,
 
-    /// The browserslist query to use for targeting browsers.
     pub browserslist_query: Option<RcStr>,
 
-    /// When the code is minified, this opts out of the default mangling of
-    /// local names for variables, functions etc., which can be useful for
-    /// debugging/profiling purposes.
     pub no_mangling: Option<bool>,
 
-    /// Whether to write the route hashes manifest.
     pub write_routes_hashes_manifest: Option<bool>,
 
-    /// Debug build paths for selective builds.
-    /// When set, only routes matching these paths will be included in the build.
     pub debug_build_paths: Option<DebugBuildPaths>,
 }
 
@@ -466,6 +457,17 @@ impl ProjectContainer {
 #[turbo_tasks::function(operation, root)]
 fn project_operation(project: ResolvedVc<ProjectContainer>) -> Vc<Project> {
     project.project()
+}
+
+/// Activates the lazy dynamic import that `chunk_path` names, returning whether it named one. The
+/// caller has to rebuild the owning entrypoint before serving the request.
+#[turbo_tasks::function(operation, root)]
+pub async fn activate_lazy_chunk_operation(chunk_path: RcStr) -> Result<Vc<bool>> {
+    let Some(key) = activation_key_from_chunk_path(&chunk_path) else {
+        return Ok(Vc::cell(false));
+    };
+    lazy_compilation_state(key).await?.activate();
+    Ok(Vc::cell(true))
 }
 
 #[turbo_tasks::function(operation, root)]
@@ -1611,6 +1613,9 @@ impl Project {
                 .turbo_nested_async_chunking(self.next_mode(), true),
             shared_runtime: self.next_config().turbo_shared_runtime(self.next_mode()),
             per_page_module_graph: self.per_page_module_graph(),
+            lazy_dynamic_imports: self
+                .next_config()
+                .turbopack_lazy_dynamic_imports(*self.next_mode().await?),
             debug_ids: self.next_config().turbopack_debug_ids(),
             worker_asset_prefix: self.next_config().turbopack_worker_asset_prefix(),
             should_use_absolute_url_references: self.next_config().inline_css(),

@@ -69,7 +69,7 @@ describe('env-config', () => {
 
   it('should provide global env to next.config.js', async () => {
     const res = await next.fetch('/hello', { redirect: 'manual' })
-    const { pathname } = new URL(res.headers.get('location')!)
+    const { pathname } = new URL(res.headers.get('location')!, res.url)
     expect(res.status).toBe(307)
     expect(pathname).toBe('/another')
   })

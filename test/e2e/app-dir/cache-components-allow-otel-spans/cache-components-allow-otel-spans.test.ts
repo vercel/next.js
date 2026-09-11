@@ -1,4 +1,9 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
+import {
+  getRedboxDescription,
+  getRedboxEnvironmentLabel,
+  openRedbox,
+} from 'next-test-utils'
 
 describe('cache-components OTEL spans', () => {
   const { next, isTurbopack, isNextDeploy } = nextTestSetup({
@@ -10,7 +15,7 @@ describe('cache-components OTEL spans', () => {
   })
 
   if (isNextDev) {
-    it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Cache Component - without prerendering the page', async () => {
+    it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Cache Component - with a novel slug', async () => {
       const browser = await next.browser('/novel/cache')
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
@@ -57,8 +62,9 @@ describe('cache-components OTEL spans', () => {
       console.log('t7', await t7.textContent())
       console.log('t8', await t8.textContent())
     })
-    it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Cache Component - with prerendering the page', async () => {
-      // In dev there really isn't any prerendering but since this test case exists for prod testing I want to keep it exercised in the dev pathway too
+    it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Cache Component - with a generated slug', async () => {
+      // Dev has no build-time page artifact; this case exercises the generated
+      // slug.
       const browser = await next.browser('/prerendered/cache')
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
@@ -105,13 +111,13 @@ describe('cache-components OTEL spans', () => {
       console.log('t7', await t7.textContent())
       console.log('t8', await t8.textContent())
     })
-    it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - without prerendering the page', async () => {
+    it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - with a novel slug', async () => {
       const browser = await next.browser('/novel/server')
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-           "environmentLabel": "Prefetch",
+           "environmentLabel": "Prerender",
            "label": "Console Error",
            "source": "app/traced-work.tsx (26:19) @ <anonymous>
          > 26 |     return tracer.startActiveSpan('span-active-span', fn)
@@ -128,7 +134,7 @@ describe('cache-components OTEL spans', () => {
         await expect(browser).toDisplayCollapsedRedbox(`
          {
            "description": "A Cache Function (\`use cache\`) was passed to startActiveSpan which means it will receive a Span argument with a possibly random ID on every invocation leading to cache misses. Provide a wrapping function around the Cache Function that does not forward the Span argument to avoid this issue.",
-           "environmentLabel": "Prefetch",
+           "environmentLabel": "Prerender",
            "label": "Console Error",
            "source": "app/traced-work.tsx (26:19) @ eval
          > 26 |     return tracer.startActiveSpan('span-active-span', fn)
@@ -154,8 +160,9 @@ describe('cache-components OTEL spans', () => {
       console.log('t7', await t7.textContent())
       console.log('t8', await t8.textContent())
     })
-    it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - with prerendering the page', async () => {
-      // In dev there really isn't any prerendering but since this test case exists for prod testing I want to keep it exercised in the dev pathway too
+    it('should allow creating spans during cache component validation without triggering sync IO bailouts - inside a Server Component - with a generated slug', async () => {
+      // Dev has no build-time page artifact; this case exercises the generated
+      // slug.
       const browser = await next.browser('/prerendered/server')
       if (isTurbopack) {
         await expect(browser).toDisplayCollapsedRedbox(`
@@ -203,6 +210,19 @@ describe('cache-components OTEL spans', () => {
 
       console.log('t7', await t7.textContent())
       console.log('t8', await t8.textContent())
+    })
+    it('keeps span diagnostics in the runtime stage when no slug is generated', async () => {
+      const browser = await next.browser('/runtime/novel')
+      await openRedbox(browser)
+      expect(await getRedboxDescription(browser)).toContain(
+        'A Cache Function (`use cache`) was passed to startActiveSpan'
+      )
+      expect(await getRedboxEnvironmentLabel(browser)).toBe('Prefetch')
+
+      for (const id of ['t7', 't8']) {
+        const spanId = await browser.elementByCss(`#${id} .span`).text()
+        expect(parseInt(spanId, 10)).toBeGreaterThan(0)
+      }
     })
   } else {
     it('should allow creating Spans during prerendering during the build - inside a Cache Components', async () => {

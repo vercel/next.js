@@ -507,9 +507,7 @@ export interface ExperimentalConfig {
    * A collapsed entry resolves each request to the same output as the entries
    * that it replaces.
    *
-   * The default is `false`, so a build keeps one entry per route.
-   *
-   * @default false
+   * @default true
    */
   collapseAdapterRoutes?: boolean
   useSkewCookie?: boolean
@@ -517,6 +515,7 @@ export interface ExperimentalConfig {
   cacheHandlers?: NextConfig['cacheHandlers']
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
+  parallelRouteMetadata?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -607,6 +606,7 @@ export interface ExperimentalConfig {
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
+  imgOptMozjpeg?: boolean
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -788,9 +788,18 @@ export interface ExperimentalConfig {
    *
    * `'workerThreads'` runs the same work in worker threads instead, which should
    * use less memory and CPU. It may become the default in a future version of
-   * Next.js.
+   * Next.js. On Node.js 24.13.1 and newer, a Node.js teardown bug can abort the
+   * process when a native addon has a live Node-API threadsafe function as a
+   * worker exits. Next.js falls back to `'childProcesses'` on affected versions.
+   * See <https://github.com/nodejs/node/issues/65100>.
+   *
+   * `'forceWorkerThreads'` bypasses this fallback. It may cause the process to
+   * abort on affected Node.js versions.
    */
-  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
+  turbopackPluginRuntimeStrategy?:
+    | 'workerThreads'
+    | 'childProcesses'
+    | 'forceWorkerThreads'
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
@@ -939,6 +948,13 @@ export interface ExperimentalConfig {
    * This optimization computes all possible paths through dynamic imports in the applications to figure out the modules needed at dynamic imports for every path.
    */
   turbopackServerSideNestedAsyncChunking?: boolean
+
+  /**
+   * Compile client dynamic import targets when they are first used in development.
+   *
+   * Defaults to `false`.
+   */
+  turbopackLazyDynamicImports?: boolean
 
   /**
    * Enable filesystem cache for the turbopack dev server.
@@ -2279,12 +2295,13 @@ export const defaultConfig = Object.freeze({
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
     coldCacheBadge: false,
-    collapseAdapterRoutes: false,
+    collapseAdapterRoutes: true,
     devValidationWorker: true,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,
     appNavFailHandling: false,
+    parallelRouteMetadata: false,
     prerenderEarlyExit: true,
     serverMinification: true,
     linkNoTouchStart: false,
@@ -2292,7 +2309,7 @@ export const defaultConfig = Object.freeze({
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
     dynamicOnHover: false,
-    reactBrowserBailout: false,
+    reactBrowserBailout: true,
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
@@ -2317,6 +2334,7 @@ export const defaultConfig = Object.freeze({
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
+    imgOptMozjpeg: true,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2456,6 +2474,7 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'useOffline'
     | 'optimisticRouting'
+    | 'parallelRouteMetadata'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
@@ -2485,6 +2504,7 @@ export interface NextConfigRuntime {
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
+    | 'imgOptMozjpeg'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
@@ -2525,6 +2545,7 @@ export function getNextConfigRuntime(
     dynamicOnHover: ex.dynamicOnHover,
     useOffline: ex.useOffline,
     optimisticRouting: ex.optimisticRouting,
+    parallelRouteMetadata: ex.parallelRouteMetadata,
     inlineCss: ex.inlineCss,
     prefetchInlining: ex.prefetchInlining,
     authInterrupts: ex.authInterrupts,
@@ -2555,6 +2576,7 @@ export function getNextConfigRuntime(
     imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
     imgOptSequentialRead: ex.imgOptSequentialRead,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
+    imgOptMozjpeg: ex.imgOptMozjpeg,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
     testProxy: ex.testProxy,

@@ -150,12 +150,19 @@ export function createInitialRouterState({
         // native Promise so we can chain `.then` on it safely.
         Promise.resolve(initialStaticStageByteLength)
           .then(async (byteLength) => {
+            if (byteLength === 0) {
+              initialFlightStreamForCache.cancel()
+              return
+            }
             const staticStageResponse =
               await decodeStageUntilBoundary<InitialRSCPayload>(
                 initialFlightStreamForCache,
                 byteLength,
                 undefined
               )
+            if (staticStageResponse === null) {
+              return
+            }
             spawnStaticStageCacheWrite(
               Date.now(),
               staticStageResponse,
