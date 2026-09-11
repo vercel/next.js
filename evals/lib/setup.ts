@@ -24,8 +24,7 @@ async function isNextApp(sandbox: Sandbox): Promise<boolean> {
 }
 
 /**
- * Install the locally-built Next.js into the sandbox. Fixtures that use
- * `instant()` also receive the matching local `@next/playwright` package.
+ * Install the locally-built Next.js into the sandbox.
  *
  * The tarball path comes from run-evals.js via NEXT_EVAL_TARBALL, the same
  * env-var handoff that run-tests.js uses for NEXT_TEST_PKG_PATHS. We hard-fail
@@ -48,47 +47,22 @@ export async function installNextJs(sandbox: Sandbox): Promise<void> {
       'NEXT_EVAL_TARBALL not set. Run evals via `pnpm eval` from the repo root.'
     )
   }
-  const pkg = JSON.parse(await sandbox.readFile('package.json'))
-  const usesNextPlaywright = Boolean(
-    pkg.dependencies?.['@next/playwright'] ??
-      pkg.devDependencies?.['@next/playwright']
-  )
-  const nextPlaywrightTarball = process.env.NEXT_PLAYWRIGHT_EVAL_TARBALL
-  if (usesNextPlaywright && !nextPlaywrightTarball) {
-    throw new Error(
-      'NEXT_PLAYWRIGHT_EVAL_TARBALL not set. Run evals via `pnpm eval` from the repo root.'
-    )
-  }
-
   console.log('  Uploading local Next.js tarball...')
-  // Upstream types only accept strings, but the runtime accepts Buffer.
-  // Tarballs are binary and cannot be sent as strings.
-  const files = {
+  await sandbox.writeFiles({
+    // @ts-expect-error — upstream types only accept strings, but the runtime
+    // accepts Buffer. Tarballs are binary and cannot be sent as strings.
     'next.tgz': readFileSync(tarball),
-  } as unknown as Record<string, string>
-  if (nextPlaywrightTarball) {
-    files['next-playwright.tgz'] = readFileSync(
-      nextPlaywrightTarball
-    ) as unknown as string
-  }
-  await sandbox.writeFiles(files)
-
-  const packages = [
-    './next.tgz',
-    ...(usesNextPlaywright ? ['./next-playwright.tgz'] : []),
-  ]
+  })
   const { exitCode, stderr } = await sandbox.runCommand('npm', [
     'install',
-    ...packages,
+    './next.tgz',
   ])
   if (exitCode !== 0) {
     throw new Error(
-      `npm install ${packages.join(' ')} failed (exit ${exitCode}):\n${stderr}`
+      `npm install ./next.tgz failed (exit ${exitCode}):\n${stderr}`
     )
   }
-  console.log(
-    `  Installed local Next.js${usesNextPlaywright ? ' and @next/playwright' : ''} tarball${usesNextPlaywright ? 's' : ''}`
-  )
+  console.log('  Installed local Next.js tarball')
 }
 
 /**
