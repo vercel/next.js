@@ -6,7 +6,10 @@ import {
   storeHydrationErrorStateFromConsoleArgs,
 } from './hydration-error-state'
 import { Router } from '../../../client/router'
-import { getOwnerStack } from '../app/errors/stitched-error'
+import {
+  consumeErrorFatality,
+  getOwnerStack,
+} from '../app/errors/stitched-error'
 import { isRecoverableError } from '../../../client/react-client-callbacks/on-recoverable-error'
 import { getSquashedHydrationErrorDetails } from './hydration-error-state'
 import { PagesDevOverlayErrorBoundary } from './pages-dev-overlay-error-boundary'
@@ -24,7 +27,8 @@ const usePagesDevOverlayBridge = () => {
     renderPagesDevOverlay(
       getOwnerStack,
       getSquashedHydrationErrorDetails,
-      isRecoverableError
+      isRecoverableError,
+      consumeErrorFatality
     )
   }, [])
 

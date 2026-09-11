@@ -1,13 +1,13 @@
-import type { OverlayState } from '../../next-devtools/dev-overlay/shared'
+import type { SerializedOverlayState } from '../../next-devtools/dev-overlay.browser'
 
 export interface OverlayStateWithUrl {
   url: string
-  errorState: OverlayState | null
+  errorState: SerializedOverlayState | null
 }
 
 export interface McpErrorStateResponse {
   event: string
   requestId: string
-  errorState: OverlayState | null
+  errorState: SerializedOverlayState | null
   url: string
 }

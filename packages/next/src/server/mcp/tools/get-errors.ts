@@ -3,7 +3,7 @@
  *
  * This tool provides comprehensive error reporting including:
  * - Next.js global errors (e.g., next.config validation errors)
- * - Browser runtime errors with source-mapped stack traces
+ * - Browser runtime errors with fatality and source-mapped stack traces
  * - Build errors from webpack/turbopack compilation
  *
  * For browser errors, it leverages the HMR infrastructure for server-to-browser communication.
@@ -14,7 +14,7 @@
  *   combined with global errors → formatted output.
  */
 import type { McpServer } from 'next/dist/compiled/@modelcontextprotocol/sdk/server/mcp'
-import type { OverlayState } from '../../../next-devtools/dev-overlay/shared'
+import type { SerializedOverlayState } from '../../../next-devtools/dev-overlay.browser'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   type HmrMessageSentToBrowser,
@@ -37,7 +37,7 @@ export function registerGetErrorsTool(
     'get_errors',
     {
       description:
-        'Get the current error state from the Next.js dev server, including Next.js global errors (e.g., next.config validation), browser runtime errors, and build errors with source-mapped stack traces',
+        'Get the current error state from the Next.js dev server, including Next.js global errors (e.g., next.config validation), browser runtime errors with fatality, and build errors with source-mapped stack traces',
       inputSchema: {},
     },
     async (_request) => {
@@ -60,7 +60,7 @@ export function registerGetErrorsTool(
           }
         }
 
-        const responses = await createBrowserRequest<OverlayState>(
+        const responses = await createBrowserRequest<SerializedOverlayState>(
           HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE,
           sendHmrMessage,
           getActiveConnectionCount,
@@ -69,7 +69,7 @@ export function registerGetErrorsTool(
 
         // The error state for each route
         // key is the route path, value is the error state
-        const routesErrorState = new Map<string, OverlayState>()
+        const routesErrorState = new Map<string, SerializedOverlayState>()
         for (const response of responses) {
           if (response.data) {
             routesErrorState.set(response.url, response.data)
@@ -129,10 +129,10 @@ export function registerGetErrorsTool(
 // on the server.
 export function handleErrorStateResponse(
   requestId: string,
-  errorState: OverlayState | null,
+  errorState: SerializedOverlayState | null,
   url: string | undefined
 ) {
-  handleBrowserPageResponse<OverlayState | null>(
+  handleBrowserPageResponse<SerializedOverlayState | null>(
     requestId,
     errorState,
     url || ''
