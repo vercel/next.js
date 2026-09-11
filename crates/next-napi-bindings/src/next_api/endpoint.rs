@@ -158,7 +158,7 @@ pub async fn endpoint_write_to_disk(
     let endpoint_op = ****endpoint;
     let (written, issues) = ctx
         .turbo_tasks()
-        .run_once(async move {
+        .run(async move {
             let written_entrypoint_with_issues_op =
                 get_written_endpoint_with_issues_operation(endpoint_op);
             let read = read_strongly_consistent_and_apply_effects(
