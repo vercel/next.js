@@ -765,6 +765,13 @@ export function matchKnownRoute(
     return null
   }
 
+  // Closed parameters affect whether the route exists, even when none of its
+  // components read them. Resolve the target URL on the server instead of
+  // combining a predicted tree with UI cached for an allowed parameter value.
+  if ((pattern.tree.prefetchHints & PrefetchHint.HasNotFoundParams) !== 0) {
+    return null
+  }
+
   // "Reify" the pattern: clone the template tree with concrete param values.
   // This substitutes resolved params (e.g., slug: "hello") into dynamic
   // segments and recomputes vary paths for correct segment cache keying.

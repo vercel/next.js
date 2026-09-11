@@ -39,6 +39,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
 
     // private optional properties
     _fallbackRouteParams: z.array(z.any()).optional(),
+    _hasNotFoundParams: z.boolean().optional(),
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
