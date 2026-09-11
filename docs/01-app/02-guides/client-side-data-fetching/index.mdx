@@ -54,7 +54,7 @@ Server Components, data-fetching libraries, and mutations manage different parts
 - **The data-fetching library** stores the browser value under a shared cache identity.
 - **Mutations** can update the browser cache immediately and invalidate cached server data so the next render can read a fresh value.
 
-An optimistic update should restore the previous browser value if the write fails. If the server read is not cached, there is no server tag to invalidate.
+An optimistic update should restore the previous browser value if the mutation fails. If the server read is not cached, there is no server tag to invalidate.
 
 After a mutation, invalidate any cached server read that provided the initial data:
 

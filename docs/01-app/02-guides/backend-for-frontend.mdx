@@ -683,7 +683,16 @@ Learn more about redirects in [`redirect`](/docs/app/api-reference/functions/red
 
 ## Proxy
 
-Only one `proxy` file is allowed per project. Use `config.matcher` to target specific paths. Learn more about [`proxy`](/docs/app/api-reference/file-conventions/proxy).
+Proxy runs code before a request is completed, so you can rewrite, redirect, modify request or response headers, or respond directly. Common cases are modifying headers across many pages, rewriting based on an A/B test, and programmatic redirects that depend on request properties.
+
+Only one `proxy` file is allowed per project. Create `proxy.ts` (or `.js`) in the project root, or inside `src` if applicable, at the same level as `pages` or `app`. You can still split the logic into separate modules and import them into `proxy.ts`. Use `config.matcher` to target specific paths. Learn more about [`proxy`](/docs/app/api-reference/file-conventions/proxy).
+
+Some things Proxy is not for:
+
+- **Simple redirects.** Prefer the [`redirects`](/docs/app/api-reference/config/next-config-js/redirects) configuration in `next.config.ts`, and reach for Proxy when you need request data or more complex logic.
+- **Slow data fetching.** Proxy runs on every matched request, so it suits [optimistic checks](/docs/app/guides/authentication#optimistic-checks-with-proxy-optional) such as permission-based redirects rather than full session management or authorization.
+
+Using `fetch` with `options.cache`, `options.next.revalidate`, or `options.next.tags` has no effect in Proxy.
 
 Use `proxy` to generate a response before the request reaches a route path.
 

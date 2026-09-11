@@ -1,0 +1,247 @@
+---
+title: Caching
+description: Learn how to cache data and UI in Next.js so it is computed once and reused across requests.
+related:
+  title: Next Steps
+  description: Learn more about the cache model and the APIs mentioned on this page.
+  links:
+    - app/guides/cache-components
+    - app/api-reference/directives/use-cache
+    - app/api-reference/functions/cacheLife
+    - app/api-reference/functions/cacheTag
+---
+
+> This page covers caching with [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), enabled by setting [`cacheComponents: true`](/docs/app/api-reference/config/next-config-js/cacheComponents) in your `next.config.ts` file. If you're not using Cache Components, see the [Caching and Revalidating (Previous Model)](/docs/app/guides/caching-without-cache-components) guide.
+
+Caching is a technique for storing the result of data fetching and other computations so that future requests for the same data can be served faster, without doing the work again.
+
+By default, a component that fetches data runs on every request. If the result would be the same for everyone, you can cache it so the work happens once and the result is reused, and so it can become part of the [static shell](/docs/app/getting-started/rendering-model) instead of streaming at request time.
+
+## `use cache`
+
+The [`use cache`](/docs/app/api-reference/directives/use-cache) directive caches the return value of async functions and components. You can apply it at two levels:
+
+- **Data-level**: Cache a function that fetches or computes data (e.g., `getProducts()`, `getUser(id)`)
+- **UI-level**: Cache an entire component or page (e.g., `async function BlogPosts()`)
+
+> **Good to know:** We recommend pairing every cache directive with a [`cacheLife`](#cachelife). Without one, the implicit `default` profile applies.
+
+Arguments and any values captured from parent scopes automatically become part of the [cache key](/docs/app/api-reference/directives/use-cache#cache-keys), which means different inputs will produce separate cache entries. See [cache output](/docs/app/api-reference/directives/use-cache#cache-output) for what an entry holds, and [serialization requirements and constraints](/docs/app/api-reference/directives/use-cache#constraints) for details on what can be cached and how arguments work.
+
+### Data-level caching
+
+To cache an asynchronous function that fetches data, add the `use cache` directive at the top of the function body:
+
+```tsx filename="app/lib/data.ts" highlight={1,4,5}
+import { cacheLife } from 'next/cache'
+
+export async function getUsers() {
+  'use cache'
+  cacheLife('hours')
+  return db.query('SELECT * FROM users')
+}
+```
+
+Data-level caching is useful when the same data is used across multiple components, or when you want to cache the data independently from the UI.
+
+### UI-level caching
+
+To cache an entire component, page, or layout, add the `use cache` directive at the top of the component or page body:
+
+```tsx filename="app/page.tsx" highlight={1,4,5}
+import { cacheLife } from 'next/cache'
+
+export default async function Page() {
+  'use cache'
+  cacheLife('hours')
+
+  const users = await db.query('SELECT * FROM users')
+
+  return (
+    <ul>
+      {users.map((user) => (
+        <li key={user.id}>{user.name}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+UI-level caching is useful when the rendered markup is expensive to produce, or when a whole section of the page changes on the same schedule. It caches the component's output, so everything it renders is reused together.
+
+> If you add "`use cache`" at the top of a file, all exported functions in the file will be cached.
+
+### Caching a generated value
+
+Operations like `crypto.randomUUID()`, `Math.random()`, and `Date.now()` produce a different value every time they run, so a component using one cannot be prerendered. Caching resolves that by computing the value once and sharing it, until the entry is revalidated:
+
+```tsx filename="page.tsx"
+export default async function Page() {
+  'use cache'
+  const buildId = crypto.randomUUID()
+  return <p>Build ID: {buildId}</p>
+}
+```
+
+Every visitor now sees the same value. When each request needs its own instead, keep the value out of the cache and defer it to request time. See [Random values and timestamps](/docs/app/getting-started/rendering-model#random-values-and-timestamps).
+
+## What should I cache?
+
+Cache data that doesn't depend on [runtime data](/docs/app/getting-started/rendering-model#runtime-apis) and that you're OK serving from cache for a period of time. Use `use cache` with `cacheLife` to describe that behavior.
+
+When content doesn't need time-based revalidation, for example data from a CMS, use [`cacheTag`](#cachetag) and a long [`cacheLife`](#cachelife) like `max` to keep it in the static shell. Configure the content source to trigger a webhook, or other notification, that calls [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) when the content changes. This reduces unnecessary time-based revalidation for content that hasn't changed.
+
+Data that requires fresh values on every request should not be cached. Wrap it in [`<Suspense>`](/docs/app/getting-started/fetching-data#streaming) instead, so the shell renders immediately while the data streams in.
+
+> **Good to know:** In serverless environments, in-memory cache entries may not persist across revalidations. See [runtime caching considerations](/docs/app/api-reference/directives/use-cache#runtime-caching-considerations) for details.
+
+## `cacheLife`
+
+[`cacheLife`](/docs/app/api-reference/functions/cacheLife) controls how long cached data remains valid. Use it inside a [`use cache`](/docs/app/api-reference/directives/use-cache) scope to set the cache lifetime.
+
+```tsx filename="app/lib/data.ts" highlight={1,4,5}
+import { cacheLife } from 'next/cache'
+
+export async function getProducts() {
+  'use cache'
+  cacheLife('hours')
+  return db.query('SELECT * FROM products')
+}
+```
+
+`cacheLife` accepts a profile name or a custom configuration object:
+
+| Profile   | `stale` | `revalidate` | `expire` |
+| --------- | ------- | ------------ | -------- |
+| `default` | 5m      | 15m          | never    |
+| `seconds` | 30s     | 1s           | 60s      |
+| `minutes` | 5m      | 1m           | 1h       |
+| `hours`   | 5m      | 1h           | 1d       |
+| `days`    | 5m      | 1d           | 1w       |
+| `weeks`   | 5m      | 1w           | 30d      |
+| `max`     | 5m      | 30d          | 1y       |
+
+For fine-grained control, pass an object:
+
+```tsx highlight={2-6}
+'use cache'
+cacheLife({
+  stale: 3600, // 1 hour until considered stale
+  revalidate: 7200, // 2 hours until revalidated
+  expire: 86400, // 1 day until expired
+})
+```
+
+> **Good to know:** A cache is considered "short-lived" when it uses the `seconds` profile, `revalidate: 0`, or `expire` under 5 minutes. Short-lived caches are automatically excluded from prerenders and become dynamic holes instead. See [Prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for details.
+
+See the [`cacheLife` API reference](/docs/app/api-reference/functions/cacheLife) for all profiles and custom configuration options.
+
+## `cacheTag`
+
+[`cacheTag`](/docs/app/api-reference/functions/cacheTag) lets you tag cached data so it can be invalidated on-demand. Use it inside a [`use cache`](/docs/app/api-reference/directives/use-cache) scope:
+
+```tsx filename="app/lib/data.ts" switcher
+import { cacheTag } from 'next/cache'
+
+export async function getProducts() {
+  'use cache'
+  cacheTag('products')
+  return db.query('SELECT * FROM products')
+}
+```
+
+```jsx filename="app/lib/data.js" switcher
+import { cacheTag } from 'next/cache'
+
+export async function getProducts() {
+  'use cache'
+  cacheTag('products')
+  return db.query('SELECT * FROM products')
+}
+```
+
+A tag is a label, not an action. Once tagged, the cache entry can be invalidated after a mutation with [`revalidateTag` or `updateTag`](/docs/app/getting-started/mutating-data#revalidating-the-cache).
+
+See the [`cacheTag` API reference](/docs/app/api-reference/functions/cacheTag) to learn more.
+
+## Static, cached, and streaming
+
+Here's a complete example showing static content, cached dynamic content, and streaming dynamic content working together on a single page:
+
+```tsx filename="app/blog/page.tsx"
+import { Suspense } from 'react'
+import { cookies } from 'next/headers'
+import { cacheLife, cacheTag } from 'next/cache'
+import Link from 'next/link'
+
+export default function BlogPage() {
+  return (
+    <>
+      {/* Static content - prerendered automatically */}
+      <header>
+        <h1>Our Blog</h1>
+        <nav>
+          <Link href="/">Home</Link> | <Link href="/about">About</Link>
+        </nav>
+      </header>
+
+      {/* Cached dynamic content - included in the static shell */}
+      <BlogPosts />
+
+      {/* Runtime dynamic content - streams at request time */}
+      <Suspense fallback={<p>Loading your preferences...</p>}>
+        <UserPreferences />
+      </Suspense>
+    </>
+  )
+}
+
+type Post = { id: string; title: string; author: string; date: string }
+
+// Everyone sees the same blog posts (revalidated every hour)
+async function BlogPosts() {
+  'use cache'
+  cacheLife('hours')
+  cacheTag('posts')
+
+  const res = await fetch('https://api.vercel.app/blog')
+  const posts: Post[] = await res.json()
+
+  return (
+    <section>
+      <h2>Latest Posts</h2>
+      <ul>
+        {posts.map((post) => (
+          <li key={post.id}>
+            <h3>{post.title}</h3>
+            <p>
+              By {post.author} on {post.date}
+            </p>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
+// UI that depends on a value stored in cookies
+async function UserPreferences() {
+  const theme = (await cookies()).get('theme')?.value || 'light'
+  const favoriteCategory = (await cookies()).get('category')?.value
+
+  return (
+    <aside>
+      <p>Your theme: {theme}</p>
+      {favoriteCategory && <p>Favorite category: {favoriteCategory}</p>}
+    </aside>
+  )
+}
+```
+
+During prerendering, the header (static) and blog posts (cached with `use cache`) become part of the static shell, along with the fallback UI for user preferences. The UI preferences stored in cookies stream in at request time.
+
+Reading `cookies()` here doesn't opt-in the whole route into dynamic rendering, the way the previous rendering model did. The Suspense boundary provides fallback UI where the runtime access streams, while static and cached content still ship in the initial HTML.
+
+## Going further
+
+The [Cache Components guide](/docs/app/guides/cache-components) covers the model behind these APIs: where each cached copy is stored, how `cacheLife` applies to each one, and how to cache work that depends on the incoming request.
