@@ -446,7 +446,16 @@ pub fn subscribe<T: 'static + Send + Sync, F: Future<Output = Result<T>> + Send,
                     .or_else(|e| ctx.throw_turbopack_internal_result(&e))
                     .await;
 
+                let result_is_ok = result.is_ok();
                 let status = func.call(result, ThreadsafeFunctionCallMode::NonBlocking);
+                tracing::info_span!(
+                    target: "turbopack_hmr_diagnostics",
+                    parent: None,
+                    "napi subscription dispatch",
+                    result_is_ok,
+                    status = ?status,
+                )
+                .in_scope(|| {});
                 if !matches!(status, Status::Ok) {
                     let error = anyhow!("Error calling JS function: {}", status);
                     eprintln!("{error}");
