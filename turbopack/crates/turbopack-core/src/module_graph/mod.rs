@@ -1127,11 +1127,10 @@ impl ModuleGraphSnapshot {
     /// Returns a map of all modules in the graphs to their identifiers.
     /// This is primarily useful for debugging.
     pub async fn get_ids(&self) -> Result<FxHashMap<ResolvedVc<Box<dyn Module>>, ReadRef<RcStr>>> {
-        Ok(self
-            .iter_nodes()
+        self.iter_nodes()
             .map(async |n| Ok((n, n.ident().to_string().await?)))
             .try_join_collect::<FxHashMap<_, _>>()
-            .await?)
+            .await
     }
 
     /// Traverses all reachable nodes exactly once and calls the visitor.
