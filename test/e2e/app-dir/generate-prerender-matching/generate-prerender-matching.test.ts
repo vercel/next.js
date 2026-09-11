@@ -31,16 +31,17 @@ describe('experimental parameter matching', () => {
     },
   })
 
-  it('merges layout configuration and lets a page override it', async () => {
+  it('inherits closed parameters and lets a page override open policies', async () => {
     const inherited = await next.fetch('/en/catalog/t1/items/b2')
     expect(inherited.status).toBe(200)
     expect(await inherited.text()).toContain('en/t1/b2')
 
-    const overridden = await next.fetch('/fr/preview/t2/items/b2')
+    const overridden = await next.fetch('/en/preview/t2/items/b2')
     expect(overridden.status).toBe(200)
-    expect(await overridden.text()).toContain('fr/t2/b2')
+    expect(await overridden.text()).toContain('en/t2/b2')
 
     expect((await next.fetch('/fr/catalog/t1/items/b1')).status).toBe(404)
+    expect((await next.fetch('/fr/preview/t1/items/b1')).status).toBe(404)
   })
 
   it('supports uniform policies and permanently dynamic suffixes', async () => {
