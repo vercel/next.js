@@ -51,11 +51,9 @@ function formatCount(n: number): string {
 /**
  * Does any span in this result carry allocation data?
  *
- * Only the turbopack trace format records allocations; the `nextjs` format
- * never emits them, so every span in such a trace reads zero. Deciding once
- * per result keeps those traces uncluttered while still printing a real zero
- * for a span that genuinely allocated nothing — which is an answer, not
- * missing data.
+ * Only the turbopack trace format records allocations, so this is a property of
+ * the whole trace. Checking per result rather than per span keeps a real zero
+ * distinguishable from a trace that never tracked allocations at all.
  */
 function hasAllocationData(spans: TraceSpanInfo[]): boolean {
   return spans.some(
@@ -98,8 +96,7 @@ function summarizeMemorySamples(span: TraceSpanInfo): string | null {
 /**
  * Render a single span (or aggregated span group) as a markdown section.
  *
- * `level` deepens the heading for nested children so a `depth > 1` result
- * reads as a tree rather than a flat list.
+ * `level` deepens the heading so a `depth > 1` result reads as a tree.
  */
 function renderSpanMarkdown(
   span: TraceSpanInfo,
@@ -214,9 +211,13 @@ export async function startTurboTraceServerCli(
         '',
         'Navigation: pass a result `id` as `parent` to drill in. `search` is recursive over the whole subtree and returns full path IDs, so you can find a span without knowing where it lives. `depth` > 1 returns that many levels nested inline; `pageSize` (default 20, max 500) widens a page.',
         '',
+        'Every response is paged: `totalCount` is how many matched in all, `totalPages` how many pages that is. Getting exactly `pageSize` results does not mean there are no more — check `totalCount`. Search cost scales with subtree size, so prefer scoping `parent` (or lowering `maxDepth`) over repeated root searches on a large trace.',
+        '',
         'Allocations: `allocations` / `deallocations` / `allocationCount` and `persistentAllocations`, each with a `self*` counterpart excluding children. Comparing a total to its `self` shows whether a span allocates directly or only through descendants.',
         '',
         '`persistentAllocations` ranks allocators; it is NOT retained memory. It is allocated-minus-freed per TurboMalloc counters, which never see turbo-tasks cell or cache drops, so a total far above real peak RSS is expected rather than a leak. For absolute memory use `memorySummary` (count/start/end/min/peak/maxPressure, precomputed from `memorySamples`).',
+        '',
+        "But live heap is process-wide: a span's samples are just the global series sliced to its time range, so concurrent spans report identical memory however much each allocated. Rank concurrent work by the allocation fields, never by memory.",
         '',
         "Frees are charged to whichever span was on the stack at free time, not the one that allocated. A child with large `selfAllocations` under a parent with large `selfDeallocations` means the parent drops the child's arena — bounded, not leaking. Large `selfPersistentAllocations` with no such counterpart above it is the shape worth suspecting.",
         '',
@@ -241,13 +242,13 @@ export async function startTurboTraceServerCli(
           .enum(['value', 'name', 'allocations', 'persistent-allocations'])
           .optional()
           .describe(
-            'Sort mode: "value" for corrected duration descending, "name" for alphabetical, "allocations" for total allocated bytes descending, "persistent-allocations" for net retained bytes descending. Omit for execution order.'
+            'Sort mode: "value" for corrected duration descending, "name" for alphabetical, "allocations" for total allocated bytes descending, "persistent-allocations" for `persistentAllocations` descending. Omit for execution order.'
           ),
         search: z
           .string()
           .optional()
           .describe(
-            "Substring search over span name and category, applied recursively to the whole subtree below `parent` (not just direct children). Each match's `id` is the full path from `parent`, so it can be passed straight back as `parent`. Comma-separated terms are ANDed."
+            "Substring search over span name and category, applied to the whole subtree below `parent`. Each match's `id` is the full path from `parent`, so it can be passed straight back as `parent`. Comma-separated terms are ANDed."
           ),
         maxDepth: z
           .number()
@@ -259,7 +260,7 @@ export async function startTurboTraceServerCli(
           .number()
           .optional()
           .describe(
-            "Levels of descendants to include inline in each span's `children`. Default 1 (no nesting). Use this to pull a subtree in one call instead of one round-trip per level."
+            "Levels of descendants to include inline in each span's `children`. Default 1 (no nesting)."
           ),
         page: z.number().optional().describe('1-based page number. Default 1.'),
         pageSize: z
