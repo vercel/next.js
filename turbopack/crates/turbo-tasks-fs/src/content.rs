@@ -14,13 +14,13 @@ use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
 use serde_json::Value;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, ReadRef, ValueToString, Vc, trace::TraceRawVcs};
+use turbo_tasks::{NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs};
 use turbo_tasks_hash::{
     DeterministicHash, DeterministicHasher, HashAlgorithm, deterministic_hash, hash_xxh3_hash64,
 };
 
 use crate::{
-    FileSystemEntryType, FileSystemPath, RealPathErrorType,
+    DiskFileSystem, FileSystemEntryType, FileSystemPath, RealPathErrorType,
     json::UnparsableJson,
     retry::retry_blocking,
     rope::{Rope, RopeReader},
@@ -171,7 +171,10 @@ pub(crate) enum FileComparison {
 #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum LinkTarget {
     /// The link is an absolute path on disk.
-    Absolute { resolved: FileSystemPath },
+    Absolute {
+        raw: RcStr,
+        resolved: FileSystemPath,
+    },
     Relative {
         /// The value read from the link. The path is lexically converted to a [unix-style
         /// path][turbo_unix_path::sys_to_unix], but it may contain `..` relative to the *directory
@@ -186,7 +189,9 @@ impl LinkTarget {
     /// The path this link points at.
     pub fn file_system_path(&self) -> &FileSystemPath {
         match self {
-            LinkTarget::Absolute { resolved } | LinkTarget::Relative { resolved, .. } => resolved,
+            LinkTarget::Absolute { resolved, .. } | LinkTarget::Relative { resolved, .. } => {
+                resolved
+            }
         }
     }
 
@@ -259,9 +264,7 @@ impl LinkContent {
         }
         let simplified = match self {
             LinkContent::Link { target } => match target {
-                LinkTarget::Absolute { resolved } => {
-                    SimplifiedLinkContent::Absolute(&resolved.path)
-                }
+                LinkTarget::Absolute { raw, .. } => SimplifiedLinkContent::Absolute(raw),
                 LinkTarget::Relative { raw, resolved: _ } => SimplifiedLinkContent::Relative(raw),
             },
             LinkContent::NotFound => SimplifiedLinkContent::NotFound,
@@ -276,15 +279,13 @@ impl LinkContent {
 }
 
 /// The target of a symbolic link to create, used by [`WriteLinkContent`].
-///
-/// Unlike [`LinkTarget`] this carries only the raw path: the write side never needs the target
-/// resolved, and the link being created may not even exist yet.
-#[derive(
-    Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
-)]
+#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub enum WriteLinkTarget {
-    /// Normalized and relative to the *filesystem root*.
-    Absolute(RcStr),
+    /// Normalized and relative to `root`.
+    Absolute {
+        root: ResolvedVc<DiskFileSystem>,
+        path: RcStr,
+    },
     /// Written verbatim, relative to the *directory containing the link*.
     Relative(RcStr),
 }
@@ -308,10 +309,45 @@ pub enum WriteLinkTargetType {
 /// directories, because symlink creation may fail if "developer mode" is not enabled and we're
 /// running in an unprivileged environment.
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug, DeterministicHash)]
+#[derive(Clone, Debug)]
 pub struct WriteLinkContent {
     pub target: WriteLinkTarget,
     pub target_type: WriteLinkTargetType,
+}
+
+#[turbo_tasks::value_impl]
+impl WriteLinkContent {
+    /// Hashes the representation that will be written, not the target's contents.
+    #[turbo_tasks::function]
+    pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
+        #[derive(DeterministicHash)]
+        enum SimplifiedWriteLinkTarget {
+            Absolute { root: RcStr, path: RcStr },
+            Relative(RcStr),
+        }
+
+        #[derive(DeterministicHash)]
+        struct SimplifiedWriteLinkContent<'a> {
+            target: SimplifiedWriteLinkTarget,
+            target_type: &'a WriteLinkTargetType,
+        }
+
+        let target = match &self.target {
+            WriteLinkTarget::Absolute { root, path } => SimplifiedWriteLinkTarget::Absolute {
+                root: root.await?.name().clone(),
+                path: path.clone(),
+            },
+            WriteLinkTarget::Relative(path) => SimplifiedWriteLinkTarget::Relative(path.clone()),
+        };
+        Ok(Vc::cell(RcStr::from(deterministic_hash(
+            &salt.await?,
+            SimplifiedWriteLinkContent {
+                target,
+                target_type: &self.target_type,
+            },
+            algorithm,
+        ))))
+    }
 }
 
 #[turbo_tasks::value(shared)]

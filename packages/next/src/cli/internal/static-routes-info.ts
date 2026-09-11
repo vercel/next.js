@@ -19,6 +19,7 @@ import fs from 'fs'
 import path from 'path'
 import loadConfig from '../../server/config'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
+import { mapNftFileEntries, type NftJson } from '../../build/nft'
 
 export interface StaticRoutesInfoOptions {
   json?: boolean
@@ -347,32 +348,27 @@ function collectServerEntryFiles(
   sets: FileSets
 ): void {
   const entryRel = path.join('server', serverEntry) // e.g. server/app/page.js
-  const entryDirRel = path.dirname(entryRel) // e.g. server/app
-  const entryDirAbs = path.join(distDir, entryDirRel)
-
   // The entry .js is always part of the bundle, even if no nft.json exists.
   sets.serverBundled.add(entryRel)
 
-  const nft = readJsonFile<{ files: string[] }>(
-    path.join(distDir, entryRel + '.nft.json')
-  )
-  if (!nft?.files) return
+  const nftPath = path.join(distDir, entryRel + '.nft.json')
+  const nft = readJsonFile<NftJson>(nftPath)
+  if (!nft) return
+  const entries = mapNftFileEntries(nft, nftPath, path.parse(nftPath).root)
 
-  for (const relPath of nft.files) {
-    // Resolve relative to the entry's dir. If the normalized result stays
-    // inside distDir it's a server chunk; if it leaves distDir it's an
-    // unbundled trace dep (e.g. ../../../node_modules/...).
-    const inDistDirPath = path.normalize(path.join(entryDirRel, relPath))
-    const outsideDistDir = inDistDirPath.startsWith('..')
+  for (const entry of entries) {
+    const inDistDirPath = path.relative(distDir, entry.source)
+    const outsideDistDir =
+      path.isAbsolute(inDistDirPath) ||
+      inDistDirPath === '..' ||
+      inDistDirPath.startsWith(`..${path.sep}`)
     const isMap = inDistDirPath.endsWith('.map')
     if (isMap) {
       // Source maps go into the maps category whether they're in or outside
       // distDir, so they don't double-count under serverUnbundled.
-      sets.serverMaps.add(
-        outsideDistDir ? path.resolve(entryDirAbs, relPath) : inDistDirPath
-      )
+      sets.serverMaps.add(outsideDistDir ? entry.source : inDistDirPath)
     } else if (outsideDistDir) {
-      sets.serverUnbundled.add(path.resolve(entryDirAbs, relPath))
+      sets.serverUnbundled.add(entry.source)
     } else if (
       inDistDirPath.endsWith('.js') &&
       !inDistDirPath.endsWith('_client-reference-manifest.js')

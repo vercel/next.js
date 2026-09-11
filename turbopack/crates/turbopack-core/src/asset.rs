@@ -4,7 +4,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, WriteLinkContent,
 };
-use turbo_tasks_hash::{HashAlgorithm, deterministic_hash};
+use turbo_tasks_hash::HashAlgorithm;
 
 use crate::version::{VersionedAssetContent, VersionedContent};
 
@@ -126,10 +126,7 @@ impl AssetContent {
     pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
         Ok(match self {
             AssetContent::File(content) => content.hash(salt, algorithm),
-            AssetContent::Redirect(content) => Vc::cell(RcStr::from(
-                // no_hash_salt
-                deterministic_hash(&salt.await?, content, algorithm),
-            )),
+            AssetContent::Redirect(content) => content.clone().cell().hash(salt, algorithm),
         })
     }
 

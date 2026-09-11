@@ -62,6 +62,7 @@ import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { __ApiPreviewProps } from '../../server/api-utils'
+import { mapNftFileEntries, type NftJson } from '../nft'
 
 interface SharedRouteFields {
   /**
@@ -2738,26 +2739,15 @@ async function loadNFT(
   repoRoot: string,
   traceFilePath: string
 ): Promise<{ entryHash?: string }> {
-  const { files, fileHashes, entryHash } = (await JSON.parse(
-    await fs.readFile(traceFilePath, 'utf8')
-  )) as {
-    files: string[]
-    fileHashes?: string[]
-    entryHash?: string
-  }
+  const nft = JSON.parse(await fs.readFile(traceFilePath, 'utf8')) as NftJson
 
-  const traceFileDir = path.dirname(traceFilePath)
-  for (let i = 0; i < files.length; i++) {
-    const relativeFile = files[i]
-    const contentHash = fileHashes?.[i]
-    const tracedFilePath = path.join(traceFileDir, relativeFile)
-    const fileOutputPath = path.relative(repoRoot, tracedFilePath)
-    assets[fileOutputPath] = tracedFilePath
-    if (contentHash) {
-      assetsHashes[fileOutputPath] = contentHash
+  for (const entry of mapNftFileEntries(nft, traceFilePath, repoRoot)) {
+    assets[entry.destination] = entry.source
+    if (entry.hash) {
+      assetsHashes[entry.destination] = entry.hash
     }
   }
-  return { entryHash }
+  return { entryHash: nft.entryHash }
 }
 
 async function hashFile(salt: string, filePath: string): Promise<string> {
