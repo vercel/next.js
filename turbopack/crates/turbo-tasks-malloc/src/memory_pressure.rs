@@ -10,6 +10,7 @@ pub fn memory_pressure() -> Option<u8> {
     platform::memory_pressure()
 }
 
+#[allow(dead_code)]
 fn clamp_percent(value: f64) -> u8 {
     if !value.is_finite() {
         return 0;

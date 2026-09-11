@@ -406,8 +406,16 @@ impl AppPageLoaderTreeBuilder {
 
         let modules_code = replace(&mut self.loader_tree_code, temp_loader_tree_code);
 
-        // add parallel_routes
-        for (key, parallel_route) in parallel_routes.iter() {
+        // Keep the serialized order stable for compatibility with existing
+        // clients, but don't make the loader tree representation itself depend
+        // on insertion order. Consumers that need the primary route should
+        // select `children` by key.
+        let ordered_parallel_routes = parallel_routes.get_key_value("children").into_iter().chain(
+            parallel_routes
+                .iter()
+                .filter(|(key, _)| key.as_str() != "children"),
+        );
+        for (key, parallel_route) in ordered_parallel_routes {
             write!(self.loader_tree_code, "{key}: ", key = StringifyJs(key))?;
             let next_depth = if key.as_str() == "children" {
                 depth + 1

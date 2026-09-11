@@ -45,6 +45,9 @@ jobs:
   # First, build Next.js to execute across tests.
   build-next:
     name: build-next
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ inputs.nodeVersion }}
@@ -54,6 +57,9 @@ jobs:
 
   build-native:
     name: build-native
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ inputs.nodeVersion }}
@@ -92,6 +98,9 @@ jobs:
       fail-fast: false
       matrix:
         group: ${{ fromJSON(needs.generate-matrices.outputs.e2e) }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ inputs.nodeVersion }}
@@ -124,6 +133,9 @@ jobs:
       fail-fast: false
       matrix:
         group: ${{ fromJSON(needs.generate-matrices.outputs.integration) }}
+    permissions:
+      contents: read
+      id-token: write
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: ${{ inputs.nodeVersion }}

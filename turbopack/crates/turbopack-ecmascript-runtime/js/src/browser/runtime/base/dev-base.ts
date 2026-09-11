@@ -1,5 +1,6 @@
 /// <reference path="../../../shared/runtime/dev-globals.d.ts" />
 /// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
+/// <reference path="../../../shared/runtime/hmr-runtime.ts" />
 
 interface TurbopackDevContext extends TurbopackBrowserBaseContext<HotModule> {
   k: RefreshContext
@@ -88,7 +89,7 @@ const chunkChunkListsMap: Map<ChunkPath, Set<ChunkListPath>> = new Map()
 function getOrInstantiateRuntimeModule(
   chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
-): Module {
+): HotModule {
   const module = devModuleCache[moduleId]
   if (module) {
     if (module.error) {
@@ -158,7 +159,7 @@ function instantiateModule(
   moduleId: ModuleId,
   sourceType: SourceType,
   sourceData: SourceData
-): Module {
+): HotModule {
   // Browser: creates base HotModule object (hot API added by shared code)
   const createModuleObjectFn = (id: ModuleId) => {
     return createModuleObject(id) as HotModule
@@ -579,7 +580,7 @@ function registerChunkList(chunkList: ChunkList) {
   const chunkListPath = getPathFromScript(chunkListScript)
   // The "chunk" is also registered to finish the loading in the backend
   BACKEND.registerChunk(chunkListPath as string as ChunkPath)
-  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS!.push([
+  CHUNK_UPDATE_LISTENERS.push([
     chunkListPath,
     handleApply.bind(null, chunkListPath),
   ])
@@ -601,5 +602,3 @@ function registerChunkList(chunkList: ChunkList) {
     markChunkListAsRuntime(chunkListPath)
   }
 }
-
-globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= []

@@ -47,6 +47,31 @@ export interface BasicSourceMapPayload {
 
 export type ModernSourceMapPayload = BasicSourceMapPayload | IndexSourceMap
 
+// `SourceMap#payload` deep-clones the payload on every access — expensive
+// for large chunk maps — so the clone is shared per `SourceMap` instance,
+// which Node.js memoizes per script.
+const sourceMapPayloads = new WeakMap<SourceMap, ModernSourceMapPayload>()
+
+/**
+ * Like `module.findSourceMap`, but returns the source map's payload without
+ * cloning it on every call. Callers must not mutate the returned payload.
+ * Throws like `module.findSourceMap` does on invalid source maps.
+ */
+export function findSourceMapPayload(
+  sourceURL: string
+): ModernSourceMapPayload | undefined {
+  const sourceMap = findSourceMap(sourceURL)
+  if (sourceMap === undefined) {
+    return undefined
+  }
+  let payload = sourceMapPayloads.get(sourceMap)
+  if (payload === undefined) {
+    payload = sourceMap.payload as ModernSourceMapPayload
+    sourceMapPayloads.set(sourceMap, payload)
+  }
+  return payload
+}
+
 export function sourceMapIgnoreListsEverything(
   sourceMap: BasicSourceMapPayload
 ): boolean {
@@ -125,16 +150,15 @@ export function filterStackFrameDEV(
     // Node.js loads source maps eagerly so this call is cheap.
     // TODO: ESM sourcemaps are O(1) but CommonJS sourcemaps are O(Number of CJS modules).
     // Make sure this doesn't adversely affect performance when CJS is used by Next.js.
-    const sourceMap = findSourceMap(sourceURL)
-    if (sourceMap === undefined) {
-      // No source map assoicated.
-      // TODO: Node.js types should reflect that `findSourceMap` can return `undefined`.
+    const payload = findSourceMapPayload(sourceURL)
+    if (payload === undefined) {
+      // No source map associated.
       return true
     }
     const sourceMapPayload = findApplicableSourceMapPayload(
       line1 - 1,
       column1 - 1,
-      sourceMap.payload
+      payload
     )
     if (sourceMapPayload === undefined) {
       // No source map section applicable to the frame.
@@ -158,25 +182,68 @@ export function filterStackFrameDEV(
   }
 }
 
+// `scriptNameOrSourceURL` is what React forwards from the stack frame: the
+// script's `getScriptNameOrSourceURL()`, which for the server chunks we can
+// map is an absolute filesystem path, not a URL. The returned value is the
+// source map's URL (`file:` or `data:`).
+type FindSourceMapURL = (scriptNameOrSourceURL: string) => string | null
+// Find the URL of a source map using the bundler's API.
+// Shared via `globalThis` because this module is compiled both into the server
+// runtime bundles (which call `findSourceMapURLDEV`) and into `next/dist/server`
+// (where the dev server registers the implementation), and each copy has its own
+// module state.
+const bundlerFindSourceMapURLSymbol = Symbol.for(
+  'next.server.bundlerFindSourceMapURL'
+)
+
+export function setBundlerFindSourceMapURLImplementation(
+  findSourceMapURLImplementation: FindSourceMapURL
+): void {
+  ;(globalThis as any)[bundlerFindSourceMapURLSymbol] =
+    findSourceMapURLImplementation
+}
+
+function bundlerFindSourceMapURL(scriptNameOrSourceURL: string): string | null {
+  const implementation: FindSourceMapURL | undefined = (globalThis as any)[
+    bundlerFindSourceMapURLSymbol
+  ]
+  return implementation === undefined
+    ? null
+    : implementation(scriptNameOrSourceURL)
+}
+
 const invalidSourceMap = Symbol('invalid-source-map')
 const sourceMapURLs = new LRUCache<string | typeof invalidSourceMap>(
   512 * 1024 * 1024,
-  (url) =>
-    url === invalidSourceMap
-      ? // Ideally we'd account for key length. So we just guestimate a small source map
-        // so that we don't create a huge cache with empty source maps.
+  (url, sourceURL) =>
+    sourceURL.length +
+    (url === invalidSourceMap
+      ? // Guestimate a small source map so invalid entries don't fill the cache.
         8 * 1024
       : // these URLs contain only ASCII characters so .length is equal to Buffer.byteLength
-        url.length
+        url.length)
 )
 export function findSourceMapURLDEV(
   scriptNameOrSourceURL: string
 ): string | null {
+  try {
+    const bundlerSourceMapURL = bundlerFindSourceMapURL(scriptNameOrSourceURL)
+    if (bundlerSourceMapURL !== null) {
+      return bundlerSourceMapURL
+    }
+  } catch (cause) {
+    console.error(
+      `${scriptNameOrSourceURL}: Failed to find the source map URL. Cause: ${cause}`
+    )
+  }
+
+  // No bundler implementation (e.g. Webpack): inline the source map Node.js
+  // knows as a `data:` URL.
   let sourceMapURL = sourceMapURLs.get(scriptNameOrSourceURL)
   if (sourceMapURL === undefined) {
     let sourceMapPayload: ModernSourceMapPayload | undefined
     try {
-      sourceMapPayload = findSourceMap(scriptNameOrSourceURL)?.payload
+      sourceMapPayload = findSourceMapPayload(scriptNameOrSourceURL)
     } catch (cause) {
       console.error(
         `${scriptNameOrSourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`

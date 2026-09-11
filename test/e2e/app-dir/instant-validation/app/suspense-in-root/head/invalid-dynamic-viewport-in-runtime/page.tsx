@@ -4,7 +4,7 @@ import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 export const instant = { level: 'experimental-error' }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 // Note that we're inside a root layout with suspense, so we skip the static shell
 export async function generateViewport(): Promise<Viewport> {

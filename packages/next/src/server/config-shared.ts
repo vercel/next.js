@@ -11,13 +11,11 @@ import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
 import type { SupportedTestRunners } from '../cli/next-test'
-import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
+import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
 import type { MemoryEvictionMode } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
-import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
-import { isCI } from './ci-info'
 
 /**
  * The `cacheLife` profiles after config normalization. `config.ts` always
@@ -40,36 +38,55 @@ export type PrefetchInliningConfig =
   | { maxSize: number; maxBundleSize: number }
 
 export type NextConfigComplete = Required<
-  Omit<NextConfig, 'configFile' | 'cacheLife'>
-> & {
-  images: Required<ImageConfigComplete>
-  typescript: TypeScriptConfig
-  configFile: string | undefined
-  configFileName: string
-  // Normalized by config.ts: the `default` profile is backfilled to be complete
-  // (see `ResolvedCacheLifeProfiles`), unlike the optional/partial user input.
-  // Omitted from the base so this is a clean replacement, not an intersection.
-  cacheLife: ResolvedCacheLifeProfiles
-  // override NextConfigComplete.experimental.htmlLimitedBots to string
-  // because it's not defined in NextConfigComplete.experimental
-  htmlLimitedBots: string | undefined
-  experimental: ExperimentalConfig & {
-    // Normalized by config.ts: true and partial objects become resolved objects
-    prefetchInlining?: PrefetchInliningConfig
-    // Normalized by config.ts: defaulted to 90% of staticPageGenerationTimeout
-    useCacheTimeout: number
-    // Normalized by config.ts `finalizeConfig`: defaulted to `'warning'`
-    instantInsights: { validationLevel: ValidationLevel }
-    // Normalized by finalized config with a default and the expected type
-    turbopackMemoryEvictionMode: MemoryEvictionMode
+  Omit<
+    NextConfig,
+    | 'configFile'
+    | 'cacheLife'
+    | 'expireTime'
+    | 'output'
+    | 'modularizeImports'
+    | 'allowedDevOrigins'
+    | 'adapterPath'
+  >
+> &
+  // Don't apply `Required<>` for these properties. They really can be undefined in the finalized config.
+  Pick<
+    NextConfig,
+    | 'cacheLife'
+    | 'expireTime'
+    | 'output'
+    | 'modularizeImports'
+    | 'allowedDevOrigins'
+    | 'adapterPath'
+  > & {
+    images: Required<ImageConfigComplete>
+    typescript: TypeScriptConfig
+    configFile: string | undefined
+    configFileName: string
+    // Normalized by config.ts: the `default` profile is backfilled to be complete
+    // (see `ResolvedCacheLifeProfiles`), unlike the optional/partial user input.
+    // Omitted from the base so this is a clean replacement, not an intersection.
+    cacheLife: ResolvedCacheLifeProfiles
+    // override NextConfigComplete.experimental.htmlLimitedBots to string
+    // because it's not defined in NextConfigComplete.experimental
+    htmlLimitedBots: string | undefined
+    experimental: ExperimentalConfig & {
+      // Normalized by config.ts: true and partial objects become resolved objects
+      prefetchInlining?: PrefetchInliningConfig
+      // Normalized by config.ts: defaulted to 90% of staticPageGenerationTimeout
+      useCacheTimeout: number
+      // Normalized by config.ts `finalizeConfig`: defaulted to `'warning'`
+      instantInsights: { validationLevel: ValidationLevel }
+      // Normalized by finalized config with a default and the expected type
+      turbopackMemoryEvictionMode: MemoryEvictionMode
+    }
+    // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
+    // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
+    // traverse into the output directory.
+    distDirRoot: string
+    // The repository root, regardless of overwritten outputFileTracingRoot or turbopack.root.
+    repoRoot: string
   }
-  // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
-  // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
-  // traverse into the output directory.
-  distDirRoot: string
-  // The repository root, regardless of overwritten outputFileTracingRoot or turbopack.root.
-  repoRoot: string
-}
 
 export type I18NDomains = readonly DomainLocale[]
 
@@ -171,10 +188,12 @@ export type TurbopackRuleCondition =
  * - `'typescript'` - Process as TypeScript module
  * - `'css'` - Process as CSS file
  * - `'css-module'` - Process as CSS module
+ * - `'json'` - Parse as JSON and export it
  * - `'wasm'` - Process as WebAssembly module
- * - `'raw'` - Return raw file contents as a string
+ * - `'raw'` - Export file contents as a string (an alias of `'text'`)
  * - `'node'` - Process as native Node.js addon
- * - `'bytes'` - Inline file contents as bytes in JavaScript
+ * - `'bytes'` - Export file contents as a `Uint8Array`
+ * - `'text'` - Export file contents as a string
  *
  * @see [Module Types](https://nextjs.org/docs/app/api-reference/config/next-config-js/turbopack#module-types)
  */
@@ -184,6 +203,7 @@ export type TurbopackModuleType =
   | 'typescript'
   | 'css'
   | 'css-module'
+  | 'json'
   | 'wasm'
   | 'raw'
   | 'node'
@@ -467,17 +487,10 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
-   * A string that is incorporated into content-addressed output filenames
-   * (chunks, assets) for both Webpack and Turbopack. Changing this value
-   * forces all output hashes to change, which is useful for invalidating
-   * cached assets across deployments without modifying source files.
-   *
-   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
-   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   * @deprecated Use the top-level `outputHashSalt` option instead.
    */
   outputHashSalt?: string
 
-  appNewScrollHandler?: boolean
   /**
    * Shows a persistent "Cold cache" badge in the dev overlay after a load that
    * filled an empty cache while streaming. Off by default while the badge's
@@ -485,11 +498,24 @@ export interface ExperimentalConfig {
    * regardless of this flag.
    */
   coldCacheBadge?: boolean
+  /**
+   * Whether a build may serve several dynamic routes from one entry in the
+   * route table that it passes to an adapter. Several routes of an app can
+   * differ only in a part that a single pattern also matches, and one entry for
+   * them keeps the table smaller.
+   *
+   * A collapsed entry resolves each request to the same output as the entries
+   * that it replaces.
+   *
+   * @default true
+   */
+  collapseAdapterRoutes?: boolean
   useSkewCookie?: boolean
   /** @deprecated use top-level `cacheHandlers` instead */
   cacheHandlers?: NextConfig['cacheHandlers']
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
+  parallelRouteMetadata?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -502,15 +528,23 @@ export interface ExperimentalConfig {
   /**
    * Caches subsets of a route, seeded from actual navigations, so subsequent
    * navigations to the same or similar pages can be served instantly. Requires
-   * Cache Components. `true` caches the static stage only (the runtime stage is
-   * opted into per segment via `export const prefetch = 'allow-runtime'`).
-   * `'allow-runtime'` additionally treats every segment as runtime-cached,
-   * regardless of its per-segment `prefetch` config.
+   * Cache Components.
    */
-  cachedNavigations?: boolean | 'allow-runtime'
+  cachedNavigations?: boolean
   dynamicOnHover?: boolean
+  /**
+   * Uses ReactDOM's browser rendering primitive for supported client-rendering
+   * bailouts instead of Next.js' internal bailout error.
+   */
+  reactBrowserBailout?: boolean
   useOffline?: boolean
   optimisticRouting?: boolean
+  /**
+   * Replaces the client router's sequential action queue with a rewritten
+   * concurrent implementation. The implementations are swapped at the module
+   * level by the bundler; the inactive one is not included in the bundle.
+   */
+  concurrentRouterQueue?: boolean
   instrumentationClientRouterTransitionEvents?: boolean
   varyParams?: boolean
   prefetchInlining?:
@@ -572,7 +606,6 @@ export interface ExperimentalConfig {
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
-  imgOptSkipMetadata?: boolean | null
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -607,6 +640,11 @@ export interface ExperimentalConfig {
    *       styles at the expense of more requests overall.
    */
   cssChunking?: CssChunkingConfig
+  /**
+   * Controls whether the development server automatically restarts when its
+   * heap usage exceeds the memory threshold. Defaults to `true`.
+   */
+  devMemoryThresholdRestart?: boolean
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
@@ -749,14 +787,33 @@ export interface ExperimentalConfig {
    *
    * `'workerThreads'` runs the same work in worker threads instead, which should
    * use less memory and CPU. It may become the default in a future version of
-   * Next.js.
+   * Next.js. On Node.js 24.13.1 and newer, a Node.js teardown bug can abort the
+   * process when a native addon has a live Node-API threadsafe function as a
+   * worker exits. Next.js falls back to `'childProcesses'` on affected versions.
+   * See <https://github.com/nodejs/node/issues/65100>.
+   *
+   * `'forceWorkerThreads'` bypasses this fallback. It may cause the process to
+   * abort on affected Node.js versions.
    */
-  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
+  turbopackPluginRuntimeStrategy?:
+    | 'workerThreads'
+    | 'childProcesses'
+    | 'forceWorkerThreads'
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
+   *
+   * Pass an object to configure each environment separately, e.g.
+   * `{ server: false, client: true }`. The `server` option takes precedence
+   * over `experimental.serverMinification`.
+   *
+   * We don't recommend disabling minification in production. Disabling it
+   * increases server function size, slows down cold starts, and leads to
+   * degraded performance.
    */
-  turbopackMinify?: boolean
+  turbopackMinify?:
+    | boolean
+    | { server?: boolean; client?: boolean; edge?: boolean }
 
   /**
    * Enable support for `with {type: "bytes"}` for ESM imports.
@@ -769,24 +826,31 @@ export interface ExperimentalConfig {
   turbopackScopeHoisting?: boolean
 
   /**
-   * (`next --turbopack` only) Emit each merged production chunk's constituent component chunks
-   * alongside it, so the browser runtime can load only the ones it doesn't already have.
-   * Defaults to `false`. Only applies in build mode.
-   */
-  turbopackGenerateComponentChunks?: boolean
-
-  /**
    * Share the browser runtime across routes in a single `runtime.js` asset and inline the
    * per-route chunk-group bootstrap into the HTML, dropping the per-route runtime. Defaults to
-   * false. Only applies to production builds; has no effect in development mode.
+   * true on canary releases and false on stable releases. Only applies to production builds; has
+   * no effect in development mode.
    */
   turbopackSharedRuntime?: boolean
 
   /**
-   * (`next --turbopack` only) Traffic-related hints for the production chunker. These change the
-   * assumptions Turbopack makes when making chunk merging decisions.
+   * (`next --turbopack` only) These options change the assumptions Turbopack makes when
+   * making chunk merging decisions and the raw size thresholds it uses.
    */
-  turbopackChunkingHeuristics?: {
+  turbopackChunking?: {
+    /**
+     * Groups of pages commonly visited together, each defined by a list of regular
+     * expressions matched against the route pathname.
+     *
+     * @example
+     * ```js
+     * clusters: [
+     *   [/^\/dashboard/, /^\/dashboard\/settings/],
+     *   [/^\/blog/, /^\/blog\/[^/]+$/],
+     * ]
+     * ```
+     */
+    clusters?: RegExp[][]
     /**
      * This is a number between `0..1`, when higher, we weight the benefits of
      * merging chunks for a signal page load higher. If you don't know a good
@@ -808,11 +872,37 @@ export interface ExperimentalConfig {
     priorityBoost?: number
     /**
      * Estimated cost of an additional request, in bytes (uncompressed
-     * and unminfified bytes of code, default is 200 KB and the max is 1 MB), used by the chunker to
+     * and unminfified bytes of code, default is 200 KB), used by the chunker to
      * trade off request count against preventing double-fetching. Uncompressed and unminfified code
      * is approximately 5x the size of compressed and minified code.
      */
     requestCost?: number
+    /**
+     * Avoid creating more than one chunk smaller than this size, in bytes. Smaller
+     * chunks are merged into bigger ones to avoid that. Defaults to `50000` (50 KB).
+     */
+    minChunkSize?: number
+    /**
+     * Avoid creating more than this number of chunks per chunk group. Chunks are
+     * merged into bigger ones to avoid that. Defaults to `40`.
+     */
+    maxChunkCountPerGroup?: number
+    /**
+     * Never merge chunks bigger than this size, in bytes, with other chunks. This keeps code
+     * in big chunks from being duplicated across multiple chunks. Defaults to `200000` (200 KB).
+     */
+    maxMergeChunkSize?: number
+    /**
+     * Emit each merged production chunk's constituent component chunks alongside it, so the
+     * browser runtime can load only the ones it doesn't already have. Defaults to `false`.
+     */
+    generateComponentChunks?: boolean
+    /**
+     * Minimum size, in bytes, for a component chunk to be emitted on its own when
+     * `generateComponentChunks` is enabled. Component chunks smaller than this are folded into a
+     * single remainder chunk. Defaults to `20000` (20 KB).
+     */
+    minComponentChunkSize?: number
   }
 
   /**
@@ -868,9 +958,24 @@ export interface ExperimentalConfig {
   /**
    * Enable filesystem cache for the turbopack build.
    *
-   * Defaults to `true` in canary/preview builds, `false` in production.
+   * Defaults to `true`.
    */
   turbopackFileSystemCacheForBuild?: boolean
+
+  /**
+   * When running inside a git worktree, warm-start this worktree's Turbopack
+   * filesystem cache by seeding it from the main checkout's cache if the
+   * worktree doesn't have one yet. This is best-effort and never fails a build.
+   *
+   * Defaults to `false`.
+   */
+  turbopackSeedCacheFromWorktree?: boolean
+
+  /**
+   * The maximum age, in milliseconds, of Turbopack development output kept
+   * between dev server sessions. Defaults to one week.
+   */
+  turbopackStaleOutputMaxAge?: number
 
   /**
    * Enable source maps. Defaults to true.
@@ -883,9 +988,10 @@ export interface ExperimentalConfig {
   turbopackInputSourceMaps?: boolean
 
   /**
-   * Enable tree shaking for the turbopack dev server and build.
+   * Currently in active development. This splits modules into fragments and
+   * chunks only import the used fragments of the modules.
    */
-  turbopackTreeShaking?: boolean
+  turbopackModuleFragments?: boolean
 
   /**
    * Enable removing unused imports for turbopack dev server and build.
@@ -905,6 +1011,38 @@ export interface ExperimentalConfig {
    * Defaults to `true`
    */
   turbopackInferModuleSideEffects?: boolean
+
+  /**
+   * Enable tree shaking of unused exports from analyzable CommonJS modules in Turbopack.
+   *
+   * Defaults to `false`
+   */
+  turbopackCjsTreeShaking?: boolean
+
+  /**
+   * Shorten ("mangle") the export names modules expose to each other in Turbopack, to reduce
+   * bundle size. Only affects the keys used to link modules together: a module whose export names
+   * can be observed by user code (a namespace object that escapes, a dynamic `import()`, a
+   * CommonJS `require()`) keeps its original names.
+   *
+   * Defaults to `false`
+   */
+  turbopackMangleExportNames?: boolean
+
+  /**
+   * Enable scope hoisting of static CommonJS modules.
+   *
+   * Defaults to `false`
+   */
+  turbopackCjsScopeHoisting?: boolean
+
+  /**
+   * Enable cross-module constant inlining in Turbopack. Constants exported from other
+   * modules are inlined at their use sites, which enables dead code elimination.
+   *
+   * Defaults to `false`
+   */
+  turbopackCrossModuleConstants?: boolean
 
   /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
@@ -1036,7 +1174,7 @@ export interface ExperimentalConfig {
    * @deprecated This configuration option has been merged into `cacheComponents`.
    * The Partial Prerendering feature is still available via `cacheComponents`.
    */
-  ppr?: ExperimentalPPRConfig
+  ppr?: boolean | 'incremental'
 
   /**
    * Enables experimental taint APIs in React.
@@ -1102,7 +1240,17 @@ export interface ExperimentalConfig {
   maxPostponedStateSize?: SizeLimit
 
   /**
+   * Disables compression of the Resume Data Cache (RDC) when persisting
+   * postponed state.
+   * @default false
+   */
+  disableResumeDataCacheCompression?: boolean
+
+  /**
    * enables the minification of server code.
+   *
+   * Under Turbopack this is overridden by `experimental.turbopackMinify` when
+   * that option specifies a `server` value.
    */
   serverMinification?: boolean
 
@@ -1133,11 +1281,6 @@ export interface ExperimentalConfig {
    * Requires `useLightningcss: true`.
    */
   lightningCssFeatures?: LightningCssFeatures
-
-  /**
-   * Enables view transitions by using the {@link https://react.dev/reference/react/ViewTransition ViewTransition} Component.
-   */
-  viewTransition?: boolean
 
   /**
    * Enables `fetch` requests to be proxied to the experimental test proxy server
@@ -1188,6 +1331,21 @@ export interface ExperimentalConfig {
      */
     validationLevel?: ValidationLevel
   }
+
+  /**
+   * Runs development Cache Components validation on a worker thread rather than
+   * the main thread, keeping the dev server's event loop responsive during
+   * rapid navigation. This covers static-shell validation (which runs on
+   * initial load and HMR refresh) as well as instant-navigation validation
+   * (when `instant` is configured). Enabled by default; set to `false` to run
+   * validation in-process, as an escape hatch to isolate a problem or fall back
+   * if the worker misbehaves.
+   *
+   * Has no effect with Webpack, where validation always runs in process. The
+   * worker's thread cannot reach Webpack's dev source maps, so validation
+   * errors would be reported without a source location.
+   */
+  devValidationWorker?: boolean
 
   /**
    * The number of times to retry static generation (per page) before giving up.
@@ -1263,6 +1421,21 @@ export interface ExperimentalConfig {
    *
    */
   globalNotFound?: boolean
+
+  /**
+   * Only includes `children` in a parallel route layout when an ordinary route
+   * branch declares content for it. Set this to `false` to temporarily restore
+   * the legacy implicit `children` slot.
+   */
+  explicitParallelRouteChildren?: boolean
+
+  /**
+   * Omits catch-all-derived App Router matchers that cannot construct a
+   * complete parallel route tree for their URL. This requires
+   * `explicitParallelRouteChildren`; setting that option to `false` also
+   * disables strict route matching.
+   */
+  strictRouteMatching?: boolean
 
   /**
    * @experimental Use the Rust port of the React compiler (Turbopack only).
@@ -1364,9 +1537,7 @@ export interface ExperimentalConfig {
   runtimeServerDeploymentId?: boolean
 
   /**
-   * Whether the deployment environment supports immutable assets (assets deployed to
-   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
-   * deployments.)
+   * @deprecated Use the top-level `supportsImmutableAssets` option instead.
    */
   supportsImmutableAssets?: boolean
 
@@ -1442,7 +1613,7 @@ export type ExportPathMap = {
     /**
      * When true, the page is prerendered as a fallback shell, while allowing
      * any dynamic accesses to result in an empty shell. This is the case when
-     * the app has `experimental.ppr` and `cacheComponents` enabled, and
+     * the app has Cache Components enabled, and
      * there are also routes prerendered with a more complete set of params.
      * Prerendering those routes would catch any invalid dynamic accesses.
      *
@@ -1693,6 +1864,13 @@ export interface NextConfig {
   deploymentId?: string
 
   /**
+   * Whether the deployment environment supports immutable assets (assets deployed to
+   * `_next/static/immutable` don't need a `?dpl` parameter and can be safely requested across
+   * deployments.)
+   */
+  supportsImmutableAssets?: boolean
+
+  /**
    * Deploy a Next.js application under a sub-path of a domain
    *
    * @see [Base path configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/basePath)
@@ -1895,12 +2073,8 @@ export interface NextConfig {
    *
    * When `false` or omitted, this does nothing (the legacy behavior, where
    * dynamic data is included in the prefetch).
-   *
-   * `'unstable_eager'` is like `true`, except the default becomes
-   * `'unstable_eager'` instead of `'partial'`: every Link has an implied
-   * prefetch={true}. Internal migration aid; not part of the public API.
    */
-  partialPrefetching?: boolean | 'unstable_eager'
+  partialPrefetching?: boolean
 
   cacheLife?: {
     [profile: string]: {
@@ -1966,6 +2140,17 @@ export interface NextConfig {
    * were not detected on a per-page basis.
    */
   outputFileTracingIncludes?: Record<string, string[]>
+
+  /**
+   * A string that is incorporated into content-addressed output filenames
+   * (chunks, assets) for both Webpack and Turbopack. Changing this value
+   * forces all output hashes to change, which is useful for invalidating
+   * cached assets across deployments without modifying source files.
+   *
+   * When `NEXT_HASH_SALT` environment variable is also set, the two values are
+   * concatenated (`outputHashSalt + NEXT_HASH_SALT`) to form the effective salt.
+   */
+  outputHashSalt?: string
 
   watchOptions?: {
     pollIntervalMs?: number
@@ -2101,12 +2286,14 @@ export const defaultConfig = Object.freeze({
   },
   adapterPath: process.env.NEXT_ADAPTER_PATH || undefined,
   experimental: {
-    appNewScrollHandler: true,
     coldCacheBadge: false,
+    collapseAdapterRoutes: true,
+    devValidationWorker: true,
     useSkewCookie: false,
     cssChunking: true,
     multiZoneDraftMode: false,
     appNavFailHandling: false,
+    parallelRouteMetadata: false,
     prerenderEarlyExit: true,
     serverMinification: true,
     linkNoTouchStart: false,
@@ -2114,9 +2301,11 @@ export const defaultConfig = Object.freeze({
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
     dynamicOnHover: false,
+    reactBrowserBailout: true,
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
+    concurrentRouterQueue: false,
     instrumentationClientRouterTransitionEvents: false,
     prefetchInlining: true,
     preloadEntriesOnStart: true,
@@ -2137,7 +2326,6 @@ export const defaultConfig = Object.freeze({
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
-    imgOptSkipMetadata: null,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2145,6 +2333,7 @@ export const defaultConfig = Object.freeze({
     nextScriptWorkers: false,
     scrollRestoration: false,
     externalDir: false,
+    devMemoryThresholdRestart: true,
     disableOptimizedLoading: false,
     gzipSize: true,
     craCompat: false,
@@ -2167,8 +2356,7 @@ export const defaultConfig = Object.freeze({
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     strictRouteTypes: false,
-    useTypeScriptCli: false,
-    viewTransition: false,
+    useTypeScriptCli: true,
     removeUncaughtErrorAndRejectionListeners: false,
     validateRSCRequestHeaders: true,
     staleTimes: {
@@ -2188,28 +2376,28 @@ export const defaultConfig = Object.freeze({
     useCache: undefined,
     slowModuleDetection: undefined,
     globalNotFound: false,
+    explicitParallelRouteChildren: true,
+    strictRouteMatching: false,
     browserDebugInfoInTerminal: 'warn',
     lockDistDir: true,
+    disableResumeDataCacheCompression: false,
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
     turbopackFileSystemCacheForDev: true,
-    turbopackFileSystemCacheForBuild: turbopackFileSystemCacheForBuildDefault(),
+    turbopackFileSystemCacheForBuild: true,
+    turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
     turbopackInferModuleSideEffects: true,
     turbopackPluginRuntimeStrategy: 'childProcesses',
+    turbopackSharedRuntime: !isStableBuild(),
+    // Pinned off for stable releases. Left unset on canary so the Turbopack side picks the
+    // default from the build mode (on for production builds, off in development) — see
+    // `NextConfig::turbopack_mangle_export_names`. An explicit value always wins either way.
+    turbopackMangleExportNames: isStableBuild() ? false : undefined,
   },
   htmlLimitedBots: undefined,
   bundlePagesRouterDependencies: false,
 } satisfies NextConfig)
-
-function turbopackFileSystemCacheForBuildDefault() {
-  if (isStableBuild()) return false
-  if (isCI && process.env.NOW_BUILDER) {
-    // Assume caching is available on vercel
-    return true
-  }
-  return false
-}
 
 export async function normalizeConfig(phase: string, config: any) {
   if (typeof config === 'function') {
@@ -2228,13 +2416,13 @@ export async function normalizeConfig(phase: string, config: any) {
 //     cacheComponents?: boolean;
 //     clientParamParsingOrigins?: string[];
 //     clientSegmentCache?: boolean;
-//     ppr?: boolean | 'incremental';
 //     serverActions?: Record<string, never>;
 //   };
 // };
 export interface NextConfigRuntime {
   // Can be undefined, particularly when experimental.runtimeServerDeploymentId is true
   deploymentId?: NextConfigComplete['deploymentId']
+  supportsImmutableAssets?: NextConfigComplete['supportsImmutableAssets']
 
   configFileName?: string
   // Should only be included when using isExperimentalCompile
@@ -2246,14 +2434,14 @@ export interface NextConfigRuntime {
   agentRules: NextConfigComplete['agentRules']
   htmlLimitedBots: NextConfigComplete['htmlLimitedBots']
   assetPrefix: NextConfigComplete['assetPrefix']
-  output: NextConfigComplete['output']
+  output?: NextConfigComplete['output']
   crossOrigin: NextConfigComplete['crossOrigin']
   trailingSlash: NextConfigComplete['trailingSlash']
   images: NextConfigComplete['images']
   reactMaxHeadersLength: NextConfigComplete['reactMaxHeadersLength']
   cacheLife: NextConfigComplete['cacheLife']
   basePath: NextConfigComplete['basePath']
-  expireTime: NextConfigComplete['expireTime']
+  expireTime?: NextConfigComplete['expireTime']
   generateEtags: NextConfigComplete['generateEtags']
   poweredByHeader: NextConfigComplete['poweredByHeader']
   cacheHandler: NextConfigComplete['cacheHandler']
@@ -2271,17 +2459,19 @@ export interface NextConfigRuntime {
 
   experimental: Pick<
     NextConfigComplete['experimental'],
-    | 'ppr'
     | 'taint'
     | 'serverActions'
     | 'staleTimes'
     | 'dynamicOnHover'
     | 'useOffline'
     | 'optimisticRouting'
+    | 'parallelRouteMetadata'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
+    | 'reactBrowserBailout'
     | 'useCacheTimeout'
+    | 'durableUseCacheEntries'
     | 'clientTraceMetadata'
     | 'clientParamParsingOrigins'
     | 'allowedRevalidateHeaderKeys'
@@ -2304,16 +2494,15 @@ export interface NextConfigRuntime {
     | 'imgOptOperationCache'
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
-    | 'imgOptSkipMetadata'
     | 'imgOptTimeoutInSeconds'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
     | 'runtimeServerDeploymentId'
     | 'maxPostponedStateSize'
+    | 'disableResumeDataCacheCompression'
     | 'cachedNavigations'
     | 'exposeTestingApiInProductionBuild'
-    | 'supportsImmutableAssets'
     | 'instantInsights'
     | 'requestInsights'
   > & {
@@ -2340,17 +2529,19 @@ export function getNextConfigRuntime(
   }
 
   const experimental = {
-    ppr: ex.ppr,
     taint: ex.taint,
     serverActions: ex.serverActions,
     staleTimes: ex.staleTimes,
     dynamicOnHover: ex.dynamicOnHover,
     useOffline: ex.useOffline,
     optimisticRouting: ex.optimisticRouting,
+    parallelRouteMetadata: ex.parallelRouteMetadata,
     inlineCss: ex.inlineCss,
     prefetchInlining: ex.prefetchInlining,
     authInterrupts: ex.authInterrupts,
+    reactBrowserBailout: ex.reactBrowserBailout,
     useCacheTimeout: ex.useCacheTimeout,
+    durableUseCacheEntries: ex.durableUseCacheEntries,
     clientTraceMetadata: ex.clientTraceMetadata,
     clientParamParsingOrigins: ex.clientParamParsingOrigins,
     allowedRevalidateHeaderKeys: ex.allowedRevalidateHeaderKeys,
@@ -2374,16 +2565,15 @@ export function getNextConfigRuntime(
     imgOptOperationCache: ex.imgOptOperationCache,
     imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
     imgOptSequentialRead: ex.imgOptSequentialRead,
-    imgOptSkipMetadata: ex.imgOptSkipMetadata,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
     testProxy: ex.testProxy,
     runtimeServerDeploymentId: ex.runtimeServerDeploymentId,
     maxPostponedStateSize: ex.maxPostponedStateSize,
+    disableResumeDataCacheCompression: ex.disableResumeDataCacheCompression,
     cachedNavigations: ex.cachedNavigations,
     exposeTestingApiInProductionBuild: ex.exposeTestingApiInProductionBuild,
-    supportsImmutableAssets: ex.supportsImmutableAssets,
     instantInsights: ex.instantInsights,
     requestInsights: ex.requestInsights,
 
@@ -2395,6 +2585,7 @@ export function getNextConfigRuntime(
     deploymentId: config.experimental.runtimeServerDeploymentId
       ? ''
       : config.deploymentId,
+    supportsImmutableAssets: config.supportsImmutableAssets,
 
     configFileName: undefined,
     env: undefined,

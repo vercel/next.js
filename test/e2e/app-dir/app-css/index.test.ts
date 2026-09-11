@@ -8,7 +8,7 @@ describe('app dir - css', () => {
     dependencies: {
       '@picocss/pico': '1.5.7',
       sass: 'latest',
-      '@next/mdx': 'canary',
+      '@next/mdx': 'workspace:*',
     },
   })
 

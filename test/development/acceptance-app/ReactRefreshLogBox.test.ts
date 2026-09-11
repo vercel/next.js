@@ -403,7 +403,7 @@ describe('ReactRefreshLogBox app', () => {
          "stack": [
            "ClickCount.render Child.js (4:11)",
            "Home index.js (6:7)",
-           "<FIXME-file-protocol>",
+           "Page app/page.js (4:10)",
          ],
        }
       `)
@@ -1448,7 +1448,6 @@ describe('ReactRefreshLogBox app', () => {
       if (isRspack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",
@@ -1468,7 +1467,6 @@ describe('ReactRefreshLogBox app', () => {
       } else if (!isTurbopack) {
         await expect({ browser, next }).toDisplayRedbox(`
          {
-           "code": "E394",
            "description": "module error",
            "environmentLabel": null,
            "label": "Runtime Error",

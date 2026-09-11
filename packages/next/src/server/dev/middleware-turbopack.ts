@@ -130,7 +130,16 @@ function parseFile(fileParam: string | null): string | undefined {
     return undefined
   }
 
-  return devirtualizeReactServerURL(fileParam)
+  const file = devirtualizeReactServerURL(fileParam)
+  // React virtualizes filenames as `'file://' + path`, which is malformed
+  // for paths that need percent-encoding (e.g. a space in the project path)
+  // and then fails both Turbopack's `traceSource` and Node.js' source map
+  // cache lookups. Re-encode through WHATWG URL parsing.
+  // TODO(veil): Revisit if React's virtualization round-trips losslessly.
+  if (file.startsWith('file://') && URL.canParse(file)) {
+    return new URL(file).href
+  }
+  return file
 }
 
 function createStackFrames(

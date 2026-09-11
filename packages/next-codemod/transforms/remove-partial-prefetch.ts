@@ -5,6 +5,21 @@ import { createParserFromPath } from '../lib/parser'
 // Route Segment Config name and the only value this codemod strips.
 const CONFIG_NAME = 'prefetch'
 const TARGET_VALUE = 'partial'
+const GENERATED_GUIDE_COMMENT =
+  'See: https://nextjs.org/docs/app/guides/adopting-partial-prefetching'
+
+function isGeneratedGuideComment(comment: any): boolean {
+  return comment.value.trim() === GENERATED_GUIDE_COMMENT
+}
+
+function removeGeneratedGuideComment(node: any) {
+  for (const target of [node, node.declaration]) {
+    if (!target?.comments) continue
+    target.comments = target.comments.filter(
+      (comment: any) => !isGeneratedGuideComment(comment)
+    )
+  }
+}
 
 // Unwrap `'partial' as const` / `'partial' satisfies T` so the value guard
 // still matches when the export is annotated.
@@ -53,7 +68,9 @@ function stripTargetDeclarators(
 // leading comments to the next statement (or the previous one when the
 // removed statement is last) so they survive the removal.
 function preserveLeadingComments(path: any) {
-  const comments = path.node.comments?.filter((comment: any) => comment.leading)
+  const comments = path.node.comments?.filter(
+    (comment: any) => comment.leading && !isGeneratedGuideComment(comment)
+  )
   if (!comments?.length) {
     return
   }
@@ -108,6 +125,7 @@ export default function transformer(file: FileInfo, _api: API) {
       )
     })
     .forEach((path) => {
+      removeGeneratedGuideComment(path.node)
       const declaration = path.node.declaration as VariableDeclaration
       const remaining = stripTargetDeclarators(j, declaration)
       // Remove the whole export only when nothing else was declared with it.
@@ -172,6 +190,7 @@ export default function transformer(file: FileInfo, _api: API) {
         return path.node.declarations.some((decl) => isTargetPrefetch(j, decl))
       })
       .forEach((path) => {
+        removeGeneratedGuideComment(path.node)
         const remaining = stripTargetDeclarators(j, path.node)
         if (remaining === 0) {
           preserveLeadingComments(path)

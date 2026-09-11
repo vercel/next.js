@@ -196,6 +196,8 @@ struct PlainDirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
     pub subdirectories: BTreeMap<RcStr, PlainDirectoryTree>,
     pub modules: AppDirModules,
+    /// Whether this subtree contains a page or default, including inside parallel routes.
+    pub contains_page_or_default: bool,
     /// Flattened URL tree with route groups and parallel routes transparent.
     pub url_tree: UrlSegmentTree,
 }
@@ -290,11 +292,17 @@ impl DirectoryTree {
             subdirectories.insert(name.clone(), subdirectory.into_plain().owned().await?);
         }
 
+        let contains_page_or_default = self.modules.page.is_some()
+            || self.modules.default.is_some()
+            || subdirectories
+                .values()
+                .any(|subdirectory| subdirectory.contains_page_or_default);
         let url_tree = build_url_segment_tree_from_subdirs(&subdirectories);
 
         Ok(PlainDirectoryTree {
             subdirectories,
             modules: self.modules.clone(),
+            contains_page_or_default,
             url_tree,
         }
         .cell())
@@ -478,6 +486,16 @@ pub struct AppPageLoaderTree {
 }
 
 impl AppPageLoaderTree {
+    fn collect_page_files(&self, pages: &mut FxIndexSet<FileSystemPath>) {
+        if let Some(page) = &self.modules.page {
+            pages.insert(page.clone());
+        }
+
+        for tree in self.parallel_routes.values() {
+            tree.collect_page_files(pages);
+        }
+    }
+
     /// Returns true if there's a page match in this loader tree.
     pub fn has_page(&self) -> bool {
         if &*self.segment == "__PAGE__" {
@@ -507,6 +525,105 @@ impl AppPageLoaderTree {
         }
 
         true
+    }
+
+    fn contains_catchall_page(&self) -> bool {
+        (&*self.segment == "__PAGE__" && self.page.is_catchall())
+            || self
+                .parallel_routes
+                .values()
+                .any(AppPageLoaderTree::contains_catchall_page)
+    }
+
+    fn is_builtin_not_found_default(&self, builtin_default: &FileSystemPath) -> bool {
+        &*self.segment == "__DEFAULT__"
+            && self.modules.default.as_ref().is_some_and(|default| {
+                default.fs == builtin_default.fs && default.path == builtin_default.path
+            })
+    }
+
+    /// Returns true when a slot declared by its owning layout can only use Next.js' built-in
+    /// not-found default. Structural router-state branches can contain the same default without
+    /// being renderable slots, so they do not make the matcher incomplete.
+    fn contains_declared_builtin_not_found_default(
+        &self,
+        builtin_default: &FileSystemPath,
+        declared_slots: &FxIndexMap<FileSystemPath, FxIndexSet<RcStr>>,
+        parent_layout: Option<&FileSystemPath>,
+    ) -> bool {
+        let owner_layout = self.modules.layout.as_ref().or(parent_layout);
+
+        self.parallel_routes.iter().any(|(slot, tree)| {
+            let is_declared_default = tree.is_builtin_not_found_default(builtin_default)
+                && owner_layout.is_some_and(|layout| {
+                    declared_slots
+                        .get(layout)
+                        .is_some_and(|slots| slots.contains(slot))
+                });
+
+            is_declared_default
+                || tree.contains_declared_builtin_not_found_default(
+                    builtin_default,
+                    declared_slots,
+                    owner_layout,
+                )
+        })
+    }
+
+    fn collect_builtin_not_found_defaults(
+        &self,
+        builtin_default: &FileSystemPath,
+        declared_slots: &FxIndexMap<FileSystemPath, FxIndexSet<RcStr>>,
+        parent_layout: Option<&FileSystemPath>,
+        missing_slots: &mut FxIndexMap<FileSystemPath, FxIndexSet<RcStr>>,
+    ) {
+        let owner_layout = self.modules.layout.as_ref().or(parent_layout);
+
+        for (slot, tree) in &self.parallel_routes {
+            if tree.is_builtin_not_found_default(builtin_default) {
+                if let Some(owner_layout) = owner_layout
+                    && declared_slots
+                        .get(owner_layout)
+                        .is_some_and(|slots| slots.contains(slot))
+                {
+                    missing_slots
+                        .entry(owner_layout.clone())
+                        .or_default()
+                        .insert(slot.clone());
+                }
+            } else {
+                tree.collect_builtin_not_found_defaults(
+                    builtin_default,
+                    declared_slots,
+                    owner_layout,
+                    missing_slots,
+                );
+            }
+        }
+    }
+
+    /// Returns true when one slot matches through a catch-all while a different slot at the same
+    /// level can only render Next.js' built-in not-found default.
+    fn has_unmatched_parallel_route(
+        &self,
+        builtin_default: &FileSystemPath,
+        declared_slots: &FxIndexMap<FileSystemPath, FxIndexSet<RcStr>>,
+        parent_layout: Option<&FileSystemPath>,
+    ) -> bool {
+        let owner_layout = self.modules.layout.as_ref().or(parent_layout);
+        let slots_at_level = owner_layout.and_then(|layout| declared_slots.get(layout));
+
+        self.parallel_routes.iter().any(|(catchall_key, tree)| {
+            slots_at_level.is_some_and(|slots| slots.contains(catchall_key))
+                && tree.contains_catchall_page()
+                && self.parallel_routes.iter().any(|(default_key, tree)| {
+                    default_key != catchall_key
+                        && slots_at_level.is_some_and(|slots| slots.contains(default_key))
+                        && tree.is_builtin_not_found_default(builtin_default)
+                })
+        }) || self.parallel_routes.values().any(|tree| {
+            tree.has_unmatched_parallel_route(builtin_default, declared_slots, owner_layout)
+        })
     }
 
     /// Returns true if this loader tree contains an intercepting route match.
@@ -570,6 +687,7 @@ pub enum Entrypoint {
     AppPage {
         pages: Vec<AppPage>,
         loader_tree: ResolvedVc<AppPageLoaderTree>,
+        participating_page_files: Vec<FileSystemPath>,
         root_params: ResolvedVc<RootParamVecOption>,
     },
     AppRoute {
@@ -666,6 +784,7 @@ fn add_app_page(
     result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     loader_tree: ResolvedVc<AppPageLoaderTree>,
+    participating_page_files: Vec<FileSystemPath>,
     root_params: ResolvedVc<RootParamVecOption>,
 ) {
     let mut e = match result.entry(page.clone().into()) {
@@ -674,6 +793,7 @@ fn add_app_page(
             e.insert(Entrypoint::AppPage {
                 pages: vec![page],
                 loader_tree,
+                participating_page_files,
                 root_params,
             });
             return;
@@ -699,6 +819,7 @@ fn add_app_page(
 
             let Entrypoint::AppPage {
                 pages: stored_pages,
+                participating_page_files: stored_page_files,
                 ..
             } = e.get_mut()
             else {
@@ -707,6 +828,11 @@ fn add_app_page(
 
             stored_pages.push(page);
             stored_pages.sort();
+            for page_file in participating_page_files {
+                if !stored_page_files.contains(&page_file) {
+                    stored_page_files.push(page_file);
+                }
+            }
         }
         Entrypoint::AppRoute {
             page: existing_page,
@@ -816,6 +942,8 @@ pub fn get_entrypoints(
     app_dir: FileSystemPath,
     page_extensions: Vc<Vec<RcStr>>,
     is_global_not_found_enabled: Vc<bool>,
+    explicit_parallel_route_children: Vc<bool>,
+    strict_route_matching: Vc<bool>,
     next_mode: Vc<NextMode>,
 ) -> Vc<Entrypoints> {
     directory_tree_to_entrypoints(
@@ -823,6 +951,8 @@ pub fn get_entrypoints(
         get_directory_tree(app_dir.clone(), page_extensions),
         get_global_metadata(app_dir, page_extensions),
         is_global_not_found_enabled,
+        explicit_parallel_route_children,
+        strict_route_matching,
         next_mode,
         Default::default(),
         Default::default(),
@@ -846,26 +976,396 @@ pub async fn collect_root_params(
 }
 
 #[turbo_tasks::function]
-fn directory_tree_to_entrypoints(
+async fn directory_tree_to_entrypoints(
     app_dir: FileSystemPath,
     directory_tree: Vc<DirectoryTree>,
     global_metadata: Vc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    explicit_parallel_route_children: Vc<bool>,
+    strict_route_matching: Vc<bool>,
     next_mode: Vc<NextMode>,
     root_layouts: Vc<FileSystemPathVec>,
     root_params: Vc<RootParamVecOption>,
-) -> Vc<Entrypoints> {
-    directory_tree_to_entrypoints_internal(
-        app_dir,
+) -> Result<Vc<Entrypoints>> {
+    let entrypoints = directory_tree_to_entrypoints_internal(
+        app_dir.clone(),
         global_metadata,
         is_global_not_found_enabled,
+        explicit_parallel_route_children,
+        strict_route_matching,
         next_mode,
         rcstr!(""),
         directory_tree,
         AppPage::new(),
         root_layouts,
         root_params,
-    )
+    );
+
+    if !*strict_route_matching.await? {
+        return Ok(entrypoints);
+    }
+
+    let builtin_default = get_next_package(app_dir.clone())
+        .await?
+        .join("dist/client/components/builtin/default.js")?;
+    let entrypoints_ref = entrypoints.await?;
+    let plain_tree = directory_tree.into_plain().await?;
+    let mut declared_slots = FxIndexMap::default();
+    collect_declared_parallel_route_slots(&plain_tree, &mut declared_slots);
+    let mut candidate_entrypoints = FxIndexMap::default();
+
+    // Loader trees built while walking a subtree may still contain temporary synthesized
+    // defaults that disappear when sibling pages are combined. Inspect only the finalized root
+    // entrypoints so complete routes are never discarded based on an intermediate tree. This
+    // layer retains incomplete static matchers long enough to report their exact slot topology;
+    // incomplete catch-all matchers preserve the pruning behavior from the lower layer.
+    for (app_path, entrypoint) in entrypoints_ref.iter() {
+        let is_incomplete = match entrypoint {
+            Entrypoint::AppPage { loader_tree, .. } => loader_tree
+                .await?
+                .has_unmatched_parallel_route(&builtin_default, &declared_slots, None),
+            _ => false,
+        };
+
+        if !is_incomplete {
+            candidate_entrypoints.insert(app_path.clone(), entrypoint.clone());
+        }
+    }
+
+    let mut incompatible_parallel_route_slots = Vec::new();
+    let mut retained_entrypoints = FxIndexMap::default();
+
+    // Report incomplete static matchers from their finalized loader trees, but still prune them
+    // from the matcher set. Interception routes intentionally use synthetic retain markers and
+    // therefore follow different reporting rules.
+    for (app_path, entrypoint) in &candidate_entrypoints {
+        let Entrypoint::AppPage { loader_tree, .. } = entrypoint else {
+            retained_entrypoints.insert(app_path.clone(), entrypoint.clone());
+            continue;
+        };
+        let loader_tree = loader_tree.await?;
+        if !loader_tree.contains_declared_builtin_not_found_default(
+            &builtin_default,
+            &declared_slots,
+            None,
+        ) {
+            retained_entrypoints.insert(app_path.clone(), entrypoint.clone());
+            continue;
+        }
+        if app_path.intercepted_path().is_some() {
+            continue;
+        }
+
+        let mut missing_slots = FxIndexMap::default();
+        loader_tree.collect_builtin_not_found_defaults(
+            &builtin_default,
+            &declared_slots,
+            None,
+            &mut missing_slots,
+        );
+        if missing_slots.is_empty() {
+            bail!(
+                "Invariant: strict route matching retained the incomplete route matcher \
+                 `{app_path}`"
+            );
+        }
+        incompatible_parallel_route_slots.extend(
+            missing_slots
+                .into_iter()
+                .map(|(layout, slots)| (layout, app_path.clone(), slots.into_iter().collect())),
+        );
+    }
+
+    if !incompatible_parallel_route_slots.is_empty() {
+        IncompatibleParallelRouteSlotsIssue {
+            app_dir: app_dir.clone(),
+            routes: incompatible_parallel_route_slots,
+        }
+        .resolved_cell()
+        .emit();
+    }
+
+    // This assertion is intentionally separate from the filtering condition above. It guards
+    // future changes to entrypoint construction or pruning that might retain an incomplete tree.
+    for (app_path, entrypoint) in &retained_entrypoints {
+        let Entrypoint::AppPage { loader_tree, .. } = entrypoint else {
+            continue;
+        };
+        if !app_path.contains_interception()
+            && loader_tree
+                .await?
+                .contains_declared_builtin_not_found_default(
+                    &builtin_default,
+                    &declared_slots,
+                    None,
+                )
+        {
+            bail!(
+                "Invariant: strict route matching retained the incomplete route matcher \
+                 `{app_path}`"
+            );
+        }
+    }
+
+    let ordinary_routes = retained_entrypoints
+        .iter()
+        .filter_map(|(route, entrypoint)| {
+            (!route.contains_interception() && matches!(entrypoint, Entrypoint::AppPage { .. }))
+                .then_some(route)
+        })
+        .collect::<Vec<_>>();
+    let missing_canonical_interception_routes = retained_entrypoints
+        .iter()
+        .filter_map(|(interception_route, entrypoint)| {
+            let Entrypoint::AppPage {
+                participating_page_files,
+                ..
+            } = entrypoint
+            else {
+                return None;
+            };
+            let canonical_route = interception_route.intercepted_path()?;
+            if canonical_route.is_route_pattern_covered_by(ordinary_routes.iter().copied()) {
+                return None;
+            }
+
+            Some((
+                interception_route.clone(),
+                canonical_route,
+                participating_page_files.first()?.clone(),
+            ))
+        })
+        .collect::<Vec<_>>();
+    if !missing_canonical_interception_routes.is_empty() {
+        MissingCanonicalInterceptionRoutesIssue {
+            routes: missing_canonical_interception_routes,
+        }
+        .resolved_cell()
+        .emit();
+    }
+
+    let mut authored_pages = FxIndexSet::default();
+    collect_authored_page_files(&plain_tree, &mut authored_pages);
+
+    let mut matched_pages = FxIndexSet::default();
+    for entrypoint in retained_entrypoints.values() {
+        if let Entrypoint::AppPage {
+            participating_page_files,
+            ..
+        } = entrypoint
+        {
+            matched_pages.extend(participating_page_files.iter().cloned());
+        }
+    }
+
+    let unmatched_pages = authored_pages
+        .into_iter()
+        .filter(|page| !matched_pages.contains(page))
+        .collect::<Vec<_>>();
+    if !unmatched_pages.is_empty() {
+        UnmatchedAppPagesIssue {
+            app_dir,
+            pages: unmatched_pages,
+        }
+        .resolved_cell()
+        .emit();
+    }
+    Ok(Vc::cell(retained_entrypoints))
+}
+
+#[turbo_tasks::value]
+struct MissingCanonicalInterceptionRoutesIssue {
+    routes: Vec<(AppPath, AppPath, FileSystemPath)>,
+}
+
+#[turbo_tasks::value]
+struct IncompatibleParallelRouteSlotsIssue {
+    app_dir: FileSystemPath,
+    routes: Vec<(FileSystemPath, AppPath, Vec<RcStr>)>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for IncompatibleParallelRouteSlotsIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.routes[0].0.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Parallel route slots cannot render the same URLs"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let mut routes_by_layout = FxIndexMap::<FileSystemPath, Vec<_>>::default();
+        for (layout, route, missing_slots) in &self.routes {
+            routes_by_layout
+                .entry(layout.clone())
+                .or_default()
+                .push((route.clone(), missing_slots.clone()));
+        }
+
+        let mut layouts = routes_by_layout
+            .into_iter()
+            .map(|(layout, mut routes)| {
+                routes.sort_by_cached_key(|(route, _)| route.to_string());
+                let layout_path = self
+                    .app_dir
+                    .get_path_to(&layout)
+                    .expect("parallel route layout should be within the app directory")
+                    .to_string();
+                let routes = routes
+                    .into_iter()
+                    .map(|(route, missing_slots)| {
+                        let missing_slots = missing_slots
+                            .iter()
+                            .map(|slot| {
+                                if &**slot == "children" {
+                                    slot.to_string()
+                                } else {
+                                    format!("@{slot}")
+                                }
+                            })
+                            .collect::<Vec<_>>()
+                            .join(", ");
+                        format!(
+                            "- {route} is missing a matching page or default.tsx in \
+                             {missing_slots}"
+                        )
+                    })
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                (layout_path, routes)
+            })
+            .collect::<Vec<_>>();
+        layouts.sort_by(|a, b| a.0.cmp(&b.0));
+        let layouts = layouts
+            .into_iter()
+            .map(|(layout_path, routes)| format!("app/{layout_path}\n{routes}"))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+
+        Ok(Some(StyledString::Text(
+            format!(
+                "The following layouts have parallel route slots that cannot render the same \
+                 URLs:\n{layouts}\n\nEvery URL matched by one slot must have a matching page or \
+                 default.tsx in every sibling slot."
+            )
+            .into(),
+        )))
+    }
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for MissingCanonicalInterceptionRoutesIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.routes[0].2.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!(
+            "Interception routes must have a canonical route"
+        )))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let routes = self
+            .routes
+            .iter()
+            .map(|(interception_route, canonical_route, _)| {
+                format!("- {interception_route} (expected {canonical_route})")
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        Ok(Some(StyledString::Text(
+            format!(
+                "The following interception routes do not have a canonical \
+                 route:\n{routes}\n\nEvery interception route must have a matching \
+                 non-interception route so the URL can be loaded directly or refreshed."
+            )
+            .into(),
+        )))
+    }
+}
+
+fn collect_authored_page_files(
+    directory_tree: &PlainDirectoryTree,
+    pages: &mut FxIndexSet<FileSystemPath>,
+) {
+    if let Some(page) = &directory_tree.modules.page {
+        pages.insert(page.clone());
+    }
+
+    for subdirectory in directory_tree.subdirectories.values() {
+        collect_authored_page_files(subdirectory, pages);
+    }
+}
+
+#[turbo_tasks::value]
+struct UnmatchedAppPagesIssue {
+    app_dir: FileSystemPath,
+    pages: Vec<FileSystemPath>,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for UnmatchedAppPagesIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.pages[0].clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Unmatched app pages")))
+    }
+
+    async fn description(&self) -> Result<Option<StyledString>> {
+        let page_paths = self
+            .pages
+            .iter()
+            .map(|page| {
+                let relative_path = self
+                    .app_dir
+                    .get_path_to(page)
+                    .expect("authored page should be within the app directory");
+                format!("- app/{}", relative_path)
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        Ok(Some(StyledString::Text(
+            format!(
+                "The following page files do not match any complete route:\n{page_paths}\n\nEvery \
+                 page must be part of at least one complete route. Add matching pages or default \
+                 files for the sibling parallel route slots, or remove the unreachable pages."
+            )
+            .into(),
+        )))
+    }
 }
 
 #[turbo_tasks::value]
@@ -892,6 +1392,43 @@ impl Issue for DuplicateParallelRouteIssue {
                 "You cannot have two parallel pages that resolve to the same path. Please check \
                  {} and {}.",
                 self.previously_inserted_page, self.page
+            )
+            .into(),
+        ))
+    }
+}
+
+#[turbo_tasks::value]
+struct MissingRootLayoutIssue {
+    app_dir: FileSystemPath,
+    page_path: FileSystemPath,
+}
+
+#[async_trait]
+#[turbo_tasks::value_impl]
+impl Issue for MissingRootLayoutIssue {
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.page_path.clone())
+    }
+
+    fn stage(&self) -> IssueStage {
+        IssueStage::AppStructure
+    }
+
+    fn severity(&self) -> IssueSeverity {
+        IssueSeverity::Error
+    }
+
+    async fn title(&self) -> Result<StyledString> {
+        let page_path = self
+            .app_dir
+            .get_path_to(&self.page_path)
+            .context("page should be within the app directory")?;
+
+        Ok(StyledString::Text(
+            format!(
+                "{page_path} doesn't have a root layout. To fix this error, make sure every page \
+                 has a root layout."
             )
             .into(),
         ))
@@ -1021,6 +1558,57 @@ fn has_child_routes(directory_tree: &PlainDirectoryTree) -> bool {
     false
 }
 
+/// Returns whether the filesystem declares a children slot at this level. Route groups are
+/// transparent, while a named slot does not declare children for its parent layout. Once an
+/// ordinary branch is entered, route targets inside deeper named slots still make it renderable.
+fn has_declared_children_slot(directory_tree: &PlainDirectoryTree) -> bool {
+    directory_tree.modules.page.is_some()
+        || directory_tree.modules.default.is_some()
+        || directory_tree
+            .subdirectories
+            .iter()
+            .filter(|(name, _)| !is_parallel_route(name))
+            .any(|(_, subdirectory)| subdirectory.contains_page_or_default)
+}
+
+/// Collects named slots at the current URL level. Route groups are transparent, while ordinary
+/// segments and parallel routes establish nested levels with their own layout ownership.
+fn collect_named_slots_at_level(
+    directory_tree: &PlainDirectoryTree,
+    slots: &mut FxIndexSet<RcStr>,
+) {
+    for (name, subdirectory) in &directory_tree.subdirectories {
+        if let Some(slot) = match_parallel_route(name) {
+            if subdirectory.contains_page_or_default {
+                slots.insert(slot.into());
+            }
+        } else if is_group_route(name) {
+            collect_named_slots_at_level(subdirectory, slots);
+        }
+    }
+}
+
+/// Records the filesystem slots owned by each layout. Loader trees can also contain structural
+/// branches used to carry parallel-route state; those branches must not participate in matcher
+/// completeness unless the owning layout actually declares the slot.
+fn collect_declared_parallel_route_slots(
+    directory_tree: &PlainDirectoryTree,
+    slots_by_layout: &mut FxIndexMap<FileSystemPath, FxIndexSet<RcStr>>,
+) {
+    if let Some(layout) = &directory_tree.modules.layout {
+        let mut slots = FxIndexSet::default();
+        if has_declared_children_slot(directory_tree) {
+            slots.insert(rcstr!("children"));
+        }
+        collect_named_slots_at_level(directory_tree, &mut slots);
+        slots_by_layout.insert(layout.clone(), slots);
+    }
+
+    for subdirectory in directory_tree.subdirectories.values() {
+        collect_declared_parallel_route_slots(subdirectory, slots_by_layout);
+    }
+}
+
 async fn check_duplicate(
     duplicate: &mut FxHashMap<AppPath, AppPage>,
     loader_tree: &AppPageLoaderTree,
@@ -1047,7 +1635,7 @@ async fn check_duplicate(
 #[turbo_tasks::value(transparent)]
 struct AppPageLoaderTreeOption(Option<ResolvedVc<AppPageLoaderTree>>);
 
-/// creates the loader tree for a specific route (pathname / [AppPath])
+/// Creates the loader tree for a specific route (pathname / [AppPath]).
 #[turbo_tasks::function]
 async fn directory_tree_to_loader_tree(
     app_dir: FileSystemPath,
@@ -1057,21 +1645,37 @@ async fn directory_tree_to_loader_tree(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
+    explicit_parallel_route_children: Vc<bool>,
+    strict_route_matching: Vc<bool>,
 ) -> Result<Vc<AppPageLoaderTreeOption>> {
     let plain_tree_vc = directory_tree.into_plain();
     let plain_tree = &*plain_tree_vc.await?;
-
+    let strict_route_matching = *strict_route_matching.await?;
+    let mut missing_defaults = Vec::new();
     let tree = directory_tree_to_loader_tree_internal(
-        app_dir,
+        app_dir.clone(),
         global_metadata,
         directory_name,
         plain_tree,
-        app_page,
+        app_page.clone(),
         for_app_path,
+        *explicit_parallel_route_children.await?,
         AppDirModules::default(),
         Some(&plain_tree.url_tree),
+        &mut missing_defaults,
     )
     .await?;
+
+    // Strict matching handles incomplete routes after the finalized entrypoint is assembled.
+    // Preserve the legacy per-tree missing-default diagnostics when strict matching is disabled.
+    if !strict_route_matching {
+        for (page, slot) in missing_defaults {
+            missing_default_parallel_route_issue(app_dir.clone(), page, slot)
+                .to_resolved()
+                .await?
+                .emit();
+        }
+    }
 
     Ok(Vc::cell(tree.map(AppPageLoaderTree::resolved_cell)))
 }
@@ -1148,8 +1752,10 @@ async fn directory_tree_to_loader_tree_internal(
     app_page: AppPage,
     // the page this loader tree is constructed for
     for_app_path: AppPath,
+    explicit_parallel_route_children: bool,
     mut parent_modules: AppDirModules,
     url_tree: Option<&UrlSegmentTree>,
+    missing_defaults: &mut Vec<(AppPage, RcStr)>,
 ) -> Result<Option<AppPageLoaderTree>> {
     let app_path = AppPath::from(app_page.clone());
 
@@ -1292,8 +1898,10 @@ async fn directory_tree_to_loader_tree_internal(
             subdirectory,
             child_app_page.clone(),
             for_app_path.clone(),
+            explicit_parallel_route_children,
             parent_modules.clone(),
             child_url_tree,
+            missing_defaults,
         ))
         .await?;
 
@@ -1342,14 +1950,7 @@ async fn directory_tree_to_loader_tree_internal(
                     && !is_leaf_segment
                     && !slot_has_children
                 {
-                    missing_default_parallel_route_issue(
-                        app_dir.clone(),
-                        app_page.clone(),
-                        key.into(),
-                    )
-                    .to_resolved()
-                    .await?
-                    .emit();
+                    missing_defaults.push((app_page.clone(), key.into()));
                 }
 
                 tree.parallel_routes.insert(key.into(), subtree);
@@ -1385,20 +1986,24 @@ async fn directory_tree_to_loader_tree_internal(
         }
     }
 
-    // make sure we don't have a match for other slots if there's an intercepting route match
-    // we only check subtrees as the current level could trigger `is_intercepting`
-    if tree
-        .parallel_routes
-        .iter()
-        .any(|(_, parallel_tree)| parallel_tree.is_intercepting())
-    {
-        let mut keys_to_replace = Vec::new();
+    // An interception match is a partial update of its host's slots. Retain
+    // every non-intercepting sibling above the interception marker, but keep
+    // normal matching semantics inside the newly selected subtree.
+    let is_interception_host = !app_path.contains_interception()
+        && tree
+            .parallel_routes
+            .iter()
+            .any(|(_, parallel_tree)| parallel_tree.is_intercepting());
 
-        for (key, parallel_tree) in &tree.parallel_routes {
-            if !parallel_tree.is_intercepting() {
-                keys_to_replace.push(key.clone());
-            }
-        }
+    if is_interception_host {
+        let keys_to_replace = tree
+            .parallel_routes
+            .iter()
+            .filter(|(_, parallel_tree)| !parallel_tree.is_intercepting())
+            .map(|(key, _)| key.clone())
+            .collect::<Vec<_>>();
+        let is_inside_catchall = app_page.is_catchall();
+        let is_leaf_segment = !has_child_routes(directory_tree);
 
         for key in keys_to_replace {
             let subdir_name: RcStr = format!("@{key}").into();
@@ -1410,38 +2015,27 @@ async fn directory_tree_to_loader_tree_internal(
             } else {
                 None
             };
-
-            let is_inside_catchall = app_page.is_catchall();
-
-            // Check if this is a leaf segment (no child routes).
-            let is_leaf_segment = !has_child_routes(directory_tree);
+            let slot_has_children = directory_tree
+                .subdirectories
+                .get(&subdir_name)
+                .is_some_and(has_child_routes);
 
             // Only emit the issue if this is not the children slot and there's no default
-            // component. The children slot is implicit and doesn't require a default.js
-            // file. Also skip validation if the slot is UNDER a catch-all route or if
-            // this is a leaf segment (no child routes).
-            if default.is_none() && key != "children" && !is_inside_catchall && !is_leaf_segment {
-                missing_default_parallel_route_issue(
-                    app_dir.clone(),
-                    app_page.clone(),
-                    key.clone(),
-                )
-                .to_resolved()
-                .await?
-                .emit();
+            // component. The ordinary children route does not require a default.js file.
+            // Also skip validation if the slot is UNDER a catch-all route or if this is a
+            // leaf segment (no child routes), or if the slot has matching child routes.
+            if default.is_none()
+                && key != "children"
+                && !is_inside_catchall
+                && !is_leaf_segment
+                && !slot_has_children
+            {
+                missing_defaults.push((app_page.clone(), key.clone()));
             }
 
             tree.parallel_routes.insert(
                 key.clone(),
-                default_route_tree(
-                    app_dir.clone(),
-                    global_metadata,
-                    app_page.clone(),
-                    default,
-                    key.clone(),
-                    for_app_path.clone(),
-                )
-                .await?,
+                retained_route_tree(app_dir.clone(), global_metadata, app_page.clone()).await?,
             );
         }
     }
@@ -1460,9 +2054,15 @@ async fn directory_tree_to_loader_tree_internal(
         } else {
             return Ok(None);
         }
-    } else if tree.parallel_routes.get("children").is_none() {
-        tree.parallel_routes.insert(
-            rcstr!("children"),
+    } else if tree.parallel_routes.get("children").is_none()
+        && (!explicit_parallel_route_children || has_declared_children_slot(directory_tree))
+    {
+        // `children` is only a slot when this level has ordinary route
+        // content. Named-only layouts can carry their parallel route state
+        // directly without a synthetic default child.
+        let children = if is_interception_host {
+            retained_route_tree(app_dir.clone(), global_metadata, app_page.clone()).await?
+        } else {
             default_route_tree(
                 app_dir.clone(),
                 global_metadata,
@@ -1471,16 +2071,9 @@ async fn directory_tree_to_loader_tree_internal(
                 rcstr!("children"),
                 for_app_path.clone(),
             )
-            .await?,
-        );
-    }
-
-    if tree.parallel_routes.len() > 1
-        && tree.parallel_routes.keys().next().map(|s| s.as_str()) != Some("children")
-    {
-        // children must go first for next.js to work correctly
-        tree.parallel_routes
-            .move_index(tree.parallel_routes.len() - 1, 0);
+            .await?
+        };
+        tree.parallel_routes.insert(rcstr!("children"), children);
     }
 
     Ok(Some(tree))
@@ -1494,28 +2087,50 @@ async fn default_route_tree(
     slot_name: RcStr,
     for_app_path: AppPath,
 ) -> Result<AppPageLoaderTree> {
+    let default = if let Some(default) = default_component {
+        default
+    } else {
+        let contains_interception = for_app_path.contains_interception();
+
+        // Legacy slot discovery can synthesize a children slot inside an
+        // interception subtree even when no ordinary route declares it.
+        // Explicit children detection omits that structural child; this
+        // fallback remains for applications that disable the flag.
+        let default_file = if contains_interception && slot_name == "children" {
+            "dist/client/components/builtin/default-null.js"
+        } else {
+            "dist/client/components/builtin/default.js"
+        };
+
+        get_next_package(app_dir).await?.join(default_file)?
+    };
+
+    synthetic_default_route_tree(global_metadata, app_page, default).await
+}
+
+async fn retained_route_tree(
+    app_dir: FileSystemPath,
+    global_metadata: Vc<GlobalMetadata>,
+    app_page: AppPage,
+) -> Result<AppPageLoaderTree> {
+    let default_null = get_next_package(app_dir)
+        .await?
+        .join("dist/client/components/builtin/default-null.js")?;
+    synthetic_default_route_tree(global_metadata, app_page, default_null).await
+}
+
+async fn synthetic_default_route_tree(
+    global_metadata: Vc<GlobalMetadata>,
+    app_page: AppPage,
+    default: FileSystemPath,
+) -> Result<AppPageLoaderTree> {
     Ok(AppPageLoaderTree {
-        page: app_page.clone(),
+        page: app_page,
         segment: rcstr!("__DEFAULT__"),
         parallel_routes: FxIndexMap::default(),
-        modules: if let Some(default) = default_component {
-            AppDirModules {
-                default: Some(default),
-                ..Default::default()
-            }
-        } else {
-            let contains_interception = for_app_path.contains_interception();
-
-            let default_file = if contains_interception && slot_name == "children" {
-                "dist/client/components/builtin/default-null.js"
-            } else {
-                "dist/client/components/builtin/default.js"
-            };
-
-            AppDirModules {
-                default: Some(get_next_package(app_dir).await?.join(default_file)?),
-                ..Default::default()
-            }
+        modules: AppDirModules {
+            default: Some(default),
+            ..Default::default()
         },
         global_metadata: global_metadata.to_resolved().await?,
         static_siblings: Vec::new(),
@@ -1527,6 +2142,8 @@ async fn directory_tree_to_entrypoints_internal(
     app_dir: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    explicit_parallel_route_children: Vc<bool>,
+    strict_route_matching: Vc<bool>,
     next_mode: Vc<NextMode>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
@@ -1539,6 +2156,8 @@ async fn directory_tree_to_entrypoints_internal(
         app_dir,
         global_metadata,
         is_global_not_found_enabled,
+        explicit_parallel_route_children,
+        strict_route_matching,
         next_mode,
         directory_name,
         directory_tree,
@@ -1554,6 +2173,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     app_dir: FileSystemPath,
     global_metadata: ResolvedVc<GlobalMetadata>,
     is_global_not_found_enabled: Vc<bool>,
+    explicit_parallel_route_children: Vc<bool>,
+    strict_route_matching: Vc<bool>,
     next_mode: Vc<NextMode>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
@@ -1599,7 +2220,16 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         root_params
     };
 
-    if modules.page.is_some() {
+    if let Some(page_path) = &modules.page {
+        if root_layouts.await?.is_empty() {
+            MissingRootLayoutIssue {
+                app_dir: app_dir.clone(),
+                page_path: page_path.clone(),
+            }
+            .resolved_cell()
+            .emit();
+        }
+
         let app_path = AppPath::from(app_page.clone());
 
         let loader_tree = *directory_tree_to_loader_tree(
@@ -1609,14 +2239,23 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             directory_tree_vc,
             app_page.clone(),
             app_path,
+            explicit_parallel_route_children,
+            strict_route_matching,
         )
         .await?;
 
+        let loader_tree =
+            loader_tree.context("loader tree should be created for a page/default")?;
+        let mut participating_page_files = FxIndexSet::default();
+        loader_tree
+            .await?
+            .collect_page_files(&mut participating_page_files);
         add_app_page(
             app_dir.clone(),
             &mut result,
             app_page.complete(PageType::Page)?,
-            loader_tree.context("loader tree should be created for a page/default")?,
+            loader_tree,
+            participating_page_files.into_iter().collect(),
             root_params,
         );
     }
@@ -1812,6 +2451,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 &mut result,
                 app_page,
                 not_found_tree,
+                Vec::new(),
                 root_params,
             );
         }
@@ -1860,6 +2500,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 &mut result,
                 app_global_error_page,
                 global_error_tree,
+                Vec::new(),
                 root_params,
             );
         }
@@ -1887,6 +2528,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                     app_dir.clone(),
                     *global_metadata,
                     is_global_not_found_enabled,
+                    explicit_parallel_route_children,
+                    strict_route_matching,
                     next_mode,
                     subdir_name.clone(),
                     *subdirectory,
@@ -1916,6 +2559,8 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                                 directory_tree_vc,
                                 app_page.clone(),
                                 app_path,
+                                explicit_parallel_route_children,
+                                strict_route_matching,
                             );
                             loader_trees.push(loader_tree);
                         }
@@ -1934,18 +2579,27 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                 Entrypoint::AppPage {
                     pages,
                     loader_tree: _,
+                    participating_page_files: child_participating_page_files,
                     root_params,
                 } => {
                     for page in pages {
                         let loader_tree = *loader_trees[i].await?;
                         i += 1;
 
+                        let loader_tree = loader_tree
+                            .context("loader tree should be created for a page/default")?;
+                        let mut participating_page_files = FxIndexSet::default();
+                        loader_tree
+                            .await?
+                            .collect_page_files(&mut participating_page_files);
+                        participating_page_files
+                            .extend(child_participating_page_files.iter().cloned());
                         add_app_page(
                             app_dir.clone(),
                             &mut result,
                             page.clone(),
-                            loader_tree
-                                .context("loader tree should be created for a page/default")?,
+                            loader_tree,
+                            participating_page_files.into_iter().collect(),
                             *root_params,
                         );
                     }

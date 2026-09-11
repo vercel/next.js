@@ -130,23 +130,26 @@
                         ),
                     ),
                 ],
-                mutable: true,
+                mutability: Mutable,
             },
         ),
     ),
     (
         "options",
-        Unknown {
-            original_value: Some(
-                Variable(
-                    (
-                        "options",
-                        #7,
-                    ),
+        Alternatives {
+            total_nodes: 3,
+            values: [
+                Argument(
+                    415,
+                    0,
                 ),
-            ),
-            reason: "pattern without value",
-            has_side_effects: false,
+                Object {
+                    total_nodes: 1,
+                    parts: [],
+                    mutability: Mutable,
+                },
+            ],
+            logical_property: None,
         },
     ),
     (
@@ -190,7 +193,7 @@
                         ),
                     ),
                 ],
-                mutable: true,
+                mutability: Mutable,
             },
         ),
     ),

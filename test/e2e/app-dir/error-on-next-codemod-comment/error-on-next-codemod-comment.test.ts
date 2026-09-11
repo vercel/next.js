@@ -71,21 +71,20 @@ describe('app-dir - error-on-next-codemod-comment', () => {
     })
 
     it('should error with inline comment as well', async () => {
-      let originFileContent
-      await next.patchFile('app/page.tsx', (code) => {
-        originFileContent = code
-        return code.replace(
-          '// @next-codemod-error remove jsx of next line',
-          '/* @next-codemod-error remove jsx of next line */'
-        )
-      })
-
-      const browser = await next.browser('/')
-
-      await waitForRedbox(browser)
-
-      // Recover the original file content
-      await next.patchFile('app/page.tsx', originFileContent)
+      await next.patchFile(
+        'app/page.tsx',
+        (code) =>
+          code.replace(
+            '// @next-codemod-error remove jsx of next line',
+            '/* @next-codemod-error remove jsx of next line */'
+          ),
+        async () => {
+          const browser = await next.browser('/')
+          await retry(async () => {
+            await waitForRedbox(browser)
+          }, 10000)
+        }
+      )
     })
 
     it('should disappear the error when you rre the codemod comment', async () => {
@@ -93,21 +92,16 @@ describe('app-dir - error-on-next-codemod-comment', () => {
 
       await waitForRedbox(browser)
 
-      let originFileContent
-      await next.patchFile('app/page.tsx', (code) => {
-        originFileContent = code
-        return code.replace(
-          '// @next-codemod-error remove jsx of next line',
-          ''
-        )
-      })
-
-      await retry(async () => {
-        await waitForNoRedbox(browser)
-      })
-
-      // Recover the original file content
-      await next.patchFile('app/page.tsx', originFileContent)
+      await next.patchFile(
+        'app/page.tsx',
+        (code) =>
+          code.replace('// @next-codemod-error remove jsx of next line', ''),
+        async () => {
+          await retry(async () => {
+            await waitForNoRedbox(browser)
+          }, 10000)
+        }
+      )
     })
 
     it('should disappear the error when you replace with bypass comment', async () => {
@@ -115,18 +109,15 @@ describe('app-dir - error-on-next-codemod-comment', () => {
 
       await waitForRedbox(browser)
 
-      let originFileContent
-      await next.patchFile('app/page.tsx', (code) => {
-        originFileContent = code
-        return code.replace('@next-codemod-error', '@next-codemod-bypass')
-      })
-
-      await retry(async () => {
-        await waitForNoRedbox(browser)
-      })
-
-      // Recover the original file content
-      await next.patchFile('app/page.tsx', originFileContent)
+      await next.patchFile(
+        'app/page.tsx',
+        (code) => code.replace('@next-codemod-error', '@next-codemod-bypass'),
+        async () => {
+          await retry(async () => {
+            await waitForNoRedbox(browser)
+          }, 10000)
+        }
+      )
     })
   } else {
     it('should fail the build with next build', async () => {

@@ -10,7 +10,7 @@ async function getCachedValue() {
   'use cache'
   // `expire: 0` gives a short, dynamic (client-only) cache life, excluded from
   // static prerenders. Reusing it across client navigations would require
-  // opting the route into runtime prefetching (`prefetch = 'allow-runtime'`) so
+  // opting the route into Partial Prefetching (`prefetch = 'partial'`) so
   // Cached Navigations embeds it into the client router cache; this fixture
   // doesn't, since the test only exercises the dev front handler serving it
   // warm on reloads.

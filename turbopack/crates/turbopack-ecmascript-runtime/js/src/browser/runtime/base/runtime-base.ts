@@ -17,6 +17,9 @@ declare var TURBOPACK_ASSET_SUFFIX: string
 // can't be detected via `document.currentScript`. Note it's stored in reversed
 // order to use `push` and `pop`
 declare var TURBOPACK_NEXT_CHUNK_URLS: ChunkUrl[] | undefined
+// Used in WebWorkers to override the regular chunk base path with the base
+// used for the worker entrypoint and its initial chunks.
+declare var TURBOPACK_CHUNK_BASE_PATH: string | undefined
 
 // Injected by rust code
 declare var CHUNK_BASE_PATH: string
@@ -33,6 +36,11 @@ interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
 
 const browserContextPrototype =
   Context.prototype as TurbopackBrowserBaseContext<unknown>
+
+const RUNTIME_CHUNK_BASE_PATH =
+  typeof TURBOPACK_CHUNK_BASE_PATH === 'string'
+    ? TURBOPACK_CHUNK_BASE_PATH
+    : CHUNK_BASE_PATH
 
 // Provided by build or dev base
 declare function instantiateModule(
@@ -341,7 +349,9 @@ function loadChunkByUrlInternal(
 function chunkUrlToPath(chunkUrl: ChunkUrl): ChunkPath {
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
   return (
-    src.startsWith(CHUNK_BASE_PATH) ? src.slice(CHUNK_BASE_PATH.length) : src
+    src.startsWith(RUNTIME_CHUNK_BASE_PATH)
+      ? src.slice(RUNTIME_CHUNK_BASE_PATH.length)
+      : src
   ) as ChunkPath
 }
 
@@ -476,21 +486,28 @@ function instantiateRuntimeModule(
   return instantiateModule(moduleId, SourceType.Runtime, chunkPath)
 }
 /**
+ * Matches any character `encodeURIComponent` escapes. The path separator is
+ * excluded because chunk paths are encoded a segment at a time.
+ */
+const CHUNK_PATH_NEEDS_ENCODING = /[^A-Za-z0-9\-_.!~*'()/]/
+
+/**
  * Returns the URL relative to the origin where a chunk can be fetched from.
  */
 function getChunkRelativeUrl(
   chunkPath: ChunkPath | ChunkListPath,
-  basePath: string = CHUNK_BASE_PATH
+  basePath: string = RUNTIME_CHUNK_BASE_PATH
 ): ChunkUrl {
-  return `${basePath}${chunkPath
-    .split('/')
-    .map((p) => encodeURIComponent(p))
-    .join('/')}${ASSET_SUFFIX}` as ChunkUrl
+  // Most chunk paths need no escaping.
+  const encodedPath = CHUNK_PATH_NEEDS_ENCODING.test(chunkPath)
+    ? chunkPath.split('/').map(encodeURIComponent).join('/')
+    : chunkPath
+  return `${basePath}${encodedPath}${ASSET_SUFFIX}` as ChunkUrl
 }
 
 // Shared runtime primitives consumed by the bundled `createWorker` helper,
 // exposed as `__turbopack_chunk_base_path__` and `__turbopack_chunk_asset_suffix__`.
-browserContextPrototype.b = CHUNK_BASE_PATH as ChunkBasePath
+browserContextPrototype.b = RUNTIME_CHUNK_BASE_PATH as ChunkBasePath
 browserContextPrototype.X = ASSET_SUFFIX as AssetSuffix
 
 // Shared runtime primitive: build a chunk's URL. Used by the bundled worker
@@ -512,8 +529,8 @@ function getPathFromScript(
   }
   const chunkUrl = chunkScript.src!
   const src = decodeURIComponent(chunkUrl.replace(/[?#].*$/, ''))
-  const path = src.startsWith(CHUNK_BASE_PATH)
-    ? src.slice(CHUNK_BASE_PATH.length)
+  const path = src.startsWith(RUNTIME_CHUNK_BASE_PATH)
+    ? src.slice(RUNTIME_CHUNK_BASE_PATH.length)
     : src
   return path as ChunkPath | ChunkListPath
 }

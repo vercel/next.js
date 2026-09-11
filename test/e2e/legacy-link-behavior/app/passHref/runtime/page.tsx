@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import CustomComponent from '../_client'
 
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default function Page() {
   return (

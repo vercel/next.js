@@ -1,14 +1,13 @@
-// This layout has runtime prefetching enabled. Static parents above it should
-// be able to inline through it and into the static child below, because this
-// layout acts as a transparent pass-through — its slot in the bundle is null
-// but the chain isn't broken.
+// This layout reads runtime data (cookies), so it needs a runtime prefetch
+// to resolve fully. Static parents above it should still be able to inline
+// through it and into the static child below — the chain isn't broken.
 import { ReactNode, Suspense } from 'react'
 import { cookies } from 'next/headers'
 
 export const instant = {
   unstable_samples: [{ cookies: [{ name: 'theme', value: 'default' }] }],
 }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 async function DynamicContent() {
   const cookieStore = await cookies()

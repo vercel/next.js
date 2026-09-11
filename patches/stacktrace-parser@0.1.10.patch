@@ -29,3 +29,12 @@ index 50c63025c622ebe479e07544bd796c2d3922d4b8..d704100cc59b6c47db5ad67ecd2662c9
  var geckoEvalRe = /(\S+) line (\d+)(?: > eval line \d+)* > eval/i;
  
  function parseGecko(line) {
+@@ -101,7 +101,7 @@ function parseGecko(line) {
+   };
+ }
+ 
+-var javaScriptCoreRe = /^\s*(?:([^@]*)(?:\((.*?)\))?@)?(\S.*?):(\d+)(?::(\d+))?\s*$/i;
++var javaScriptCoreRe = /^\s*([^@]*)(?:\((.*?)\))?@(\S.*?):(\d+)(?::(\d+))?\s*$/i;
+ 
+ function parseJSC(line) {
+   var parts = javaScriptCoreRe.exec(line);

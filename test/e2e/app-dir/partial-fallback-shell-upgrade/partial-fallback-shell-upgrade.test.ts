@@ -1,10 +1,9 @@
 import cheerio from 'cheerio'
+import { randomUUID } from 'crypto'
 import { nextTestSetup } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { retry, waitFor } from 'next-test-utils'
 import path from 'path'
-
-const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
 
 type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
@@ -32,12 +31,15 @@ function createSplitHTMLFetcher(next: NextInstance) {
   }
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// The latest changes to support this behavior on deployed infra are available in the adapter,
+// and are not being backported to the CLI
+// @force-gate !deploy || adapter
 describe('partial-fallback-shell-upgrade', () => {
   const { next, isNextDev } = nextTestSetup({
+    // Deployed shell upgrades require `partialFallback` metadata, which the
+    // adapter only emits when Partial Prefetching is enabled in the fixture.
     files: path.join(__dirname, 'fixtures', 'default'),
-    // The latest changes to support this behavior on deployed infra are available in the adapter,
-    // and are not being backported to the CLI
-    skipDeployment: !isAdapterTest,
   })
 
   if (isNextDev) {
@@ -131,6 +133,51 @@ describe('partial-fallback-shell-upgrade', () => {
     expect(result.dynamicPart).not.toContain('<div id="two">foo</div>')
   })
 
+  it('should upgrade a required fallback shell with mixed generateStaticParams lengths', async () => {
+    // A second cold path must still use the required source shell after the
+    // first exact path completes.
+    for (const bottom of [`first-${randomUUID()}`, `second-${randomUUID()}`]) {
+      const pathname = `/mixed/short/${bottom}`
+      const firstResult = await fetchSplitHTML(pathname)
+
+      expect(firstResult.static$('#top').text()).toBe('short')
+      expect(firstResult.static$('#top-fallback').length).toBe(0)
+      expect(firstResult.static$('#bottom').length).toBe(0)
+      expect(firstResult.static$('#bottom-fallback').text()).toBe(
+        'loading bottom...'
+      )
+      expect(firstResult.dynamicPart).toContain(
+        `<div id="bottom">${bottom}</div>`
+      )
+      expect(firstResult.static$('#dynamic').length).toBe(0)
+      expect(firstResult.static$('#dynamic-fallback').text()).toBe(
+        'loading dynamic...'
+      )
+      expect(firstResult.dynamicPart).toContain(
+        '<div id="dynamic">Dynamic content</div>'
+      )
+
+      await retry(async () => {
+        const completedResult = await fetchSplitHTML(pathname)
+
+        expect(completedResult.static$('#top').text()).toBe('short')
+        expect(completedResult.static$('#top-fallback').length).toBe(0)
+        expect(completedResult.static$('#bottom').text()).toBe(bottom)
+        expect(completedResult.static$('#bottom-fallback').length).toBe(0)
+        expect(completedResult.dynamicPart).not.toContain(
+          `<div id="bottom">${bottom}</div>`
+        )
+        expect(completedResult.static$('#dynamic').length).toBe(0)
+        expect(completedResult.static$('#dynamic-fallback').text()).toBe(
+          'loading dynamic...'
+        )
+        expect(completedResult.dynamicPart).toContain(
+          '<div id="dynamic">Dynamic content</div>'
+        )
+      })
+    }
+  })
+
   it('should not keep upgrading once only fully dynamic params remain', async () => {
     const firstResult = await fetchSplitHTML('/prefix/b/foo')
     const start = Date.now()
@@ -165,6 +212,78 @@ describe('partial-fallback-shell-upgrade', () => {
       6000,
       500,
       'shell should remain partial when remaining params are dynamic'
+    )
+  })
+})
+
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// The latest changes to support this behavior on deployed infra are available in the adapter,
+// and are not being backported to the CLI
+// @force-gate !deploy || adapter
+describe('partial-fallback-shell-upgrade - partialPrefetching disabled', () => {
+  const { next, isNextDev } = nextTestSetup({
+    files: path.join(__dirname, 'fixtures', 'partial-prefetching-disabled'),
+  })
+
+  if (isNextDev) {
+    it('skipped in dev', () => {})
+    return
+  }
+
+  const fetchSplitHTML = createSplitHTMLFetcher(next)
+
+  it('should not upgrade the fallback shell to a route shell', async () => {
+    const pathname = '/two'
+    const start = Date.now()
+
+    await retry(
+      async () => {
+        const $ = await next.render$(pathname)
+        expect($('#fallback').text()).toBe('loading...')
+        expect($('#slug').closest('[hidden]').length).toBe(1)
+
+        if (Date.now() - start < 5000) {
+          throw new Error('continue polling fallback shell')
+        }
+      },
+      6000,
+      500,
+      'fallback shell should remain unupgraded without partialPrefetching'
+    )
+  })
+
+  it('should not specialize a generic shell into a more specific shell', async () => {
+    const firstResult = await fetchSplitHTML('/prefix/c/foo')
+
+    expect(firstResult.response.status).toBe(200)
+    expect(firstResult.static$('#one').length).toBe(0)
+    expect(firstResult.static$('#one-fallback').text()).toBe('loading one...')
+    expect(firstResult.dynamicPart).toContain('<div id="one">c</div>')
+    expect(firstResult.dynamicPart).toContain('<div id="two">foo</div>')
+
+    const start = Date.now()
+
+    await retry(
+      async () => {
+        const secondResult = await fetchSplitHTML('/prefix/c/bar')
+
+        expect(secondResult.response.status).toBe(200)
+        // The generic shell stays shared: `#one` is never baked into the
+        // static part the way it is when Partial Prefetching is enabled.
+        expect(secondResult.static$('#one').length).toBe(0)
+        expect(secondResult.static$('#one-fallback').text()).toBe(
+          'loading one...'
+        )
+        expect(secondResult.dynamicPart).toContain('<div id="one">c</div>')
+        expect(secondResult.dynamicPart).toContain('<div id="two">bar</div>')
+
+        if (Date.now() - start < 5000) {
+          throw new Error('continue polling generic shell')
+        }
+      },
+      6000,
+      500,
+      'generic shell should remain shared without partialPrefetching'
     )
   })
 })

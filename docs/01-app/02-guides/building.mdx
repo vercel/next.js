@@ -31,6 +31,8 @@ When you run `next build`, the build moves through these phases:
 5. **Prerendering.** Prerenders static pages and PPR shells to HTML. Generates [RSC payloads](/docs/app/getting-started/server-and-client-components#on-the-server) for client-side navigation.
 6. **Output.** Writes the build to `.next/`. For [`output: 'standalone'`](/docs/app/guides/self-hosting), bundles only the files needed at runtime. For [`output: 'export'`](/docs/app/guides/static-exports), generates a full static site. Prints the route table.
 
+`next dev` stores the running development server's state and incremental compilation caches in `.next/dev`. Deleting or moving `.next` discards that state, so the development server has to recreate it. To run an isolated production build, configure a separate [`distDir`](/docs/app/api-reference/config/next-config-js/distDir).
+
 ## Reading the build output
 
 The build command depends on your package manager:
@@ -112,11 +114,10 @@ Error: Route "/products/[id]": Next.js encountered uncached or runtime data duri
 
 Ways to fix this:
   - [stream] Provide a placeholder with `<Suspense fallback={...}>` around the data access
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense
   - [cache] For uncached data (`fetch`, database calls): cache the access with `"use cache"` (does not apply to `connection()`)
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data
   - [block] Set `export const instant = false` to allow a blocking route
-    https://nextjs.org/docs/messages/blocking-prerender-dynamic#allow-blocking-route
+
+Learn more: https://nextjs.org/docs/messages/blocking-prerender-dynamic
     at body (<anonymous>)
     at html (<anonymous>)
 To get a more detailed stack trace and pinpoint the issue, try one of the following:

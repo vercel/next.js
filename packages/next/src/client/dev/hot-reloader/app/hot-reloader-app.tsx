@@ -31,7 +31,6 @@ import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-me
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
-import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../../components/app-router-headers'
 import {
   publicAppRouterInstance,
   type GlobalErrorState,
@@ -266,6 +265,13 @@ export function processMessage(
         )
       }
       dispatcher.onBuildOk()
+
+      // A successful build can be a no-op after recovering from an error, so
+      // there may be no server component change to resolve the test callback.
+      if (process.env.__NEXT_TEST_MODE && self.__NEXT_HMR_CB) {
+        self.__NEXT_HMR_CB()
+        self.__NEXT_HMR_CB = null
+      }
     } else {
       tryApplyUpdatesWebpack(sendMessage)
     }
@@ -387,6 +393,7 @@ export function processMessage(
         type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
         data: {
           sessionId: message.data.sessionId,
+          hmrVersion: message.data.hmrVersion,
         },
       })
       break
@@ -397,6 +404,7 @@ export function processMessage(
       processTurbopackMessage({
         type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
         data: message.data,
+        hmrVersion: message.hmrVersion,
       })
       if (RuntimeErrorHandler.hadRuntimeError) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
@@ -407,18 +415,17 @@ export function processMessage(
     }
     // TODO-APP: make server component change more granular
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      processTurbopackMessage({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+        hmrVersion: message.hmrVersion,
+      })
       turbopackHmr?.onServerComponentChanges()
       sendMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
           clientId: __nextDevClientId,
-          hash: message.hash,
         })
       )
-
-      // Store the latest hash in a session cookie so that it's sent back to the
-      // server with any subsequent requests.
-      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
 
       if (
         RuntimeErrorHandler.hadRuntimeError ||
@@ -440,6 +447,27 @@ export function processMessage(
           self.__NEXT_HMR_CB = null
         }
       }
+
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED: {
+      // Re-fetch the current router tree so the render picks up the new set of
+      // statically-known params (and thus the fresh `stagedFallbackParams`).
+      // Unlike `SERVER_COMPONENT_CHANGES` this does not store an HMR refresh
+      // hash, so it doesn't invalidate `"use cache"` entries.
+      if (
+        RuntimeErrorHandler.hadRuntimeError ||
+        document.documentElement.id === '__next_error__'
+      ) {
+        if (reloading) return
+        reloading = true
+        return window.location.reload()
+      }
+
+      startTransition(() => {
+        publicAppRouterInstance.hmrRefresh()
+        dispatcher.onRefresh()
+      })
 
       return
     }
@@ -528,7 +556,6 @@ export function processMessage(
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
       createFromReadableStream<{
         errors: Error[]
-        errorCodes: Map<Error, string>
       }>(
         new ReadableStream({
           start(controller) {
@@ -538,16 +565,8 @@ export function processMessage(
         }),
         { findSourceMapURL }
       ).then(
-        ({ errors, errorCodes }) => {
+        ({ errors }) => {
           for (const error of errors) {
-            const code = errorCodes.get(error)
-            if (code !== undefined) {
-              Object.defineProperty(error, '__NEXT_ERROR_CODE', {
-                value: code,
-                enumerable: false,
-                configurable: true,
-              })
-            }
             // These errors originated on the server and were already logged
             // there. Mark them so the browser-to-terminal log forwarding
             // doesn't replay them back to the CLI as duplicates.

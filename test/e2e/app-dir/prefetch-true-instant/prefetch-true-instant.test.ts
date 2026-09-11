@@ -126,4 +126,44 @@ describe('prefetch={true} with instant route', () => {
       'Dynamic content'
     )
   })
+
+  it('does not downgrade the prefetch when the route only has instant, without a prefetch config', async () => {
+    let page: Playwright.Page
+    const browser = await next.browser('/', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+      },
+    })
+    const act = createRouterAct(page)
+
+    // The route exports `instant = true` but no `prefetch` config, so it has
+    // not opted into Partial Prefetching. The full prefetch should include
+    // the dynamic content.
+    await act(async () => {
+      const linkToggle = await browser.elementByCss(
+        'input[data-link-accordion="/instant-only"]'
+      )
+      await linkToggle.click()
+    }, [
+      {
+        includes: 'Cached content',
+      },
+      {
+        includes: 'Dynamic content',
+      },
+    ])
+
+    // Since the full prefetch already included the dynamic content, the
+    // navigation should not issue any additional requests, and both parts
+    // should be visible immediately.
+    await act(async () => {
+      await browser.elementByCss('a[href="/instant-only"]').click()
+      expect(await browser.elementById('cached-content').text()).toContain(
+        'Cached content'
+      )
+      expect(await browser.elementById('dynamic-content').text()).toEqual(
+        'Dynamic content'
+      )
+    }, 'no-requests')
+  })
 })

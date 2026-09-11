@@ -459,13 +459,20 @@ pub struct ActionManifestEntry<'a> {
 }
 
 #[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
 pub struct ActionManifestWorkerEntry<'a> {
-    #[serde(rename = "moduleId")]
     pub module_id: ActionManifestModuleId<'a>,
     #[serde(rename = "async")]
     pub is_async: bool,
-    #[serde(rename = "codeHash")]
-    pub code_hash: Option<&'a str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub durability: Option<ActionManifestWorkerEntryDurability<'a>>,
+}
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionManifestWorkerEntryDurability<'a> {
+    pub code_hash: &'a str,
+    pub runtime_env_vars: &'a [RcStr],
 }
 
 #[derive(Serialize, Debug, Clone)]

@@ -9,7 +9,9 @@ import {
   type HmrMessageSentToBrowser,
   type NextJsHotReloaderInterface,
 } from '../dev/hot-reloader-types'
+import { DevBundlerServiceSpan } from './trace/constants'
 import { subscribeRequestInsights } from './trace/request-insights'
+import { getTracer } from './trace/tracer'
 
 /**
  * The DevBundlerService provides an interface to perform tasks with the
@@ -61,7 +63,15 @@ export class DevBundlerService {
     definition
   ) => {
     // TODO: remove after ensure is pulled out of server
-    return await this.bundler.hotReloader.ensurePage(definition)
+    return await getTracer().trace(
+      DevBundlerServiceSpan.ensurePage,
+      { spanName: 'compile route' },
+      () => this.bundler.hotReloader.ensurePage(definition)
+    )
+  }
+
+  public getServerComponentsHmrRefreshHash(): string | undefined {
+    return this.bundler.hotReloader.getServerComponentsHmrRefreshHash()
   }
 
   public logErrorWithOriginalStack =
