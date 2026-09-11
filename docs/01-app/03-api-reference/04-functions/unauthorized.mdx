@@ -186,7 +186,9 @@ export default function Unauthorized() {
 }
 ```
 
-The trade-off is the HTTP status code. Because the check runs inside the `<Suspense>` boundary, the response has already begun streaming as a `200`, and the status can't change once streaming has started. This is usually fine for a page, where the user sees the `unauthorized` UI regardless. To return a real `401` status, the check has to run before the response streams. With [Cache Components](/docs/app/getting-started/caching), every dynamic route streams a static shell first, so run that check in [`proxy`](/docs/app/api-reference/file-conventions/proxy) instead. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
+The response starts streaming from the `<Suspense>` boundary before `unauthorized()` runs, so it keeps its `200` status. Next.js adds a `noindex` tag.
+
+Calling `unauthorized()` before streaming starts returns a `401`. A page that reaches `unauthorized()` during prerendering can remain `○` Static and serve a `401`. A request-time check can run in [Proxy](/docs/app/api-reference/file-conventions/proxy) before the page renders. See [Status codes](/docs/app/api-reference/file-conventions/loading#status-codes).
 
 ### Displaying login UI to unauthenticated users
 
