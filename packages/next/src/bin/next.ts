@@ -109,8 +109,13 @@ class NextRootCommand extends Command {
         }
       }
 
-      ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
-      ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+      // The upgrade harness may run both dev and production checks. Preserve
+      // its caller's environment instead of forcing all child commands into
+      // production mode merely because they were launched through this CLI.
+      if (commandName !== 'upgrade' || !event.getOptionValue('agent')) {
+        ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
+        ;(process.env as any).NEXT_RUNTIME = 'nodejs'
+      }
 
       if (
         process.platform === 'darwin' &&
@@ -576,9 +581,22 @@ program
           : 'latest'
   )
   .option('--verbose', 'Verbose output', false)
-  .action(async (directory, options) => {
+  .option(
+    '--agent',
+    'Run the experimental agent-assisted upgrade workflow.',
+    false
+  )
+  .option(
+    '--dry-run',
+    'With --agent, edit, verify and commit locally without pushing or creating a PR.',
+    false
+  )
+  .action(async (directory, options, command) => {
     const mod = await import('../cli/next-upgrade.js')
-    mod.spawnNextUpgrade(directory, options)
+    await mod.spawnNextUpgrade(directory, {
+      ...options,
+      revisionExplicit: command.getOptionValueSource('revision') !== 'default',
+    })
   })
 
 program
