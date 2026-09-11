@@ -2,6 +2,8 @@ use std::{borrow::Cow, collections::BTreeMap, io::Write, sync::LazyLock};
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use either::Either;
+use itertools::Itertools;
 use next_core::{
     get_next_package,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
@@ -48,7 +50,7 @@ use turbopack_core::{
     virtual_source::VirtualSource,
 };
 use turbopack_ecmascript::{
-    EcmascriptAnalyzable, EcmascriptParsable, EnvVarInfo,
+    EcmascriptAnalyzable, EcmascriptParsable, EnvVarAccessMode, EnvVarInfo,
     chunk::{EcmascriptChunkItem, EcmascriptChunkItemExt, EcmascriptChunkPlaceable},
     module_fragments::part::module::EcmascriptModulePartAsset,
     parse::ParseResult,
@@ -496,14 +498,14 @@ async fn compute_subtree_content_hash(
                             data.env_var_info
                                 .as_ref()
                                 .map(|e| {
-                                    e.runtime_read
+                                    e.runtime
                                         .iter()
-                                        .map(|r| format!("read {}", r))
-                                        .chain(
-                                            e.runtime_existence
-                                                .iter()
-                                                .map(|r| format!("exists {}", r)),
-                                        )
+                                        .map(|(name, mode)| match mode {
+                                            EnvVarAccessMode::Read => format!("read {name}"),
+                                            EnvVarAccessMode::Existence => {
+                                                format!("exists {name}")
+                                            }
+                                        })
                                         .collect::<Vec<_>>()
                                 })
                                 .unwrap_or_default()
@@ -517,29 +519,43 @@ async fn compute_subtree_content_hash(
         }
 
         let mut hashes = Vec::with_capacity(data.len());
-        let mut runtime_env_vars_read = FxIndexSet::default();
-        let mut runtime_env_vars_existence = FxIndexSet::default();
+        let mut runtime_env_vars = FxIndexMap::default();
 
         for (_m, data) in &data {
             hashes.push(&data.ident_code_hash);
             if let Some(env) = &data.env_var_info {
-                runtime_env_vars_read.extend(env.runtime_read.iter());
-                runtime_env_vars_existence.extend(env.runtime_existence.iter());
+                for (name, mode) in &env.runtime {
+                    match mode {
+                        EnvVarAccessMode::Read => {
+                            // Overwrite
+                            runtime_env_vars.insert(name.clone(), EnvVarAccessMode::Read);
+                        }
+                        EnvVarAccessMode::Existence => {
+                            // Keep EnvVarAccessMode::Read if it already exists
+                            runtime_env_vars
+                                .entry(name.clone())
+                                .or_insert(EnvVarAccessMode::Existence);
+                        }
+                    }
+                }
             }
         }
 
-        runtime_env_vars_existence.retain(|key| !runtime_env_vars_read.contains(key));
-
         let hash = deterministic_hash("", hashes, HashAlgorithm::Xxh3Hash128Hex).into();
+        let (runtime_read, runtime_existence): (Vec<_>, Vec<_>) =
+            runtime_env_vars.into_iter().partition_map(|(name, mode)| {
+                if mode == EnvVarAccessMode::Read {
+                    Either::Left(name)
+                } else {
+                    Either::Right(name)
+                }
+            });
 
         anyhow::Ok(
             ModulesInformation {
                 ident_code_hash: hash,
-                runtime_env_vars_read: runtime_env_vars_read.into_iter().cloned().collect(),
-                runtime_env_vars_existence: runtime_env_vars_existence
-                    .into_iter()
-                    .cloned()
-                    .collect(),
+                runtime_env_vars_read: runtime_read,
+                runtime_env_vars_existence: runtime_existence,
             }
             .cell(),
         )

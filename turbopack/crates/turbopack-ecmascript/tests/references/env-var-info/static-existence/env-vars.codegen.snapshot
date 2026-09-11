@@ -10,6 +10,7 @@ runtime: [
     "FOO_TERNARY_READ2",
     "FOO_TERNARY_READ1",
     "FOO_READ_DOMINATES",
+    "FOO_BOTH",
     "FOO_FN_READ5",
     "FOO_SHADOWED_READ6",
 ]

@@ -1,6 +1,8 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
+use either::Either;
+use itertools::Itertools;
 use swc_core::{
     self,
     testing::{NormalizedOutput, fixture},
@@ -20,7 +22,7 @@ use turbopack_test_utils::noop_asset_context::NoopAssetContext;
 
 use crate::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptOptions,
-    references::analyze_ecmascript_module,
+    EnvVarAccessMode, references::analyze_ecmascript_module,
 };
 
 #[fixture("tests/references/**/input.js")]
@@ -125,12 +127,18 @@ async fn fixture_op(input: RcStr, analyze_mode: AnalyzeMode) -> anyhow::Result<(
 
     let env_var_info = analysis.env_var_info.await?;
 
-    let mut value = format!("runtime: {:#?}", env_var_info.runtime_read);
-    if !env_var_info.runtime_existence.is_empty() {
-        value.push_str(&format!(
-            "\nruntime_existence: {:#?}",
-            env_var_info.runtime_existence
-        ));
+    let (runtime_read, runtime_existence): (Vec<_>, Vec<_>) =
+        env_var_info.runtime.iter().partition_map(|(name, mode)| {
+            if *mode == EnvVarAccessMode::Read {
+                Either::Left(name)
+            } else {
+                Either::Right(name)
+            }
+        });
+
+    let mut value = format!("runtime: {runtime_read:#?}");
+    if !runtime_existence.is_empty() {
+        value.push_str(&format!("\nruntime_existence: {runtime_existence:#?}"));
     }
 
     NormalizedOutput::from(value)

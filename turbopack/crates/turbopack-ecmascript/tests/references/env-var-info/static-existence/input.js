@@ -71,3 +71,7 @@ if (process.env.FOO_READ_DOMINATES) {
   return true
 }
 console.log(process.env.FOO_READ_DOMINATES)
+
+if (process.env.FOO_BOTH) {
+  console.log(process.env.FOO_BOTH)
+}

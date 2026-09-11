@@ -99,8 +99,8 @@ use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplace
 
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
-    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable, EnvVarInfo,
-    ModuleTypeResult, TypeofWindow,
+    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
+    EnvVarAccessMode, EnvVarInfo, ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
         JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
@@ -235,8 +235,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     cjs_static_exports: Option<CjsStaticExports>,
 
-    env_var_info_runtime_read: FxIndexSet<RcStr>,
-    env_var_info_runtime_existence: FxIndexSet<RcStr>,
+    env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
 
     #[cfg(debug_assertions)]
     ident: RcStr,
@@ -257,8 +256,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             successful: false,
             source_map: None,
             cjs_static_exports: None,
-            env_var_info_runtime_read: Default::default(),
-            env_var_info_runtime_existence: Default::default(),
+            env_var_info_runtime: Default::default(),
             #[cfg(debug_assertions)]
             ident: Default::default(),
         }
@@ -351,18 +349,17 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.successful = successful;
     }
 
-    /// Adds a runtime environment variable read to the analysis result.
     pub fn add_runtime_env_var_reference_read(&mut self, runtime_env: RcStr) {
-        self.env_var_info_runtime_existence
-            .swap_remove(&runtime_env);
-        self.env_var_info_runtime_read.insert(runtime_env);
+        self.env_var_info_runtime
+            // Overwrite any existing value with Existence.
+            .insert(runtime_env, EnvVarAccessMode::Read);
     }
 
-    /// Adds a runtime environment variable existence check to the analysis result.
     pub fn add_runtime_env_var_reference_existence(&mut self, runtime_env: RcStr) {
-        if !self.env_var_info_runtime_read.contains(&runtime_env) {
-            self.env_var_info_runtime_existence.insert(runtime_env);
-        }
+        self.env_var_info_runtime
+            .entry(runtime_env)
+            // Only set if it hasn't been set to Read already.
+            .or_insert(EnvVarAccessMode::Existence);
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -471,8 +468,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 source_map: self.source_map,
                 cjs_static_exports: self.cjs_static_exports,
                 env_var_info: EnvVarInfo {
-                    runtime_read: self.env_var_info_runtime_read.into_iter().collect(),
-                    runtime_existence: self.env_var_info_runtime_existence.into_iter().collect(),
+                    runtime: self.env_var_info_runtime,
                 }
                 .resolved_cell(),
             },
