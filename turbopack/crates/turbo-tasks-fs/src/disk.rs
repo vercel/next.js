@@ -763,7 +763,7 @@ impl DiskFileSystem {
         )
     }
 
-    /// An extended version of [`DiskFileSystem::new`] without cross-filesystem traversal.
+    /// An extended version of [`DiskFileSystem::new`].
     ///
     /// `denied_paths` contains normalized Unix-style paths relative to `root` that
     /// [`DiskFileSystem`] will treat as nonexistent, disallowing reads of files in those
@@ -771,26 +771,10 @@ impl DiskFileSystem {
     ///
     /// `watcher_config` controls how filesystem changes are detected and reported. See
     /// [`DiskWatcherConfig`].
-    pub fn new_with_options(
-        name: RcStr,
-        root: Vc<RcStr>,
-        denied_paths: Vec<RcStr>,
-        watcher_config: DiskWatcherConfig,
-    ) -> Vc<Self> {
-        Self::new_with_file_system_map(
-            name,
-            root,
-            denied_paths,
-            watcher_config,
-            DiskFileSystemMap::empty(),
-        )
-    }
-
-    /// An extended version of [`DiskFileSystem::new`] with cross-filesystem traversal.
     ///
     /// `map` provides other configured filesystems used to resolve symlink targets that leave
     /// this filesystem's root.
-    pub fn new_with_file_system_map(
+    pub fn new_with_options(
         name: RcStr,
         root: Vc<RcStr>,
         denied_paths: Vec<RcStr>,
@@ -2653,7 +2637,7 @@ mod tests {
         async fn test_denied_path_read() {
             #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs = DiskFileSystem::new_with_file_system_map(
+                let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
@@ -2718,7 +2702,7 @@ mod tests {
         async fn test_denied_path_read_dir() {
             #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs = DiskFileSystem::new_with_file_system_map(
+                let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
@@ -2782,7 +2766,7 @@ mod tests {
         async fn test_denied_path_read_glob() {
             #[turbo_tasks::function(operation, root)]
             async fn test_operation(root: RcStr, denied_path: RcStr) -> anyhow::Result<()> {
-                let fs = DiskFileSystem::new_with_file_system_map(
+                let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
@@ -2870,7 +2854,7 @@ mod tests {
                 file_path: RcStr,
                 contents: RcStr,
             ) -> anyhow::Result<Vc<Effects>> {
-                let fs = DiskFileSystem::new_with_file_system_map(
+                let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
@@ -2891,7 +2875,7 @@ mod tests {
                 denied_file: RcStr,
                 nested_denied_file: RcStr,
             ) -> anyhow::Result<()> {
-                let fs = DiskFileSystem::new_with_file_system_map(
+                let fs = DiskFileSystem::new_with_options(
                     rcstr!("test"),
                     Vc::cell(root),
                     vec![denied_path],
