@@ -247,6 +247,8 @@ The [Instant navigation guide](/docs/app/guides/instant-navigation#prevent-regre
 
 When [adopting Partial Prefetching](/docs/app/guides/adopting-partial-prefetching#verify-prefetched-ui-with-tests), run this test before enabling the feature and rerun the same assertions afterward. This preserves the UI selected from the legacy full prefetch while its implementation moves to the App Shell or a per-link prefetch.
 
+Test a link whose `href` points directly to the destination. A redirect prevents the link from prefetching the final route tree, so the test measures the redirect instead of the intended destination.
+
 Inside the callback, click the link, wait for the destination URL, and assert which content is available. After the callback releases the navigation, assert that deferred content eventually renders:
 
 ```ts filename="e2e/product-navigation.test.ts" highlight={8-15,17}

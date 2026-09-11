@@ -106,9 +106,8 @@ Keep one production browser test per source-link, destination, and trigger
 contract. Do not loop over several destinations or collect their readiness
 results in one test. Focused tests can still run serially in one browser worker.
 
-For a repeat or browser-back contract, follow the retained-DOM assertion
-guidance in `rig-template.md`. Test visible prefetched UI rather than treating a
-hidden node from a previously visited segment as current content.
+For repeat and browser-back contracts, follow the guide's
+[return-navigation testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#test-first-visits-and-return-navigations).
 
 First, run an unlocked scaffold that proves the link reaches the exact pathname
 and query and that the selected UI eventually renders for the test user. Do not
