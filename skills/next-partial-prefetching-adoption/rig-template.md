@@ -72,7 +72,9 @@ and reporters. The suite must import `instant()` from `@next/playwright`. If
 the dependencies are absent, install `@next/playwright` on the same release
 line as the project's `next`, alongside `@playwright/test`.
 
-For a local rig, a typical sequence is:
+Prefer the project's existing Playwright
+[`webServer`](https://playwright.dev/docs/test-webserver) configuration to own
+the local server lifecycle. A typical sequence is:
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
@@ -91,6 +93,13 @@ commits. Do not search the RSC response for text to infer that commit, because
 Client Component text might not appear in the response bytes. Do not use a
 marker on `display: none`, `display: contents`, a fragment, off-screen content,
 or a hover-only overlay.
+
+Follow the guide's
+[direct-destination requirement](https://nextjs.org/docs/app/guides/optimizing-prefetching#test-prefetched-and-deferred-content).
+
+Test fresh destinations separately from repeat and browser-back restoration.
+Follow the guide's
+[first-visit and return-navigation assertions](https://nextjs.org/docs/app/guides/instant-navigation#test-first-visits-and-return-navigations).
 
 ### Test context
 
@@ -178,3 +187,7 @@ Before recording the legacy prefetched UI:
 Fix the rig before interpreting a preservation failure. A missing testing API,
 stale deployment, unreachable target, or wrong test state is an environment
 failure rather than evidence that the migration changed the prefetch.
+
+Once the rig produces a conclusive result, continue to the next workflow gate.
+Do not repeat the same build or test to look for flakiness unless two observed
+results conflict.

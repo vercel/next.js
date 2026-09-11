@@ -107,6 +107,8 @@ With an unconditional key, SWR defines `data` after Suspense resolves. Handle re
 
 The `isLoading` value is `true` when a request is running and there is no loaded data to display. The `isValidating` value is `true` whenever a request is running, including background revalidation.
 
+Build the SWR key from stable request inputs. A value created during render, such as `Date.now()` or `new Date()`, produces a different key after the component remounts. SWR then treats the read as new and shows its loading state instead of reusing the previous result when the user navigates away and back. If the request uses a rolling time range, update the range on the intended refresh interval rather than on every mount.
+
 With `suspense: true`, Suspense handles the initial no-data state. Later revalidation for the same key keeps the current data rendered instead of showing the Suspense fallback again. Use `isValidating` to provide background refresh feedback. Learn more about [SWR loading states](https://swr.vercel.app/docs/advanced/understanding#combining-with-isloading-and-isvalidating-for-better-ux).
 
 Learn more: [SWR data fetching](https://swr.vercel.app/docs/data-fetching).

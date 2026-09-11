@@ -373,6 +373,14 @@ Inside the callback, an initial page load shows the static UI and a client navig
 
 For client navigations, wait for the destination URL before asserting on its UI. Otherwise, a shared selector can match the source page before the destination commits. If the prefetched destination cannot commit, the URL wait times out and the test fails.
 
+### Test first visits and return navigations
+
+A first-visit test and a return-navigation test cover different behavior. Use a fresh destination to test which content the App Shell or prefetch contains.
+
+On a first visit, an assertion such as `toHaveCount(0)` can prove that deferred content has not committed. On repeat and browser-back navigations, Next.js may preserve a previously visited route in a [React Activity boundary](/docs/app/guides/preserving-ui-state#testing). Its DOM can stay hidden during the transition or reappear with its completed state.
+
+For a return navigation, use visibility-aware locators to assert what the user sees. The number of matching DOM nodes does not show whether retained content is currently visible.
+
 Run these against `next dev`, where the testing API is enabled automatically. To run them in CI against a production build, set `exposeTestingApiInProductionBuild` so `next start` exposes the same API:
 
 ```ts filename="next.config.ts" highlight={5}

@@ -245,6 +245,9 @@ completed UI renders after release. Do not change an existing data source,
 production selector, or required route variant to make the test easier. A
 required contract may not be skipped or weakened.
 
+For repeat and browser-back contracts, follow the guide's
+[return-navigation testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#test-first-visits-and-return-navigations).
+
 Prefer the self-validating variant when the route has deferred content. If the
 route cannot build while blocked, or a cookie/session read stays GREEN, use the
 RED recipes in `reference/red-test-robustness.md`.

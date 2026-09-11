@@ -72,9 +72,9 @@ and reporters. The suite must import `instant()` from `@next/playwright`. If
 the dependencies are absent, install `@next/playwright` on the same release
 line as the project's `next`, alongside `@playwright/test`.
 
-Prefer an existing Playwright `webServer` configuration to own the local
-server lifecycle. This avoids leaving a `next-server` child on the test port
-between builds. A typical sequence is:
+Prefer the project's existing Playwright
+[`webServer`](https://playwright.dev/docs/test-webserver) configuration to own
+the local server lifecycle. A typical sequence is:
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
@@ -86,6 +86,10 @@ Adapt the script names and port to the project. Keep the production server
 running while the test command executes. Follow the public
 [`instant()` testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): use `page.goto()` for an initial-load
 contract and click the real `<Link>` for a client-navigation contract.
+
+Test fresh destinations separately from repeat and browser-back restoration.
+Follow the guide's
+[first-visit and return-navigation assertions](https://nextjs.org/docs/app/guides/instant-navigation#test-first-visits-and-return-navigations).
 
 ### Test context
 

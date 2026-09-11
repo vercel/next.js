@@ -72,7 +72,9 @@ and reporters. The suite must import `instant()` from `@next/playwright`. If
 the dependencies are absent, install `@next/playwright` on the same release
 line as the project's `next`, alongside `@playwright/test`.
 
-For a local rig, a typical sequence is:
+Prefer the project's existing Playwright
+[`webServer`](https://playwright.dev/docs/test-webserver) configuration to own
+the local server lifecycle. A typical sequence is:
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build
@@ -85,6 +87,13 @@ running while the test command executes. Follow the public
 [client-navigation test](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests): load the source route, confirm the real
 Link is visible, then enter `instant()`, click, wait for the destination URL,
 and assert the prefetched UI.
+
+Follow the guide's
+[direct-destination requirement](https://nextjs.org/docs/app/guides/optimizing-prefetching#test-prefetched-and-deferred-content).
+
+Test fresh destinations separately from repeat and browser-back restoration.
+Follow the guide's
+[first-visit and return-navigation assertions](https://nextjs.org/docs/app/guides/instant-navigation#test-first-visits-and-return-navigations).
 
 ### Test context
 
@@ -172,3 +181,7 @@ Before recording the prefetch contract:
 Fix the rig before interpreting an optimizer failure. A missing testing API,
 stale deployment, unreachable target, or wrong test state is an environment
 failure rather than evidence that the optimization changed the prefetched UI.
+
+Once the rig produces a conclusive result, continue to the next workflow gate.
+Do not repeat the same build or test to look for flakiness unless two observed
+results conflict.
