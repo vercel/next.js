@@ -135,8 +135,8 @@ describe('404 Page Support', () => {
     })
   }
 })
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This scope deliberately triggers compiler or configuration errors and checks diagnostics.
+// The deploy harness requires a successful build before test assertions can run.
 // @force-gate !deploy
 // @force-gate start
 describe('404 Page build validation', () => {

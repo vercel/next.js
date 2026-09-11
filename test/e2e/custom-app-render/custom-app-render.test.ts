@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This scope tests app.render() in a custom server and its deprecation warning.
+// The deploy harness does not run that custom server or expose its runtime logs.
 // @force-gate !deploy
 describe('custom-app-render', () => {
   const { next } = nextTestSetup({

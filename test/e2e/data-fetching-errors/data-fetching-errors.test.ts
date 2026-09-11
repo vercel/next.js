@@ -6,8 +6,8 @@ import {
 } from '../../../packages/next/dist/lib/constants'
 
 describe('GS(S)P Page Errors', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely expects a local build failure instead of a successful deployment.
+  // This scope mutates fixture files to assert development error diagnostics.
+  // A deployed production app cannot exercise those dev-server updates.
   // @force-gate !deploy
   // @force-gate dev
   describe('development mode', () => {
@@ -105,8 +105,8 @@ describe('GS(S)P Page Errors', () => {
       )
     })
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely expects a local build failure instead of a successful deployment.
+  // This scope mutates fixture files and rebuilds to assert production errors.
+  // Deployment mode cannot perform those local file changes and builds.
   // @force-gate !deploy
   // @force-gate start
   describe('production mode', () => {

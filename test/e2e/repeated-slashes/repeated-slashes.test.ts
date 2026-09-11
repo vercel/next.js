@@ -428,8 +428,8 @@ describe('404 handling', () => {
 
       runTests({ next, isDev: isNextDev, isPages404: false })
     })
-    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-    // It likely mutates files in the isolated local fixture after setup.
+    // This scope runs a local static export and starts a server over the generated out directory.
+    // Deployment mode cannot perform that build or control the local static server.
     // @force-gate !deploy
     // @force-gate start
     describe('export mode', () => {
@@ -474,8 +474,8 @@ describe('404 handling', () => {
   })
 
   describe('pages/404', () => {
-    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-    // It likely mutates files in the isolated local fixture after setup.
+    // This suite deletes fixture files before checking Next.js behavior.
+    // Deployment mode cannot delete files in the deployed application.
     // @force-gate !deploy
     describe('server mode', () => {
       const { next } = nextTestSetup({
@@ -505,8 +505,8 @@ describe('404 handling', () => {
 
       runTests({ next, isDev: isNextDev, isPages404: true })
     })
-    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-    // It likely mutates files in the isolated local fixture after setup.
+    // This suite deletes fixture files before checking Next.js behavior.
+    // Deployment mode cannot delete files in the deployed application.
     // @force-gate !deploy
     // @force-gate start
     describe('pages/404 export mode', () => {
