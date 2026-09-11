@@ -229,6 +229,8 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain('"whatWentWrong"')
     expect(content).toContain('"whatWouldHaveHelped"')
     expect(content).toContain('first-person')
+    expect(content).toContain('independently triageable data point')
+    expect(content).toContain('Never estimate elapsed time, token usage')
   })
 
   it('is idempotent across dev server restarts', async () => {
