@@ -1,9 +1,36 @@
 'use client'
 import React, { useEffect } from 'react'
 import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
+import { publicAppRouterInstance } from './app-router-instance'
 import { useRouter } from './navigation'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { type RedirectType, isRedirectError } from './redirect-error'
+
+// Dedupes redirect() delivery when RedirectErrorBoundary remounts in a
+// discarded render (fully-dynamic cacheComponents navigations). See #97898.
+let lastScheduledRedirect: { url: string; at: number } | null = null
+
+function scheduleRedirect(url: string, redirectType: RedirectType) {
+  const now = Date.now()
+  if (
+    lastScheduledRedirect !== null &&
+    lastScheduledRedirect.url === url &&
+    now - lastScheduledRedirect.at < 1000
+  ) {
+    return
+  }
+  lastScheduledRedirect = { url, at: now }
+  // Do not wait for a commit — on ƒ routes the errored render never commits,
+  // so HandleRedirect's useEffect never runs. queueMicrotask is enough
+  // because getDerivedStateFromError already ran.
+  queueMicrotask(() => {
+    if (redirectType === 'push') {
+      publicAppRouterInstance.push(url, {})
+    } else {
+      publicAppRouterInstance.replace(url, {})
+    }
+  })
+}
 
 interface RedirectBoundaryProps {
   router: AppRouterInstance
@@ -54,6 +81,11 @@ export class RedirectErrorBoundary extends React.Component<
         // router.push.
         return { redirect: null, redirectType: null }
       }
+
+      // Schedule the navigation during the render phase. On fully-dynamic
+      // cacheComponents routes the boundary remounts and the render never
+      // commits, so HandleRedirect's effect would never fire. See #97898.
+      scheduleRedirect(url, redirectType)
 
       return { redirect: url, redirectType }
     }
