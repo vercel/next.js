@@ -6,17 +6,6 @@ import {
 } from '../segment-config/app/app-segments'
 import type { FallbackRouteParam } from './types'
 import { FallbackMode } from '../../lib/fallback'
-import { isPlainObject } from '../../shared/lib/is-plain-object'
-
-function getValueType(value: unknown): string {
-  if (value === null) return 'null'
-  if (Array.isArray(value)) return 'array'
-  return typeof value
-}
-
-function isPrerenderParamMode(value: unknown): value is PrerenderParamMode {
-  return PRERENDER_PARAM_MODES.includes(value as PrerenderParamMode)
-}
 
 function isTreePathPrefix(
   prefix: readonly string[],
@@ -27,49 +16,6 @@ function isTreePathPrefix(
     if (prefix[index] !== value[index]) return false
   }
   return true
-}
-
-function validateMatcherExport(
-  page: string,
-  segment: Readonly<AppSegment>,
-  value: unknown,
-  routeParamNames: ReadonlySet<string>
-): PrerenderMatcher {
-  const exportName =
-    segment.prerenderMatcher?.kind === 'generated'
-      ? 'experimental_generateParamMatching'
-      : 'experimental_paramMatching'
-
-  if (!isPlainObject(value)) {
-    throw new Error(
-      `Invalid value from \`${exportName}\` for "${page}". Expected an object, but received ${getValueType(value)}.`
-    )
-  }
-
-  const visibleParamNames = new Set(segment.prerenderMatcher!.visibleParamNames)
-  const matcher: PrerenderMatcher = {}
-  for (const [paramName, mode] of Object.entries(
-    value as Record<string, unknown>
-  )) {
-    if (!routeParamNames.has(paramName)) {
-      throw new Error(
-        `Invalid parameter "${paramName}" in \`${exportName}\` for "${page}". Matchers may only configure dynamic parameters in this route.`
-      )
-    }
-    if (!visibleParamNames.has(paramName)) {
-      throw new Error(
-        `Invalid parameter "${paramName}" in \`${exportName}\` for "${page}". The export in "${segment.filePath}" may only configure parameters defined at or above its segment.`
-      )
-    }
-    if (!isPrerenderParamMode(mode)) {
-      throw new Error(
-        `Invalid mode for parameter "${paramName}" in \`${exportName}\` for "${page}". Expected "not-found", "blocking", "fallback", or "dynamic", but received ${JSON.stringify(mode)}.`
-      )
-    }
-    matcher[paramName] = mode
-  }
-
-  return matcher
 }
 
 type MatcherCandidate = {
@@ -103,10 +49,21 @@ export async function compilePrerenderMatcher(
     matcherSegments.map(async (segment) => {
       const matcherExport = segment.prerenderMatcher!
       const value =
-        matcherExport.kind === 'static'
-          ? matcherExport.value
-          : await matcherExport.generate()
-      return validateMatcherExport(page, segment, value, routeParamNames)
+        typeof matcherExport === 'function'
+          ? await matcherExport()
+          : matcherExport
+      for (const paramName of Object.keys(value)) {
+        if (!routeParamNames.has(paramName)) {
+          const exportName =
+            typeof matcherExport === 'function'
+              ? 'experimental_generateParamMatching'
+              : 'experimental_paramMatching'
+          throw new Error(
+            `Invalid parameter "${paramName}" in \`${exportName}\` for "${page}". Matchers may only configure dynamic parameters in this route.`
+          )
+        }
+      }
+      return value
     })
   )
 

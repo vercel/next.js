@@ -18,6 +18,7 @@ import {
   type LoaderTree,
 } from '../../../server/lib/app-dir-module'
 import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
+import { isPlainObject } from '../../../shared/lib/is-plain-object'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
@@ -32,20 +33,40 @@ export type PrerenderParamMode = (typeof PRERENDER_PARAM_MODES)[number]
 
 export type PrerenderMatcher = Record<string, PrerenderParamMode>
 
-type GeneratePrerenderMatcher = () => unknown | Promise<unknown>
+function validateMatcherExport(
+  route: string,
+  filePath: string | undefined,
+  exportName: string,
+  value: unknown,
+  visibleParamNames: readonly string[]
+): PrerenderMatcher {
+  if (!isPlainObject(value)) {
+    const valueType =
+      value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
+    throw new Error(
+      `Invalid value from \`${exportName}\` for "${route}". Expected an object, but received ${valueType}.`
+    )
+  }
 
-export type PrerenderMatcherExport = {
-  readonly visibleParamNames: readonly string[]
-} & (
-  | {
-      readonly kind: 'static'
-      readonly value: unknown
+  const matcher: PrerenderMatcher = {}
+  for (const [paramName, mode] of Object.entries(
+    value as Record<string, unknown>
+  )) {
+    if (!visibleParamNames.includes(paramName)) {
+      throw new Error(
+        `Invalid parameter "${paramName}" in \`${exportName}\` for "${route}". The export in "${filePath}" may only configure parameters defined at or above its segment.`
+      )
     }
-  | {
-      readonly kind: 'generated'
-      readonly generate: GeneratePrerenderMatcher
+    if (!PRERENDER_PARAM_MODES.includes(mode as PrerenderParamMode)) {
+      throw new Error(
+        `Invalid mode for parameter "${paramName}" in \`${exportName}\` for "${route}". Expected "not-found", "blocking", "fallback", or "dynamic", but received ${JSON.stringify(mode)}.`
+      )
     }
-)
+    matcher[paramName] = mode as PrerenderParamMode
+  }
+
+  return matcher
+}
 
 /**
  * Parses the app config and attaches it to the segment.
@@ -54,7 +75,7 @@ function attach(
   segment: AppSegment,
   userland: unknown,
   route: string,
-  matcherScope: Pick<PrerenderMatcherExport, 'visibleParamNames'>
+  visibleParamNames: readonly string[]
 ) {
   // If the userland is not an object, then we can't do anything with it.
   if (typeof userland !== 'object' || userland === null) {
@@ -104,23 +125,31 @@ function attach(
     }
 
     if (hasStaticMatcher) {
-      segment.prerenderMatcher = {
-        ...matcherScope,
-        kind: 'static',
-        value: userland.experimental_paramMatching,
-      }
+      segment.prerenderMatcher = validateMatcherExport(
+        route,
+        segment.filePath,
+        'experimental_paramMatching',
+        userland.experimental_paramMatching,
+        visibleParamNames
+      )
     } else {
-      if (typeof userland.experimental_generateParamMatching !== 'function') {
+      const generate = userland.experimental_generateParamMatching
+      if (typeof generate !== 'function') {
         throw new Error(
           `Route "${route}" must export \`experimental_generateParamMatching\` as a function.`
         )
       }
-      segment.prerenderMatcher = {
-        ...matcherScope,
-        kind: 'generated',
-        generate:
-          userland.experimental_generateParamMatching as GeneratePrerenderMatcher,
-      }
+      const { filePath } = segment
+      // Retain the module's scope without evaluating user code until static
+      // path generation has established its work store and cache context.
+      segment.prerenderMatcher = async () =>
+        validateMatcherExport(
+          route,
+          filePath,
+          'experimental_generateParamMatching',
+          await generate(),
+          visibleParamNames
+        )
     }
   }
 }
@@ -133,7 +162,10 @@ export type AppSegment = {
   paramType: DynamicParamTypes | undefined
   filePath: string | undefined
   config: AppSegmentConfig | undefined
-  prerenderMatcher: PrerenderMatcherExport | undefined
+  prerenderMatcher:
+    | PrerenderMatcher
+    | (() => Promise<PrerenderMatcher>)
+    | undefined
   generateStaticParams: GenerateStaticParams | undefined
   createEmptyParamsError?: () => Error
 }
@@ -188,9 +220,12 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 
     // Only server components can have app segment configurations
     if (!isClientComponent) {
-      attach(segment, userland, routeModule.definition.pathname, {
-        visibleParamNames: currentVisibleParamNames,
-      })
+      attach(
+        segment,
+        userland,
+        routeModule.definition.pathname,
+        currentVisibleParamNames
+      )
     }
 
     // If this segment doesn't already exist, then add it to the segments array.
@@ -266,9 +301,7 @@ async function collectAppRouteSegments(
   segment.filePath = routeModule.definition.filename
 
   // Extract the segment config from the userland module.
-  attach(segment, routeModule.userland, routeModule.definition.pathname, {
-    visibleParamNames: [],
-  })
+  attach(segment, routeModule.userland, routeModule.definition.pathname, [])
 
   return segments
 }
