@@ -14,7 +14,7 @@ use crate::{
         GraphEdgeIndex, GraphTraversalAction, ModuleGraph,
         side_effect_module_info::compute_side_effect_free_module_info,
     },
-    resolve::{ExportUsage, ImportUsage},
+    resolve::{ExportUsage, ForwardedExportUsage, ImportUsage, TargetExportUsage},
 };
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
@@ -132,7 +132,7 @@ pub async fn compute_binding_usage_info(
         #[cfg(debug_assertions)]
         let mut debug_unused_references_name = FxHashSet::<(
             ResolvedVc<Box<dyn Module>>,
-            ExportUsage,
+            TargetExportUsage,
             ResolvedVc<Box<dyn Module>>,
         )>::default();
         let mut unused_references_edges = FxHashSet::default();
@@ -182,11 +182,13 @@ pub async fn compute_binding_usage_info(
                     // If this is an evaluation reference and the target has no side effects
                     // then we can drop it. NOTE: many `imports` create parallel Evaluation
                     // and Named/All references
-                    if matches!(&ref_data.binding_usage.export, ExportUsage::Evaluation)
-                        && side_effect_free_modules
-                            .as_ref()
-                            .expect("this must be present if `remove_unused_imports` is true")
-                            .contains(&target)
+                    if matches!(
+                        &ref_data.binding_usage.export,
+                        TargetExportUsage::Fixed(ExportUsage::Evaluation)
+                    ) && side_effect_free_modules
+                        .as_ref()
+                        .expect("this must be present if `remove_unused_imports` is true")
+                        .contains(&target)
                     {
                         #[cfg(debug_assertions)]
                         debug_unused_references_name.insert((
@@ -265,19 +267,48 @@ pub async fn compute_binding_usage_info(
                     }
                 }
 
+                // Whole-namespace re-exports (`module.exports = require(x)`, `export * from x`)
+                // forward both the parent's used export keys and, independently, whether those
+                // keys may still be observed through a namespace object.
+                let forwarded = match &ref_data.binding_usage.export {
+                    TargetExportUsage::Fixed(_) => None,
+                    TargetExportUsage::Forwarded(_) => Some(
+                        used_exports
+                            .get(&parent)
+                            .context("parent module must have usage info")?
+                            .clone(),
+                    ),
+                };
+
+                let namespace_changed = match &ref_data.binding_usage.export {
+                    TargetExportUsage::Fixed(ExportUsage::PartialNamespaceObject(_)) => {
+                        partial_namespace_modules.insert(target)
+                    }
+                    // A forwarded CommonJS namespace exposes the target's properties by their
+                    // original names, so those names always stay observable.
+                    TargetExportUsage::Forwarded(ForwardedExportUsage::NamespaceObject) => {
+                        partial_namespace_modules.insert(target)
+                    }
+                    // An ESM re-export only propagates the escape the parent already had.
+                    TargetExportUsage::Forwarded(ForwardedExportUsage::Exports)
+                        if partial_namespace_modules.contains(&parent) =>
+                    {
+                        partial_namespace_modules.insert(target)
+                    }
+                    _ => false,
+                };
+
                 let entry = used_exports.entry(target);
                 let is_first_visit = matches!(entry, Entry::Vacant(_));
-                if matches!(
-                    &ref_data.binding_usage.export,
-                    ExportUsage::PartialNamespaceObject(_)
-                ) {
-                    // `target` is read through a namespace value. We know which names are used, but
-                    // not that every read of them was lowered to a direct named access.
-                    partial_namespace_modules.insert(target);
-                }
-                if entry.or_default().add(&ref_data.binding_usage.export) || is_first_visit {
-                    // First visit, or the used exports changed. This can cause more imports to get
-                    // used downstream.
+                let usage_changed = match &ref_data.binding_usage.export {
+                    TargetExportUsage::Fixed(export) => entry.or_default().add(export),
+                    TargetExportUsage::Forwarded(_) => entry
+                        .or_default()
+                        .add_module_usage(forwarded.as_ref().expect("forwarded usage is present")),
+                };
+                if usage_changed || namespace_changed || is_first_visit {
+                    // First visit, or the used exports/namespace provenance changed. Either can
+                    // cause more imports to become used downstream.
                     Ok(GraphTraversalAction::Continue)
                 } else {
                     Ok(GraphTraversalAction::Skip)
@@ -424,11 +455,61 @@ impl ModuleExportUsageInfo {
         }
     }
 
+    /// Merge another module's accumulated export keys into this module.
+    ///
+    /// Namespace-object provenance is tracked separately by [`PartialNamespaceModules`]; an
+    /// accumulated multi-key set does not imply that those names were read from a namespace.
+    fn add_module_usage(&mut self, usage: &Self) -> bool {
+        match (&mut *self, usage) {
+            (Self::All, _) | (_, Self::Evaluation) => false,
+            (_, Self::All) => {
+                *self = Self::All;
+                true
+            }
+            (Self::Evaluation, Self::Exports(exports)) => {
+                *self = Self::Exports(exports.clone());
+                true
+            }
+            (Self::Exports(left), Self::Exports(right)) => {
+                let mut changed = false;
+                for export in right {
+                    changed |= left.insert(export.clone());
+                }
+                changed
+            }
+        }
+    }
+
     pub fn is_export_used(&self, export: &RcStr) -> bool {
         match self {
             Self::All => true,
             Self::Evaluation => false,
             Self::Exports(exports) => exports.contains(export),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn exports(names: &[&str]) -> ModuleExportUsageInfo {
+        ModuleExportUsageInfo::Exports(names.iter().map(|name| RcStr::from(*name)).collect())
+    }
+
+    #[test]
+    fn merge_forwarded_module_usage() {
+        let mut usage = ModuleExportUsageInfo::Evaluation;
+
+        assert!(!usage.add_module_usage(&ModuleExportUsageInfo::Evaluation));
+        assert!(usage.add_module_usage(&exports(&["first"])));
+        assert!(usage.is_export_used(&RcStr::from("first")));
+        assert!(!usage.add_module_usage(&exports(&["first"])));
+        assert!(usage.add_module_usage(&exports(&["second"])));
+        assert!(usage.is_export_used(&RcStr::from("second")));
+        assert!(!usage.add_module_usage(&ModuleExportUsageInfo::Evaluation));
+        assert!(usage.add_module_usage(&ModuleExportUsageInfo::All));
+        assert!(!usage.add_module_usage(&exports(&["third"])));
+        assert!(matches!(usage, ModuleExportUsageInfo::All));
     }
 }

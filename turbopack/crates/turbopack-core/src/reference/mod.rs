@@ -112,7 +112,7 @@ impl ModuleReference for SingleChunkableModuleReference {
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
             import: ImportUsage::TopLevel,
-            export: self.export.clone(),
+            export: self.export.clone().into(),
         }
     }
 }

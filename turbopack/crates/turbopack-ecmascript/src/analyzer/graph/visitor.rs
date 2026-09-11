@@ -593,6 +593,7 @@ mod analyzer_state {
                     .require_usage
                     .insert(*span, ExportUsage::Evaluation);
             }
+            self.data.require_reexports = cjs_imports.reexports.clone();
             self.state.require_bindings = Some(cjs_imports.bindings.clone());
         }
 
