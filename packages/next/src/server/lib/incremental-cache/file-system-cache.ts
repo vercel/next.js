@@ -398,8 +398,17 @@ export default class FileSystemCache implements CacheHandler {
 
       writer.append(htmlPath, data.html)
 
-      // Fallbacks don't generate a data file.
-      if (!ctx.fetchCache && !ctx.isFallback && !ctx.isRoutePPREnabled) {
+      // Fallbacks don't generate a data file. With PPR enabled, the flight
+      // data is only written for a fully static output (no postponed state):
+      // the same rule the export applies, and the condition `get()` uses to
+      // read the file back.
+      const isFullyStatic =
+        data.kind !== CachedRouteKind.APP_PAGE || data.postponed == null
+      if (
+        !ctx.fetchCache &&
+        !ctx.isFallback &&
+        (!ctx.isRoutePPREnabled || isFullyStatic)
+      ) {
         writer.append(
           this.getFilePath(
             `${key}${isAppPath ? RSC_SUFFIX : NEXT_DATA_SUFFIX}`,
