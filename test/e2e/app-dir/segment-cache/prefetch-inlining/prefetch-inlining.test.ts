@@ -570,28 +570,32 @@ describe('prefetch inlining', () => {
         }
       }
 
-      // The page awaits fallback params (and no other runtime data), so:
-      // - the shell can be static (ShouldAttemptStaticShell hint set),
-      // - the prefetch is runtime (ShouldAttemptStaticPrefetch hint is NOT set).
+      // The page awaits fallback params (and no other runtime data), so if this
+      // were a Partial Prefetching route, then:
+      // - the shell would be static (ShouldAttemptStaticShell hint set),
+      // - the prefetch would be runtime (ShouldAttemptStaticPrefetch hint NOT set).
+      // However, Partial Prefetching is not enabled here, so we follow Cache Components
+      // semantics instead, and only use static prefetches, which means that both
+      // `ShouldAttemptStaticShell` and `ShouldAttemptStaticPrefetch` are set.
       expect(
         toHumanReadablePrefetchHints(
           hintsManifest['/test-dynamic-partial/[top]/[bottom]']
         )
       ).toMatchInlineSnapshot(`
        {
-         "hints": "InlinedIntoChild | ShouldAttemptStaticShell",
+         "hints": "InlinedIntoChild | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
          "slots": {
            "children": {
-             "hints": "ParentInlinedIntoSelf | InlinedIntoChild | ShouldAttemptStaticShell",
+             "hints": "ParentInlinedIntoSelf | InlinedIntoChild | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
              "slots": {
                "children": {
-                 "hints": "ParentInlinedIntoSelf | ShouldAttemptStaticShell",
+                 "hints": "ParentInlinedIntoSelf | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
                  "slots": {
                    "children": {
-                     "hints": "InlinedIntoChild | ShouldAttemptStaticShell",
+                     "hints": "InlinedIntoChild | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
                      "slots": {
                        "children": {
-                         "hints": "ParentInlinedIntoSelf | HeadInlinedIntoSelf | ShouldAttemptStaticShell",
+                         "hints": "ParentInlinedIntoSelf | HeadInlinedIntoSelf | ShouldAttemptStaticShell | ShouldAttemptStaticPrefetch",
                          "slots": null,
                        },
                      },

@@ -8888,6 +8888,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
+        requireStaticLevel,
         prerenderDataTracking: null,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
@@ -8924,6 +8925,7 @@ async function prerenderToStream(
         hmrRefreshHash: undefined,
         // We don't track vary params during initial prerender, only the final one
         varyParamsAccumulator: null,
+        requireStaticLevel,
         prerenderDataTracking: null,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       })
@@ -9178,6 +9180,7 @@ async function prerenderToStream(
         resumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
+        requireStaticLevel,
         prerenderDataTracking,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
@@ -9233,6 +9236,7 @@ async function prerenderToStream(
         resumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator,
+        requireStaticLevel,
         prerenderDataTracking,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       })
@@ -9959,6 +9963,7 @@ async function prerenderToStream(
         resumeDataCache: originalResumeDataCache,
         hmrRefreshHash: undefined,
         varyParamsAccumulator: null,
+        requireStaticLevel: null,
         prerenderDataTracking: null,
         isFallbackUpgradeable: renderOpts.isFallbackUpgradeable === true,
       }
