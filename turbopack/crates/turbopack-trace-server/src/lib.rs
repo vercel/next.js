@@ -1186,6 +1186,68 @@ mod tests {
     }
 
     #[test]
+    fn heaviest_span_id_differs_from_first_in_a_multi_member_group() {
+        // A single-member group cannot tell the two apart, so build a group of
+        // three same-named siblings where the heaviest is neither first nor
+        // last. This is the case that matters: on a real trace `first_span_id`
+        // reached a 75MB member of a 370MB group whose heaviest held 209MB.
+        let container = Arc::new(StoreContainer::new());
+        let mut members = Vec::new();
+        {
+            let mut store = container.write();
+            let mut outdated = FxHashSet::default();
+            let parent = store.add_span(
+                None,
+                Timestamp::from_micros(0),
+                RcStr::default(),
+                RcStr::from("parent"),
+                SpanArgs::new(),
+                &mut outdated,
+            );
+            // Same name so they aggregate; allocations ordered small, large,
+            // medium so the winner is not simply the first or the last.
+            for (i, bytes) in [1_000u64, 90_000, 40_000].into_iter().enumerate() {
+                let child = store.add_span(
+                    Some(parent),
+                    Timestamp::from_micros(i as u64 + 1),
+                    RcStr::default(),
+                    RcStr::from("member"),
+                    SpanArgs::new(),
+                    &mut outdated,
+                );
+                store.add_allocation(child, bytes, 10, &mut outdated);
+                store.complete_span(child);
+                members.push(child);
+            }
+            store.complete_span(parent);
+            store.invalidate_outdated_spans(&outdated);
+        }
+
+        let result = query(
+            &container,
+            QueryOptions {
+                parent: Some("1".to_string()),
+                ..options()
+            },
+        );
+        let group = result
+            .spans
+            .iter()
+            .find(|s| s.name == "member")
+            .expect("group present");
+        assert_eq!(group.count, Some(3), "the three spans must aggregate");
+
+        let first = members[0].get().to_string();
+        let heaviest = members[1].get().to_string();
+        assert_eq!(group.first_span_id.as_deref(), Some(first.as_str()));
+        assert_eq!(group.heaviest_span_id.as_deref(), Some(heaviest.as_str()));
+        assert_ne!(
+            group.first_span_id, group.heaviest_span_id,
+            "otherwise this test cannot tell the two apart"
+        );
+    }
+
+    #[test]
     fn memory_summary_is_absent_without_samples() {
         let (store, _) = nested_store();
         let result = query(&store, options());
