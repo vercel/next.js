@@ -296,7 +296,6 @@ describe('searchparams-reuse-loading', () => {
         // Wait for the full id=3 prefetch response, including any middleware
         // redirect, before intercepting navigations. Counting requests alone is
         // racy because the redirect response can still be in flight.
-        await prefetchPromise
         await retry(
           () => expect(id3FullPrefetchResponse).toBeDefined(),
           30_000,
@@ -306,9 +305,9 @@ describe('searchparams-reuse-loading', () => {
         await id3FullPrefetchResponse
         interceptRequests = true
 
-        // Exercise the full prefetch immediately after observing its response.
-        // Running the two stalled dynamic navigations first can exceed the
-        // prefetch cache's stale time on a slow CI worker.
+        // Exercise the full prefetch as soon as its response is ready. Do not
+        // wait for the broader initial prefetch burst first: its fallback timer
+        // can outlive this entry's stale time on a slow CI worker.
         shouldStallDynamicRequests = false
         await browser
           .elementByCss(`[href="${searchParamsPagePath}?id=3"]`)
@@ -321,6 +320,10 @@ describe('searchparams-reuse-loading', () => {
         )
 
         await browser.elementByCss(`[href='${path}']`).click()
+
+        // The auto-prefetched links below rely on the complete initial prefetch
+        // burst, but waiting for it is safe after the full prefetch is consumed.
+        await prefetchPromise
         shouldStallDynamicRequests = true
 
         // The first "auto" prefetched link should show its loading state while
