@@ -185,10 +185,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            10,
-                        ),
+                    AstPathId(
+                        10,
                     ),
                 ),
             },
@@ -296,10 +294,8 @@
                     },
                 ],
                 range: StartAfter(
-                    AstPath(
-                        AstPathId(
-                            9,
-                        ),
+                    AstPathId(
+                        9,
                     ),
                 ),
             },
@@ -529,10 +525,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                19,
-                            ),
+                        AstPathId(
+                            19,
                         ),
                     ),
                 },
@@ -670,10 +664,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                20,
-                            ),
+                        AstPathId(
+                            20,
                         ),
                     ),
                 },
@@ -781,10 +773,8 @@
                         },
                     ],
                     range: StartAfter(
-                        AstPath(
-                            AstPathId(
-                                18,
-                            ),
+                        AstPathId(
+                            18,
                         ),
                     ),
                 },
@@ -886,10 +876,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            29,
-                        ),
+                    AstPathId(
+                        29,
                     ),
                 ),
             },
@@ -997,10 +985,8 @@
                     },
                 ],
                 range: StartAfter(
-                    AstPath(
-                        AstPathId(
-                            28,
-                        ),
+                    AstPathId(
+                        28,
                     ),
                 ),
             },
@@ -1102,10 +1088,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                38,
-                            ),
+                        AstPathId(
+                            38,
                         ),
                     ),
                 },
@@ -1243,10 +1227,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                39,
-                            ),
+                        AstPathId(
+                            39,
                         ),
                     ),
                 },
@@ -1354,10 +1336,8 @@
                         },
                     ],
                     range: StartAfter(
-                        AstPath(
-                            AstPathId(
-                                37,
-                            ),
+                        AstPathId(
+                            37,
                         ),
                     ),
                 },
@@ -1539,10 +1519,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                48,
-                            ),
+                        AstPathId(
+                            48,
                         ),
                     ),
                 },
@@ -1650,10 +1628,8 @@
                         },
                     ],
                     range: StartAfter(
-                        AstPath(
-                            AstPathId(
-                                47,
-                            ),
+                        AstPathId(
+                            47,
                         ),
                     ),
                 },
@@ -1712,10 +1688,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                49,
-                            ),
+                        AstPathId(
+                            49,
                         ),
                     ),
                 },
@@ -1868,10 +1842,8 @@
                     },
                 ],
                 range: StartAfter(
-                    AstPath(
-                        AstPathId(
-                            57,
-                        ),
+                    AstPathId(
+                        57,
                     ),
                 ),
             },
@@ -1928,10 +1900,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            59,
-                        ),
+                    AstPathId(
+                        59,
                     ),
                 ),
             },
@@ -2112,10 +2082,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                68,
-                            ),
+                        AstPathId(
+                            68,
                         ),
                     ),
                 },
@@ -2223,10 +2191,8 @@
                         },
                     ],
                     range: StartAfter(
-                        AstPath(
-                            AstPathId(
-                                67,
-                            ),
+                        AstPathId(
+                            67,
                         ),
                     ),
                 },
@@ -2413,10 +2379,8 @@
                         },
                     ],
                     range: Exact(
-                        AstPath(
-                            AstPathId(
-                                69,
-                            ),
+                        AstPathId(
+                            69,
                         ),
                     ),
                 },
@@ -2569,10 +2533,8 @@
                     },
                 ],
                 range: StartAfter(
-                    AstPath(
-                        AstPathId(
-                            77,
-                        ),
+                    AstPathId(
+                        77,
                     ),
                 ),
             },
@@ -2757,10 +2719,8 @@
                     },
                 ],
                 range: Exact(
-                    AstPath(
-                        AstPathId(
-                            79,
-                        ),
+                    AstPathId(
+                        79,
                     ),
                 ),
             },

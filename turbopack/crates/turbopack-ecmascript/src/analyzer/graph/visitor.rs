@@ -29,11 +29,10 @@ use crate::{
         graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
         is_unresolved_id,
     },
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrieBuilder},
     chunk::CjsStaticExports,
     code_gen::CodeGen,
     references::{
-        AstPath,
         cjs::{CjsExportsDropCodeGen, DroppableCjsExportAssignment},
         esm::EsmModuleItem,
     },
@@ -90,7 +89,7 @@ pub(super) struct Analyzer<'arena, 'eval> {
     // Some unconditional codegens, usually for ESM items.
     pub(super) code_gens: Vec<CodeGen>,
     /// Interns the AST paths used by `code_gens`; handed to the [`VarGraph`] at the end.
-    pub(super) ast_paths: AstPathTrie,
+    pub(super) ast_paths: AstPathTrieBuilder,
 
     /// Whether we may codegen `let` and `const` or if we should fallback to var (at the cost of
     /// slightly less correct circular import errors) for EsmModuleItem
@@ -506,7 +505,7 @@ mod analyzer_state {
                         let block = EffectsBlock {
                             effects: take(&mut self.effects).into_boxed_slice(),
                             range: AstPathRange::StartAfter(
-                                self.ast_paths.intern(&start_ast_path).into(),
+                                self.ast_paths.intern(start_ast_path.iter().copied()),
                             ),
                         };
                         self.effects = prev_effects;
@@ -710,11 +709,11 @@ mod analyzer_state {
             }
         }
 
-        pub(super) fn record_cjs_export(&mut self, name: RcStr, path: AstPath) {
+        pub(super) fn record_cjs_export(&mut self, name: RcStr, path: AstPathId) {
             self.push_cjs_export(DroppableCjsExportAssignment::Write { name, path });
         }
 
-        pub(super) fn record_dead_cjs_write(&mut self, name: RcStr, path: AstPath) {
+        pub(super) fn record_dead_cjs_write(&mut self, name: RcStr, path: AstPathId) {
             if let Some(c) = &mut self.state.cjs_exports {
                 c.dead_writes
                     .push(DroppableCjsExportAssignment::Write { name, path });
@@ -726,7 +725,7 @@ mod analyzer_state {
         pub(super) fn record_cjs_object_literal_exports(
             &mut self,
             names: Vec<RcStr>,
-            path: AstPath,
+            path: AstPathId,
         ) {
             self.push_cjs_export(DroppableCjsExportAssignment::ObjectLiteral { names, path });
         }
@@ -989,17 +988,6 @@ fn extract_names_from_then_callback(call: &CallExpr) -> Option<SmallVec<[RcStr; 
         }
         _ => None,
     }
-}
-
-pub fn as_parent_path_with(
-    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
-    additional: AstParentKind,
-) -> Vec<AstParentKind> {
-    let kinds = ast_path.kinds();
-    let mut path = Vec::with_capacity(kinds.len() + 1);
-    path.extend_from_slice(kinds);
-    path.push(additional);
-    path
 }
 
 enum CallOrNewExpr<'ast> {
@@ -1351,7 +1339,9 @@ impl<'a> Analyzer<'a, '_> {
                             BumpBox::new_in(
                                 EffectsBlock {
                                     effects: effects.into_boxed_slice(),
-                                    range: AstPathRange::Exact(self.ast_paths.intern(&path).into()),
+                                    range: AstPathRange::Exact(
+                                        self.ast_paths.intern(path.iter().copied()),
+                                    ),
                                 },
                                 self.arena,
                             ),
@@ -1455,7 +1445,7 @@ impl<'a> Analyzer<'a, '_> {
 
     fn add_esm_module_item(&mut self, ast_path: &AstNodePath<AstParentNodeRef<'_>>) {
         if self.analyze_mode.is_code_gen() {
-            let path = self.ast_paths.intern(ast_path.kinds()).into();
+            let path = self.ast_paths.intern(ast_path.kinds().iter().copied());
             self.code_gens
                 .push(EsmModuleItem::new(path, self.supports_block_scoping).into());
         }
@@ -1499,7 +1489,7 @@ impl<'a> Analyzer<'a, '_> {
 
         // The RHS isn't inspected; the code-gen keeps it as `<value>`.
         let name = RcStr::from(name.sym.as_str());
-        let path = self.ast_paths.intern(ast_path.kinds()).into();
+        let path = self.ast_paths.intern(ast_path.kinds().iter().copied());
         if dead {
             self.record_dead_cjs_write(name, path);
         } else {
@@ -1535,7 +1525,7 @@ impl<'a> Analyzer<'a, '_> {
             }
             return;
         }
-        let path = self.ast_paths.intern(ast_path.kinds()).into();
+        let path = self.ast_paths.intern(ast_path.kinds().iter().copied());
         let name = RcStr::from(name);
         if dead {
             self.record_dead_cjs_write(name, path);
@@ -1609,7 +1599,7 @@ impl<'a> Analyzer<'a, '_> {
             names.push(name);
         }
         if !names.is_empty() {
-            let path = self.ast_paths.intern(ast_path.kinds()).into();
+            let path = self.ast_paths.intern(ast_path.kinds().iter().copied());
             self.record_cjs_object_literal_exports(names, path);
         }
     }
@@ -2614,7 +2604,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             expr.cons.visit_with_ast_path(self, &mut ast_path);
             EffectsBlock {
                 effects: take(&mut self.effects).into_boxed_slice(),
-                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds()).into()),
+                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds().iter().copied())),
             }
         };
         let r#else = {
@@ -2623,7 +2613,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
             expr.alt.visit_with_ast_path(self, &mut ast_path);
             EffectsBlock {
                 effects: take(&mut self.effects).into_boxed_slice(),
-                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds()).into()),
+                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds().iter().copied())),
             }
         };
         self.effects = prev_effects;
@@ -2660,7 +2650,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
 
             EffectsBlock {
                 effects: take(&mut self.effects).into_boxed_slice(),
-                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds()).into()),
+                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds().iter().copied())),
             }
         };
         let mut else_returning = false;
@@ -2675,7 +2665,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
 
             EffectsBlock {
                 effects: take(&mut self.effects).into_boxed_slice(),
-                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds()).into()),
+                range: AstPathRange::Exact(self.ast_paths.intern(ast_path.kinds().iter().copied())),
             }
         });
         self.effects = prev_effects;
@@ -2835,13 +2825,12 @@ impl VisitAstPath for Analyzer<'_, '_> {
         });
 
         let effects = take(&mut self.effects);
+        // Intern the walk's path, then extend it by the one extra element, rather than
+        // copying the whole path just to append to it.
+        let prefix = self.ast_paths.intern(ast_path.kinds().iter().copied());
         let labeled_body_path = self
             .ast_paths
-            .intern(&as_parent_path_with(
-                ast_path,
-                AstParentKind::LabeledStmt(LabeledStmtField::Body),
-            ))
-            .into();
+            .push(prefix, AstParentKind::LabeledStmt(LabeledStmtField::Body));
 
         prev_effects.push(
             self.arena,

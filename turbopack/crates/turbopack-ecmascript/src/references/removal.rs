@@ -161,7 +161,7 @@ impl RemovalCodeGen {
 
         let visitors = match &self.range {
             AstPathRange::Exact(path) => vec![(
-                path.id(),
+                *path,
                 Box::new(UnreachableModifier {
                     comment_replacement: comment_replacement.clone(),
                     comments: comments.clone(),
@@ -172,12 +172,15 @@ impl RemovalCodeGen {
                 // it occupies, leaving the node that owns the statement list plus the index
                 // to start removing from. Every ancestor of an interned path is itself a
                 // node, so this only walks the trie.
-                let stmt = trie.trim_end_while(path.id(), |k| !matches!(k, AstParentKind::Stmt(_)));
-                // `slot` names which statement of its parent this is, e.g. `Stmts(3)`.
-                let Some(slot) = trie.parent(stmt) else {
+                let Some(stmt) = trie.find_last(*path, |k| matches!(k, AstParentKind::Stmt(_)))
+                else {
                     return Ok(CodeGeneration::visitors_with_comments(vec![], comments));
                 };
-                let start_index = match trie.last(slot) {
+                // `slot` names which statement of its parent this is, e.g. `Stmts(3)`.
+                let Some(slot) = trie.get_parent(stmt) else {
+                    return Ok(CodeGeneration::visitors_with_comments(vec![], comments));
+                };
+                let start_index = match trie.get(slot) {
                     Some(AstParentKind::BlockStmt(BlockStmtField::Stmts(i)))
                     | Some(AstParentKind::FunctionBody(FunctionBodyField::Stmts(i)))
                     | Some(AstParentKind::SwitchCase(SwitchCaseField::Cons(i))) => i,
@@ -186,7 +189,7 @@ impl RemovalCodeGen {
                         return Ok(CodeGeneration::visitors_with_comments(vec![], comments));
                     }
                 };
-                let owner = trie.parent(slot).unwrap_or(AstPathId::ROOT);
+                let owner = trie.get_parent(slot).unwrap_or(AstPathId::ROOT);
                 vec![(
                     owner,
                     Box::new(UnreachableRangeModifier {

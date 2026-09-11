@@ -26,14 +26,13 @@ use turbopack_core::{
 };
 
 use crate::{
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie, AstPathTrieBuilder},
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
-    references::AstPath,
 };
 
 /// The root-served file name for a service worker registered at `scope`. One worker is supported
@@ -227,8 +226,8 @@ impl IntoCodeGenReference for ServiceWorkerAssetReference {
 
     fn into_code_gen_reference(
         self,
-        _trie: &AstPathTrie,
-        path: AstPath,
+        _trie: &AstPathTrieBuilder,
+        path: AstPathId,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let scope = self.scope.clone();
         let reference = self.resolved_cell();
@@ -247,7 +246,7 @@ impl IntoCodeGenReference for ServiceWorkerAssetReference {
 )]
 pub struct ServiceWorkerAssetReferenceCodeGen {
     scope: RcStr,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl ServiceWorkerAssetReferenceCodeGen {
