@@ -1,12 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('webpack-loader-module-type', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   // bytes type is Turbopack-only, webpack doesn't have a direct equivalent
   const itTurbopackOnly = isTurbopack ? it : it.skip
