@@ -18,6 +18,8 @@ Apps written before Cache Components often await request data near the top of a 
 
 In this guide, you'll learn how to expand the shell by tracing each data read to the UI that needs it, caching reusable work, and moving request-time work behind focused `<Suspense>` boundaries. These patterns keep important content available early and reserve space as the rest of the page streams in.
 
+> **Good to know:** This guide focuses on Cache Components, which enable the static shell and instant navigation validation described below. Many of the underlying patterns, such as moving data access closer to the UI that needs it, streaming with focused `<Suspense>` boundaries, avoiding waterfalls, and designing stable loading states, are also useful in other App Router applications. The cache directives and validation workflow require Cache Components.
+
 ## Use the optimizer skill (recommended)
 
 The [`next-cache-components-optimizer`](/docs/app/guides/ai-agents#next-cache-components-optimizer) skill applies this guide with a coding agent. It uses the [`instant()` verification loop](#step-4-verify-the-instant-ui) below to capture the intended static shell, prove the current behavior, and keep the passing test as regression coverage.
