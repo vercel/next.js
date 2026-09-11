@@ -2,8 +2,8 @@ import { nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 import { join } from 'path'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
+// This suite runs node server.js and asserts cookies set by that custom server.
+// The deploy harness does not run the custom startCommand on Vercel.
 // @force-gate !deploy
 describe('custom-app-server-action-redirect', () => {
   const { next } = nextTestSetup({

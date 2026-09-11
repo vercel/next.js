@@ -27,8 +27,8 @@ const unsupportedClasses = [
   'WritableStreamDefaultController',
 ]
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+// This scope builds intentionally invalid Edge fixtures and inspects their diagnostics.
+// Deployment setup requires a successful build before assertions can run.
 // @force-gate !deploy
 describe('Edge runtime with Node.js APIs', () => {
   const { next, isNextDev } = nextTestSetup({

@@ -2075,8 +2075,8 @@ describe('opentelemetry with disabled fetch tracing', () => {
   )
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
+// This scope exercises the configured custom server's methods, options, or instrumentation.
+// The deploy harness does not run that custom server, so generic HTTP success is insufficient.
 // @force-gate !deploy
 describe('opentelemetry with custom server', () => {
   const { next } = nextTestSetup({
@@ -2251,8 +2251,8 @@ describe('opentelemetry with custom server', () => {
 })
 
 if (isNextStart) {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely controls the local Next.js build or server lifecycle.
+  // This scope invokes the direct local server entrypoint and collects its spans.
+  // A deployment does not exercise that entrypoint or the runner-local collector.
   // @force-gate !deploy
   describe('opentelemetry with direct entrypoint handler', () => {
     const { next } = nextTestSetup({

@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// No deploy-specific incompatibility is documented.
+// This scope relies on a test-runner proxy intercepting server fetch requests.
+// Requests from a remote deployment do not reach that local interception proxy.
 // @force-gate !deploy
 describe('testmode', () => {
   const { next } = nextTestSetup({

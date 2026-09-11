@@ -2,8 +2,8 @@ import stripAnsi from 'strip-ansi'
 import { retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite checks server-action request logs (including their absence in start mode).
+// Deploy-mode cliOutput does not contain the runtime request logs being asserted.
 // @force-gate !deploy
 describe('server-action-logging', () => {
   const { next, isNextStart } = nextTestSetup({
@@ -188,8 +188,8 @@ describe('server-action-logging', () => {
   })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite verifies that runtime server-action logging is disabled.
+// Deploy-mode build logs cannot establish the absence of runtime log messages.
 // @force-gate !deploy
 describe('server-action-logging when logging.serverFunctions is disabled', () => {
   const { next, isNextDev } = nextTestSetup({

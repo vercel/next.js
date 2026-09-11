@@ -43,8 +43,8 @@ function parseLogsFromCli(cliOutput: string) {
   }, [])
 }
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite calls next.patchFile() to change fixture files after setup.
+// Deployment mode cannot mutate the deployed fixture.
 // @force-gate !deploy
 describe('app-dir - fetch logging', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -81,8 +81,8 @@ describe('app-dir - fetch logging', () => {
   })
 })
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite calls next.patchFile() to change fixture files after setup.
+// Deployment mode cannot mutate the deployed fixture.
 // @force-gate !deploy
 describe('app-dir - logging', () => {
   const { next, isNextDev } = nextTestSetup({

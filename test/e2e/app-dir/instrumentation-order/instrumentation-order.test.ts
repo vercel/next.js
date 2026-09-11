@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite splits local server output at "Ready in" to assert instrumentation order.
+// Deploy-mode cliOutput has build logs, not that server startup/runtime stream.
 // @force-gate !deploy
 describe('instrumentation-order', () => {
   const { next } = nextTestSetup({
