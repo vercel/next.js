@@ -59,20 +59,19 @@ impl Module for TsConfigModuleAsset {
             apply_cjs_specific_options(self.origin.into_trait_ref().await?.resolve_options()),
         )
         .await?;
-        configs[1..]
-            .iter()
-            .map(async |(_, config_asset)| {
-                Ok(ResolvedVc::upcast(
-                    TsExtendsReference::new(**config_asset)
-                        .to_resolved()
-                        .await?,
-                ))
-            })
-            .try_join_for_each(|v| {
-                references.push(v);
-                Ok(())
-            })
-            .await?;
+        references.extend(
+            configs[1..]
+                .iter()
+                .map(async |(_, config_asset)| {
+                    Ok(ResolvedVc::upcast(
+                        TsExtendsReference::new(**config_asset)
+                            .to_resolved()
+                            .await?,
+                    ))
+                })
+                .try_join()
+                .await?,
+        );
 
         // ts-node options
         {

@@ -138,18 +138,17 @@ pub async fn referenced_modules_and_affecting_sources(
             if let Some(chunking_type) = &trait_ref.chunking_type() {
                 let mut modules: SmallVec<[_; 2]> =
                     resolve_result.primary_modules_raw_iter().collect();
-                resolve_result
-                    .affecting_sources_iter()
-                    .map(async |source| {
-                        Ok(ResolvedVc::upcast(
-                            RawModule::new(*source).to_resolved().await?,
-                        ))
-                    })
-                    .try_join_for_each(|v| {
-                        modules.push(v);
-                        Ok(())
-                    })
-                    .await?;
+                modules.extend(
+                    resolve_result
+                        .affecting_sources_iter()
+                        .map(async |source| {
+                            Ok(ResolvedVc::upcast(
+                                RawModule::new(*source).to_resolved().await?,
+                            ))
+                        })
+                        .try_join()
+                        .await?,
+                );
 
                 let binding_usage = if include_binding_usage {
                     trait_ref.binding_usage()

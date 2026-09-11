@@ -110,43 +110,6 @@ where
     }
 }
 
-pin_project! {
-    /// Future for the [TryJoinIterExt::try_join_for_each] method.
-    #[must_use]
-    pub struct TryJoinForEach<F, G>
-    where
-        F: Future,
-    {
-        #[pin]
-        inner: JoinAll<F>,
-        f: G,
-    }
-}
-
-impl<T, F, G> Future for TryJoinForEach<F, G>
-where
-    F: Future<Output = Result<T>>,
-    G: FnMut(T) -> Result<()>,
-{
-    type Output = Result<()>;
-
-    fn poll(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Self::Output> {
-        let mut this = self.project();
-        match this.inner.poll_unpin(cx) {
-            std::task::Poll::Ready(res) => std::task::Poll::Ready((|| {
-                for r in res {
-                    (this.f)(r?)?;
-                }
-                Ok(())
-            })()),
-            std::task::Poll::Pending => std::task::Poll::Pending,
-        }
-    }
-}
-
 pub trait TryJoinIterExt<T, F>: Iterator
 where
     F: Future<Output = Result<T>>,
@@ -170,29 +133,6 @@ where
     /// The collection type is usually inferred from the binding or the return
     /// type; annotate it (`try_join_collect::<FxHashSet<_>>()`) where it is not.
     fn try_join_collect<C>(self) -> TryJoinCollect<F, C>;
-
-    /// Like [`TryJoinIterExt::try_join`], but passes each output to `f` instead
-    /// of collecting them, so no collection is allocated at all.
-    ///
-    /// Use for the common "join, then immediately iterate" shape:
-    ///
-    /// ```ignore
-    /// items
-    ///     .iter()
-    ///     .map(async |item| Ok((item.name().await?, item.path().await?)))
-    ///     .try_join_for_each(|(name, path)| {
-    ///         builder.insert(name, path);
-    ///         Ok(())
-    ///     })
-    ///     .await?;
-    /// ```
-    ///
-    /// The futures still all make progress concurrently; only the *results* are
-    /// consumed one at a time, in list order. An error from a future, or from
-    /// `f` itself, stops the iteration and is returned.
-    fn try_join_for_each<G>(self, f: G) -> TryJoinForEach<F, G>
-    where
-        G: FnMut(T) -> Result<()>;
 }
 
 impl<T, F, IF, It> JoinIterExt<T, F> for It
@@ -224,16 +164,6 @@ where
         TryJoinCollect {
             inner: join_all(self.map(|f| f.into_future())),
             _collection: PhantomData,
-        }
-    }
-
-    fn try_join_for_each<G>(self, f: G) -> TryJoinForEach<F, G>
-    where
-        G: FnMut(T) -> Result<()>,
-    {
-        TryJoinForEach {
-            inner: join_all(self.map(|f| f.into_future())),
-            f,
         }
     }
 }
@@ -309,43 +239,6 @@ where
     }
 }
 
-pin_project! {
-    /// Future for the [TryFlatJoinIterExt::try_flat_join_for_each] method.
-    #[must_use]
-    pub struct TryFlatJoinForEach<F, G>
-    where
-        F: Future,
-    {
-        #[pin]
-        inner: JoinAll<F>,
-        f: G,
-    }
-}
-
-impl<F, I, G> Future for TryFlatJoinForEach<F, G>
-where
-    F: Future<Output = Result<I>>,
-    I: IntoIterator,
-    G: FnMut(I::Item) -> Result<()>,
-{
-    type Output = Result<()>;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        let mut this = self.project();
-        match this.inner.poll_unpin(cx) {
-            Poll::Ready(res) => Poll::Ready((|| {
-                for r in res {
-                    for item in r? {
-                        (this.f)(item)?;
-                    }
-                }
-                Ok(())
-            })()),
-            Poll::Pending => Poll::Pending,
-        }
-    }
-}
-
 pub trait TryFlatJoinIterExt<F, I, U>: Iterator
 where
     F: Future<Output = Result<I>>,
@@ -370,12 +263,6 @@ where
     fn try_flat_join_collect<C>(self) -> TryFlatJoinCollect<F, C>
     where
         C: Default + Extend<U::Item>;
-
-    /// Like [`TryFlatJoinIterExt::try_flat_join`], but passes each flattened
-    /// output to `f` instead of collecting them, allocating no collection.
-    fn try_flat_join_for_each<G>(self, f: G) -> TryFlatJoinForEach<F, G>
-    where
-        G: FnMut(U::Item) -> Result<()>;
 }
 
 impl<F, IF, It, I, U> TryFlatJoinIterExt<F, I, U> for It
@@ -399,16 +286,6 @@ where
         TryFlatJoinCollect {
             inner: join_all(self.map(|f| f.into_future())),
             _collection: PhantomData,
-        }
-    }
-
-    fn try_flat_join_for_each<G>(self, f: G) -> TryFlatJoinForEach<F, G>
-    where
-        G: FnMut(U::Item) -> Result<()>,
-    {
-        TryFlatJoinForEach {
-            inner: join_all(self.map(|f| f.into_future())),
-            f,
         }
     }
 }

@@ -555,7 +555,7 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
         Ok(Some((from_ident, to_ident)))
     }
 
-    all_modules
+    let modules = all_modules
         .iter()
         .copied()
         .map(async |module| {
@@ -563,11 +563,11 @@ pub async fn analyze_module_graphs(module_graph: Vc<ModuleGraph>) -> Result<Vc<F
             let path = module.ident().await?.path.to_string_ref().await?;
             Ok((ident, path))
         })
-        .try_join_for_each(|(ident, path)| {
-            builder.ensure_module(&ident, &path);
-            Ok(())
-        })
+        .try_join()
         .await?;
+    for (ident, path) in modules {
+        builder.ensure_module(&ident, &path);
+    }
 
     let all_edges = all_edges
         .iter()
