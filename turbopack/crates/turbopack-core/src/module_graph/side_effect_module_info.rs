@@ -62,10 +62,8 @@ async fn compute_side_effect_free_module_info_single(
                 ),
             })
         })
-        .try_join()
-        .await?
-        .into_iter()
-        .collect::<FxHashMap<_, _>>();
+        .try_join_collect::<FxHashMap<_, _>>()
+        .await?;
 
     // Modules are categorized as side-effectful, locally side effect free and side effect free.
     // So we are really just interested in determining what modules that are locally side effect

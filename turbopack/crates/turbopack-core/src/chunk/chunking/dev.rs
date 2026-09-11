@@ -54,27 +54,28 @@ pub async fn expand_batches(
                 expanded.push(item.clone());
             }
             ChunkItemOrBatchWithInfo::Batch { batch, .. } => {
-                expanded.extend(
-                    batch
-                        .await?
-                        .chunk_items
-                        .iter()
-                        .map(async |item| {
-                            let size = ty.chunk_item_size(
-                                *chunking_context,
-                                *item.chunk_item,
-                                item.async_info.map(|i| *i),
-                            );
-                            let asset_ident = item.chunk_item.asset_ident().to_string();
-                            Ok(ChunkItemOrBatchWithInfo::ChunkItem {
-                                chunk_item: *item,
-                                size: *size.await?,
-                                asset_ident: asset_ident.owned().await?,
-                            })
+                batch
+                    .await?
+                    .chunk_items
+                    .iter()
+                    .map(async |item| {
+                        let size = ty.chunk_item_size(
+                            *chunking_context,
+                            *item.chunk_item,
+                            item.async_info.map(|i| *i),
+                        );
+                        let asset_ident = item.chunk_item.asset_ident().to_string();
+                        Ok(ChunkItemOrBatchWithInfo::ChunkItem {
+                            chunk_item: *item,
+                            size: *size.await?,
+                            asset_ident: asset_ident.owned().await?,
                         })
-                        .try_join()
-                        .await?,
-                );
+                    })
+                    .try_join_for_each(|v| {
+                        expanded.push(v);
+                        Ok(())
+                    })
+                    .await?;
             }
         }
     }

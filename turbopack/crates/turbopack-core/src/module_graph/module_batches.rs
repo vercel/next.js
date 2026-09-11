@@ -13,8 +13,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{
-    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    trace::TraceRawVcs, turbobail,
+    FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, Vc, trace::TraceRawVcs, turbobail,
 };
 
 use crate::{
@@ -858,11 +858,8 @@ pub async fn compute_module_batches(
                     ))
                 }
             })
-            .try_join()
-            .await?
-            .into_iter()
-            .flatten()
-            .collect::<FxHashMap<_, _>>();
+            .try_flat_join_collect::<FxHashMap<_, _>>()
+            .await?;
 
         // Insert batches into the graph and store the NodeIndices
         let mut batches_count = 0;

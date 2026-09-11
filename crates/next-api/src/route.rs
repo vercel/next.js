@@ -190,10 +190,8 @@ async fn module_graphs_of_endpoints(
     let module_graphs = endpoints
         .iter()
         .map(async |endpoint| Ok(endpoint.module_graphs().await?.into_iter()))
-        .try_flat_join()
+        .try_flat_join_collect::<FxIndexSet<_>>()
         .await?
-        .into_iter()
-        .collect::<FxIndexSet<_>>()
         .into_iter()
         .collect::<Vec<_>>();
     Ok(Vc::cell(module_graphs))

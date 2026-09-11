@@ -492,23 +492,24 @@ impl Introspectable for CssChunk {
         let mut children = children_from_output_assets(OutputAssetsReference::references(self))
             .owned()
             .await?;
-        children.extend(
-            self.await?
-                .content
-                .await?
-                .chunk_items
-                .iter()
-                .map(async |chunk_item| {
-                    Ok((
-                        rcstr!("entry module"),
-                        IntrospectableModule::new(chunk_item.module())
-                            .to_resolved()
-                            .await?,
-                    ))
-                })
-                .try_join()
-                .await?,
-        );
+        self.await?
+            .content
+            .await?
+            .chunk_items
+            .iter()
+            .map(async |chunk_item| {
+                Ok((
+                    rcstr!("entry module"),
+                    IntrospectableModule::new(chunk_item.module())
+                        .to_resolved()
+                        .await?,
+                ))
+            })
+            .try_join_for_each(|v| {
+                children.insert(v);
+                Ok(())
+            })
+            .await?;
         Ok(Vc::cell(children))
     }
 }
