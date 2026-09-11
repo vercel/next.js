@@ -152,7 +152,7 @@ impl AmdDefineWithDependenciesCodeGen {
 
     pub async fn code_generation(
         &self,
-        trie: &AstPathTrie,
+        _trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
