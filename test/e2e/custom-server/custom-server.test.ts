@@ -22,8 +22,8 @@ describe.each([
       ? new https.Agent({ rejectUnauthorized: false })
       : undefined
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope exercises the configured custom server's methods, options, or instrumentation.
+  // The deploy harness does not run that custom server, so generic HTTP success is insufficient.
   // @force-gate !deploy
   describe('with dynamic assetPrefix', () => {
     const { next } = nextTestSetup({
@@ -148,8 +148,8 @@ describe.each([
       )
     })
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope exercises the configured custom server's methods, options, or instrumentation.
+  // The deploy harness does not run that custom server, so generic HTTP success is insufficient.
   // @force-gate !deploy
   // @force-gate !dev
   describe('with generateEtags enabled', () => {
@@ -172,8 +172,8 @@ describe.each([
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope exercises the configured custom server's methods, options, or instrumentation.
+  // The deploy harness does not run that custom server, so generic HTTP success is insufficient.
   // @force-gate !deploy
   describe('with generateEtags disabled', () => {
     const { next } = nextTestSetup({
@@ -196,8 +196,8 @@ describe.each([
   })
 
   if (useHttps === 'false') {
-    // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-    // It likely asserts local CLI or runtime output that deploy tests do not expose.
+    // This scope patches files to test HMR through a custom development server.
+    // A deployed production app has neither that custom server nor HMR.
     // @force-gate !deploy
     // @force-gate dev
     describe('HMR with custom server', () => {
@@ -243,8 +243,8 @@ describe.each([
     })
   }
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope exercises the configured custom server's methods, options, or instrumentation.
+  // The deploy harness does not run that custom server, so generic HTTP success is insufficient.
   // @force-gate !deploy
   describe('Error when rendering without starting slash', () => {
     const { next } = nextTestSetup({
@@ -277,8 +277,8 @@ describe.each([
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope exercises the configured custom server's methods, options, or instrumentation.
+  // The deploy harness does not run that custom server, so generic HTTP success is insufficient.
   // @force-gate !deploy
   describe('with a custom fetch polyfill', () => {
     const { next } = nextTestSetup({
@@ -300,8 +300,8 @@ describe.each([
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope exercises the configured custom server's methods, options, or instrumentation.
+  // The deploy harness does not run that custom server, so generic HTTP success is insufficient.
   // @force-gate !deploy
   describe('unhandled rejection', () => {
     const { next } = nextTestSetup({
@@ -328,8 +328,8 @@ describe.each([
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope exercises the configured custom server's methods, options, or instrumentation.
+  // The deploy harness does not run that custom server, so generic HTTP success is insufficient.
   // @force-gate !deploy
   describe('legacy NextCustomServer methods', () => {
     const { next } = nextTestSetup({

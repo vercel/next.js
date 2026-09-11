@@ -122,8 +122,8 @@ async function resolveSourceMapLikeADebugger(
   return { sourceMap: JSON.parse(data), mapURL: null }
 }
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite attaches to the local Next.js Node inspector on 127.0.0.1.
+// Deployment mode does not expose the server process or its inspector port.
 // @force-gate !deploy
 describe('app-dir - server source maps - fake frame source maps', () => {
   const dependencies = {

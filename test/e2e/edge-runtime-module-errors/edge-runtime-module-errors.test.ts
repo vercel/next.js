@@ -116,8 +116,8 @@ function createVariants(opts: {
 
 describe('Edge runtime module errors', () => {
   // ==================== DEVELOPMENT MODE ====================
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope mutates Edge fixtures to assert development module/guard diagnostics.
+  // Deployment mode cannot patch the running fixture or expose the dev diagnostics.
   // @force-gate !deploy
   // @force-gate dev
   describe('development mode', () => {
@@ -576,8 +576,8 @@ describe('Edge runtime module errors', () => {
   })
 
   // ==================== PRODUCTION MODE ====================
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope builds intentionally invalid Edge fixtures and inspects their diagnostics.
+  // Deployment setup requires a successful build before assertions can run.
   // @force-gate !deploy
   // @force-gate start
   describe('production mode', () => {

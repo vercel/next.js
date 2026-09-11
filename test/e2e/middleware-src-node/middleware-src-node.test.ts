@@ -4,8 +4,8 @@ import { retry } from 'next-test-utils'
 const srcHeader = 'X-From-Src-Middleware'
 const rootHeader = 'X-From-Root-Middleware'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite changes fixture source or configuration with next.patchFile().
+// Deployment mode cannot modify the deployed application.
 // @force-gate !deploy
 describe('middleware-src-node', () => {
   const { next, isTurbopack } = nextTestSetup({

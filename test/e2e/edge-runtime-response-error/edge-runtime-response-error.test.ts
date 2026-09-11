@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+// This suite asserts runtime server messages in next.cliOutput.
+// Deployment mode captures build output, not the runtime logs these assertions require.
 // @force-gate !deploy
 describe('Edge runtime response error', () => {
   const { next } = nextTestSetup({

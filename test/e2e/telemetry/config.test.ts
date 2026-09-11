@@ -10,8 +10,8 @@ import {
   retry,
 } from 'next-test-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This scope builds with different configurations and reads local telemetry output.
+// Deployment mode cannot perform those additional local builds.
 // @force-gate !deploy
 describe('config telemetry', () => {
   const { next, isNextStart, isTurbopack } = nextTestSetup({

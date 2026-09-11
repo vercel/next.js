@@ -9,8 +9,8 @@ import { findAllTelemetryEvents } from 'next-test-utils'
 // first". The telemetry feature itself is not React-version-specific, so
 // skipping under React 18 is fine until the underlying build/server lifecycle
 // race is fixed.
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This scope invokes the local telemetry CLI and checks its configuration files.
+// Deploying an application does not exercise those local CLI operations.
 // @force-gate !deploy
 // @force-gate !react18
 describe('Telemetry CLI', () => {

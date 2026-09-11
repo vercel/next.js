@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely controls the local Next.js build or server lifecycle.
+// This scope verifies Node.js flags and failures of the local start command.
+// The deploy harness does not launch the server with that custom Node.js command.
 // @force-gate !deploy
 describe('node-cli-args', () => {
   const { next } = nextTestSetup({

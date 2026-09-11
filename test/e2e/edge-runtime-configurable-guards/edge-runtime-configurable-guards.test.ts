@@ -14,8 +14,8 @@ const LIB_PATH = 'node_modules/lib/index.js'
 jest.setTimeout(120 * 1000)
 
 describe('Edge runtime configurable guards', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely expects a local build failure instead of a successful deployment.
+  // This scope mutates Edge fixtures to assert development module/guard diagnostics.
+  // Deployment mode cannot patch the running fixture or expose the dev diagnostics.
   // @force-gate !deploy
   // @force-gate dev
   describe('development mode', () => {
@@ -343,8 +343,8 @@ describe('Edge runtime configurable guards', () => {
       }
     )
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely expects a local build failure instead of a successful deployment.
+  // This scope builds intentionally invalid Edge fixtures and inspects their diagnostics.
+  // Deployment setup requires a successful build before assertions can run.
   // @force-gate !deploy
   // @force-gate start
   describe('production mode', () => {

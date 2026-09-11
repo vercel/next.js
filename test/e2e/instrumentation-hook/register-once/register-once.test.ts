@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// This suite asserts runtime server messages in next.cliOutput.
+// Deployment mode captures build output, not the runtime logs these assertions require.
 // @force-gate !deploy
 describe('instrumentation-hook - register-once', () => {
   const { next } = nextTestSetup({
