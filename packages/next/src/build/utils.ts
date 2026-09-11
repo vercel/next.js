@@ -63,7 +63,10 @@ import type { PageExtensions } from './page-extensions-type'
 import type { FallbackMode } from '../lib/fallback'
 import type { OutgoingHttpHeaders } from 'http'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
-import type { AppSegment } from './segment-config/app/app-segments'
+import type {
+  AppSegment,
+  PrerenderMatcher,
+} from './segment-config/app/app-segments'
 import { collectSegments } from './segment-config/app/app-segments'
 import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
 import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
@@ -767,6 +770,7 @@ type PageIsStaticResult = {
   hasStaticProps?: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
   prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
+  prerenderMatcher: PrerenderMatcher | undefined
   prerenderFallbackMode: FallbackMode | undefined
   rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
@@ -842,6 +846,7 @@ export async function isPageStatic({
       prerenderFallbackMode: undefined,
       prerenderedRoutes: undefined,
       prerenderRouteMatchers: undefined,
+      prerenderMatcher: undefined,
       rootParamKeys: undefined,
       hasStaticProps: false,
       hasServerProps: false,
@@ -869,6 +874,7 @@ export async function isPageStatic({
       let componentsResult: LoadComponentsReturnType
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
+      let prerenderMatcher: PrerenderMatcher | undefined
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
@@ -991,6 +997,7 @@ export async function isPageStatic({
             ;({
               prerenderedRoutes,
               prerenderRouteMatchers,
+              prerenderMatcher,
               fallbackMode: prerenderFallbackMode,
             } = await buildAppStaticPaths({
               dir,
@@ -1089,6 +1096,7 @@ export async function isPageStatic({
         prerenderFallbackMode,
         prerenderedRoutes,
         prerenderRouteMatchers,
+        prerenderMatcher,
         rootParamKeys,
         hasStaticProps,
         hasServerProps,

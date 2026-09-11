@@ -1419,6 +1419,7 @@ export async function buildAppStaticPaths({
     prerenderedRoutes,
     prerenderRouteMatchers,
     hasPrerenderMatcher: prerenderMatcher === undefined ? undefined : true,
+    prerenderMatcher,
     explicitFallbackRouteParams,
   }
 }

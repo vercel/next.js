@@ -1,6 +1,7 @@
 import type { FallbackMode } from '../../lib/fallback'
 import type { Params } from '../../server/request/params'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
+import type { PrerenderMatcher } from '../segment-config/app/app-segments'
 
 type StaticPrerenderedRoute = {
   readonly params: Params
@@ -104,6 +105,9 @@ export type StaticPathsResult = {
 
   /** Whether fallback modes came from explicit parameter matching. */
   hasPrerenderMatcher?: true
+
+  /** Explicit policies after inheritance, before build-time inference. */
+  prerenderMatcher?: PrerenderMatcher
 
   /**
    * DEV only: the first explicitly configured fallback parameter and every
