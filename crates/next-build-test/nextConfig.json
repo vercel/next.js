@@ -110,9 +110,6 @@
         },
         "https": {
           "browser": "./turbopack/empty.js"
-        },
-        "node-fetch": {
-          "browser": "./turbopack/empty.js"
         }
       }
     },

@@ -719,12 +719,12 @@ async fn process_default_internal(
         .to_resolved()
         .await?;
 
-        let loader_relative_path = execution_context_value
+        let loader_request = execution_context_value
             .project_path
-            .get_relative_path_to(&loader.loader)
+            .get_relative_request_to(&loader.loader)
             .context("Loader path must be on project filesystem")?;
         let webpack_loader_item = WebpackLoaderItem {
-            loader: loader_relative_path,
+            loader: loader_request,
             options: loader.options.clone(),
         };
         let loaders_vc = WebpackLoaderItems(vec![webpack_loader_item]).cell();
@@ -732,6 +732,7 @@ async fn process_default_internal(
             *evaluate_context,
             *execution_context,
             loaders_vc,
+            *webpack_loaders_options.target,
             rename_as.clone(),
             *resolve_options_context,
             source_maps,

@@ -515,6 +515,7 @@ export interface ExperimentalConfig {
   cacheHandlers?: NextConfig['cacheHandlers']
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
+  parallelRouteMetadata?: boolean
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -786,9 +787,18 @@ export interface ExperimentalConfig {
    *
    * `'workerThreads'` runs the same work in worker threads instead, which should
    * use less memory and CPU. It may become the default in a future version of
-   * Next.js.
+   * Next.js. On Node.js 24.13.1 and newer, a Node.js teardown bug can abort the
+   * process when a native addon has a live Node-API threadsafe function as a
+   * worker exits. Next.js falls back to `'childProcesses'` on affected versions.
+   * See <https://github.com/nodejs/node/issues/65100>.
+   *
+   * `'forceWorkerThreads'` bypasses this fallback. It may cause the process to
+   * abort on affected Node.js versions.
    */
-  turbopackPluginRuntimeStrategy?: 'workerThreads' | 'childProcesses'
+  turbopackPluginRuntimeStrategy?:
+    | 'workerThreads'
+    | 'childProcesses'
+    | 'forceWorkerThreads'
 
   /**
    * Enable minification. Defaults to true in build mode and false in dev mode.
@@ -2283,6 +2293,7 @@ export const defaultConfig = Object.freeze({
     cssChunking: true,
     multiZoneDraftMode: false,
     appNavFailHandling: false,
+    parallelRouteMetadata: false,
     prerenderEarlyExit: true,
     serverMinification: true,
     linkNoTouchStart: false,
@@ -2290,7 +2301,7 @@ export const defaultConfig = Object.freeze({
     clientParamParsingOrigins: undefined,
     cachedNavigations: false,
     dynamicOnHover: false,
-    reactBrowserBailout: false,
+    reactBrowserBailout: true,
     useOffline: false,
     varyParams: true,
     optimisticRouting: true,
@@ -2454,6 +2465,7 @@ export interface NextConfigRuntime {
     | 'dynamicOnHover'
     | 'useOffline'
     | 'optimisticRouting'
+    | 'parallelRouteMetadata'
     | 'inlineCss'
     | 'prefetchInlining'
     | 'authInterrupts'
@@ -2523,6 +2535,7 @@ export function getNextConfigRuntime(
     dynamicOnHover: ex.dynamicOnHover,
     useOffline: ex.useOffline,
     optimisticRouting: ex.optimisticRouting,
+    parallelRouteMetadata: ex.parallelRouteMetadata,
     inlineCss: ex.inlineCss,
     prefetchInlining: ex.prefetchInlining,
     authInterrupts: ex.authInterrupts,

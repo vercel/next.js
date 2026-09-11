@@ -162,6 +162,7 @@ const transform = (
   name: string,
   query: string,
   loaders: LoaderConfig[],
+  target: string,
   sourceMap: boolean
 ) => {
   return new Promise((resolve, reject) => {
@@ -191,6 +192,7 @@ const transform = (
           },
           currentTraceSpan: new DummySpan(),
           rootContext: contextDir,
+          target,
           sourceMap,
           getOptions() {
             const entry = this.loaders[this.loaderIndex]

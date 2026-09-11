@@ -181,6 +181,25 @@ const modules = import.meta.glob('./dir/*.js')
 
 > **Good to know:** `import.meta.glob` requires Turbopack. It is not available when using webpack.
 
+### Patterns
+
+A pattern is either relative to the importing file (`./`, `../`) or absolute from the project root (`/`):
+
+```js
+// Relative to the importing file
+const siblings = import.meta.glob('./dir/*.js')
+const parent = import.meta.glob('../docs/*.js')
+
+// Absolute from the project root
+const content = import.meta.glob('/content/*.md')
+```
+
+The keys of the result follow the pattern: relative patterns produce relative keys (`'./dir/foo.js'`, `'../docs/intro.js'`), project-root-absolute patterns produce project-root-absolute keys (`'/content/alpha.md'`).
+
+`node_modules` is matched like any other directory, so a broad pattern such as `import.meta.glob('/**/*.js')` walks your dependencies as well and can take seconds. Narrow the pattern, or exclude what you don't need with a negative pattern. The build output directory (`.next`) is never traversed.
+
+The keys are always sorted, deterministically and identically in development and production. The sort is a bytewise comparison of the key, so it is not a natural or display order — `'10-ten.js'` sorts before `'2-two.js'`, uppercase before `_` before lowercase, and files in subdirectories are interleaved with their siblings rather than grouped. Multiple patterns are merged into a single sorted object, not concatenated in pattern order.
+
 ### Lazy loading (default)
 
 By default, each value in the result object is a thunk — a function that returns a `Promise` for the module. This enables lazy loading:
@@ -264,6 +283,18 @@ const modules = import.meta.glob(['./dir/*.js', './other/*.js'])
 const withoutTests = import.meta.glob(['./src/**/*.js', '!**/*.test.js'])
 ```
 
+### Base path
+
+Use the `base` option to resolve the patterns against a different directory. The keys of the result are then relative to `base` rather than to the importing file:
+
+```js
+const modules = import.meta.glob('*.md', { base: '../../content' })
+// {
+//   './alpha.md': () => import('../../content/alpha.md'),
+//   './nested/deep.md': () => import('../../content/nested/deep.md'),
+// }
+```
+
 ### TypeScript
 
 TypeScript types for `import.meta.glob` are included in Next.js. They are available automatically when `"moduleResolution": "bundler"` (or `"node16"` / `"nodenext"`) is set in your `tsconfig.json`, which is the default for new Next.js projects.
@@ -295,13 +326,13 @@ const eager = import.meta.glob<Mod>('./dir/*.ts', { eager: true })
 
 ### Options reference
 
-| Option          | Type                                          | Default     | Description                                                                |
-| --------------- | --------------------------------------------- | ----------- | -------------------------------------------------------------------------- |
-| `eager`         | `boolean`                                     | `false`     | Import modules synchronously instead of returning thunks.                  |
-| `import`        | `string`                                      | `undefined` | Named export to select from each matched module (e.g. `'default'`).        |
-| `query`         | `string \| Record<string, string \| boolean>` | `undefined` | Query string (or object) to append to each import.                         |
-| `base`          | `string`                                      | `undefined` | Override the base path used for resolving patterns and keying results.     |
-| `caseSensitive` | `boolean`                                     | `true`      | Match glob patterns case-sensitively. Set to `false` to ignore ASCII case. |
+| Option          | Type                                          | Default     | Description                                                                                                     |
+| --------------- | --------------------------------------------- | ----------- | --------------------------------------------------------------------------------------------------------------- |
+| `eager`         | `boolean`                                     | `false`     | Import modules synchronously instead of returning thunks.                                                       |
+| `import`        | `string`                                      | `undefined` | Named export to select from each matched module (e.g. `'default'`).                                             |
+| `query`         | `string \| Record<string, string \| boolean>` | `undefined` | Query string (or object) to append to each import.                                                              |
+| `base`          | `string`                                      | `undefined` | Directory the patterns are resolved against, relative to the importing file. Result keys become relative to it. |
+| `caseSensitive` | `boolean`                                     | `true`      | Match glob patterns case-sensitively. Set to `false` to ignore ASCII case.                                      |
 
 > **Note:** The `as` option (deprecated in Vite 5) is not supported. Use `query` together with a matching rule instead, as shown in [Query strings](#query-strings). The legacy `import.meta.globEager()` API is also not supported — use `import.meta.glob('...', { eager: true })` instead.
 

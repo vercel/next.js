@@ -1,10 +1,8 @@
 /**
- * Adopt Cache Components
+ * Complete an incremental Cache Components migration
  *
- * Verifies a complete adoption rather than a single directive. The agent must
- * enable the feature, use targeted caches for reusable data, preserve
- * request-specific behavior, and create meaningful static shells instead of
- * silencing blocking routes with opt-outs.
+ * Verifies the safe first-PR checkpoint and the completed migration in one
+ * agent run.
  */
 
 import { expect, test } from 'vitest'
@@ -35,15 +33,51 @@ function readSourceFiles(dir: string): string[] {
 
 const source = readSourceFiles(process.cwd()).join('\n')
 
-test('enables Cache Components without route opt-outs', () => {
+test('enables Cache Components without incompatible segment config', () => {
+  const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf-8')
+
+  expect(config).toMatch(/cacheComponents\s*:\s*true/)
+  expect(source).not.toMatch(
+    /export\s+(?:const|var|let)\s+(?:dynamic|revalidate|fetchCache)\s*=/
+  )
+})
+
+test('preserves routes that were explicitly static', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `Cache Components is enabled. Both routes that began with an explicit static contract are fully migrated in the first PR: the catalog route that used dynamic = 'force-static' remains prerendered and eligible for full-route prefetching, and the privacy route that used dynamic = 'error' remains fully static. Neither route, nor a parent segment covering it, is left under instant = false.`
+  )
+})
+
+test('preserves the catalog route and data cache lifetimes', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The catalog preserves its two independent cache behaviors: the rendered route, including its catalog-check timestamp, can refresh about once per hour, while the product-list lookup can remain cached for about one day. The existing unstable_cache implementation may remain unchanged and is not needlessly migrated merely to enable Cache Components.`
+  )
+})
+
+test('records the first incremental migration PR before continuing', async () => {
+  await expect(transcript).toSatisfyCriterion(
+    `Before continuing to the full-app migration, the agent records a shippable first migration PR. The account route's incompatible dynamic = 'force-dynamic' export is removed without adding replacement rendering or caching code solely for that config. Its cookie greeting remains request-specific, and the route may remain under instant = false at this checkpoint. The product route may also remain explicitly opted out, but the explicitly static catalog and privacy routes are not deferred with them. The app builds at this checkpoint before the agent continues.`
+  )
+})
+
+test('prioritizes protected routes and verifies the result', async () => {
+  await expect(transcript).toSatisfyCriterion(
+    `Before declaring the first migration PR ready, the agent inventories incompatible route configs. It identifies routes with pre-existing force-static or dynamic-error behavior as high-priority compatibility contracts, completes those static-route migrations rather than leaving them under blanket opt-outs, and verifies them with a successful production build. It may defer the request-specific account and product routes with instant = false for later PRs. Its verification distinguishes preserved route prerendering and navigation prefetch behavior from merely preserving an inner data cache or obtaining a green build through opt-outs.`
+  )
+})
+
+test('completes Cache Components adoption without route opt-outs', () => {
   const config = readFileSync(join(process.cwd(), 'next.config.ts'), 'utf-8')
 
   expect(config).toMatch(/cacheComponents\s*:\s*true/)
   expect(source).not.toMatch(/export\s+(?:const|var|let)\s+instant\s*=\s*false/)
+  expect(source).not.toMatch(/TODO:\s*Cache Components adoption/)
 })
 
-test('removes incompatible route revalidation config', () => {
-  expect(source).not.toMatch(/export\s+(?:const|var|let)\s+revalidate\s*=/)
+test('keeps incompatible route segment config removed', () => {
+  expect(source).not.toMatch(
+    /export\s+(?:const|var|let)\s+(?:dynamic|revalidate|fetchCache)\s*=/
+  )
 })
 
 test('uses explicit cache lifetime for reusable work', () => {
@@ -59,7 +93,7 @@ test('preserves request-specific account behavior and a meaningful shell', async
 
 test('preserves the catalog cache and timestamp cadence', async () => {
   await expect(environment).toSatisfyCriterion(
-    `The catalog keeps the starter route's hourly revalidation behavior after the incompatible revalidate export is removed. A page-level or data-level use-cache boundary with an equivalent cache lifetime is valid. The catalog check timestamp belongs to that same hourly result and refreshes when the cached result refreshes; it is not incorrectly required to change on every request.`
+    `The catalog keeps its hourly route revalidation behavior and its one-day product-list cache. The catalog check timestamp belongs to the hourly cached result and refreshes when that result refreshes; it is not incorrectly required to change on every request. The existing unstable_cache implementation may remain unchanged.`
   )
 })
 
@@ -69,8 +103,8 @@ test('keeps URL-specific product work below a Suspense boundary', async () => {
   )
 })
 
-test('diagnosed blocking routes and completed the production migration', async () => {
+test('removes the remaining opt-outs and completes the production migration', async () => {
   await expect(transcript).toSatisfyCriterion(
-    `The agent enabled cacheComponents, used a production build or Next.js runtime diagnostics to discover the resulting blocking routes, fixed each route according to whether its content was reusable or request-specific, and finished with a successful production build. It did not merely add route-wide opt-outs or stop after the first green type check.`
+    `The agent recognizes that Cache Components is already enabled and continues from the first incremental migration PR. It removes the remaining temporary opt-outs, uses a production build or Next.js runtime diagnostics to discover the account and product blockers, fixes each route according to whether its content is reusable or request-specific, and finishes with a successful production build. It does not stop after merely deleting instant = false or obtaining a green type check.`
   )
 })

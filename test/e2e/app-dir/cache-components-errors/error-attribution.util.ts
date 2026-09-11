@@ -10,7 +10,7 @@ import type { CacheComponentsErrorsContext } from './shared.util'
 export function registerErrorAttributionTests(
   ctx: CacheComponentsErrorsContext
 ) {
-  const { next, isTurbopack, isDebugPrerender, prerender, skipped } = ctx
+  const { next, isTurbopack, isDebugPrerender, prerender } = ctx
 
   let cliOutputLength: number
   beforeEach(() => {
@@ -20,10 +20,6 @@ export function registerErrorAttributionTests(
   describe('Error Attribution with Sync IO', () => {
     describe('Guarded RSC with guarded Client sync IO', () => {
       const pathname = '/sync-attribution/guarded-async-guarded-clientsync'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('does not show a validation error in the dev overlay', async () => {
@@ -45,10 +41,6 @@ export function registerErrorAttributionTests(
 
     describe('Guarded RSC with unguarded Client sync IO', () => {
       const pathname = '/sync-attribution/guarded-async-unguarded-clientsync'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should show a collapsed redbox error', async () => {
@@ -193,10 +185,6 @@ export function registerErrorAttributionTests(
     describe('Unguarded RSC with guarded Client sync IO', () => {
       const pathname = '/sync-attribution/unguarded-async-guarded-clientsync'
 
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should show a collapsed redbox error', async () => {
           const browser = await next.browser(pathname)
@@ -327,10 +315,6 @@ export function registerErrorAttributionTests(
       const pathname =
         '/sync-attribution/unguarded-async-client-microtask-syncio'
 
-      if (skipped) {
-        return
-      }
-
       if (isNextDev) {
         it('should show request data rather than attribute a microtask sync IO access', async () => {
           const browser = await next.browser(pathname)
@@ -368,10 +352,6 @@ export function registerErrorAttributionTests(
 
     describe('unguarded RSC with unguarded Client sync IO', () => {
       const pathname = '/sync-attribution/unguarded-async-unguarded-clientsync'
-
-      if (skipped) {
-        return
-      }
 
       if (isNextDev) {
         it('should show a collapsed redbox error', async () => {
