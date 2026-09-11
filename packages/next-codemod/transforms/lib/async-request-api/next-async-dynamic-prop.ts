@@ -20,7 +20,6 @@ import {
   TARGET_ROUTE_EXPORTS,
   getVariableDeclaratorId,
   NEXTJS_ENTRY_FILES,
-  NEXT_CODEMOD_ERROR_PREFIX,
   findFunctionBody,
   containsReactHooksCallExpressions,
   isParentUseCallExpression,
@@ -28,6 +27,7 @@ import {
   findClosetParentFunctionScope,
 } from './utils'
 import { createParserFromPath } from '../../../lib/parser'
+import { NEXT_CODEMOD_ERROR_PREFIX } from '../../../lib/utils'
 
 const PAGE_PROPS = 'props'
 
