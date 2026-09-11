@@ -83,6 +83,7 @@ pub struct WebpackLoadersOptions {
     pub rules: ResolvedVc<WebpackRules>,
     pub builtin_conditions: ResolvedVc<Box<dyn WebpackLoaderBuiltinConditionSet>>,
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
+    pub target: ResolvedVc<RcStr>,
 }
 
 pub enum WebpackLoaderBuiltinConditionSetMatch {
