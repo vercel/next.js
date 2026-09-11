@@ -701,13 +701,13 @@ internal
   .addOption(
     new Option(
       '--sort <mode>',
-      'Sort mode: "value" for corrected duration descending, "name" for alphabetical, "allocations" for total allocated bytes descending, "persistent-allocations" for net retained bytes descending.'
+      'Sort mode: "value" for corrected duration descending, "name" for alphabetical, "allocations" for total allocated bytes descending, "persistent-allocations" for persistentAllocations descending.'
     ).choices(['value', 'name', 'allocations', 'persistent-allocations'])
   )
   .addOption(
     new Option(
       '--search <search>',
-      'Substring filter on span name/category. Searches the whole subtree below --parent, not just its direct children.'
+      'Substring filter on span name/category. Searches the whole subtree below --parent.'
     )
   )
   .addOption(

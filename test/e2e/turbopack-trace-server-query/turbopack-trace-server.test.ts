@@ -403,8 +403,7 @@ describe('turbopack-trace-server', () => {
   // ─── recursive search ────────────────────────────────────────────────────
 
   it('should find spans nested below the queried level', async () => {
-    // Pick a name that exists somewhere deep: walk two levels down and take a
-    // span that is not itself a direct child of the root.
+    // Walk two levels down to find a name that is not a direct child of root.
     const { spans: roots } = await querySpansJson(mcpPort, { sort: 'value' })
     const { spans: level2 } = await querySpansJson(mcpPort, {
       parent: roots[0].id,
@@ -424,8 +423,7 @@ describe('turbopack-trace-server', () => {
       return
     }
 
-    // Searching from the root must reach it even though it is not a direct
-    // child — this is the whole point of the recursive search.
+    // Searching from the root must still reach it.
     const { spans: found } = await querySpansJson(mcpPort, {
       search: deepName,
     })
@@ -482,7 +480,7 @@ describe('turbopack-trace-server', () => {
     // Nested IDs extend the parent's path, so they stay navigable.
     expect(children[0].id.startsWith(top.id)).toBe(true)
 
-    // And a nested child must match what a direct drill-down returns.
+    // Nested children must match what a direct drill-down returns.
     const drilled = await querySpansJson(mcpPort, {
       parent: top.id,
       sort: 'value',
@@ -514,30 +512,50 @@ describe('turbopack-trace-server', () => {
   // ─── heaviest span ───────────────────────────────────────────────────────
 
   it('should point heaviestSpanId at the group member holding the most bytes', async () => {
-    const { spans } = await querySpansJson(mcpPort, {
-      sort: 'persistent-allocations',
-    })
-    const group = spans.find(
-      (s) => s.isAggregated && (s.count as number) > 1 && s.heaviestSpanId
-    )
+    // Multi-member groups do not always exist at the root, so descend until one
+    // turns up. Whether a given trace has one depends on what was compiled.
+    const isGroup = (s: SpanData) =>
+      s.isAggregated && (s.count as number) > 1 && s.heaviestSpanId
+    let frontier = (await querySpansJson(mcpPort, { sort: 'value' })).spans
+    let group: SpanData | undefined
+    for (let level = 0; level < 4 && !group && frontier.length > 0; level++) {
+      group = frontier.find(isGroup)
+      if (group) break
+      const next: SpanData[] = []
+      for (const span of frontier.slice(0, 5)) {
+        next.push(
+          ...(await querySpansJson(mcpPort, { parent: span.id, sort: 'value' }))
+            .spans
+        )
+      }
+      frontier = next
+    }
     if (!group) return
 
     const heaviestId = group.heaviestSpanId as string
     const firstId = group.firstSpanId as string
-    expect(typeof heaviestId).toBe('string')
 
-    // Resolve both raw spans and confirm the heaviest really is >= the first.
-    const heaviest = await querySpansJson(mcpPort, {
-      parent: heaviestId,
+    // Look the group's members up as raw spans and check that the one
+    // heaviestSpanId names really does hold the most persistent bytes.
+    const { spans: members } = await querySpansJson(mcpPort, {
+      parent: group.id,
       aggregated: false,
+      pageSize: 500,
     })
-    const first = await querySpansJson(mcpPort, {
-      parent: firstId,
-      aggregated: false,
-    })
-    // Both IDs must resolve (a bogus ID yields an empty root-level listing).
-    expect(heaviest).toHaveProperty('totalCount')
-    expect(first).toHaveProperty('totalCount')
+    const byIndex = new Map(
+      members.map((m) => [m.id.split('-').pop() as string, m])
+    )
+    const heaviest = byIndex.get(heaviestId)
+    const first = byIndex.get(firstId)
+    if (!heaviest || !first) return
+
+    expect(heaviest.persistentAllocations as number).toBeGreaterThanOrEqual(
+      first.persistentAllocations as number
+    )
+    const max = Math.max(
+      ...members.map((m) => m.persistentAllocations as number)
+    )
+    expect(heaviest.persistentAllocations as number).toBe(max)
   })
 
   // ─── CLI tests ───────────────────────────────────────────────────────────
