@@ -109,6 +109,7 @@ use turbopack_core::{
 
 use crate::{
     analyzer::{graph::EvalContext, side_effects::compute_module_evaluation_side_effects},
+    ast_path_trie::AstPathTrie,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -118,7 +119,7 @@ use crate::{
     directive::parse_module_turbopack_directives,
     merged_module::MergedEcmascriptModule,
     parse::{IdentCollector, ParseResult, generate_js_source_map, parse},
-    path_visitor::ApplyVisitors,
+    path_visitor::{ApplyVisitors, Visitors},
     references::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
@@ -1052,7 +1053,7 @@ impl EcmascriptModuleContentOptions {
         &self,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         eval_context: &EvalContext,
-    ) -> Result<Vec<CodeGeneration>> {
+    ) -> Result<(Vec<CodeGeneration>, ReadRef<CodeGens>)> {
         // Don't read `parsed` here again, it will cause a recomputation as `process_parse_result`
         // has consumed the cell already.
         let EcmascriptModuleContentOptions {
@@ -1128,14 +1129,15 @@ impl EcmascriptModuleContentOptions {
                 .try_join()
                 .await?;
 
-            anyhow::Ok(
+            anyhow::Ok((
                 part_code_gens
                     .into_iter()
                     .chain(esm_code_gens)
                     .chain(additional_code_gens.into_iter().flatten())
                     .chain(code_gens)
                     .collect(),
-            )
+                code_generation,
+            ))
         }
         .instrument(tracing::info_span!("precompute code generation"))
         .await
@@ -1912,7 +1914,7 @@ async fn process_parse_result(
                 )
                 .into_inner();
 
-            let (mut code_gens, retain_syntax_context, prepend_ident_comment) =
+            let (mut code_gens, ast_paths, retain_syntax_context, prepend_ident_comment) =
                 if let Some(scope_hoisting_options) = scope_hoisting_options {
                     let is_import_mark = GLOBALS.set(globals, || Mark::new());
 
@@ -1924,7 +1926,7 @@ async fn process_parse_result(
                         is_import_mark,
                         globals,
                     };
-                    let code_gens = options
+                    let (code_gens, ast_paths) = options
                         .unwrap()
                         .merged_code_gens(
                             ctx,
@@ -1971,6 +1973,7 @@ async fn process_parse_result(
 
                     (
                         code_gens,
+                        Some(ast_paths),
                         Some((
                             is_import_mark,
                             module_syntax_contexts_cache,
@@ -1980,21 +1983,18 @@ async fn process_parse_result(
                         prepend_ident_comment,
                     )
                 } else if let Some(options) = options {
-                    (
-                        options
-                            .merged_code_gens(
-                                ScopeHoistingContext::None,
-                                match &eval_context {
-                                    Either::Left(e) => e,
-                                    Either::Right(e) => e,
-                                },
-                            )
-                            .await?,
-                        None,
-                        None,
-                    )
+                    let (code_gens, ast_paths) = options
+                        .merged_code_gens(
+                            ScopeHoistingContext::None,
+                            match &eval_context {
+                                Either::Left(e) => e,
+                                Either::Right(e) => e,
+                            },
+                        )
+                        .await?;
+                    (code_gens, Some(ast_paths), None, None)
                 } else {
-                    (vec![], None, None)
+                    (vec![], None, None, None)
                 };
 
             let extra_comments = SwcComments {
@@ -2002,8 +2002,12 @@ async fn process_parse_result(
                 trailing: Default::default(),
             };
 
-            let early_hoisted_count =
-                process_content_with_code_gens(&mut program, globals, &mut code_gens);
+            let early_hoisted_count = process_content_with_code_gens(
+                &mut program,
+                globals,
+                ast_paths.as_deref().map(|p| &p.ast_paths),
+                &mut code_gens,
+            );
 
             for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
                 let leading = Arc::unwrap_or_clone(take(&mut comments.leading));
@@ -2367,6 +2371,7 @@ async fn emit_content(
 fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
+    trie: Option<&AstPathTrie>,
     code_gens: &mut Vec<CodeGeneration>,
 ) -> usize {
     let mut visitors = Vec::new();
@@ -2389,20 +2394,24 @@ fn process_content_with_code_gens(
             early_late_stmts.insert(key.clone(), stmt);
         }
         for (path, visitor) in &code_gen.visitors {
-            if path.is_empty() {
+            if path.is_root() {
                 root_visitors.push(&**visitor);
             } else {
-                visitors.push((path, &**visitor));
+                visitors.push((*path, &**visitor));
             }
         }
     }
 
     GLOBALS.set(globals, || {
         if !visitors.is_empty() {
-            program.visit_mut_with_ast_path(
-                &mut ApplyVisitors::new(visitors),
-                &mut Default::default(),
-            );
+            let trie = trie.expect("code gens with visitors always come with their trie");
+            let visitors = Visitors::new(trie, visitors);
+            if !visitors.is_empty() {
+                program.visit_mut_with_ast_path(
+                    &mut ApplyVisitors::new(&visitors),
+                    &mut Default::default(),
+                );
+            }
         }
         for pass in root_visitors {
             program.modify(pass);

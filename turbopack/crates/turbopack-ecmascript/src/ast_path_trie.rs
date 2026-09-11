@@ -60,8 +60,11 @@ struct Node {
 pub struct AstPathTrie {
     /// Indexed by `AstPathId`, minus one: `AstPathId::ROOT` has no entry.
     nodes: Vec<Node>,
-    /// Deduplicates children so that interning is idempotent. Effects are processed out of
-    /// AST order, so we can't rely on a walk position and have to look edges up.
+    /// Maps a node and a child kind to that child.
+    ///
+    /// Used both to keep interning idempotent (effects are processed out of AST order, so
+    /// there is no walk position to extend) and to step down the trie while applying code
+    /// generation.
     ///
     /// Derived from `nodes`, so it is neither serialized nor compared.
     #[bincode(skip)]
@@ -135,6 +138,14 @@ impl AstPathTrie {
         });
         self.edges.insert((parent, kind), id);
         id
+    }
+
+    /// The child of `parent` reached by `kind`, if any path goes through it.
+    ///
+    /// This is the descent step used when applying code generation: it replaces searching a
+    /// sorted list of full paths with a single lookup.
+    pub fn child(&self, parent: AstPathId, kind: AstParentKind) -> Option<AstPathId> {
+        self.edges.get(&(parent, kind)).copied()
     }
 
     fn node(&self, id: AstPathId) -> Option<&Node> {

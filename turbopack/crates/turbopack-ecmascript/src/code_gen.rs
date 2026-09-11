@@ -16,7 +16,7 @@ use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
 use crate::{
     ScopeHoistingContext,
-    ast_path_trie::AstPathTrie,
+    ast_path_trie::{AstPathId, AstPathTrie},
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
         AstPath,
@@ -49,7 +49,7 @@ use crate::{
 #[derive(Default)]
 pub struct CodeGeneration {
     /// ast nodes matching the span will be visitor by the visitor
-    pub visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
+    pub visitors: Vec<(AstPathId, Box<dyn AstModifier>)>,
     pub hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
     pub late_stmts: Vec<CodeGenerationHoistedStmt>,
@@ -65,7 +65,7 @@ impl CodeGeneration {
     }
 
     pub fn new(
-        visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
+        visitors: Vec<(AstPathId, Box<dyn AstModifier>)>,
         hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         late_stmts: Vec<CodeGenerationHoistedStmt>,
@@ -82,7 +82,7 @@ impl CodeGeneration {
     }
 
     pub fn visitors_with_comments(
-        visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
+        visitors: Vec<(AstPathId, Box<dyn AstModifier>)>,
         comments: SwcComments,
     ) -> Self {
         CodeGeneration {
@@ -92,7 +92,7 @@ impl CodeGeneration {
         }
     }
 
-    pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>) -> Self {
+    pub fn visitors(visitors: Vec<(AstPathId, Box<dyn AstModifier>)>) -> Self {
         CodeGeneration {
             visitors,
             ..Default::default()
@@ -308,7 +308,7 @@ pub fn path_to(
     trie: &AstPathTrie,
     path: AstPath,
     mut f: impl FnMut(&AstParentKind) -> bool,
-) -> Vec<AstParentKind> {
+) -> AstPathId {
     let mut current = path.id();
     while let Some(kind) = trie.last(current) {
         let parent = trie
@@ -316,12 +316,12 @@ pub fn path_to(
             .expect("a node with a kind has a parent");
         if f(&kind) {
             // Innermost match: everything from here down is dropped.
-            return trie.to_vec(parent);
+            return parent;
         }
         current = parent;
     }
     // Nothing matched, so the path is used as-is.
-    trie.to_vec(path.id())
+    path.id()
 }
 
 /// Creates a single-method visitor that will visit the AST nodes matching the
@@ -335,8 +335,10 @@ pub fn path_to(
 /// possible visit methods.
 #[macro_export]
 macro_rules! create_visitor {
+    // `exact` means the path already points at the node to modify, so unlike the arm below
+    // it needs no trie to find an enclosing node.
     (exact, $trie:expr, $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
-        $crate::create_visitor!(__ $trie.to_vec($ast_path.id()), $name, |$arg: &mut $ty| $b)
+        $crate::create_visitor!(__ $ast_path.id(), $name, |$arg: &mut $ty| $b)
     };
     ($trie:expr, $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
         $crate::create_visitor!(__ $crate::code_gen::path_to($trie, $ast_path, |n| {
@@ -358,7 +360,7 @@ macro_rules! create_visitor {
 
         {
             #[cfg(debug_assertions)]
-            if $ast_path.is_empty() {
+            if $ast_path.is_root() {
                 unreachable!("if the path is empty, the visitor should be a root visitor");
             }
 

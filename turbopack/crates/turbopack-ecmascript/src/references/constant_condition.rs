@@ -33,7 +33,7 @@ impl ConstantConditionCodeGen {
 
     pub async fn code_generation(
         &self,
-        trie: &AstPathTrie,
+        _trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let value = self.value;
