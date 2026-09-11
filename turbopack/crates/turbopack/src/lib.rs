@@ -50,16 +50,10 @@ use turbopack_css::{CssModule, EcmascriptCssModule};
 use turbopack_ecmascript::{
     AnalyzeMode, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptModuleAssetType,
     EcmascriptOptions,
-    chunk::EcmascriptChunkPlaceable,
-    module_fragments::part::module::EcmascriptModulePartAsset,
-    references::{
-        FollowExportsResult,
-        external_module::{CachedExternalModule, CachedExternalTracingMode, CachedExternalType},
-        follow_reexports,
-    },
-    rename::module::EcmascriptModuleRenameModule,
-    side_effect_optimization::{
-        facade::module::EcmascriptModuleFacadeModule, locals::module::EcmascriptModuleLocalsModule,
+    async_chunk::proxy::LazyCompilationProxyModule,
+    module_canonicalization::{EcmascriptModuleCanonicalization, canonicalize_ecmascript_module},
+    references::external_module::{
+        CachedExternalModule, CachedExternalTracingMode, CachedExternalType,
     },
 };
 use turbopack_node::transforms::webpack::{WebpackLoaderItem, WebpackLoaderItems, WebpackLoaders};
@@ -100,6 +94,10 @@ async fn apply_module_type(
         _ => None,
     };
     let is_evaluation = matches!(&part, Some(ModulePart::Evaluation));
+    let is_lazy_dynamic_import = matches!(
+        &reference_type,
+        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::LazyDynamicImport)
+    );
 
     let module_type = &*module_type.await?;
     let module = match module_type {
@@ -200,46 +198,29 @@ async fn apply_module_type(
                     }
                 }
 
-                if module_fragments_enabled {
-                    Vc::upcast(EcmascriptModulePartAsset::select_part(
-                        *module,
-                        part.cloned().unwrap_or(ModulePart::facade()),
-                    ))
+                let canonicalization = if module_fragments_enabled {
+                    EcmascriptModuleCanonicalization::ModuleFragments(
+                        part.cloned().unwrap_or_else(ModulePart::facade),
+                    )
                 } else if follow_reexports {
-                    if *module.get_exports().split_locals_and_reexports().await? {
-                        if let Some(part) = part {
-                            match part {
-                                ModulePart::Evaluation => {
-                                    Vc::upcast(EcmascriptModuleLocalsModule::new(*module))
-                                }
-                                ModulePart::Export(_) => {
-                                    apply_reexport_tree_shaking(
-                                        Vc::upcast(
-                                            *EcmascriptModuleFacadeModule::new(Vc::upcast(*module))
-                                                .to_resolved()
-                                                .await?,
-                                        ),
-                                        part.clone(),
-                                    )
-                                    .await?
-                                }
-                                _ => bail!(
-                                    "Invalid module part \"{}\" for reexports only tree shaking \
-                                     mode",
-                                    part
-                                ),
-                            }
-                        } else {
-                            Vc::upcast(EcmascriptModuleFacadeModule::new(Vc::upcast(*module)))
-                        }
-                    } else {
-                        Vc::upcast(*module)
-                    }
+                    EcmascriptModuleCanonicalization::FollowReexports(part.cloned())
                 } else {
-                    Vc::upcast(*module)
+                    EcmascriptModuleCanonicalization::None
+                };
+
+                if is_lazy_dynamic_import {
+                    ResolvedVc::upcast(
+                        LazyCompilationProxyModule::new_deferred(*module, canonicalization)
+                            .to_resolved()
+                            .await?,
+                    )
+                } else {
+                    ResolvedVc::upcast(
+                        canonicalize_ecmascript_module(*module, canonicalization)
+                            .to_resolved()
+                            .await?,
+                    )
                 }
-                .to_resolved()
-                .await?
             }
         }
         ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
@@ -305,36 +286,6 @@ async fn apply_module_type(
     }
 
     Ok(ProcessResult::Module(module).cell())
-}
-
-async fn apply_reexport_tree_shaking(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    part: ModulePart,
-) -> Result<Vc<Box<dyn Module>>> {
-    if let ModulePart::Export(export) = &part {
-        let FollowExportsResult {
-            module: final_module,
-            export_name: new_export,
-            ..
-        } = &*follow_reexports(module, export.clone(), true).await?;
-        let module = if let Some(new_export) = new_export {
-            if *new_export == *export {
-                Vc::upcast(**final_module)
-            } else {
-                Vc::upcast(EcmascriptModuleRenameModule::new(
-                    **final_module,
-                    ModulePart::renamed_export(new_export.clone(), export.clone()),
-                ))
-            }
-        } else {
-            Vc::upcast(EcmascriptModuleRenameModule::new(
-                **final_module,
-                ModulePart::renamed_namespace(export.clone()),
-            ))
-        };
-        return Ok(module);
-    }
-    Ok(Vc::upcast(module))
 }
 
 #[turbo_tasks::value]
