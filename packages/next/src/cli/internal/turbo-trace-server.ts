@@ -49,53 +49,65 @@ function formatCount(n: number): string {
 }
 
 /**
+ * Does any span in this result carry allocation data?
+ *
+ * Only the turbopack trace format records allocations; the `nextjs` format
+ * never emits them, so every span in such a trace reads zero. Deciding once
+ * per result keeps those traces uncluttered while still printing a real zero
+ * for a span that genuinely allocated nothing — which is an answer, not
+ * missing data.
+ */
+function hasAllocationData(spans: TraceSpanInfo[]): boolean {
+  return spans.some(
+    (span) =>
+      span.allocations > 0 ||
+      span.deallocations > 0 ||
+      span.allocationCount > 0 ||
+      hasAllocationData(span.children)
+  )
+}
+
+/**
  * Render the allocation metrics for a span.
  *
  * `total*` values cover the span and all its children; `self*` values exclude
  * children. For aggregated groups both are group totals across every span in
- * the group. Lines are omitted entirely when a span allocated nothing, so
- * traces recorded without allocation tracking stay uncluttered.
+ * the group.
  */
 function renderAllocationsMarkdown(span: TraceSpanInfo): string {
-  if (
-    !span.allocations &&
-    !span.deallocations &&
-    !span.persistentAllocations &&
-    !span.allocationCount
-  ) {
-    return ''
-  }
   let md = `\n**Allocations:**\n`
   md += `- **Allocated:** ${formatBytes(span.allocations)} (self ${formatBytes(span.selfAllocations)})\n`
   md += `- **Deallocated:** ${formatBytes(span.deallocations)} (self ${formatBytes(span.selfDeallocations)})\n`
-  md += `- **Persistent (net retained):** ${formatBytes(span.persistentAllocations)} (self ${formatBytes(span.selfPersistentAllocations)})\n`
+  md += `- **Persistent (ranking signal, not retained):** ${formatBytes(span.persistentAllocations)} (self ${formatBytes(span.selfPersistentAllocations)})\n`
   md += `- **Allocation Count:** ${formatCount(span.allocationCount)} (self ${formatCount(span.selfAllocationCount)})\n`
   return md
 }
 
-function summarizeMemorySamples(samples: number[][]): string | null {
-  if (!samples || samples.length === 0) return null
-  const bytes = samples.map((s) => s[1])
-  const pressures = samples.map((s) => s[2] ?? 0)
-  const min = Math.min(...bytes)
-  const max = Math.max(...bytes)
-  const first = bytes[0]
-  const last = bytes[bytes.length - 1]
-  const delta = last - first
+function summarizeMemorySamples(span: TraceSpanInfo): string | null {
+  const summary = span.memorySummary
+  if (!summary) return null
+  const delta = summary.end - summary.start
   const deltaSign = delta >= 0 ? '+' : '-'
-  const maxPressure = Math.max(...pressures)
   return (
-    `samples=${samples.length}, min=${formatBytes(min)}, max=${formatBytes(max)}, ` +
-    `start=${formatBytes(first)}, end=${formatBytes(last)}, ` +
-    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${maxPressure}`
+    `samples=${summary.count}, peak=${formatBytes(summary.peak)}, min=${formatBytes(summary.min)}, ` +
+    `start=${formatBytes(summary.start)}, end=${formatBytes(summary.end)}, ` +
+    `Δ=${deltaSign}${formatBytes(Math.abs(delta))}, maxPressure=${summary.maxPressure}`
   )
 }
 
 /**
  * Render a single span (or aggregated span group) as a markdown section.
+ *
+ * `level` deepens the heading for nested children so a `depth > 1` result
+ * reads as a tree rather than a flat list.
  */
-function renderSpanMarkdown(span: TraceSpanInfo): string {
-  let md = `### \`${span.name}\` (ID: \`${span.id}\`)\n`
+function renderSpanMarkdown(
+  span: TraceSpanInfo,
+  showAllocations: boolean,
+  level = 0
+): string {
+  const heading = '#'.repeat(Math.min(3 + level, 6))
+  let md = `${heading} \`${span.name}\` (ID: \`${span.id}\`)\n`
 
   if (span.isAggregated && span.count !== undefined && span.count > 1) {
     md += `- **Count:** ${span.count} spans\n`
@@ -113,6 +125,9 @@ function renderSpanMarkdown(span: TraceSpanInfo): string {
     }
     md += `- **Start (relative to parent):** ${formatRelative(span.startRelativeToParent)}\n`
     md += `- **End (relative to parent):** ${formatRelative(span.endRelativeToParent)}\n`
+    if (span.heaviestSpanId !== undefined) {
+      md += `- **Heaviest member (most persistent bytes):** ID \`${span.heaviestSpanId}\`\n`
+    }
     const exampleId = span.firstSpanId ?? span.id
     md += `\n#### First span as example (ID: \`${exampleId}\`)\n`
     md += `- **CPU Duration:** ${formatDuration(span.cpuDuration)}\n`
@@ -131,14 +146,24 @@ function renderSpanMarkdown(span: TraceSpanInfo): string {
     }
   }
 
-  md += renderAllocationsMarkdown(span)
+  if (showAllocations) {
+    md += renderAllocationsMarkdown(span)
+  }
 
-  const memSummary = summarizeMemorySamples(span.memorySamples)
+  const memSummary = summarizeMemorySamples(span)
   if (memSummary) {
     md += `\n**Memory (TurboMalloc live bytes):** ${memSummary}\n`
   }
 
-  md += '\n---\n\n'
+  if (span.children.length > 0) {
+    md += '\n'
+    for (const child of span.children) {
+      md += renderSpanMarkdown(child, showAllocations, level + 1)
+    }
+  } else {
+    md += '\n---\n\n'
+  }
+
   return md
 }
 
@@ -184,8 +209,21 @@ export async function startTurboTraceServerCli(
   mcpServer.registerTool(
     'query_spans',
     {
-      description:
-        'Query spans from a turbopack trace file. Returns spans with timing, CPU usage, attribute details, allocation metadata, and TurboMalloc live-memory samples recorded while each span was active. Allocation fields per span: `allocations` / `deallocations` / `persistentAllocations` (bytes) and `allocationCount`, each covering the span and all its children, plus `selfAllocations` / `selfDeallocations` / `selfPersistentAllocations` / `selfAllocationCount` which exclude children. `persistentAllocations` is net bytes still retained (summed per span as allocated minus deallocated, floored at zero) and is the best signal for finding memory a span holds onto; it is not simply `allocations - deallocations`, since a span may free memory an earlier span allocated, which is also why `deallocations` can exceed `allocations`; comparing a total against its `self` counterpart shows whether a span allocates directly or only through its children. For aggregated groups these are group totals across every span in the group (unlike `cpuDuration`, which is the example span\'s value). Sort by `allocations` or `persistent-allocations` to rank the biggest allocators. Set `outputType` to "json" for machine-readable output (including the raw `memorySamples` array of `[ts_offset_ticks, bytes, pressure]` triples per span — pressure is 0 = none, higher = more memory pressure) or "markdown" (default) for a human-readable summary. Use the `parent` parameter (with an ID from a previous result) to drill into children. Results are paginated to 20 spans per page.',
+      description: [
+        'Query spans from a turbopack trace file: timing, CPU, attributes, allocation counters, and TurboMalloc live-memory samples.',
+        '',
+        'Navigation: pass a result `id` as `parent` to drill in. `search` is recursive over the whole subtree and returns full path IDs, so you can find a span without knowing where it lives. `depth` > 1 returns that many levels nested inline; `pageSize` (default 20, max 500) widens a page.',
+        '',
+        'Allocations: `allocations` / `deallocations` / `allocationCount` and `persistentAllocations`, each with a `self*` counterpart excluding children. Comparing a total to its `self` shows whether a span allocates directly or only through descendants.',
+        '',
+        '`persistentAllocations` ranks allocators; it is NOT retained memory. It is allocated-minus-freed per TurboMalloc counters, which never see turbo-tasks cell or cache drops, so a total far above real peak RSS is expected rather than a leak. For absolute memory use `memorySummary` (count/start/end/min/peak/maxPressure, precomputed from `memorySamples`).',
+        '',
+        "Frees are charged to whichever span was on the stack at free time, not the one that allocated. A child with large `selfAllocations` under a parent with large `selfDeallocations` means the parent drops the child's arena — bounded, not leaking. Large `selfPersistentAllocations` with no such counterpart above it is the shape worth suspecting.",
+        '',
+        'For aggregated groups every allocation field is a group total, while `cpuDuration`, `correctedDuration` and `memorySamples` describe the example span only. `firstSpanId` is first in execution order; use `heaviestSpanId` to reach the member holding the most bytes.',
+        '',
+        'Set `outputType: "json"` for full precision and the raw `memorySamples` triples `[tsOffsetTicks, bytes, pressure]`; markdown is a human summary.',
+      ].join('\n'),
       inputSchema: {
         parent: z
           .string()
@@ -209,9 +247,25 @@ export async function startTurboTraceServerCli(
           .string()
           .optional()
           .describe(
-            'Substring search query applied to span name and category.'
+            "Substring search over span name and category, applied recursively to the whole subtree below `parent` (not just direct children). Each match's `id` is the full path from `parent`, so it can be passed straight back as `parent`. Comma-separated terms are ANDed."
+          ),
+        maxDepth: z
+          .number()
+          .optional()
+          .describe(
+            'Levels to descend below `parent` for `search` and `depth`. Default 32, which is also the cap.'
+          ),
+        depth: z
+          .number()
+          .optional()
+          .describe(
+            "Levels of descendants to include inline in each span's `children`. Default 1 (no nesting). Use this to pull a subtree in one call instead of one round-trip per level."
           ),
         page: z.number().optional().describe('1-based page number. Default 1.'),
+        pageSize: z
+          .number()
+          .optional()
+          .describe('Spans per page. Default 20, capped at 500.'),
         outputType: z
           .enum(['markdown', 'json'])
           .optional()
@@ -226,7 +280,10 @@ export async function startTurboTraceServerCli(
         aggregated: args.aggregated ?? true,
         sort: args.sort,
         search: args.search,
+        maxDepth: args.maxDepth,
+        depth: args.depth,
         page: args.page ?? 1,
+        pageSize: args.pageSize,
       })
 
       const { spans, page, totalPages, totalCount } = result
@@ -251,8 +308,9 @@ export async function startTurboTraceServerCli(
         md += '_No spans found._\n'
       }
 
+      const showAllocations = hasAllocationData(spans)
       for (const span of spans) {
-        md += renderSpanMarkdown(span)
+        md += renderSpanMarkdown(span, showAllocations)
       }
 
       if (page < totalPages) {

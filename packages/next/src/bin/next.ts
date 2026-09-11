@@ -705,13 +705,34 @@ internal
     ).choices(['value', 'name', 'allocations', 'persistent-allocations'])
   )
   .addOption(
-    new Option('--search <search>', 'Substring filter on span name/category.')
+    new Option(
+      '--search <search>',
+      'Substring filter on span name/category. Searches the whole subtree below --parent, not just its direct children.'
+    )
+  )
+  .addOption(
+    new Option(
+      '--max-depth <depth>',
+      'Levels to descend for --search and --depth (default 32, also the cap).'
+    ).argParser(parseValidPositiveInteger)
+  )
+  .addOption(
+    new Option(
+      '--depth <depth>',
+      'Levels of descendants to nest inline under each span (default 1).'
+    ).argParser(parseValidPositiveInteger)
   )
   .addOption(new Option('--json', 'Output as JSON instead of markdown.'))
   .addOption(
     new Option('--page <page>', 'Page number (1-based, default 1).').argParser(
       parseValidPositiveInteger
     )
+  )
+  .addOption(
+    new Option(
+      '--page-size <size>',
+      'Spans per page (default 20, max 500).'
+    ).argParser(parseValidPositiveInteger)
   )
   .addHelpText('after', ({ command }) => {
     const port = (command.opts() as { port?: number }).port ?? 5748
