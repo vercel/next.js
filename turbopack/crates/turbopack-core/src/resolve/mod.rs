@@ -316,11 +316,11 @@ impl ModuleResolveResult {
     /// Returns primary modules (no duplicates). Emits errors for Unknown items.
     /// Duplicates are already marked at construction time so no extra dedup is
     /// needed here.
-    pub async fn primary_modules(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+    pub async fn primary_modules(&self) -> Result<SmallVec<[ResolvedVc<Box<dyn Module>>; 2]>> {
         self.primary
             .iter()
             .map(async |(_, item)| item.as_module().await)
-            .try_flat_join()
+            .try_flat_join_collect()
             .await
     }
 
@@ -1136,18 +1136,19 @@ async fn realpath_if_exists(
 ) -> Result<Option<FileSystemPath>> {
     let result = fs_path.realpath_with_links().await?;
     if let Some(refs) = refs {
-        refs.extend(
-            result
-                .symlinks
-                .iter()
-                .map(async |path| {
-                    Ok(ResolvedVc::upcast(
-                        FileSource::new(path.clone()).to_resolved().await?,
-                    ))
-                })
-                .try_join()
-                .await?,
-        );
+        result
+            .symlinks
+            .iter()
+            .map(async |path| {
+                Ok(ResolvedVc::upcast(
+                    FileSource::new(path.clone()).to_resolved().await?,
+                ))
+            })
+            .try_join_for_each(|v| {
+                refs.push(v);
+                Ok(())
+            })
+            .await?;
     }
     match &result.path_result {
         Ok(path) => Ok(Some(path.clone())),
@@ -3961,7 +3962,7 @@ mod tests {
 
             // primary_modules() yields each module exactly once, in first-seen order.
             let modules = result.primary_modules().await?;
-            assert_eq!(modules, vec![m_a, m_b]);
+            assert_eq!(modules.as_slice(), [m_a, m_b]);
 
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
@@ -3995,7 +3996,7 @@ mod tests {
             .await?;
 
             assert_eq!(result.first_module().await?, Some(m));
-            assert_eq!(result.primary_modules().await?, vec![m]);
+            assert_eq!(result.primary_modules().await?.as_slice(), [m]);
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
         tt.run_once(async move {
@@ -4037,7 +4038,7 @@ mod tests {
                 ModuleResolveResultItem::Module(m),
             );
             let result: ModuleResolveResult = builder.into();
-            assert_eq!(result.primary_modules().await?, vec![m]);
+            assert_eq!(result.primary_modules().await?.as_slice(), [m]);
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
         tt.run_once(async move {
@@ -4074,7 +4075,7 @@ mod tests {
             let r2 = *ModuleResolveResult::module(m_b);
 
             let merged = ModuleResolveResult::alternatives(vec![r1, r2]).await?;
-            assert_eq!(merged.primary_modules().await?, vec![m_a, m_b]);
+            assert_eq!(merged.primary_modules().await?.as_slice(), [m_a, m_b]);
 
             // Verify every Duplicate(i) is well-formed
             for (i, (_, item)) in merged.primary.iter().enumerate() {
