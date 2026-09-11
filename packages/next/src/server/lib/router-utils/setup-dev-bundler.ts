@@ -121,6 +121,7 @@ import {
 } from '../../../shared/lib/router/utils/app-paths'
 import { ensureLeadingSlash } from '../../../shared/lib/page-path/ensure-leading-slash'
 import { Lockfile, type DevServerInfo } from '../../../build/lockfile'
+import { isAgentModeEnabled } from '../agent-mode'
 import { deobfuscateText } from '../../../shared/lib/magic-identifier'
 import { RouteKind } from '../../route-kind'
 
@@ -238,7 +239,8 @@ async function startWatcher(
       true,
       JSON.stringify(serverInfo),
       opts.dir,
-      opts.nextConfig.distDir
+      opts.nextConfig.distDir,
+      await isAgentModeEnabled(opts.nextConfig)
     )
   }
 

@@ -314,6 +314,7 @@ export const experimentalSchema = {
   proxyTimeout: z.number().gte(0).optional(),
   rootParams: z.boolean().optional(),
   mcpServer: z.boolean().optional(),
+  agentMode: z.boolean().optional(),
   removeUncaughtErrorAndRejectionListeners: z.boolean().optional(),
   validateRSCRequestHeaders: z.boolean().optional(),
   scrollRestoration: z.boolean().optional(),

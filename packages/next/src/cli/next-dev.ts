@@ -61,6 +61,7 @@ export type NextDevOptions = {
   experimentalCpuProf?: boolean
   serverFastRefresh?: boolean
   internalTrace?: string | boolean
+  foreground?: boolean
 }
 
 type PortSource = 'cli' | 'default' | 'env'
@@ -216,6 +217,34 @@ const nextDev = async (
   // Check if pages dir exists and warn if not
   if (!(await fileExists(dir, FileType.Directory))) {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
+  }
+
+  // Agent mode: hand agents a detached server plus a structured report
+  // instead of a blocking foreground process (see next-dev-agent-daemon.ts).
+  // Detection runs first so non-agent sessions never pay the config load;
+  // never active under the test harness or inside the daemon child.
+  if (
+    !options.foreground &&
+    !process.env.__NEXT_TEST_MODE &&
+    !process.env.NEXT_PRIVATE_AGENT_DAEMON
+  ) {
+    const { getAgentName } =
+      require('../telemetry/agent-name') as typeof import('../telemetry/agent-name')
+    if ((await getAgentName()) !== null) {
+      const loadConfig = (
+        require('../server/config') as typeof import('../server/config')
+      ).default
+      const { PHASE_DEVELOPMENT_SERVER } =
+        require('../shared/lib/constants') as typeof import('../shared/lib/constants')
+      const config = await loadConfig(PHASE_DEVELOPMENT_SERVER, dir)
+      const { isAgentModeEnabled } =
+        require('../server/lib/agent-mode') as typeof import('../server/lib/agent-mode')
+      if (await isAgentModeEnabled(config)) {
+        const { daemonizeDevServerForAgent } =
+          require('./next-dev-agent-daemon') as typeof import('./next-dev-agent-daemon')
+        await daemonizeDevServerForAgent(dir, config.distDir)
+      }
+    }
   }
 
   if (options.experimentalCpuProf) {
