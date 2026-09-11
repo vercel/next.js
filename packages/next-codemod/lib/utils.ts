@@ -151,11 +151,13 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
       'Add `export const instant = false` to App Router pages and layouts to ease Cache Components adoption',
     value: 'cache-components-instant-false',
     version: '16.3.0',
+    adoption: true,
   },
   {
     title:
       "Remove `export const prefetch = 'partial'` Route Segment Config from App Router pages and layouts after enabling `partialPrefetching` globally",
     value: 'remove-partial-prefetch',
     version: '16.3.0',
+    adoption: true,
   },
 ]
