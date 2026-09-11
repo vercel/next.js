@@ -183,6 +183,17 @@ const eslintConfig = defineConfig([
 export default eslintConfig
 ```
 
+To turn a rule off for a single file or line instead, use ESLint's [inline comments](https://eslint.org/docs/latest/use/configure/rules#disabling-rules):
+
+```jsx filename="app/page.js"
+export default function Page() {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/hero.png" alt="Hero" />
+}
+```
+
+Place `/* eslint-disable @next/next/no-img-element */` at the top of a file to turn the rule off for that whole file.
+
 ### With Core Web Vitals
 
 Enable the `eslint-config-next/core-web-vitals` configuration in your ESLint config.

@@ -57,6 +57,8 @@ bun add next@latest react@latest react-dom@latest eslint-config-next@latest
 
 > **Good to know:** If you are using TypeScript, ensure you also upgrade `@types/react` and `@types/react-dom` to their latest versions.
 
+<AppOnly>
+
 ## Async Request APIs (Breaking change)
 
 Previously synchronous Request-time APIs that rely on request information are now **asynchronous**:
@@ -472,13 +474,9 @@ export async function GET(request, segmentData) {
 }
 ```
 
-<AppOnly>
-
 ## `runtime` configuration (Breaking change)
 
 The `runtime` [segment configuration](/docs/app/api-reference/file-conventions/route-segment-config/runtime) previously supported a value of `experimental-edge` in addition to `edge`. Both configurations refer to the same thing, and to simplify the options, we will now error if `experimental-edge` is used. To fix this, update your `runtime` configuration to `edge`. A [codemod](/docs/app/guides/upgrading/codemods#app-dir-runtime-config-experimental-edge) is available to automatically do this.
-
-</AppOnly>
 
 ## `fetch` requests
 
@@ -541,6 +539,8 @@ module.exports = nextConfig
 ```
 
 [Layouts](/docs/app/api-reference/file-conventions/layout) and [loading states](/docs/app/api-reference/file-conventions/loading) are still cached and reused on navigation.
+
+</AppOnly>
 
 ## `next/font`
 

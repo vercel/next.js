@@ -38,6 +38,8 @@ module.exports = {
 
 Redirects are checked before the filesystem which includes pages and `/public` files.
 
+The `redirects` function runs at build time, so the returned list is baked into the build output. A redirect that needs to change per request, or based on runtime values, belongs in [Proxy](/docs/app/api-reference/file-conventions/proxy) instead.
+
 When using the Pages Router, redirects are not applied to client-side routing (`Link`, `router.push`) unless [Proxy](/docs/app/api-reference/file-conventions/proxy) is present and matches the path.
 
 When a redirect is applied, any query values provided in the request will be passed through to the redirect destination. For example, see the following redirect configuration:

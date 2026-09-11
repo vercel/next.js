@@ -95,7 +95,7 @@ The order Next.js routes are checked is:
 5. static files from the [public directory](/docs/app/api-reference/file-conventions/public-folder), `_next/static` files, and non-dynamic pages are checked/served
 6. `afterFiles` rewrites are tried in order. If a `source`, `has`, and `missing` matches the request, it's rewritten to `destination`; the first rewrite that resolves to a static file, page, or dynamic route is served.
 7. dynamic routes (e.g., `app/blog/[slug]/page.tsx`) are matched against the current path
-8. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked. If you use [fallback: true/'blocking'](/docs/pages/api-reference/functions/get-static-paths#fallback-true) in `getStaticPaths`, those dynamic routes take priority over the fallback `rewrites` defined in your `next.config.js`.
+8. `fallback` rewrites are checked/applied, these are applied before rendering the 404 page and after dynamic routes/all static assets have been checked. With the default [`dynamicParams: true`](/docs/app/api-reference/file-conventions/route-segment-config/dynamicParams), a matching dynamic route takes priority over the fallback `rewrites` defined in your `next.config.js`. With `dynamicParams: false`, params that were not returned by [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) fall through to the fallback `rewrites`.
 
 </AppOnly>
 
@@ -161,7 +161,11 @@ module.exports = {
 }
 ```
 
+<PagesOnly>
+
 > **Good to know**: Static pages from [Automatic Static Optimization](/docs/pages/building-your-application/rendering/automatic-static-optimization) or [prerendering](/docs/pages/building-your-application/data-fetching/get-static-props) params from rewrites will be parsed on the client after hydration and provided in the query.
+
+</PagesOnly>
 
 ## Path Matching
 
