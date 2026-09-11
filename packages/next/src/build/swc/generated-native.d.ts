@@ -752,6 +752,22 @@ export declare function teardownTraceSubscriber(
   guardExternal: ExternalObject<RefCell<FlushGuard | undefined | null>>
 ): void
 
+/** Aggregate view of a span's TurboMalloc memory samples. */
+export interface TraceMemorySummary {
+  /** Number of samples in the span's range, after downsampling. */
+  count: number
+  /** Live bytes at the first sample in the range. */
+  start: number
+  /** Live bytes at the last sample in the range. */
+  end: number
+  /** Smallest live-bytes reading in the range. */
+  min: number
+  /** Largest live-bytes reading in the range — the span's peak memory. */
+  peak: number
+  /** Highest memory-pressure byte in the range (0 = no pressure). */
+  maxPressure: number
+}
+
 /** Options for `query_trace_spans`. */
 export interface TraceQueryOptions {
   /**
@@ -768,10 +784,27 @@ export interface TraceQueryOptions {
    * Omit for execution order (no sorting).
    */
   sort?: string
-  /** Optional substring search query applied to span name/category. */
+  /**
+   * Optional substring search query applied to span name/category.
+   *
+   * Recursive: matches anywhere in the parent's subtree, and each result's
+   * `id` is the full path from `parent` down to the match.
+   */
   search?: string
+  /**
+   * Maximum depth to descend below `parent` when searching, or when `depth`
+   * requests a nested subtree. Default `32`, which is also the cap.
+   */
+  maxDepth?: number
+  /**
+   * When greater than `1`, each returned span carries its descendants inline
+   * in `children`, up to this many levels. Default `1` (no nesting).
+   */
+  depth?: number
   /** 1-based page number. Default `1`. */
   page?: number
+  /** Spans per page. Default `20`, capped at `500`. */
+  pageSize?: number
 }
 
 /** The result of a `query_trace_spans` call. */
@@ -813,13 +846,28 @@ export interface TraceSpanInfo {
   totalCorrectedDuration?: number
   /** Average corrected duration across spans in the group. */
   avgCorrectedDuration?: number
-  /** Raw span ID for aggregated groups (the index of the first span). */
+  /**
+   * Raw span ID of the group's **first** span — the example span whose
+   * `cpuDuration`, `correctedDuration` and `memorySamples` are reported on
+   * this entry. First in execution order, *not* the largest: drilling in
+   * here to explain a group's allocation total usually lands on an
+   * unremarkable span. Use `heaviestSpanId` for that.
+   */
   firstSpanId?: string
+  /**
+   * Raw span ID of the group member with the largest persistent
+   * allocations — the one actually responsible for most of the group's
+   * retained bytes, and the right span to drill into when a group's
+   * allocation numbers are what drew your attention.
+   */
+  heaviestSpanId?: string
   /**
    * Total bytes allocated by this span and all its children.
    *
    * For aggregated groups this is the **group total** across every span in
-   * the group (unlike `cpuDuration`, which is the example span's value).
+   * the group. Note the asymmetry with the fields above: `cpuDuration`,
+   * `correctedDuration` and `memorySamples` describe the *example* span
+   * only, while every allocation field is a group total.
    */
   allocations: number
   /**
@@ -828,11 +876,19 @@ export interface TraceSpanInfo {
    */
   deallocations: number
   /**
-   * Net retained bytes for this span and all its children: the sum over
-   * each span of `max(0, selfAllocations - selfDeallocations)` — the best
-   * single indicator of memory a span holds onto. Not simply
-   * `allocations - deallocations`, since a span may free memory an earlier
-   * span allocated. Group total for aggregated spans.
+   * Net bytes attributed to this span and its children: the sum over each
+   * span of `max(0, selfAllocations - selfDeallocations)`. Group total for
+   * aggregated spans.
+   *
+   * **A ranking signal, not retained memory.** It is allocated-minus-freed
+   * as seen by TurboMalloc's per-span counters, which never observe
+   * turbo-tasks cell and cache drops, so a whole-trace total far above real
+   * peak RSS is expected rather than a leak. Use `memorySummary.peak` for
+   * absolute memory; use this to rank who allocates.
+   *
+   * Not simply `allocations - deallocations`: the per-span floor at zero
+   * means a span that frees more than it allocates contributes 0, not a
+   * negative.
    */
   persistentAllocations: number
   /**
@@ -848,6 +904,15 @@ export interface TraceSpanInfo {
   /**
    * Bytes deallocated by this span itself, excluding children.
    * Group total for aggregated spans.
+   *
+   * Frees are charged to whichever span was on top of the thread's stack
+   * **at free time**, which is often not the span that allocated. A child
+   * that allocates into a buffer its parent later drops appears as a child
+   * with large `selfAllocations` and a parent with large
+   * `selfDeallocations` — which reads like "the child leaks" but is proof
+   * the memory was released. Small `selfAllocations` with large
+   * `selfDeallocations` means this span is where a child's arena is
+   * dropped, i.e. that arena is bounded.
    */
   selfDeallocations: number
   /**
@@ -870,6 +935,18 @@ export interface TraceSpanInfo {
    * `<= span_duration`. Capped and downsampled by the store.
    */
   memorySamples: Array<Array<number>>
+  /**
+   * Precomputed summary of `memorySamples`. Absent when the span's range
+   * holds no samples. Unlike the allocation counters these are absolute
+   * live-heap readings, so `peak` is the figure to quote for how much
+   * memory was actually in use.
+   */
+  memorySummary?: TraceMemorySummary
+  /**
+   * Descendants of this span, populated only when the query set `depth > 1`.
+   * Each child is a full span entry with its own navigable `id`.
+   */
+  children: Array<TraceSpanInfo>
 }
 
 export declare function transform(
