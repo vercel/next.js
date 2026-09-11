@@ -1,0 +1,11 @@
+{
+  "repository": {
+    "simulated": true,
+    "repository": "fixture/next-upgrade",
+    "base": "main",
+    "app": ".",
+    "provider": "fixture",
+    "origin": "fixture://next-upgrade"
+  },
+  "prs": []
+}

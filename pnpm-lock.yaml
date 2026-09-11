@@ -250,6 +250,9 @@ importers:
       '@vercel/og':
         specifier: 1.0.1
         version: 1.0.1(@types/node@20.17.7(patch_hash=fe6957869a9b616ec526ededb72bbe846b863bd2349204218772df5c1e62d6ab))
+      '@vercel/sandbox':
+        specifier: 3.2.2
+        version: 3.2.2
       alex:
         specifier: 9.1.0
         version: 9.1.0
@@ -1575,6 +1578,9 @@ importers:
       lodash.curry:
         specifier: 4.1.1
         version: 4.1.1
+      lru-cache:
+        specifier: 7.18.3
+        version: 7.18.3
       mini-css-extract-plugin:
         specifier: 2.4.4
         version: 2.4.4(webpack@5.98.0(@swc/core@1.11.24(@swc/helpers@0.5.23))(esbuild@0.25.9))
@@ -7703,6 +7709,9 @@ packages:
   '@vercel/sandbox@1.8.0':
     resolution: {integrity: sha512-SbXkg8Fmp8i+I9IdyD4PAAVtxM/KS4ULV4eiEfY/9tab1AF1MPvmEA8/ebvCn7QTWQQ7twwtpJNSPlUVmOBp3w==}
 
+  '@vercel/sandbox@3.2.2':
+    resolution: {integrity: sha512-ak2r3AZWi/vokms/BdMJPtf73sb2k1BT9dIuYRadmMBhHKacnK4+FlsLMcWLCFPsqA/HVE7SlUognDiTUQ7Qyg==}
+
   '@vitest/expect@2.0.5':
     resolution: {integrity: sha512-yHZtwuP7JZivj65Gxoi8upUN2OzHTi3zVfjwdpu2WrvCZPLwsJ2Ey5ILIPccoW23dd/zQBlJ4/dhi7DWNyXCpA==}
 
@@ -7765,6 +7774,9 @@ packages:
 
   '@webassemblyjs/wast-printer@1.14.1':
     resolution: {integrity: sha512-kPSSXE6De1XOR820C90RIo2ogvZG+c3KiHzqUoO/F34Y2shGzesfqv7o57xrxovZJH/MetF5UjroJ/R/3isoiw==}
+
+  '@workflow/serde@4.1.0-beta.2':
+    resolution: {integrity: sha512-8kkeoQKLDaKXefjV5dbhBj2aErfKp1Mc4pb6tj8144cF+Em5SPbyMbyLCHp+BVrFfFVCBluCtMx+jjvaFVZGww==}
 
   '@xtuc/ieee754@1.2.0':
     resolution: {integrity: sha512-DX8nKgqcGwsc0eJSqYt5lwP4DH5FlHnmuWWBRy7X0NcaGR0ZtuyeESgMwTYVEtxmsNGY+qit4QYT/MIYTOTPeA==}
@@ -12779,6 +12791,9 @@ packages:
 
   joi@17.13.3:
     resolution: {integrity: sha512-otDA4ldcIx+ZXsKHWmp0YizCweVRZG96J10b0FevjfuncLO1oX59THoAmHkNubYJ+9gWsYsp5k8v4ib6oDv1fA==}
+
+  jose@6.2.3:
+    resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -18032,6 +18047,10 @@ packages:
     resolution: {integrity: sha512-RqslV2Us5BrllB+JeiZnK4peryVTndy9Dnqq62S3yYRRTj0tFQCwEniUy2167skdGOy3vqRzEvl1Dm4sV2ReDg==}
     engines: {node: '>=20.18.1'}
 
+  undici@7.29.1:
+    resolution: {integrity: sha512-RYONW2MeafgYlkVOKYKkA/Ag7BmXqgIWCa8t1m0JcxrQg9pI9lEqRhAOruOBCbAohOa/gkCF+iPi9hrgvTzu6Q==}
+    engines: {node: '>=20.18.1'}
+
   unfetch@4.2.0:
     resolution: {integrity: sha512-F9p7yYCn6cIW9El1zi0HI6vqpeIvBsr3dSuRO6Xuppb1u5rXpCPmMvLSyECLhybr9isec8Ohl0hPekMVrEinDA==}
 
@@ -18967,6 +18986,9 @@ packages:
 
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
+
+  zod@4.5.4:
+    resolution: {integrity: sha512-sC95tT5iHHH9gtpj6A81kh+NEaRAUFN+qlUPDUbRfOMvNf5QCBqsb3WgvnpVtK5Y+4UfA6KqufotuTvMGiTlsA==}
 
   zwitch@1.0.5:
     resolution: {integrity: sha512-V50KMwwzqJV0NpZIZFwfOD5/lyny3WlSzRiXgA0G7VUnRlqttta1L6UQIHzd6EuBY/cHGfwTIck7w1yH6Q5zUw==}
@@ -25063,6 +25085,24 @@ snapshots:
       - bare-abort-controller
       - react-native-b4a
 
+  '@vercel/sandbox@3.2.2':
+    dependencies:
+      '@vercel/oidc': 3.2.0
+      '@workflow/serde': 4.1.0-beta.2
+      async-retry: 1.3.3
+      jose: 6.2.3
+      jsonlines: 0.1.1
+      lru-cache: 10.4.3
+      ms: 2.1.3
+      picocolors: 1.1.1
+      tar-stream: 3.1.7
+      undici: 7.29.1
+      xdg-app-paths: 5.1.0
+      zod: 4.5.4
+    transitivePeerDependencies:
+      - bare-abort-controller
+      - react-native-b4a
+
   '@vitest/expect@2.0.5':
     dependencies:
       '@vitest/spy': 2.0.5
@@ -25170,6 +25210,8 @@ snapshots:
     dependencies:
       '@webassemblyjs/ast': 1.14.1
       '@xtuc/long': 4.2.2
+
+  '@workflow/serde@4.1.0-beta.2': {}
 
   '@xtuc/ieee754@1.2.0': {}
 
@@ -31469,6 +31511,8 @@ snapshots:
       '@sideway/address': 4.1.5
       '@sideway/formula': 3.0.1
       '@sideway/pinpoint': 2.0.0
+
+  jose@6.2.3: {}
 
   js-tokens@4.0.0: {}
 
@@ -37870,6 +37914,8 @@ snapshots:
 
   undici@7.22.0: {}
 
+  undici@7.29.1: {}
+
   unfetch@4.2.0: {}
 
   unherit@1.1.2:
@@ -39063,6 +39109,8 @@ snapshots:
   zod@3.24.4: {}
 
   zod@3.25.76: {}
+
+  zod@4.5.4: {}
 
   zwitch@1.0.5: {}
 

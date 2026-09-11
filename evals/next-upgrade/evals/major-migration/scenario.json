@@ -1,0 +1,7 @@
+{
+  "id": "major-migration",
+  "major": true,
+  "entry": "active",
+  "source": "14.2.35",
+  "target": "16.3.3"
+}
