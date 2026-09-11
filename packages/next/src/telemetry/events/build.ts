@@ -195,6 +195,7 @@ export type EventBuildFeatureUsage = {
     | 'experimental/nextScriptWorkers'
     | 'experimental/cacheComponents'
     | 'experimental/optimizeCss'
+    | 'experimental/webSocketRouteHandlers'
     | 'swcLoader'
     | 'swcRelay'
     | 'swcStyledComponents'

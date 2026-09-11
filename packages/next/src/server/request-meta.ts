@@ -226,6 +226,15 @@ export interface RequestMeta {
    */
   middlewareInvoke?: boolean
 
+  /** Headers accumulated while routing a Node.js WebSocket upgrade request. */
+  webSocketUpgradeHeaders?: Record<string, string | string[]>
+
+  /** Framework-owned lifecycle scope for a routed WebSocket upgrade. */
+  webSocketRegistryScope?: object
+
+  /** Whether no external upgrade listener has existed on this request's server. */
+  webSocketUpgradeExclusiveOwner?: boolean
+
   /**
    * Whether the request should render the fallback shell or not.
    */
