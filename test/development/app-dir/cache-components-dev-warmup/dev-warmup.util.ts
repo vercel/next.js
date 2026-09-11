@@ -338,6 +338,8 @@ export function runDevWarmupTests({
           // TODO: we should only label this as "Prefetch" if there's a prefetch config.
           assertLog(logs, `after cookies`, 'Prefetch')
           assertLog(logs, `after headers`, 'Prefetch')
+          // This route has no `generateStaticParams`, so its param stays
+          // runtime-only.
           assertLog(logs, `after params`, 'Prefetch')
           assertLog(logs, `after searchParams`, 'Prefetch')
 
@@ -378,59 +380,14 @@ export function runDevWarmupTests({
       })
 
       describe('mixed static and fallback params resolve in the correct phase', () => {
-        it('covered leading param', async () => {
+        it('generated lang and novel id', async () => {
           const path = '/mixed/en/123'
 
           const assertLogs = async (browser: Playwright) => {
             const logs = await browser.log()
-            // `en` is covered by `generateStaticParams`, so `lang` resolves in
-            // the static shell, unless we're rendering an App Shell, in which
-            // case they're deferred to the runtiem stage.
-            assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
-            // `id` is never covered, so it's deferred to the runtime stage.
-            assertLog(logs, 'after params - id', RUNTIME_LINK_DATA)
-          }
-
-          if (isInitialLoad) {
-            await testInitialLoad(path, assertLogs)
-          } else {
-            await testNavigation(path, assertLogs)
-          }
-        })
-
-        it('uncovered leading param', async () => {
-          const path = '/mixed/fr/123'
-
-          const assertLogs = async (browser: Playwright) => {
-            const logs = await browser.log()
-            // `fr` is not covered by `generateStaticParams`, so the most-specific
-            // prerendered route matching this URL is the base route and its
-            // fallback set is both params. `lang` must therefore defer to the
-            // runtime stage too, not resolve in the static shell. (Picking the
-            // fewest-param route without matching the URL would resolve `lang`
-            // in `Prerender` here.)
-            assertLog(logs, 'after params - lang', RUNTIME_LINK_DATA)
-            assertLog(logs, 'after params - id', RUNTIME_LINK_DATA)
-          }
-
-          if (isInitialLoad) {
-            await testInitialLoad(path, assertLogs)
-          } else {
-            await testNavigation(path, assertLogs)
-          }
-        })
-
-        it('fully covered params', async () => {
-          const path = '/mixed/en/x'
-
-          const assertLogs = async (browser: Playwright) => {
-            const logs = await browser.log()
-            // Both `en` and `x` are covered by `generateStaticParams`, so this
-            // is a fully prerendered concrete route and both params resolve in
-            // the static shell unless we're rendering an App Shell, in which
-            // case they're deferred to the runtime stage.
-            // (Skipping the concrete route before matching the URL would let
-            // the base route win and defer the statically-known `id`.)
+            // The generators produce { lang: 'en', id: 'x' }. The optional
+            // /mixed/en/[id] shell can complete the novel id statically.
+            // `STATIC_LINK_DATA` accounts for App Shell deferral on navigation.
             assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
             assertLog(logs, 'after params - id', STATIC_LINK_DATA)
           }
@@ -441,6 +398,66 @@ export function runDevWarmupTests({
             await testNavigation(path, assertLogs)
           }
         })
+
+        it('novel lang and id', async () => {
+          const path = '/mixed/fr/123'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            // Both params have generators. The optional /mixed/[lang]/[id]
+            // shell can complete both novel values statically.
+            assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
+            assertLog(logs, 'after params - id', STATIC_LINK_DATA)
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
+        it('fully generated params', async () => {
+          const path = '/mixed/en/x'
+
+          const assertLogs = async (browser: Playwright) => {
+            const logs = await browser.log()
+            // This URL matches the concrete generated route. Neither param
+            // needs completion or fallback staging.
+            assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
+            assertLog(logs, 'after params - id', STATIC_LINK_DATA)
+          }
+
+          if (isInitialLoad) {
+            await testInitialLoad(path, assertLogs)
+          } else {
+            await testNavigation(path, assertLogs)
+          }
+        })
+
+        // Only lang has a generator, so id stays runtime-only.
+        // - en selects the required /partial/en/[id] shell.
+        // - fr completes lang from the optional /partial/[lang]/[id] shell.
+        it.each(['en', 'fr'])(
+          'partial generation with lang %s',
+          async (lang) => {
+            const path = `/partial/${lang}/123`
+
+            const assertLogs = async (browser: Playwright) => {
+              const logs = await browser.log()
+              assertLog(logs, 'after params - lang', STATIC_LINK_DATA)
+              assertLog(logs, 'after cache read - layout', STATIC_LINK_DATA)
+              assertLog(logs, 'after params - id', RUNTIME_LINK_DATA)
+              assertLog(logs, 'after cache read - page', RUNTIME_LINK_DATA)
+            }
+
+            if (isInitialLoad) {
+              await testInitialLoad(path, assertLogs)
+            } else {
+              await testNavigation(path, assertLogs)
+            }
+          }
+        )
       })
 
       it('sync IO in the static phase', async () => {

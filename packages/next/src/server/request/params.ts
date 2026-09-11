@@ -101,12 +101,12 @@ export function createParamsFromClient(
           )
         }
         if (process.env.NODE_ENV === 'development') {
-          const fallbackParams = workUnitStore.fallbackParams
+          const stagedFallbackParams = workUnitStore.stagedFallbackParams
           const userspaceParams = underlyingParams
           return createRenderParamsInDev(
             underlyingParams,
             userspaceParams,
-            fallbackParams,
+            stagedFallbackParams,
             workStore,
             workUnitStore
           )
@@ -178,12 +178,12 @@ export function createServerParamsForRoute(
       }
       case 'request':
         if (process.env.NODE_ENV === 'development') {
-          const fallbackParams = workUnitStore.fallbackParams
+          const stagedFallbackParams = workUnitStore.stagedFallbackParams
           const userspaceParams = underlyingParams
           return createRenderParamsInDev(
             underlyingParams,
             userspaceParams,
-            fallbackParams,
+            stagedFallbackParams,
             workStore,
             workUnitStore
           )
@@ -447,7 +447,16 @@ function createRuntimePrerenderParams(
     }
   }
 
-  return stagedRendering.delayUntilStage(paramsStage, 'params', userspaceParams)
+  // If params don't resolve in this prerender, caches need to treat them as a hanging input.
+  if (stagedRendering.finalStage && stagedRendering.finalStage < paramsStage) {
+    return makeHangingParams(underlyingParams, workStore, workUnitStore)
+  } else {
+    return stagedRendering.delayUntilStage(
+      paramsStage,
+      'params',
+      userspaceParams
+    )
+  }
 }
 
 function createRenderParamsForPage(
@@ -492,11 +501,11 @@ function createRenderParamsForPage(
 
   // No staged rendering = no cacheComponents, or cacheComponents prod without cachedNavigations
   if (process.env.NODE_ENV === 'development') {
-    const fallbackParams = workUnitStore.fallbackParams
+    const stagedFallbackParams = workUnitStore.stagedFallbackParams
     return createRenderParamsInDev(
       underlyingParams,
       userspaceParams,
-      fallbackParams,
+      stagedFallbackParams,
       workStore,
       workUnitStore
     )
@@ -547,7 +556,9 @@ function createStagedRenderParamsImpl(
 
   // If we have fallback params, then they should always resolve in the runtime link data stage.
   // We do this indirectly via the shared params parent for better debug info.
-  if (hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)) {
+  if (
+    hasFallbackRouteParams(underlyingParams, workUnitStore.stagedFallbackParams)
+  ) {
     return createParamsPromiseFromTrigger(
       asyncApiPromises.sharedParamsParent,
       userspaceParams
@@ -577,7 +588,11 @@ function createStagedRenderParamsImpl(
       // If static params are accessed, we can recover a static shell or a session shell, but not both.
       return trackPromiseUsed(
         promise,
-        trackIncompatibleShellContent.bind(null, workUnitStore)
+        trackIncompatibleShellContent.bind(
+          null,
+          workUnitStore,
+          'static `params`'
+        )
       )
     } else {
       return promise
@@ -648,14 +663,14 @@ function createRenderParamsInProd(userspaceParams: Params): Promise<Params> {
 function createRenderParamsInDev(
   underlyingParams: Params,
   userpaceParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams | null | undefined,
+  stagedFallbackParams: OpaqueFallbackRouteParams | null | undefined,
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<Params> {
   return makeDynamicallyTrackedParamsWithDevWarnings(
     underlyingParams,
     userpaceParams,
-    hasFallbackRouteParams(underlyingParams, fallbackParams),
+    hasFallbackRouteParams(underlyingParams, stagedFallbackParams),
     workStore,
     requestStore
   )

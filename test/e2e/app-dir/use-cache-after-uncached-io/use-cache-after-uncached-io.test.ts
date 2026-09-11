@@ -4,10 +4,12 @@ import { createRouterAct } from '../../../lib/router-act'
 import { setTimeout } from 'timers/promises'
 import { retry } from '../../../lib/next-test-utils'
 
+// Deploy mode exclusion: This suite asserts local CLI or runtime logs that deployments do not expose.
+// reads cli logs
+// @force-gate !deploy
 describe('use cache called after tasky uncached IO', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // reads cli logs
   })
 
   if (isNextStart) {

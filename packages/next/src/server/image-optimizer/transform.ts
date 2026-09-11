@@ -49,6 +49,7 @@ export type ImageOptimizerTransformConfig = {
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
+    | 'imgOptMozjpeg'
   >
   images: Pick<
     NextConfigComplete['images'],
@@ -139,6 +140,7 @@ export async function optimizeImage({
   limitInputPixels,
   sequentialRead,
   timeoutInSeconds,
+  mozjpeg = true,
 }: {
   buffer: Buffer
   contentType: string
@@ -150,6 +152,7 @@ export async function optimizeImage({
   limitInputPixels?: number
   sequentialRead?: boolean | null
   timeoutInSeconds?: number
+  mozjpeg?: boolean
 }): Promise<Buffer> {
   const sharp = getSharp(concurrency, operationCache)
   const transformer = sharp(buffer, {
@@ -182,7 +185,7 @@ export async function optimizeImage({
   } else if (contentType === PNG) {
     transformer.png({ quality })
   } else if (contentType === JPEG) {
-    transformer.jpeg({ quality, mozjpeg: true })
+    transformer.jpeg({ quality, mozjpeg })
   }
 
   const optimizedBuffer = await transformer.toBuffer()
@@ -283,6 +286,7 @@ export async function imageOptimizerTransform(
       limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
+      mozjpeg: nextConfig.experimental.imgOptMozjpeg,
     })
     if (opts.handleDevOutput) {
       const output = await opts.handleDevOutput(optimizedBuffer, contentType)

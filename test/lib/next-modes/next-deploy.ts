@@ -3,12 +3,15 @@ import path from 'path'
 import dns from 'dns'
 import execa from 'execa'
 import fs from 'fs-extra'
+import { load, dump } from 'js-yaml'
+import * as tar from 'next/dist/compiled/tar'
 import { NextInstance, type NextInstanceOpts } from './base'
 import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
 import { setTimeout } from 'timers/promises'
 import { FileRef } from '../e2e-utils'
 import { PROXY_HOST_MAP_ENV_KEY } from '../browsers/launch'
+import { packPackages } from '../create-next-install'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -327,6 +330,10 @@ export class NextDeployInstance extends NextInstance {
       return
     }
 
+    if (!process.env.NEXT_TEST_VERSION) {
+      await this.prepareLocalPackages(parentSpan)
+    }
+
     // Original Vercel CLI deployment logic
     // ensure Vercel CLI is installed
     try {
@@ -529,6 +536,252 @@ export class NextDeployInstance extends NextInstance {
     )
 
     this.parseIdsFromCliOutput()
+  }
+
+  private async writeFixtureConfiguration(
+    filePath: string,
+    contents: string
+  ): Promise<void> {
+    const temporaryDirectory = await fs.mkdtemp(
+      path.join(path.dirname(filePath), '.next-test-config-')
+    )
+    const temporaryPath = path.join(temporaryDirectory, path.basename(filePath))
+    try {
+      // Preserve permissions and replace links rather than their targets.
+      await fs.copyFile(filePath, temporaryPath, fs.constants.COPYFILE_EXCL)
+      await fs.writeFile(temporaryPath, contents)
+      await fs.rename(temporaryPath, filePath)
+    } finally {
+      await fs.remove(temporaryDirectory)
+    }
+  }
+
+  /**
+   * This method stages local JavaScript tarballs and rewrites the fixture's
+   * dependencies and overrides to relative `file:` references. It adds
+   * published SWC dependencies because locally built native binaries may target
+   * a different platform than the remote build.
+   */
+  private async prepareLocalPackages(parentSpan: Span): Promise<void> {
+    const packagePaths = process.env.NEXT_TEST_PKG_PATHS
+      ? new Map<string, string>(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
+      : await packPackages(parentSpan)
+    for (const name of ['next', '@next/env']) {
+      if (!packagePaths.has(name)) {
+        throw new Error(`Missing packed package for local deployment: ${name}`)
+      }
+    }
+
+    const directoryName = 'next-test-packages'
+    await fs.mkdir(path.join(this.testDir, directoryName))
+    const localPackages = new Map<string, string>()
+    for (const [name, source] of packagePaths) {
+      const relativePath = path.posix.join(directoryName, name, 'packed.tgz')
+      if (
+        !relativePath.startsWith(`${directoryName}/`) ||
+        name.includes('\\')
+      ) {
+        throw new Error(`Invalid packed package name: ${name}`)
+      }
+      const destination = path.join(this.testDir, relativePath)
+      await fs.ensureDir(path.dirname(destination))
+      await fs.copyFile(source, destination, fs.constants.COPYFILE_EXCL)
+
+      // The staged packages use exact local peer versions so npm accepts
+      // prereleases without extra peer overrides.
+      const {
+        peerDependencies,
+      }: { peerDependencies?: Record<string, string> } = await fs.readJSON(
+        path.join(path.dirname(source), 'package.json')
+      )
+      const peerVersions = new Map<string, string>()
+      for (const peerName of Object.keys(peerDependencies ?? {})) {
+        const peerSource = packagePaths.get(peerName)
+        if (peerSource === undefined) {
+          continue
+        }
+        const { version } = await fs.readJSON(
+          path.join(path.dirname(peerSource), 'package.json')
+        )
+        if (typeof version !== 'string' || version.length === 0) {
+          throw new Error(
+            `Missing version for packed peer dependency: ${peerName}`
+          )
+        }
+        peerVersions.set(peerName, version)
+      }
+      if (peerVersions.size > 0) {
+        const temporaryDirectory = await fs.mkdtemp(
+          path.join(this.testDir, '.next-test-package-')
+        )
+        try {
+          await tar.x({ file: destination, cwd: temporaryDirectory })
+          const manifestPath = path.join(
+            temporaryDirectory,
+            'package/package.json'
+          )
+          const manifest = await fs.readJSON(manifestPath)
+          for (const [peerName, version] of peerVersions) {
+            if (manifest.peerDependencies?.[peerName] !== undefined) {
+              manifest.peerDependencies[peerName] = version
+            }
+          }
+          await fs.writeFile(
+            manifestPath,
+            JSON.stringify(manifest, null, 2) + '\n'
+          )
+          await tar.c(
+            { file: destination, cwd: temporaryDirectory, gzip: true },
+            ['package']
+          )
+        } finally {
+          await fs.remove(temporaryDirectory)
+        }
+      }
+      localPackages.set(name, `file:./${relativePath}`)
+    }
+
+    const packageJsonPath = path.join(this.testDir, 'package.json')
+    const packageJson: {
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+      optionalDependencies?: Record<string, string>
+      overrides?: Record<string, unknown>
+      resolutions?: Record<string, string>
+      pnpm?: { overrides?: Record<string, string> }
+    } = await fs.readJSON(packageJsonPath)
+    const dependencyFields = [
+      'dependencies',
+      'devDependencies',
+      'optionalDependencies',
+    ] as const
+    for (const field of dependencyFields) {
+      const dependencies = packageJson[field]
+      if (dependencies === undefined) {
+        continue
+      }
+      for (const name of Object.keys(dependencies)) {
+        const localPackage = localPackages.get(name)
+        if (localPackage !== undefined) {
+          // npm requires identity overrides to match the new dependency.
+          if (packageJson.overrides !== undefined) {
+            for (const [key, override] of Object.entries(
+              packageJson.overrides
+            )) {
+              if (key !== name && !key.startsWith(`${name}@`)) {
+                continue
+              }
+              if (override === dependencies[name]) {
+                packageJson.overrides[key] = localPackage
+              } else if (
+                override !== null &&
+                typeof override === 'object' &&
+                ('.' in override
+                  ? override['.'] === dependencies[name]
+                  : key === `${name}@${dependencies[name]}`)
+              ) {
+                Object.assign(override, { '.': localPackage })
+              }
+            }
+          }
+          dependencies[name] = localPackage
+        }
+      }
+    }
+
+    // Generated overrides follow fixture rules because npm uses the first
+    // matching rule.
+    packageJson.overrides ??= {}
+    const workspaceOverrides: Record<string, string> = {}
+    for (const [name, localPackage] of localPackages) {
+      if (
+        dependencyFields.some(
+          (field) => packageJson[field]?.[name] !== undefined
+        )
+      ) {
+        continue
+      }
+      workspaceOverrides[name] = localPackage
+      if (packageJson.overrides[name] === undefined) {
+        packageJson.overrides[name] = localPackage
+      }
+    }
+    packageJson.resolutions = {
+      ...workspaceOverrides,
+      ...packageJson.resolutions,
+    }
+    packageJson.pnpm = {
+      ...packageJson.pnpm,
+      overrides: {
+        ...packageJson.resolutions,
+        ...packageJson.pnpm?.overrides,
+      },
+    }
+
+    // Source tarballs omit the platform dependencies added during publication.
+    const version: string = require('next/package.json').version
+    const nativePackagesDirectory = path.join(
+      __dirname,
+      '../../../crates/next-napi-bindings/npm'
+    )
+    packageJson.optionalDependencies ??= {}
+    for (const platform of await fs.readdir(nativePackagesDirectory)) {
+      if (platform.startsWith('.')) {
+        continue
+      }
+      const { name }: { name: string } = await fs.readJSON(
+        path.join(nativePackagesDirectory, platform, 'package.json')
+      )
+      if (
+        packageJson.dependencies?.[name] === undefined &&
+        packageJson.devDependencies?.[name] === undefined &&
+        packageJson.optionalDependencies[name] === undefined
+      ) {
+        packageJson.optionalDependencies[name] = version
+      }
+    }
+
+    await this.writeFixtureConfiguration(
+      packageJsonPath,
+      JSON.stringify(packageJson, null, 2) + '\n'
+    )
+
+    for (const filename of [
+      'pnpm-workspace.yaml',
+      '.vercelignore',
+      '.nowignore',
+    ]) {
+      const filePath = path.join(this.testDir, filename)
+      try {
+        await fs.lstat(filePath)
+      } catch (error) {
+        if (error.code === 'ENOENT') {
+          continue
+        }
+        throw error
+      }
+      const contents = await fs.readFile(filePath, 'utf8')
+      if (filename === 'pnpm-workspace.yaml') {
+        const workspace = (load(contents) ?? {}) as {
+          overrides?: Record<string, string>
+        }
+        workspace.overrides = {
+          ...packageJson.pnpm.overrides,
+          ...workspace.overrides,
+        }
+        await this.writeFixtureConfiguration(filePath, dump(workspace))
+      } else if (contents !== '') {
+        const separator = contents.endsWith('\n') ? '' : '\n'
+        await this.writeFixtureConfiguration(
+          filePath,
+          `${contents}${separator}!/${directoryName}\n!/${directoryName}/**\n`
+        )
+        break
+      }
+    }
+    require('console').log(
+      `Deploying local JavaScript packages with published SWC ${version}. Local native binaries are not included.`
+    )
   }
 
   // When preview builds are private, the deploy build installs Next.js
