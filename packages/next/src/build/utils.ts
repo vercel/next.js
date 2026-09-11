@@ -85,6 +85,7 @@ import { parseNormalizedAppRoute } from '../shared/lib/router/routes/app'
 import { getStaticMetadataPrerenderPathname } from '../lib/metadata/get-metadata-route'
 import { isStaticMetadataFile } from '../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../shared/lib/router/utils/app-paths'
+import { mapNftFileEntries, type NftJson, resolveNftOutputPath } from './nft'
 
 /**
  * Get the display path for build output. For static metadata files under
@@ -1273,47 +1274,59 @@ export async function copyTracedFiles(
   async function handleTraceFiles(traceFilePath: string) {
     const traceData = JSON.parse(
       await fs.readFile(/* turbopackIgnore: true */ traceFilePath, 'utf8')
-    ) as {
-      files: string[]
-    }
-    const copySema = new Sema(10, { capacity: traceData.files.length })
-    const traceFileDir = path.dirname(traceFilePath)
+    ) as NftJson
+    const entries = mapNftFileEntries(traceData, traceFilePath, tracingRoot)
+    const copySema = new Sema(10, { capacity: entries.length })
 
     await Promise.all(
-      traceData.files.map(async (relativeFile) => {
+      entries.map(async (entry) => {
         await copySema.acquire()
 
-        const tracedFilePath = path.join(traceFileDir, relativeFile)
-        const fileOutputPath = path.join(
+        const tracedFilePath = entry.source
+        const fileOutputPath = resolveNftOutputPath(
           outputPath,
-          path.relative(tracingRoot, tracedFilePath)
+          entry.destination
         )
 
         if (!copiedFiles.has(fileOutputPath)) {
           copiedFiles.add(fileOutputPath)
 
           await fs.mkdir(path.dirname(fileOutputPath), { recursive: true })
-          const symlink = await fs.readlink(tracedFilePath).catch(() => null)
+          if (entry.symlinkTarget !== undefined) {
+            const targetOutputPath = resolveNftOutputPath(
+              outputPath,
+              entry.symlinkTarget
+            )
+            const symlink =
+              path.relative(path.dirname(fileOutputPath), targetOutputPath) ||
+              '.'
+            let isDirectory = false
+            if (process.platform === 'win32') {
+              try {
+                isDirectory = (await fs.stat(tracedFilePath)).isDirectory()
+              } catch (err: any) {
+                if (err.code !== 'ENOENT' && err.code !== 'ELOOP') {
+                  throw err
+                }
+              }
+            }
 
-          if (symlink) {
             try {
-              await fs.symlink(symlink, fileOutputPath)
+              await fs.symlink(
+                symlink,
+                fileOutputPath,
+                isDirectory ? 'dir' : 'file'
+              )
             } catch (err: any) {
-              // Windows doesn't support creating symlinks without elevated privileges, unless
-              // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
-              // creating a junction point instead.
-              //
-              // Ideally we'd just preserve the input file type (junction point or symlink), but
-              // there's no API in node.js to differentiate between a junction point and a symlink,
-              // so we just try making a symlink first. Symlinks are preferred because they support
-              // relative paths and non-directory (file) targets.
               if (
                 process.platform === 'win32' &&
                 err.code === 'EPERM' &&
-                path.isAbsolute(symlink)
+                isDirectory
               ) {
                 try {
-                  await fs.symlink(symlink, fileOutputPath, 'junction')
+                  // Junction targets are stored as absolute paths, so this fallback is not
+                  // relocatable even though the preferred symlink above is relative.
+                  await fs.symlink(targetOutputPath, fileOutputPath, 'junction')
                 } catch (junctionErr: any) {
                   if (junctionErr.code !== 'EEXIST') {
                     throw junctionErr
@@ -1322,6 +1335,31 @@ export async function copyTracedFiles(
               } else if (err.code !== 'EEXIST') {
                 throw err
               }
+            }
+          } else if (traceData.symlinks === undefined) {
+            const symlink = await fs.readlink(tracedFilePath).catch(() => null)
+            if (symlink) {
+              try {
+                await fs.symlink(symlink, fileOutputPath)
+              } catch (err: any) {
+                if (
+                  process.platform === 'win32' &&
+                  err.code === 'EPERM' &&
+                  path.isAbsolute(symlink)
+                ) {
+                  try {
+                    await fs.symlink(symlink, fileOutputPath, 'junction')
+                  } catch (junctionErr: any) {
+                    if (junctionErr.code !== 'EEXIST') {
+                      throw junctionErr
+                    }
+                  }
+                } else if (err.code !== 'EEXIST') {
+                  throw err
+                }
+              }
+            } else {
+              await fs.copyFile(tracedFilePath, fileOutputPath)
             }
           } else {
             await fs.copyFile(tracedFilePath, fileOutputPath)
