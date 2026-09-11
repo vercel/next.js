@@ -1367,6 +1367,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::ImportedBinding {
                     esm_reference_index,
                     export,
+                    member,
                     ast_path,
                     span: _,
                 } => {
@@ -1435,6 +1436,35 @@ async fn analyze_ecmascript_module_internal(
                                 analysis.add_code_gen(EsmBinding::new_keep_this(
                                     named_reference,
                                     Some(export),
+                                    ast_path.to_vec().into(),
+                                ));
+                                continue;
+                            }
+
+                            if let Some(ModulePart::Export(export_name)) =
+                                &original_reference.export_name
+                                && let Some(member) = member
+                            {
+                                // Ask for just the static member if the named export resolves to a
+                                // namespace object.
+                                let narrowed_reference = analysis
+                                    .add_esm_reference_namespace_resolved(
+                                        esm_reference_index,
+                                        member.clone(),
+                                        || {
+                                            original_reference
+                                                .rewrite_for_export(
+                                                    ModulePart::exported_namespace_member(
+                                                        export_name.clone(),
+                                                        member.clone(),
+                                                    ),
+                                                )
+                                                .resolved_cell()
+                                        },
+                                    );
+                                analysis.add_code_gen(EsmBinding::new(
+                                    narrowed_reference,
+                                    export,
                                     ast_path.to_vec().into(),
                                 ));
                                 continue;

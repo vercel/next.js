@@ -191,7 +191,7 @@ pub enum ImportUsage {
     /// This import is used only by these specific exports, if all exports are unused, the import
     /// can also be removed.
     ///
-    /// (This is only ever set on `ModulePart::Export` references. Side effects are handled via
+    /// (This is only ever set on named export module-part references. Side effects are handled via
     /// `ModulePart::Evaluation` references, which always have `ImportUsage::TopLevel`.)
     Exports(FrozenSet<RcStr>),
 }
@@ -245,6 +245,11 @@ impl ExportUsage {
     #[turbo_tasks::function]
     pub fn named(name: RcStr) -> Vc<Self> {
         Self::Named(name).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn partial_namespace_object(names: Vec<RcStr>) -> Vc<Self> {
+        Self::PartialNamespaceObject(names.into_iter().collect()).cell()
     }
 }
 
@@ -3404,15 +3409,20 @@ pub enum ModulePart {
     /// Represents the side effects of a module. This part is evaluated even if
     /// all exports are unused.
     Evaluation,
-    /// Represents an export of a module.
+    /// Represents a named export of a module.
     Export(RcStr),
+    /// Represents a static member read from an export that resolves to a namespace object.
+    /// If the export does not resolve to a namespace, this behaves like [`ModulePart::Export`].
+    ExportedNamespaceMember { export: RcStr, member: RcStr },
     /// Represents a renamed export of a module.
     RenamedExport {
         original_export: RcStr,
         export: RcStr,
     },
-    /// Represents a namespace object of a module exported as named export.
+    /// Represents a namespace object of a module exported as a named export.
     RenamedNamespace { export: RcStr },
+    /// Represents one static member of a namespace object exported as a named export.
+    RenamedNamespaceMember { export: RcStr, member: RcStr },
     /// A pointer to a specific part.
     Internal(u32),
     /// The local declarations of a module.
@@ -3433,6 +3443,10 @@ impl ModulePart {
         ModulePart::Export(export)
     }
 
+    pub fn exported_namespace_member(export: RcStr, member: RcStr) -> Self {
+        ModulePart::ExportedNamespaceMember { export, member }
+    }
+
     pub fn renamed_export(original_export: RcStr, export: RcStr) -> Self {
         ModulePart::RenamedExport {
             original_export,
@@ -3442,6 +3456,10 @@ impl ModulePart {
 
     pub fn renamed_namespace(export: RcStr) -> Self {
         ModulePart::RenamedNamespace { export }
+    }
+
+    pub fn renamed_namespace_member(export: RcStr, member: RcStr) -> Self {
+        ModulePart::RenamedNamespaceMember { export, member }
     }
 
     pub fn internal(id: u32) -> Self {
@@ -3466,12 +3484,16 @@ impl Display for ModulePart {
         match self {
             ModulePart::Evaluation => f.write_str("module evaluation"),
             ModulePart::Export(export) => write!(f, "export {export}"),
+            ModulePart::ExportedNamespaceMember { export, member } => {
+                write!(f, "export {export} namespace member {member}")
+            }
             ModulePart::RenamedExport {
                 original_export,
                 export,
             } => write!(f, "export {original_export} as {export}"),
-            ModulePart::RenamedNamespace { export } => {
-                write!(f, "export * as {export}")
+            ModulePart::RenamedNamespace { export } => write!(f, "export * as {export}"),
+            ModulePart::RenamedNamespaceMember { export, member } => {
+                write!(f, "export * as {export} namespace member {member}")
             }
             ModulePart::Internal(id) => write!(f, "internal part {id}"),
             ModulePart::Locals => f.write_str("locals"),
