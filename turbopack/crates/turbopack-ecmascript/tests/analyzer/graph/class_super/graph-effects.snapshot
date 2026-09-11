@@ -223,70 +223,11 @@
                         },
                     ],
                     range: Exact(
-                        [
-                            Program(
-                                Module,
+                        AstPath(
+                            AstPathId(
+                                21,
                             ),
-                            Module(
-                                Body(
-                                    2,
-                                ),
-                            ),
-                            ModuleItem(
-                                Stmt,
-                            ),
-                            Stmt(
-                                Decl,
-                            ),
-                            Decl(
-                                Class,
-                            ),
-                            ClassDecl(
-                                Class,
-                            ),
-                            Class(
-                                Body(
-                                    0,
-                                ),
-                            ),
-                            ClassMember(
-                                Constructor,
-                            ),
-                            Constructor(
-                                Body,
-                            ),
-                            FunctionBody(
-                                Stmts(
-                                    0,
-                                ),
-                            ),
-                            Stmt(
-                                Expr,
-                            ),
-                            ExprStmt(
-                                Expr,
-                            ),
-                            Expr(
-                                Call,
-                            ),
-                            CallExpr(
-                                Args(
-                                    0,
-                                ),
-                            ),
-                            ExprOrSpread(
-                                Expr,
-                            ),
-                            Expr(
-                                Arrow,
-                            ),
-                            ArrowExpr(
-                                Body,
-                            ),
-                            ArrowFunctionBody(
-                                FunctionBody,
-                            ),
-                        ],
+                        ),
                     ),
                 },
             ),

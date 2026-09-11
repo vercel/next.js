@@ -319,39 +319,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
+                    AstPath(
+                        AstPathId(
+                            9,
                         ),
-                        Script(
-                            Body(
-                                2,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -493,39 +465,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
+                    AstPath(
+                        AstPathId(
+                            10,
                         ),
-                        Script(
-                            Body(
-                                2,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Alt,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },

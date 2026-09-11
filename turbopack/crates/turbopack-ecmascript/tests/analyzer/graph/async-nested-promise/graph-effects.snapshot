@@ -285,54 +285,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
+                    AstPath(
+                        AstPathId(
+                            35,
                         ),
-                        Module(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        ModuleItem(
-                            ModuleDecl,
-                        ),
-                        ModuleDecl(
-                            ExportDecl,
-                        ),
-                        ExportDecl(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Await,
-                        ),
-                        AwaitExpr(
-                            Arg,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -402,54 +359,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
+                    AstPath(
+                        AstPathId(
+                            36,
                         ),
-                        Module(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        ModuleItem(
-                            ModuleDecl,
-                        ),
-                        ModuleDecl(
-                            ExportDecl,
-                        ),
-                        ExportDecl(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Await,
-                        ),
-                        AwaitExpr(
-                            Arg,
-                        ),
-                        Expr(
-                            Paren,
-                        ),
-                        ParenExpr(
-                            Expr,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },
@@ -606,42 +520,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
+                    AstPath(
+                        AstPathId(
+                            45,
                         ),
-                        Module(
-                            Body(
-                                8,
-                            ),
-                        ),
-                        ModuleItem(
-                            ModuleDecl,
-                        ),
-                        ModuleDecl(
-                            ExportDecl,
-                        ),
-                        ExportDecl(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -699,42 +582,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
+                    AstPath(
+                        AstPathId(
+                            46,
                         ),
-                        Module(
-                            Body(
-                                8,
-                            ),
-                        ),
-                        ModuleItem(
-                            ModuleDecl,
-                        ),
-                        ModuleDecl(
-                            ExportDecl,
-                        ),
-                        ExportDecl(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },
@@ -1097,48 +949,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
+                    AstPath(
+                        AstPathId(
+                            12,
                         ),
-                        Module(
-                            Body(
-                                3,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Return,
-                        ),
-                        ReturnStmt(
-                            Arg,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -1202,48 +1017,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Module,
+                    AstPath(
+                        AstPathId(
+                            13,
                         ),
-                        Module(
-                            Body(
-                                3,
-                            ),
-                        ),
-                        ModuleItem(
-                            Stmt,
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            Return,
-                        ),
-                        ReturnStmt(
-                            Arg,
-                        ),
-                        Expr(
-                            Cond,
-                        ),
-                        CondExpr(
-                            Alt,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },

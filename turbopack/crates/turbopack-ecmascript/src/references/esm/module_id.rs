@@ -11,6 +11,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    ast_path_trie::AstPathTrie,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -56,6 +57,7 @@ impl IntoCodeGenReference for EsmModuleIdAssetReference {
 
     fn into_code_gen_reference(
         self,
+        _trie: &AstPathTrie,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
         let reference = self.resolved_cell();
@@ -80,6 +82,7 @@ pub struct EsmModuleIdAssetReferenceCodeGen {
 impl EsmModuleIdAssetReferenceCodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
@@ -90,6 +93,7 @@ impl EsmModuleIdAssetReferenceCodeGen {
             let id = asset.chunk_item_id(chunking_context).await?;
             let id = module_id_to_lit(&id);
             visitors.push(create_visitor!(
+                trie,
                 self.path,
                 visit_mut_expr,
                 |expr: &mut Expr| {
@@ -101,6 +105,7 @@ impl EsmModuleIdAssetReferenceCodeGen {
             // This can happen if the referenced asset is an external, or doesn't resolve
             // to anything.
             visitors.push(create_visitor!(
+                trie,
                 self.path,
                 visit_mut_expr,
                 |expr: &mut Expr| {

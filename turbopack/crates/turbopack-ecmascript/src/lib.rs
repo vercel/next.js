@@ -1112,11 +1112,13 @@ impl EcmascriptModuleContentOptions {
                 .try_join()
                 .await?;
 
+            let code_generation = code_generation.await?;
             let code_gens = code_generation
-                .await?
+                .code_gens
                 .iter()
                 .map(|c| {
                     c.code_generation(
+                        &code_generation.ast_paths,
                         **chunking_context,
                         scope_hoisting_context,
                         *module,

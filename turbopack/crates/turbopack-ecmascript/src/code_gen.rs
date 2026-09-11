@@ -16,6 +16,7 @@ use turbopack_core::{chunk::ChunkingContext, reference::ModuleReference};
 
 use crate::{
     ScopeHoistingContext,
+    ast_path_trie::AstPathTrie,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     references::{
         AstPath,
@@ -216,53 +217,78 @@ pub enum CodeGen {
 impl CodeGen {
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         ctx: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
         module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         exports: ResolvedVc<EcmascriptExports>,
     ) -> Result<CodeGeneration> {
         match self {
-            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(ctx).await,
-            Self::CjsRequireCacheAccess(v) => v.code_generation(ctx).await,
-            Self::ConstantConditionCodeGen(v) => v.code_generation(ctx).await,
-            Self::CollectReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::ConstantValueCodeGen(v) => v.code_generation(ctx).await,
-            Self::DynamicExpression(v) => v.code_generation(ctx).await,
-            Self::EsmBinding(v) => v.code_generation(ctx, scope_hoisting_context).await,
-            Self::EsmModuleItem(v) => v.code_generation(ctx).await,
-            Self::ExportsInfoBinding(v) => v.code_generation(ctx, module, exports).await,
-            Self::ExportsInfoRef(v) => v.code_generation(ctx).await,
-            Self::CjsExportsDropCodeGen(v) => v.code_generation(ctx, module, exports).await,
-            Self::IdentReplacement(v) => v.code_generation(ctx).await,
-            Self::ImportMetaBinding(v) => v.code_generation(ctx).await,
-            Self::ImportMetaRef(v) => v.code_generation(ctx).await,
-            Self::MemberReplacement(v) => v.code_generation(ctx).await,
-            Self::RemovalCodeGen(v) => v.code_generation(ctx).await,
-            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::ImportMetaGlobAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::UrlAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
-            Self::ServiceWorkerAssetReferenceCodeGen(v) => v.code_generation(ctx).await,
+            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::CjsRequireCacheAccess(v) => v.code_generation(trie, ctx).await,
+            Self::ConstantConditionCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::CollectReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::ConstantValueCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::DynamicExpression(v) => v.code_generation(trie, ctx).await,
+            Self::EsmBinding(v) => v.code_generation(trie, ctx, scope_hoisting_context).await,
+            Self::EsmModuleItem(v) => v.code_generation(trie, ctx).await,
+            Self::ExportsInfoBinding(v) => v.code_generation(trie, ctx, module, exports).await,
+            Self::ExportsInfoRef(v) => v.code_generation(trie, ctx).await,
+            Self::CjsExportsDropCodeGen(v) => v.code_generation(trie, ctx, module, exports).await,
+            Self::IdentReplacement(v) => v.code_generation(trie, ctx).await,
+            Self::ImportMetaBinding(v) => v.code_generation(trie, ctx).await,
+            Self::ImportMetaRef(v) => v.code_generation(trie, ctx).await,
+            Self::MemberReplacement(v) => v.code_generation(trie, ctx).await,
+            Self::RemovalCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::CjsRequireAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::CjsRequireResolveAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::EsmAsyncAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::EsmModuleIdAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::ImportMetaGlobAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::RequireContextAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::UrlAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::WorkerAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
+            Self::ServiceWorkerAssetReferenceCodeGen(v) => v.code_generation(trie, ctx).await,
             Self::ModuleHotReferenceCodeGen(v) => {
-                v.code_generation(ctx, scope_hoisting_context).await
+                v.code_generation(trie, ctx, scope_hoisting_context).await
             }
-            Self::WorkerGlobalsReplacementCodeGen(v) => v.code_generation(ctx).await,
+            Self::WorkerGlobalsReplacementCodeGen(v) => v.code_generation(trie, ctx).await,
         }
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct CodeGens(Vec<CodeGen>);
+/// The code generations for a module, together with the trie their [`AstPath`]s index into.
+///
+/// The trie is shared by every code generation here, so it is stored once alongside them
+/// rather than being cloned into each one.
+#[turbo_tasks::value]
+pub struct CodeGens {
+    pub code_gens: Vec<CodeGen>,
+    pub ast_paths: AstPathTrie,
+}
+
+impl CodeGens {
+    pub fn new(code_gens: Vec<CodeGen>, ast_paths: AstPathTrie) -> Self {
+        CodeGens {
+            code_gens,
+            ast_paths,
+        }
+    }
+
+    pub fn into_cell(self) -> Vc<Self> {
+        self.cell()
+    }
+}
 
 #[turbo_tasks::value_impl]
 impl CodeGens {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(Vec::new())
+        CodeGens {
+            code_gens: Vec::new(),
+            ast_paths: AstPathTrie::new(),
+        }
+        .cell()
     }
 }
 
@@ -270,20 +296,32 @@ pub trait IntoCodeGenReference {
     fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>>;
     fn into_code_gen_reference(
         self,
+        trie: &AstPathTrie,
         path: AstPath,
     ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen);
 }
 
+/// The prefix of `path` up to (excluding) its innermost element matching `f`.
+///
+/// Returns the whole path when nothing matches.
 pub fn path_to(
-    path: &[AstParentKind],
-    f: impl FnMut(&AstParentKind) -> bool,
+    trie: &AstPathTrie,
+    path: AstPath,
+    mut f: impl FnMut(&AstParentKind) -> bool,
 ) -> Vec<AstParentKind> {
-    if let Some(pos) = path.iter().rev().position(f) {
-        let index = path.len() - pos - 1;
-        path[..index].to_vec()
-    } else {
-        path.to_vec()
+    let mut current = path.id();
+    while let Some(kind) = trie.last(current) {
+        let parent = trie
+            .parent(current)
+            .expect("a node with a kind has a parent");
+        if f(&kind) {
+            // Innermost match: everything from here down is dropped.
+            return trie.to_vec(parent);
+        }
+        current = parent;
     }
+    // Nothing matched, so the path is used as-is.
+    trie.to_vec(path.id())
 }
 
 /// Creates a single-method visitor that will visit the AST nodes matching the
@@ -297,11 +335,11 @@ pub fn path_to(
 /// possible visit methods.
 #[macro_export]
 macro_rules! create_visitor {
-    (exact, $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
-        $crate::create_visitor!(__ $ast_path.to_vec(), $name, |$arg: &mut $ty| $b)
+    (exact, $trie:expr, $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
+        $crate::create_visitor!(__ $trie.to_vec($ast_path.id()), $name, |$arg: &mut $ty| $b)
     };
-    ($ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
-        $crate::create_visitor!(__ $crate::code_gen::path_to(&$ast_path, |n| {
+    ($trie:expr, $ast_path:expr, $name:ident, |$arg:ident: &mut $ty:ident| $b:block) => {
+        $crate::create_visitor!(__ $crate::code_gen::path_to($trie, $ast_path, |n| {
             matches!(n, swc_core::ecma::visit::AstParentKind::$ty(_))
         }), $name, |$arg: &mut $ty| $b)
     };

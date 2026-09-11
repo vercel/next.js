@@ -29,6 +29,7 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::AstPathTrie,
     code_gen::{AstModifier, CodeGen, CodeGeneration},
     utils::AstPathRange,
 };
@@ -151,6 +152,7 @@ impl RemovalCodeGen {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let comments = SwcComments::default();
@@ -159,21 +161,21 @@ impl RemovalCodeGen {
 
         let visitors = match &self.range {
             AstPathRange::Exact(path) => vec![(
-                path.clone(),
+                trie.to_vec(path.id()),
                 Box::new(UnreachableModifier {
                     comment_replacement: comment_replacement.clone(),
                     comments: comments.clone(),
                 }) as Box<dyn AstModifier>,
             )],
             AstPathRange::StartAfter(path) => {
-                let mut parent = &path[..];
-                while !parent.is_empty()
-                    && !matches!(parent.last().unwrap(), AstParentKind::Stmt(_))
-                {
-                    parent = &parent[0..parent.len() - 1];
-                }
+                // Walk up to the enclosing statement, then drop it and the element naming
+                // the slot it occupies, leaving the list it lives in plus that index.
+                let mut parent = trie.to_vec(
+                    trie.trim_end_while(path.id(), |k| !matches!(k, AstParentKind::Stmt(_)))
+                        .into(),
+                );
                 if !parent.is_empty() {
-                    parent = &parent[0..parent.len() - 1];
+                    parent.pop();
 
                     let (parent, [last]) = parent.split_at(parent.len() - 1) else {
                         unreachable!();

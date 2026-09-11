@@ -5,6 +5,7 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
+    ast_path_trie::AstPathTrie,
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     references::AstPath,
@@ -32,11 +33,13 @@ impl ConstantConditionCodeGen {
 
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let value = self.value;
         let visitors = [create_visitor!(
             exact,
+            trie,
             self.path,
             visit_mut_expr,
             |expr: &mut Expr| {

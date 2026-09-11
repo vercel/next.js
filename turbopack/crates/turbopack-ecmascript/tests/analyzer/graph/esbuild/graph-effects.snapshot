@@ -977,50 +977,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
+                    AstPath(
+                        AstPathId(
+                            46,
                         ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        ArrowFunctionBody(
-                            FunctionBody,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },
@@ -1477,50 +1438,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
+                    AstPath(
+                        AstPathId(
+                            49,
                         ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        ArrowFunctionBody(
-                            FunctionBody,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -1640,47 +1562,11 @@
                     },
                 ],
                 range: StartAfter(
-                    [
-                        Program(
-                            Script,
+                    AstPath(
+                        AstPathId(
+                            48,
                         ),
-                        Script(
-                            Body(
-                                7,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Var,
-                        ),
-                        VarDecl(
-                            Decls(
-                                0,
-                            ),
-                        ),
-                        VarDeclarator(
-                            Init,
-                        ),
-                        Expr(
-                            Arrow,
-                        ),
-                        ArrowExpr(
-                            Body,
-                        ),
-                        ArrowFunctionBody(
-                            FunctionBody,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                1,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },
@@ -2710,39 +2596,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
+                    AstPath(
+                        AstPathId(
+                            9,
                         ),
-                        Script(
-                            Body(
-                                5,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                3,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -2902,45 +2760,11 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
+                                    AstPath(
+                                        AstPathId(
+                                            12,
                                         ),
-                                        Script(
-                                            Body(
-                                                5,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                3,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    ),
                                 ),
                             },
                             else: EffectsBlock {
@@ -3099,45 +2923,11 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
+                                    AstPath(
+                                        AstPathId(
+                                            13,
                                         ),
-                                        Script(
-                                            Body(
-                                                5,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                3,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Alt,
-                                        ),
-                                    ],
+                                    ),
                                 ),
                             },
                         },
@@ -3184,39 +2974,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
+                    AstPath(
+                        AstPathId(
+                            10,
                         ),
-                        Script(
-                            Body(
-                                5,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                3,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Alt,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },
@@ -3436,39 +3198,11 @@
                     },
                 ],
                 range: Exact(
-                    [
-                        Program(
-                            Script,
+                    AstPath(
+                        AstPathId(
+                            21,
                         ),
-                        Script(
-                            Body(
-                                6,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                        IfStmt(
-                            Cons,
-                        ),
-                    ],
+                    ),
                 ),
             },
             else: EffectsBlock {
@@ -4721,53 +4455,11 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
+                                    AstPath(
+                                        AstPathId(
+                                            28,
                                         ),
-                                        Script(
-                                            Body(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                3,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Try,
-                                        ),
-                                        TryStmt(
-                                            Handler,
-                                        ),
-                                        CatchClause(
-                                            Body,
-                                        ),
-                                        BlockStmt(
-                                            Stmts(
-                                                1,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    ),
                                 ),
                             },
                         },
@@ -6639,53 +6331,11 @@
                                                     },
                                                 ],
                                                 range: Exact(
-                                                    [
-                                                        Program(
-                                                            Script,
+                                                    AstPath(
+                                                        AstPathId(
+                                                            35,
                                                         ),
-                                                        Script(
-                                                            Body(
-                                                                6,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            Decl,
-                                                        ),
-                                                        Decl(
-                                                            Fn,
-                                                        ),
-                                                        FnDecl(
-                                                            Function,
-                                                        ),
-                                                        Function(
-                                                            Body,
-                                                        ),
-                                                        FunctionBody(
-                                                            Stmts(
-                                                                6,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            If,
-                                                        ),
-                                                        IfStmt(
-                                                            Cons,
-                                                        ),
-                                                        Stmt(
-                                                            Block,
-                                                        ),
-                                                        BlockStmt(
-                                                            Stmts(
-                                                                2,
-                                                            ),
-                                                        ),
-                                                        Stmt(
-                                                            If,
-                                                        ),
-                                                        IfStmt(
-                                                            Cons,
-                                                        ),
-                                                    ],
+                                                    ),
                                                 ),
                                             },
                                         },
@@ -6786,39 +6436,11 @@
                                     },
                                 ],
                                 range: Exact(
-                                    [
-                                        Program(
-                                            Script,
+                                    AstPath(
+                                        AstPathId(
+                                            31,
                                         ),
-                                        Script(
-                                            Body(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                        IfStmt(
-                                            Cons,
-                                        ),
-                                    ],
+                                    ),
                                 ),
                             },
                             else: EffectsBlock {
@@ -6857,36 +6479,11 @@
                                     },
                                 ],
                                 range: StartAfter(
-                                    [
-                                        Program(
-                                            Script,
+                                    AstPath(
+                                        AstPathId(
+                                            30,
                                         ),
-                                        Script(
-                                            Body(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            Decl,
-                                        ),
-                                        Decl(
-                                            Fn,
-                                        ),
-                                        FnDecl(
-                                            Function,
-                                        ),
-                                        Function(
-                                            Body,
-                                        ),
-                                        FunctionBody(
-                                            Stmts(
-                                                6,
-                                            ),
-                                        ),
-                                        Stmt(
-                                            If,
-                                        ),
-                                    ],
+                                    ),
                                 ),
                             },
                         },
@@ -6927,36 +6524,11 @@
                     },
                 ],
                 range: StartAfter(
-                    [
-                        Program(
-                            Script,
+                    AstPath(
+                        AstPathId(
+                            20,
                         ),
-                        Script(
-                            Body(
-                                6,
-                            ),
-                        ),
-                        Stmt(
-                            Decl,
-                        ),
-                        Decl(
-                            Fn,
-                        ),
-                        FnDecl(
-                            Function,
-                        ),
-                        Function(
-                            Body,
-                        ),
-                        FunctionBody(
-                            Stmts(
-                                0,
-                            ),
-                        ),
-                        Stmt(
-                            If,
-                        ),
-                    ],
+                    ),
                 ),
             },
         },
