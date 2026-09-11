@@ -155,8 +155,8 @@ describe('Basic CSS Modules Ordering', () => {
 })
 
 describe('Ordering with Global CSS and Modules', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope changes CSS fixture files to test updates in the running application.
+  // Deployment mode cannot patch those files after deployment.
   // @force-gate !deploy
   describe('useLightningcss(true)', () => {
     const { next } = nextTestSetup({
@@ -246,8 +246,8 @@ describe('Ordering with Global CSS and Modules', () => {
     })
   })
 
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This scope changes CSS fixture files to test updates in the running application.
+  // Deployment mode cannot patch those files after deployment.
   // @force-gate !deploy
   describe('useLightningcss(false)', () => {
     const { next } = nextTestSetup({

@@ -1,8 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+// This scope deliberately triggers compiler or configuration errors and checks diagnostics.
+// The deploy harness requires a successful build before test assertions can run.
 // @force-gate !deploy
 describe('script-loader - partytown-missing', () => {
   const { next, isNextDev } = nextTestSetup({

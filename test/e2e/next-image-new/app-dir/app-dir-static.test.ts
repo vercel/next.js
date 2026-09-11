@@ -5,8 +5,8 @@ import cheerio from 'cheerio'
 // without a Suspense boundary so that the priority image preload is committed
 // into <head>. That pattern is incompatible with cache components mode, which
 // errors on uncached runtime data outside of a Suspense boundary.
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely expects a local build failure instead of a successful deployment.
+// This suite changes fixture source or configuration with next.patchFile().
+// Deployment mode cannot modify the deployed application.
 // @force-gate !deploy
 // @force-gate !cacheComponents
 describe('Build Error Tests', () => {
