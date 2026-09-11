@@ -1136,19 +1136,18 @@ async fn realpath_if_exists(
 ) -> Result<Option<FileSystemPath>> {
     let result = fs_path.realpath_with_links().await?;
     if let Some(refs) = refs {
-        result
-            .symlinks
-            .iter()
-            .map(async |path| {
-                Ok(ResolvedVc::upcast(
-                    FileSource::new(path.clone()).to_resolved().await?,
-                ))
-            })
-            .try_join_for_each(|v| {
-                refs.push(v);
-                Ok(())
-            })
-            .await?;
+        refs.extend(
+            result
+                .symlinks
+                .iter()
+                .map(async |path| {
+                    Ok(ResolvedVc::upcast(
+                        FileSource::new(path.clone()).to_resolved().await?,
+                    ))
+                })
+                .try_join()
+                .await?,
+        );
     }
     match &result.path_result {
         Ok(path) => Ok(Some(path.clone())),

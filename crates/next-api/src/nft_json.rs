@@ -229,27 +229,26 @@ impl Asset for NftJsonAsset {
                 .try_flat_join()
                 .await?;
 
-            traced_files
-                .includes
-                .iter()
-                .map(async |file_path| {
-                    let relative_path = ident_folder_in_project_fs
-                        .get_relative_path_to(file_path)
-                        .unwrap();
-                    Ok((
-                        relative_path,
-                        Either::Left(
-                            file_path
-                                .hash_file(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
-                                .await?,
-                        ),
-                    ))
-                })
-                .try_join_for_each(|v| {
-                    result.push(v);
-                    Ok(())
-                })
-                .await?;
+            result.extend(
+                traced_files
+                    .includes
+                    .iter()
+                    .map(async |file_path| {
+                        let relative_path = ident_folder_in_project_fs
+                            .get_relative_path_to(file_path)
+                            .unwrap();
+                        Ok((
+                            relative_path,
+                            Either::Left(
+                                file_path
+                                    .hash_file(hash_salt, HashAlgorithm::Xxh3Hash128Hex)
+                                    .await?,
+                            ),
+                        ))
+                    })
+                    .try_join()
+                    .await?,
+            );
 
             // Some of the output assets may have been included multiple times (in multiple chunking
             // contexts), or asset contexts.

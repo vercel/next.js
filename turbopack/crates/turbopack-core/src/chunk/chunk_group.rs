@@ -106,36 +106,35 @@ pub async fn make_chunk_group(
         .try_join()
         .await?;
 
-    collecting_modules
-        .into_iter()
-        .map(async |module| {
-            let Some(entry_chunk_group) = new_availability_info.entry_group() else {
-                bail!("unexpected collect module in non-entry chunk group",);
-            };
-            let chunk_item = module
-                .as_chunk_item(*module_graph, *chunking_context, *entry_chunk_group)
-                .to_resolved()
-                .await?;
-            let chunk_type = chunk_item
-                .into_trait_ref()
-                .await?
-                .ty()
-                .to_resolved()
-                .await?;
-            Ok(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
-                ChunkItemWithAsyncModuleInfo {
-                    chunk_item,
-                    chunk_type,
-                    module: Some(ResolvedVc::upcast(*module)),
-                    async_info: None,
-                },
-            ))
-        })
-        .try_join_for_each(|v| {
-            chunk_items.push(v);
-            Ok(())
-        })
-        .await?;
+    chunk_items.extend(
+        collecting_modules
+            .into_iter()
+            .map(async |module| {
+                let Some(entry_chunk_group) = new_availability_info.entry_group() else {
+                    bail!("unexpected collect module in non-entry chunk group",);
+                };
+                let chunk_item = module
+                    .as_chunk_item(*module_graph, *chunking_context, *entry_chunk_group)
+                    .to_resolved()
+                    .await?;
+                let chunk_type = chunk_item
+                    .into_trait_ref()
+                    .await?
+                    .ty()
+                    .to_resolved()
+                    .await?;
+                Ok(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                    ChunkItemWithAsyncModuleInfo {
+                        chunk_item,
+                        chunk_type,
+                        module: Some(ResolvedVc::upcast(*module)),
+                        async_info: None,
+                    },
+                ))
+            })
+            .try_join()
+            .await?,
+    );
 
     // Insert async chunk loaders for every referenced async module
     let async_availability_info =

@@ -90,24 +90,23 @@ impl Module for SideEffectsModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = vec![];
 
-        self.side_effects
-            .iter()
-            .map(async |side_effect| {
-                Ok(ResolvedVc::upcast(
-                    SingleChunkableModuleReference::new(
-                        *ResolvedVc::upcast(*side_effect),
-                        rcstr!("side effect"),
-                        ExportUsage::evaluation(),
-                    )
-                    .to_resolved()
-                    .await?,
-                ))
-            })
-            .try_join_for_each(|v| {
-                references.push(v);
-                Ok(())
-            })
-            .await?;
+        references.extend(
+            self.side_effects
+                .iter()
+                .map(async |side_effect| {
+                    Ok(ResolvedVc::upcast(
+                        SingleChunkableModuleReference::new(
+                            *ResolvedVc::upcast(*side_effect),
+                            rcstr!("side effect"),
+                            ExportUsage::evaluation(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ))
+                })
+                .try_join()
+                .await?,
+        );
 
         references.push(ResolvedVc::upcast(
             SingleChunkableModuleReference::new(
