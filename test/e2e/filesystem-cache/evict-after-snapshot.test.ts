@@ -3,8 +3,8 @@ import { retry, waitFor } from 'next-test-utils'
 
 // Eviction requires the dev server (HMR) and persistent caching (Turbopack).
 // Skip entirely in prod/start mode.
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely mutates files in the isolated local fixture after setup.
+// This suite changes fixture files to exercise filesystem-cache eviction.
+// Deployment mode cannot mutate the deployed application.
 // @force-gate !deploy
 // @force-gate dev
 describe('evict-after-snapshot', () => {

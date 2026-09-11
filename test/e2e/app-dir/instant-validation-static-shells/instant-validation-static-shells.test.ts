@@ -31,8 +31,8 @@ describe('instant validation - opting out of static shells', () => {
 })
 
 describe('instant validation', () => {
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This suite starts an intentionally invalid fixture and asserts build diagnostics.
+  // The deploy harness requires setup to succeed, so the fixture cannot be deployed.
   // @force-gate !deploy
   describe('requires a static shell if a below a static layout page is configured as blocking', () => {
     const { next, isNextDev } = nextTestSetup({

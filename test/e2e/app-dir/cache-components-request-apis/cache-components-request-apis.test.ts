@@ -74,8 +74,8 @@ describe(`Request Promises`, () => {
       )
     })
   })
-  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // This suite starts an intentionally invalid fixture and asserts build diagnostics.
+  // The deploy harness requires setup to succeed, so the fixture cannot be deployed.
   // @force-gate !deploy
   describe('On Prerender Interruption', () => {
     const { next, isNextDev } = nextTestSetup({

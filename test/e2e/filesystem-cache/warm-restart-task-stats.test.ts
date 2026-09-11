@@ -25,8 +25,8 @@ type TaskStats = Record<string, TaskFunctionStatistics>
 
 const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
 
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely inspects local build artifacts that deploy tests do not expose.
+// This suite rebuilds and restarts the local server to inspect filesystem-cache task statistics.
+// Deployment mode does not expose that build/server lifecycle.
 // @force-gate !deploy
 // @force-gate turbopack
 describe('warm-restart task statistics', () => {

@@ -9,8 +9,8 @@ import path from 'path'
 // This is a Turbopack + build (start) mode test. It runs `next build` with
 // controlled local and CI environments and checks whether anything is written
 // to `.next/cache/turbopack`.
-// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
-// It likely mutates files in the isolated local fixture after setup.
+// This suite rebuilds a fixture and inspects filesystem-cache output.
+// Deployment mode cannot run these local builds or inspect their cache files.
 // @force-gate !deploy
 // @force-gate turbopack
 // @force-gate start
