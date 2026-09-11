@@ -33,7 +33,6 @@ import {
   type FulfilledRouteCacheEntry,
   convertReusedFlightRouterStateToRouteTree,
   readSegmentCacheEntryForNavigation,
-  waitForSegmentCacheEntry,
   markRouteEntryAsDynamicRewrite,
   invalidateRouteCacheEntries,
   spawnStaticStageCacheWrite,
@@ -993,11 +992,22 @@ function createCacheNodeForSegment(
         now,
         tree.varyPath
       )
-      if (bfcacheEntry !== null) {
+      if (
+        bfcacheEntry !== null &&
+        isReusableBFCacheEntryForRegularNavigation(
+          bfcacheEntry.rsc,
+          bfcacheEntry.head
+        )
+      ) {
         // A regular navigation that happens to read cached data is still a
         // fresh navigation, so we use the caller-supplied bfcacheId — the
         // BFCacheEntry's id is only restored on history-traversal
         // navigations.
+        //
+        // Skip entries whose rsc/head never settled. writeToBFCache runs
+        // during tree construction, so a stalled navigation parks a pending
+        // thenable there. Serving it with needsDynamicRequest: false drops
+        // later clicks until staleAt (issue #98066).
         return {
           cacheNode: createCacheNode(
             bfcacheEntry.rsc,
@@ -1123,24 +1133,14 @@ function createCacheNodeForSegment(
         break
       }
       case EntryStatus.Pending: {
-        // We haven't received data for this segment yet, but there's already
-        // an in-progress request. Since it's extremely likely to arrive
-        // before the dynamic data response, we might as well use it.
-        const promiseForFulfilledEntry = waitForSegmentCacheEntry(segmentEntry)
-        cachedRsc = promiseForFulfilledEntry.then((entry) =>
-          entry !== null ? entry.rsc : null
-        )
-        // Because the request is still pending, we typically don't know yet
-        // whether the response will be partial. We shouldn't skip this segment
-        // during the dynamic navigation request. Otherwise, we might need to
-        // do yet another request to fill in the remaining data, creating
-        // a waterfall.
-        //
-        // The one exception is if this segment is being fetched with via
-        // prefetch={true} (i.e. the "force stale" or "full" strategy). If so,
-        // we can assume the response will be full. This field is set to `false`
-        // for such segments.
-        isCachedRscPartial = segmentEntry.isPartial
+        // Do not adopt an in-flight prefetch thenable as prefetchRsc.
+        // layout-router's useDeferredValue renders that thenable first; if
+        // the prefetch never settles, a later dynamic response cannot
+        // commit and the route stays dead (issue #98066). Always treat the
+        // segment as partial so this navigation issues a dynamic request
+        // instead of skipping it (the Pending-Full isPartial:false
+        // convention would otherwise omit the request).
+        isCachedRscPartial = true
         break
       }
       case EntryStatus.Empty:
@@ -1230,10 +1230,10 @@ function createCacheNodeForSegment(
             break
           }
           case EntryStatus.Pending: {
-            cachedHead = waitForSegmentCacheEntry(metadataEntry).then(
-              (entry) => (entry !== null ? entry.rsc : null)
-            )
-            isCachedHeadPartial = metadataEntry.isPartial
+            // Same as the segment Pending case: don't park a never-settling
+            // prefetch thenable on the head, and don't skip the dynamic
+            // request (issue #98066).
+            isCachedHeadPartial = true
             break
           }
           case EntryStatus.Empty:
@@ -2225,6 +2225,31 @@ type DeferredRsc<T extends React.ReactNode = React.ReactNode> =
 // too. We can remove it once type Cache Node type is more settled.
 export function isDeferredRsc(value: any): value is DeferredRsc {
   return value && typeof value === 'object' && value.tag === DEFERRED
+}
+
+function isSettledRenderableRsc(rsc: React.ReactNode | null): boolean {
+  if (rsc == null) {
+    return false
+  }
+  if (isDeferredRsc(rsc)) {
+    return rsc.status === 'fulfilled' && rsc.value != null
+  }
+  // A non-deferred thenable (e.g. a pending prefetch `.then()` wrapper)
+  // has no renderable data until it fulfills.
+  if (typeof (rsc as { then?: unknown }).then === 'function') {
+    return (rsc as { status?: string }).status === 'fulfilled'
+  }
+  return true
+}
+
+function isReusableBFCacheEntryForRegularNavigation(
+  rsc: React.ReactNode | null,
+  head: React.ReactNode | null
+): boolean {
+  return (
+    isSettledRenderableRsc(rsc) &&
+    (head == null || isSettledRenderableRsc(head))
+  )
 }
 
 function createDeferredRsc<
