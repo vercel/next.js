@@ -728,6 +728,19 @@ export interface ExperimentalConfig {
     algorithm?: SubresourceIntegrityAlgorithm
   }
 
+  /**
+   * Adds the hashes of the inline scripts of a cacheable response to the
+   * directive that governs script elements of its `Content-Security-Policy`, so
+   * the response can be served under a policy without `'unsafe-inline'`.
+   *
+   * Cacheable responses are buffered instead of streamed, since the hashes are
+   * only known once the document is complete. Dynamic responses keep streaming
+   * and still need a nonce.
+   */
+  inlineScriptHashes?: {
+    algorithm?: SubresourceIntegrityAlgorithm
+  }
+
   webVitalsAttribution?: Array<(typeof WEB_VITALS)[number]>
 
   /**
@@ -2486,6 +2499,7 @@ export interface NextConfigRuntime {
     | 'caseSensitiveRoutes'
     | 'validateRSCRequestHeaders'
     | 'sri'
+    | 'inlineScriptHashes'
     | 'useSkewCookie'
     | 'preloadEntriesOnStart'
     | 'hideLogsAfterAbort'
@@ -2556,6 +2570,7 @@ export function getNextConfigRuntime(
     caseSensitiveRoutes: ex.caseSensitiveRoutes,
     validateRSCRequestHeaders: ex.validateRSCRequestHeaders,
     sri: ex.sri,
+    inlineScriptHashes: ex.inlineScriptHashes,
     useSkewCookie: ex.useSkewCookie,
     preloadEntriesOnStart: ex.preloadEntriesOnStart,
     hideLogsAfterAbort: ex.hideLogsAfterAbort,

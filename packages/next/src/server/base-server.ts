@@ -611,6 +611,7 @@ export default abstract class Server<
         parallelRouteMetadata:
           this.nextConfig.experimental.parallelRouteMetadata ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
+        inlineScriptHashes: this.nextConfig.experimental.inlineScriptHashes,
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,

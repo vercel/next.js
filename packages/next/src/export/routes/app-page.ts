@@ -16,6 +16,7 @@ import {
   RSC_SEGMENTS_DIR_SUFFIX,
   RSC_SEGMENT_SUFFIX,
 } from '../../lib/constants'
+import { collectInlineScriptHashes } from '../../server/app-render/inline-script-hashes'
 import { hasNextSupport } from '../../server/ci-info'
 import { lazyPrerenderAppPage } from '../../server/route-modules/app-page/module.render'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
@@ -217,11 +218,23 @@ export async function exportAppPage(
       status = res.statusCode
     }
 
+    // The hashes of the inline scripts travel with the prerendered document, so
+    // the response can be served under a policy without `'unsafe-inline'`. A
+    // postponed shell is completed at request time and streams, so it stays out.
+    const inlineScriptHashesConfig = renderOpts.experimental.inlineScriptHashes
+    const inlineScriptHashes =
+      inlineScriptHashesConfig && !postponed
+        ? collectInlineScriptHashes(html, inlineScriptHashesConfig.algorithm)
+        : undefined
+
     // Writing the request metadata to a file.
     const meta: RouteMetadata = {
       status,
       headers,
       postponed,
+      inlineScriptHashes: inlineScriptHashes?.length
+        ? inlineScriptHashes
+        : undefined,
       segmentPaths,
       prefetchHints,
     }
