@@ -129,7 +129,8 @@ use crate::{
             CjsRequireResolveAssetReference,
         },
         cross_module_constants::{
-            is_import_name_eligible_for_exports, module_value_to_constants_module,
+            get_inline_export, is_import_name_eligible_for_exports,
+            module_value_to_constants_module,
         },
         dynamic_expression::DynamicExpression,
         emit_collect::{CollectReference, EmitReference},
@@ -513,6 +514,8 @@ struct AnalysisState<'a> {
     var_cache: Mutex<FxHashMap<Id, JsValue<'a>>>,
     /// A cache for the linked value of imported constants.
     constants_cache: Mutex<FxHashMap<ModuleValue, Option<JsValue<'a>>>>,
+    /// A cache for constants used only during export inlining code generation.
+    inline_exports_cache: Mutex<FxHashMap<(usize, RcStr), Option<CompileTimeDefineValue>>>,
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
@@ -543,6 +546,24 @@ struct AnalysisState<'a> {
 }
 
 impl<'a> AnalysisState<'a> {
+    /// Gets a short constant export for code-generation-only inlining.
+    async fn get_inline_export(
+        &self,
+        reference_idx: usize,
+        export: RcStr,
+    ) -> Result<Option<CompileTimeDefineValue>> {
+        let key = (reference_idx, export.clone());
+        if let Some(value) = self.inline_exports_cache.lock().get(&key) {
+            return Ok(value.clone());
+        }
+        let Some(reference) = self.import_references.get(reference_idx) else {
+            bail!("couldn't find import reference at index {reference_idx}");
+        };
+        let value = get_inline_export(*reference, &export, *self.compile_time_info).await?;
+        self.inline_exports_cache.lock().insert(key, value.clone());
+        Ok(value)
+    }
+
     /// Links a value to the graph, returning the linked value.
     async fn link_value(
         &self,
@@ -886,6 +907,7 @@ async fn analyze_ecmascript_module_internal(
             fun_args_values: Default::default(),
             var_cache: Default::default(),
             constants_cache: Default::default(),
+            inline_exports_cache: Default::default(),
             first_import_meta: true,
             first_webpack_exports_info: true,
             module_fragments_enabled: options.module_fragments_enabled,
@@ -1409,6 +1431,14 @@ async fn analyze_ecmascript_module_internal(
                     {
                         // This is a constant import, we can inline it directly without creating
                         // a reference
+                        analysis
+                            .add_code_gen(ConstantValueCodeGen::new(c, ast_path.to_vec().into()));
+                    } else if options.inline_constant_exports
+                        && let Some(export) = export.as_ref()
+                        && let Some(c) = analysis_state
+                            .get_inline_export(esm_reference_index, export.clone())
+                            .await?
+                    {
                         analysis
                             .add_code_gen(ConstantValueCodeGen::new(c, ast_path.to_vec().into()));
                     } else if let Some("__turbopack_module_id__") = export.as_deref() {

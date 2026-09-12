@@ -554,6 +554,7 @@ pub async fn get_server_module_options_context(
             mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
             cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
             cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
+            inline_constant_exports: *next_config.turbopack_inline_constant_exports().await?,
             ..Default::default()
         },
         execution_context: Some(execution_context),
