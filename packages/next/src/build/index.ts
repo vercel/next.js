@@ -3928,12 +3928,14 @@ export default async function build(
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
-                  throwOnEmptyStaticShell:
-                    // Matcher-only entries have no source shell to validate.
-                    // Their runtime renders stage the completed shell instead.
-                    prerenderCandidate
+                  // Only PPR routes use static-shell validation. Without a
+                  // build-time prerender, false lets runtime rendering resolve
+                  // the remaining prerenderable params during the static phase.
+                  throwOnEmptyStaticShell: isRoutePPREnabled
+                    ? prerenderCandidate
                       ? prerenderCandidate.throwOnEmptyStaticShell
-                      : false,
+                      : false
+                    : undefined,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
