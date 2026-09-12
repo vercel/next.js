@@ -34,7 +34,12 @@ use turbopack_core::{
 use crate::parse::{IdentCollector, generate_js_source_map};
 
 #[instrument(level = "info", name = "minify ecmascript code", skip_all)]
-pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Result<Code> {
+pub fn minify(
+    code: Code,
+    source_maps: bool,
+    mangle: Option<MangleType>,
+    supports_arrow_functions: bool,
+) -> Result<Code> {
     // Pass None for the debug ID so we don't needlessly compute it for the pre-minified content, it
     // will be added by the Code object returned from this function
     let source_maps = source_maps.then(|| code.generate_source_map_ref(None));
@@ -100,6 +105,9 @@ pub fn minify(code: Code, source_maps: bool, mangle: Option<MangleType>) -> Resu
                                 passes: 2,
                                 keep_classnames: mangle.is_none(),
                                 keep_fnames: mangle.is_none(),
+                                // SWC's default compression can turn functions and object methods
+                                // into arrow functions, even when `ecma` is set to ES5.
+                                arrows: supports_arrow_functions,
                                 ..Default::default()
                             }),
                             mangle: mangle.map(|mangle| {
@@ -203,4 +211,36 @@ fn print_program(
     };
 
     Ok((src, src_map_buf))
+}
+
+#[cfg(test)]
+mod tests {
+    use turbopack_core::code_builder::CodeBuilder;
+
+    use crate::minify::minify;
+
+    fn minified_source(supports_arrow_functions: bool) -> Vec<u8> {
+        let mut code = CodeBuilder::default();
+        code += "const queue = { delete(value) { return value; } }; globalThis.queue = queue;";
+
+        minify(code.build(), false, None, supports_arrow_functions)
+            .unwrap()
+            .into_source_code()
+            .into_bytes()
+            .to_vec()
+    }
+
+    #[test]
+    fn respects_arrow_function_support() {
+        assert!(
+            minified_source(true)
+                .windows(2)
+                .any(|window| window == b"=>")
+        );
+        assert!(
+            !minified_source(false)
+                .windows(2)
+                .any(|window| window == b"=>")
+        );
+    }
 }
