@@ -34,6 +34,10 @@ impl FromIterator<(PathBuf, ResolvedVc<DiskFileSystem>)> for DiskFileSystemMap {
 }
 
 impl DiskFileSystemMap {
+    pub fn has_file_system_other_than(&self, current: ResolvedVc<DiskFileSystem>) -> bool {
+        self.0.values().any(|file_system| *file_system != current)
+    }
+
     /// Converts an absolute system path into a path owned by one of the installed filesystems.
     ///
     /// Returns `None` if the file path does not exist inside any other root, or if the relative
@@ -73,6 +77,7 @@ mod tests {
                 .to_resolved()
                 .await?;
             let map: DiskFileSystemMap = [(PathBuf::from("/tmp/root"), fs)].into_iter().collect();
+            assert!(!map.has_file_system_other_than(fs));
             assert_eq!(
                 map.lookup(Path::new("/tmp/root/file")).unwrap().path,
                 "file"
