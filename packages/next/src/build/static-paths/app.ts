@@ -1,6 +1,9 @@
 import type { Params } from '../../server/request/params'
 import type { AppPageModule } from '../../server/route-modules/app-page/module'
-import type { AppSegment } from '../segment-config/app/app-segments'
+import type {
+  AppSegment,
+  AppSegmentTree,
+} from '../segment-config/app/app-segments'
 import type {
   FallbackRouteParam,
   PrerenderRouteMatcher,
@@ -867,6 +870,7 @@ export async function buildAppStaticPaths({
   durableUseCacheEntries,
   staticPageGenerationTimeout,
   segments,
+  segmentTree,
   isrFlushToDisk,
   cacheHandler,
   cacheLifeProfiles,
@@ -891,6 +895,7 @@ export async function buildAppStaticPaths({
   durableUseCacheEntries: boolean
   staticPageGenerationTimeout: number
   segments: readonly Readonly<AppSegment>[]
+  segmentTree: readonly AppSegmentTree[]
   distDir: string
   isrFlushToDisk?: boolean
   fetchCacheKeyPrefix?: string
@@ -983,7 +988,7 @@ export async function buildAppStaticPaths({
     store,
     compilePrerenderMatcher,
     page,
-    segments,
+    segmentTree,
     pathnameRouteParamSegments
   )
 

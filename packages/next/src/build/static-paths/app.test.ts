@@ -15,6 +15,7 @@ import type { PrerenderedRoute } from './types'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type {
   AppSegment,
+  AppSegmentTree,
   PrerenderMatcher,
 } from '../segment-config/app/app-segments'
 
@@ -564,25 +565,27 @@ describe('assignStaticShellMetadata', () => {
 })
 
 const createMatcherSegment = ({
-  treePath,
   matcher,
   generate,
-  filePath = `${treePath.join('-') || 'root'}/layout.tsx`,
+  filePath = 'app/layout.tsx',
+  children = [],
 }: {
-  treePath: string[]
   matcher?: PrerenderMatcher
   generate?: () => Promise<PrerenderMatcher>
   filePath?: string
-}): AppSegment => ({
-  name: '',
-  treePaths: [treePath],
-  paramName: undefined,
-  paramType: undefined,
-  filePath,
-  config: undefined,
-  prerenderMatcher: generate ?? matcher,
-  generateStaticParams: undefined,
-})
+  children?: AppSegmentTree[]
+}): AppSegmentTree => [
+  {
+    name: '',
+    paramName: undefined,
+    paramType: undefined,
+    filePath,
+    config: undefined,
+    prerenderMatcher: generate ?? matcher,
+    generateStaticParams: undefined,
+  },
+  children,
+]
 
 describe('compilePrerenderMatcher', () => {
   const pathnameParams = [
@@ -597,20 +600,21 @@ describe('compilePrerenderMatcher', () => {
       '/[lang]/catalog/[top]/items/[bottom]',
       [
         createMatcherSegment({
-          treePath: ['children'],
           matcher: { lang: 'not-found' },
-        }),
-        createMatcherSegment({
-          treePath: ['children', 'children'],
-          generate: async () => {
-            calls++
-            return { top: 'blocking' }
-          },
-        }),
-        createMatcherSegment({
-          treePath: ['children', 'children', 'children'],
-          matcher: { top: 'fallback', bottom: 'dynamic' },
-          filePath: 'app/[lang]/catalog/[top]/items/[bottom]/page.tsx',
+          children: [
+            createMatcherSegment({
+              generate: async () => {
+                calls++
+                return { top: 'blocking' }
+              },
+              children: [
+                createMatcherSegment({
+                  matcher: { top: 'fallback', bottom: 'dynamic' },
+                  filePath: 'app/[lang]/catalog/[top]/items/[bottom]/page.tsx',
+                }),
+              ],
+            }),
+          ],
         }),
       ],
       pathnameParams
@@ -635,18 +639,18 @@ describe('compilePrerenderMatcher', () => {
       '/[lang]/catalog/[top]/items/[bottom]',
       [
         createMatcherSegment({
-          treePath: ['children'],
           generate: async () => {
             await firstGate
             return { lang: 'not-found' }
           },
-        }),
-        createMatcherSegment({
-          treePath: ['children', 'children'],
-          generate: async () => {
-            secondStarted = true
-            return { top: 'blocking' }
-          },
+          children: [
+            createMatcherSegment({
+              generate: async () => {
+                secondStarted = true
+                return { top: 'blocking' }
+              },
+            }),
+          ],
         }),
       ],
       pathnameParams
@@ -660,23 +664,44 @@ describe('compilePrerenderMatcher', () => {
     })
   })
 
+  it('evaluates a shared module once without merging its separate children', async () => {
+    let calls = 0
+    const [sharedSegment] = createMatcherSegment({
+      generate: async () => {
+        calls++
+        return { lang: 'blocking' }
+      },
+    })
+
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]',
+        [
+          [
+            sharedSegment,
+            [createMatcherSegment({ matcher: { lang: 'fallback' } })],
+          ],
+          [sharedSegment, [createMatcherSegment({})]],
+        ],
+        [{ paramName: 'lang' }]
+      )
+    ).rejects.toThrow('conflicting parallel parameter matching modes')
+    expect(calls).toBe(1)
+  })
+
   it('does not implicitly tighten inherited params', async () => {
     await expect(
       compilePrerenderMatcher(
         '/[lang]/catalog/[top]/items/[bottom]',
         [
           createMatcherSegment({
-            treePath: ['children'],
             matcher: { lang: 'blocking' },
-          }),
-          createMatcherSegment({
-            treePath: ['children', 'children'],
-            matcher: { top: 'not-found' },
+            children: [createMatcherSegment({ matcher: { top: 'not-found' } })],
           }),
         ],
         pathnameParams
       )
-    ).rejects.toThrow('Expected parameters to follow not-found')
+    ).rejects.toThrow('Expected parameters in this order: "not-found"')
   })
 
   it('does not implicitly loosen inherited params', async () => {
@@ -685,17 +710,13 @@ describe('compilePrerenderMatcher', () => {
         '/[lang]/catalog/[top]/items/[bottom]',
         [
           createMatcherSegment({
-            treePath: ['children'],
             matcher: { top: 'not-found' },
-          }),
-          createMatcherSegment({
-            treePath: ['children', 'children'],
-            matcher: { lang: 'blocking' },
+            children: [createMatcherSegment({ matcher: { lang: 'blocking' } })],
           }),
         ],
         pathnameParams
       )
-    ).rejects.toThrow('Expected parameters to follow not-found')
+    ).rejects.toThrow('Expected parameters in this order: "not-found"')
   })
 
   it('validates coherence after descendant overrides are merged', async () => {
@@ -704,12 +725,10 @@ describe('compilePrerenderMatcher', () => {
         '/[lang]/catalog/[top]/items/[bottom]',
         [
           createMatcherSegment({
-            treePath: ['children'],
             matcher: { lang: 'fallback', top: 'blocking' },
-          }),
-          createMatcherSegment({
-            treePath: ['children', 'children'],
-            matcher: { lang: 'not-found' },
+            children: [
+              createMatcherSegment({ matcher: { lang: 'not-found' } }),
+            ],
           }),
         ],
         pathnameParams
@@ -723,19 +742,17 @@ describe('compilePrerenderMatcher', () => {
         '/[lang]/catalog/[top]/items/[bottom]',
         [
           createMatcherSegment({
-            treePath: ['@slot1'],
             matcher: { lang: 'fallback' },
             filePath: 'app/@slot1/page.tsx',
           }),
           createMatcherSegment({
-            treePath: ['@slot2'],
             matcher: { top: 'blocking' },
             filePath: 'app/@slot2/page.tsx',
           }),
         ],
         pathnameParams
       )
-    ).rejects.toThrow('Expected parameters to follow not-found')
+    ).rejects.toThrow('Expected parameters in this order: "not-found"')
   })
 
   it('rejects params outside the matched route', async () => {
@@ -744,7 +761,6 @@ describe('compilePrerenderMatcher', () => {
         '/[lang]/catalog/[top]/items/[bottom]',
         [
           createMatcherSegment({
-            treePath: ['children'],
             matcher: { other: 'blocking' },
           }),
         ],
@@ -759,13 +775,12 @@ describe('compilePrerenderMatcher', () => {
         '/[lang]/catalog/[top]/items/[bottom]',
         [
           createMatcherSegment({
-            treePath: ['children'],
             matcher: { lang: 'fallback', top: 'blocking' },
           }),
         ],
         pathnameParams
       )
-    ).rejects.toThrow('Expected parameters to follow not-found')
+    ).rejects.toThrow('Expected parameters in this order: "not-found"')
   })
 
   it('rejects conflicting definitions from parallel siblings', async () => {
@@ -774,12 +789,10 @@ describe('compilePrerenderMatcher', () => {
         '/[lang]/catalog/[top]/items/[bottom]',
         [
           createMatcherSegment({
-            treePath: ['@slot1'],
             matcher: { top: 'blocking' },
             filePath: 'app/@slot1/page.tsx',
           }),
           createMatcherSegment({
-            treePath: ['@slot2'],
             matcher: { top: 'fallback' },
             filePath: 'app/@slot2/page.tsx',
           }),
@@ -795,12 +808,10 @@ describe('compilePrerenderMatcher', () => {
         '/[lang]/catalog/[top]/items/[bottom]',
         [
           createMatcherSegment({
-            treePath: ['@slot1'],
             matcher: { top: 'blocking' },
             filePath: 'app/@slot1/page.tsx',
           }),
           createMatcherSegment({
-            treePath: ['@slot2'],
             matcher: { top: 'blocking' },
             filePath: 'app/@slot2/page.tsx',
           }),
@@ -812,10 +823,9 @@ describe('compilePrerenderMatcher', () => {
 
   it('rejects the route-wide dynamicParams switch', async () => {
     const segment = createMatcherSegment({
-      treePath: ['children'],
       matcher: { lang: 'not-found' },
     })
-    segment.config = { dynamicParams: false }
+    segment[0].config = { dynamicParams: false }
 
     await expect(
       compilePrerenderMatcher(

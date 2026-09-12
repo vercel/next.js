@@ -156,8 +156,6 @@ function attach(
 
 export type AppSegment = {
   name: string
-  // A deduplicated module can occur in more than one parallel branch.
-  treePaths: string[][]
   paramName: string | undefined
   paramType: DynamicParamTypes | undefined
   filePath: string | undefined
@@ -170,6 +168,14 @@ export type AppSegment = {
   createEmptyParamsError?: () => Error
 }
 
+// Each occurrence has its own children, but occurrences of the same module
+// share an AppSegment. The flat list keeps one entry per module for parameter
+// generation.
+export type AppSegmentTree = [
+  segment: AppSegment,
+  parallelRoutes: AppSegmentTree[],
+]
+
 /**
  * Walks the loader tree and collects the generate parameters for each segment.
  *
@@ -180,22 +186,23 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
   // We keep track of unique segments, since with parallel routes, it's possible
   // to see the same segment multiple times.
   const segments: AppSegment[] = []
+  const segmentTree: AppSegmentTree[] = []
 
   // Queue will store loader trees.
   const queue: Array<{
     loaderTree: LoaderTree
     visibleParamNames: string[]
-    treePath: string[]
+    parentChildren: AppSegmentTree[]
   }> = [
     {
       loaderTree: routeModule.userland.loaderTree,
       visibleParamNames: [],
-      treePath: [],
+      parentChildren: segmentTree,
     },
   ]
 
   while (queue.length > 0) {
-    const { loaderTree, visibleParamNames, treePath } = queue.shift()!
+    const { loaderTree, visibleParamNames, parentChildren } = queue.shift()!
     const [name, parallelRoutes] = loaderTree
 
     // Process current node
@@ -209,7 +216,6 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
 
     const segment: AppSegment = {
       name,
-      treePaths: [treePath],
       paramName: param?.paramName,
       paramType: param?.paramType,
       filePath,
@@ -238,25 +244,23 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
         s.paramType === segment.paramType &&
         s.filePath === segment.filePath
     )
-    if (existingSegment) {
-      existingSegment.treePaths.push(treePath)
-    } else {
+    if (!existingSegment) {
       segments.push(segment)
     }
+    const children: AppSegmentTree[] = []
+    parentChildren.push([existingSegment ?? segment, children])
 
     // Add all parallel routes to the queue
-    for (const [parallelRouteKey, parallelRoute] of Object.entries(
-      parallelRoutes
-    )) {
+    for (const parallelRoute of Object.values(parallelRoutes)) {
       queue.push({
         loaderTree: parallelRoute,
         visibleParamNames: currentVisibleParamNames,
-        treePath: [...treePath, parallelRouteKey],
+        parentChildren: children,
       })
     }
   }
 
-  return segments
+  return { segments, segmentTree }
 }
 
 /**
@@ -265,9 +269,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
  * @param routeModule the app route module
  * @returns the segments for the app route module
  */
-async function collectAppRouteSegments(
-  routeModule: AppRouteRouteModule
-): Promise<AppSegment[]> {
+async function collectAppRouteSegments(routeModule: AppRouteRouteModule) {
   // The route file may be an async module (top-level await), so the userland
   // module must be resolved before its exports can be inspected.
   await routeModule.ensureUserland()
@@ -279,12 +281,11 @@ async function collectAppRouteSegments(
   }
 
   // Generate all the segments.
-  const segments: AppSegment[] = parts.map((name, index) => {
+  const segments: AppSegment[] = parts.map((name) => {
     const param = getSegmentParam(name)
 
     return {
       name,
-      treePaths: [parts.slice(0, index)],
       paramName: param?.paramName,
       paramType: param?.paramType,
       filePath: undefined,
@@ -303,7 +304,11 @@ async function collectAppRouteSegments(
   // Extract the segment config from the userland module.
   attach(segment, routeModule.userland, routeModule.definition.pathname, [])
 
-  return segments
+  let segmentTree: AppSegmentTree[] = []
+  for (let index = segments.length - 1; index >= 0; index--) {
+    segmentTree = [[segments[index], segmentTree]]
+  }
+  return { segments, segmentTree }
 }
 
 /**
@@ -314,7 +319,7 @@ async function collectAppRouteSegments(
  */
 export function collectSegments(
   routeModule: AppRouteRouteModule | AppPageRouteModule
-): Promise<AppSegment[]> | AppSegment[] {
+) {
   if (isAppRouteRouteModule(routeModule)) {
     return collectAppRouteSegments(routeModule)
   }
