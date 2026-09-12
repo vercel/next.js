@@ -8,6 +8,11 @@ import type { RequestInsightKind } from '../../../shared/lib/request-insights'
 import {
   getRequestInsightKey,
   getRequestInsightKind,
+  getRequestInsightSource,
+  REQUEST_INSIGHT_PROXY_SPAN_TYPE,
+  REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+  type RequestInsightProxyStatus,
+  type RequestInsightSource,
 } from '../../../shared/lib/request-insights'
 import type { SpanStoreRecord } from './span-store'
 export { isRequestInsightsEnabled } from './span-store'
@@ -18,13 +23,15 @@ const CLIENT_COMPONENT_LOADING_SPAN_TYPE =
   'NextNodeServer.clientComponentLoading'
 
 type RequestInsightsListener = (insight: RequestInsight) => void
-type RequestInsightIdentity = {
+type RequestInsightIdentity = Readonly<{
   requestId?: string
   kind?: RequestInsightKind
+  source?: RequestInsightSource
+  proxyStatus?: RequestInsightProxyStatus
   htmlRequestId?: string
   route?: string
   url?: string
-}
+}>
 
 const REDACTED_VALUE = 'redacted'
 const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
@@ -38,6 +45,7 @@ const SAFE_SPAN_ATTRIBUTE_KEYS = new Set([
   'next.fetch.cache_status',
   'next.fetch.idx',
   'next.route',
+  'next.request_source',
   'next.rsc',
   'next.segment',
   'next.span_category',
@@ -65,6 +73,8 @@ class InMemoryRequestInsightsStore {
       {
         requestId: span.requestId,
         kind: span.requestInsightKind,
+        source: span.requestInsightSource,
+        proxyStatus: span.requestInsightProxyStatus,
         htmlRequestId: span.htmlRequestId,
         route: span.route,
         url: span.url,
@@ -74,6 +84,15 @@ class InMemoryRequestInsightsStore {
 
     const spanStartTime = span.startTime ?? span.timestamp
     insight.htmlRequestId = span.htmlRequestId ?? insight.htmlRequestId
+    this.updateClassification(
+      insight,
+      {
+        kind: span.requestInsightKind,
+        source: span.requestInsightSource,
+        proxyStatus: span.requestInsightProxyStatus,
+      },
+      span
+    )
     insight.route = insight.route ?? span.route
     insight.url = insight.url ?? sanitizeUrl(span.url)
     this.updateTiming(
@@ -123,6 +142,25 @@ class InMemoryRequestInsightsStore {
     this.notify(insight)
   }
 
+  recordClassification(identity: RequestInsightIdentity): void {
+    if (!identity.requestId) {
+      return
+    }
+
+    const insight = this.requests.get(
+      getRequestInsightKey({
+        requestId: identity.requestId,
+        kind: identity.kind,
+      })
+    )
+    if (!insight) {
+      return
+    }
+
+    this.updateClassification(insight, identity)
+    this.notify(insight)
+  }
+
   getSnapshot(): RequestInsightsSnapshot {
     return {
       requests: this.requestOrder
@@ -152,7 +190,19 @@ class InMemoryRequestInsightsStore {
   ): void {
     const insightKey = getRequestInsightKey(insight)
     if (isRequestSpan && durationMs !== undefined) {
-      const requestTiming = { startTime, durationMs }
+      const previousTiming = this.requestTimings.get(insightKey) ?? {
+        startTime,
+        durationMs,
+      }
+      const requestStart = Math.min(previousTiming.startTime, startTime)
+      const requestTiming = {
+        startTime: requestStart,
+        durationMs:
+          Math.max(
+            previousTiming.startTime + previousTiming.durationMs,
+            startTime + durationMs
+          ) - requestStart,
+      }
       this.requestTimings.set(insightKey, requestTiming)
       insight.startTime = requestTiming.startTime
       insight.durationMs = requestTiming.durationMs
@@ -193,6 +243,8 @@ class InMemoryRequestInsightsStore {
       insight = {
         requestId,
         kind: getRequestInsightKind(identity),
+        source: getRequestInsightSource(identity),
+        proxyStatus: identity.proxyStatus,
         htmlRequestId: identity.htmlRequestId ?? requestId,
         route: identity.route,
         url: sanitizeUrl(identity.url),
@@ -207,11 +259,22 @@ class InMemoryRequestInsightsStore {
     }
 
     insight.htmlRequestId = identity.htmlRequestId ?? insight.htmlRequestId
+    this.updateClassification(insight, identity)
     insight.route = insight.route ?? identity.route
     insight.url = insight.url ?? sanitizeUrl(identity.url)
     insight.startTime = Math.min(insight.startTime, startTime)
 
     return insight
+  }
+
+  private updateClassification(
+    insight: RequestInsight,
+    identity: RequestInsightIdentity,
+    span?: SpanStoreRecord
+  ): void {
+    const source = identity.source ?? getSourceFromSpan(span)
+    insight.source = refineSource(insight.source, source)
+    insight.proxyStatus = identity.proxyStatus ?? insight.proxyStatus
   }
 
   private recordFetchForInsight(
@@ -244,6 +307,28 @@ class InMemoryRequestInsightsStore {
   }
 }
 
+function refineSource(
+  current: RequestInsightSource,
+  candidate: RequestInsightSource | undefined
+): RequestInsightSource {
+  if (!candidate || candidate === 'unknown') {
+    return current
+  }
+  if (
+    candidate === 'app-route' ||
+    candidate === 'pages-api' ||
+    candidate === 'image' ||
+    candidate === 'asset' ||
+    candidate === 'instant-insights'
+  ) {
+    return candidate
+  }
+  if (current === 'unknown' || current === 'proxy') {
+    return candidate
+  }
+  return current
+}
+
 export function recordRequestInsightSpan(span: SpanStoreRecord): void {
   if (
     span.attributes?.['next.span_type'] === CLIENT_COMPONENT_LOADING_SPAN_TYPE
@@ -259,6 +344,13 @@ export function recordRequestInsightFetch(
   fetch: RequestInsightFetch
 ): void {
   getRequestInsightsStore().recordFetch(identity, fetch)
+}
+
+export function recordRequestInsightSource(
+  identity: RequestInsightIdentity,
+  source: RequestInsightSource
+): void {
+  getRequestInsightsStore().recordClassification({ ...identity, source })
 }
 
 export function getRequestInsightsSnapshot(): RequestInsightsSnapshot {
@@ -301,6 +393,39 @@ function getFetchInsight(span: SpanStoreRecord): RequestInsightFetch | null {
     cacheReason: getStringAttribute(attributes['next.fetch.cache_reason']),
     index: getNumberAttribute(attributes['next.fetch.idx']),
   }
+}
+
+function getSourceFromSpan(
+  span: SpanStoreRecord | undefined
+): RequestInsightSource | undefined {
+  if (!span) {
+    return undefined
+  }
+
+  const spanType = getStringAttribute(span.attributes?.['next.span_type'])
+  const markedSource = getStringAttribute(
+    span.attributes?.['next.request_source']
+  )
+  if (markedSource === 'image' || markedSource === 'asset') {
+    return markedSource
+  }
+
+  if (spanType === 'AppRouteRouteHandlers.runHandler') {
+    return 'app-route'
+  }
+  if (spanType === 'Node.runHandler') {
+    return 'pages-api'
+  }
+  if (spanType === 'NextNodeServer.imageOptimizer') {
+    return 'image'
+  }
+  if (spanType === REQUEST_INSIGHT_REQUEST_SPAN_TYPE) {
+    return 'page'
+  }
+  if (spanType === REQUEST_INSIGHT_PROXY_SPAN_TYPE) {
+    return 'proxy'
+  }
+  return undefined
 }
 
 function sanitizeFetchInsight(fetch: RequestInsightFetch): RequestInsightFetch {

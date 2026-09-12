@@ -11,6 +11,7 @@ function createRequest(
 ): RequestInsight {
   return {
     requestId: 'request-1',
+    source: 'unknown',
     htmlRequestId: 'html-1',
     startTime: 100,
     durationMs: 100,
@@ -197,6 +198,31 @@ describe('request insights trace viewer', () => {
       { label: 'Prepare validation inputs', depth: 1 },
       { label: 'Run validation', depth: 1 },
     ])
+  })
+
+  it('uses Proxy terminology without changing the recorded OTel span', () => {
+    const middlewareSpan = {
+      name: 'middleware POST',
+      startTime: 100,
+      durationMs: 10,
+      attributes: {
+        'http.method': 'POST',
+        'next.span_name': 'middleware POST',
+        'next.span_type': 'Middleware.execute',
+      },
+    }
+    const request = createRequest({ spans: [middlewareSpan] })
+
+    expect(getTraceItems(request, false)[0]?.label).toBe('proxy POST')
+    expect(middlewareSpan).toEqual(
+      expect.objectContaining({
+        name: 'middleware POST',
+        attributes: expect.objectContaining({
+          'next.span_name': 'middleware POST',
+          'next.span_type': 'Middleware.execute',
+        }),
+      })
+    )
   })
 
   it('orders spans by their recorded parent-child hierarchy', () => {
