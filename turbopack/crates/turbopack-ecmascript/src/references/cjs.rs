@@ -22,7 +22,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::CommonJsReferenceSubType,
     resolve::{
-        BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult, ResolveErrorMode,
+        BindingUsage, ImportUsage, ModuleResolveResult, ResolveErrorMode, TargetExportUsage,
         origin::ResolveOrigin, parse::Request,
     },
 };
@@ -104,7 +104,7 @@ pub struct CjsRequireAssetReference {
     error_mode: ResolveErrorMode,
     chunking_type_attribute: Option<SpecifiedChunkingType>,
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
-    usage: ExportUsage,
+    export_usage: TargetExportUsage,
     cjs_tree_shaking: bool,
 }
 
@@ -116,7 +116,7 @@ impl CjsRequireAssetReference {
         error_mode: ResolveErrorMode,
         chunking_type_attribute: Option<SpecifiedChunkingType>,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
-        usage: ExportUsage,
+        export_usage: TargetExportUsage,
         cjs_tree_shaking: bool,
     ) -> Self {
         CjsRequireAssetReference {
@@ -126,7 +126,7 @@ impl CjsRequireAssetReference {
             error_mode,
             chunking_type_attribute,
             resolve_override,
-            usage,
+            export_usage,
             cjs_tree_shaking,
         }
     }
@@ -164,7 +164,7 @@ impl ModuleReference for CjsRequireAssetReference {
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
             import: ImportUsage::TopLevel,
-            export: self.usage.clone(),
+            export: self.export_usage.clone(),
         }
     }
 

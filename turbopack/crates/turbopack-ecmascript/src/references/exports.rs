@@ -1,4 +1,5 @@
 use anyhow::{Result, bail};
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::source_map::SmallPos,
     ecma::ast::{Expr, Ident, ImportDecl, MemberProp, Program, Stmt},
@@ -81,6 +82,9 @@ pub async fn compute_ecmascript_module_exports(
     let mut esm_reexport_reference_idxs: Vec<usize> = vec![];
     let mut esm_evaluation_reference_idxs: Vec<usize> = vec![];
 
+    let namespace_reexports: FxHashSet<usize> =
+        eval_context.imports.reexport_namespaces().collect();
+
     let span = tracing::trace_span!("esm import references");
     let import_references = async {
         let mut import_references = Vec::with_capacity(eval_context.imports.references().len());
@@ -96,7 +100,7 @@ pub async fn compute_ecmascript_module_exports(
                 None
             };
 
-            let reference = EsmAssetReference::new(
+            let mut reference = EsmAssetReference::new(
                 module,
                 ResolvedVc::upcast(module),
                 RcStr::from(&*r.module_path.to_string_lossy()),
@@ -136,10 +140,12 @@ pub async fn compute_ecmascript_module_exports(
                 options.module_fragments_enabled,
                 resolve_override,
             )
-            .await?
-            .resolved_cell();
+            .await?;
+            if namespace_reexports.contains(&i) {
+                reference.mark_namespace_reexport();
+            }
 
-            import_references.push(reference);
+            import_references.push(reference.resolved_cell());
             if should_add_evaluation {
                 esm_evaluation_reference_idxs.push(i);
             }

@@ -14,7 +14,7 @@ use crate::{
     module_graph::{
         GraphTraversalAction, ModuleGraph, RefData, chunk_group_info::RoaringBitmapWrapper,
     },
-    resolve::ExportUsage,
+    resolve::{ExportUsage, TargetExportUsage},
 };
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
@@ -534,7 +534,10 @@ pub async fn compute_merged_modules(module_graph: Vc<ModuleGraph>) -> Result<Vc<
                 if parent_info.is_some_and(|(_, r)| {
                     matches!(
                         r.binding_usage.export,
-                        ExportUsage::All | ExportUsage::PartialNamespaceObject(_)
+                        TargetExportUsage::Forwarded(_)
+                            | TargetExportUsage::Fixed(
+                                ExportUsage::All | ExportUsage::PartialNamespaceObject(_)
+                            )
                     )
                 }) {
                     // This module needs to be exposed:
