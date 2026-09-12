@@ -28,12 +28,13 @@ const REPRODUCE_STATIC_PAGE_UPGRADE_BUG =
 const REPRODUCE_STATIC_SHELL_PRECEDENCE_BUG =
   !!process.env.REPRODUCE_STATIC_SHELL_PRECEDENCE_BUG || false
 
+// The fixture rewrites value.json during requests; deployments do not provide
+// a writable, shared application filesystem.
+// @force-gate !deploy
 describe('App Shell revalidation', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // modifies files at runtime
   })
-  if (skipped) return
   if (isNextDev) {
     it('is skipped', () => {})
     return
