@@ -142,10 +142,15 @@ export function createWebSocket(
     return newWebSocket
   }
 
+  // Reconnect when the page becomes visible or the browser comes back online
+  // (e.g. after sleep/wake) and the socket is CLOSED. A socket that is still
+  // CONNECTING must be left alone: closing it would fire its disconnect
+  // handler, which schedules a reconnect that closes the new socket, and so on
+  // (e.g. when a prerendered page is activated while the handshake is pending).
   function handleVisibilityChange() {
     if (
       document.visibilityState === 'visible' &&
-      webSocket.readyState !== WebSocket.OPEN
+      webSocket.readyState === WebSocket.CLOSED
     ) {
       reconnections = 0
       clearTimeout(timer)
@@ -154,7 +159,7 @@ export function createWebSocket(
   }
 
   function handleOnlineEvent() {
-    if (webSocket.readyState !== WebSocket.OPEN) {
+    if (webSocket.readyState === WebSocket.CLOSED) {
       reconnections = 0
       clearTimeout(timer)
       init()
