@@ -1074,6 +1074,7 @@ export default async function build(
 
   let loadedConfig: NextConfigComplete | undefined
   let staticWorker: StaticWorker
+  let buildFailed = false
 
   // Turbopack compile warnings are deferred until after static generation.
   let deferredTurbopackWarnings: string[] | undefined
@@ -4690,6 +4691,7 @@ export default async function build(
       }
     })
   } catch (e) {
+    buildFailed = true
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
     if (telemetry) {
       telemetry.record(
@@ -4704,7 +4706,11 @@ export default async function build(
   } finally {
     // @ts-expect-error Existence of staticWorker is checked here intentionally.
     if (staticWorker) {
-      staticWorker.end()
+      if (buildFailed) {
+        await staticWorker.endGracefully()
+      } else {
+        staticWorker.end()
+      }
     }
     // Ensure we wait for lockfile patching if present
     await lockfilePatchPromise.cur

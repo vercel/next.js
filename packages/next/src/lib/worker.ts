@@ -1,6 +1,6 @@
 import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-import { Transform } from 'stream'
+import { Transform, type Readable } from 'stream'
 import {
   formatDebugAddress,
   formatNodeOptions,
@@ -20,6 +20,28 @@ const cleanupWorkers = (worker: JestWorker) => {
   }[]) {
     curWorker._child?.kill('SIGINT')
   }
+}
+
+const WORKER_STDIO_DRAIN_TIMEOUT_MS = 1000
+
+const waitForStreamEnd = (stream: NodeJS.ReadableStream): Promise<void> => {
+  const readable = stream as Readable
+  if (readable.readableEnded || readable.destroyed) {
+    return Promise.resolve()
+  }
+
+  return new Promise((resolve) => {
+    const finish = () => {
+      clearTimeout(timeout)
+      stream.off('end', finish)
+      stream.off('close', finish)
+      resolve()
+    }
+    const timeout = setTimeout(finish, WORKER_STDIO_DRAIN_TIMEOUT_MS)
+
+    stream.once('end', finish)
+    stream.once('close', finish)
+  })
 }
 
 export function getNextBuildDebuggerPortOffset(_: {
@@ -300,6 +322,24 @@ export class Worker {
     cleanupWorkers(worker)
     this._worker = undefined
     return worker.end()
+  }
+
+  /**
+   * Shuts down without interrupting the worker so a failed build can preserve
+   * its trailing diagnostics. Successful builds use `end()` to retain their
+   * existing shutdown behavior.
+   */
+  async endGracefully(): ReturnType<JestWorker['end']> {
+    const worker = this._worker
+    if (!worker) {
+      throw new Error('Farm is ended, no more calls can be done to it')
+    }
+
+    const outputStreams = [worker.getStdout(), worker.getStderr()]
+    this._worker = undefined
+    const result = await worker.end()
+    await Promise.all(outputStreams.map(waitForStreamEnd))
+    return result
   }
 
   /**
