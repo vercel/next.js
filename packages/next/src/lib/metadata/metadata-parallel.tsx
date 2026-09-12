@@ -5,6 +5,7 @@ import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { SearchParams } from '../../server/request/search-params'
 import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
+import { HIDDEN_METADATA_WRAPPER_TAG } from './constants'
 import type { MetadataErrorType } from './metadata-resolution-primitives'
 import {
   resolveMetadataForBranch,
@@ -126,14 +127,15 @@ export function createMetadataComponents({
         </MetadataBoundary>
       )
     }
-    return (
-      <div hidden>
-        <MetadataBoundary>
-          <Suspense name="Next.Metadata">
-            <Metadata />
-          </Suspense>
-        </MetadataBoundary>
-      </div>
+    // Not a <div>: see the same spot in ./metadata.tsx.
+    return React.createElement(
+      HIDDEN_METADATA_WRAPPER_TAG,
+      { hidden: true },
+      <MetadataBoundary>
+        <Suspense name="Next.Metadata">
+          <Metadata />
+        </Suspense>
+      </MetadataBoundary>
     )
   }
 
