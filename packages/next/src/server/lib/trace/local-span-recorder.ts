@@ -3,10 +3,10 @@ import type {
   Span,
   SpanOptions,
 } from 'next/dist/compiled/@opentelemetry/api'
-import type { AsyncLocalStorage } from 'async_hooks'
 import { SpanStatusCode } from 'next/dist/compiled/@opentelemetry/api'
 import {
   isLocalSpanRecordingEnabled,
+  isLocalSpanSinkActive,
   isRequestInsightsEnabled,
   recordSpan,
   type SpanStoreAttributes,
@@ -18,6 +18,7 @@ import type {
   RequestInsightProxyStatus,
   RequestInsightSource,
 } from '../../../shared/lib/request-insights'
+import { getOrCreateGlobalAsyncLocalStorage } from '../../app-render/async-local-storage'
 
 export { isLocalSpanRecordingEnabled } from './span-store'
 
@@ -51,13 +52,18 @@ type TraceLocalSpanOptions = Omit<
 
 let lastLocalTraceId = 0
 let lastLocalSpanId = 0
-let localSpanAsyncStorage: AsyncLocalStorage<Span> | undefined
 
-const getLocalTraceId = () =>
-  (++lastLocalTraceId).toString(16).padStart(TRACE_ID_HEX_LENGTH, '0')
+function getLocalTraceId(): string {
+  return (++lastLocalTraceId).toString(16).padStart(TRACE_ID_HEX_LENGTH, '0')
+}
 
-const getLocalSpanId = () =>
-  (++lastLocalSpanId).toString(16).padStart(SPAN_ID_HEX_LENGTH, '0')
+export function createLocalSpanId(excludedId?: string): string {
+  let spanId: string
+  do {
+    spanId = (++lastLocalSpanId).toString(16).padStart(SPAN_ID_HEX_LENGTH, '0')
+  } while (spanId === excludedId)
+  return spanId
+}
 
 export function createLocalSpan({
   name,
@@ -77,7 +83,7 @@ export function createLocalSpan({
     startTime,
     delegateSpan,
     traceId: traceId ?? getLocalTraceId(),
-    spanId: spanId ?? getLocalSpanId(),
+    spanId: spanId ?? createLocalSpanId(),
     parentSpanId,
     requestIdentity: getCurrentRequestIdentity(),
     isolateOpenTelemetry: isolateOpenTelemetry ?? false,
@@ -85,7 +91,7 @@ export function createLocalSpan({
 }
 
 export function getActiveLocalSpan(): Span | undefined {
-  return localSpanAsyncStorage?.getStore()
+  return getLocalSpanAsyncStorage().getStore()
 }
 
 export function isLocalRecordingSpan(span: Span): boolean {
@@ -137,37 +143,54 @@ export type LocalSpanRecorder = {
   isLocalRecordingSpan: typeof isLocalRecordingSpan
   isOpenTelemetryIsolatedSpan: typeof isOpenTelemetryIsolatedSpan
   isLocalSpanRecordingEnabled: typeof isLocalSpanRecordingEnabled
+  isLocalSpanSinkActive: typeof isLocalSpanSinkActive
   isRequestInsightsEnabled: typeof isRequestInsightsEnabled
   traceLocalSpan: typeof traceLocalSpan
   withLocalSpan: typeof withLocalSpan
 }
 
-export function registerLocalSpanRecorder(): void {
-  const key = Symbol.for('@next/local-span-recorder')
-  ;(
-    globalThis as typeof globalThis & {
-      [key]?: LocalSpanRecorder
-    }
-  )[key] = {
+// Some development entrypoints, including the proxy adapter, bundle their own
+// tracer copy. This versioned function-only registry lets those copies reach
+// the externalized recorder without sharing any per-request state globally.
+const LOCAL_SPAN_RECORDER_KEY = Symbol.for(
+  `@next/local-span-recorder@${process.env.__NEXT_VERSION}`
+)
+
+type GlobalWithLocalSpanRecorder = typeof globalThis & {
+  [LOCAL_SPAN_RECORDER_KEY]?: LocalSpanRecorder
+}
+
+function getLocalSpanRecorderApi({
+  sinkOnly,
+}: {
+  sinkOnly: boolean
+}): LocalSpanRecorder {
+  return {
     createLocalSpan,
     getActiveLocalSpan,
     isLocalRecordingSpan,
     isOpenTelemetryIsolatedSpan,
-    isLocalSpanRecordingEnabled,
-    isRequestInsightsEnabled,
+    isLocalSpanRecordingEnabled: sinkOnly
+      ? isLocalSpanSinkActive
+      : isLocalSpanRecordingEnabled,
+    isLocalSpanSinkActive,
+    isRequestInsightsEnabled: sinkOnly ? () => false : isRequestInsightsEnabled,
     traceLocalSpan,
     withLocalSpan,
   }
 }
 
-function getLocalSpanAsyncStorage(): AsyncLocalStorage<Span> {
-  if (!localSpanAsyncStorage) {
-    const { createAsyncLocalStorage } =
-      require('../../app-render/async-local-storage') as typeof import('../../app-render/async-local-storage')
-    localSpanAsyncStorage = createAsyncLocalStorage()
-  }
+export function registerLocalSpanRecorder({
+  sinkOnly = false,
+}: {
+  sinkOnly?: boolean
+} = {}): void {
+  ;(globalThis as GlobalWithLocalSpanRecorder)[LOCAL_SPAN_RECORDER_KEY] =
+    getLocalSpanRecorderApi({ sinkOnly })
+}
 
-  return localSpanAsyncStorage
+function getLocalSpanAsyncStorage() {
+  return getOrCreateGlobalAsyncLocalStorage<Span>('local-span-storage')
 }
 
 type RequestIdentity = {

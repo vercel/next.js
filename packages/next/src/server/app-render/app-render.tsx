@@ -117,8 +117,15 @@ import {
   runWithRequestInsightsIdentity,
 } from '../lib/trace/request-insights-identity'
 import { getTracer, SpanStatusCode } from '../lib/trace/tracer'
-import { traceLocalSpan } from '../lib/trace/local-span-recorder'
-import { isRequestInsightsEnabled } from '../lib/trace/request-insights'
+import {
+  getActiveLocalSpan,
+  isLocalSpanRecordingEnabled,
+  traceLocalSpan,
+} from '../lib/trace/local-span-recorder'
+import {
+  importRequestInsightSpans,
+  isRequestInsightsEnabled,
+} from '../lib/trace/request-insights'
 import { FlightRenderResult } from './flight-render-result'
 import {
   createReactServerErrorHandler,
@@ -4846,6 +4853,9 @@ function runDevValidationInBackground(
             const devValidationWorker = getDevValidationWorker()
 
             if (devValidationWorker) {
+              const runValidationSpan = getActiveLocalSpan()
+              const runValidationSpanContext = runValidationSpan?.spanContext()
+              const requestInsightsIdentity = getRequestInsightsIdentity()
               const snapshot = await buildDevValidationSnapshot(
                 ctx,
                 instantInputs,
@@ -4855,15 +4865,42 @@ function runDevValidationInBackground(
                 devRenderDidError
               )
 
-              const chunks = await devValidationWorker(
+              const workerResult = await devValidationWorker(
                 snapshot,
-                validationAbortSignal
+                validationAbortSignal,
+                {
+                  captureLocalSpans: Boolean(
+                    runValidationSpanContext && requestInsightsIdentity
+                  ),
+                }
               )
 
               // A newer navigation may have superseded this validation while
               // the worker ran; don't surface stale insights for a page the user
               // left.
-              if (chunks && !validationAbortSignal.aborted) {
+              if (!validationAbortSignal.aborted) {
+                if (
+                  workerResult.localSpans &&
+                  runValidationSpanContext &&
+                  requestInsightsIdentity
+                ) {
+                  importRequestInsightSpans(
+                    requestInsightsIdentity,
+                    runValidationSpanContext,
+                    workerResult.localSpans
+                  )
+                  if (workerResult.localSpans.droppedSpanCount > 0) {
+                    runValidationSpan?.setAttribute(
+                      'next.request_insights.omitted_spans',
+                      workerResult.localSpans.droppedSpanCount
+                    )
+                  }
+                }
+
+                const chunks = workerResult.chunks
+                if (!chunks) {
+                  return
+                }
                 const { sendErrorsToBrowser } = ctx.renderOpts
                 if (!sendErrorsToBrowser) {
                   throw new InvariantError(
@@ -6776,6 +6813,9 @@ async function runValidationInDev(
   devRenderDidError: boolean,
   validationAbortSignal: AbortSignal
 ): Promise<Array<unknown> | undefined> {
+  const runSpan = isLocalSpanRecordingEnabled()
+    ? runInstantInsightsSpan
+    : runWithoutInstantInsightsSpan
   const { componentMod: ComponentMod, getDynamicParamFromSegment } = ctx
   const loaderTree = ComponentMod.routeModule.userland.loaderTree
   const rootParams = getRootParams(loaderTree, getDynamicParamFromSegment)
@@ -6798,21 +6838,26 @@ async function runValidationInDev(
     // First we warmup SSR with the runtime chunks. This ensures that when we do
     // the full prerender pass with dynamic tracking module loading won't
     // interrupt the prerender and can properly observe the entire content
-    await warmupClientModulesForStagedValidation(
-      // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
-      // otherwise, for static shell validation, we only need to warm up to the runtime stage.
-      // we also need to use a different store type, because instant validation allows more APIs to resolve.
-      needsInstantValidation ? 'validation-client' : 'prerender-client',
-      needsInstantValidation
-        ? accumulatedChunks[RenderStage.Dynamic]
-        : accumulatedChunks[RenderStage.Runtime],
-      accumulatedChunks[RenderStage.Dynamic],
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      validationSamples,
-      validationSampleTracking,
-      validationAbortSignal
+    await runSpan(
+      AppRenderSpan.instantInsightsWarmup,
+      'Warm up validation modules',
+      () =>
+        warmupClientModulesForStagedValidation(
+          // if we're going to be validating prefetches, we'll be rendering some segments in the dynamic stage.
+          // otherwise, for static shell validation, we only need to warm up to the runtime stage.
+          // we also need to use a different store type, because instant validation allows more APIs to resolve.
+          needsInstantValidation ? 'validation-client' : 'prerender-client',
+          needsInstantValidation
+            ? accumulatedChunks[RenderStage.Dynamic]
+            : accumulatedChunks[RenderStage.Runtime],
+          accumulatedChunks[RenderStage.Dynamic],
+          rootParams,
+          fallbackRouteParams,
+          ctx,
+          validationSamples,
+          validationSampleTracking,
+          validationAbortSignal
+        )
     )
   }
 
@@ -6855,14 +6900,19 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
-    const result = await validateStaticShell(
-      inputs,
-      ctx,
-      rootParams,
-      fallbackRouteParams,
-      debugChunks,
-      hmrRefreshHash,
-      validationAbortSignal
+    const result = await runSpan(
+      AppRenderSpan.instantInsightsStaticShell,
+      'Validate static shell',
+      () =>
+        validateStaticShell(
+          inputs,
+          ctx,
+          rootParams,
+          fallbackRouteParams,
+          debugChunks,
+          hmrRefreshHash,
+          validationAbortSignal
+        )
     )
     // A newer render superseded this validation while its render ran, so its
     // result is stale. Don't surface errors for a page the user left.
@@ -6892,19 +6942,24 @@ async function runValidationInDev(
       : null
     const hmrRefreshHash = getHmrRefreshHash(inputs.requestStore)
 
-    const result = await validateInstantConfigs(
-      prefetchMode,
-      inputs.accumulatedChunks,
-      debugChunks,
-      inputs.startTime,
-      inputs.stageEndTimes,
-      rootParams,
-      fallbackRouteParams,
-      ctx,
-      hmrRefreshHash,
-      validationSamples,
-      devRenderDidError,
-      validationAbortSignal
+    const result = await runSpan(
+      AppRenderSpan.instantInsightsValidate,
+      'Validate instant navigation',
+      () =>
+        validateInstantConfigs(
+          prefetchMode,
+          inputs.accumulatedChunks,
+          debugChunks,
+          inputs.startTime,
+          inputs.stageEndTimes,
+          rootParams,
+          fallbackRouteParams,
+          ctx,
+          hmrRefreshHash,
+          validationSamples,
+          devRenderDidError,
+          validationAbortSignal
+        )
     )
 
     // A newer render superseded this work. Don't surface stale validation
