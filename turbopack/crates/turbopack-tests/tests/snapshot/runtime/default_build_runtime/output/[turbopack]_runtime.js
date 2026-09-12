@@ -414,14 +414,16 @@ contextPrototype.f = moduleContext;
  */ function getChunkPath(chunkData) {
     return typeof chunkData === 'string' ? chunkData : chunkData.path;
 }
-// Load the CompressedmoduleFactories of a chunk into the `moduleFactories` Map.
-// The CompressedModuleFactories format is
-// - 1 or more module ids
-// - a module factory function
-// So walking this is a little complex but the flat structure is also fast to
-// traverse, we can use `typeof` operators to distinguish the two cases.
+// Load the CompressedModuleFactories of a chunk into the `moduleFactories` Map.
+// The flat format alternates one or more module IDs with their factory function.
+// Strict factories can be prepended as a nested array.
 function installCompressedModuleFactories(chunkModules, offset, moduleFactories, newModuleId) {
     let i = offset;
+    const strictFactories = chunkModules[i];
+    if (Array.isArray(strictFactories)) {
+        installCompressedModuleFactories(strictFactories, 0, moduleFactories, newModuleId);
+        i++;
+    }
     while(i < chunkModules.length){
         let end = i + 1;
         // Find our factory function
@@ -460,7 +462,7 @@ function installCompressedModuleFactories(chunkModules, offset, moduleFactories,
                 newModuleId?.(id);
             }
         }
-        i = end + 1; // end is pointing at the last factory advance to the next id or the end of the array.
+        i = end + 1;
     }
 }
 /**

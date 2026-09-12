@@ -10,13 +10,15 @@ use turbopack_core::{
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    chunk::{
+        EcmascriptChunkContent, EcmascriptChunkContentEntries, strict_chunk_wrapper,
+        strict_factory_mode, write_module_factories,
+    },
     hmr::{
         EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
         version::EcmascriptChunkVersion,
     },
     minify::minify,
-    utils::StringifyJs,
 };
 
 use super::chunk::EcmascriptBuildNodeChunk;
@@ -60,18 +62,32 @@ impl EcmascriptNodeChunkContent {
             .await?;
 
         let mut code = CodeBuilder::new(true, *self.chunking_context.debug_ids_enabled().await?);
-
-        write!(code, "module.exports = [")?;
-
+        let supports_arrow_functions = *self
+            .chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?;
         let content = self.content.await?;
         let chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
-        for (id, item_code, _) in &chunk_items {
-            write!(code, "\n{}, ", StringifyJs(id))?;
-            code.push_code(item_code);
-            write!(code, ",")?;
-        }
+        let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
 
+        let strict_chunk_wrapper =
+            strict_chunk_wrapper(strict_factory_mode, supports_arrow_functions);
+        if let Some((prefix, _)) = strict_chunk_wrapper {
+            code += prefix;
+        }
+        write!(code, "module.exports = [")?;
+        write_module_factories(
+            &mut code,
+            &chunk_items,
+            strict_factory_mode,
+            supports_arrow_functions,
+        )?;
         write!(code, "\n];")?;
+        if let Some((_, suffix)) = strict_chunk_wrapper {
+            code += suffix;
+        }
 
         let mut code = code.build();
 

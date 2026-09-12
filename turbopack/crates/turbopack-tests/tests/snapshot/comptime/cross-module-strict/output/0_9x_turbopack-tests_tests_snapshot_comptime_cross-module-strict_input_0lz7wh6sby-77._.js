@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_comptime_cross-module-strict_input_0lz7wh6sby-77._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_comptime_cross-module-strict_input_0lz7wh6sby-77._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/cross-module-strict/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -51,6 +51,6 @@ const LONG_NUMBER = 21345672345678345678901234567890;
 const LONG_BIG_NUMBER = 21345672345678345678901234567890n;
 const LONG_REGEX = /abcdefghijklmnopqrstuvwxyz0123456789abcdefghijklmnopqrstuvwxyz0123456789/i;
 }),
-]);
+]);})()
 
 //# sourceMappingURL=0_9x_turbopack-tests_tests_snapshot_comptime_cross-module-strict_input_0lz7wh6sby-77._.js.map
