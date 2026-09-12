@@ -1,3 +1,9 @@
+import type {
+  RuntimeErrorMetadata,
+  RuntimeErrorStateUpdate,
+} from '../server/dev/hot-reloader-types'
+import { getErrorSource } from '../shared/lib/error-source'
+import type { RuntimeErrorEvent } from './dev-overlay/container/runtime-error/render-error'
 import {
   ACTION_BEFORE_REFRESH,
   ACTION_BUILD_ERROR,
@@ -68,8 +74,8 @@ export interface Dispatcher {
   onStaticIndicator(status: 'pending' | 'static' | 'dynamic' | 'disabled'): void
   onDevIndicator(devIndicator: DevIndicatorServerState): void
   onDevToolsConfig(config: DevToolsConfig): void
-  onUnhandledError(reason: Error): void
-  onUnhandledRejection(reason: Error): void
+  onUnhandledError(reason: Error, metadata?: RuntimeErrorMetadata): void
+  onUnhandledRejection(reason: Error, metadata?: RuntimeErrorMetadata): void
   openErrorOverlay(): void
   closeErrorOverlay(): void
   toggleErrorOverlay(): void
@@ -102,13 +108,18 @@ type OverlayStateWithRouter = OverlayState & { routerType: 'pages' | 'app' }
 
 let currentOverlayState: OverlayStateWithRouter | null = null
 
-export function getSerializedOverlayState(): OverlayStateWithRouter | null {
-  // Serialize error objects properly since Error properties are non-enumerable
-  // This is used when sending state via HMR/JSON.stringify
-  if (!currentOverlayState) return null
+export type SerializedRuntimeErrorState = RuntimeErrorStateUpdate['errorState']
+let runtimeErrorStateListeners: Set<
+  (state: SerializedRuntimeErrorState) => void
+> | null = null
 
+export function getSerializedOverlayState(): OverlayStateWithRouter | null {
+  if (!currentOverlayState) {
+    return null
+  }
   return {
     ...currentOverlayState,
+    // Error properties are non-enumerable; serialize them explicitly.
     errors: currentOverlayState.errors.map((errorEvent: any) => ({
       ...errorEvent,
       error: errorEvent.error
@@ -120,6 +131,47 @@ export function getSerializedOverlayState(): OverlayStateWithRouter | null {
         : null,
     })),
   }
+}
+
+function serializeRuntimeErrorState(
+  state: Pick<OverlayStateWithRouter, 'errors' | 'routerType'>
+): SerializedRuntimeErrorState {
+  return {
+    routerType: state.routerType,
+    errors: state.errors.map((event) => {
+      const { error, isFatal, boundary, ...details } =
+        event as RuntimeErrorEvent
+      return {
+        ...details,
+        fatal: isFatal,
+        ...(boundary ? { boundary } : {}),
+        error: {
+          name: error.name,
+          message: error.message,
+          stack: error.stack,
+          source: getErrorSource(error),
+        },
+      }
+    }),
+  }
+}
+
+export function getSerializedRuntimeErrorState(): SerializedRuntimeErrorState | null {
+  return currentOverlayState
+    ? serializeRuntimeErrorState(currentOverlayState)
+    : null
+}
+
+export function subscribeToRuntimeErrorState(
+  listener: (state: SerializedRuntimeErrorState) => void
+) {
+  const listeners = (runtimeErrorStateListeners ??= new Set())
+  listeners.add(listener)
+  const state = getSerializedRuntimeErrorState()
+  if (state) {
+    listener({ errors: state.errors, routerType: state.routerType })
+  }
+  return () => listeners.delete(listener)
 }
 
 export function getSegmentTrieData(): SegmentTrieData | null {
@@ -190,18 +242,32 @@ export const dispatcher: Dispatcher = {
       dispatch({ type: ACTION_DEVTOOLS_CONFIG, devToolsConfig })
     }
   ),
-  onUnhandledError: createQueuable((dispatch: Dispatch, error: Error) => {
-    dispatch({
-      type: ACTION_UNHANDLED_ERROR,
-      reason: error,
-    })
-  }),
-  onUnhandledRejection: createQueuable((dispatch: Dispatch, error: Error) => {
-    dispatch({
-      type: ACTION_UNHANDLED_REJECTION,
-      reason: error,
-    })
-  }),
+  onUnhandledError: createQueuable(
+    (
+      dispatch: Dispatch,
+      error: Error,
+      metadata: RuntimeErrorMetadata | undefined = undefined
+    ) => {
+      dispatch({
+        type: ACTION_UNHANDLED_ERROR,
+        reason: error,
+        ...(metadata === undefined ? {} : { metadata }),
+      })
+    }
+  ),
+  onUnhandledRejection: createQueuable(
+    (
+      dispatch: Dispatch,
+      error: Error,
+      metadata: RuntimeErrorMetadata | undefined = undefined
+    ) => {
+      dispatch({
+        type: ACTION_UNHANDLED_REJECTION,
+        reason: error,
+        ...(metadata === undefined ? {} : { metadata }),
+      })
+    }
+  ),
   openErrorOverlay: createQueuable((dispatch: Dispatch) => {
     dispatch({ type: ACTION_ERROR_OVERLAY_OPEN })
   }),
@@ -255,6 +321,7 @@ export const dispatcher: Dispatcher = {
 
 function DevOverlayRoot({
   enableCacheIndicator,
+  enableRuntimeErrorReporting,
   getOwnerStack,
   getSquashedHydrationErrorDetails,
   isRecoverableError,
@@ -262,6 +329,7 @@ function DevOverlayRoot({
   shadowRoot,
 }: {
   enableCacheIndicator: boolean
+  enableRuntimeErrorReporting: boolean
   getOwnerStack: (error: Error) => string | null | undefined
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   isRecoverableError: (error: Error) => boolean
@@ -272,7 +340,8 @@ function DevOverlayRoot({
     routerType,
     getOwnerStack,
     isRecoverableError,
-    enableCacheIndicator
+    enableCacheIndicator,
+    enableRuntimeErrorReporting
   )
 
   useEffect(() => {
@@ -307,14 +376,19 @@ function DevOverlayRoot({
     }
   }, [])
 
+  const runtimeErrorPublisher = enableRuntimeErrorReporting ? (
+    <RuntimeErrorStatePublisher state={state} />
+  ) : null
+
   if (process.env.__NEXT_DISABLE_DEV_OVERLAY_UX) {
-    return null
+    return runtimeErrorPublisher
   }
 
   const { DevOverlay, FontStyles } = loadDevOverlayUX()
 
   return (
     <>
+      {runtimeErrorPublisher}
       {/* Fonts can only be loaded outside the Shadow DOM. */}
       <FontStyles />
       <DevOverlayContext
@@ -330,6 +404,23 @@ function DevOverlayRoot({
     </>
   )
 }
+function RuntimeErrorStatePublisher({
+  state,
+}: {
+  state: OverlayStateWithRouter
+}) {
+  const { errors, routerType } = state
+  useEffect(() => {
+    if (runtimeErrorStateListeners) {
+      const snapshot = serializeRuntimeErrorState({ errors, routerType })
+      for (const listener of runtimeErrorStateListeners) {
+        listener(snapshot)
+      }
+    }
+  }, [errors, routerType])
+  return null
+}
+
 export const DevOverlayContext = createContext<{
   shadowRoot: ShadowRoot
   state: OverlayState & {
@@ -351,7 +442,8 @@ function getSquashedHydrationErrorDetailsApp() {
 export function renderAppDevOverlay(
   getOwnerStack: (error: Error) => string | null | undefined,
   isRecoverableError: (error: Error) => boolean,
-  enableCacheIndicator: boolean
+  enableCacheIndicator: boolean,
+  enableRuntimeErrorReporting: boolean
 ): void {
   if (isPagesMounted) {
     // Switching between App and Pages Router is always a hard navigation
@@ -397,6 +489,7 @@ export function renderAppDevOverlay(
       root.render(
         <DevOverlayRoot
           enableCacheIndicator={enableCacheIndicator}
+          enableRuntimeErrorReporting={enableRuntimeErrorReporting}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetailsApp}
           isRecoverableError={isRecoverableError}
@@ -467,6 +560,7 @@ export function renderPagesDevOverlay(
         <DevOverlayRoot
           // Pages Router does not support Cache Components
           enableCacheIndicator={false}
+          enableRuntimeErrorReporting={false}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
           isRecoverableError={isRecoverableError}

@@ -48,6 +48,7 @@ import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
+import { createRuntimeErrorStateHandler } from './runtime-error-state'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -1078,11 +1079,22 @@ export function onDemandEntryHandler({
         })
       })
     },
-    onHMR(client: ws, getHmrServerError: () => Error | null) {
+    onHMR(
+      client: ws,
+      getHmrServerError: () => Error | null,
+      htmlRequestId: string | null
+    ) {
       let bufferedHmrServerError: Error | null = null
+      const runtimeErrorStateHandler = nextConfig.experimental
+        .exposeRuntimeErrorsToHMR
+        ? createRuntimeErrorStateHandler((message) =>
+            hotReloader.send({ ...message, htmlRequestId })
+          )
+        : undefined
 
       client.addEventListener('close', () => {
         bufferedHmrServerError = null
+        runtimeErrorStateHandler?.dispose()
       })
       client.addEventListener('message', ({ data }) => {
         try {
@@ -1107,6 +1119,10 @@ export function onDemandEntryHandler({
             } else {
               handlePing(parsedData.page)
             }
+          } else if (
+            parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS
+          ) {
+            void runtimeErrorStateHandler?.handle(parsedData).catch(() => {})
           } else if (
             parsedData.event ===
             HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE
