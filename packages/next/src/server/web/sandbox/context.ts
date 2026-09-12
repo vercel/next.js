@@ -134,12 +134,26 @@ Learn more: https://nextjs.org/docs/api-reference/edge-runtime`)
   throw error
 }
 
+/**
+ * Node.js APIs that are documented as optional, meaning callers are expected
+ * to detect them before use and fall back when they are missing:
+ *
+ *     if (globalThis.process?.getBuiltinModule) { ... }
+ *
+ * Defining these as a function that throws would satisfy the detection and
+ * then fail at the call, so they are left off the polyfill entirely.
+ *
+ * https://nodejs.org/api/process.html#processgetbuiltinmoduleid
+ */
+const OPTIONAL_PROCESS_APIS = new Set(['getBuiltinModule'])
+
 function createProcessPolyfill(env: Record<string, string>) {
   const processPolyfill = { env: buildEnvironmentVariablesFrom(env) }
   const overriddenValue: Record<string, any> = {}
 
   for (const key of Object.keys(process)) {
     if (key === 'env') continue
+    if (OPTIONAL_PROCESS_APIS.has(key)) continue
     Object.defineProperty(processPolyfill, key, {
       get() {
         if (overriddenValue[key] !== undefined) {
