@@ -259,6 +259,10 @@ export async function createApp({
       reactCompiler,
       cacheComponents,
     })
+    hasPackageJson = existsSync(packageJsonPath)
+  }
+
+  if (hasPackageJson) {
   }
 
   if (agentsMd) {
