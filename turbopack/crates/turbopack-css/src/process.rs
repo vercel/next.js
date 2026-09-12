@@ -555,8 +555,12 @@ async fn process_content(
 
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
-                        | lightningcss::error::ParserError::SelectorError(..)
-                        | lightningcss::error::ParserError::EndOfInput => IssueSeverity::Error,
+                        | lightningcss::error::ParserError::SelectorError(..) => {
+                            IssueSeverity::Error
+                        }
+
+                        // Name-only @container (e.g. `@container scroll-content`) is valid — treat as warning.
+                        lightningcss::error::ParserError::EndOfInput => IssueSeverity::Warning,
 
                         _ => IssueSeverity::Warning,
                     };
