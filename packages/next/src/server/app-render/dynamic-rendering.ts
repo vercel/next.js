@@ -288,15 +288,14 @@ export function trackDynamicDataInDynamicRender(workUnitStore: WorkUnitStore) {
 }
 
 function abortOnSynchronousDynamicDataAccess(
-  route: string,
+  _route: string,
   expression: string,
   prerenderStore: PrerenderStoreModern
 ): void {
-  const reason = `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
-
-  const error = createPrerenderInterruptedError(reason)
-
-  prerenderStore.controller.abort(error)
+  // Reuse the module-level reason. Constructing `new Error()` here would
+  // capture Server Component CallSites on the abort reason; a retained
+  // AbortSignal then pins the whole render graph.
+  prerenderStore.controller.abort(prerenderInterruptedError)
 
   const dynamicTracking = prerenderStore.dynamicTracking
   if (dynamicTracking) {
@@ -374,18 +373,19 @@ export function abortAndThrowOnSynchronousRequestDataAccess(
       }
     }
   }
-  throw createPrerenderInterruptedError(
-    `Route ${route} needs to bail out of prerendering at this point because it used ${expression}.`
-  )
+  throw prerenderInterruptedError
 }
 
 const NEXT_PRERENDER_INTERRUPTED = 'NEXT_PRERENDER_INTERRUPTED'
 
-function createPrerenderInterruptedError(message: string): Error {
-  const error = new Error(message)
-  ;(error as any).digest = NEXT_PRERENDER_INTERRUPTED
-  return error
-}
+// Constructed once at module load. A per-render `new Error()` used as
+// `AbortSignal.reason` captures Server Component frames, so a retained
+// signal pins the render graph. The expression that interrupted the
+// prerender is recorded on `dynamicTracking` instead.
+const prerenderInterruptedError: Error & { digest: string } = Object.assign(
+  new Error('Prerender interrupted.'),
+  { digest: NEXT_PRERENDER_INTERRUPTED }
+)
 
 type DigestError = Error & {
   digest: string
