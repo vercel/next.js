@@ -25,6 +25,7 @@ import fs from 'fs'
 import { Worker } from 'next/dist/compiled/jest-worker'
 import { installUseCacheProbe } from './use-cache-probe-pool'
 import { installDevValidationWorker } from './dev-validation-worker-pool'
+import { PrerenderManifestUpdater } from './prerender-manifest-updater'
 import { join as pathJoin } from 'path'
 import { PUBLIC_DIR_MIDDLEWARE_CONFLICT } from '../../lib/constants'
 import { findPagesDir } from '../../lib/find-pages-dir'
@@ -79,7 +80,6 @@ import {
   ensureInstrumentationRegistered,
   getInstrumentationModule,
 } from '../lib/router-utils/instrumentation-globals.external'
-import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
@@ -144,6 +144,7 @@ export default class DevServer extends Server {
   private staticPathsCache: LRUCache<
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
+  private readonly prerenderManifestUpdater: PrerenderManifestUpdater
   private startServerSpan: Span
   private readonly serverComponentsHmrCache:
     | ServerComponentsHmrCache
@@ -222,6 +223,10 @@ export default class DevServer extends Server {
         }
       )
     }
+
+    this.prerenderManifestUpdater = new PrerenderManifestUpdater(
+      pathJoin(this.distDir, PRERENDER_MANIFEST)
+    )
 
     installUseCacheProbe({
       distDir: this.distDir,
@@ -841,51 +846,46 @@ export default class DevServer extends Server {
         ) {
           // we write the static paths to partial manifest for
           // fallback handling inside of entry handler's
-          const rawExistingManifest = await fs.promises.readFile(
-            pathJoin(this.distDir, PRERENDER_MANIFEST),
-            'utf8'
-          )
-          const existingManifest: PrerenderManifest =
-            JSON.parse(rawExistingManifest)
-          for (const staticPath of value.staticPaths || []) {
-            existingManifest.routes[staticPath] = {} as any
-          }
+          //
+          // Several pages can resolve their static paths at the same time, and
+          // each one reads the whole manifest and writes it back. Those cycles
+          // go through the updater so they cannot interleave and corrupt the
+          // file.
+          const fallbackMode = res.value.fallbackMode
 
-          // Find the fallback route from the prerendered routes. This is
-          // the route whose pathname matches the page pattern (e.g.
-          // /dynamic-params/[slug]) and has fallback route params describing
-          // which params are unknown at build time.
-          const fallbackPrerenderedRoute = prerenderedRoutes?.find(
-            (route) => route.pathname === pathname
-          )
+          await this.prerenderManifestUpdater.update((existingManifest) => {
+            for (const staticPath of value.staticPaths || []) {
+              existingManifest.routes[staticPath] = {} as any
+            }
 
-          existingManifest.dynamicRoutes[pathname] = {
-            dataRoute: null,
-            dataRouteRegex: null,
-            fallback: fallbackModeToFallbackField(res.value.fallbackMode, page),
-            fallbackRevalidate: false,
-            fallbackExpire: undefined,
-            fallbackHeaders: undefined,
-            fallbackStatus: undefined,
-            fallbackRootParams: fallbackPrerenderedRoute?.fallbackRootParams,
-            fallbackRouteParams: fallbackPrerenderedRoute?.fallbackRouteParams,
-            fallbackSourceRoute: pathname,
-            prefetchDataRoute: undefined,
-            prefetchDataRouteRegex: undefined,
-            routeRegex: getRouteRegex(pathname).re.source,
-            experimentalPPR: undefined,
-            renderingMode: undefined,
-            allowHeader: [],
-          }
-
-          const updatedManifest = JSON.stringify(existingManifest)
-
-          if (updatedManifest !== rawExistingManifest) {
-            await fs.promises.writeFile(
-              pathJoin(this.distDir, PRERENDER_MANIFEST),
-              updatedManifest
+            // Find the fallback route from the prerendered routes. This is
+            // the route whose pathname matches the page pattern (e.g.
+            // /dynamic-params/[slug]) and has fallback route params describing
+            // which params are unknown at build time.
+            const fallbackPrerenderedRoute = prerenderedRoutes?.find(
+              (route) => route.pathname === pathname
             )
-          }
+
+            existingManifest.dynamicRoutes[pathname] = {
+              dataRoute: null,
+              dataRouteRegex: null,
+              fallback: fallbackModeToFallbackField(fallbackMode, page),
+              fallbackRevalidate: false,
+              fallbackExpire: undefined,
+              fallbackHeaders: undefined,
+              fallbackStatus: undefined,
+              fallbackRootParams: fallbackPrerenderedRoute?.fallbackRootParams,
+              fallbackRouteParams:
+                fallbackPrerenderedRoute?.fallbackRouteParams,
+              fallbackSourceRoute: pathname,
+              prefetchDataRoute: undefined,
+              prefetchDataRouteRegex: undefined,
+              routeRegex: getRouteRegex(pathname).re.source,
+              experimentalPPR: undefined,
+              renderingMode: undefined,
+              allowHeader: [],
+            }
+          })
         }
         this.staticPathsCache.set(pathname, value)
 
