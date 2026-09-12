@@ -755,6 +755,7 @@ export async function imageOptimizer(
       | 'imgOptMaxInputPixels'
       | 'imgOptSequentialRead'
       | 'imgOptTimeoutInSeconds'
+      | 'imgOptMozjpeg'
     >
     images: Pick<
       NextConfigComplete['images'],

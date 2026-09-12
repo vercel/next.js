@@ -1,18 +1,18 @@
 import type { NextConfig } from 'next'
 
-const loader = require.resolve('./target-loader.js')
+const loader = require.resolve('./misc-loader.js')
 
 const nextConfig: NextConfig = {
   turbopack: {
     rules: {
-      '*.target-test.js': {
+      '*.misc-test.js': {
         loaders: [loader],
       },
     },
   },
   webpack(config) {
     config.module.rules.push({
-      test: /\.target-test\.js$/,
+      test: /\.misc-test\.js$/,
       use: loader,
     })
     return config

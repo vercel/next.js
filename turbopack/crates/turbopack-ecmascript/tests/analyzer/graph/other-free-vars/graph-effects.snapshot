@@ -78,6 +78,7 @@
             ),
         ],
         span: 30..41,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "Object",
@@ -228,6 +229,7 @@
             ),
         ],
         span: 56..62,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "Object",

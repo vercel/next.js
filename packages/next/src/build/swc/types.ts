@@ -177,7 +177,8 @@ export interface BuildFeatureUsage {
   invocationCount: number
 }
 
-export type TurbopackResult<T = {}> = T & {
+export type TurbopackResult<T> = {
+  value: T
   issues: Issue[]
 }
 
@@ -367,11 +368,11 @@ export interface Project {
 
   updateInfoSubscribe(
     aggregationMs: number
-  ): AsyncIterableIterator<TurbopackResult<UpdateMessage>>
+  ): AsyncIterableIterator<UpdateMessage>
 
   compilationEventsSubscribe(
     eventTypes?: string[]
-  ): AsyncIterableIterator<TurbopackResult<CompilationEvent>>
+  ): AsyncIterableIterator<CompilationEvent>
 
   invalidateFileSystemCache(): Promise<void>
 
@@ -417,7 +418,7 @@ export interface Endpoint {
    * After clientChanged() has been awaited it will listen to changes.
    * The async iterator will yield for each change.
    */
-  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult>>
+  clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<void>>>
 
   /**
    * Listen to server-side changes to the endpoint.
@@ -426,7 +427,7 @@ export interface Endpoint {
    */
   serverChanged(
     includeIssues: boolean
-  ): Promise<AsyncIterableIterator<TurbopackResult>>
+  ): Promise<AsyncIterableIterator<TurbopackResult<void>>>
 }
 
 interface EndpointConfig {
