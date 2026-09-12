@@ -621,6 +621,13 @@ jobs:
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
+  # Guards that Turbopack keeps compiling for wasm, so the wasm fallback Next.js loads when the
+  # native bindings are unavailable can eventually support Turbopack and not just SWC.
+  # See https://github.com/vercel/next.js/issues/96960.
+  #
+  # This compiles the bindings and runs the wasm test suites. It stops short of a full `napi build`:
+  # linking additionally requires emnapi v2 (for the `emnapi_create_env` / `emnapi_delete_env`
+  # exports), which is still unreleased — so linking cannot be gated on yet.
   test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
@@ -638,8 +645,28 @@ jobs:
       afterBuild: |
         set -euo pipefail
 
+        # Provisions the wasi-sdk, emnapi and the cross-compilation env. Shared with local
+        # builds so the two cannot drift; see contributing/core/building-wasm.md.
         source scripts/setup-wasi-env.sh
-        cargo check -p next-napi-bindings --target wasm32-wasip1-threads
+
+        # A distinct always-true target table merges with the repository's existing `cfg(true)`
+        # rustflags (notably `tokio_unstable`), while making warnings fatal for every command here.
+        cargo_wasi=(cargo --config 'target."cfg(all())".rustflags=["-Dwarnings"]')
+
+        # swc's plugin host is gated off for wasm (see turbopack-ecmascript-plugins and
+        # next-napi-bindings), so nothing needs patching here: the wasm32 plugin path that does not
+        # compile is simply never built.
+        "${cargo_wasi[@]}" check -p next-napi-bindings --target wasm32-wasip1-threads
+
+        # Run the crates whose tests can execute on wasm. This needs a host that supplies the
+        # `env.read_custom_section` import turbo-tasks' link-time registries depend on; no stock
+        # runtime provides it. See scripts/wasi-test-host/README.md, which also lists the platform
+        # limitations behind the tests that are `ignore`d on wasm.
+        export CARGO_TARGET_WASM32_WASIP1_THREADS_RUNNER="node $PWD/scripts/wasi-test-host/run.mjs"
+        node --test scripts/wasi-test-host/lib.test.mjs
+        "${cargo_wasi[@]}" test -p turbo-rcstr --lib --target wasm32-wasip1-threads
+        "${cargo_wasi[@]}" test -p turbo-tasks --lib --target wasm32-wasip1-threads
+        "${cargo_wasi[@]}" test -p turbo-tasks-backend --lib --target wasm32-wasip1-threads
       stepName: 'test-next-napi-bindings-wasi'
     secrets: inherit
 

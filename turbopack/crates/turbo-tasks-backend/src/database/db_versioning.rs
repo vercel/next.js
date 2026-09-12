@@ -273,6 +273,7 @@ mod tests {
     #[rstest]
     #[case::not_ci(false, &["mock-version", "other-dir-0"])]
     #[case::ci(true, &["mock-version"])]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     fn test_only_most_recently_used_other_version_is_retained(
         #[case] is_ci: bool,
         #[case] expected: &[&str],
@@ -300,6 +301,7 @@ mod tests {
     /// A version that hasn't been used within the TTL is evicted, even with the retention slot
     /// free.
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     fn test_ttl_evicts_unused_version() {
         let tmp_dir = TempDir::new().unwrap();
         let base_path = tmp_dir.path();
@@ -321,6 +323,7 @@ mod tests {
     #[rstest]
     #[case::empty(false)]
     #[case::with_recent_data_file(true)]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     fn test_version_without_stamp_is_evicted(#[case] with_data_file: bool) {
         let tmp_dir = TempDir::new().unwrap();
         let base_path = tmp_dir.path();
@@ -344,6 +347,7 @@ mod tests {
     #[rstest]
     #[case::old_u32_format(&0u32.to_be_bytes())]
     #[case::garbage(b"not json")]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     fn test_unparsable_current_falls_back_to_mtime(#[case] contents: &[u8]) {
         let tmp_dir = TempDir::new().unwrap();
         let base_path = tmp_dir.path();
@@ -367,6 +371,7 @@ mod tests {
         ttl_from_days(DEFAULT_OTHER_DB_VERSION_TTL_DAYS) + Duration::from_secs(60),
         &["mock-version"],
     )]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     fn test_current_with_unknown_fields_uses_its_commit_time(
         #[case] committed_ago: Duration,
         #[case] expected: &[&str],
@@ -396,6 +401,7 @@ mod tests {
     /// The age of an unparsable `CURRENT` comes from its mtime, so it's a real age that the TTL
     /// can act on — not [`Duration::MAX`], which would evict it unconditionally.
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     fn test_unparsable_current_is_aged_by_mtime() {
         let tmp_dir = TempDir::new().unwrap();
         let legacy = tmp_dir.path().join("legacy-version");
@@ -419,6 +425,7 @@ mod tests {
     /// On CI every other version is evicted regardless of age, so the mtime fallback doesn't buy a
     /// legacy-format database a reprieve there.
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     fn test_ci_evicts_unreadable_current() {
         let tmp_dir = TempDir::new().unwrap();
         let base_path = tmp_dir.path();
@@ -434,6 +441,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "no temp directory on WASI")]
     fn test_cleanup_of_prefixed_items() {
         let tmp_dir = TempDir::new().unwrap();
         let base_path = tmp_dir.path();
