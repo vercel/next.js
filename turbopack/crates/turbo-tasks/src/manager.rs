@@ -2271,13 +2271,6 @@ pub struct GcRoot<T: ?Sized> {
 
 impl<T: ?Sized> GcRoot<T> {
     /// Pins `vc`'s task, returning a guard that unpins it on drop.
-    ///
-    /// Note that an operation created *outside* a task is already pinned for the session by
-    /// `initialize_new_task` — it has no parent, so nothing else can protect it. Pinning such an
-    /// operation adds a second, independent pin, and dropping the guard leaves the original in
-    /// place, so the task stays alive for the session either way. A caller that wants the guard's
-    /// drop to actually end the task's lifetime needs to adopt that original pin rather than add
-    /// to it.
     pub fn pin(tt: Arc<dyn TurboTasksApi>, vc: OperationVc<T>) -> Self {
         tt.pin_task_for_gc(vc.task_id());
         Self { tt, vc }

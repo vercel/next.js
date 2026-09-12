@@ -106,9 +106,13 @@ impl GcBudget<'_> {
     }
 }
 
-/// Observability counters for one [`TurboTasksBackend::gc_collect`] pass.
+/// What one [`TurboTasksBackend::gc_collect`] pass did.
+///
+/// Mostly counters, but it also carries the pass's work lists (`deleted_roots`,
+/// `deferred_rebalance`) that the caller has to act on, so it is an outcome rather than pure
+/// statistics.
 #[derive(Default)]
-pub struct GcStats {
+pub struct GcPassOutcome {
     /// Number of roots detected by the pass
     pub gc_roots: usize,
     /// Tasks collected (marked soft-deleted).
@@ -130,7 +134,7 @@ pub struct GcStats {
     pub interrupted: bool,
 }
 
-impl Display for GcStats {
+impl Display for GcPassOutcome {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
@@ -145,7 +149,7 @@ impl Display for GcStats {
     }
 }
 
-impl GcStats {
+impl GcPassOutcome {
     fn merge(mut self, mut other: Self) -> Self {
         self.collected += other.collected;
         self.edges_deleted += other.edges_deleted;
@@ -177,13 +181,13 @@ impl TurboTasksBackend {
     /// Abandonment is controlled by [`GcBudget`] which ensures we can make a minimum amount of
     /// progress even under load.
     ///
-    /// Returns [`GcStats`] for the pass and the new roots to persist if any
+    /// Returns [`GcPassOutcome`] for the pass and the new roots to persist if any
     pub(crate) fn gc_collect(
         &self,
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
         phase: &SnapshotPhase<'_, AnyOperation>,
         interruptible: bool,
-    ) -> (GcStats, Option<Vec<(TaskId, TtlCounter)>>) {
+    ) -> (GcPassOutcome, Option<Vec<(TaskId, TtlCounter)>>) {
         // Record the time at the beginning of the loop to have a consistent timestamp for the roots
         let now = SystemTime::now()
             .duration_since(UNIX_EPOCH)
@@ -213,12 +217,12 @@ impl TurboTasksBackend {
             None
         };
 
-        let mut stats: GcStats = scope_unbounded_with(
+        let mut stats: GcPassOutcome = scope_unbounded_with(
             // Start by scanning all shards and collecting the aged out roots from prior sessions.
             (0..self.storage.shard_count())
                 .map(GcJob::ScanShard)
                 .chain(aged_out.into_iter().map(GcJob::Collect)),
-            GcStats::default,
+            GcPassOutcome::default,
             |spawner, job, stats| {
                 // Abort the gc loop if we are interrupted
                 if let Some(budget) = &budget
@@ -295,7 +299,7 @@ impl TurboTasksBackend {
                 }
                 ControlFlow::Continue(())
             },
-            GcStats::merge,
+            GcPassOutcome::merge,
         );
 
         // Drop the entries for the roots this pass collected, recorded as they were deleted.

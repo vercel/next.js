@@ -74,7 +74,7 @@ async fn gc_min_progress_floor_beats_a_waiting_operation() {
     let outcome = tt.backend().snapshot_and_evict_for_testing(&tt);
     waiter.await.unwrap();
 
-    let stats = outcome.gc_stats();
+    let stats = outcome.gc_outcome();
     assert!(
         !stats.interrupted,
         "the min-progress floor must suppress the interrupt (collected={})",
@@ -111,7 +111,7 @@ async fn gc_interrupt_is_self_healing() {
     for gen_value in 1..=ROUNDS {
         build_generation(&tt, gen_value).await;
         let outcome = tt.backend().snapshot_and_evict_for_testing(&tt);
-        let stats = outcome.gc_stats();
+        let stats = outcome.gc_outcome();
         // Reported, never asserted on: when the totals below disagree, the per-round split is the
         // first thing worth seeing.
         println!("round {gen_value}: {stats}");
