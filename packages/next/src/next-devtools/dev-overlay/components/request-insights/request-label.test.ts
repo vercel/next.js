@@ -1,6 +1,8 @@
 import {
   formatRequestRouteParams,
   getRequestDisplayUrl,
+  getRequestInsightAgentPrompt,
+  getRequestInsightSpanAgentPrompt,
   getRequestListDisplayUrl,
   getRequestRouteParams,
 } from './request-label'
@@ -83,5 +85,19 @@ describe('request insight request labels', () => {
         url: '/products/one/two',
       })
     ).toBeUndefined()
+  })
+
+  it('formats request IDs and agent prompts for the context menu', () => {
+    expect(getRequestInsightAgentPrompt({ requestId: 'request-1' })).toBe(
+      'Inspect Request Insights request request-1 with the get_request_insights MCP tool. Focus only on its server fetches. Trace slow, failed, or uncached fetches back to the application code, fix the underlying issue, and verify the request again in Request Insights.'
+    )
+    expect(
+      getRequestInsightSpanAgentPrompt('request-1', {
+        spanId: 'span-1',
+        label: 'render',
+      })
+    ).toBe(
+      'Inspect Request Insights request request-1 with the get_request_insights MCP tool and focus on span span-1 (render). Explain what the span did, where its time went, and whether its children, fetches, cache behavior, or errors explain the duration.'
+    )
   })
 })
