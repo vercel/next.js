@@ -9,15 +9,18 @@ use std::{
 use anyhow::{Context, Result, bail, ensure};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
+#[cfg(not(target_family = "wasm"))]
 use fs_err::File;
+#[cfg(not(target_family = "wasm"))]
 use memmap2::{Mmap, MmapOptions};
 use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
+#[cfg(not(target_family = "wasm"))]
+use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, FamilyConfig, QueryKey,
     lookup_entry::LookupValue,
-    mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
 
@@ -242,6 +245,7 @@ pub struct StaticSortedFileRange {
 }
 
 enum MetaFileBacking {
+    #[cfg(not(target_family = "wasm"))]
     Mmap(Mmap),
     Bytes(Box<[u8]>),
 }
@@ -251,6 +255,7 @@ impl Deref for MetaFileBacking {
 
     fn deref(&self) -> &Self::Target {
         match self {
+            #[cfg(not(target_family = "wasm"))]
             MetaFileBacking::Mmap(mmap) => mmap,
             MetaFileBacking::Bytes(bytes) => bytes,
         }
@@ -317,6 +322,7 @@ impl MetaFile {
         access_mode: AccessMode,
     ) -> Result<Self> {
         let backing = match access_mode {
+            #[cfg(not(target_family = "wasm"))]
             AccessMode::Mmap => {
                 let file = File::open(path)?;
                 let mmap = unsafe { MmapOptions::new().map(file.file()) }

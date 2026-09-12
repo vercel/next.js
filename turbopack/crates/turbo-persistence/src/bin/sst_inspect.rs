@@ -264,10 +264,14 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
 
     meta_seqs.sort_unstable();
 
+    #[cfg(not(target_family = "wasm"))]
+    let access_mode = turbo_persistence::AccessMode::Mmap;
+    #[cfg(target_family = "wasm")]
+    let access_mode = turbo_persistence::AccessMode::File;
     let mut meta_files: Vec<MetaFile> = meta_seqs
         .iter()
         .map(|&seq| {
-            MetaFile::open(db_path, seq, None, turbo_persistence::AccessMode::Mmap)
+            MetaFile::open(db_path, seq, None, access_mode)
                 .with_context(|| format!("Failed to open {seq:08}.meta"))
         })
         .collect::<Result<_>>()?;

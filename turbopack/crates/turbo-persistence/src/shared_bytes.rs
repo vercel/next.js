@@ -35,6 +35,7 @@ pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
     ///
     /// The caller must ensure that `subslice` points to memory within the
     /// given `mmap`.
+    #[cfg_attr(target_family = "wasm", allow(dead_code))]
     unsafe fn from_mmap(mmap: &Self::MmapHandle, subslice: &[u8]) -> Self;
 
     /// Creates an instance from a decompressed block.

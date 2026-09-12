@@ -17,9 +17,11 @@ use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
 use byteorder::{BE, ReadBytesExt, WriteBytesExt};
 use dashmap::DashSet;
+#[cfg(not(target_family = "wasm"))]
 use either::Either;
 use fs_err::{self as fs, File, OpenOptions, ReadDir};
 use jiff::Timestamp;
+#[cfg(not(target_family = "wasm"))]
 use memmap2::Mmap;
 use nohash_hasher::BuildNoHashHasher;
 use parking_lot::{Mutex, RwLock};
@@ -29,8 +31,10 @@ use smallvec::SmallVec;
 use tracing::span::EnteredSpan;
 
 pub use crate::compaction::selector::CompactConfig;
+#[cfg(not(target_family = "wasm"))]
+use crate::{AccessMode, mmap_helper::advise_mmap_for_persistence};
 use crate::{
-    AccessMode, DbConfig, FamilyKind, QueryKey,
+    DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
     compression::{Compression, checksum_block, decompress_into_arc},
@@ -43,7 +47,6 @@ use crate::{
     merge_iter::MergeIter,
     meta_file::{MetaEntryFlags, MetaFile, MetaLookupResult, StaticSortedFileRange},
     meta_file_builder::MetaFileBuilder,
-    mmap_helper::advise_mmap_for_persistence,
     parallel_scheduler::ParallelScheduler,
     rc_bytes::RcBytes,
     sst_filter::SstFilter,
@@ -661,7 +664,9 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
     fn read_blob(&self, seq: u32, compression: Compression) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
+        #[cfg(not(target_family = "wasm"))]
         let file = File::open(&path)?;
+        #[cfg(not(target_family = "wasm"))]
         let data: Either<Mmap, Vec<u8>> = match self.config.access_mode {
             AccessMode::Mmap => {
                 let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
@@ -680,10 +685,16 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
             }
             AccessMode::File => Either::Right(fs::read(&path)?),
         };
+        #[cfg(not(target_family = "wasm"))]
         let mut reader: &[u8] = match &data {
             Either::Left(mmap) => mmap,
             Either::Right(bytes) => bytes,
         };
+        // wasm has no mmap backing, so the blob is always read straight into memory.
+        #[cfg(target_family = "wasm")]
+        let data = fs::read(&path)?;
+        #[cfg(target_family = "wasm")]
+        let mut reader: &[u8] = &data;
         let uncompressed_length = reader
             .read_u32::<BE>()
             .context("Failed to read uncompressed length from blob file")?;

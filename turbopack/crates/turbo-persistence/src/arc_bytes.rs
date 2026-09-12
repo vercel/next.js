@@ -19,8 +19,13 @@ use crate::{
 /// backing memory alive while the raw `data` pointer in `ArcBytes` references it.
 #[derive(Clone)]
 enum Backing {
-    Arc { _backing: Arc<[u8]> },
-    Mmap { _backing: Arc<Mmap> },
+    Arc {
+        _backing: Arc<[u8]>,
+    },
+    #[cfg_attr(target_family = "wasm", allow(dead_code))]
+    Mmap {
+        _backing: Arc<Mmap>,
+    },
 }
 
 /// An owned byte slice backed by either an `Arc<[u8]>` or a memory-mapped file.
