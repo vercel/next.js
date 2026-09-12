@@ -570,7 +570,7 @@ impl Storage {
     }
 
     /// Scans a **single** shard by index, invoking `on_candidate` for each resident, non-transient
-    /// task whose storage passes the cheap [`TaskStorage::gc_maybe_collectible`] pre-filter.
+    /// task whose storage passes [`TaskStorage::gc_maybe_collectible`].
     pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
         self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
             if storage.gc_maybe_collectible() {

@@ -884,14 +884,26 @@ impl TaskStorage {
     }
 
     /// Whether a GC pass may collect this task: nothing references it, via parents, transient
-    /// pins, aggregation edges, or dependency edges.
+    /// pins, or aggregation edges.
     ///
-    /// Precision depends on what the caller restored. Meta alone cannot see the three Data-category
-    /// dependent sets, so the answer is a sound *pre-filter*: a `false` is definitive, a `true` may
-    /// still have dependents. With Meta + Data it is the full predicate. That one-directional
-    /// conservatism lets the cheap Meta-only shard scan and the authoritative under-guard recheck
-    /// (which opens `TaskDataCategory::All`, and is what actually gates collection) share this
-    /// single predicate.
+    /// Only reads `Meta`, so the shard scan and the under-guard recheck get the same answer -- it
+    /// is exact in both, not a pre-filter.
+    ///
+    /// The `Data`-category dependent sets are deliberately not consulted:
+    ///
+    /// - `cell_dependents` / `cell_dependents_hashed` are redundant with ancestry. A cell dependent
+    ///   is either a child, whose child edge already orders the teardown, or a sibling reached by
+    ///   passing a `ResolvedVc` laterally, which needs a common ancestor that collects both in the
+    ///   same pass. Counting them deadlocked the caller/callee cycle `NftJsonAsset::content` ->
+    ///   `all_assets_from_entries_filtered`, whose tasks could then never be collected.
+    /// - `output_dependent` is redundant with `parent_count`. It records a read of a task's
+    ///   *output*, which is the `OperationVc` representation, and those reads go through
+    ///   `connect()` -- so the reader is already a child. (A `ResolvedVc` read, the one that
+    ///   travels laterally as an argument, lands in `cell_dependents` instead.)
+    ///
+    /// Removing the cell sets exposed a race in the GC cascade -- rebalancing running while other
+    /// workers were still collecting -- which `gc_collect` now avoids by deferring all rebalance
+    /// work until the parallel phase is quiescent.
     pub fn gc_maybe_collectible(&self) -> bool {
         // None of the predicates below are correct without this.
         self.flags.is_restored(TaskDataCategory::Meta)
@@ -903,35 +915,15 @@ impl TaskStorage {
             && self.gc_transient_ref_count() == 0
             && self.get_activeness().is_none()
             && self.get_in_progress().is_none()
-            // `upper` is an *incoming* edge: some aggregating node above references this task,
-            // so it must block collection. It is rare for one to be present when the ref counts
-            // are 0, but it can happen transiently during a concurrent GC pass as uppers are
-            // moved around during the cascade.
+
             && self.upper().is_empty()
-            // NOTE: `followers` is deliberately *not* checked here. Unlike `upper`, a follower is
-            // an *outgoing* edge — a node this task points at — so it says nothing about whether
-            // anything still references *this* task, exactly like `children`. Treating it as a
-            // pin made every parent-less aggregating node look like a GC root, which is
-            // unreachable garbage by the `children`-reachability model. The follower edges
-            // themselves are torn down by the `InnerOfUpperLostFollowers` cascade that
-            // `CleanupOldEdgesOperation` drives off this task's `children`.
-            // `collectibles_dependents` is Meta, so it is always checkable here.
+            // Collectibles are read straight off an `OperationVc` (`peek_collectibles` and
+            // friends never `connect()`), so a collectibles dependent need not be a descendant
+            // and ancestry does not order its collection. This is also the only dependent set
+            // that is `Meta`, so checking it keeps the whole predicate `Meta`-only.
             && self
                 .collectibles_dependents()
                 .is_none_or(|d| d.is_empty())
-            // The remaining dependent sets are Data; skipped (leaving this a pre-filter) when Data
-            // is not restored.
-            //
-            // `cell_dependents` / `cell_dependents_hashed` are redundant with ancestry (a
-            // cell dependent is always either a child or a sibling under a common ancestor, so it
-            // is collected no later than its target) and counting them blocks collection of the
-            // caller/callee cycle `NftJsonAsset::content` -> `all_assets_from_entries_filtered`.
-            // Removing them exposed a race in the GC cascade (rebalancing running while other
-            // workers were still collecting), which `gc_collect` now avoids by deferring all
-            // rebalance work until the parallel phase is quiescent. `gc_scan_roots` checks the
-            // invariant every pass.
-            && (!self.flags.is_restored(TaskDataCategory::Data)
-                || self.output_dependent().is_empty())
     }
 
     /// Whether this task is a GC **root**: parent-less, but pinned for some reason

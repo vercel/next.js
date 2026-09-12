@@ -240,14 +240,12 @@ impl TurboTasksBackend {
                 };
                 let collector = |child_id| spawner.spawn(GcJob::Collect(child_id));
                 let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &collector);
-                // `All` restores Data so the edge capture below can read the Data-category dep
-                // sets.
+                // `All` restores Data so `capture_all_outgoing_edges` below can read the
+                // Data-category dependency sets. The recheck itself only needs Meta.
                 let mut task = ctx.task(task_id, TaskDataCategory::All);
-                // Recheck under the guard, and note that this is the **authoritative** check:
-                // the shard scan that produced this candidate only had Meta, so it could not see
-                // dependency edges (see `TaskStorage::gc_maybe_collectible`). With `All` open the
-                // same predicate is exact. A racing teardown can also add uppers that
-                // temporarily remove collectibility; such a task is re-enqueued by a later pass.
+                // Recheck under the guard: the shard scan saw this task without holding it, and a
+                // racing teardown can add uppers that temporarily remove collectibility. Such a
+                // task is re-enqueued by a later pass.
                 if !task.is_gc_collectible() {
                     return ControlFlow::Continue(());
                 }
