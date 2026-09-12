@@ -5,10 +5,7 @@
 use std::{collections::HashSet, mem::take, sync::Mutex};
 
 use anyhow::Result;
-use turbo_tasks::{
-    Invalidator, ReadRef, Vc, get_invalidator,
-    unmark_top_level_task_may_leak_eventually_consistent_state, with_turbo_tasks,
-};
+use turbo_tasks::{Invalidator, ReadRef, Vc, get_invalidator, with_turbo_tasks};
 use turbo_tasks_testing::{Registration, register, run_once};
 
 static REGISTRATION: Registration = register!();
@@ -16,7 +13,6 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_read_ref() {
     run_once(&REGISTRATION, async || {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
         let counter = Counter::cell(Counter {
             value: Mutex::new((0, Default::default())),
         });
@@ -38,7 +34,8 @@ async fn test_read_ref() {
         // However, `local_counter_value` will point to the value of `counter_value`
         // at the time it was turned into a trait reference (just like a `ReadRef`
         // would).
-        let local_counter_value = ReadRef::cell(counter_value.await?).get_value();
+        let local_counter_value =
+            ReadRef::cell(counter_value.strongly_consistent().await?).get_value();
 
         counter.await?.incr();
 
