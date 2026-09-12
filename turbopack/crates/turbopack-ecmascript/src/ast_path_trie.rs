@@ -17,10 +17,9 @@
 //! requested paths are interned, so the trie stays sparse: it holds the handful of nodes
 //! leading to code-generated locations, not every node in the file.
 
-use std::collections::hash_map::Entry;
-
+use auto_hash_map::AutoMap;
 use bincode::{Decode, Encode};
-use rustc_hash::FxHashMap;
+use rustc_hash::FxBuildHasher;
 use swc_core::ecma::visit::AstParentKind;
 use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
 
@@ -64,13 +63,27 @@ struct Node {
 ///
 /// Holds the child index that deduplicating requires; [`AstPathTrieBuilder::build`] drops
 /// it and yields the immutable [`AstPathTrie`] that code generation reads.
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct AstPathTrieBuilder {
     nodes: Vec<Node>,
-    /// Maps a node and a child kind to that child, so interning the same path twice yields
-    /// the same id. Effects are processed out of AST order, so there is no walk position to
-    /// extend and edges have to be looked up.
-    edges: FxHashMap<(AstPathId, AstParentKind), AstPathId>,
+    /// The children of each node, keyed by the kind that reaches them, so interning the
+    /// same path twice yields the same id. Effects are processed out of AST order, so there
+    /// is no walk position to extend and children have to be looked up.
+    ///
+    /// Indexed the same way as `nodes`, with slot 0 holding the root's children. Almost
+    /// every node has one or two children, so `AutoMap` keeps those inline and only spills
+    /// to a hash map for the occasional wide node (a module body, say).
+    children: Vec<AutoMap<AstParentKind, AstPathId, FxBuildHasher, 4>>,
+}
+
+impl Default for AstPathTrieBuilder {
+    fn default() -> Self {
+        Self {
+            nodes: Vec::new(),
+            // Slot 0 holds the root's children.
+            children: vec![AutoMap::default()],
+        }
+    }
 }
 
 impl AstPathTrieBuilder {
@@ -99,25 +112,23 @@ impl AstPathTrieBuilder {
 
     /// Extends the path `parent` by one element.
     pub fn push(&mut self, parent: AstPathId, kind: AstParentKind) -> AstPathId {
-        // Computed up front so the entry below doesn't hold a borrow across them; this is
-        // the hot path of interning, so the key is hashed once rather than on both a
-        // lookup and an insert.
-        let depth = self.depth(parent) + 1;
-        let next_id =
-            AstPathId(u32::try_from(self.nodes.len() + 1).expect("too many ast path nodes"));
-
-        match self.edges.entry((parent, kind)) {
-            Entry::Occupied(entry) => *entry.get(),
-            Entry::Vacant(entry) => {
-                entry.insert(next_id);
-                self.nodes.push(Node {
-                    parent,
-                    kind,
-                    depth,
-                });
-                next_id
-            }
+        // The root's children live in slot 0, so every node's children are one slot past
+        // its id; that keeps the root from needing a case of its own.
+        let slot = parent.0 as usize;
+        if let Some(&existing) = self.children[slot].get(&kind) {
+            return existing;
         }
+
+        let depth = self.depth(parent) + 1;
+        let id = AstPathId(u32::try_from(self.nodes.len() + 1).expect("too many ast path nodes"));
+        self.nodes.push(Node {
+            parent,
+            kind,
+            depth,
+        });
+        self.children.push(AutoMap::default());
+        self.children[slot].insert(kind, id);
+        id
     }
 
     /// The path with its last element removed, or the root when already there.
@@ -145,13 +156,13 @@ impl AstPathTrieBuilder {
             self.nodes.is_empty(),
             "adopting a trie would invalidate the paths already interned here",
         );
-        self.edges = trie
-            .nodes
-            .iter()
-            .enumerate()
-            .map(|(index, node)| ((node.parent, node.kind), AstPathId(index as u32 + 1)))
-            .collect();
         self.nodes = trie.nodes.into_vec();
+        self.children = Vec::with_capacity(self.nodes.len() + 1);
+        self.children
+            .resize_with(self.nodes.len() + 1, AutoMap::default);
+        for (index, node) in self.nodes.iter().enumerate() {
+            self.children[node.parent.0 as usize].insert(node.kind, AstPathId(index as u32 + 1));
+        }
     }
 
     /// Freezes the paths interned so far.
