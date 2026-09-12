@@ -1,6 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
+import { MAX_LIVE_COMPLETED_REQUEST_INSIGHTS } from 'next/dist/shared/lib/request-insights'
 import {
   retry,
   toggleDevToolsIndicatorPopover,
@@ -24,6 +25,7 @@ type RequestInsight = {
   route: string
   url?: string
   startTime: number
+  completedAt?: number
   status: 'ok'
   spans: Array<{
     name?: string
@@ -182,6 +184,63 @@ describe('request insights', () => {
           'AppRender.getBodyResult',
         ])
       )
+    })
+  })
+
+  it('loads completed requests from session history and fetches details lazily', async () => {
+    const response = await next.fetch('/api/proxied-page?history-endpoint=1')
+    expect(response.status).toBe(200)
+
+    await retry(async () => {
+      const historyResponse = await next.fetch(
+        '/_next/development/request-insights?view=history&limit=1&showInternal=1'
+      )
+      expect(historyResponse.headers.get('cache-control')).toBe(
+        'private, no-store'
+      )
+      const history = (await historyResponse.json()) as {
+        requests: Array<{
+          requestId: string
+          kind?: 'request' | 'instant-insights'
+          completedAt?: number
+          spanCount: number
+        }>
+        nextCursor?: string
+        sessionId: string
+      }
+      expect(history.sessionId).toEqual(expect.any(String))
+      expect(history.requests).toHaveLength(1)
+      expect(history.requests[0]).toEqual(
+        expect.objectContaining({
+          completedAt: expect.any(Number),
+          spanCount: expect.any(Number),
+        })
+      )
+
+      const summary = history.requests[0]
+      const detailResponse = await next.fetch(
+        `/_next/development/request-insights?view=detail&requestId=${encodeURIComponent(summary.requestId)}&kind=${summary.kind ?? 'request'}`
+      )
+      expect(detailResponse.status).toBe(200)
+      const detail = (await detailResponse.json()) as {
+        request: RequestInsight
+      }
+      expect(detail.request.requestId).toBe(summary.requestId)
+      expect(detail.request.spans.length).toBe(summary.spanCount)
+    })
+  })
+
+  it('rejects history overlap lookups larger than the completed live window', async () => {
+    const params = new URLSearchParams({ view: 'history' })
+    for (let index = 0; index <= MAX_LIVE_COMPLETED_REQUEST_INSIGHTS; index++) {
+      params.append('liveRequestKey', `request:${index}`)
+    }
+    const response = await next.fetch(
+      `/_next/development/request-insights?${params}`
+    )
+    expect(response.status).toBe(400)
+    expect(await response.json()).toEqual({
+      error: 'Too many live Request Insights keys',
     })
   })
 
@@ -706,7 +765,13 @@ describe('request insights', () => {
   it('contains Request Insights scrolling inside the overlay panes', async () => {
     const browser = await next.browser('/instant-insights')
 
-    await browser.elementById('emit-request-insights-snapshot').click()
+    await browser.eval(() =>
+      Promise.all(
+        Array.from({ length: 40 }, (_, index) =>
+          fetch(`/api/source?scroll-test=${index}`)
+        )
+      )
+    )
     await openRequestInsightsPanel(browser)
 
     await retry(async () => {
@@ -715,10 +780,13 @@ describe('request insights', () => {
         window.scrollTo(0, 200)
 
         const root = document.querySelector('nextjs-portal')?.shadowRoot
-        const list = root?.querySelector<HTMLElement>('.request-insights-list')
+        const list = root?.querySelector<HTMLElement>(
+          '.request-insights-list-scroll'
+        )
         const details = root?.querySelector<HTMLElement>(
           '.request-insights-details'
         )
+        const row = root?.querySelector<HTMLElement>('.request-insights-row')
         const pageScrollBefore = window.scrollY
 
         if (list) {
@@ -734,9 +802,25 @@ describe('request insights', () => {
           listOverscroll: list
             ? getComputedStyle(list).overscrollBehaviorY
             : null,
+          nativeScrollbarWidth: list
+            ? getComputedStyle(list).scrollbarWidth
+            : null,
+          overlayScrollbarVisible: Boolean(
+            root?.querySelector('.request-insights-list-scrollbar')
+          ),
+          rowFillsViewport:
+            list && row
+              ? row.getBoundingClientRect().right ===
+                list.getBoundingClientRect().right
+              : false,
+          rowContentContained: row
+            ? row.scrollHeight <= row.clientHeight
+            : false,
           listScrollable: list
             ? list.scrollHeight > list.clientHeight && list.scrollTop > 0
             : false,
+          mountedRowCount:
+            root?.querySelectorAll('.request-insights-row').length ?? 0,
           pageScrollBefore,
           pageScrollAfter: window.scrollY,
         }
@@ -746,10 +830,17 @@ describe('request insights', () => {
         detailsOverscroll: 'contain',
         listOverflow: 'auto',
         listOverscroll: 'contain',
+        nativeScrollbarWidth: 'none',
+        overlayScrollbarVisible: true,
+        rowContentContained: true,
+        rowFillsViewport: true,
         listScrollable: true,
+        mountedRowCount: expect.any(Number),
         pageScrollBefore: 200,
         pageScrollAfter: 200,
       })
+      expect(state.mountedRowCount).toBeGreaterThan(0)
+      expect(state.mountedRowCount).toBeLessThan(80)
     })
   })
 
@@ -938,27 +1029,60 @@ describe('request insights', () => {
       .elementByCss('.request-insights-settings-item:has-text("Pause updates")')
       .click()
 
-    const pausedRowCount = await browser.eval(() => {
+    const pausedState = await browser.eval(() => {
       const root = document.querySelector('nextjs-portal')?.shadowRoot
-      return root?.querySelectorAll('.request-insights-row').length ?? 0
+      return {
+        rowCount: root?.querySelectorAll('.request-insights-row').length ?? 0,
+        filterStatus: root?.querySelector('.request-insights-filter-status')
+          ?.textContent,
+      }
     })
     expect((await next.fetch('/api/source?while=paused')).status).toBe(200)
 
     await retry(async () => {
-      const pausedState = await browser.eval(() => {
+      const state = await browser.eval(() => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
         return {
           paused: root?.querySelector('.request-insights-paused-state')
             ?.textContent,
           rowCount: root?.querySelectorAll('.request-insights-row').length ?? 0,
+          filterStatus: root?.querySelector('.request-insights-filter-status')
+            ?.textContent,
         }
       })
-      expect(pausedState).toEqual({
+      expect(state).toEqual({
         paused: 'Paused',
-        rowCount: pausedRowCount,
+        ...pausedState,
       })
     })
 
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    expect(
+      await browser
+        .elementByCss(
+          '.request-insights-filter-item[data-filter-value="source:page"]'
+        )
+        .getAttribute('data-disabled')
+    ).toBeNull()
+    await browser.elementByCss('.request-insights-filter-reset').click()
+    await retry(async () => {
+      const rowTypes = await browser.eval(() => {
+        const root = document.querySelector('nextjs-portal')?.shadowRoot
+        return Array.from(
+          root?.querySelectorAll('.request-insights-request-type') ?? []
+        ).map((type) => type.textContent?.trim())
+      })
+      expect(rowTypes.some((type) => type?.startsWith('Page'))).toBe(true)
+    })
+    await browser.elementByCss('.request-insights-filter-trigger').click()
+    await browser
+      .elementByCss(
+        '.request-insights-filter-item[data-filter-value="source:api"]'
+      )
+      .click()
+    await browser.elementByCss('.request-insights-details').click()
+    await browser.elementByCss('.request-insights-settings-trigger').click()
     await browser
       .elementByCss('.request-insights-settings-item:has-text("Pause updates")')
       .click()
@@ -967,11 +1091,12 @@ describe('request insights', () => {
         const root = document.querySelector('nextjs-portal')?.shadowRoot
         return {
           paused: root?.querySelector('.request-insights-paused-state'),
-          rowCount: root?.querySelectorAll('.request-insights-row').length ?? 0,
+          filterStatus: root?.querySelector('.request-insights-filter-status')
+            ?.textContent,
         }
       })
       expect(state.paused).toBeNull()
-      expect(state.rowCount).toBeGreaterThan(pausedRowCount)
+      expect(state.filterStatus).not.toBe(pausedState.filterStatus)
     })
   })
 
@@ -1251,6 +1376,18 @@ describe('request insights', () => {
             proxyStatus: 'matched',
           })
         )
+        expect(matchingRequests[0].completedAt).toBeUndefined()
+
+        const detailResponse = await next.fetch(
+          `/_next/development/request-insights?view=detail&requestId=${encodeURIComponent(matchingRequests[0].requestId)}&kind=request`
+        )
+        expect(detailResponse.status).toBe(200)
+
+        const detail = (await detailResponse.json()) as {
+          request: RequestInsight
+        }
+        expect(detail.request.requestId).toBe(matchingRequests[0].requestId)
+        expect(detail.request.completedAt).toBeUndefined()
       }, 30_000)
     } finally {
       await retry(async () => {
@@ -1283,6 +1420,7 @@ describe('request insights', () => {
       )
 
       expect(matchingRequests).toHaveLength(1)
+      expect(matchingRequests[0].completedAt).toEqual(expect.any(Number))
       expect(
         matchingRequests[0].spans.map(
           (span) => span.attributes?.['next.span_type']

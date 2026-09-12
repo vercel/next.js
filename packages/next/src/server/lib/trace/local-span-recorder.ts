@@ -13,8 +13,8 @@ import {
   type SpanStoreEvent,
   type SpanStoreLink,
 } from './span-store'
-import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
 import type {
+  RequestInsightKind,
   RequestInsightProxyStatus,
   RequestInsightSource,
 } from '../../../shared/lib/request-insights'
