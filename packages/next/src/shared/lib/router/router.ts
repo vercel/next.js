@@ -647,6 +647,43 @@ interface NextDataCache {
   [asPath: string]: Promise<FetchDataOutput>
 }
 
+/**
+ * Maximum number of route entries to keep in the client-side data cache.
+ * Older entries are evicted (FIFO) once this limit is reached, preventing
+ * unbounded memory growth in long-lived sessions with many unique routes.
+ */
+const SDC_MAX_ENTRIES = 50
+
+/**
+ * Creates a size-bounded client-side data cache.
+ * Without eviction the `sdc`/`sbc` objects grow indefinitely as the user
+ * navigates between pages, retaining all `getStaticProps` JSON payloads
+ * in memory for the lifetime of the session.  This factory wraps a plain
+ * object in a Proxy that evicts the oldest entry whenever the cache exceeds
+ * SDC_MAX_ENTRIES, providing a simple FIFO eviction policy.
+ */
+function createDataCache(): NextDataCache {
+  const insertionOrder: string[] = []
+  return new Proxy({} as NextDataCache, {
+    set(target, prop: string, value: any) {
+      if (!(prop in target)) {
+        insertionOrder.push(prop)
+        if (insertionOrder.length > SDC_MAX_ENTRIES) {
+          const oldest = insertionOrder.shift()!
+          delete (target as any)[oldest]
+        }
+      }
+      ;(target as any)[prop] = value
+      return true
+    },
+    deleteProperty(target, prop: string) {
+      const idx = insertionOrder.indexOf(prop)
+      if (idx !== -1) insertionOrder.splice(idx, 1)
+      return delete (target as any)[prop]
+    },
+  })
+}
+
 export function createKey() {
   return Math.random().toString(36).slice(2, 10)
 }
@@ -704,9 +741,9 @@ export default class Router implements BaseRouter {
    */
   components: { [pathname: string]: PrivateRouteInfo }
   // Server Data Cache (full data requests)
-  sdc: NextDataCache = {}
+  sdc: NextDataCache = createDataCache()
   // Server Background Cache (HEAD requests)
-  sbc: NextDataCache = {}
+  sbc: NextDataCache = createDataCache()
 
   sub: Subscription
   clc: ComponentLoadCancel
