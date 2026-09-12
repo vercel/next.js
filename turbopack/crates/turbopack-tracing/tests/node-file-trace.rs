@@ -331,9 +331,10 @@ fn node_file_trace_persistent(#[case] input: CaseInput) {
                     describe: "test-unversioned",
                     dirty: false,
                 },
-                false,
-                true,
-                false,
+                turbo_tasks_backend::BackingStorageOptions {
+                    is_short_session: true,
+                    ..Default::default()
+                },
             )
             .unwrap()
             .0,

@@ -1,10 +1,10 @@
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
 import { PrefetchHint } from '../../../shared/lib/app-router-types'
-import type { RouteTree } from '../segment-cache/cache'
+import type { RouteTree, RSCSegmentData } from '../segment-cache/cache'
 
 export function isNavigatingToNewRootLayout(
   currentTree: FlightRouterState,
-  nextTree: RouteTree
+  nextTree: RouteTree<RSCSegmentData | null>
 ): boolean {
   // Decides whether navigating from currentTree to nextTree crosses into a
   // different root layout, which requires a full-page (MPA-style) navigation.

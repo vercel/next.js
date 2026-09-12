@@ -276,7 +276,7 @@ export default nextConfig
 
 ### Turbopack File System Caching
 
-Turbopack stores compiler artifacts on disk between runs, for significantly faster compile times across restarts. Filesystem caching is enabled by default for both `next dev` and `next build`. See [`turbopackFileSystemCache`](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) to configure or disable it.
+Turbopack stores compiler artifacts on disk between runs, for significantly faster compile times across restarts. Filesystem caching is enabled by default for both `next dev` and `next build`, through `experimental.turbopackFileSystemCacheForDev` and `experimental.turbopackFileSystemCacheForBuild`. See [Turbopack FileSystem Caching](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) to configure or disable either one.
 
 ## Async Request APIs (Breaking change)
 
@@ -1074,7 +1074,7 @@ const nextConfig = {
   },
 }
 
-export default nextConfig
+module.exports = nextConfig
 ```
 
 Evaluate if AMP is still necessary for your use case. Most performance benefits can now be achieved through Next.js's built-in optimizations and modern web standards.

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{Vc, trace::TraceRawVcs};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, canonicalize_to_rcstr};
+use turbo_tasks_fs::{DiskFileSystem, DiskWatcherConfig, FileSystem, canonicalize_to_rcstr};
 
 #[turbo_tasks::task_input]
 #[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, Encode, Decode)]
@@ -56,13 +56,14 @@ pub async fn project_fs(
     watch: bool,
     denied_root_path: RcStr,
 ) -> Result<Vc<Box<dyn FileSystem>>> {
-    let disk_fs = DiskFileSystem::new_with_denied_paths(
+    let disk_fs = DiskFileSystem::new_with_options(
         rcstr!("project"),
         Vc::cell(project_dir),
         vec![denied_root_path],
+        DiskWatcherConfig::default(),
     );
     if watch {
-        disk_fs.await?.start_watching(None).await?;
+        disk_fs.await?.start_watching().await?;
     }
     Ok(Vc::upcast(disk_fs))
 }

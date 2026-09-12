@@ -11,10 +11,11 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, TaskInput, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
+    NonLocalValue, ReadRef, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{
-    FileSystemPath, LinkContent, LinkType, RawDirectoryContent, RawDirectoryEntry,
+    FileSystemEntryType, FileSystemPath, LinkContent, RawDirectoryContent, RawDirectoryEntry,
 };
 use turbo_unix_path::normalize_path;
 
@@ -1511,14 +1512,29 @@ impl PatternMatch {
 #[derive(Debug)]
 pub struct PatternMatches(Vec<PatternMatch>);
 
+/// Reads the directory `path` points at, enumerating it through its realpath.
+///
+/// Callers keep the original logical `path` when constructing [`PatternMatch`] values, so symlinks
+/// stay visible in the results while the directory itself is never read through a symlinked
+/// parent. Resolving also registers a dependency on the symlink chain, so replacing a link
+/// invalidates the enumeration.
+///
+/// A path that cannot be resolved (a dangling or cyclic link) is read as-is, which yields
+/// [`RawDirectoryContent::NotFound`] just as it did before.
+async fn raw_read_dir_resolved(path: &FileSystemPath) -> Result<ReadRef<RawDirectoryContent>> {
+    let resolved = path.realpath().await?.unwrap_or_else(|_| path.clone());
+    resolved.raw_read_dir().await
+}
+
 /// Find all files or directories that match the provided `pattern` with the
 /// specified `lookup_dir` directory. `prefix` is the already matched part of
 /// the pattern that leads to the `lookup_dir` directory. When
 /// `force_in_lookup_dir` is set, leaving the `lookup_dir` directory by
 /// matching `..` is not allowed.
 ///
-/// Symlinks will not be resolved. It's expected that the caller resolves
-/// symlinks when they are interested in that.
+/// Symlinks in returned matches are not resolved. Lookup directories are resolved only for
+/// physical enumeration; logical paths are retained in [`PatternMatch`] values so callers can
+/// resolve and track the symlinks they are interested in.
 #[turbo_tasks::function]
 pub async fn read_matches(
     lookup_dir: FileSystemPath,
@@ -1572,7 +1588,7 @@ pub async fn read_matches(
                                 lookup_dir.try_join(parent_path)
                             };
                             if let Some(path) = path_option {
-                                Some(e.insert((path.raw_read_dir().await?, path)))
+                                Some(e.insert((raw_read_dir_resolved(&path).await?, path)))
                             } else {
                                 None
                             }
@@ -1606,12 +1622,14 @@ pub async fn read_matches(
                         )),
                         RawDirectoryEntry::Symlink => {
                             let fs_path = parent_fs_path.join(last_segment)?;
-                            let LinkContent::Link { link_type, .. } = &*fs_path.read_link().await?
-                            else {
+                            let LinkContent::Link { target } = &*fs_path.read_link().await? else {
                                 continue;
                             };
                             let path = concat(&prefix, str).into();
-                            if link_type.contains(LinkType::DIRECTORY) {
+                            if matches!(
+                                target.resolved_type().await?,
+                                FileSystemEntryType::Directory
+                            ) {
                                 results.push((index, PatternMatch::Directory(path, fs_path)));
                             } else {
                                 results.push((index, PatternMatch::File(path, fs_path)))
@@ -1737,7 +1755,7 @@ pub async fn read_matches(
                 prefix.pop();
                 prefix.pop();
             }
-            match &*lookup_dir.raw_read_dir().await? {
+            match &*raw_read_dir_resolved(&lookup_dir).await? {
                 RawDirectoryContent::Entries(map) => {
                     for (key, entry) in map.iter() {
                         match entry {
@@ -1795,10 +1813,13 @@ pub async fn read_matches(
                                 }
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
+                                    if let LinkContent::Link { target } =
                                         &*fs_path.read_link().await?
                                     {
-                                        if link_type.contains(LinkType::DIRECTORY) {
+                                        if matches!(
+                                            target.resolved_type().await?,
+                                            FileSystemEntryType::Directory
+                                        ) {
                                             results.push((
                                                 pos,
                                                 PatternMatch::Directory(
@@ -1817,9 +1838,12 @@ pub async fn read_matches(
                                 prefix.push('/');
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
+                                    if let LinkContent::Link { target } =
                                         &*fs_path.read_link().await?
-                                        && link_type.contains(LinkType::DIRECTORY)
+                                        && matches!(
+                                            target.resolved_type().await?,
+                                            FileSystemEntryType::Directory
+                                        )
                                     {
                                         results.push((
                                             pos,
@@ -1829,9 +1853,12 @@ pub async fn read_matches(
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
                                     let fs_path = lookup_dir.join(key)?;
-                                    if let LinkContent::Link { link_type, .. } =
+                                    if let LinkContent::Link { target } =
                                         &*fs_path.read_link().await?
-                                        && link_type.contains(LinkType::DIRECTORY)
+                                        && matches!(
+                                            target.resolved_type().await?,
+                                            FileSystemEntryType::Directory
+                                        )
                                     {
                                         results.push((
                                             pos,
@@ -1906,7 +1933,8 @@ mod tests {
     use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 
     use super::{
-        Pattern, longest_common_prefix, longest_common_suffix, read_matches, split_last_segment,
+        Pattern, PatternMatch, longest_common_prefix, longest_common_suffix, read_matches,
+        split_last_segment,
     };
 
     #[test]
@@ -2647,6 +2675,60 @@ mod tests {
         assert_eq!(split_last_segment("../a/"), ("..", "a"));
         assert_eq!(split_last_segment("../../a"), ("../..", "a"));
         assert_eq!(split_last_segment("../../a/"), ("../..", "a"));
+    }
+
+    #[cfg(all(unix, debug_assertions))]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn test_read_matches_resolves_lookup_dir_for_enumeration() {
+        use std::{fs::create_dir_all, os::unix::fs::symlink};
+
+        let scratch = tempfile::tempdir().unwrap();
+        let root = scratch.path();
+        create_dir_all(root.join("real")).unwrap();
+        std::fs::write(root.join("real/file.js"), "content").unwrap();
+        symlink("real", root.join("alias")).unwrap();
+        symlink("real/file.js", root.join("file-alias")).unwrap();
+
+        #[turbo_tasks::function(operation, root)]
+        async fn operation(disk_root: RcStr) -> anyhow::Result<()> {
+            let root = DiskFileSystem::new(rcstr!("test"), Vc::cell(disk_root))
+                .root()
+                .owned()
+                .await?;
+            let logical_dir = root.join("alias")?;
+            let matches = read_matches(
+                logical_dir.clone(),
+                rcstr!(""),
+                true,
+                Pattern::new(Pattern::Dynamic),
+            )
+            .await?;
+            assert!(matches.iter().any(|m| m
+                == &PatternMatch::File(rcstr!("file.js"), logical_dir.join("file.js").unwrap(),)));
+
+            let file_probe = read_matches(
+                root.join("file-alias")?,
+                rcstr!(""),
+                true,
+                Pattern::new(Pattern::Dynamic),
+            )
+            .await?;
+            assert!(file_probe.is_empty());
+
+            Ok(())
+        }
+
+        let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
+            BackendOptions::default(),
+            noop_backing_storage(),
+        ));
+        let disk_root: RcStr = root.to_str().unwrap().into();
+        tt.run_once(async move {
+            operation(disk_root).read_strongly_consistent().await?;
+            anyhow::Ok(())
+        })
+        .await
+        .unwrap();
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

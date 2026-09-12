@@ -72,6 +72,11 @@ type Actions = {
       [name: string]: {
         moduleId: string | number
         async: boolean
+        durability?: {
+          codeHash: string
+          runtimeEnvVarsRead: string[]
+          runtimeEnvVarsExistence: string[]
+        }
       }
     }
     // Record which layer the action is in (rsc or sc_action), in the specific entry

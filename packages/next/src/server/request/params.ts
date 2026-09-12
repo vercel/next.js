@@ -11,14 +11,7 @@ import {
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  throwToInterruptStaticGeneration,
-  postponeWithTracking,
-} from '../app-render/dynamic-rendering'
-
-import {
   workUnitAsyncStorage,
-  type PrerenderStorePPR,
-  type PrerenderStoreLegacy,
   type StaticPrerenderStoreModern,
   type StaticPrerenderStore,
   throwInvariantForMissingStore,
@@ -37,6 +30,8 @@ import {
   makePromiseFromTrigger,
   trackFallbackParamsAccessed,
   RENDER_STAGES_BY_DATA_KIND,
+  trackPromiseUsed,
+  trackIncompatibleShellContent,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
@@ -61,7 +56,6 @@ export function createParamsFromClient(
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         // Client params don't need additional vary tracking because by the
         // time they reach the client, the access would have already been
@@ -107,12 +101,12 @@ export function createParamsFromClient(
           )
         }
         if (process.env.NODE_ENV === 'development') {
-          const fallbackParams = workUnitStore.fallbackParams
+          const stagedFallbackParams = workUnitStore.stagedFallbackParams
           const userspaceParams = underlyingParams
           return createRenderParamsInDev(
             underlyingParams,
             userspaceParams,
-            fallbackParams,
+            stagedFallbackParams,
             workStore,
             workUnitStore
           )
@@ -154,7 +148,6 @@ export function createServerParamsForRoute(
   if (workUnitStore) {
     switch (workUnitStore.type) {
       case 'prerender':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
@@ -185,12 +178,12 @@ export function createServerParamsForRoute(
       }
       case 'request':
         if (process.env.NODE_ENV === 'development') {
-          const fallbackParams = workUnitStore.fallbackParams
+          const stagedFallbackParams = workUnitStore.stagedFallbackParams
           const userspaceParams = underlyingParams
           return createRenderParamsInDev(
             underlyingParams,
             userspaceParams,
-            fallbackParams,
+            stagedFallbackParams,
             workStore,
             workUnitStore
           )
@@ -218,7 +211,6 @@ export function createServerParamsForServerSegment(
     switch (workUnitStore.type) {
       case 'prerender':
       case 'prerender-client':
-      case 'prerender-ppr':
       case 'prerender-legacy':
         return createStaticPrerenderParams(
           underlyingParams,
@@ -314,7 +306,6 @@ export function createPrerenderParamsForClientSegment(
           'createPrerenderParamsForClientSegment should not be called inside generateStaticParams.'
         )
       case 'prerender-runtime':
-      case 'prerender-ppr':
       case 'prerender-legacy':
       case 'request':
         break
@@ -398,22 +389,6 @@ function createStaticPrerenderParams(
       }
       break
     }
-    case 'prerender-ppr': {
-      const fallbackParams = prerenderStore.fallbackRouteParams
-      if (fallbackParams) {
-        for (const key in underlyingParams) {
-          if (fallbackParams.has(key)) {
-            return makeErroringParams(
-              underlyingParams,
-              fallbackParams,
-              workStore,
-              prerenderStore
-            )
-          }
-        }
-      }
-      break
-    }
     case 'prerender-legacy':
       break
     default:
@@ -452,36 +427,36 @@ function createRuntimePrerenderParams(
     return makeUntrackedParams(userspaceParams)
   }
 
+  // Root params are allowed in shells, so we allow them to resolve without a delay.
+  if (allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
+    return makeUntrackedParams(userspaceParams)
+  }
+
+  // Non-root params are URL data, and we need to recover a param-less session shell,
+  // so we delay all params until the runtime stage (even if they're static)
+  const paramsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
+
   const { stagedRendering } = workUnitStore
   if (!stagedRendering) {
-    // If there's no staging, we're in a prospective runtime prerender.
-    if (workUnitStore.isSessionShell) {
-      // If we're warming up for a session shell, params should be hanging,
-      // because they'll be a hanging input in the final prerender.
+    // If there's no stage controller, we're in a prospective runtime prerender.
+    // Make sure we don't unblock content that won't be reached in the final prerender.
+    if (workUnitStore.finalStage < paramsStage) {
       return makeHangingParams(underlyingParams, workStore, workUnitStore)
     } else {
       return makeUntrackedParams(userspaceParams)
     }
   }
 
-  // We don't have fallbackParams in runtime prerenders, so we don't know
-  // when params are static. However, root params are static by definition,
-  // so we can at least check for that.
-  // Note that resolving them without a delay is valid because root params are
-  // allowed in shells.
-  if (allParamsAreRootParams(underlyingParams, workUnitStore.rootParams)) {
-    return makeUntrackedParams(userspaceParams)
+  // If params don't resolve in this prerender, caches need to treat them as a hanging input.
+  if (stagedRendering.finalStage && stagedRendering.finalStage < paramsStage) {
+    return makeHangingParams(underlyingParams, workStore, workUnitStore)
+  } else {
+    return stagedRendering.delayUntilStage(
+      paramsStage,
+      'params',
+      userspaceParams
+    )
   }
-
-  // Semantically, we should resolve static params in the static stage.
-  // But params are link data, and we need to recover a param-less session shell,
-  // so we delay all params until the runtime stage instead.
-  const staticParamsStage = RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
-  return stagedRendering.delayUntilStage(
-    staticParamsStage,
-    'params',
-    userspaceParams
-  )
 }
 
 function createRenderParamsForPage(
@@ -526,11 +501,11 @@ function createRenderParamsForPage(
 
   // No staged rendering = no cacheComponents, or cacheComponents prod without cachedNavigations
   if (process.env.NODE_ENV === 'development') {
-    const fallbackParams = workUnitStore.fallbackParams
+    const stagedFallbackParams = workUnitStore.stagedFallbackParams
     return createRenderParamsInDev(
       underlyingParams,
       userspaceParams,
-      fallbackParams,
+      stagedFallbackParams,
       workStore,
       workUnitStore
     )
@@ -581,7 +556,9 @@ function createStagedRenderParamsImpl(
 
   // If we have fallback params, then they should always resolve in the runtime link data stage.
   // We do this indirectly via the shared params parent for better debug info.
-  if (hasFallbackRouteParams(underlyingParams, workUnitStore.fallbackParams)) {
+  if (
+    hasFallbackRouteParams(underlyingParams, workUnitStore.stagedFallbackParams)
+  ) {
     return createParamsPromiseFromTrigger(
       asyncApiPromises.sharedParamsParent,
       userspaceParams
@@ -597,15 +574,29 @@ function createStagedRenderParamsImpl(
     // so static params can resolve in the static stage, because session
     // shells are handled with a separate render.
     // However, in dev we might need to recover a session shell for instant validation.
-    // This is indicated by `needsSessionShell`.
-    const staticParamsStage = workUnitStore.needsSessionShell
+    // This is indicated by `needsAppShell`.
+    const staticParamsStage = workUnitStore.needsAppShell
       ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
       : RENDER_STAGES_BY_DATA_KIND.staticLinkData
-    return stagedRendering.delayUntilStage(
+
+    const promise = stagedRendering.delayUntilStage(
       staticParamsStage,
       'params',
       userspaceParams
     )
+    if (process.env.__NEXT_DEV_SERVER) {
+      // If static params are accessed, we can recover a static shell or a session shell, but not both.
+      return trackPromiseUsed(
+        promise,
+        trackIncompatibleShellContent.bind(
+          null,
+          workUnitStore,
+          'static `params`'
+        )
+      )
+    } else {
+      return promise
+    }
   }
 
   return makeUntrackedParams(userspaceParams)
@@ -672,14 +663,14 @@ function createRenderParamsInProd(userspaceParams: Params): Promise<Params> {
 function createRenderParamsInDev(
   underlyingParams: Params,
   userpaceParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams | null | undefined,
+  stagedFallbackParams: OpaqueFallbackRouteParams | null | undefined,
   workStore: WorkStore,
   requestStore: RequestStore
 ): Promise<Params> {
   return makeDynamicallyTrackedParamsWithDevWarnings(
     underlyingParams,
     userpaceParams,
-    hasFallbackRouteParams(underlyingParams, fallbackParams),
+    hasFallbackRouteParams(underlyingParams, stagedFallbackParams),
     workStore,
     requestStore
   )
@@ -701,7 +692,7 @@ const fallbackParamsProxyHandler: ProxyHandler<Promise<Params>> = {
           // rendering when it's finally awaited.
           const workUnitStore = workUnitAsyncStorage.getStore()
           if (workUnitStore !== undefined) {
-            trackFallbackParamsAccessed(workUnitStore)
+            trackFallbackParamsAccessed(workUnitStore, '`params`')
           }
 
           const store = dynamicAccessAsyncStorage.getStore()
@@ -739,74 +730,15 @@ function makeHangingParams(
       prerenderStore.renderSignal,
       workStore.route,
       '`params`',
-      // This promise is created for every segment on a fallback route whether
-      // or not it reads params, so recording the access at creation would mark
-      // every render. The access is tracked in the proxy traps instead.
+      // Passing `null` for the store disables tracking of params usage.
+      // Caches need the additional logic from `fallbackParamsProxyHandler`,
+      // so we track params usage there instead.
       null
     ),
     fallbackParamsProxyHandler
   )
 
   CachedParams.set(underlyingParams, promise)
-
-  return promise
-}
-
-function makeErroringParams(
-  underlyingParams: Params,
-  fallbackParams: OpaqueFallbackRouteParams,
-  workStore: WorkStore,
-  prerenderStore: PrerenderStorePPR | PrerenderStoreLegacy
-): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  const augmentedUnderlying = { ...underlyingParams }
-
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(augmentedUnderlying)
-  CachedParams.set(underlyingParams, promise)
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-    } else {
-      if (fallbackParams.has(prop)) {
-        Object.defineProperty(augmentedUnderlying, prop, {
-          get() {
-            const expression = describeStringPropertyAccess('params', prop)
-            // In most dynamic APIs we also throw if `dynamic = "error"` however
-            // for params is only dynamic when we're generating a fallback shell
-            // and even when `dynamic = "error"` we still support generating dynamic
-            // fallback shells
-            // TODO remove this comment when cacheComponents is the default since there
-            // will be no `dynamic = "error"`
-            if (prerenderStore.type === 'prerender-ppr') {
-              // PPR Prerender (no cacheComponents)
-              postponeWithTracking(
-                workStore.route,
-                expression,
-                prerenderStore.dynamicTracking
-              )
-            } else {
-              // Legacy Prerender
-              throwToInterruptStaticGeneration(
-                expression,
-                workStore,
-                prerenderStore
-              )
-            }
-          },
-          enumerable: true,
-        })
-      }
-    }
-  })
 
   return promise
 }

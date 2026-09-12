@@ -9,6 +9,7 @@ use std::{
 use memmap2::Mmap;
 
 use crate::{
+    Compression,
     compression::decompress_into_arc,
     shared_bytes::{SharedBytes, is_subslice_of},
 };
@@ -144,8 +145,13 @@ impl SharedBytes for ArcBytes {
         }
     }
 
-    fn from_decompressed(uncompressed_length: u32, block: &[u8]) -> anyhow::Result<Self> {
+    fn from_decompressed(
+        compression: Compression,
+        uncompressed_length: u32,
+        block: &[u8],
+    ) -> anyhow::Result<Self> {
         Ok(ArcBytes::from(decompress_into_arc(
+            compression,
             uncompressed_length,
             block,
         )?))

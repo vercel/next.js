@@ -32,7 +32,7 @@ type WorkerChunkData = string | { path: string }
  * which module chunks to load and which module to run as the entry point.
  *
  * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, ...workerForwardedGlobals values]`
+ * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
  *
  * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint path to the worker entrypoint chunk
@@ -62,7 +62,11 @@ function createWorker(
       )
     )
     .reverse()
-  const params: unknown[] = [chunkUrls, __turbopack_chunk_asset_suffix__]
+  const params: unknown[] = [
+    chunkUrls,
+    __turbopack_chunk_asset_suffix__,
+    workerBasePath,
+  ]
   const globals = _TURBOPACK_WORKER_FORWARDED_GLOBALS_
   for (let i = 0; i < globals.length; i++) {
     params.push((globalThis as Record<string, unknown>)[globals[i]])

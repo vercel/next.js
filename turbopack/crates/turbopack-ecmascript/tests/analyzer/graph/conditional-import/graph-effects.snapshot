@@ -270,6 +270,7 @@
             ),
         ],
         span: 57..81,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -342,6 +343,7 @@
             ),
         ],
         span: 57..68,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "process",
@@ -1071,7 +1073,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -1121,7 +1123,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -1162,7 +1164,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -1198,7 +1200,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1248,7 +1250,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -1296,7 +1298,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),

@@ -17,19 +17,23 @@ Enable Cache Components on an app and walk it to a passing build. This skill seq
 
 - **App Router project.** Cache Components is an App Router feature; `cacheComponents: true` does nothing for `pages/` routes. If the project has a `pages/` or `src/pages/` tree but no `app/` or `src/app/` tree, stop and tell the user — Pages → App migration is its own project, not part of this skill. A hybrid app (both `pages/` and `app/`) is fine: the flag affects the `app/` routes; `pages/` routes are unaffected and don't need opt-outs.
 
+- **A resolved app directory.** Locate `next.config.{js,ts,mjs,cjs}` first: that's the project root, and an agent invoked from a subdirectory would otherwise test for `app/` against the wrong `cwd` and find nothing. Look for `app/` and `src/app/` under it, and treat every command and glob in this skill as relative to whichever one exists. If both exist, Next.js builds `app/` and never looks at `src/app/`, so its routes are shadowed and unbuilt — tell the user that and ask which tree to migrate instead of picking one.
+
 - **A runnable app.** The whole loop verifies against `next dev` and a browser, so the app has to boot. If it reads a database or required env at import (e.g. an `env.ts` that throws on a missing `DATABASE_URL`), confirm it actually starts — with the real environment, or local data you stand up — before step 1. Adoption can't be verified against an app that won't run.
 
 - **Next.js 16.3 or later.** That release is where the pieces this skill relies on land: top-level `cacheComponents`, `export const instant`, the dev-overlay instant-navigation validation warnings, and the `cache-components-instant-false` codemod. If `next --version` reports below 16.3, upgrade first:
   - `npx @next/codemod@latest upgrade latest` to apply the version-to-version codemods.
   - Read the relevant [version upgrade guide](https://nextjs.org/docs/app/guides/upgrading) (e.g. [Version 16](https://nextjs.org/docs/app/guides/upgrading/version-16)) for what the codemod doesn't cover.
 
-- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. **Translate, don't delete.** Each export encodes behavior the route needs to keep doing; migrate each one to its Cache Components equivalent via the [migration guide's per-key sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components#enable-cache-components). The exception is `dynamic = 'force-dynamic'`: under Cache Components every route is already dynamic by default, so the migration guide removes it outright rather than translating it — don't overthink a batch of identical `force-dynamic` deletions. `revalidate` and `fetchCache` still need real translation. If a value can't be cleanly translated yet, leave a `// TODO: Cache Components adoption — restore revalidate = 3600` comment so the loop picks it up. The `cache-components-instant-false` codemod does not touch these.
+- **No incompatible config keys.** `cacheComponents: true` errors on any file that still exports `dynamic`, `revalidate`, or `fetchCache`. Inventory these exports before running the codemod, then follow the [migration guide's per-key sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components). The guide is the source of truth for translating each value. The `cache-components-instant-false` codemod does not remove these configs.
 
 - **`experimental.dynamicIO` is fatal.** It was renamed to top-level `cacheComponents` and the old key now aborts before any build can run — remove it (or replace with `cacheComponents: true`) first. `experimental.useCache` is still accepted as a deprecated alias; redundant once `cacheComponents: true` is set, so remove it for clarity.
 
 ### notes
 
 - **No passing baseline before the flag.** If the app already uses `"use cache"`, the pre-flag build errors with `please enable the feature flag cacheComponents`. Enabling the flag is the first thing you do (in Incremental, before the codemod; in Direct, before fixing routes) — not a thing to do _after_ getting a passing build. Note this in your starting summary so it doesn't read as a regression.
+
+- **Existing caches can stay.** Follow the migration guide's [`fetch` and `unstable_cache` sections](https://nextjs.org/docs/app/guides/migrating-to-cache-components#fetch-cache-options). Do not rewrite them solely to enable Cache Components.
 
 - **Offline docs.** Guide links have offline copies under `node_modules/next/dist/docs/` (bundled since Next.js 16.2), with the directory layout numbered for ordering (e.g. `node_modules/next/dist/docs/01-app/02-guides/migrating-to-cache-components.md`). If you can't predict the numbered prefix, `find node_modules/next/dist/docs -name '<slug>.md'` resolves it. The `/docs/messages/*` error pages are not bundled.
 
@@ -41,7 +45,7 @@ There's one loop: walk the route tree top-down, one feature at a time, adopting 
 
 The choice in step 1 is whether to opt every route out of validation first or fix routes as you go. Either way the loop is the same:
 
-- **With a quiet pre-step (Incremental).** Run the codemod to opt every page and layout out of validation. Once you've also fixed what the codemod can't (sync-IO calls, leftover `revalidate`/`dynamic`/`fetchCache` exports), the build passes; you ship that as its own PR and then start the loop — removing one opt-out at a time and adopting that route. This splits the work into small, reviewable PRs.
+- **With a quiet pre-step (Incremental).** Run the codemod, fix what it can't, and fully migrate routes that previously required static rendering. Other routes keep their opt-outs for follow-up PRs.
 - **Without (Direct).** Enable `cacheComponents` and start the loop on whatever the build flags first. Same loop, but every fix sits on one branch until adoption is complete.
 
 In both, the per-route success bar is the same: **dev loop reports no errors AND `next build` passes**. Check in with the user after every feature, and suggest a commit but never make one without their confirmation. Expect to spend most of the time in the loop, not in the pre-step.
@@ -50,10 +54,14 @@ In both, the per-route success bar is the same: **dev loop reports no errors AND
 
 `cacheComponents: true` requires every route to be prerenderable. A route that reads request-time data outside `<Suspense>` is "blocking" and fails the build. `export const instant = false` marks a route as allowed to block, which clears it in both dev and build; on a layout it covers the whole subtree during the build, but client navigations still validate each descendant segment on its own. Reads wrapped in a [`"use cache"`](https://nextjs.org/docs/app/api-reference/directives/use-cache) function count as cache boundaries, not blocking reads.
 
+When a fix introduces `"use cache"`, follow the Caching guide for [choosing a data-level or UI-level boundary and setting its lifetime](https://nextjs.org/docs/app/getting-started/caching#usage) and [revalidating after mutations](https://nextjs.org/docs/app/getting-started/revalidating). Use the [`use cache` cache-key reference](https://nextjs.org/docs/app/api-reference/directives/use-cache#cache-keys) when the result varies by arguments or captured values.
+
 Three classes of blocker come up, usually in this order:
 
+Whenever a fix introduces `<Suspense>`, follow the Streaming guide's [granular streaming pattern](https://nextjs.org/docs/app/guides/streaming#granular-streaming-with-suspense) and [guidance for preventing CLS](https://nextjs.org/docs/app/guides/streaming#cls-cumulative-layout-shift).
+
 1. **Request-time reads** (`cookies()`, `headers()`, `await params`, `await searchParams`). All four block when awaited at the top of a page or layout. `params` and `searchParams` often get missed because they're not framed as "request data" the way cookies and headers are. The fix is to push the read into a `<Suspense>`-wrapped child — and for `params`/`searchParams`, forward the promise into the child and await it there; don't `await` at the page top.
-2. **Sync-IO at module/render time** (`new Date()`, `Date.now()`, `Math.random()`, `crypto.randomUUID()`). These fail the build even with `instant = false` — the opt-out doesn't suppress them. If they're in a shared layout, they block every route under it. The codemod can't fix them; you have to translate each one by hand before the build can pass (see the [incremental pre-step](#incremental)). Grep the whole repo for these calls before running anything else.
+2. **Sync-IO at module/render time** (`new Date()`, `Date.now()`, `Math.random()`, `crypto.randomUUID()`). These fail the build even with `instant = false` — the opt-out doesn't suppress them. If they're in a shared layout, they block every route under it. The codemod can't fix them; after running it, use each build error and its linked documentation to identify which reported calls to translate by hand (see the [incremental pre-step](#incremental)).
 3. **`"use cache"` files that read request data.** A file with a top-level `"use cache"` directive can't export `instant`; combining the two errors with `Only async functions are allowed to be exported in a "use cache" file.`, which means the directive was wrong for that route. Remove it before running the codemod.
 
 ## working surfaces
@@ -75,7 +83,7 @@ In preference order:
 
 1. **[`next-dev-loop`](https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop) — strongly preferred.** Cross-checks `/_next/mcp` against the live browser via `agent-browser` and surfaces both compile and runtime issues in one pass. The diagnostics (React tree, suspense boundaries, console + network) are richer than poking at `next dev` by hand.
 
-   Install it before starting the loop. Don't wait until you hit something `next dev` alone can't explain. Run:
+   Install it before starting the loop. Don't wait until you hit something `next dev` alone can't explain. It ships alongside this skill, so check whether it is already available first, and install it only if it is not:
 
    ```bash
    npx skills add https://github.com/vercel/next.js/tree/canary/skills/next-dev-loop
@@ -99,22 +107,14 @@ Ask the user, in terms of the PRs they want, not the size of the job. Never use 
 
 If there's no user to ask, default to **Incremental** and document the choice.
 
+Honor an explicit choice in the request. If the user asks to migrate incrementally and also asks you to complete the migration, establish and verify the incremental checkpoint before continuing to the remaining routes in the same task. “Complete” sets the stopping point; it does not change the chosen strategy.
+
 - **Incremental** — quiet pre-step + the loop. Run the codemod to opt every page and layout out of validation, get the build passing, stop and check in with the user (see [end of the pre-step](#end-of-the-pre-step-check-in)), then enter [step 2's loop](#step-2-the-inner-loop-remove-opt-outs-one-feature-at-a-time) and ship each feature as a follow-up PR.
 - **Direct** — skip the pre-step. Enable `cacheComponents` and go straight to [step 2's loop](#step-2-the-inner-loop-remove-opt-outs-one-feature-at-a-time); the build's blocking routes are the work queue.
 
 ### incremental
 
-Before invoking the codemod, fix the two classes of blocker it can't.
-
-1. **Sync-IO at module/render time.** Grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Unblock each match with the `await connection()` + `<Suspense>` fix from its `blocking-prerender-*` error card: it defers the value to request time, exactly as it behaved before the migration, so it needs no product decision. Add this exact comment on the line above the `await connection()`:
-
-   ```tsx
-   // TODO: Cache Components adoption. Added to unblock the build: remove this connection() to re-trigger the error and review the fix options.
-   ```
-
-   It shares the `TODO: Cache Components adoption` prefix with the comments the codemod writes, so the check-in grep finds both. Removing the `await connection()` makes the error fire again with its fix cards — the same motion as removing an opt-out in the loop.
-
-2. **Incompatible segment configs.** Grep for `^export const (revalidate|dynamic|fetchCache)` across `app/` and translate per the `requires` note above. The codemod does not touch them; leaving them in place fails the build after the codemod.
+Before invoking the codemod, grep for `^export const (revalidate|dynamic|fetchCache)` across the app directory and follow the migration guide for every match. Mark routes that use `dynamic = 'force-static'` or `dynamic = 'error'` for full migration in this PR. The codemod does not remove incompatible configs.
 
 The codemod refuses to run on a dirty working tree. Commit or stash unrelated work first, or pass `--force` to let its edits land alongside your WIP. Common false positive: if you recently upgraded Next.js, `package.json` and the lockfile will already be dirty — commit those first.
 
@@ -122,9 +122,11 @@ The codemod refuses to run on a dirty working tree. Commit or stash unrelated wo
 npx @next/codemod@latest cache-components-instant-false ./app
 ```
 
-Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `app/**/{page,layout,default}` file, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for the loop.
+Pass the app directory you resolved in [requires](#requires). A wrong path is not an error: it reports `0 ok` and exits `0`, so read the file count and treat zero as a failed run, not an adopted app.
 
-If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `app/**/{page,layout,default}.{js,jsx,ts,tsx}` that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
+Inserts `export const instant = false` (with a `// TODO: Cache Components adoption` comment) into every `{page,layout,default}` file under that directory, skipping files that already declare `instant` and any module marked `"use client"` or `"use server"`. Then set `cacheComponents: true`. The TODO comments are the work queue for the loop.
+
+If the codemod isn't available (older `@next/codemod`, sandboxed environment, offline run), reproduce it by hand: for every `{page,layout,default}.{js,jsx,ts,tsx}` in the app directory that isn't `"use client"` or `"use server"` and doesn't already declare `instant`, insert this after the imports:
 
 ```ts
 // TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.
@@ -136,22 +138,34 @@ The codemod opts every segment out, not only the root, on purpose. Resolution is
 
 Because the highest opt-out wins, remove them top-down (root layout first, then descend). Removing a leaf's opt-out does nothing while an ancestor still holds one.
 
-Confirm the pre-step with `next build`. The build is the proof, not the codemod run — a shared layout that calls `new Date()` / `Math.random()` directly still fails regardless of the opt-out (see [background](#background)).
+Remove the opt-outs from the previously static routes and any shared segments that mask their validation. Resolve their errors and confirm they still prerender. A cached data call alone does not prove the route remains static.
 
-After the build passes, confirm the root layout got an opt-out (`grep -n "export const instant" app/layout.*`). The root layout renders every route, including framework routes like `/_not-found`, so if it was missed, add `export const instant = false` to it by hand.
+Next, run `next build` to surface blockers the codemod could not handle. The build is the proof, not the codemod run — a shared layout that calls `new Date()` / `Math.random()` directly still fails regardless of the opt-out (see [background](#background)). If the normal build reports a sync-IO error without locating the call, rerun that route with `next build --debug-prerender --debug-build-paths="app/path/to/page.tsx"`. For each sync-IO error it reports:
 
-Synthetic routes like `/_not-found` have no user file — when they block, fix the root layout's opt-out, not the synthetic route. Client Components (`"use client"`) get no opt-out (it's a build error — `E1344` — to export `instant` from them), but they are not a rare blocker. The high-frequency case is a client component in the root layout's nav or header calling `usePathname()`/`useSearchParams()`: it blocks _every_ dynamic route with `blocking-prerender-client-hook`, and static routes pass (the pathname is known at prerender), which masks it until you reach a dynamic segment. It's not an ancestor-data fix — follow the [error's docs page](https://nextjs.org/docs/messages/blocking-prerender-client-hook) for the `<Suspense>` recipe. Only when a client route blocks on _server_ data do you fix that data in its ancestor.
+1. **Sync-IO at module/render time.** Use the route, originating file and line, and `/docs/messages/` link in the build output to locate the error. If needed, grep the whole repo for `new Date()`, `Date.now()`, `Math.random()`, and `crypto.randomUUID()` (not only `app/**/layout.{js,jsx,ts,tsx}` — the read might live in any component imported by a layout). Do not change unreported matches. Apply the appropriate option from the linked error page, then add this comment above a temporary boundary introduced only to unblock the build:
+
+   ```tsx
+   // TODO: Cache Components adoption. Added to unblock the build: remove this boundary to re-trigger the error and review the documented options.
+   ```
+
+   It shares the `TODO: Cache Components adoption` prefix with the comments the codemod writes, so the check-in grep finds both. Removing the boundary makes the error fire again with its fix cards — the same motion as removing an opt-out in the loop.
+
+After each fix, rerun the scoped build when available, then run `next build` again to find the next blocker. Repeat until the normal build passes.
+
+After the build passes, confirm every deferred route is still covered by an opt-out and no shared opt-out covers a previously static route. If the app has no previously static routes and the root layout remains deferred, confirm it got an opt-out (`grep -n "export const instant" <app dir>/layout.*`). The root layout renders every route, including framework routes like `/_not-found`, so if it was missed, add `export const instant = false` to it by hand.
+
+Synthetic routes like `/_not-found` have no user file — when they block, fix the root layout's opt-out, not the synthetic route. Client Components (`"use client"`) get no opt-out (it's a build error to export `instant` from them), but they are not a rare blocker. The high-frequency case is a client component in the root layout's nav or header calling `usePathname()`/`useSearchParams()`: it blocks _every_ dynamic route with `blocking-prerender-client-hook`, and static routes pass (the pathname is known at prerender), which masks it until you reach a dynamic segment. It's not an ancestor-data fix — follow the [error's docs page](https://nextjs.org/docs/messages/blocking-prerender-client-hook) for the `<Suspense>` recipe. Only when a client route blocks on _server_ data do you fix that data in its ancestor.
 
 ### end of the pre-step: check in
 
-Incremental only. Stop here before starting step 2 — the pre-step is the shippable PR. Talk to the user in their language; don't say "Incremental" or other internal labels; talk about adoption, PRs, and what the app does now. Tell them:
+Incremental only. The pre-step is the shippable PR. Record the passing checkpoint before starting step 2. Unless the user already asked you to continue through the full migration in the same task, stop and check in. Talk to the user in their language; don't say "Incremental" or other internal labels; talk about adoption, PRs, and what the app does now. Tell them:
 
-- What you did: turned on Cache Components, ran the codemod that opts every page and layout out of the new validation (or did it by hand), fixed any blockers the codemod can't (list them), confirmed the build passes.
-- What changed: every page and layout in `app/` now exports `instant = false` with a `// TODO: Cache Components adoption` comment, except client components and any that already had an `instant` export.
-- What to sanity-check: the diff is mostly mechanical (new exports + comments). The build passes. Routes still behave exactly as they did before — the opt-outs preserve current behavior; no rendering changes yet.
+- What you did: turned on Cache Components, ran the codemod, migrated the previously static routes, fixed the remaining blockers, and confirmed the build passes.
+- What changed: the previously static routes still prerender. Other pages and layouts keep a `// TODO: Cache Components adoption` opt-out.
+- What to sanity-check: the previously static routes stay fully prerendered and prefetchable, and request-specific data on the deferred routes remains request-specific.
 - The question: "Want to open this as its own PR before we start adopting Cache Components route by route? Or keep going on this branch?" Wait for the answer.
 
-Moving to step 2 without checking in defeats the point of taking the incremental path.
+If the user already asked you to complete the migration, continue after recording this checkpoint instead of asking the same question again.
 
 ### direct
 
@@ -203,8 +217,9 @@ Keep a todo list of the feature's routes. When every route in the feature is cle
 Checklist before checking in with the user:
 
 - `next build` completes without blocking-route errors.
-- No bare TODOs in the feature: `grep -rn "TODO: Cache Components adoption"` finds both the codemod's opt-out comments and the sync-IO unblocks from the pre-step. Any `instant = false` left behind is a deliberate, documented Block — comment rewritten to a reason (see [references/per-page-decisions.md](./references/per-page-decisions.md) → "when to leave a Block in place"). Any `await connection()` left behind has been reviewed and kept on purpose, not left over from the pre-step.
+- No bare TODOs in the feature: `grep -rn "TODO: Cache Components adoption"` finds both the codemod's opt-out comments and the sync-IO unblocks from the pre-step. Any `instant = false` left behind is a deliberate, documented Block — comment rewritten to a reason (see [references/per-page-decisions.md](./references/per-page-decisions.md) → "when to leave a Block in place"). Any `await io()` or `await connection()` left behind has been reviewed and kept on purpose, not left over from the pre-step.
 - Each route visited in the browser: confirm the static shell renders first and every `<Suspense>` fallback resolves to its real content. Capture both states if you can — the fallback (mid-stream) and the final paint — so you have a streaming-experience demo to show the user. Throttle the network in the browser if streaming is too fast to observe.
+- After populating any new cache whose data can be updated, a mutation check confirms the next read returns the expected data.
 - If runtime verification fails, reproduce the same route on the pre-adoption branch or with its opt-out restored. A failure that already exists is an environment or data problem, not an adoption regression.
 
 Then check in with the user. Same rule as the pre-step: speak their language. Don't say "feature-by-feature loop" or other internal labels; talk about the feature you adopted and what the user will see.
@@ -230,6 +245,6 @@ When the loop has run on every feature — every remaining `instant = false` sit
 The work below is optional and lives in the docs — link the user to them and let them decide which to take on next. Don't walk these through inside this skill.
 
 - [Sweep for more instant navigations](./references/dev-only-validations.md) — an optional follow-up once adoption is done, never required. A passing build is not the last word, because dev validates every route on each page load (simulating both page loads and client navigations) and catches what the build's first-error exit and descendant shadowing skipped. Offer it as the smaller path to instant navigation for a user who doesn't want to adopt Partial Prefetching. Adopting Partial Prefetching (below) runs the same kind of loop and meets these insights anyway, so recommend both and let the user pick which, or whether. The reference is the loop to execute.
-- [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) — the follow-up skill that adopts Partial Prefetching: it enables `partialPrefetching` and audits every `<Link prefetch={true}>` against a decision table (or adopts incrementally with the flag off, driven by the `link-prefetch-partial` insight). It sequences this the same way this skill sequences Cache Components, but the insights are dev-only, so it's a browser click-through, not a build loop. Recommended after instant navigation, since those fixes feed directly into how much of each route the shell can prefetch. Concepts live in the [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching).
+- [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption) — the follow-up skill that adopts Partial Prefetching: it enables `partialPrefetching` and audits every `<Link prefetch={true}>` against a decision table (or adopts incrementally with the flag off, driven by the `instant-link-prefetch-partial` insight). It sequences this the same way this skill sequences Cache Components, but the insights are dev-only, so it's a browser click-through, not a build loop. Recommended after instant navigation, since those fixes feed directly into how much of each route the shell can prefetch. Concepts live in the [Adopting Partial Prefetching guide](https://nextjs.org/docs/app/guides/adopting-partial-prefetching).
 - [Prevent regressions with e2e tests](https://nextjs.org/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) — the `@next/playwright` [`instant()`](https://nextjs.org/docs/app/api-reference/file-conventions/route-segment-config/instant#testing-instant-navigation) helper asserts on the UI that's available immediately on navigation, so regressions surface in CI. Recommend it once a route is instant: `next-dev-loop` confirms it _now_; an `instant()` test keeps it that way.
 - [`next-cache-components-optimizer`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-optimizer) — a separate skill that grows each route's static shell so more of the page prerenders and less streams in. Pure optimization, not part of adoption.

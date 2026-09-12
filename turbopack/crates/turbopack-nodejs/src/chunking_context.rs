@@ -9,10 +9,11 @@ use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkType, ChunkableModule,
-        ChunkingConfig, ChunkingConfigs, ChunkingContext, ContentHashing, EntryChunkGroupResult,
-        EvaluatableAsset, MinifyType, SourceMapSourceType, SourceMapsType, UnusedReferences,
-        UrlBehavior, WorkerConfigurationOptions,
+        AssetSuffix, Chunk, ChunkGroupResult, ChunkItem, ChunkItemOrBatchWithAsyncModuleInfo,
+        ChunkItemWithAsyncModuleInfo, ChunkType, ChunkableModule, ChunkingConfig, ChunkingConfigs,
+        ChunkingContext, ContentHashing, EntryChunkGroupResult, EvaluatableAsset, MinifyType,
+        SourceMapSourceType, SourceMapsType, UnusedReferences, UrlBehavior,
+        WorkerConfigurationOptions,
         availability_info::AvailabilityInfo,
         chunk_group::{MakeChunkGroupResult, make_chunk_group},
         chunk_id_strategy::ModuleIdStrategy,
@@ -29,7 +30,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::EcmascriptChunk,
+    chunk::{EcmascriptChunk, EcmascriptChunkPlaceable},
     manifest::{chunk_asset::ManifestAsyncModule, loader_module::ManifestLoaderModule},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -641,16 +642,24 @@ impl ChunkingContext for NodeJsChunkingContext {
                 .await?;
             other_chunks.extend(extra_chunks.iter().copied());
 
-            let Some(module) = ResolvedVc::try_sidecast(chunk_group.entries().last().unwrap())
+            let module = chunk_group.entries().last().unwrap();
+            let Some(module) =
+                ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(module)
             else {
-                bail!("module must be placeable in an ecmascript chunk");
+                bail!("last entry must be EcmascriptChunkPlaceable {:?}", module);
             };
 
             let evaluatable_assets = chunk_group
                 .entries()
                 .map(|entry| {
-                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry)
-                        .context("entry_chunk_group entries must be evaluatable")
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry).with_context(
+                        || {
+                            format!(
+                                "entry_chunk_group entries must be EvaluatableAssets {:?}",
+                                entry
+                            )
+                        },
+                    )
                 })
                 .collect::<Result<Vec<_>>>()?;
 
@@ -709,7 +718,14 @@ impl ChunkingContext for NodeJsChunkingContext {
             Vc::upcast::<Box<dyn ChunkingContext>>(self)
                 .to_resolved()
                 .await?;
-        Ok(if self.await?.manifest_chunks {
+        let use_manifest = self.await?.manifest_chunks
+            // This guard is in place so that only javascript goes
+            // this path for lazy loading dynamic imports not things like css.
+            && ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(
+                module.to_resolved().await?,
+            )
+            .is_some();
+        Ok(if use_manifest {
             let manifest_asset = ManifestAsyncModule::new(
                 module,
                 module_graph,
@@ -727,11 +743,48 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    async fn standalone_chunk(
+        self: Vc<Self>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let chunk_type = chunk_item
+            .into_trait_ref()
+            .await?
+            .ty()
+            .to_resolved()
+            .await?;
+        let chunk = chunk_type
+            .chunk(
+                Vc::upcast(self),
+                vec![ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                    ChunkItemWithAsyncModuleInfo {
+                        chunk_item,
+                        chunk_type,
+                        module: None,
+                        async_info: None,
+                    },
+                )],
+                Vec::new(),
+                Vec::new(),
+            )
+            .to_resolved()
+            .await?;
+        Ok(*self.generate_chunk(chunk).await?)
+    }
+
+    #[turbo_tasks::function]
     async fn async_loader_chunk_item_ident(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<AssetIdent>> {
-        Ok(if self.await?.manifest_chunks {
+        let use_manifest = self.await?.manifest_chunks
+            // This guard is in place so that only javascript goes
+            // this path for lazy loading dynamic imports not things like css.
+            && ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(
+                module.to_resolved().await?,
+            )
+            .is_some();
+        Ok(if use_manifest {
             ManifestLoaderModule::asset_ident_for(module)
         } else {
             AsyncLoaderModule::asset_ident_for(module)

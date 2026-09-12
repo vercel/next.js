@@ -37,22 +37,22 @@ describe('app-dir - metadata-streaming-config-customized', () => {
        "/": {
          "key": "user-agent",
          "type": "header",
-         "value": "MyBot",
+         "value": ".*(?:MyBot).*",
        },
        "/_global-error": {
          "key": "user-agent",
          "type": "header",
-         "value": "MyBot",
+         "value": ".*(?:MyBot).*",
        },
        "/_not-found": {
          "key": "user-agent",
          "type": "header",
-         "value": "MyBot",
+         "value": ".*(?:MyBot).*",
        },
        "/ppr": {
          "key": "user-agent",
          "type": "header",
-         "value": "MyBot",
+         "value": ".*(?:MyBot).*",
        },
      }
     `)

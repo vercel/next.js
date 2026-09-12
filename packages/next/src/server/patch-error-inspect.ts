@@ -579,6 +579,25 @@ function sourceMapError(
   return newError
 }
 
+/**
+ * Node.js passes the remaining depth in `depth`. An `AggregateError` keeps its
+ * errors in an array. Node.js spends one level of the depth on that array, and
+ * one more level on each error in the array. A `cause` costs one level only.
+ * This function adds the missing level back, so an `AggregateError` prints its
+ * errors at the same nesting as a `cause`. Without it, a `fetch` failure logs
+ * `[errors]: [ [Error], [Error] ]` and hides the address and the port of every
+ * refused connection.
+ *
+ * A `depth` of `null` means unlimited, so this function returns it unchanged.
+ */
+function getInspectDepth(error: Error, depth: number | null): number | null {
+  if (depth === null || !(error instanceof AggregateError)) {
+    return depth
+  }
+
+  return depth + 1
+}
+
 export function patchErrorInspectNodeJS(
   errorConstructor: ErrorConstructor
 ): void {
@@ -588,7 +607,7 @@ export function patchErrorInspectNodeJS(
 
   // @ts-expect-error -- TODO upstream types
   errorConstructor.prototype[inspectSymbol] = function (
-    depth: number,
+    depth: number | null,
     inspectOptions: util.InspectOptions,
     inspect: typeof util.inspect
   ): string {
@@ -607,7 +626,7 @@ export function patchErrorInspectNodeJS(
       try {
         return inspect(newError, {
           ...inspectOptions,
-          depth,
+          depth: getInspectDepth(newError, depth),
         })
       } finally {
         ;(newError as any)[inspectSymbol] = originalCustomInspect

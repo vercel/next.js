@@ -75,8 +75,8 @@ impl EcmascriptBuildNodeEntryChunk {
         let chunk_path = self.path().owned().await?;
         let chunk_directory = self.path().await?.parent();
         let runtime_path = self.runtime_chunk().path().owned().await?;
-        let runtime_relative_path =
-            if let Some(path) = chunk_directory.get_relative_path_to(&runtime_path) {
+        let runtime_request =
+            if let Some(path) = chunk_directory.get_relative_request_to(&runtime_path) {
                 path
             } else {
                 turbobail!(
@@ -97,7 +97,7 @@ impl EcmascriptBuildNodeEntryChunk {
             r#"
                 var R=require({})({})
             "#,
-            StringifyJs(&*runtime_relative_path),
+            StringifyJs(&*runtime_request),
             StringifyJs(chunk_public_path),
         )?;
 
@@ -237,6 +237,7 @@ impl EcmascriptBuildNodeEntryChunk {
         EcmascriptBuildNodeChunkListContent::new(
             *self.chunking_context,
             *self.other_chunks,
+            *self.referenced_output_assets,
             *self.references,
         )
     }

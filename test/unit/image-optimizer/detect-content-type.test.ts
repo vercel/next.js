@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { detectContentType as dct } from 'next/dist/server/image-optimizer'
+import { detectContentType as dct } from 'next/dist/server/image-optimizer/detect-content-type'
 import { readFile } from 'fs-extra'
 import { join } from 'path'
 

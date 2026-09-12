@@ -27,6 +27,21 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
     expect($('#dynamic-fallback').length).toBe(0)
   })
 
+  it('should block metadata for a configured bot within a full user agent', async () => {
+    const res = await next.fetch('/partial', {
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (compatible; MyBot; +https://example.com/bot)',
+      },
+    })
+
+    expect(res.status).toBe(200)
+
+    const $ = cheerio.load(await res.text())
+    expect($('head title').text()).toBe('dynamic title')
+    expect($('body title').length).toBe(0)
+  })
+
   it('should serve the PPR shell with streamed metadata to regular user agents', async () => {
     const res = await next.fetch('/partial')
 
@@ -45,7 +60,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
     const abortController = new AbortController()
     let body:
       | (AsyncIterable<Uint8Array> & {
-          destroy: () => void
+          cancel: () => void
         })
       | undefined
 
@@ -65,7 +80,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
       expect(res.body).not.toBeNull()
 
       body = res.body! as unknown as AsyncIterable<Uint8Array> & {
-        destroy: () => void
+        cancel: () => void
       }
       let initialHtml = ''
 
@@ -81,7 +96,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
       expect(initialHtml).not.toContain('dynamic-content')
     } finally {
       abortController.abort()
-      body?.destroy()
+      body?.cancel()
     }
   })
 
@@ -140,7 +155,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
       const abortController = new AbortController()
       let body:
         | (AsyncIterable<Uint8Array> & {
-            destroy: () => void
+            cancel: () => void
           })
         | undefined
 
@@ -159,7 +174,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
         expect(res.body).not.toBeNull()
 
         body = res.body! as unknown as AsyncIterable<Uint8Array> & {
-          destroy: () => void
+          cancel: () => void
         }
         let initialHtml = ''
 
@@ -175,7 +190,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
         expect(initialHtml).not.toContain('dynamic-content')
       } finally {
         abortController.abort()
-        body?.destroy()
+        body?.cancel()
       }
     })
   }

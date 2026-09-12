@@ -75,9 +75,9 @@ export function printNonFatalIssue(issue: Issue) {
   }
 }
 
-export function processTopLevelIssues(
+export function processTopLevelIssues<T>(
   currentTopLevelIssues: TopLevelIssuesMap,
-  result: TurbopackResult
+  result: TurbopackResult<T>
 ) {
   currentTopLevelIssues.clear()
 
@@ -91,7 +91,7 @@ export { msToNs } from '../../shared/lib/turbopack/compilation-events'
 
 export type ChangeSubscriptions = Map<
   EntryKey,
-  Promise<AsyncIterableIterator<TurbopackResult>>
+  Promise<AsyncIterableIterator<TurbopackResult<void>>>
 >
 
 export type HandleWrittenEndpoint = (
@@ -105,7 +105,7 @@ export type StartChangeSubscription = (
   includeIssues: boolean,
   endpoint: Endpoint,
   createMessage: (
-    change: TurbopackResult,
+    change: TurbopackResult<void>,
     hash: string
   ) => Promise<HmrMessageSentToBrowser> | HmrMessageSentToBrowser | void,
   onError?: (
@@ -142,14 +142,6 @@ type HandleRouteTypeHooks = {
   handleWrittenEndpoint: HandleWrittenEndpoint
   subscribeToChanges: StartChangeSubscription
   handleServerComponentChanges?: () => void
-  // When Turbopack server fast refresh is enabled, the aggregate server-HMR
-  // subscription (setupServerHmr `onApplied` in hot-reloader-turbopack.ts)
-  // owns the browser refresh signal for app-page RSC changes and only fires
-  // after the server module cache is refreshed. In that mode the per-page
-  // `rscHmrEndpoint` subscription must NOT also send SERVER_COMPONENT_CHANGES,
-  // or every edit triggers two RSC refetches (the first immediately
-  // superseded).
-  serverFastRefresh?: boolean
 }
 
 export async function handleRouteType({
@@ -236,7 +228,7 @@ export async function handleRouteType({
           documentOrAppChanged
         )
 
-        const type = writtenEndpoint?.type
+        const type = writtenEndpoint.value.type
 
         await manifestLoader.loadClientBuildManifest(page)
         await manifestLoader.loadBuildManifest(page)
@@ -332,7 +324,7 @@ export async function handleRouteType({
       const writtenEndpoint = await route.endpoint.writeToDisk()
       hooks?.handleWrittenEndpoint(key, writtenEndpoint, false)
 
-      const type = writtenEndpoint.type
+      const type = writtenEndpoint.value.type
 
       await manifestLoader.loadPagesManifest(page)
       if (type === 'edge') {
@@ -373,21 +365,6 @@ export async function handleRouteType({
             }
             // Report the next compilation again
             readyIds?.delete(pathname)
-            // When server fast refresh is enabled, the aggregate server-HMR
-            // subscription sends SERVER_COMPONENT_CHANGES after applying the
-            // update in-process. Sending here too would double the refresh.
-            //
-            // But the aggregate subscription only fires when there is a live
-            // server-HMR handler registered (i.e. the page has rendered at
-            // least once). When recovering from a build error the page never
-            // rendered, so no handler exists, the aggregate stays silent, and
-            // this per-page send is the only thing that clears the redbox.
-            // Only suppress when a handler is actually live to own the refresh.
-            const hasLiveServerHmrHandler =
-              (globalThis.__turbopack_server_hmr_handlers__?.size ?? 0) > 0
-            if (hooks?.serverFastRefresh && hasLiveServerHmrHandler) {
-              return
-            }
             hooks?.handleServerComponentChanges?.()
           },
           (e) => {
@@ -399,7 +376,7 @@ export async function handleRouteType({
         )
       }
 
-      const type = writtenEndpoint.type
+      const type = writtenEndpoint.value.type
 
       if (type === 'edge') {
         warnAboutEdgeRuntime()
@@ -457,9 +434,12 @@ export async function handleRouteType({
         )
       }
 
-      const type = writtenEndpoint.type
+      const type = writtenEndpoint.value.type
 
       manifestLoader.loadAppPathsManifest(page)
+      if (route.hasActionManifest) {
+        manifestLoader.loadActionManifest(page)
+      }
 
       if (type === 'edge') {
         warnAboutEdgeRuntime()
@@ -640,16 +620,17 @@ export async function handleEntrypoints({
 
   dev: HandleEntrypointsDevOpts
 }) {
-  currentEntrypoints.global.app = entrypoints.pagesAppEndpoint
-  currentEntrypoints.global.document = entrypoints.pagesDocumentEndpoint
-  currentEntrypoints.global.error = entrypoints.pagesErrorEndpoint
+  const value = entrypoints.value
+  currentEntrypoints.global.app = value.pagesAppEndpoint
+  currentEntrypoints.global.document = value.pagesDocumentEndpoint
+  currentEntrypoints.global.error = value.pagesErrorEndpoint
 
-  currentEntrypoints.global.instrumentation = entrypoints.instrumentation
+  currentEntrypoints.global.instrumentation = value.instrumentation
 
   currentEntrypoints.page.clear()
   currentEntrypoints.app.clear()
 
-  for (const [pathname, route] of entrypoints.routes) {
+  for (const [pathname, route] of value.routes) {
     switch (route.type) {
       case 'page':
       case 'page-api':
@@ -680,12 +661,13 @@ export async function handleEntrypoints({
     await handleEntrypointsDevCleanup({
       currentEntryIssues,
       currentEntrypoints,
+      manifestLoader,
 
       ...dev,
     })
   }
 
-  const { middleware, instrumentation } = entrypoints
+  const { middleware, instrumentation } = value
 
   // We check for explicit true/false, since it's initialized to
   // undefined during the first loop (middlewareChanges event is
@@ -844,6 +826,7 @@ export async function handleEntrypoints({
 async function handleEntrypointsDevCleanup({
   currentEntryIssues,
   currentEntrypoints,
+  manifestLoader,
 
   assetMapper,
   changeSubscriptions,
@@ -854,11 +837,13 @@ async function handleEntrypointsDevCleanup({
 }: {
   currentEntrypoints: Entrypoints
   currentEntryIssues: EntryIssuesMap
+  manifestLoader: TurbopackManifestLoader
 } & HandleEntrypointsDevOpts) {
   // this needs to be first as `hasEntrypointForKey` uses the `assetMapper`
   for (const key of assetMapper.keys()) {
     if (!hasEntrypointForKey(currentEntrypoints, key, assetMapper)) {
       assetMapper.delete(key)
+      manifestLoader.delete(key)
     }
   }
 

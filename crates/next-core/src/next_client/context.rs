@@ -48,7 +48,6 @@ use crate::{
         transforms::get_next_client_transforms_rules,
     },
     next_config::NextConfig,
-    next_font::local::NextFontLocalResolvePlugin,
     next_import_map::{
         get_next_client_fallback_import_map, get_next_client_import_map,
         get_next_client_resolved_map,
@@ -166,11 +165,13 @@ pub async fn get_client_resolve_options_context(
         || *next_config
             .enable_expose_testing_api_in_production_build()
             .await?;
+    let concurrent_router_queue = *next_config.enable_concurrent_router_queue().await?;
     let next_client_resolved_map = get_next_client_resolved_map(
         project_path.clone(),
         project_path.clone(),
         *mode.await?,
         expose_testing_api,
+        concurrent_router_queue,
     )
     .await?
     .to_resolved()
@@ -189,11 +190,9 @@ pub async fn get_client_resolve_options_context(
         resolved_map: Some(next_client_resolved_map),
         browser: true,
         module: true,
-        before_resolve_plugins: vec![ResolvedVc::upcast(
-            NextFontLocalResolvePlugin::new(project_path.clone())
-                .to_resolved()
-                .await?,
-        )],
+        // A request starting with `/` is resolved from the project directory, which is not
+        // necessarily the root of the filesystem (e.g. in a monorepo).
+        server_relative_root: Some(project_path.clone()),
         after_resolve_plugins: vec![ResolvedVc::upcast(
             NextSharedRuntimeResolvePlugin::new(project_path.clone())
                 .to_resolved()
@@ -377,6 +376,12 @@ pub async fn get_client_module_options_context(
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
+            mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
+            cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
+            cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
+            lazy_compilation: *next_config
+                .turbopack_lazy_dynamic_imports(*next_mode)
+                .await?,
             preset_env_config,
             ..Default::default()
         },
@@ -384,6 +389,7 @@ pub async fn get_client_module_options_context(
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
+            module_css_debuggable_idents: next_mode.is_development(),
             ..Default::default()
         },
         static_url_tag: Some(rcstr!("client")),
@@ -408,6 +414,7 @@ pub async fn get_client_module_options_context(
             enable_typeof_window_inlining: None,
             // Ignore e.g. import(`${url}`) requests in node_modules.
             ignore_dynamic_requests: true,
+            lazy_compilation: false,
             // Don't inject core-js polyfills into node_modules — only user code
             // should be processed by preset_env's usage/entry mode.
             preset_env_config: None,
@@ -430,6 +437,7 @@ pub async fn get_client_module_options_context(
             enable_jsx: Some(JsxTransformOptions::default().resolved_cell()),
             // Don't inject core-js polyfills into framework internals.
             preset_env_config: None,
+            lazy_compilation: false,
             ..module_options_context.ecmascript.clone()
         },
         enable_postcss_transform: None,
@@ -489,6 +497,7 @@ pub struct ClientChunkingContextOptions {
     pub nested_async_chunking: Vc<bool>,
     pub shared_runtime: Vc<bool>,
     pub per_page_module_graph: Vc<bool>,
+    pub lazy_dynamic_imports: Vc<bool>,
     pub debug_ids: Vc<bool>,
     pub worker_asset_prefix: Vc<Option<RcStr>>,
     pub should_use_absolute_url_references: Vc<bool>,
@@ -538,6 +547,7 @@ pub async fn get_client_chunking_context(
         nested_async_chunking,
         shared_runtime,
         per_page_module_graph,
+        lazy_dynamic_imports,
         debug_ids,
         worker_asset_prefix,
         should_use_absolute_url_references,
@@ -615,7 +625,9 @@ pub async fn get_client_chunking_context(
         builder = builder
             .hot_module_replacement()
             .source_map_source_type(SourceMapSourceType::AbsoluteFileUri)
-            .dynamic_chunk_content_loading(true);
+            .dynamic_chunk_content_loading(true)
+            // A manifest chunk keeps a lazily compiled import's URL stable across activation.
+            .manifest_chunks(*lazy_dynamic_imports.await?);
     } else {
         builder = builder
             .chunking_config(

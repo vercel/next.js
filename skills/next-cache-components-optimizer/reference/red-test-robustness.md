@@ -139,7 +139,7 @@ Two defenses; use both:
    (SKILL.md phases 0 and A). Do not trust a pass from a build where it is not set.
 2. **Make the test self-validating**: for any route with deferred content, also assert that the
    deferred content is gated under the lock, not only that the shell is present
-   (`test-template.md`, self-validating variant). If the lock did not engage, the content is
+   (`../test-template.md`, self-validating variant). If the lock did not engage, the content is
    already present and `toHaveCount(0)` fails.
 
    The gated half holds under the lock for both navigation types regardless of warm state: the

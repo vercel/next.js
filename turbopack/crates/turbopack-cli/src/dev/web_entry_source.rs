@@ -183,7 +183,7 @@ pub async fn create_web_entry_source(
 
     let entries: Vec<_> = entries
         .into_iter()
-        .map(|module| async move {
+        .map(async |module| {
             if let (Some(chunkable_module), Some(entry)) = (
                 ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module),
                 ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module),

@@ -15,6 +15,7 @@ pub use crate::analyzer::graph::{
 use crate::{
     AnalyzeMode, SpecifiedModuleType,
     analyzer::{Bump, JsValue, graph::visitor::Analyzer},
+    chunk::CjsStaticExports,
     code_gen::CodeGen,
 };
 
@@ -39,6 +40,10 @@ pub struct VarGraph<'a> {
     /// [`ExportUsage`] per `require("…")` call, keyed by call position; absent
     /// calls fall back to `ExportUsage::All`.
     pub require_usage: FxHashMap<BytePos, ExportUsage>,
+
+    /// Present when the module is a statically-analyzable CommonJS module (no
+    /// dynamic exports); carries its named exports for scope hoisting.
+    pub cjs_static_exports: Option<CjsStaticExports>,
 }
 
 impl<'a> VarGraph<'a> {
@@ -60,6 +65,7 @@ pub fn create_graph<'a>(
     supports_block_scoping: bool,
     specified_module_type: SpecifiedModuleType,
     cjs_tree_shaking: bool,
+    cjs_scope_hoisting: bool,
 ) -> VarGraph<'a> {
     let mut analyzer = Analyzer {
         arena,
@@ -70,6 +76,7 @@ pub fn create_graph<'a>(
             effects: Default::default(),
             code_gens: Default::default(),
             require_usage: Default::default(),
+            cjs_static_exports: Default::default(),
         },
         eval_context,
         state: Default::default(),
@@ -79,9 +86,11 @@ pub fn create_graph<'a>(
         supports_block_scoping,
     };
 
-    // CommonJS export recognition runs only for a CommonJS module that emits code, and only
-    // when the `turbopackCjsTreeShaking` experimental flag is enabled.
-    if cjs_tree_shaking && analyze_mode.is_code_gen() && eval_context.is_cjs(specified_module_type)
+    // CommonJS export recognition runs for a CommonJS module that emits code when either CJS
+    // tree-shaking or CJS scope hoisting is enabled (both consume the static export analysis).
+    if (cjs_tree_shaking || cjs_scope_hoisting)
+        && analyze_mode.is_code_gen()
+        && eval_context.is_cjs(specified_module_type)
     {
         analyzer.enable_cjs_exports();
     }

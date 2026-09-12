@@ -169,4 +169,27 @@ describe('TypeScript CLI backend', () => {
       expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
     })
   })
+
+  describe('TypeScript 6 npm alias', () => {
+    const { next, skipped } = nextTestSetup({
+      files: __dirname,
+      skipStart: true,
+      skipDeployment: true,
+      dependencies: {
+        typescript: 'npm:@typescript/typescript6@6.0.1',
+      },
+    })
+
+    if (skipped) return
+
+    it('builds with the versioned tsc6 entry point', async () => {
+      const result = await next.build()
+
+      expect(result.exitCode).toBe(0)
+      expect(result.cliOutput).not.toContain(
+        'do not have the required package(s) installed'
+      )
+      expect(await next.hasFile('.next/cache/.tsbuildinfo')).toBe(true)
+    })
+  })
 })

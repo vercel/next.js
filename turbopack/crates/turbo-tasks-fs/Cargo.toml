@@ -59,6 +59,11 @@ urlencoding = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
 omnipath = "0.1.6"
+windows-sys = { workspace = true, features = [
+  "Win32_Foundation",
+  "Win32_Storage_FileSystem",
+  "Win32_System_SystemServices",
+] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }
@@ -68,4 +73,3 @@ sha2 = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-testing = { workspace = true }
 turbo-tasks-backend = { workspace = true }
-

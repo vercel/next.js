@@ -1,7 +1,9 @@
 import { existsSync } from 'fs'
+import { createRequire } from 'module'
 import { basename, extname, join, relative, isAbsolute, resolve } from 'path'
 import { pathToFileURL } from 'url'
 import findUp from 'next/dist/compiled/find-up'
+import semver from 'next/dist/compiled/semver'
 import * as Log from '../build/output/log'
 import * as ciEnvironment from '../server/ci-info'
 import {
@@ -11,6 +13,7 @@ import {
   PHASE_PRODUCTION_BUILD,
   PHASE_PRODUCTION_SERVER,
   PHASE_INFO,
+  PHASE_TEST,
   type PHASE_TYPE,
 } from '../shared/lib/constants'
 import {
@@ -60,6 +63,38 @@ import { hrtimeBigIntDurationToString } from '../build/duration-to-string'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
+
+const REACT_18_DEPRECATION_WARNING =
+  'React 18 support is deprecated in Next.js 16 and will be removed in Next.js 17. Please upgrade to React 19. Learn more: https://nextjs.org/docs/messages/react-version'
+
+function getInstalledPackageVersion(dir: string, name: 'react' | 'react-dom') {
+  try {
+    const projectRequire = createRequire(join(dir, 'package.json'))
+    return (projectRequire(name) as { version?: string }).version
+  } catch {
+    return undefined
+  }
+}
+
+function warnIfReact18IsInstalled(
+  phase: PHASE_TYPE,
+  dir: string,
+  silent: boolean | undefined
+) {
+  if (
+    silent !== false ||
+    (phase !== PHASE_DEVELOPMENT_SERVER && phase !== PHASE_PRODUCTION_BUILD)
+  ) {
+    return
+  }
+
+  const reactVersion = getInstalledPackageVersion(dir, 'react')
+  const reactDomVersion = getInstalledPackageVersion(dir, 'react-dom')
+
+  if (reactVersion?.startsWith('18.') || reactDomVersion?.startsWith('18.')) {
+    Log.warnOnce(REACT_18_DEPRECATION_WARNING)
+  }
+}
 
 function normalizeNextConfigZodErrors(
   error: ZodError<NextConfig>
@@ -421,6 +456,13 @@ function assignDefaultsAndValidate(
     },
   }
 
+  // Pruning assumes that children only exists when it is backed by an
+  // ordinary route branch. Restoring the legacy implicit children slot must
+  // therefore also restore the legacy matcher behavior.
+  if (!result.experimental.explicitParallelRouteChildren) {
+    result.experimental.strictRouteMatching = false
+  }
+
   // Normalize prefetchInlining: true | { maxSize?, maxBundleSize? } into a
   // resolved object with concrete defaults, so consumers don't have to
   // resolve the values themselves.
@@ -514,7 +556,18 @@ function assignDefaultsAndValidate(
   // Turbopack-only; strict mode and `false` (single-chunk-per-module) are webpack-only.
   // Only validate during build/dev — `next start` doesn't pick a bundler and would otherwise
   // see `process.env.TURBOPACK` unset and reject a valid `cssChunking: "graph"` config.
-  if (phase !== PHASE_PRODUCTION_SERVER && phase !== PHASE_INFO) {
+  if (
+    phase !== PHASE_PRODUCTION_SERVER &&
+    phase !== PHASE_INFO &&
+    phase !== PHASE_TEST
+  ) {
+    if (result.experimental.durableUseCacheEntries && !process.env.TURBOPACK) {
+      throw new Error(
+        `\`experimental.durableUseCacheEntries: true\` is only supported with Turbopack. ` +
+          `Please remove the option or run Next.js with Turbopack in ${configFileName}.`
+      )
+    }
+
     const cssChunkingValue = result.experimental.cssChunking
     const cssChunkingMode = resolveCssChunkingMode(cssChunkingValue)
     if (cssChunkingMode === 'graph' && !process.env.TURBOPACK) {
@@ -1601,8 +1654,8 @@ function assignDefaultsAndValidate(
   }
 
   if (result.cacheComponents) {
-    // TODO: remove once we've finished migrating internally to cacheComponents.
-    result.experimental.ppr = true
+    // TODO: Kept for backwards compatibility with legacy builders.
+    result.experimental.cacheComponents = true
   }
 
   // `experimental.useCache` is deprecated in favor of the top-level
@@ -1636,6 +1689,49 @@ function assignDefaultsAndValidate(
   // backwards compatibility.
   if (result.experimental.useCache === undefined) {
     result.experimental.useCache = result.cacheComponents
+  }
+
+  const pluginRuntimeStrategy =
+    result.experimental.turbopackPluginRuntimeStrategy
+  if (
+    pluginRuntimeStrategy === 'workerThreads' ||
+    pluginRuntimeStrategy === 'forceWorkerThreads'
+  ) {
+    result.experimental.turbopackPluginRuntimeStrategy = 'workerThreads'
+
+    if (!process.versions.bun && !process.versions.deno) {
+      const nodeVersion = process.versions.node
+      const affectedNodeRange = '>=24.13.1'
+      if (
+        semver.satisfies(nodeVersion, affectedNodeRange, {
+          includePrerelease: true,
+        })
+      ) {
+        if (pluginRuntimeStrategy === 'forceWorkerThreads') {
+          Log.warn(
+            `\`experimental.turbopackPluginRuntimeStrategy = ` +
+              `'forceWorkerThreads'\` is enabled, bypassing protection ` +
+              `against a known potential crash in Node.js ${affectedNodeRange}.\n` +
+              `A Node.js worker-thread teardown bug can abort the process ` +
+              `when a native addon, such as fsevents, has a live Node-API ` +
+              `threadsafe function as a worker exits.\n` +
+              `See https://github.com/nodejs/node/issues/65100.`
+          )
+        } else {
+          Log.warn(
+            `\`experimental.turbopackPluginRuntimeStrategy = ` +
+              `'workerThreads'\` is disabled on Node.js ${nodeVersion}.\n` +
+              `A Node.js worker-thread teardown bug can abort the process ` +
+              `when a native addon, such as fsevents, has a live Node-API ` +
+              `threadsafe function as a worker exits.\n` +
+              `See https://github.com/nodejs/node/issues/65100.\n` +
+              `Falling back to 'childProcesses'. To override at your own ` +
+              `risk, use 'forceWorkerThreads'.`
+          )
+          result.experimental.turbopackPluginRuntimeStrategy = 'childProcesses'
+        }
+      }
+    }
   }
 
   // Store the distDirRoot in the config before it is modified for development mode
@@ -1699,14 +1795,10 @@ function finalizeConfig(
     config.supportsImmutableAssets = false
   }
 
-  if (
-    config.supportsImmutableAssets &&
-    (config.output === 'export' || config.output === 'standalone')
-  ) {
-    // supportsImmutableAssets is designed to work with adapters. Disable it for output=export and
-    // output=standalone, which are currently using a non-adapter codepath.
-    // Particularly output=export should just run through the adapter, with only static assets.
-    // TODO remove again once output=export (and output=standalone) are using adapters.
+  if (config.supportsImmutableAssets && config.output === 'standalone') {
+    // supportsImmutableAssets is designed to work with adapters. Disable it for output=standalone,
+    // which is currently using a non-adapter codepath.
+    // TODO remove again once output=standalone is using adapters.
     config.supportsImmutableAssets = false
   }
 
@@ -1817,6 +1909,8 @@ export default async function loadConfig(
   const logTiming = opts.silent === false
   const startTimeNanos = logTiming ? process.hrtime.bigint() : undefined
   const [config, meta] = await loadConfigImpl(phase, dir, opts)
+
+  warnIfReact18IsInstalled(phase, dir, opts.silent)
 
   if (!meta.cacheHit && logTiming) {
     const durationNanos = process.hrtime.bigint() - startTimeNanos!
@@ -2382,30 +2476,6 @@ function enforceExperimentalFeatures(
       (isDefaultConfig && !config.experimental.cachedNavigations))
   ) {
     config.experimental.cachedNavigations = true
-  }
-
-  // appNewScrollHandler defaults to `true`. The env var lets us opt back out to
-  // keep test coverage of the old scroll handler on the non-experimental CI
-  // shards. Like the other env-var experimental toggles, opting out is surfaced
-  // in the reported experimental features.
-  // TODO: Remove this once the appNewScrollHandler opt-out is no longer needed
-  // for test coverage.
-  if (
-    process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'false' &&
-    // We do respect an explicit value in the user config.
-    (config.experimental.appNewScrollHandler === undefined ||
-      (isDefaultConfig && config.experimental.appNewScrollHandler))
-  ) {
-    config.experimental.appNewScrollHandler = false
-
-    if (configuredExperimentalFeatures) {
-      addConfiguredExperimentalFeature(
-        configuredExperimentalFeatures,
-        'appNewScrollHandler',
-        false,
-        'disabled by `__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER`'
-      )
-    }
   }
 
   // TODO: Remove this once strictRouteTypes is the default.

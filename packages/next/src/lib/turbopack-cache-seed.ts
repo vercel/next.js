@@ -76,10 +76,10 @@ function findSeedSource(
   const currentWorktree = path.resolve(worktreeInfo.worktreeRoot)
 
   // We are going to find the best candidate worktree
-  // based on the newest mtime of the CURRENT file in the cache directory.
+  // based on the most recently written cache directory.
   // We only look at our version
 
-  let best: { versionDir: string; mtimeMs: number } | undefined
+  let best: { versionDir: string; commitTimeMs: number } | undefined
   for (const root of [
     worktreeInfo.mainRepoRoot,
     ...listLinkedWorktreeRoots(worktreeInfo.mainRepoRoot),
@@ -93,21 +93,31 @@ function findSeedSource(
       'turbopack',
       version
     )
-    const mtimeMs = currentMtimeMs(versionDir)
-    if (mtimeMs === undefined) continue
-    if (!best || mtimeMs > best.mtimeMs) {
-      best = { versionDir, mtimeMs }
+    const commitTimeMs = currentCommitTimeMs(versionDir)
+    if (commitTimeMs === undefined) continue
+    if (!best || commitTimeMs > best.commitTimeMs) {
+      best = { versionDir, commitTimeMs }
     }
   }
   return best?.versionDir
 }
 
-function currentMtimeMs(versionDir: string): number | undefined {
+// When the cache in `versionDir` was last committed to, in epoch milliseconds, or undefined if
+// there is no usable cache there. Read from the `commit_time` the persistence layer records in
+// CURRENT.
+function currentCommitTimeMs(versionDir: string): number | undefined {
+  let commitTime
   try {
-    return fs.statSync(path.join(versionDir, 'CURRENT')).mtimeMs
+    commitTime = JSON.parse(
+      fs.readFileSync(path.join(versionDir, 'CURRENT'), 'utf8')
+    ).commit_time
   } catch {
+    // missing, unreadable, or not valid JSON - treat it as not a seed candidate
     return undefined
   }
+  if (typeof commitTime !== 'string') return undefined
+  const parsed = Date.parse(commitTime)
+  return Number.isNaN(parsed) ? undefined : parsed
 }
 
 function dirHasEntries(dir: string): boolean {

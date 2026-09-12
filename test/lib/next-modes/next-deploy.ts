@@ -1,12 +1,17 @@
 import os from 'os'
 import path from 'path'
+import dns from 'dns'
 import execa from 'execa'
 import fs from 'fs-extra'
+import { load, dump } from 'js-yaml'
+import * as tar from 'next/dist/compiled/tar'
 import { NextInstance, type NextInstanceOpts } from './base'
 import * as projectEnv from '../../../scripts/reset-project.mjs'
 import { Span } from 'next/dist/trace'
 import { setTimeout } from 'timers/promises'
 import { FileRef } from '../e2e-utils'
+import { PROXY_HOST_MAP_ENV_KEY } from '../browsers/launch'
+import { packPackages } from '../create-next-install'
 
 export class NextDeployInstance extends NextInstance {
   private _cliOutput: string
@@ -14,6 +19,7 @@ export class NextDeployInstance extends NextInstance {
   private _deploymentId: string | undefined
   private _supportsImmutableAssets: boolean = false
   private _writtenHostsLine: string | null = null
+  private _restoreDnsLookup: (() => void) | null = null
 
   constructor(opts: NextInstanceOpts) {
     super(opts)
@@ -169,7 +175,7 @@ export class NextDeployInstance extends NextInstance {
     }
   }
 
-  private parseIdsFromCliOuput(): void {
+  private parseIdsFromCliOutput(): void {
     const buildId = this._cliOutput.match(/BUILD_ID: (.+)/)?.[1]?.trim()
     if (!buildId) {
       throw new Error(`Failed to get buildId from logs ${this._cliOutput}`)
@@ -242,7 +248,7 @@ export class NextDeployInstance extends NextInstance {
     }
 
     // The markers never appeared within the retry window; return the last
-    // output so `parseIdsFromCliOuput` throws a descriptive error including it.
+    // output so `parseIdsFromCliOutput` throws a descriptive error including it.
     return output
   }
 
@@ -296,7 +302,7 @@ export class NextDeployInstance extends NextInstance {
         this._cliOutput = buildLogs.stdout + buildLogs.stderr
       }
 
-      this.parseIdsFromCliOuput()
+      this.parseIdsFromCliOutput()
       return
     }
 
@@ -320,8 +326,12 @@ export class NextDeployInstance extends NextInstance {
 
       // Use the custom logs script to get build logs and extract buildId
       this._cliOutput = await this.fetchBuildLogsUsingCustomScript()
-      this.parseIdsFromCliOuput()
+      this.parseIdsFromCliOutput()
       return
+    }
+
+    if (!process.env.NEXT_TEST_VERSION) {
+      await this.prepareLocalPackages(parentSpan)
     }
 
     // Original Vercel CLI deployment logic
@@ -421,6 +431,29 @@ export class NextDeployInstance extends NextInstance {
       `VERCEL_CLI_VERSION=${process.env.VERCEL_CLI_VERSION || 'vercel@latest'}`
     )
 
+    // Route the build to a named hive, and to a specific build-container image.
+    // The dispatcher reads the image version only for a build on a forced hive.
+    // A version without a hive falls back to the default image and reports no
+    // error, so reject that combination here.
+    const forceBuildInHive = process.env.VERCEL_FORCE_BUILD_IN_HIVE
+    const buildContainerVersion = process.env.VERCEL_BUILD_CONTAINER_VERSION
+
+    if (buildContainerVersion && !forceBuildInHive) {
+      throw new Error(
+        'VERCEL_BUILD_CONTAINER_VERSION requires VERCEL_FORCE_BUILD_IN_HIVE to be set to a hive ID.'
+      )
+    }
+
+    if (forceBuildInHive) {
+      additionalEnv.push(`VERCEL_FORCE_BUILD_IN_HIVE=${forceBuildInHive}`)
+    }
+
+    if (buildContainerVersion) {
+      additionalEnv.push(
+        `VERCEL_BUILD_CONTAINER_VERSION=${buildContainerVersion}`
+      )
+    }
+
     // Add experimental feature flags
 
     if (process.env.__NEXT_CACHE_COMPONENTS) {
@@ -431,11 +464,6 @@ export class NextDeployInstance extends NextInstance {
     if (process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS) {
       additionalEnv.push(
         `NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS=${process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS}`
-      )
-    }
-    if (process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
-      additionalEnv.push(
-        `NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER=${process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER}`
       )
     }
     if (process.env.IS_TURBOPACK_TEST) {
@@ -507,21 +535,275 @@ export class NextDeployInstance extends NextInstance {
       vercelFlags
     )
 
-    this.parseIdsFromCliOuput()
+    this.parseIdsFromCliOutput()
   }
 
-  // When the preview-builds npm mirror is auth-protected, the deploy build
-  // installs Next.js artifacts from it and needs credentials. We write an
-  // `.npmrc` with a read token (provided as a CI secret) so the remote install
-  // can authenticate. Only written when the token is set, so unprotected and
-  // local deploy runs are unaffected.
-  private async writeMirrorNpmrcIfNecessary(): Promise<void> {
-    const token = process.env.PREVIEW_BUILDS_READ_TOKEN
-    const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+  private async writeFixtureConfiguration(
+    filePath: string,
+    contents: string
+  ): Promise<void> {
+    const temporaryDirectory = await fs.mkdtemp(
+      path.join(path.dirname(filePath), '.next-test-config-')
+    )
+    const temporaryPath = path.join(temporaryDirectory, path.basename(filePath))
+    try {
+      // Preserve permissions and replace links rather than their targets.
+      await fs.copyFile(filePath, temporaryPath, fs.constants.COPYFILE_EXCL)
+      await fs.writeFile(temporaryPath, contents)
+      await fs.rename(temporaryPath, filePath)
+    } finally {
+      await fs.remove(temporaryDirectory)
+    }
+  }
 
-    if (!token || !baseUrlRaw) {
+  /**
+   * This method stages local JavaScript tarballs and rewrites the fixture's
+   * dependencies and overrides to relative `file:` references. It adds
+   * published SWC dependencies because locally built native binaries may target
+   * a different platform than the remote build.
+   */
+  private async prepareLocalPackages(parentSpan: Span): Promise<void> {
+    const packagePaths = process.env.NEXT_TEST_PKG_PATHS
+      ? new Map<string, string>(JSON.parse(process.env.NEXT_TEST_PKG_PATHS))
+      : await packPackages(parentSpan)
+    for (const name of ['next', '@next/env']) {
+      if (!packagePaths.has(name)) {
+        throw new Error(`Missing packed package for local deployment: ${name}`)
+      }
+    }
+
+    const directoryName = 'next-test-packages'
+    await fs.mkdir(path.join(this.testDir, directoryName))
+    const localPackages = new Map<string, string>()
+    for (const [name, source] of packagePaths) {
+      const relativePath = path.posix.join(directoryName, name, 'packed.tgz')
+      if (
+        !relativePath.startsWith(`${directoryName}/`) ||
+        name.includes('\\')
+      ) {
+        throw new Error(`Invalid packed package name: ${name}`)
+      }
+      const destination = path.join(this.testDir, relativePath)
+      await fs.ensureDir(path.dirname(destination))
+      await fs.copyFile(source, destination, fs.constants.COPYFILE_EXCL)
+
+      // The staged packages use exact local peer versions so npm accepts
+      // prereleases without extra peer overrides.
+      const {
+        peerDependencies,
+      }: { peerDependencies?: Record<string, string> } = await fs.readJSON(
+        path.join(path.dirname(source), 'package.json')
+      )
+      const peerVersions = new Map<string, string>()
+      for (const peerName of Object.keys(peerDependencies ?? {})) {
+        const peerSource = packagePaths.get(peerName)
+        if (peerSource === undefined) {
+          continue
+        }
+        const { version } = await fs.readJSON(
+          path.join(path.dirname(peerSource), 'package.json')
+        )
+        if (typeof version !== 'string' || version.length === 0) {
+          throw new Error(
+            `Missing version for packed peer dependency: ${peerName}`
+          )
+        }
+        peerVersions.set(peerName, version)
+      }
+      if (peerVersions.size > 0) {
+        const temporaryDirectory = await fs.mkdtemp(
+          path.join(this.testDir, '.next-test-package-')
+        )
+        try {
+          await tar.x({ file: destination, cwd: temporaryDirectory })
+          const manifestPath = path.join(
+            temporaryDirectory,
+            'package/package.json'
+          )
+          const manifest = await fs.readJSON(manifestPath)
+          for (const [peerName, version] of peerVersions) {
+            if (manifest.peerDependencies?.[peerName] !== undefined) {
+              manifest.peerDependencies[peerName] = version
+            }
+          }
+          await fs.writeFile(
+            manifestPath,
+            JSON.stringify(manifest, null, 2) + '\n'
+          )
+          await tar.c(
+            { file: destination, cwd: temporaryDirectory, gzip: true },
+            ['package']
+          )
+        } finally {
+          await fs.remove(temporaryDirectory)
+        }
+      }
+      localPackages.set(name, `file:./${relativePath}`)
+    }
+
+    const packageJsonPath = path.join(this.testDir, 'package.json')
+    const packageJson: {
+      dependencies?: Record<string, string>
+      devDependencies?: Record<string, string>
+      optionalDependencies?: Record<string, string>
+      overrides?: Record<string, unknown>
+      resolutions?: Record<string, string>
+      pnpm?: { overrides?: Record<string, string> }
+    } = await fs.readJSON(packageJsonPath)
+    const dependencyFields = [
+      'dependencies',
+      'devDependencies',
+      'optionalDependencies',
+    ] as const
+    for (const field of dependencyFields) {
+      const dependencies = packageJson[field]
+      if (dependencies === undefined) {
+        continue
+      }
+      for (const name of Object.keys(dependencies)) {
+        const localPackage = localPackages.get(name)
+        if (localPackage !== undefined) {
+          // npm requires identity overrides to match the new dependency.
+          if (packageJson.overrides !== undefined) {
+            for (const [key, override] of Object.entries(
+              packageJson.overrides
+            )) {
+              if (key !== name && !key.startsWith(`${name}@`)) {
+                continue
+              }
+              if (override === dependencies[name]) {
+                packageJson.overrides[key] = localPackage
+              } else if (
+                override !== null &&
+                typeof override === 'object' &&
+                ('.' in override
+                  ? override['.'] === dependencies[name]
+                  : key === `${name}@${dependencies[name]}`)
+              ) {
+                Object.assign(override, { '.': localPackage })
+              }
+            }
+          }
+          dependencies[name] = localPackage
+        }
+      }
+    }
+
+    // Generated overrides follow fixture rules because npm uses the first
+    // matching rule.
+    packageJson.overrides ??= {}
+    const workspaceOverrides: Record<string, string> = {}
+    for (const [name, localPackage] of localPackages) {
+      if (
+        dependencyFields.some(
+          (field) => packageJson[field]?.[name] !== undefined
+        )
+      ) {
+        continue
+      }
+      workspaceOverrides[name] = localPackage
+      if (packageJson.overrides[name] === undefined) {
+        packageJson.overrides[name] = localPackage
+      }
+    }
+    packageJson.resolutions = {
+      ...workspaceOverrides,
+      ...packageJson.resolutions,
+    }
+    packageJson.pnpm = {
+      ...packageJson.pnpm,
+      overrides: {
+        ...packageJson.resolutions,
+        ...packageJson.pnpm?.overrides,
+      },
+    }
+
+    // Source tarballs omit the platform dependencies added during publication.
+    const version: string = require('next/package.json').version
+    const nativePackagesDirectory = path.join(
+      __dirname,
+      '../../../crates/next-napi-bindings/npm'
+    )
+    packageJson.optionalDependencies ??= {}
+    for (const platform of await fs.readdir(nativePackagesDirectory)) {
+      if (platform.startsWith('.')) {
+        continue
+      }
+      const { name }: { name: string } = await fs.readJSON(
+        path.join(nativePackagesDirectory, platform, 'package.json')
+      )
+      if (
+        packageJson.dependencies?.[name] === undefined &&
+        packageJson.devDependencies?.[name] === undefined &&
+        packageJson.optionalDependencies[name] === undefined
+      ) {
+        packageJson.optionalDependencies[name] = version
+      }
+    }
+
+    await this.writeFixtureConfiguration(
+      packageJsonPath,
+      JSON.stringify(packageJson, null, 2) + '\n'
+    )
+
+    for (const filename of [
+      'pnpm-workspace.yaml',
+      '.vercelignore',
+      '.nowignore',
+    ]) {
+      const filePath = path.join(this.testDir, filename)
+      try {
+        await fs.lstat(filePath)
+      } catch (error) {
+        if (error.code === 'ENOENT') {
+          continue
+        }
+        throw error
+      }
+      const contents = await fs.readFile(filePath, 'utf8')
+      if (filename === 'pnpm-workspace.yaml') {
+        const workspace = (load(contents) ?? {}) as {
+          overrides?: Record<string, string>
+        }
+        workspace.overrides = {
+          ...packageJson.pnpm.overrides,
+          ...workspace.overrides,
+        }
+        await this.writeFixtureConfiguration(filePath, dump(workspace))
+      } else if (contents !== '') {
+        const separator = contents.endsWith('\n') ? '' : '\n'
+        await this.writeFixtureConfiguration(
+          filePath,
+          `${contents}${separator}!/${directoryName}\n!/${directoryName}/**\n`
+        )
+        break
+      }
+    }
+    require('console').log(
+      `Deploying local JavaScript packages with published SWC ${version}. Local native binaries are not included.`
+    )
+  }
+
+  // When preview builds are private, the deploy build installs Next.js
+  // artifacts from an auth-protected route and needs credentials. The build
+  // authenticates with the Vercel OIDC token that Vercel automatically
+  // provides to builds (vercel-packages accepts it for allowlisted teams), so
+  // we write an `.npmrc` referencing it. Referencing the environment variable
+  // instead of inlining a token keeps credentials out of the uploaded
+  // deployment source. Only written for private preview builds since public
+  // ones need no credentials and pnpm fails when an `.npmrc` references an
+  // unset environment variable.
+  // TODO: pnpm >= 10.34.2 no longer expands environment variables in
+  // repository .npmrc files (GHSA-3qhv-2rgh-x77r). An install command writing
+  // to the user-level pnpm config (like vercel/front does) did not work with
+  // `vercel deploy` and needs more investigation.
+  private async writeMirrorNpmrcIfNecessary(): Promise<void> {
+    const baseUrlRaw = process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+    const access = process.env.PREVIEW_BUILDS_ACCESS
+
+    if (!baseUrlRaw || access !== 'private') {
       require('console').log(
-        `Skipping .npmrc write for preview-builds mirror: missing token or base URL`
+        `Skipping .npmrc write for preview-builds mirror: missing base URL or preview builds are public`
       )
       return
     }
@@ -534,21 +816,92 @@ export class NextDeployInstance extends NextInstance {
     require('console').log(
       `Writing .npmrc for preview-builds mirror: ${registryKey}`
     )
+    // Appended rather than written, because a fixture may ship its own `.npmrc`
+    // (several do) and overwriting it silently drops that configuration.
+    const npmrcPath = path.join(this.testDir, '.npmrc')
+    const existing = (await fs.pathExists(npmrcPath))
+      ? await fs.readFile(npmrcPath, 'utf8')
+      : ''
+    const separator = existing === '' || existing.endsWith('\n') ? '' : '\n'
+
     await fs.writeFile(
-      path.join(this.testDir, '.npmrc'),
-      `${registryKey}:_authToken=${token}\n`
+      npmrcPath,
+      `${existing}${separator}${registryKey}:_authToken=\${VERCEL_OIDC_TOKEN}\n`
     )
   }
 
+  /**
+   * Redirects the deployment host to the proxy address for this process only.
+   * The patched `dns.lookup` covers `fetch`, because Node resolves the
+   * connection through it while the TLS handshake still uses the original
+   * hostname for SNI. A valid certificate therefore still validates.
+   *
+   * This mode needs no `sudo`, and it keeps concurrent test files independent,
+   * unlike the shared `/etc/hosts` file.
+   */
+  private redirectHostInProcess(hostname: string, address: string): void {
+    require('console').log(
+      `Redirecting ${hostname} to ${address} for this process`
+    )
+
+    const originalLookup = dns.lookup
+
+    // `dns.lookup` answers for an IP address literal without a query, and it
+    // answers in the shape that the caller's options ask for. The redirection
+    // therefore replaces the hostname, passes the remaining arguments through
+    // untouched, and lets Node produce the result.
+    function patchedLookup(
+      this: unknown,
+      lookupHostname: string,
+      ...args: unknown[]
+    ): void {
+      Reflect.apply(originalLookup, this, [
+        lookupHostname === hostname ? address : lookupHostname,
+        ...args,
+      ])
+    }
+
+    // `dns.lookup` holds the argument names that `util.promisify` reads in a
+    // hidden symbol property. The wrapper takes over every own property, so the
+    // promisified form still resolves to an object instead of a bare address.
+    Object.defineProperties(
+      patchedLookup,
+      Object.getOwnPropertyDescriptors(originalLookup)
+    )
+
+    dns.lookup = Object.assign(patchedLookup, originalLookup)
+
+    this._restoreDnsLookup = () => {
+      dns.lookup = originalLookup
+    }
+
+    process.env[PROXY_HOST_MAP_ENV_KEY] = `${hostname}=${address}`
+  }
+
   private async configureProxyAddress(): Promise<void> {
-    // If configured, we should configure the `/etc/hosts` file to point the
-    // deployment domain to the specified proxy address.
-    if (
-      process.env.NEXT_TEST_PROXY_ADDRESS &&
-      // Validate that the proxy address is a valid IP address.
-      /^\d+\.\d+\.\d+\.\d+$/.test(process.env.NEXT_TEST_PROXY_ADDRESS)
-    ) {
-      this._writtenHostsLine = `${process.env.NEXT_TEST_PROXY_ADDRESS}\t${this._parsedUrl.hostname}\n`
+    const proxyAddress = process.env.NEXT_TEST_PROXY_ADDRESS
+    const redirectInProcess = !!process.env.NEXT_TEST_PROXY_IN_PROCESS
+
+    // Validate that the proxy address is a valid IP address.
+    if (!proxyAddress || !/^\d+\.\d+\.\d+\.\d+$/.test(proxyAddress)) {
+      // Without a redirection the production CDN serves the deployment, so the
+      // test passes and exercises none of the proxy under test. Fail instead of
+      // ignoring an incomplete request for in-process redirection.
+      if (redirectInProcess) {
+        throw new Error(
+          `NEXT_TEST_PROXY_IN_PROCESS needs a valid IP address in NEXT_TEST_PROXY_ADDRESS, received ${proxyAddress ? `"${proxyAddress}"` : 'no value'}.`
+        )
+      }
+
+      return
+    }
+
+    if (redirectInProcess) {
+      this.redirectHostInProcess(this._parsedUrl.hostname, proxyAddress)
+    } else {
+      // Otherwise we point the deployment domain to the proxy address through
+      // the `/etc/hosts` file.
+      this._writtenHostsLine = `${proxyAddress}\t${this._parsedUrl.hostname}\n`
 
       require('console').log(
         `Writing proxy address to hosts file: ${this._writtenHostsLine.trim()}`
@@ -583,6 +936,13 @@ export class NextDeployInstance extends NextInstance {
           err
         )
       })
+    }
+
+    if (this._restoreDnsLookup) {
+      require('console').log(`Removing the in-process host redirection`)
+      this._restoreDnsLookup()
+      this._restoreDnsLookup = null
+      delete process.env[PROXY_HOST_MAP_ENV_KEY]
     }
 
     // If configured, we should remove the proxy address from the hosts file.

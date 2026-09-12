@@ -13,7 +13,10 @@ use turbo_tasks::{
     read_strongly_consistent_and_apply_effects, take_effects,
 };
 use turbo_tasks_backend::{BackendOptions, TurboTasksBackend, noop_backing_storage};
-use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, LinkContent, LinkType};
+use turbo_tasks_fs::{
+    DiskFileSystem, FileSystem, FileSystemPath, WriteLinkContent, WriteLinkTarget,
+    WriteLinkTargetType,
+};
 
 #[derive(Args)]
 pub struct SymlinkStress {
@@ -40,6 +43,15 @@ async fn extract_effects_operation(op: OperationVc<()>) -> anyhow::Result<Vc<Eff
 }
 
 pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
+    // Each batch writes `parallelism` distinct symlinks, so there must be enough to go around.
+    if args.parallelism > args.symlink_count {
+        anyhow::bail!(
+            "--parallelism ({}) must not exceed --symlink-count ({}), since a batch cannot write \
+             the same symlink twice",
+            args.parallelism,
+            args.symlink_count,
+        );
+    }
     std::fs::create_dir(&args.fs_root)?;
     let fs_root = args.fs_root.canonicalize()?;
     let _guard = FsCleanup {
@@ -58,7 +70,12 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
     std::fs::create_dir(&symlinks_dir)?;
 
     let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
-        BackendOptions::default(),
+        BackendOptions {
+            // `noop_backing_storage` is read-only, so asking to persist on shutdown (the default)
+            // just fails with "Cannot perform write operations on a read-only database".
+            storage_mode: None,
+            ..Default::default()
+        },
         noop_backing_storage(),
     ));
 
@@ -102,6 +119,8 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
         );
 
         let mut rng = rand::rngs::SmallRng::from_rng(&mut rand::rng());
+        // Reused across batches; each batch partially shuffles it to sample distinct symlinks.
+        let mut symlink_indices: Vec<usize> = (0..symlink_count).collect();
         let mut total_writes: u64 = 0;
         let mut last_progress_writes: u64 = 0;
         let start_time = Instant::now();
@@ -113,13 +132,18 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
                 break;
             }
 
-            // Generate random symlink updates for this batch
-            let updates: Vec<(usize, usize)> = (0..parallelism)
-                .map(|_| {
-                    let symlink_idx = rng.random_range(0..symlink_count);
-                    let target_idx = rng.random_range(0..target_count);
-                    (symlink_idx, target_idx)
-                })
+            // Pick `parallelism` *distinct* symlinks for this batch, via a partial Fisher-Yates
+            // shuffle. They must be distinct because writing two different targets to one path
+            // within a single operation is a conflicting effect: a usage error, not something to
+            // stress test. Sampling without replacement (rather than deduplicating) keeps the
+            // batch size exactly `parallelism`, so the reported concurrency is honest.
+            for i in 0..parallelism {
+                let j = rng.random_range(i..symlink_count);
+                symlink_indices.swap(i, j);
+            }
+            let updates: Vec<(usize, usize)> = symlink_indices[..parallelism]
+                .iter()
+                .map(|&symlink_idx| (symlink_idx, rng.random_range(0..target_count)))
                 .collect();
 
             // Execute writes in parallel via turbo-tasks
@@ -169,17 +193,17 @@ pub async fn run(args: SymlinkStress) -> anyhow::Result<()> {
     Ok(())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn disk_file_system_operation(fs_root: RcStr) -> Vc<DiskFileSystem> {
     DiskFileSystem::new(rcstr!("project"), Vc::cell(fs_root))
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 fn disk_file_system_root_operation(fs: ResolvedVc<DiskFileSystem>) -> Vc<FileSystemPath> {
     fs.root()
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn create_initial_symlinks_operation(
     symlinks_dir: FileSystemPath,
     count: usize,
@@ -192,7 +216,7 @@ async fn create_initial_symlinks_operation(
     Ok(())
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn write_symlinks_batch_operation(
     symlinks_dir: FileSystemPath,
     updates: Vec<(usize, usize)>,
@@ -215,9 +239,9 @@ async fn write_symlink(
     target: RcStr,
 ) -> anyhow::Result<()> {
     let symlink_path = symlinks_dir.join(&symlink_idx.to_string())?;
-    let link_content = LinkContent::Link {
-        target,
-        link_type: LinkType::DIRECTORY,
+    let link_content = WriteLinkContent {
+        target: WriteLinkTarget::Relative(target),
+        target_type: WriteLinkTargetType::DirectoryOrJunctionPoint,
     };
     symlink_path
         .fs()

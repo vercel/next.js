@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "native-addon": "file:native-addon",
+    "bindings": "file:bindings"
+  }
+}

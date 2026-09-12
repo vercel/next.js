@@ -110,7 +110,7 @@
         Object {
             total_nodes: 1,
             parts: [],
-            mutable: true,
+            mutability: Mutable,
         },
     ),
 ]

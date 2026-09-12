@@ -13,6 +13,8 @@ pub enum WellKnownObjectKind {
     FsModulePromises,
     FsExtraModule,
     FsExtraModuleDefault,
+    GracefulFsModule,
+    GracefulFsModuleDefault,
     ModuleModule,
     ModuleModuleDefault,
     UrlModule,
@@ -83,6 +85,10 @@ impl WellKnownObjectKind {
             Self::FsExtraModule | Self::FsExtraModuleDefault => (
                 "fs-extra",
                 "The Node.js fs-extra module: https://github.com/jprichardson/node-fs-extra",
+            ),
+            Self::GracefulFsModule | Self::GracefulFsModuleDefault => (
+                "graceful-fs",
+                "The Node.js graceful-fs module: https://github.com/isaacs/node-graceful-fs",
             ),
             Self::FsModulePromises => (
                 "fs/promises",
@@ -210,6 +216,10 @@ pub enum WellKnownFunctionKind<'a> {
     ModuleHotDecline,
     /// `import.meta.glob(patterns, options?)` — Vite-compatible glob import.
     ImportMetaGlob,
+    /// `__turbopack_emit__` — Emit data to the bundler.
+    TurbopackEmit,
+    /// `__turbopack_collect__` — Collect emitted data from the bundler.
+    TurbopackCollect,
 }
 
 impl WellKnownFunctionKind<'_> {
@@ -394,6 +404,14 @@ impl WellKnownFunctionKind<'_> {
                 "import.meta.glob".to_string(),
                 "The import.meta.glob() function from Vite: https://vite.dev/guide/features.html#glob-import",
             ),
+            Self::TurbopackEmit => (
+                "__turbopack_emit__".to_string(),
+                "The __turbopack_emit__ function for emitting data to the bundler"
+            ),
+            Self::TurbopackCollect => (
+                "__turbopack_collect__".to_string(),
+                "The __turbopack_collect__ function for collecting emitted data from the bundler"
+            )
         }
     }
 }

@@ -5,7 +5,6 @@ import {
   makeDevtoolsIOAwarePromise,
 } from '../dynamic-rendering-utils'
 import { RenderStage } from '../app-render/staged-rendering'
-import { throwPrerenderPPRRemovedError } from '../../shared/lib/ppr-removed-error'
 import { isRequestApiAllowedInCurrentPhase } from './utils'
 
 // A fulfilled thenable that React can unwrap synchronously via `use()` without
@@ -67,10 +66,6 @@ export function io(): Promise<void> {
           workStore.route,
           '`io()`'
         )
-      case 'prerender-ppr':
-        // Dead code to be removed when we eliminate legacy ppr code
-        throwPrerenderPPRRemovedError()
-        break
       case 'cache':
       case 'private-cache':
       case 'unstable-cache':

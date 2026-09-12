@@ -97,6 +97,8 @@ pub struct WebpackLoaders {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     loaders: ResolvedVc<WebpackLoaderItems>,
+    target: ResolvedVc<RcStr>,
+    mode: RcStr,
     rename_as: Option<RcStr>,
     resolve_options_context: ResolvedVc<ResolveOptionsContext>,
     source_maps: bool,
@@ -109,6 +111,8 @@ impl WebpackLoaders {
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,
         loaders: ResolvedVc<WebpackLoaderItems>,
+        target: ResolvedVc<RcStr>,
+        mode: RcStr,
         rename_as: Option<RcStr>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
         source_maps: bool,
@@ -117,6 +121,8 @@ impl WebpackLoaders {
             evaluate_context,
             execution_context,
             loaders,
+            target,
+            mode,
             rename_as,
             resolve_options_context,
             source_maps,
@@ -319,6 +325,8 @@ impl WebpackLoadersProcessedAsset {
                     ResolvedVc::cell(resource_path.to_string().into()),
                     ResolvedVc::cell(self.source.ident().await?.query.to_string().into()),
                     ResolvedVc::cell(json!(*loaders)),
+                    ResolvedVc::cell(transform.target.await?.to_string().into()),
+                    ResolvedVc::cell(transform.mode.to_string().into()),
                     ResolvedVc::cell(transform.source_maps.into()),
                 ],
                 additional_invalidation: Completion::immutable().to_resolved().await?,
@@ -622,11 +630,11 @@ impl EvaluateContext for WebpackLoaderContext {
                         .try_join();
                     let file_subscriptions = file_paths
                         .iter()
-                        .map(|p| async move { self.cwd.join(p)?.read().await })
+                        .map(async |p| self.cwd.join(p)?.read().await)
                         .try_join();
                     let directory_subscriptions = directories
                         .iter()
-                        .map(|(dir, glob)| async move {
+                        .map(async |(dir, glob)| {
                             self.cwd
                                 .join(dir)?
                                 .track_glob(Glob::new(glob.clone(), GlobOptions::default()), false)

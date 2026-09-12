@@ -7,20 +7,16 @@ import { cookies } from 'next/headers'
 // Prefetching segment, the page requires runtime-completeness during the
 // Speculative phase (which the consuming test enters via a `prefetch={true}`
 // link), and with the hint unset the scheduler skips the static attempt
-// entirely and issues the runtime prefetch directly. Unlike the uses-cookies
-// fixture, the Speculative runtime prefetch RESOLVES the cookies() read, so
-// the cookie-derived content itself arrives in the runtime response.
+// entirely and issues the runtime prefetch directly.
+// It also awaits searchParams so that a speculative prefetch has non-shell
+// contents to resolve.
 export const prefetch = 'partial'
 
-async function CookieContent() {
-  const cookieStore = await cookies()
-  const value = cookieStore.get('testCookie')?.value ?? 'none'
-  return (
-    <div id="speculative-cookie-content">{`Speculative-cookies cookie: ${value}`}</div>
-  )
+type PageProps = {
+  searchParams: Promise<SearchParams>
 }
 
-export default function Page() {
+export default function Page(props: PageProps) {
   return (
     <main>
       <p id="page-content">Speculative-cookies page shell text</p>
@@ -29,8 +25,34 @@ export default function Page() {
           <p id="speculative-cookie-loading">Loading speculative cookie...</p>
         }
       >
-        <CookieContent />
+        <CookieContent {...props} />
       </Suspense>
     </main>
+  )
+}
+
+async function CookieContent(props: PageProps) {
+  const cookieStore = await cookies()
+  const value = cookieStore.get('testCookie')?.value ?? 'none'
+  return (
+    <>
+      <div id="speculative-cookie-content">{`Speculative-cookies cookie: ${value}`}</div>
+      <Suspense
+        fallback={
+          <p id="speculative-search-params-loading">Loading search params...</p>
+        }
+      >
+        <SearchParamsContent {...props} />
+      </Suspense>
+    </>
+  )
+}
+
+type SearchParams = Record<string, string | string[]>
+
+async function SearchParamsContent(props: PageProps) {
+  const searchCount = Object.keys(await props.searchParams).length
+  return (
+    <div id="search-params-content">{`Search params count: ${searchCount}`}</div>
   )
 }

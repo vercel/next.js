@@ -125,7 +125,7 @@ impl ChunkableModule for RawEcmascriptModule {
 impl EcmascriptChunkPlaceable for RawEcmascriptModule {
     #[turbo_tasks::function]
     fn get_exports(&self) -> Vc<EcmascriptExports> {
-        EcmascriptExports::CommonJs.cell()
+        EcmascriptExports::CommonJs(None).cell()
     }
 
     #[turbo_tasks::function]

@@ -36,7 +36,7 @@ When a browser requests a page, two streams work together during the initial pag
 
 ### The HTML stream
 
-React's server renderer produces progressive HTML chunks. The static parts of your page (layouts, navigation, Suspense fallbacks) render first and are sent immediately. When an async [Server Component](/docs/app/glossary#server-component) resolves, React streams its completed HTML along with inline `<script>` tags: one that swaps the fallback DOM node with the new content, and another carrying the [component payload](#the-component-payload) so React can later hydrate it. The browser executes the swap instantly, without waiting for the page's JavaScript bundle to load or hydration to complete. This is what the user _sees_: the page painting progressively, section by section.
+React's server renderer produces progressive HTML chunks. The static parts of your page (layouts, navigation, Suspense fallbacks) render first and are sent immediately. When a `<Suspense>` boundary's content is ready, for example when an async [Server Component](/docs/app/glossary#server-component) resolves, React streams its completed HTML along with inline `<script>` tags: one that swaps the fallback DOM node with the new content, and another carrying the [component payload](#the-component-payload) so React can later hydrate it. The browser executes the swap instantly, without waiting for the page's JavaScript bundle to load or hydration to complete. This is what the user _sees_: the page painting progressively, section by section.
 
 ### The component payload
 
@@ -579,11 +579,17 @@ Without streaming, the server waits for all data before sending any HTML, so TTF
 
 ### LCP (Largest Contentful Paint)
 
-If your LCP element (a hero image, a main heading, a product photo) is inside a Suspense boundary, it can't paint until that boundary resolves. To keep LCP fast:
+If your LCP element (a hero image, a main heading, a product photo) is inside a Suspense boundary, it can't paint until that boundary's content is swapped in. The element then depends on the work the server does to render it, not on your initial server response time. Revealing it costs something on the client too, because React streams a small inline script alongside the boundary's HTML and the content only appears once that script runs.
+
+Data fetching is not the only reason a boundary delays your LCP element. React also holds back a large boundary, because sending its HTML takes time. See [what activates a Suspense boundary](https://react.dev/reference/react/Suspense#what-activates-a-suspense-boundary).
+
+> **Good to know:** As a rule of thumb, if there's a Suspense boundary, React might use it. Under a slow network or a busy CPU, concurrent rendering can fall back to it even when you didn't expect it. Adding a boundary means accepting that, so don't add one you don't need.
+
+To keep LCP fast:
 
 - Keep LCP elements **outside** or **above** Suspense boundaries so they render as part of the static shell.
-- Use the [`preload`](/docs/app/api-reference/components/image#preload) prop on `next/image` for LCP images. This injects a `<link rel="preload">` into the `<head>`, so the browser starts fetching the image from the very first chunk, before the `<img>` tag even appears in the HTML.
-- For non-image LCP elements (text, headings), make sure they are not wrapped in a Suspense boundary that depends on slow data.
+- Use the [`preload`](/docs/app/api-reference/components/image#preload) prop on `next/image` for LCP images. This injects a `<link rel="preload">` into the `<head>`, so the browser starts fetching the image from the very first chunk, before the `<img>` tag even appears in the HTML. It controls when the image is fetched, not when it paints. An image inside a boundary still waits for the swap.
+- For non-image LCP elements (text, headings), render them outside Suspense boundaries.
 
 ### CLS (Cumulative Layout Shift)
 

@@ -42,19 +42,6 @@ pub async fn replace_well_known<'a>(
                 Modified::Yes,
             )
         }
-        JsValue::Call(total, call) => {
-            // var fs = require('fs'), fs = __importStar(fs);
-            // TODO(WEB-552) this is not correct and has many false positives!
-            if call.args().len() == 1
-                && let JsValue::WellKnownObject(_) = &call.args()[0]
-            {
-                return Ok((
-                    call.args()[0].clone_in(arena.get_or_default()),
-                    Modified::Yes,
-                ));
-            }
-            (JsValue::Call(total, call), Modified::No)
-        }
         JsValue::Member(_, mut obj, mut prop) if matches!(&*obj, JsValue::WellKnownObject(_)) => {
             let JsValue::WellKnownObject(kind) = take(&mut *obj) else {
                 unreachable!()
@@ -192,15 +179,17 @@ pub async fn well_known_function_call<'a>(
 fn object_assign<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
     if args.iter().all(|arg| matches!(arg, JsValue::Object { .. })) {
         if let Some(mut merged_object) = args.into_iter().reduce(|mut acc, cur| {
-            if let JsValue::Object { parts, mutable, .. } = &mut acc
+            if let JsValue::Object {
+                parts, mutability, ..
+            } = &mut acc
                 && let JsValue::Object {
                     parts: next_parts,
-                    mutable: next_mutable,
+                    mutability: next_mutability,
                     ..
                 } = &cur
             {
                 parts.extend(arena, next_parts.iter().map(|p| p.clone_in(arena)));
-                *mutable |= *next_mutable;
+                mutability.merge_with(*next_mutability);
             }
             acc
         }) {
@@ -410,6 +399,8 @@ pub fn import<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a
             JsValue::Module(ModuleValue {
                 module: v.as_atom().into_owned().into(),
                 annotations: None,
+                analyze_for_constants: false,
+                reference: None,
             }),
         ),
         _ => JsValue::unknown(
@@ -432,6 +423,8 @@ fn require<'a>(arena: &'a Bump, args: BumpVec<'a, JsValue<'a>>) -> JsValue<'a> {
             JsValue::Module(ModuleValue {
                 module: s.into(),
                 annotations: None,
+                analyze_for_constants: false,
+                reference: None,
             })
         } else {
             JsValue::unknown(
@@ -509,6 +502,8 @@ fn require_context_require<'a>(
     Ok(JsValue::Module(ModuleValue {
         module: m.to_string().into(),
         annotations: None,
+        analyze_for_constants: false,
+        reference: None,
     }))
 }
 
@@ -688,7 +683,9 @@ async fn well_known_object_member<'a>(
         }
         WellKnownObjectKind::FsModule
         | WellKnownObjectKind::FsModuleDefault
-        | WellKnownObjectKind::FsModulePromises => {
+        | WellKnownObjectKind::FsModulePromises
+        | WellKnownObjectKind::GracefulFsModule
+        | WellKnownObjectKind::GracefulFsModuleDefault => {
             fs_module_member(arena.get_or_default(), kind, prop)
         }
         WellKnownObjectKind::FsExtraModule | WellKnownObjectKind::FsExtraModuleDefault => {
@@ -926,6 +923,9 @@ fn fs_extra_module_member<'a>(
                 return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadMethod(
                     word.into(),
                 ));
+            }
+            (.., "readdir" | "readdirSync") => {
+                return JsValue::WellKnownFunction(WellKnownFunctionKind::FsReadDir);
             }
             // fs-extra specific
             (

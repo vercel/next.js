@@ -414,7 +414,7 @@ impl<C: Comments> ServerActions<C> {
     // and remove any server function directive.
     fn get_directive_for_function(
         &mut self,
-        maybe_body: Option<&mut BlockStmt>,
+        maybe_body: Option<&mut FunctionBody>,
     ) -> Option<Directive> {
         let mut directive: Option<Directive> = None;
 
@@ -520,14 +520,14 @@ impl<C: Comments> ServerActions<C> {
                 .swap_remove(&arrow_ident.to_id());
         }
 
-        if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
+        if let ArrowFunctionBody::FunctionBody(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
                 private_ctxt: self.private_ctxt,
             });
         }
 
-        let mut new_body: BlockStmtOrExpr = *arrow.body.clone();
+        let mut new_body: ArrowFunctionBody = *arrow.body.clone();
 
         if !ids_from_closure.is_empty() {
             // Prepend the decryption declaration to the body.
@@ -555,11 +555,11 @@ impl<C: Comments> ServerActions<C> {
             };
 
             match &mut new_body {
-                BlockStmtOrExpr::BlockStmt(body) => {
+                ArrowFunctionBody::FunctionBody(body) => {
                     body.stmts.insert(0, decryption_decl.into());
                 }
-                BlockStmtOrExpr::Expr(body_expr) => {
-                    new_body = BlockStmtOrExpr::BlockStmt(BlockStmt {
+                ArrowFunctionBody::Expr(body_expr) => {
+                    new_body = ArrowFunctionBody::FunctionBody(FunctionBody {
                         span: DUMMY_SP,
                         stmts: vec![
                             decryption_decl.into(),
@@ -568,7 +568,6 @@ impl<C: Comments> ServerActions<C> {
                                 arg: Some(body_expr.take()),
                             }),
                         ],
-                        ..Default::default()
                     });
                 }
             }
@@ -591,14 +590,13 @@ impl<C: Comments> ServerActions<C> {
                             function: Box::new(Function {
                                 params: new_params,
                                 body: match new_body {
-                                    BlockStmtOrExpr::BlockStmt(body) => Some(body),
-                                    BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+                                    ArrowFunctionBody::FunctionBody(body) => Some(body),
+                                    ArrowFunctionBody::Expr(expr) => Some(FunctionBody {
                                         span: DUMMY_SP,
                                         stmts: vec![Stmt::Return(ReturnStmt {
                                             span: DUMMY_SP,
                                             arg: Some(expr),
                                         })],
-                                        ..Default::default()
                                     }),
                                 },
                                 is_async: true,
@@ -691,7 +689,7 @@ impl<C: Comments> ServerActions<C> {
             private_ctxt: self.private_ctxt,
         });
 
-        let mut new_body: Option<BlockStmt> = function.body.clone();
+        let mut new_body: Option<FunctionBody> = function.body.clone();
 
         if !ids_from_closure.is_empty() {
             // Prepend the decryption declaration to the body.
@@ -720,10 +718,9 @@ impl<C: Comments> ServerActions<C> {
             if let Some(body) = &mut new_body {
                 body.stmts.insert(0, decryption_decl.into());
             } else {
-                new_body = Some(BlockStmt {
+                new_body = Some(FunctionBody {
                     span: DUMMY_SP,
                     stmts: vec![decryption_decl.into()],
-                    ..Default::default()
                 });
             }
         }
@@ -828,7 +825,7 @@ impl<C: Comments> ServerActions<C> {
                 .swap_remove(&arrow_ident.to_id());
         }
 
-        if let BlockStmtOrExpr::BlockStmt(block) = &mut *arrow.body {
+        if let ArrowFunctionBody::FunctionBody(block) = &mut *arrow.body {
             block.visit_mut_with(&mut ClosureReplacer {
                 used_ids: &ids_from_closure,
                 private_ctxt: self.private_ctxt,
@@ -836,8 +833,8 @@ impl<C: Comments> ServerActions<C> {
         }
 
         let inner_fn_body = match *arrow.body.take() {
-            BlockStmtOrExpr::BlockStmt(body) => Some(body),
-            BlockStmtOrExpr::Expr(expr) => Some(BlockStmt {
+            ArrowFunctionBody::FunctionBody(body) => Some(body),
+            ArrowFunctionBody::Expr(expr) => Some(FunctionBody {
                 stmts: vec![Stmt::Return(ReturnStmt {
                     span: DUMMY_SP,
                     arg: Some(expr),
@@ -1414,7 +1411,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         // Arrow expressions need to be visited in prepass to determine if it's
         // an action function or not.
         let directive = self.get_directive_for_function(
-            if let BlockStmtOrExpr::BlockStmt(block) = &mut *a.body {
+            if let ArrowFunctionBody::FunctionBody(block) = &mut *a.body {
                 Some(block)
             } else {
                 None
@@ -1567,15 +1564,15 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let old_current_export_name = self.current_export_name.take();
 
         match n {
-            PropOrSpread::Prop(box Prop::KeyValue(KeyValueProp {
+            PropOrSpread::Prop(Prop::KeyValue(KeyValueProp {
                 key: PropName::Ident(ident_name),
-                value: box Expr::Arrow(_) | box Expr::Fn(_),
+                value: Expr::Arrow(_) | Expr::Fn(_),
                 ..
             })) => {
                 self.current_export_name = None;
                 self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
             }
-            PropOrSpread::Prop(box Prop::Method(MethodProp { key, .. })) => {
+            PropOrSpread::Prop(Prop::Method(MethodProp { key, .. })) => {
                 let key = key.clone();
 
                 if let PropName::Ident(ident_name) = &key {
@@ -1603,7 +1600,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
 
         if !self.in_module_level
             && self.should_track_names
-            && let PropOrSpread::Prop(box Prop::Shorthand(i)) = n
+            && let PropOrSpread::Prop(Prop::Shorthand(i)) = n
         {
             self.names.push(Name::from(&*i));
             self.should_track_names = false;
@@ -1686,7 +1683,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_call_expr(&mut self, n: &mut CallExpr) {
-        if let Callee::Expr(box Expr::Ident(Ident { sym, .. })) = &mut n.callee
+        if let Callee::Expr(Expr::Ident(Ident { sym, .. })) = &mut n.callee
             && (sym == "jsxDEV" || sym == "_jsxDEV")
         {
             // Do not visit the 6th arg in a generated jsxDEV call, which is a `this`
@@ -1908,15 +1905,20 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                                 let mut has_export_needing_wrapper = false;
 
                                 for decl in &var.decls {
-                                    if let Pat::Ident(_) = &decl.name
+                                    if in_action_file
+                                        && let Pat::Ident(_) = &decl.name
                                         && let Some(init) = &decl.init
                                     {
-                                        // Disallow exporting literals. Admittedly, this is
-                                        // pretty arbitrary. We don't disallow exporting object
-                                        // and array literals, as that would be too restrictive,
-                                        // especially for page and layout files with
-                                        // 'use cache', that may want to export metadata or
-                                        // viewport objects.
+                                        // In a "use server" file every export becomes a server
+                                        // reference, and a runtime check asserts that each one is a
+                                        // function. Reject exported literals at build time instead.
+                                        // Object and array literals stay allowed, as rejecting them
+                                        // would be too restrictive.
+                                        //
+                                        // A "use cache" file wraps only exports that are, or might
+                                        // be, functions. Known non-function values pass through.
+                                        // Page and layout files need this for route segment
+                                        // configs, metadata, and viewport.
                                         if let Expr::Lit(_) = &**init {
                                             disallowed_export_span = *span;
                                         }
@@ -2738,7 +2740,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                     ServerActionsMode::Turbopack => {
                         new.push(ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                             expr: Box::new(Expr::Lit(Lit::Str(
-                                atom!("use turbopack no side effects").into(),
+                                atom!("use turbopack: no side effects").into(),
                             ))),
                             span: DUMMY_SP,
                         })));
@@ -2747,7 +2749,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
                             let mut module_items = vec![
                                 ModuleItem::Stmt(Stmt::Expr(ExprStmt {
                                     expr: Box::new(Expr::Lit(Lit::Str(
-                                        atom!("use turbopack no side effects").into(),
+                                        atom!("use turbopack: no side effects").into(),
                                     ))),
                                     span: DUMMY_SP,
                                 })),
@@ -2832,7 +2834,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
             (&attr.value, &attr.name)
         {
             match &container.expr {
-                JSXExpr::Expr(box Expr::Arrow(_)) | JSXExpr::Expr(box Expr::Fn(_)) => {
+                JSXExpr::Expr(Expr::Arrow(_)) | JSXExpr::Expr(Expr::Fn(_)) => {
                     self.arrow_or_fn_expr_ident = Some(ident_name.clone().into());
                 }
                 _ => {}
@@ -2847,7 +2849,7 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         let old_current_export_name = self.current_export_name.take();
         let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.take();
 
-        if let (Pat::Ident(ident), Some(box Expr::Arrow(_) | box Expr::Fn(_))) =
+        if let (Pat::Ident(ident), Some(Expr::Arrow(_) | Expr::Fn(_))) =
             (&var_declarator.name, &var_declarator.init)
         {
             if self.in_module_level
@@ -3041,7 +3043,7 @@ fn create_cache_wrapper(
     let wrapper_fn_expr = Box::new(Expr::Fn(FnExpr {
         ident: fn_ident,
         function: Box::new(Function {
-            body: Some(BlockStmt {
+            body: Some(FunctionBody {
                 stmts: vec![Stmt::Return(ReturnStmt {
                     span: DUMMY_SP,
                     arg: Some(Box::new(Expr::Call(cache_call))),
@@ -3068,7 +3070,7 @@ fn create_and_hoist_cache_function(
     cache_name: Atom,
     fn_ident: Option<Ident>,
     params: Vec<Param>,
-    body: Option<BlockStmt>,
+    body: Option<FunctionBody>,
     original_span: Span,
     hoisted_extra_items: &mut Vec<ModuleItem>,
     unresolved_ctxt: SyntaxContext,
@@ -3288,7 +3290,7 @@ fn detect_similar_strings(a: &str, b: &str) -> bool {
 // without mutating the function body or erroring out.
 // This is used to quickly determine if we need to use the module-level
 // directives for this function or not.
-fn has_body_directive(maybe_body: &Option<BlockStmt>) -> (bool, bool) {
+fn has_body_directive(maybe_body: &Option<FunctionBody>) -> (bool, bool) {
     let mut is_action_fn = false;
     let mut is_cache_fn = false;
 
@@ -3296,7 +3298,7 @@ fn has_body_directive(maybe_body: &Option<BlockStmt>) -> (bool, bool) {
         for stmt in body.stmts.iter() {
             match stmt {
                 Stmt::Expr(ExprStmt {
-                    expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+                    expr: Expr::Lit(Lit::Str(Str { value, .. })),
                     ..
                 }) => {
                     if value == "use server" {
@@ -3435,7 +3437,7 @@ impl DirectiveVisitor<'_> {
 
         match stmt {
             Stmt::Expr(ExprStmt {
-                expr: box Expr::Lit(Lit::Str(Str { value, span, .. })),
+                expr: Expr::Lit(Lit::Str(Str { value, span, .. })),
                 ..
             }) => {
                 if value == "use server" {
@@ -3570,8 +3572,8 @@ impl DirectiveVisitor<'_> {
             }
             Stmt::Expr(ExprStmt {
                 expr:
-                    box Expr::Paren(ParenExpr {
-                        expr: box Expr::Lit(Lit::Str(Str { value, .. })),
+                    Expr::Paren(ParenExpr {
+                        expr: Expr::Lit(Lit::Str(Str { value, .. })),
                         ..
                     }),
                 span,
@@ -3663,7 +3665,7 @@ impl VisitMut for ClosureReplacer<'_> {
     fn visit_mut_prop_or_spread(&mut self, n: &mut PropOrSpread) {
         n.visit_mut_children_with(self);
 
-        if let PropOrSpread::Prop(box Prop::Shorthand(i)) = n {
+        if let PropOrSpread::Prop(Prop::Shorthand(i)) = n {
             let name = Name::from(&*i);
             if let Some(index) = self.used_ids.iter().position(|used_id| *used_id == name) {
                 *n = PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {

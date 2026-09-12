@@ -8,6 +8,10 @@ import { ChildProcess } from 'child_process'
 import spawn from 'cross-spawn'
 import { quote as shellQuote } from 'shell-quote'
 import { createNextInstall } from '../create-next-install'
+import {
+  getCommitFromPreviewBuildUrl,
+  previewTarballUrl,
+} from '../../../scripts/wait-for-preview-tarball.mjs'
 import { Span } from 'next/dist/trace'
 import webdriver from '../next-webdriver'
 import {
@@ -22,6 +26,9 @@ import type { Playwright } from '../browsers/playwright'
 import escapeStringRegexp from 'escape-string-regexp'
 import * as JSON5 from 'json5'
 import { Page, Response } from 'playwright'
+import { PHASE_PRODUCTION_BUILD } from 'next/constants'
+import { loadResolvedConfig } from '../gate/load-resolved-config'
+import type { ResolvedNextConfig } from '../gate/resolved-config'
 
 type Event = 'stdout' | 'stderr' | 'error' | 'destroy'
 export type InstallCommand =
@@ -78,7 +85,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.2.8";
+const nextjsReactPeerVersion = "19.3.0";
 
 const ROOT_PACKAGE_MANAGER: string =
   require('../../../package.json').packageManager
@@ -111,6 +118,7 @@ export class NextInstance {
   public serverReadyPattern: RegExp = /✓ Ready in /
   patchFileDelay: number = 0
   public deleteWorkspaceFile: boolean = false
+  private _resolvedConfig?: Promise<ResolvedNextConfig>
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
@@ -282,6 +290,46 @@ export class NextInstance {
         }
 
         if (skipInstall || skipIsolatedNext) {
+          // Dependencies declared as `workspace:*` must install the build of
+          // the tested commit rather than a published version. Deploy tests
+          // install `next` from the preview build of the tested commit via
+          // NEXT_TEST_VERSION, so workspace dependencies resolve to the
+          // preview tarball of the same commit: the published version would
+          // not contain the changes under test, and its `peerDependencies`
+          // ranges (e.g. `^16.0.0-beta.0`) reject prerelease preview versions
+          // such as `16.4.0-preview-<sha>-<date>`, failing `npm install` with
+          // ERESOLVE. The preview tarballs rewrite their monorepo (peer)
+          // dependencies to the preview URLs of the same commit (see
+          // `scripts/create-preview-tarballs.js`). Without a preview build,
+          // workspace dependencies track whatever `next` is installed with
+          // (e.g. the version the release workflow pins), since all packages
+          // in this repository are published in lockstep.
+          const nextVersion =
+            process.env.NEXT_TEST_VERSION ||
+            require('next/package.json').version
+          const previewCommitSha = getCommitFromPreviewBuildUrl(
+            process.env.NEXT_TEST_VERSION,
+            process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL
+          )
+          for (const dependencyName of Object.keys(finalDependencies)) {
+            if (finalDependencies[dependencyName] !== 'workspace:*') {
+              continue
+            }
+            if (previewCommitSha === null) {
+              finalDependencies[dependencyName] = nextVersion
+              continue
+            }
+            const previewBuildUrl = previewTarballUrl(
+              process.env.NEXT_TEST_PREVIEW_BUILDS_BASE_URL,
+              previewCommitSha,
+              dependencyName
+            )
+            require('console').log(
+              `Resolving ${dependencyName}@workspace:* to the preview build: ${previewBuildUrl}`
+            )
+            finalDependencies[dependencyName] = previewBuildUrl
+          }
+
           const pkgScripts = (this.packageJson['scripts'] as {}) || {}
           // Pin the same pnpm version the repo uses so corepack resolves a
           // consistent pnpm across isolated test dirs. Mirrors the logic in
@@ -308,9 +356,7 @@ export class NextInstance {
                 }),
                 dependencies: {
                   ...finalDependencies,
-                  next:
-                    process.env.NEXT_TEST_VERSION ||
-                    require('next/package.json').version,
+                  next: nextVersion,
                 },
                 ...(this.resolutions ? { resolutions: this.resolutions } : {}),
                 scripts: {
@@ -499,10 +545,6 @@ export class NextInstance {
           if (process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS) {
             process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS = process.env.NEXT_PRIVATE_EXPERIMENTAL_CACHED_NAVIGATIONS
           }
-          if (process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER) {
-            process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER = process.env.NEXT_PRIVATE_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER
-          }
-
         `
           )
 
@@ -533,6 +575,60 @@ export class NextInstance {
           }
         }
       })
+  }
+
+  /**
+   * The phase this fixture's `next.config` should be resolved for. `next dev`
+   * overrides it; deploy mode resolves the production-build phase locally,
+   * which is a best-effort approximation of the remote build.
+   */
+  protected get configPhase(): string {
+    return PHASE_PRODUCTION_BUILD
+  }
+
+  /**
+   * This fixture's **resolved** `next.config` — i.e. the output of
+   * `loadConfig`, not the config file. Resolution implies flags the fixture
+   * never mentions (`cacheComponents: true` turns on `experimental.ppr`) and
+   * honours the env the fixture actually runs with.
+   *
+   * Used by `// @gate` conditions (see test/lib/gate/README.md). Memoized per
+   * instance and resolved lazily, so a suite that never asks pays nothing; a
+   * suite that rewrites its own `next.config` mid-run keeps the first answer.
+   */
+  public getResolvedConfig(): Promise<ResolvedNextConfig> {
+    return (this._resolvedConfig ??= loadResolvedConfig({
+      dir: this.testDir,
+      phase: this.configPhase,
+      env: this.getSpawnOpts().env,
+    }))
+  }
+
+  /**
+   * The options every child process of this fixture is spawned with — its cwd,
+   * and the exact env `next build` / `next dev` / `next start` see.
+   *
+   * Anything that inspects the fixture out of process (e.g. resolving its
+   * `next.config`) has to use this env, because config resolution reads env
+   * vars from the calling process and a suite may pass its own via
+   * `nextTestSetup({ env })`.
+   */
+  protected getSpawnOpts(
+    env?: Record<string, string>
+  ): import('child_process').SpawnOptions {
+    return {
+      cwd: this.testDir,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false,
+      env: {
+        ...process.env,
+        ...this.env,
+        ...env,
+        NODE_ENV: this.env.NODE_ENV || ('' as any),
+        PORT: this.forcedPort ?? '0',
+        __NEXT_TEST_MODE: 'e2e',
+      },
+    }
   }
 
   protected setServerReadyTimeout(
@@ -1148,10 +1244,7 @@ export class NextInstance {
    * @param opts the optional options to pass to the underlying fetch
    * @returns the fetch response
    */
-  public async fetch(
-    pathname: string,
-    opts?: import('node-fetch').RequestInit
-  ) {
+  public async fetch(pathname: string, opts?: RequestInit) {
     try {
       this.throwIfUnavailable()
     } catch (error) {

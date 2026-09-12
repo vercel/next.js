@@ -4,6 +4,7 @@ import yargs from 'yargs'
 import getChangedTests from './get-changed-tests.mjs'
 import {
   assertPreviewTarballPublished,
+  createPreviewBuildsReadTokenGetter,
   previewTarballUrl,
 } from './wait-for-preview-tarball.mjs'
 
@@ -100,7 +101,7 @@ async function main() {
   // PR number endpoint (which resolves the PR to a SHA on every request).
   const nextTestVersion =
     testMode === 'deploy'
-      ? previewTarballUrl(previewBuildsBaseUrl, commitSha)
+      ? previewTarballUrl(previewBuildsBaseUrl, commitSha, 'next')
       : undefined
 
   if (nextTestVersion) {
@@ -111,7 +112,7 @@ async function main() {
     await assertPreviewTarballPublished({
       commitSha,
       previewBuildsBaseUrl,
-      readToken: process.env.PREVIEW_BUILDS_READ_TOKEN,
+      getReadToken: createPreviewBuildsReadTokenGetter(),
     })
   }
 

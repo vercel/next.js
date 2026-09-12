@@ -116,7 +116,7 @@ Run `next dev` and let the agent work against the running server. Runtime errors
 
 First, `next dev` forwards browser console errors and warnings to the terminal (the [`logging.browserToTerminal`](/docs/app/api-reference/config/next-config-js/logging) config), so the output agents already read carries the client-side failures they're asked to fix.
 
-`next dev` also writes its PID, port, and URL to `.next/dev/lock`. A second `next dev` in the same project prints the running server's URL and the PID to kill, so an agent connects to the existing server instead of starting a duplicate.
+`next dev` also writes its PID, port, and URL to `.next/dev/lock`. If you run `next dev` while another development server is already running for the project, the command prints the existing server's URL and PID, along with a command to stop it. Continue with the existing server when possible to avoid interrupting the active development session.
 
 The **framework's view** comes from the [Next.js MCP server](/docs/app/guides/mcp) at `/_next/mcp`, which exposes the running dev server's routes, server logs, and compilation issues. Its `get_compilation_issues` and `compile_route` tools report whether the code compiles straight from the dev server, so an agent doesn't have to run a full `next build` to find out.
 
@@ -180,7 +180,13 @@ After every edit, verify the page still works at runtime using the next-dev-loop
 
 ### `next-cache-components-adoption`
 
-The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) Skill turns on [Cache Components](/docs/app/getting-started/caching) and resolves blocking routes until the app builds.
+The [`next-cache-components-adoption`](https://www.skills.sh/vercel/next.js/next-cache-components-adoption) Skill migrates an app to [Cache Components](/docs/app/getting-started/caching):
+
+1. Turns the flag on and finds the routes that can't prerender.
+2. Fixes them one feature at a time, checking in with you before moving on.
+3. Confirms a feature against `next dev` and `next build` before leaving it.
+
+You choose whether the work lands as a series of PRs or stays on one branch.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-adoption
@@ -194,21 +200,33 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 ### `next-cache-components-optimizer`
 
-The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill maximizes the meaningful UI available on an exact navigation and guards it with an `@next/playwright` `instant()` test.
+The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill takes a target route or set of routes and works toward the UI you want on screen at click time:
+
+1. Writes a failing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test for the UI you named.
+2. Refactors the route until it passes, often by moving a data read below a `<Suspense>` boundary.
+3. Commits the passing test with the refactoring, so it catches future regressions.
+
+It needs a route that already builds with [Cache Components](/docs/app/getting-started/caching).
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-optimizer
 ```
 
-For example, give the agent this prompt:
+Then give the agent a prompt like:
 
 ```prompt
-Make the navigation to `/settings` instant using the next-cache-components-optimizer Skill.
+Make the navigation from /settings to /dashboard instant using the next-cache-components-optimizer Skill. The header and the project list should be part of the instant UI.
 ```
 
 ### `next-partial-prefetching-adoption`
 
-The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill turns on [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) and resolves its insights until all routes reuse a shared App Shell.
+The [`next-partial-prefetching-adoption`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-adoption) Skill moves an app onto [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching), where links share one App Shell:
+
+1. Audits existing `<Link prefetch={true}>` navigations and identifies the prefetched UI to preserve.
+2. Captures that UI in passing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) tests before enabling Partial Prefetching, then migrates each destination until the same tests pass unchanged.
+3. Enables the flag, resolves the URL-data insights it surfaces, and marks optional per-link prefetching candidates for later.
+
+It needs [Cache Components](/docs/app/getting-started/caching) already adopted and a production-like build it can run for prefetch verification.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-partial-prefetching-adoption
@@ -218,4 +236,24 @@ Then give the agent this prompt:
 
 ```prompt
 Adopt Partial Prefetching in this project using the next-partial-prefetching-adoption Skill.
+```
+
+### `next-partial-prefetching-optimizer`
+
+The [`next-partial-prefetching-optimizer`](https://www.skills.sh/vercel/next.js/next-partial-prefetching-optimizer) Skill takes a target navigation or set of navigations and works toward the UI you want ready before each click:
+
+1. Turns the requested behavior for each navigation into a contract for what is prefetched, what waits for navigation, and when prefetching begins.
+2. Captures each contract in an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test.
+3. Applies the [Optimizing prefetching](/docs/app/guides/optimizing-prefetching) patterns and keeps the passing tests as regression coverage.
+
+It needs Cache Components and Partial Prefetching already adopted.
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-partial-prefetching-optimizer
+```
+
+Then give the agent a prompt like:
+
+```prompt
+Make the product title instant when navigating from /products to /products/[id]. Use the next-partial-prefetching-optimizer Skill.
 ```

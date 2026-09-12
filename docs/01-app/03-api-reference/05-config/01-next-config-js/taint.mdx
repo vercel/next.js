@@ -11,7 +11,7 @@ The `taint` option enables support for experimental React APIs for tainting obje
 - [`experimental_taintObjectReference`](https://react.dev/reference/react/experimental_taintObjectReference) taint objects references.
 - [`experimental_taintUniqueValue`](https://react.dev/reference/react/experimental_taintUniqueValue) to taint unique values.
 
-> **Good to know**: Activating this flag also enables the React `experimental` channel for `app` directory.
+> **Good to know**: Activating this flag also enables the React `experimental` channel for `app` directory, and taints `process.env` so it cannot be passed whole to a Client Component.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -51,6 +51,7 @@ It is recommended to model your data and APIs so that sensitive data is not retu
 ## Caveats
 
 - Tainting can only keep track of objects by reference. Copying an object creates an untainted version, which loses all guarantees given by the API. You'll need to taint the copy.
+- The built-in `process.env` taint applies to the object reference only. Reading individual variables such as `process.env.MY_VAR` and passing the resulting string to a Client Component is unaffected, as is passing a copy like `{ ...process.env }`.
 - Tainting cannot keep track of data derived from a tainted value. You also need to taint the derived value.
 - Values are tainted for as long as their lifetime reference is within scope. See the [`experimental_taintUniqueValue` parameters reference](https://react.dev/reference/react/experimental_taintUniqueValue#parameters), for more information.
 
@@ -63,7 +64,7 @@ In this case, the `getUserDetails` function returns data about a given user. We 
 ```ts switcher
 import { experimental_taintObjectReference } from 'react'
 
-function getUserDetails(id: string): UserDetails {
+async function getUserDetails(id: string): Promise<UserDetails> {
   const user = await db.queryUserById(id)
 
   experimental_taintObjectReference(
@@ -78,7 +79,7 @@ function getUserDetails(id: string): UserDetails {
 ```js switcher
 import { experimental_taintObjectReference } from 'react'
 
-function getUserDetails(id) {
+async function getUserDetails(id) {
   const user = await db.queryUserById(id)
 
   experimental_taintObjectReference(
@@ -151,15 +152,15 @@ export async function ContactPage({ params }) {
 
 ### Tainting a unique value
 
-In this case, we can access the server configuration by awaiting calls to `config.getConfigDetails`. However, the system configuration contains the `SERVICE_API_KEY` that we don't want to expose to clients.
+In this case, we can access the server configuration by awaiting calls to `configService.getConfigDetails`. However, the system configuration contains the `SERVICE_API_KEY` that we don't want to expose to clients.
 
 We can taint the `config.SERVICE_API_KEY` value.
 
 ```ts switcher
 import { experimental_taintUniqueValue } from 'react'
 
-function getSystemConfig(): SystemConfig {
-  const config = await config.getConfigDetails()
+async function getSystemConfig(): Promise<SystemConfig> {
+  const config = await configService.getConfigDetails()
 
   experimental_taintUniqueValue(
     'Do not pass configuration tokens to the client',
@@ -174,8 +175,8 @@ function getSystemConfig(): SystemConfig {
 ```js switcher
 import { experimental_taintUniqueValue } from 'react'
 
-function getSystemConfig() {
-  const config = await config.getConfigDetails()
+async function getSystemConfig() {
+  const config = await configService.getConfigDetails()
 
   experimental_taintUniqueValue(
     'Do not pass configuration tokens to the client',

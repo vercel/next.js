@@ -52,10 +52,10 @@ export default function ExampleClientComponent() {
 ## Parameters
 
 ```tsx
-const segments = useSelectedLayoutSegments(parallelRoutesKey?: string)
+const segments = useSelectedLayoutSegments(parallelRouteKey?: string)
 ```
 
-`useSelectedLayoutSegments` _optionally_ accepts a [`parallelRoutesKey`](/docs/app/api-reference/file-conventions/parallel-routes#with-useselectedlayoutsegments), which allows you to read the active route segment within that slot.
+`useSelectedLayoutSegments` _optionally_ accepts a [`parallelRouteKey`](/docs/app/api-reference/file-conventions/parallel-routes#with-useselectedlayoutsegments), which allows you to read the active route segment within that slot.
 
 ## Returns
 
