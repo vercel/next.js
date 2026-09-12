@@ -10,6 +10,7 @@ use super::TraceFormat;
 use crate::{
     FxIndexMap,
     span::{SpanArgs, SpanIndex},
+    store::OutdatedSpans,
     store_container::StoreContainer,
     timestamp::Timestamp,
 };
@@ -187,7 +188,7 @@ impl TraceFormat for HeaptrackFormat {
 
     fn read(&mut self, mut buffer: &[u8], _reuse: &mut Self::Reused) -> anyhow::Result<usize> {
         let mut bytes_read = 0;
-        let mut outdated_spans = FxHashSet::default();
+        let mut outdated_spans = OutdatedSpans::default();
         let mut store = self.store.write();
         'outer: while let Some(line_end) = buffer.iter().position(|b| *b == b'\n') {
             let full_line = &buffer[..line_end];
