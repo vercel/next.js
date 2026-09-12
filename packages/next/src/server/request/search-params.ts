@@ -12,6 +12,7 @@ import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   throwToInterruptStaticGeneration,
   annotateDynamicAccess,
+  trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
@@ -591,6 +592,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
   const proxiedUnderlying = instrumentSearchParamsObjectWithDevWarnings(
     underlyingSearchParams,
     workStore,
+    requestStore,
     promiseInitialized
   )
 
@@ -627,6 +629,7 @@ function ignoreReject() {}
 function instrumentSearchParamsObjectWithDevWarnings(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore,
+  requestStore: RequestStore,
   promiseInitialized: { current: boolean }
 ) {
   // We have an unfortunate sequence of events that requires this initialization logic. We want to instrument the underlying
@@ -645,6 +648,10 @@ function instrumentSearchParamsObjectWithDevWarnings(
             expression
           )
         }
+        // Reading a resolved `searchParams` value makes the render depend on
+        // the request. In dev every render is dynamic, but we still record this
+        // so the dev static indicator correctly reports the route as dynamic.
+        trackDynamicDataInDynamicRender(requestStore)
       }
       return ReflectAdapter.get(target, prop, receiver)
     },
@@ -660,6 +667,9 @@ function instrumentSearchParamsObjectWithDevWarnings(
             expression
           )
         }
+        if (promiseInitialized.current) {
+          trackDynamicDataInDynamicRender(requestStore)
+        }
       }
       return Reflect.has(target, prop)
     },
@@ -671,6 +681,9 @@ function instrumentSearchParamsObjectWithDevWarnings(
           workStore.route,
           expression
         )
+      }
+      if (promiseInitialized.current) {
+        trackDynamicDataInDynamicRender(requestStore)
       }
       return Reflect.ownKeys(target)
     },
