@@ -1,4 +1,5 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
+import { getPnpmSymlinkWorkaround } from '../../lib/pnpm-symlink-workaround'
 import { waitFor } from 'next-test-utils'
 import fs from 'fs/promises'
 import path from 'path'
@@ -48,13 +49,7 @@ describe('warm-restart task statistics', () => {
 
   const { next } = nextTestSetup({
     files: __dirname,
-    overrideFiles: {
-      '.npmrc': `# The default pnpm symlinks trigger a kernel bug in this test. Use an
-# npm-style layout with copied package files instead.
-node-linker=hoisted
-package-import-method=copy
-`,
-    },
+    overrideFiles: getPnpmSymlinkWorkaround(),
     env,
   })
 
