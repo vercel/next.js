@@ -9,7 +9,7 @@ use crate::{
             aggregation_update::{
                 AggregationUpdateJob, AggregationUpdateQueue, get_aggregation_number, is_root_node,
             },
-            invalidate::make_task_dirty_internal,
+            invalidate::{MakeTaskDirtyOptions, make_task_dirty_internal},
         },
         storage_schema::TaskStorageAccessors,
     },
@@ -45,9 +45,12 @@ pub(super) fn resurrect_deleted<'e, C: ExecuteContext<'e>>(
         // shouldn't matter for resolving this rare race condition.
         make_task_dirty_internal(
             &mut task,
-            /* make_stale */ true,
-            #[cfg(feature = "task_dirty_cause")]
-            turbo_tasks::TaskDirtyCause::Resurrected,
+            MakeTaskDirtyOptions {
+                make_stale: true,
+                schedule_when_active: true,
+                #[cfg(feature = "task_dirty_cause")]
+                cause: turbo_tasks::TaskDirtyCause::Resurrected,
+            },
             queue,
             ctx,
         );
@@ -79,7 +82,13 @@ impl ConnectChildOperation {
             let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =
                 parent_task.get_in_progress()
             else {
-                panic!("Task is not in progress while calling another task: {parent_task:?}");
+                // The parent execution was aborted before this connect operation acquired its
+                // first guard. Ignore the child call from the dropped execution.
+                debug_assert!(
+                    parent_task.is_dirty().is_some(),
+                    "child call escaped from a clean parent that is not executing: {parent_task:?}"
+                );
+                return;
             };
 
             // Quick skip if the child was already connected before
@@ -166,7 +175,22 @@ impl ConnectChildOperation {
             let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =
                 parent_task.get_in_progress_mut()
             else {
-                panic!("Task is not in progress while calling another task: {parent_task:?}");
+                // Abortion can race while the aggregation update above temporarily releases the
+                // parent guard. Undo the speculative child activeness that update added.
+                debug_assert!(
+                    parent_task.is_dirty().is_some(),
+                    "child connect lost a clean parent that is not executing: {parent_task:?}"
+                );
+                drop(parent_task);
+                if ctx.should_track_activeness() {
+                    AggregationUpdateQueue::run(
+                        AggregationUpdateJob::DecreaseActiveCount {
+                            task: child_task_id,
+                        },
+                        &mut ctx,
+                    );
+                }
+                return;
             };
 
             // Really add the child to the new children set

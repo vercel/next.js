@@ -38,7 +38,7 @@ use crate::{
         Backend, CellContent, CellHash, TaskCollectiblesMap, TaskExecutionSpec, TransientTaskType,
         TurboTasksExecutionError, TypedCellContent, VerificationMode,
     },
-    capture_future::CaptureFuture,
+    capture_future::{CaptureFuture, CaptureFutureOutcome},
     dyn_task_inputs::DynTaskInputsStorage,
     event::{Event, EventListener},
     id::{ExecutionId, LocalTaskId, TraitTypeId},
@@ -1531,7 +1531,11 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                                 return None;
                             }
 
-                            let TaskExecutionSpec { future, span } = this
+                            let TaskExecutionSpec {
+                                future,
+                                span,
+                                abort_registration,
+                            } = this
                                 .backend
                                 .try_start_task_execution(task_id, priority, &*this)?;
 
@@ -1540,26 +1544,45 @@ impl<B: Backend> Executor<TurboTasks<B>, ScheduledTask, TaskPriority> for TurboT
                             InlineExecutionSpanSlot::set(&span);
 
                             async {
-                                let result = CaptureFuture::new(future).await;
+                                let outcome = CaptureFuture::new(future)
+                                    .with_optional_abort(abort_registration)
+                                    .await;
 
-                                // wait for all spawned local tasks using `local` to finish
+                                // Wait for all spawned local tasks using `local` to finish.
                                 wait_for_local_tasks().await;
-
-                                let result = match result {
-                                    Ok(Ok(raw_vc)) => {
-                                        // This is safe because we waited for all local tasks to
-                                        // complete above
-                                        raw_vc
-                                            .to_non_local_unchecked_sync(&*this)
-                                            .map_err(|err| err.into())
-                                    }
-                                    Ok(Err(err)) => Err(err.into()),
-                                    Err(err) => Err(TurboTasksExecutionError::Panic(Arc::new(err))),
-                                };
 
                                 let finished_state = this.finish_current_task_state();
                                 let cell_counters = CURRENT_TASK_STATE
                                     .with(|ts| ts.write().unwrap().cell_counters.take().unwrap());
+
+                                let result = match outcome {
+                                    CaptureFutureOutcome::Aborted => {
+                                        Span::current().record("outcome", "aborted");
+                                        return this
+                                            .backend
+                                            .task_execution_aborted(task_id, &*this);
+                                    }
+                                    CaptureFutureOutcome::Value(raw_vc) => {
+                                        // This is safe because we waited for all local tasks to
+                                        // complete above.
+                                        let result = raw_vc
+                                            .to_non_local_unchecked_sync(&*this)
+                                            .map_err(|err| err.into());
+                                        Span::current().record(
+                                            "outcome",
+                                            if result.is_ok() { "value" } else { "error" },
+                                        );
+                                        result
+                                    }
+                                    CaptureFutureOutcome::Error(err) => {
+                                        Span::current().record("outcome", "error");
+                                        Err(err.into())
+                                    }
+                                    CaptureFutureOutcome::Panic(err) => {
+                                        Span::current().record("outcome", "panic");
+                                        Err(TurboTasksExecutionError::Panic(Arc::new(err)))
+                                    }
+                                };
                                 this.backend.task_execution_completed(
                                     task_id,
                                     result,

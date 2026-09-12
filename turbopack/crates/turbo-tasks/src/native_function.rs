@@ -10,7 +10,7 @@ use turbo_tasks_hash::DeterministicHasher;
 #[cfg(feature = "task_dirty_cause")]
 use crate::TaskDirtyCause;
 use crate::{
-    InputResolution, RawVc, TaskExecutionReason, TaskInput, TaskPersistence, TaskPriority,
+    InputResolution, RawVc, TaskExecutionReason, TaskId, TaskInput, TaskPersistence, TaskPriority,
     dyn_task_inputs::{
         DynTaskInputs, DynTaskInputsStorage, HeapDynTaskInputsStorage, StackDynTaskInputsStorage,
         any_as_encode,
@@ -217,6 +217,9 @@ pub struct NativeFunction {
     /// re-executed when restored from persistent cache because they depend on external state
     /// (filesystem, environment, network) that may change between sessions.
     pub is_session_dependent: bool,
+
+    /// Whether an in-flight execution may be aborted when invalidated or no longer active.
+    pub is_cancelable: bool,
 }
 impl_ptr_identity!(NativeFunction);
 
@@ -245,6 +248,7 @@ impl NativeFunction {
         ty: RegistryType::new::<()>("", ""),
         is_root: false,
         is_session_dependent: false,
+        is_cancelable: true,
     };
 
     pub const fn new<T: TaskFn>(
@@ -254,6 +258,7 @@ impl NativeFunction {
         implementation: &'static T,
         is_root: bool,
         is_session_dependent: bool,
+        is_cancelable: bool,
     ) -> Self {
         Self {
             ty: RegistryType::new::<T>(name, global_name),
@@ -261,6 +266,7 @@ impl NativeFunction {
             implementation,
             is_root,
             is_session_dependent,
+            is_cancelable,
         }
     }
 
@@ -278,8 +284,13 @@ impl NativeFunction {
         }
     }
 
+    pub fn name(&self) -> &'static str {
+        self.ty.name
+    }
+
     pub fn span(
         &'static self,
+        task_id: TaskId,
         persistence: TaskPersistence,
         reason: TaskExecutionReason,
         priority: TaskPriority,
@@ -301,6 +312,10 @@ impl NativeFunction {
                 flags = flags,
                 reason = reason.as_str(),
                 cause = cause.map(tracing::field::display),
+                task_id = %task_id,
+                cancelable = self.is_cancelable,
+                outcome = tracing::field::Empty,
+                abort_trigger = tracing::field::Empty,
                 inline_execution = tracing::field::Empty,
             )
         }
@@ -312,6 +327,10 @@ impl NativeFunction {
                 priority = %priority,
                 flags = flags,
                 reason = reason.as_str(),
+                task_id = %task_id,
+                cancelable = self.is_cancelable,
+                outcome = tracing::field::Empty,
+                abort_trigger = tracing::field::Empty,
                 inline_execution = tracing::field::Empty,
             )
         }

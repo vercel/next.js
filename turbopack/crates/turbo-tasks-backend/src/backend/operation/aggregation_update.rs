@@ -36,7 +36,10 @@ use tracing::span::Span;
 use tracing::trace_span;
 #[cfg(feature = "task_dirty_cause")]
 use turbo_tasks::TaskDirtyCause;
-use turbo_tasks::{FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, event::EventDescription};
+use turbo_tasks::{
+    FxIndexMap, TaskExecutionReason, TaskId, TaskPriority, backend::TaskExecutionAbortReason,
+    event::EventDescription,
+};
 
 use crate::{
     backend::{
@@ -47,7 +50,7 @@ use crate::{
         },
         storage_schema::TaskStorageAccessors,
     },
-    data::{ActivenessState, AggregationNumber, CollectibleRef},
+    data::{ActivenessState, AggregationNumber, CollectibleRef, InProgressState},
     utils::swap_retain,
 };
 
@@ -3187,6 +3190,17 @@ impl AggregationUpdateQueue {
         let is_empty = state.is_empty();
         if is_empty {
             task.take_activeness();
+        }
+        // If activeness dropped to zero, no caller cares anymore, abort it if in flight.
+        if is_zero && let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress() {
+            let native_fn = in_progress.native_fn;
+            let outcome = in_progress.request_abort(TaskExecutionAbortReason::Inactive);
+            ctx.track_abort_request(
+                task_id,
+                native_fn,
+                TaskExecutionAbortReason::Inactive,
+                outcome,
+            );
         }
         debug_assert!(
             !(is_new && is_zero),

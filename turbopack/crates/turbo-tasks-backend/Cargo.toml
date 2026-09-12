@@ -44,6 +44,7 @@ bitfield = { workspace = true }
 crossbeam-utils = { workspace = true }
 dashmap = { workspace = true, features = ["raw-api"]}
 fs-err = { workspace = true }
+futures = { workspace = true }
 hashbrown = { workspace = true }
 indexmap = { workspace = true }
 jiff = "0.2.10"
@@ -69,7 +70,6 @@ thread_local = { workspace = true }
 [dev-dependencies]
 async-trait = { workspace = true }
 criterion = { workspace = true, features = ["async_tokio"] }
-futures = { workspace = true }
 indoc = { workspace = true }
 regex = { workspace = true }
 tempfile = { workspace = true }

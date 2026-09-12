@@ -182,6 +182,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
         let is_self_used = default.as_ref().map(is_self_used).unwrap_or(false);
         let is_root = func_args.root.is_some();
+        let is_cancelable = func_args.non_cancelable.is_none();
         let Some(turbo_fn) = TurboFn::new(
             sig,
             DefinitionContext::ValueTrait,
@@ -219,6 +220,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                 is_root: false,
                 is_session_dependent: false,
+                is_cancelable,
             };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);

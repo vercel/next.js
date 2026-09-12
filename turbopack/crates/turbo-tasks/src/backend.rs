@@ -18,6 +18,7 @@ use bincode::{
     error::{DecodeError, EncodeError},
     impl_borrow_decode,
 };
+use futures::future::AbortRegistration;
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
 use tracing::Span;
@@ -272,9 +273,28 @@ impl CachedTaskType {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum TaskExecutionAbortReason {
+    Invalidation = 1,
+    Inactive = 2,
+    Gc = 3,
+}
+
+impl TaskExecutionAbortReason {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Invalidation => "invalidation",
+            Self::Inactive => "inactive",
+            Self::Gc => "gc",
+        }
+    }
+}
+
 pub struct TaskExecutionSpec<'a> {
     pub future: Pin<Box<dyn Future<Output = Result<RawVc>> + Send + 'a>>,
     pub span: Span,
+    pub abort_registration: Option<AbortRegistration>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Default)]
@@ -622,6 +642,15 @@ pub trait Backend: Sized + Sync + Send {
 
     fn task_execution_canceled(&self, task: TaskId, turbo_tasks: &TurboTasks<Self>);
 
+    /// Called when an in-flight task execution is aborted because its result is no longer needed.
+    ///
+    /// Returns `Some(priority)` when the task remains live and must be re-run.
+    fn task_execution_aborted(
+        &self,
+        task: TaskId,
+        turbo_tasks: &TurboTasks<Self>,
+    ) -> Option<TaskPriority>;
+
     /// Called when a task's execution finishes.
     ///
     /// Returns `Some(priority)` if the task was invalidated again while executing and must be
@@ -784,6 +813,7 @@ mod cached_task_type_tests {
         &into_task_fn(dummy_fn_a),
         false,
         false,
+        true,
     );
 
     static FN_B: NativeFunction = NativeFunction::new(
@@ -793,6 +823,7 @@ mod cached_task_type_tests {
         &into_task_fn(dummy_fn_b),
         false,
         false,
+        true,
     );
 
     /// Build a `u64` hash for a `CachedTaskType` using its `Hash` impl and a `RandomState`.
