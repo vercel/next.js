@@ -42,28 +42,49 @@ export function AppRouterAnnouncer({ tree }: { tree: FlightRouterState }) {
   }, [])
 
   const [routeAnnouncement, setRouteAnnouncement] = useState('')
-  const previousTitle = useRef<string | undefined>(undefined)
+  const previousRoute = useRef<{
+    title: string
+    heading: string
+    pathname: string
+  } | null>(null)
 
+  // Every time the route changes, announce the new page following this
+  // priority: first the document title, otherwise the first h1, or if neither
+  // of those changed, the pathname from the URL. This methodology is inspired
+  // by Marcy Sutton's accessible client routing user testing. More information
+  // can be found here:
+  // https://www.gatsbyjs.com/blog/2019-07-11-user-testing-accessible-client-routing/
   useEffect(() => {
-    let currentTitle = ''
-    if (document.title) {
-      currentTitle = document.title
-    } else {
-      const pageHeader = document.querySelector('h1')
-      if (pageHeader) {
-        currentTitle = pageHeader.innerText || pageHeader.textContent || ''
-      }
+    const title = document.title
+    const pageHeader = document.querySelector('h1')
+    const heading = pageHeader
+      ? pageHeader.innerText || pageHeader.textContent || ''
+      : ''
+    // `HistoryUpdater` writes the new URL in an insertion effect, which runs
+    // before this passive effect, so `location` already reflects the route that
+    // was just committed.
+    const pathname = window.location.pathname
+
+    const previous = previousRoute.current
+    previousRoute.current = { title, heading, pathname }
+
+    // Don't announce the first load, because screen readers do that
+    // automatically.
+    if (previous === null) {
+      return
     }
 
-    // Only announce the title change, but not for the first load because screen
-    // readers do that automatically.
-    if (
-      previousTitle.current !== undefined &&
-      previousTitle.current !== currentTitle
-    ) {
-      setRouteAnnouncement(currentTitle)
+    // Announce the first of these that actually changed. Falling through
+    // matters when two routes share a document title (e.g. `/docs` and
+    // `/docs/intro` rendered by the same layout): before, the title was the
+    // only source that was ever considered, so nothing was announced at all.
+    if (title && title !== previous.title) {
+      setRouteAnnouncement(title)
+    } else if (heading && heading !== previous.heading) {
+      setRouteAnnouncement(heading)
+    } else if (pathname !== previous.pathname) {
+      setRouteAnnouncement(pathname)
     }
-    previousTitle.current = currentTitle
   }, [tree])
 
   return portalNode ? createPortal(routeAnnouncement, portalNode) : null
