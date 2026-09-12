@@ -9,6 +9,8 @@ export type RelevantCompilerOptions = {
   baseUrl?: string
   /** Absolute directory containing an inherited paths option without baseUrl. */
   pathsBasePath?: string
+  incremental?: boolean
+  composite?: boolean
 }
 
 function resolveConfigDirValue(
@@ -149,6 +151,16 @@ function loadTsConfigOptionsRecursive(
   }
 
   const currentOptions = config.compilerOptions ?? {}
+
+  // Carry `incremental`/`composite` through the extends chain. Assign whenever
+  // the key is present (not just when truthy) so an explicit `false` in a child
+  // config correctly overrides an inherited `true`.
+  if (Object.hasOwn(currentOptions, 'incremental')) {
+    mergedOptions.incremental = Boolean(currentOptions.incremental)
+  }
+  if (Object.hasOwn(currentOptions, 'composite')) {
+    mergedOptions.composite = Boolean(currentOptions.composite)
+  }
 
   if (Object.hasOwn(currentOptions, 'paths')) {
     mergedOptions.paths = currentOptions.paths
