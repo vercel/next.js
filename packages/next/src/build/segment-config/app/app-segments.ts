@@ -18,13 +18,65 @@ import {
   type LoaderTree,
 } from '../../../server/lib/app-dir-module'
 import type { DynamicParamTypes } from '../../../shared/lib/app-router-types'
+import { isPlainObject } from '../../../shared/lib/is-plain-object'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
+
+export const PRERENDER_PARAM_MODES = [
+  'not-found',
+  'blocking',
+  'fallback',
+  'dynamic',
+] as const
+
+export type PrerenderParamMode = (typeof PRERENDER_PARAM_MODES)[number]
+
+export type PrerenderMatcher = Record<string, PrerenderParamMode>
+
+function validateMatcherExport(
+  route: string,
+  filePath: string | undefined,
+  exportName: string,
+  value: unknown,
+  visibleParamNames: readonly string[]
+): PrerenderMatcher {
+  if (!isPlainObject(value)) {
+    const valueType =
+      value === null ? 'null' : Array.isArray(value) ? 'array' : typeof value
+    throw new Error(
+      `Invalid value from \`${exportName}\` for "${route}". Expected an object, but received ${valueType}.`
+    )
+  }
+
+  const matcher: PrerenderMatcher = {}
+  for (const [paramName, mode] of Object.entries(
+    value as Record<string, unknown>
+  )) {
+    if (!visibleParamNames.includes(paramName)) {
+      throw new Error(
+        `Invalid parameter "${paramName}" in \`${exportName}\` for "${route}". The export in "${filePath}" may only configure parameters defined at or above its segment.`
+      )
+    }
+    if (!PRERENDER_PARAM_MODES.includes(mode as PrerenderParamMode)) {
+      throw new Error(
+        `Invalid mode for parameter "${paramName}" in \`${exportName}\` for "${route}". Expected "not-found", "blocking", "fallback", or "dynamic", but received ${JSON.stringify(mode)}.`
+      )
+    }
+    matcher[paramName] = mode as PrerenderParamMode
+  }
+
+  return matcher
+}
 
 /**
  * Parses the app config and attaches it to the segment.
  */
-function attach(segment: AppSegment, userland: unknown, route: string) {
+function attach(
+  segment: AppSegment,
+  userland: unknown,
+  route: string,
+  visibleParamNames: readonly string[]
+) {
   // If the userland is not an object, then we can't do anything with it.
   if (typeof userland !== 'object' || userland === null) {
     return
@@ -61,6 +113,45 @@ function attach(segment: AppSegment, userland: unknown, route: string) {
       )
     }
   }
+
+  const hasStaticMatcher = 'experimental_paramMatching' in userland
+  const hasGeneratedMatcher = 'experimental_generateParamMatching' in userland
+
+  if (hasStaticMatcher || hasGeneratedMatcher) {
+    if (hasStaticMatcher && hasGeneratedMatcher) {
+      throw new Error(
+        `Route "${route}" cannot export both \`experimental_paramMatching\` and \`experimental_generateParamMatching\`.`
+      )
+    }
+
+    if (hasStaticMatcher) {
+      segment.prerenderMatcher = validateMatcherExport(
+        route,
+        segment.filePath,
+        'experimental_paramMatching',
+        userland.experimental_paramMatching,
+        visibleParamNames
+      )
+    } else {
+      const generate = userland.experimental_generateParamMatching
+      if (typeof generate !== 'function') {
+        throw new Error(
+          `Route "${route}" must export \`experimental_generateParamMatching\` as a function.`
+        )
+      }
+      const { filePath } = segment
+      // Retain the module's scope without evaluating user code until static
+      // path generation has established its work store and cache context.
+      segment.prerenderMatcher = async () =>
+        validateMatcherExport(
+          route,
+          filePath,
+          'experimental_generateParamMatching',
+          await generate(),
+          visibleParamNames
+        )
+    }
+  }
 }
 
 export type AppSegment = {
@@ -69,9 +160,21 @@ export type AppSegment = {
   paramType: DynamicParamTypes | undefined
   filePath: string | undefined
   config: AppSegmentConfig | undefined
+  prerenderMatcher:
+    | PrerenderMatcher
+    | (() => Promise<PrerenderMatcher>)
+    | undefined
   generateStaticParams: GenerateStaticParams | undefined
   createEmptyParamsError?: () => Error
 }
+
+// Each occurrence has its own children, but occurrences of the same module
+// share an AppSegment. The flat list keeps one entry per module for parameter
+// generation.
+export type AppSegmentTree = [
+  segment: AppSegment,
+  parallelRoutes: AppSegmentTree[],
+]
 
 /**
  * Walks the loader tree and collects the generate parameters for each segment.
@@ -83,12 +186,23 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
   // We keep track of unique segments, since with parallel routes, it's possible
   // to see the same segment multiple times.
   const segments: AppSegment[] = []
+  const segmentTree: AppSegmentTree[] = []
 
   // Queue will store loader trees.
-  const queue: LoaderTree[] = [routeModule.userland.loaderTree]
+  const queue: Array<{
+    loaderTree: LoaderTree
+    visibleParamNames: string[]
+    parentChildren: AppSegmentTree[]
+  }> = [
+    {
+      loaderTree: routeModule.userland.loaderTree,
+      visibleParamNames: [],
+      parentChildren: segmentTree,
+    },
+  ]
 
   while (queue.length > 0) {
-    const loaderTree = queue.shift()!
+    const { loaderTree, visibleParamNames, parentChildren } = queue.shift()!
     const [name, parallelRoutes] = loaderTree
 
     // Process current node
@@ -96,6 +210,9 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     const isClientComponent = userland && isClientReference(userland)
 
     const param = getSegmentParam(name)
+    const currentVisibleParamNames = param
+      ? [...visibleParamNames, param.paramName]
+      : visibleParamNames
 
     const segment: AppSegment = {
       name,
@@ -103,36 +220,47 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
       paramType: param?.paramType,
       filePath,
       config: undefined,
+      prerenderMatcher: undefined,
       generateStaticParams: undefined,
     }
 
     // Only server components can have app segment configurations
     if (!isClientComponent) {
-      attach(segment, userland, routeModule.definition.pathname)
+      attach(
+        segment,
+        userland,
+        routeModule.definition.pathname,
+        currentVisibleParamNames
+      )
     }
 
     // If this segment doesn't already exist, then add it to the segments array.
     // The list of segments is short so we just use a list traversal to check
     // for duplicates and spare us needing to maintain the string key.
-    if (
-      segments.every(
-        (s) =>
-          s.name !== segment.name ||
-          s.paramName !== segment.paramName ||
-          s.paramType !== segment.paramType ||
-          s.filePath !== segment.filePath
-      )
-    ) {
+    const existingSegment = segments.find(
+      (s) =>
+        s.name === segment.name &&
+        s.paramName === segment.paramName &&
+        s.paramType === segment.paramType &&
+        s.filePath === segment.filePath
+    )
+    if (!existingSegment) {
       segments.push(segment)
     }
+    const children: AppSegmentTree[] = []
+    parentChildren.push([existingSegment ?? segment, children])
 
     // Add all parallel routes to the queue
     for (const parallelRoute of Object.values(parallelRoutes)) {
-      queue.push(parallelRoute)
+      queue.push({
+        loaderTree: parallelRoute,
+        visibleParamNames: currentVisibleParamNames,
+        parentChildren: children,
+      })
     }
   }
 
-  return segments
+  return { segments, segmentTree }
 }
 
 /**
@@ -141,9 +269,7 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
  * @param routeModule the app route module
  * @returns the segments for the app route module
  */
-async function collectAppRouteSegments(
-  routeModule: AppRouteRouteModule
-): Promise<AppSegment[]> {
+async function collectAppRouteSegments(routeModule: AppRouteRouteModule) {
   // The route file may be an async module (top-level await), so the userland
   // module must be resolved before its exports can be inspected.
   await routeModule.ensureUserland()
@@ -164,6 +290,7 @@ async function collectAppRouteSegments(
       paramType: param?.paramType,
       filePath: undefined,
       config: undefined,
+      prerenderMatcher: undefined,
       generateStaticParams: undefined,
     } satisfies AppSegment
   })
@@ -175,9 +302,13 @@ async function collectAppRouteSegments(
   segment.filePath = routeModule.definition.filename
 
   // Extract the segment config from the userland module.
-  attach(segment, routeModule.userland, routeModule.definition.pathname)
+  attach(segment, routeModule.userland, routeModule.definition.pathname, [])
 
-  return segments
+  let segmentTree: AppSegmentTree[] = []
+  for (let index = segments.length - 1; index >= 0; index--) {
+    segmentTree = [[segments[index], segmentTree]]
+  }
+  return { segments, segmentTree }
 }
 
 /**
@@ -188,7 +319,7 @@ async function collectAppRouteSegments(
  */
 export function collectSegments(
   routeModule: AppRouteRouteModule | AppPageRouteModule
-): Promise<AppSegment[]> | AppSegment[] {
+) {
   if (isAppRouteRouteModule(routeModule)) {
     return collectAppRouteSegments(routeModule)
   }

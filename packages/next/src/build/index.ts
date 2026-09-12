@@ -129,6 +129,7 @@ import { writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
+  printPrerenderMatchers,
   printCustomRoutes,
   printTreeView,
   copyTracedFiles,
@@ -146,6 +147,8 @@ import type {
   PrerenderedRoute,
 } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
+import type { PrerenderMatcher } from './segment-config/app/app-segments'
+import { validatePrerenderMatcherCoherence } from './static-paths/prerender-matcher'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
 import isError from '../lib/is-error'
@@ -2177,6 +2180,10 @@ export default async function build(
       const additionalPaths = new Map<string, PrerenderedRoute[]>()
       const staticPaths = new Map<string, PrerenderedRoute[]>()
       const prerenderRouteMatchers = new Map<string, PrerenderRouteMatcher[]>()
+      const paramMatchingByRoute = new Map<
+        string,
+        PrerenderMatcher | undefined
+      >()
       const appNormalizedPaths = new Map<string, string>()
       const fallbackModes = new Map<string, FallbackMode>()
       const appDefaultConfigs = new Map<string, AppSegmentConfig>()
@@ -2296,6 +2303,9 @@ export default async function build(
               distDir,
               configFileName,
               cacheComponents: isAppCacheComponentsEnabled,
+              experimentalParamMatching: Boolean(
+                config.experimental.paramMatching
+              ),
               authInterrupts: isAuthInterruptsEnabled,
               useCacheTimeout: config.experimental.useCacheTimeout,
               durableUseCacheEntries: Boolean(
@@ -2530,6 +2540,9 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             cacheComponents: isAppCacheComponentsEnabled,
+                            experimentalParamMatching: Boolean(
+                              config.experimental.paramMatching
+                            ),
                             authInterrupts: isAuthInterruptsEnabled,
                             useCacheTimeout:
                               config.experimental.useCacheTimeout,
@@ -2557,6 +2570,17 @@ export default async function build(
                       )
 
                       if (pageType === 'app' && originalAppPath) {
+                        if (
+                          config.experimental.paramMatching &&
+                          !isAppRouteRoute(originalAppPath)
+                        ) {
+                          // Include pages without exports: an omitted policy
+                          // cannot silently inherit another route's closure.
+                          paramMatchingByRoute.set(
+                            originalAppPath,
+                            workerResult.prerenderMatcher
+                          )
+                        }
                         appNormalizedPaths.set(originalAppPath, page)
                         // TODO-APP: handle prerendering with edge
                         if (isEdgeRuntime(pageRuntime)) {
@@ -2590,9 +2614,11 @@ export default async function build(
                               originalAppPath,
                               workerResult.prerenderedRoutes
                             )
-                            ssgPageRoutes = workerResult.prerenderedRoutes.map(
-                              (route) => route.pathname
-                            )
+                            ssgPageRoutes = workerResult.prerenderedRoutes
+                              .filter(
+                                (route) => route.isPrerenderOutput !== false
+                              )
+                              .map((route) => route.pathname)
                             isSSG = true
                           }
 
@@ -2779,6 +2805,10 @@ export default async function build(
               })
             })
         )
+
+        if (config.experimental.paramMatching) {
+          validatePrerenderMatcherCoherence(paramMatchingByRoute)
+        }
 
         const errorPageResult = await errorPageStaticResult
         const nonStaticErrorPage =
@@ -3161,7 +3191,6 @@ export default async function build(
               sortedStaticPaths.forEach(([originalAppPath, routes]) => {
                 const appConfig = appDefaultConfigs.get(originalAppPath)
                 const isDynamicError = appConfig?.dynamic === 'error'
-
                 const isRoutePPREnabled: boolean = appConfig
                   ? isAppCacheComponentsEnabled
                   : false
@@ -3188,6 +3217,9 @@ export default async function build(
                     page: originalAppPath,
                     _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
+                    _hasNotFoundParams:
+                      fallbackModes.get(originalAppPath) ===
+                      FallbackMode.NOT_FOUND,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
                     _isRoutePPREnabled: isRoutePPREnabled,
@@ -3265,13 +3297,16 @@ export default async function build(
             prerenderCandidate: PrerenderedRoute | undefined,
             hasEmptyStaticShell: boolean | undefined
           ) => {
-            // If the route has an empty static shell and is not configured to
-            // throw on empty static shell, then we should use the blocking
-            // static render mode.
+            // An unconfigured parameter uses its shell to infer the miss mode.
+            // This is separate from validation: even a required validation
+            // render can be empty when the user opts out with instant=false.
+            // Without matching configuration, preserve the existing heuristic
+            // for optional, more generic shells.
             if (
               prerenderCandidate &&
               hasEmptyStaticShell &&
-              !prerenderCandidate.throwOnEmptyStaticShell &&
+              (matcher.isFallbackModeInferred ||
+                !prerenderCandidate.throwOnEmptyStaticShell) &&
               matcher.fallbackMode === FallbackMode.PRERENDER
             ) {
               return FallbackMode.BLOCKING_STATIC_RENDER
@@ -3893,8 +3928,14 @@ export default async function build(
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
-                  throwOnEmptyStaticShell:
-                    prerenderCandidate?.throwOnEmptyStaticShell,
+                  // Only PPR routes use static-shell validation. Without a
+                  // build-time prerender, false lets runtime rendering resolve
+                  // the remaining prerenderable params during the static phase.
+                  throwOnEmptyStaticShell: isRoutePPREnabled
+                    ? prerenderCandidate
+                      ? prerenderCandidate.throwOnEmptyStaticShell
+                      : false
+                    : undefined,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -4644,6 +4685,13 @@ export default async function build(
           hasGSPAndRevalidateZero,
         })
       )
+
+      if (
+        config.experimental.paramMatching &&
+        process.env.NEXT_PRIVATE_DEBUG_PARAM_MATCHING
+      ) {
+        printPrerenderMatchers(prerenderManifest, routesManifest.dynamicRoutes)
+      }
 
       if (bundler === Bundler.Turbopack) {
         await nextBuildSpan

@@ -1,6 +1,7 @@
 import type { FallbackMode } from '../../lib/fallback'
 import type { Params } from '../../server/request/params'
 import type { DynamicParamTypes } from '../../shared/lib/app-router-types'
+import type { PrerenderMatcher } from '../segment-config/app/app-segments'
 
 type StaticPrerenderedRoute = {
   readonly params: Params
@@ -10,6 +11,7 @@ type StaticPrerenderedRoute = {
   readonly fallbackMode: FallbackMode | undefined
   readonly fallbackRootParams: undefined
   remainingPrerenderableParams?: undefined
+  readonly isPrerenderOutput?: undefined
 
   /**
    * When enabled, the route will be rendered with diagnostics enabled which
@@ -46,6 +48,12 @@ type FallbackPrerenderedRoute = {
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
 
   /**
+   * False when this candidate is rendered only to validate its static shell.
+   * It must not be registered as a concrete prerender cache output.
+   */
+  readonly isPrerenderOutput?: false
+
+  /**
    * When enabled, the route will be rendered with diagnostics enabled which
    * will error the build if the route that is generated is empty.
    */
@@ -76,6 +84,12 @@ export type PrerenderRouteMatcher = {
   readonly pathname: string
   readonly fallbackRouteParams: readonly FallbackRouteParam[]
   readonly fallbackMode: FallbackMode | undefined
+  /**
+   * The first unresolved prerenderable parameter has no explicit policy.
+   * Its trial fallback becomes blocking if rendering produces an empty shell,
+   * independently of whether that shell also requires instant validation.
+   */
+  readonly isFallbackModeInferred?: true
   readonly fallbackRootParams: readonly string[]
   readonly remainingPrerenderableParams?: readonly FallbackRouteParam[]
 }
@@ -88,4 +102,16 @@ export type StaticPathsResult = {
 
   /** Logical request matchers, independent of the artifacts rendered for them. */
   prerenderRouteMatchers?: PrerenderRouteMatcher[]
+
+  /** Whether fallback modes came from explicit parameter matching. */
+  hasPrerenderMatcher?: true
+
+  /** Explicit policies after inheritance, before build-time inference. */
+  prerenderMatcher?: PrerenderMatcher
+
+  /**
+   * DEV only: the first explicitly configured fallback parameter and every
+   * parameter after it remain unknown during staged rendering and validation.
+   */
+  explicitFallbackRouteParams?: readonly FallbackRouteParam[]
 }
