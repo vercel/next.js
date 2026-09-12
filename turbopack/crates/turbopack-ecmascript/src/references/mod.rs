@@ -2024,7 +2024,18 @@ where
                     && meta_prop.as_str() == "url"
                 {
                     let pat = js_value_to_pattern(url);
-                    if !pat.has_constant_parts() {
+                    // An undefined default does not constrain an otherwise dynamic URL. Keep
+                    // other static alternatives so their assets are still resolved and emitted.
+                    let has_constant_parts = match url {
+                        JsValue::Alternatives { values, .. } if pat.has_dynamic_parts() => {
+                            values.iter().any(|value| {
+                                !matches!(value, JsValue::Constant(JsConstantValue::Undefined))
+                                    && js_value_to_pattern(value).has_constant_parts()
+                            })
+                        }
+                        _ => pat.has_constant_parts(),
+                    };
+                    if !has_constant_parts {
                         let (args, hints) = explain_args(args);
                         handler.span_warn_with_code(
                             span,
