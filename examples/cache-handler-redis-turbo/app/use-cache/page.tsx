@@ -13,7 +13,7 @@ type UselessFact = {
  * This function's return value is cached via the plural `cacheHandlers`
  * API — pointed at `cache-components-handler.js` in next.config.js.
  * The cached entry is shared across all server instances through Redis,
- * and `revalidateTag("use-cache-fact", "max")` invalidates it on every
+ * and `updateTag("use-cache-fact")` invalidates it on every
  * instance.
  *
  * Falls back to a placeholder when the API is unreachable (e.g. during

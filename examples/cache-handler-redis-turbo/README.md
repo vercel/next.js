@@ -1,18 +1,20 @@
 # Next.js Redis Cache Integration Example (Turbo Redis Cache)
 
-This example demonstrates a self-hosted Next.js setup using Redis as a shared
-cache with [`@trieb.work/nextjs-turbo-redis-cache`](https://www.npmjs.com/package/@trieb.work/nextjs-turbo-redis-cache).
+This example shows a production Redis cache for self-hosted Next.js using
+[`@trieb.work/nextjs-turbo-redis-cache`](https://www.npmjs.com/package/@trieb.work/nextjs-turbo-redis-cache).
 
-It covers **both** Next.js cache handler interfaces side by side:
+The [`cache-handler-redis`](../cache-handler-redis) example is the canonical
+no-dependency starting point: both Next.js cache APIs against the `redis`
+client directly. Use this example when you want a maintained package with GET
+timeouts, request coalescing, an in-memory tag map, key-space notifications,
+and TLS / multi-instance ops knobs.
+
+It covers **both** Next.js cache handler interfaces:
 
 | Interface | Used by | Handler file |
 | --- | --- | --- |
-| `cacheHandler` (singular) | Pages Router ISR, on-demand revalidation | `cache-handler.js` |
+| `cacheHandler` (singular) | ISR for App and Pages Router, on-demand revalidation | `cache-handler.js` |
 | `cacheHandlers` (plural) | `'use cache'` directive, `cacheComponents: true` (Next.js 16+) | `cache-components-handler.js` |
-
-The existing [`cache-handler-redis`](../cache-handler-redis) example uses
-`@neshca/cache-handler`, which does not support Next.js 16 Cache Components
-(`peerDependencies.next: ">= 13.5.1 < 15"`). This example fills that gap.
 
 ## How to use
 
@@ -68,10 +70,10 @@ Open [http://localhost:3000](http://localhost:3000) and navigate to:
 - **`/cet`** or **`/gmt`** — Time demo using `'use cache'` with
   `cacheLife("minutes")` and `cacheTag("time-data")`. Shows the current time,
   a cache-state watcher, and a "Revalidate" button that calls
-  `revalidateTag("time-data", "max")`.
+  `updateTag("time-data")`.
 - **`/use-cache`** — Cache Components demo (plural `cacheHandlers`). Uses the
   `'use cache'` directive with `cacheLife("minutes")` and `cacheTag(...)`.
-  The "Revalidate" button calls `revalidateTag("use-cache-fact", "max")`, which
+  The "Revalidate" button calls `updateTag("use-cache-fact")`, which
   invalidates the cached entry across all server instances sharing the Redis
   cache.
 

@@ -1,9 +1,10 @@
 /**
- * ISR / Pages Router cache handler (singular `cacheHandler` API).
+ * ISR cache handler (singular `cacheHandler` API) for App and Pages Router.
  *
- * Uses `RedisStringsHandler` from `@trieb.work/nextjs-turbo-redis-cache`.
- * During `PHASE_PRODUCTION_BUILD` the handler is replaced with a no-op so
- * `next build` does not require a running Redis instance.
+ * Next.js constructs this class and calls get/set/revalidateTag on the
+ * instance. The constructor only initializes a module-level singleton
+ * (`RedisStringsHandler`, or a no-op during `PHASE_PRODUCTION_BUILD`);
+ * the methods below delegate to it.
  */
 const { PHASE_PRODUCTION_BUILD } = require("next/constants");
 
@@ -12,7 +13,7 @@ let cachedHandler;
 class CacheHandler {
   constructor() {
     if (cachedHandler) {
-      return cachedHandler;
+      return;
     }
 
     // No-op during build phase — Redis is a runtime concern only.
@@ -23,7 +24,7 @@ class CacheHandler {
         revalidateTag: () => Promise.resolve(undefined),
         resetRequestCache: () => Promise.resolve(undefined),
       };
-      return cachedHandler;
+      return;
     }
 
     // Lazily import so the Redis client is only created at runtime.
@@ -39,8 +40,6 @@ class CacheHandler {
       // Optional: isolate cache entries per deployment.
       // keyPrefix: process.env.VERCEL_URL ?? "turbo-example:",
     });
-
-    return cachedHandler;
   }
 
   get(...args) {

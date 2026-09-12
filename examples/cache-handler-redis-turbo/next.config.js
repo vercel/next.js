@@ -3,15 +3,13 @@
  *
  * This example demonstrates TWO Next.js cache interfaces side by side:
  *
- *  1. `cacheHandler` (singular) — used by ISR / Pages Router / on-demand
+ *  1. `cacheHandler` (singular) — ISR for App and Pages Router, on-demand
  *     revalidation. Pointed at `./cache-handler.js`.
- *  2. `cacheHandlers` (plural) — used by the `'use cache'` directive and
- *     `cacheComponents: true` (Next.js 16+). Pointed at
- *     `./cache-components-handler.js`.
+ *  2. `cacheHandlers` (plural) — `'use cache'` with `cacheComponents: true`.
+ *     Pointed at `./cache-components-handler.js`.
  *
- * The existing `examples/cache-handler-redis` example only covers (1) via
- * `@neshca/cache-handler`, which does not support Next.js 16 Cache Components.
- * This example shows both, using `@trieb.work/nextjs-turbo-redis-cache`.
+ * The canonical no-dependency Redis example is `examples/cache-handler-redis`.
+ * This example wires the same two APIs through `@trieb.work/nextjs-turbo-redis-cache`.
  *
  * Redis is only needed at runtime, not at build time. The handlers below
  * no-op during `PHASE_PRODUCTION_BUILD` so `next build` works without a
