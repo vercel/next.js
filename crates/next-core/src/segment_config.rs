@@ -18,8 +18,7 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault, Vc, trace::TraceRawVcs,
-    util::WrapFuture,
+    JoinIterExt, NonLocalValue, ResolvedVc, ValueDefault, Vc, trace::TraceRawVcs, util::WrapFuture,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -1362,11 +1361,11 @@ async fn parse_segment_config_from_loader_tree_internal(
         .parallel_routes
         .values()
         .map(|loader_tree| Box::pin(parse_segment_config_from_loader_tree_internal(loader_tree)))
-        .try_join()
-        .await?;
+        .join()
+        .await;
 
     for tree in parallel_configs {
-        config.apply_parallel_config(&tree)?;
+        config.apply_parallel_config(&tree?)?;
     }
 
     let modules = &loader_tree.modules;

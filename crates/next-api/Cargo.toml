@@ -24,6 +24,7 @@ bincode = { workspace = true }
 byteorder = { workspace = true }
 either = { workspace = true }
 futures = { workspace = true }
+itertools = { workspace = true }
 indexmap = { workspace = true }
 itertools = { workspace = true }
 next-core = { workspace = true }

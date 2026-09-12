@@ -17,8 +17,8 @@ use tracing::{Instrument, Level};
 use turbo_frozenmap::{FrozenMap, FrozenSet};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
-    ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
+    FxIndexMap, JoinIterExt, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, ValueToString, ValueToStringRef, Vc, trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemEntryType, FileSystemPath, RealPathErrorType};
 use turbo_unix_path::normalize_request;
@@ -316,12 +316,15 @@ impl ModuleResolveResult {
     /// Returns primary modules (no duplicates). Emits errors for Unknown items.
     /// Duplicates are already marked at construction time so no extra dedup is
     /// needed here.
-    pub async fn primary_modules(&self) -> Result<Vec<ResolvedVc<Box<dyn Module>>>> {
+    pub async fn primary_modules(&self) -> Result<SmallVec<[ResolvedVc<Box<dyn Module>>; 2]>> {
         self.primary
             .iter()
             .map(async |(_, item)| item.as_module().await)
-            .try_flat_join()
+            .join()
             .await
+            .into_iter()
+            .filter_map(Result::transpose)
+            .collect()
     }
 
     /// Returns the first module in the result, or None.
@@ -3961,7 +3964,7 @@ mod tests {
 
             // primary_modules() yields each module exactly once, in first-seen order.
             let modules = result.primary_modules().await?;
-            assert_eq!(modules, vec![m_a, m_b]);
+            assert_eq!(modules.as_slice(), [m_a, m_b]);
 
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
@@ -3995,7 +3998,7 @@ mod tests {
             .await?;
 
             assert_eq!(result.first_module().await?, Some(m));
-            assert_eq!(result.primary_modules().await?, vec![m]);
+            assert_eq!(result.primary_modules().await?.as_slice(), [m]);
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
         tt.run_once(async move {
@@ -4037,7 +4040,7 @@ mod tests {
                 ModuleResolveResultItem::Module(m),
             );
             let result: ModuleResolveResult = builder.into();
-            assert_eq!(result.primary_modules().await?, vec![m]);
+            assert_eq!(result.primary_modules().await?.as_slice(), [m]);
             Ok(Vc::cell(snapshot_primary(&result).await?))
         }
         tt.run_once(async move {
@@ -4074,7 +4077,7 @@ mod tests {
             let r2 = *ModuleResolveResult::module(m_b);
 
             let merged = ModuleResolveResult::alternatives(vec![r1, r2]).await?;
-            assert_eq!(merged.primary_modules().await?, vec![m_a, m_b]);
+            assert_eq!(merged.primary_modules().await?.as_slice(), [m_a, m_b]);
 
             // Verify every Duplicate(i) is well-formed
             for (i, (_, item)) in merged.primary.iter().enumerate() {

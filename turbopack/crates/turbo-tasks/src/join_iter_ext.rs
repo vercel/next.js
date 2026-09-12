@@ -85,6 +85,16 @@ where
     ///
     /// Unlike `Futures::future::try_join_all`, this returns the Error that
     /// occurs first in the list of futures, not the first to fail in time.
+    ///
+    /// This is a convenience wrapper over [`JoinIterExt::join`], which resolves
+    /// to the `Vec<Result<T>>` without collapsing it. Use `join` directly when
+    /// the results feed a different collection or need per-item handling:
+    ///
+    /// ```ignore
+    /// let map = pairs.iter().map(read).join().await
+    ///     .into_iter()
+    ///     .collect::<Result<FxHashMap<_, _>>>()?;
+    /// ```
     fn try_join(self) -> TryJoin<F>;
 }
 

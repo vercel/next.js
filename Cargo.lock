@@ -10496,6 +10496,7 @@ dependencies = [
  "either",
  "erased-serde",
  "indexmap 2.14.0",
+ "itertools 0.10.5",
  "num-bigint",
  "patricia_tree",
  "petgraph 0.8.3",
