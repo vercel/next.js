@@ -216,11 +216,10 @@ pub async fn resolve_source_map_sources(
 }
 
 fn unencoded_str_to_raw_value(unencoded: &str) -> Box<RawValue> {
-    RawValue::from_string(
-        serde_json::to_string(unencoded)
-            .expect("serialization of a utf-8 string should always succeed"),
-    )
-    .expect("serde_json::to_string should produce valid JSON")
+    let encoded = serde_json::to_string(unencoded)
+        .expect("serialization of a utf-8 string should always succeed");
+    // SAFETY: `encoded` was just produced by `serde_json::to_string`.
+    unsafe { RawValue::from_string_unchecked(encoded) }
 }
 
 fn uri_encode_path(path: &str) -> String {
