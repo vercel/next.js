@@ -44,7 +44,7 @@ use crate::next_api::turbopack_ctx::NextTurbopackContext;
 /// passed to a [`turbo_tasks::function`].
 //
 /// A `DetachedVc` holds its operation's task alive against garbage collection for as long as the
-/// handle exists, and releases it when the handle is dropped.
+/// handle exists.
 pub struct DetachedVc<T> {
     turbopack_ctx: NextTurbopackContext,
     /// Pins the operation to prevent GC, and holds the `Vc` itself. Must be unresolved, otherwise
@@ -53,11 +53,8 @@ pub struct DetachedVc<T> {
 }
 
 impl<T> DetachedVc<T> {
-    /// Adds a pin of its own rather than adopting one: the operations handed to `DetachedVc`
-    /// come out of a computation (e.g. the `OperationVc`s inside `EntrypointsOperation`), so they
-    /// were created *with* a parent and never received the session pin that
-    /// `initialize_new_task` gives parentless tasks.
     pub fn new(turbopack_ctx: NextTurbopackContext, vc: OperationVc<T>) -> Self {
+        // Pin the operation's task so GC treats this out-of-graph handle as a root.
         let gc_root = GcRoot::pin(turbopack_ctx.turbo_tasks().clone(), vc);
         Self {
             turbopack_ctx,
