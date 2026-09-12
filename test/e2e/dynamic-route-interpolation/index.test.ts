@@ -1,7 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
+const fs = require('fs')
 
 describe('Dynamic Route Interpolation', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -81,5 +82,25 @@ describe('Dynamic Route Interpolation', () => {
         })
       }
     })
+
+    // Turbopack doesn't encode file paths based on the file name, so this is only relevant to Webpack
+    if (!isTurbopack) {
+      it('should support partially encoded paths', async () => {
+        const modalChunk = await fs.promises.readdir(
+          next.testDir +
+            '/.next/static/chunks/app/@modal/(...)comments/[productId]'
+        )
+
+        // Piece the path to the chunk together but only encode the productId section of it
+        const partiallyEncodedPath =
+          '/_next/static/chunks/app/@modal/(...)comments/%5BproductId%5D/' +
+          modalChunk
+
+        const { status: partiallyEncodedPathReqStatus } =
+          await next.fetch(partiallyEncodedPath)
+
+        expect(partiallyEncodedPathReqStatus).toBe(200)
+      })
+    }
   }
 })
