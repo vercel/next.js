@@ -8,6 +8,8 @@ export {
   getRequestInsightKey,
   getRequestInsightKind,
   getRequestInsightSource,
+  REQUEST_INSIGHT_PROXY_SPAN_TYPE,
+  REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsightIdentity,
   type RequestInsightKind,
   type RequestInsightProxyStatus,

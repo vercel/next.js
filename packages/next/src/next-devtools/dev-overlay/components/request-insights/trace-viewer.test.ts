@@ -1,6 +1,11 @@
-import type { RequestInsight } from '../../../shared/request-insights'
+import {
+  REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+  type RequestInsight,
+} from '../../../shared/request-insights'
+import { getRequestInsightFilterResult } from './request-filters'
 import {
   getActiveRequestKey,
+  getRequestInsightRowType,
   getRequestListEntries,
   isPageLoadRequest,
 } from './request-list'
@@ -62,7 +67,7 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('nests internal records directly after their request row', () => {
+  it('nests internal records under their owning request', () => {
     const newerRequest = createRequest({ requestId: 'newer' })
     const olderRequest = createRequest({ requestId: 'older' })
     const newerInstantInsights = createRequest({
@@ -92,42 +97,82 @@ describe('request insights trace viewer', () => {
     ])
   })
 
-  it('keeps orphaned internal records top-level and in root ordering', () => {
-    const request = createRequest({ requestId: 'present' })
-    const presentInstantInsights = createRequest({
-      requestId: 'present',
-      kind: 'instant-insights',
-    })
-    const orphanInstantInsights = createRequest({
-      requestId: 'evicted',
+  it('keeps internal records without a retained owner at the root', () => {
+    const instantInsights = createRequest({
+      requestId: 'orphan',
       kind: 'instant-insights',
     })
 
-    const entries = getRequestListEntries(
-      [presentInstantInsights, orphanInstantInsights, request],
-      true
-    )
-
-    expect(entries).toEqual([
-      { request: orphanInstantInsights, nested: false },
-      { request, nested: false },
-      { request: presentInstantInsights, nested: true },
+    expect(getRequestListEntries([instantInsights], true)).toEqual([
+      { request: instantInsights, nested: false },
     ])
-    // Every record appears exactly once.
-    expect(new Set(entries.map((entry) => entry.request)).size).toBe(
-      entries.length
-    )
-    expect(entries).toHaveLength(3)
+  })
+
+  it('labels and filters normalized request activity', () => {
+    const requestSpan = (rsc: boolean) => ({
+      name: 'GET',
+      startTime: 100,
+      attributes: {
+        'next.span_type': REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+        'next.rsc': rsc,
+      },
+    })
+    const page = createRequest({
+      requestId: 'page',
+      source: 'page',
+      spans: [requestSpan(false)],
+      fetches: [{ cacheStatus: 'miss' }],
+    })
+    const rsc = createRequest({
+      requestId: 'rsc',
+      source: 'page',
+      spans: [requestSpan(true)],
+    })
+    const api = createRequest({ requestId: 'api', source: 'app-route' })
+    const asset = createRequest({ requestId: 'asset', source: 'asset' })
+
+    expect(getRequestInsightRowType(page, true).label).toBe('Page load')
+    expect(getRequestInsightRowType(rsc).label).toBe('RSC')
+    expect(getRequestInsightRowType(api).label).toBe('API')
+    expect(getRequestInsightRowType(asset).label).toBe('Asset')
+    expect(
+      getRequestInsightFilterResult(
+        [page, rsc, api],
+        ['source:page', 'cache:miss']
+      ).requests
+    ).toEqual([page])
+    expect(
+      getRequestInsightFilterResult([page, rsc, api, asset], ['source:api'])
+        .requests
+    ).toEqual([api])
+    expect(
+      getRequestInsightFilterResult([page, rsc, api, asset], ['source:asset'])
+        .requests
+    ).toEqual([asset])
   })
 
   it('only marks the exact initial document request as the page load', () => {
     const initialRequestId = 'document-request'
+    const htmlSpan = {
+      name: 'GET',
+      startTime: 100,
+      attributes: {
+        'next.span_type': REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
+        'next.rsc': false,
+      },
+    }
+    const rscSpan = {
+      ...htmlSpan,
+      attributes: { ...htmlSpan.attributes, 'next.rsc': true },
+    }
 
     expect(
       isPageLoadRequest(
         createRequest({
-          requestId: initialRequestId,
+          requestId: 'server-owned-request',
+          source: 'page',
           htmlRequestId: initialRequestId,
+          spans: [htmlSpan],
         }),
         initialRequestId
       )
@@ -136,7 +181,9 @@ describe('request insights trace viewer', () => {
       isPageLoadRequest(
         createRequest({
           requestId: 'related-rsc-request',
+          source: 'page',
           htmlRequestId: initialRequestId,
+          spans: [rscSpan],
         }),
         initialRequestId
       )
@@ -145,7 +192,9 @@ describe('request insights trace viewer', () => {
       isPageLoadRequest(
         createRequest({
           requestId: initialRequestId,
+          source: 'instant-insights',
           kind: 'instant-insights',
+          spans: [htmlSpan],
         }),
         initialRequestId
       )
