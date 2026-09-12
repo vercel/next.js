@@ -75,7 +75,7 @@ it('inlines short primitive exports during code generation', () => {
   expect(source).toContain('false')
   expect(source).toContain('null')
   expect(source).toContain('void 0')
-  expect(source).not.toContain('TURBOPACK compile-time value')
+  expect(source).toContain('TURBOPACK compile-time value')
   expect(source).not.toContain('shortString')
   expect(source).not.toContain('smallNumber')
   expect(readStaticNamespace.toString()).not.toContain('staticNamespace')
