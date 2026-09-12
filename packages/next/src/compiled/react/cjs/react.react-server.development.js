@@ -506,7 +506,7 @@
       return new WeakMap();
     }
     function createCacheNode() {
-      return { s: 0, v: void 0, o: null, p: null };
+      return { s: 0, v: void 0, o: null, p: null, u: null };
     }
     var ReactSharedInternals = {
         H: null,
@@ -874,5 +874,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.3.0-canary-ff8f88fc-20260915";
+    exports.version = "19.3.0";
   })();

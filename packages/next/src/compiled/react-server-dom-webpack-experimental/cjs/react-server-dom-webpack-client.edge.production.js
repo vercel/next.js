@@ -136,6 +136,7 @@ var ReactDOMSharedInternals =
     ReactDOM.__DOM_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE,
   REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+  REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -740,6 +741,109 @@ function createServerReference$1(id, callServer, encodeFormAction) {
   registerBoundServerReference(action, id, null, encodeFormAction);
   return action;
 }
+function createLedgerCell(type) {
+  switch (type.kind) {
+    case 0:
+      return { kind: 0, state: !1 };
+    case 1:
+      return { kind: 1, state: 0 };
+    case 2:
+      return { kind: 2, state: null };
+    case 3:
+      return { kind: 3, state: null };
+    default:
+      return { kind: 4, state: new Set() };
+  }
+}
+function readLedgerTotal(total) {
+  var graph = total.graph;
+  if (null !== graph) {
+    var dirty = graph.dirtyUnits;
+    if (null !== dirty) {
+      graph.totals.forEach(function (record) {
+        updateLedgerTotal(record, dirty);
+      });
+      for (var unit = dirty; null !== unit; ) {
+        var next = unit.nextDirty;
+        unit.isQueued = !1;
+        unit.nextDirty = null;
+        unit = next;
+      }
+      graph.dirtyUnits = null;
+    }
+  }
+  unit = total.cell;
+  null === unit &&
+    ((total.cell = unit = createLedgerCell(total.type)),
+    (total.visitedUnits = new WeakSet()),
+    updateLedgerTotal(total, null));
+  null !== graph &&
+    (graph.closed
+      ? ((total.graph = null), (total.visitedUnits = null))
+      : graph.isTracking || (graph.isTracking = !0));
+  return unit;
+}
+function updateLedgerTotal(total, dirty) {
+  var acc = total.cell,
+    visitedUnits = total.visitedUnits;
+  if (null !== acc && null !== visitedUnits) {
+    for (var type = total.type, queue = []; null !== dirty; )
+      visitedUnits.has(dirty) && queue.push(dirty), (dirty = dirty.nextDirty);
+    total = total.pendingCaptureUnits;
+    for (dirty = 0; dirty < total.length; dirty++) {
+      var unit = total[dirty];
+      visitedUnits.has(unit) || (visitedUnits.add(unit), queue.push(unit));
+    }
+    for (dirty = 0; dirty < queue.length; dirty++) {
+      unit = queue[dirty];
+      var cells = unit.cells;
+      cells = null === cells ? void 0 : cells.get(type);
+      if (void 0 !== cells)
+        switch (acc.kind) {
+          case 0:
+            acc.state = acc.state || cells.state;
+            break;
+          case 1:
+            acc.state = (acc.state | cells.state) >>> 0;
+            break;
+          case 2:
+            cells = cells.state;
+            var previous = acc.state;
+            null !== cells &&
+              (null === previous || cells < previous) &&
+              (acc.state = cells);
+            break;
+          case 3:
+            cells = cells.state;
+            previous = acc.state;
+            null !== cells &&
+              (null === previous || cells > previous) &&
+              (acc.state = cells);
+            break;
+          case 4:
+            cells.state.forEach(function (entry) {
+              acc.state.add(entry);
+            });
+        }
+      cells = unit.references;
+      if (null !== cells)
+        for (previous = 0; previous < cells.length; previous++) {
+          var target = cells[previous];
+          visitedUnits.has(target) ||
+            (visitedUnits.add(target), queue.push(target));
+        }
+      unit = unit.children;
+      if (null !== unit)
+        for (cells = 0; cells < unit.length; cells++)
+          (previous = unit[cells]),
+            (target = previous.capturedLedgers),
+            (null !== target && -1 !== target.indexOf(type)) ||
+              visitedUnits.has(previous) ||
+              (visitedUnits.add(previous), queue.push(previous));
+    }
+    total.length = 0;
+  }
+}
 var ObjectPrototype = Object.prototype,
   ArrayPrototype = Array.prototype;
 function ReactPromise(status, value, reason) {
@@ -759,6 +863,9 @@ Object.defineProperty(ReactPromise.prototype, "then", {
         break;
       case "resolved_module":
         initializeModuleChunk(this);
+        break;
+      case "resolved_ledger":
+        initializeLedgerChunk(this);
     }
     switch (this.status) {
       case "fulfilled":
@@ -787,6 +894,9 @@ function readChunk(chunk) {
       break;
     case "resolved_module":
       initializeModuleChunk(chunk);
+      break;
+    case "resolved_ledger":
+      initializeLedgerChunk(chunk);
   }
   switch (chunk.status) {
     case "fulfilled":
@@ -799,6 +909,9 @@ function readChunk(chunk) {
     default:
       throw chunk.reason;
   }
+}
+function createPendingChunk() {
+  return new ReactPromise("pending", null, null);
 }
 function wakeChunk(response, listeners, value, chunk) {
   for (var i = 0; i < listeners.length; i++) {
@@ -1033,6 +1146,7 @@ function initializeModuleChunk(chunk) {
 function reportGlobalError(weakResponse, error) {
   weakResponse._closed = !0;
   weakResponse._closedReason = error;
+  resolveLedgerTotalsAtClose(weakResponse);
   weakResponse._chunks.forEach(function (chunk) {
     "pending" === chunk.status
       ? triggerErrorOnChunk(weakResponse, chunk, error)
@@ -1056,7 +1170,7 @@ function getChunk(response, id) {
       ? response._allowPartialStream
         ? new ReactPromise("halted", null, null)
         : new ReactPromise("rejected", null, response._closedReason)
-      : new ReactPromise("pending", null, null)),
+      : createPendingChunk()),
     chunks.set(id, chunk));
   return chunk;
 }
@@ -1152,19 +1266,19 @@ function fulfillReference(response, reference, value) {
       value.$$typeof === REACT_LAZY_TYPE;
 
     ) {
-      var referencedChunk$45 = value._payload;
-      if (referencedChunk$45 === handler.chunk) value = handler.value;
+      var referencedChunk$51 = value._payload;
+      if (referencedChunk$51 === handler.chunk) value = handler.value;
       else {
-        switch (referencedChunk$45.status) {
+        switch (referencedChunk$51.status) {
           case "resolved_model":
-            initializeModelChunk(referencedChunk$45);
+            initializeModelChunk(referencedChunk$51);
             break;
           case "resolved_module":
-            initializeModuleChunk(referencedChunk$45);
+            initializeModuleChunk(referencedChunk$51);
         }
-        switch (referencedChunk$45.status) {
+        switch (referencedChunk$51.status) {
           case "fulfilled":
-            value = referencedChunk$45.value;
+            value = referencedChunk$51.value;
             continue;
         }
         break;
@@ -1534,6 +1648,12 @@ function parseModelString(response, parentObject, key, value) {
         );
       case "S":
         return Symbol.for(value.slice(2));
+      case "y":
+        response = getResponseLedgers(response).totals.get(
+          parseInt(value.slice(2), 16)
+        );
+        if (void 0 !== response) return response.chunk;
+        return;
       case "h":
         return (
           (value = value.slice(2)),
@@ -1629,6 +1749,7 @@ function ResponseInstance(
   this._closedReason = null;
   this._allowPartialStream = allowPartialStream;
   this._tempRefs = temporaryReferences;
+  this._ledgers = null;
 }
 function resolveBuffer(response, id, buffer) {
   response = response._chunks;
@@ -1730,8 +1851,8 @@ function startReadableStream(response, id, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$59 = new ReactPromise("pending", null, null);
-        chunk$59.then(
+        var chunk$66 = createPendingChunk();
+        chunk$66.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -1739,10 +1860,10 @@ function startReadableStream(response, id, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$59;
+        previousBlockedChunk = chunk$66;
         chunk.then(function () {
-          previousBlockedChunk === chunk$59 && (previousBlockedChunk = null);
-          resolveModelChunk(response, chunk$59, json);
+          previousBlockedChunk === chunk$66 && (previousBlockedChunk = null);
+          resolveModelChunk(response, chunk$66, json);
         });
       }
     },
@@ -1798,7 +1919,7 @@ function startAsyncIterable(response, id, iterator) {
             { done: !0, value: void 0 },
             null
           );
-        buffer[nextReadIndex] = new ReactPromise("pending", null, null);
+        buffer[nextReadIndex] = createPendingChunk();
       }
       return buffer[nextReadIndex++];
     });
@@ -1879,11 +2000,7 @@ function startAsyncIterable(response, id, iterator) {
           for (
             closed = !0,
               nextWriteIndex === buffer.length &&
-                (buffer[nextWriteIndex] = new ReactPromise(
-                  "pending",
-                  null,
-                  null
-                ));
+                (buffer[nextWriteIndex] = createPendingChunk());
             nextWriteIndex < buffer.length;
 
           )
@@ -1899,12 +2016,82 @@ function resolveErrorProd() {
   error.stack = "Error: " + error.message;
   return error;
 }
+function getResponseLedgers(response) {
+  var ledgers = response._ledgers;
+  null === ledgers &&
+    (response._ledgers = ledgers =
+      {
+        totals: new Map(),
+        types: new Map(),
+        units: new Map(),
+        isTracking: !1,
+        dirtyUnits: null,
+        closed: !1
+      });
+  return ledgers;
+}
+function resolveLedgerTotalsAtClose(response) {
+  var ledgers = response._ledgers;
+  null !== ledgers &&
+    ((ledgers.closed = !0),
+    ledgers.totals.forEach(function (record) {
+      var chunk = record.chunk;
+      if ("pending" === chunk.status) {
+        var resolveListeners = chunk.value,
+          rejectListeners = chunk.reason;
+        chunk.status = "resolved_ledger";
+        chunk.value = record;
+        chunk.reason = response;
+        null !== resolveListeners
+          ? (initializeLedgerChunk(chunk),
+            wakeChunkIfInitialized(
+              response,
+              chunk,
+              resolveListeners,
+              rejectListeners
+            ))
+          : null !== record.cell && initializeLedgerChunk(chunk);
+      }
+    }));
+}
+function initializeLedgerChunk(chunk) {
+  var JSCompiler_inline_result = readLedgerTotal(chunk.value);
+  JSCompiler_inline_result =
+    4 === JSCompiler_inline_result.kind
+      ? new Set(JSCompiler_inline_result.state)
+      : JSCompiler_inline_result.state;
+  chunk.status = "fulfilled";
+  chunk.value =
+    null === JSCompiler_inline_result ? void 0 : JSCompiler_inline_result;
+  chunk.reason = null;
+}
+function getOrCreateUnit(ledgers, id) {
+  var unit = ledgers.units.get(id);
+  void 0 === unit &&
+    ((unit = {
+      children: null,
+      capturedLedgers: null,
+      cells: null,
+      references: null,
+      isQueued: !1,
+      nextDirty: null
+    }),
+    ledgers.units.set(id, unit));
+  return unit;
+}
+function markUnitDirty(ledgers, unit) {
+  ledgers.isTracking &&
+    !unit.isQueued &&
+    ((unit.isQueued = !0),
+    (unit.nextDirty = ledgers.dirtyUnits),
+    (ledgers.dirtyUnits = unit));
+}
 function mergeBuffer(buffer, lastChunk) {
   for (var l = buffer.length, byteLength = lastChunk.length, i = 0; i < l; i++)
     byteLength += buffer[i].byteLength;
   byteLength = new Uint8Array(byteLength);
-  for (var i$60 = (i = 0); i$60 < l; i$60++) {
-    var chunk = buffer[i$60];
+  for (var i$70 = (i = 0); i$70 < l; i$70++) {
+    var chunk = buffer[i$70];
     byteLength.set(chunk, i);
     i += chunk.byteLength;
   }
@@ -2072,6 +2259,131 @@ function processFullBinaryRow(response, streamState, id, tag, buffer, chunk) {
         "fulfilled" === id.status &&
         id.reason.close("" === buffer ? '"$undefined"' : buffer);
       break;
+    case 75:
+      a: {
+        switch (buffer.charCodeAt(0)) {
+          case 48:
+            buffer = 0;
+            break;
+          case 49:
+            buffer = 1;
+            break;
+          case 50:
+            buffer = 2;
+            break;
+          case 51:
+            buffer = 3;
+            break;
+          case 52:
+            buffer = 4;
+            break;
+          default:
+            break a;
+        }
+        getResponseLedgers(response).types.set(id, { kind: buffer });
+      }
+      break;
+    case 89:
+      buffer = parseInt(buffer, 16);
+      response = getResponseLedgers(response);
+      tag = response.types.get(buffer);
+      void 0 !== tag &&
+        ((buffer = createPendingChunk()),
+        (tag = {
+          chunk: buffer,
+          type: tag,
+          pendingCaptureUnits: [],
+          graph: response,
+          cell: null,
+          visitedUnits: null
+        }),
+        response.totals.set(id, tag),
+        (buffer.$$typeof = REACT_LEDGER_TOTAL_TYPE),
+        (buffer.total = tag));
+      break;
+    case 81:
+      buffer = parseModel(response, buffer);
+      response = getResponseLedgers(response);
+      tag = response.units;
+      id = getOrCreateUnit(response, id);
+      chunk = buffer[0];
+      null !== chunk &&
+        ((tag = tag.get(parseInt(chunk, 16))),
+        void 0 !== tag &&
+          ((chunk = tag.children),
+          null === chunk && (tag.children = chunk = []),
+          chunk.push(id),
+          markUnitDirty(response, tag)));
+      buffer = buffer[1];
+      if (0 !== buffer.length) {
+        tag = response.totals;
+        chunk = [];
+        for (streamState = 0; streamState < buffer.length; streamState++)
+          (row = tag.get(parseInt(buffer[streamState], 16))),
+            void 0 !== row &&
+              (chunk.push(row.type), row.pendingCaptureUnits.push(id));
+        id.capturedLedgers = chunk;
+      }
+      markUnitDirty(response, id);
+      break;
+    case 90:
+      buffer = parseModel(response, buffer);
+      tag = getResponseLedgers(response);
+      id = tag.units.get(id);
+      if (
+        void 0 !== id &&
+        ((response = tag.types.get(parseInt(buffer[0], 16))),
+        void 0 !== response)
+      )
+        switch (
+          (markUnitDirty(tag, id),
+          (tag = id.cells),
+          null === tag && (id.cells = tag = new Map()),
+          (id = tag.get(response)),
+          void 0 === id && tag.set(response, (id = createLedgerCell(response))),
+          id.kind)
+        ) {
+          case 0:
+            id.state = !0;
+            break;
+          case 1:
+            id.state = (id.state | buffer[1]) >>> 0;
+            break;
+          case 2:
+            response = buffer[1];
+            buffer = id.state;
+            if (null === buffer || response < buffer) id.state = response;
+            break;
+          case 3:
+            response = buffer[1];
+            buffer = id.state;
+            if (null === buffer || response > buffer) id.state = response;
+            break;
+          default:
+            for (
+              response = buffer[1], buffer = 0;
+              buffer < response.length;
+              buffer++
+            )
+              id.state.add(response[buffer]);
+        }
+      break;
+    case 70:
+      buffer = parseModel(response, buffer);
+      response = getResponseLedgers(response);
+      tag = response.units.get(id);
+      if (void 0 !== tag)
+        for (
+          markUnitDirty(response, tag),
+            id = tag.references,
+            null === id && (tag.references = id = []),
+            tag = 0;
+          tag < buffer.length;
+          tag++
+        )
+          (chunk = getOrCreateUnit(response, parseInt(buffer[tag], 16))),
+            id.push(chunk);
+      break;
     default:
       (tag = response._chunks),
         (chunk = tag.get(id))
@@ -2134,6 +2446,7 @@ function reviveModel(response, value, parentObject, key) {
 function close(weakResponse) {
   weakResponse._allowPartialStream
     ? ((weakResponse._closed = !0),
+      resolveLedgerTotalsAtClose(weakResponse),
       weakResponse._chunks.forEach(function (chunk) {
         "pending" === chunk.status || "pending_weak" === chunk.status
           ? ((chunk.status = "halted"),

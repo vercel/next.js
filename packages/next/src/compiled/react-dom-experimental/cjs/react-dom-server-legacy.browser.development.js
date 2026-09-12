@@ -67,6 +67,10 @@
           if (isArrayImpl(value)) return "[...]";
           if (null !== value && value.$$typeof === CLIENT_REFERENCE_TAG)
             return "client";
+          if (null !== value && value.$$typeof === REACT_LEDGER_DATA_TYPE)
+            return "LedgerData";
+          if (null !== value && value.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+            return "LedgerTotal";
           value = objectName(value);
           return "Object" === value ? "{...}" : value;
         case "function":
@@ -154,6 +158,10 @@
         objKind = "<" + describeElementType(objectOrArray.type) + "/>";
       else {
         if (objectOrArray.$$typeof === CLIENT_REFERENCE_TAG) return "client";
+        if (objectOrArray.$$typeof === REACT_LEDGER_DATA_TYPE)
+          return "LedgerData";
+        if (objectOrArray.$$typeof === REACT_LEDGER_TOTAL_TYPE)
+          return "LedgerTotal";
         if (jsxPropsParents.has(objectOrArray)) {
           objKind = jsxPropsParents.get(objectOrArray);
           objKind = "<" + (describeElementType(objKind) || "...");
@@ -9340,6 +9348,8 @@
       REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
       REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       REACT_RECOVERABLE_TYPE = Symbol.for("react.recoverable"),
+      REACT_LEDGER_TOTAL_TYPE = Symbol.for("react.ledger_total"),
+      REACT_LEDGER_DATA_TYPE = Symbol.for("react.ledger_data"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       REACT_OPTIMISTIC_KEY = Symbol.for("react.optimistic_key"),
@@ -10732,6 +10742,7 @@
         cacheSignal: function () {
           throw Error("Not implemented.");
         },
+        units: null,
         getOwner: function () {
           return null === currentTaskInDEV
             ? null
@@ -10825,5 +10836,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.3.0-experimental-ff8f88fc-20260915";
+    exports.version = "19.3.0";
   })();
