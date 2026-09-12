@@ -6,11 +6,27 @@ import { getGitInfo } from './git-info.mjs'
 
 const DEFAULT_PREVIEW_BUILDS_BASE_URL =
   'https://vercel-packages.vercel.app/next'
-// Comfortably above the slowest observed build-and-deploy plus
-// upload-preview-tarballs, which together have topped out around 27 minutes.
+// This is the ordinary no-publication window. Once it elapses, the waiter
+// consults the matching producer instead of assuming every build finishes in
+// less than 30 minutes.
 const DEFAULT_TIMEOUT_MINUTES = 30
 const POLL_INTERVAL_MS = 15_000
+const PRODUCER_POLL_INTERVAL_MS = 60_000
 const PROGRESS_LOG_INTERVAL_MS = 60_000
+// A native build normally finishes well inside 30 minutes, but GitHub runner
+// contention and retries can extend it. Keep a generous hard bound while the
+// matching producer is demonstrably making progress instead of applying this
+// bound blindly from the start of the waiter.
+const PRODUCER_TIMEOUT_MS = 120 * 60_000
+// A rerun is commonly queued just after a failed attempt. Keep polling briefly
+// before treating a terminal producer as final so the waiter can observe the
+// incremented run_attempt instead of racing the retry click.
+const PRODUCER_RETRY_GRACE_MS = 2 * 60_000
+// Once build-and-deploy succeeds, upload-preview-tarballs normally starts in a
+// few seconds and finishes in under two minutes. Ten minutes isolates uploader
+// failures without confusing them with a still-running producer.
+const UPLOAD_GRACE_MS = 10 * 60_000
+const BUILD_AND_DEPLOY_WORKFLOW = 'build_and_deploy.yml'
 
 /**
  * Mints a GitHub Actions OIDC token for the given audience.
@@ -148,6 +164,106 @@ function commitChecksUrl(commitSha) {
 }
 
 /**
+ * Returns a getter for the build-and-deploy run that produces `commitSha`, or
+ * null outside GitHub Actions. A re-run keeps the same run ID and increments
+ * `run_attempt`, so polling this endpoint follows retries without guessing
+ * which attempt will eventually publish the tarball.
+ *
+ * @param {string} commitSha
+ * @param {string} [branchName]
+ * @returns {null | (() => Promise<{
+ *   state: 'active' | 'success' | 'failure',
+ *   runId: number,
+ *   attempt: number,
+ *   conclusion: string | null,
+ *   createdAt: number,
+ *   completedAt: number | null,
+ *   url: string,
+ * } | null>)}
+ */
+export function createBuildAndDeployRunGetter(commitSha, branchName) {
+  const apiUrl = process.env.GITHUB_API_URL
+  const repository = process.env.GITHUB_REPOSITORY
+  const token = process.env.GITHUB_TOKEN
+  if (!apiUrl || !repository || !token) {
+    return null
+  }
+
+  return async () => {
+    const url = new URL(
+      `${apiUrl}/repos/${repository}/actions/workflows/${BUILD_AND_DEPLOY_WORKFLOW}/runs`
+    )
+    // Pull-request workflow runs report the synthetic merge commit as
+    // `head_sha`, so locate those by head branch and verify pull_requests.head
+    // below. Push and workflow-dispatch runs can be filtered by the real SHA.
+    if (process.env.GITHUB_EVENT_NAME === 'pull_request' && branchName) {
+      url.searchParams.set('event', 'pull_request')
+      url.searchParams.set('branch', branchName)
+    } else {
+      url.searchParams.set('head_sha', commitSha)
+    }
+    url.searchParams.set('per_page', '20')
+
+    const response = await fetch(url, {
+      headers: {
+        accept: 'application/vnd.github+json',
+        authorization: `Bearer ${token}`,
+        'x-github-api-version': '2022-11-28',
+      },
+    })
+    if (!response.ok) {
+      throw new Error(`GitHub Actions API returned ${response.status}`)
+    }
+
+    /** @type {{ workflow_runs: Array<{
+     * id: number, head_sha: string, status: string, conclusion: string | null,
+     * run_attempt: number, created_at: string, updated_at: string,
+     * html_url: string,
+     * pull_requests?: Array<{ head: { sha: string } }>,
+     * }> }} */
+    const { workflow_runs: workflowRuns } = await response.json()
+    const runs = workflowRuns
+      .filter(
+        (run) =>
+          run.head_sha === commitSha ||
+          run.pull_requests?.some(
+            (pullRequest) => pullRequest.head.sha === commitSha
+          )
+      )
+      .sort(
+        (left, right) =>
+          Date.parse(right.created_at) - Date.parse(left.created_at)
+      )
+    if (runs.length === 0) {
+      return null
+    }
+
+    // Prefer a currently running retry, then a successful producer, then the
+    // newest terminal failure. Multiple workflow_dispatch runs can exist for a
+    // SHA, whereas ordinary retries update one run in place.
+    const run =
+      runs.find((candidate) => candidate.status !== 'completed') ??
+      runs.find((candidate) => candidate.conclusion === 'success') ??
+      runs[0]
+    return {
+      state:
+        run.status !== 'completed'
+          ? 'active'
+          : run.conclusion === 'success'
+            ? 'success'
+            : 'failure',
+      runId: run.id,
+      attempt: run.run_attempt,
+      conclusion: run.conclusion,
+      createdAt: Date.parse(run.created_at),
+      completedAt:
+        run.status === 'completed' ? Date.parse(run.updated_at) : null,
+      url: run.html_url,
+    }
+  }
+}
+
+/**
  * Requests the tarball with `HEAD` so polling stays cheap: a `GET` would
  * download the whole multi-megabyte tarball on every attempt.
  *
@@ -262,6 +378,18 @@ export async function assertPreviewTarballPublished({
  * @param {number} options.timeoutMs
  * @param {() => Promise<string | null>} [options.getReadToken]
  * @param {number} [options.pollIntervalMs]
+ * @param {number} [options.producerPollIntervalMs]
+ * @param {number} [options.producerTimeoutMs]
+ * @param {number} [options.producerRetryGraceMs]
+ * @param {number} [options.uploadGraceMs]
+ * @param {null | (() => Promise<{
+ *   state: 'active' | 'success' | 'failure', runId: number, attempt: number,
+ *   conclusion: string | null, createdAt: number, completedAt: number | null,
+ *   url: string,
+ * } | null>)} [options.getProducerRun]
+ * @param {typeof probeTarball} [options.probe]
+ * @param {() => number} [options.now]
+ * @param {(milliseconds: number) => Promise<void>} [options.sleep]
  * @returns {Promise<void>}
  */
 export async function waitForPreviewTarball({
@@ -270,11 +398,25 @@ export async function waitForPreviewTarball({
   timeoutMs,
   getReadToken = async () => null,
   pollIntervalMs = POLL_INTERVAL_MS,
+  producerPollIntervalMs = PRODUCER_POLL_INTERVAL_MS,
+  producerTimeoutMs = PRODUCER_TIMEOUT_MS,
+  producerRetryGraceMs = PRODUCER_RETRY_GRACE_MS,
+  uploadGraceMs = UPLOAD_GRACE_MS,
+  getProducerRun = null,
+  probe = probeTarball,
+  now = Date.now,
+  sleep = setTimeout,
 }) {
   const url = previewTarballUrl(previewBuildsBaseUrl, commitSha, 'next')
-  const startedAt = Date.now()
-  const deadline = startedAt + timeoutMs
+  const startedAt = now()
+  const ordinaryDeadline = startedAt + timeoutMs
   let lastProgressLogAt = startedAt
+  let nextProducerProbeAt = startedAt
+  let checkedProducerAtOrdinaryDeadline = false
+  let producerRun = null
+  let producerError = null
+  let producerFailureObservedAt = null
+  let producerFailureKey = null
 
   console.info(
     `Waiting up to ${formatDuration(timeoutMs)} for the preview tarball at ${url}`
@@ -283,13 +425,15 @@ export async function waitForPreviewTarball({
   for (;;) {
     // A fresh token per probe: the OIDC token expires after five minutes,
     // well before the overall timeout.
-    const { published, status, lastResponse, responseHeaders } =
-      await probeTarball(url, await requestHeaders(getReadToken))
-    const now = Date.now()
+    const { published, status, lastResponse, responseHeaders } = await probe(
+      url,
+      await requestHeaders(getReadToken)
+    )
+    const checkedAt = now()
 
     if (published) {
       console.info(
-        `Preview tarball for commit ${commitSha} is available after ${formatDuration(now - startedAt)}`
+        `Preview tarball for commit ${commitSha} is available after ${formatDuration(checkedAt - startedAt)}`
       )
       return
     }
@@ -302,25 +446,95 @@ export async function waitForPreviewTarball({
       )
     }
 
-    if (now >= deadline) {
-      throw notPublishedError({
-        commitSha,
-        lastResponse,
-        responseHeaders,
-        timeoutMs,
-      })
+    if (
+      getProducerRun !== null &&
+      (checkedAt >= nextProducerProbeAt ||
+        (checkedAt >= ordinaryDeadline && !checkedProducerAtOrdinaryDeadline))
+    ) {
+      try {
+        producerRun = await getProducerRun()
+        producerError = null
+      } catch (error) {
+        producerError = error instanceof Error ? error.message : String(error)
+      }
+      nextProducerProbeAt = checkedAt + producerPollIntervalMs
+      if (checkedAt >= ordinaryDeadline) {
+        checkedProducerAtOrdinaryDeadline = true
+      }
     }
 
-    if (now - lastProgressLogAt >= PROGRESS_LOG_INTERVAL_MS) {
+    let deadline = ordinaryDeadline
+    if (checkedAt >= ordinaryDeadline) {
+      if (getProducerRun === null || producerRun === null) {
+        throw notPublishedError({
+          commitSha,
+          lastResponse:
+            lastResponse +
+            (producerError ? `; producer lookup failed: ${producerError}` : ''),
+          responseHeaders,
+          timeoutMs,
+        })
+      }
+
+      const producerDescription = `build-and-deploy run ${producerRun.runId} attempt ${producerRun.attempt}`
+      if (producerRun.state === 'failure') {
+        const failureKey = `${producerRun.runId}:${producerRun.attempt}`
+        const failureObservedAt =
+          producerFailureKey === failureKey &&
+          producerFailureObservedAt !== null
+            ? producerFailureObservedAt
+            : checkedAt
+        producerFailureKey = failureKey
+        producerFailureObservedAt = failureObservedAt
+        deadline = failureObservedAt + producerRetryGraceMs
+        if (checkedAt >= deadline) {
+          throw new Error(
+            `Preview tarball for commit ${commitSha} was not published because ${producerDescription} ` +
+              `finished with ${producerRun.conclusion} and no retry started within ` +
+              `${formatDuration(producerRetryGraceMs)}. See ${producerRun.url}`
+          )
+        }
+      } else {
+        producerFailureObservedAt = null
+        producerFailureKey = null
+      }
+
+      if (producerRun.state === 'active') {
+        deadline = producerRun.createdAt + producerTimeoutMs
+        if (checkedAt >= deadline) {
+          throw new Error(
+            `Preview tarball for commit ${commitSha} was not published because ${producerDescription} ` +
+              `did not finish within ${formatDuration(producerTimeoutMs)}. See ${producerRun.url}`
+          )
+        }
+      } else if (producerRun.state === 'success') {
+        deadline = (producerRun.completedAt ?? checkedAt) + uploadGraceMs
+        if (checkedAt >= deadline) {
+          throw new Error(
+            `Preview tarball for commit ${commitSha} was not published within ` +
+              `${formatDuration(uploadGraceMs)} after ${producerDescription} succeeded. ` +
+              `Check the upload-preview-tarballs workflow triggered by ${producerRun.url}`
+          )
+        }
+      }
+    }
+
+    if (checkedAt - lastProgressLogAt >= PROGRESS_LOG_INTERVAL_MS) {
+      const producerProgress = producerRun
+        ? `; build-and-deploy attempt ${producerRun.attempt} is ${producerRun.state}`
+        : producerError
+          ? `; producer lookup failed: ${producerError}`
+          : ''
       console.info(
-        `Still waiting after ${formatDuration(now - startedAt)} (last response: ${lastResponse})`
+        `Still waiting after ${formatDuration(checkedAt - startedAt)} ` +
+          `(last response: ${lastResponse}${producerProgress})`
       )
-      lastProgressLogAt = now
+      lastProgressLogAt = checkedAt
     }
 
-    // Capping the sleep at the remaining time keeps the last probe on the
-    // deadline rather than past it.
-    await setTimeout(Math.min(pollIntervalMs, deadline - now))
+    // Capping the sleep at the active policy deadline keeps the last probe on
+    // the boundary rather than after it.
+    await sleep(Math.min(pollIntervalMs, deadline - checkedAt))
   }
 }
 
@@ -338,7 +552,8 @@ async function main() {
   // same function via `getChangedTests` to build the URL it installs from. The
   // two have to agree, otherwise this waits for a tarball the tests never ask
   // for.
-  const commitSha = values['commit-sha'] ?? (await getGitInfo()).commitSha
+  const gitInfo = await getGitInfo()
+  const commitSha = values['commit-sha'] ?? gitInfo.commitSha
 
   const rawTimeoutMinutes = values['timeout-minutes']
   const timeoutMinutes =
@@ -356,6 +571,10 @@ async function main() {
     previewBuildsBaseUrl: values['preview-builds-base-url'],
     timeoutMs: timeoutMinutes * 60_000,
     getReadToken: createPreviewBuildsReadTokenGetter(),
+    getProducerRun: createBuildAndDeployRunGetter(
+      commitSha,
+      gitInfo.branchName
+    ),
   })
 }
 
