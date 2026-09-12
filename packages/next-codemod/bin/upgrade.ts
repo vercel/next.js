@@ -19,7 +19,7 @@ import {
 import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 import { refreshAgentRulesBlock } from '../lib/agents-md'
-import { BadInput } from './shared'
+import { BadInput, resolveEslintUpgradeTarget } from './shared'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
@@ -363,16 +363,22 @@ export async function runUpgrade(
     }
   }
 
-  // Bump `eslint` alongside `eslint-config-next` so the install doesn't fail
+  // Align `eslint` with `eslint-config-next` so the install doesn't fail
   // on a peer-dep mismatch. e.g. `eslint-config-next@16.x` requires
   // `eslint@>=9`, but a project upgrading from Next 15 will still have
-  // `eslint@^8` from create-next-app. Skip silently if anything goes wrong;
-  // the worst case is the user hits the same peer-dep error they would have
-  // without this bump.
+  // `eslint@^8` from create-next-app.
+  //
+  // A specifier that already satisfies the peer range is left untouched: the
+  // project may deliberately track an older major, e.g. when eslint plugins
+  // it uses do not support the newest eslint release yet. When a bump is
+  // required, pin the highest release of the lowest major satisfying the peer
+  // range instead of the newest eslint release.
   //
   // Only act when the project is actually using `eslint-config-next` — we
   // don't want to silently upgrade eslint majors for projects that use
-  // eslint for unrelated reasons.
+  // eslint for unrelated reasons. Skip silently if anything goes wrong;
+  // the worst case is the user hits the same peer-dep error they would have
+  // without this alignment.
   if (allDependencies['eslint'] && allDependencies['eslint-config-next']) {
     try {
       const eslintConfigNextPeerDepsJSON = execSync(
@@ -385,12 +391,16 @@ export async function runUpgrade(
           : JSON.parse(eslintConfigNextPeerDepsJSON)
       const eslintRange = eslintConfigNextPeerDeps?.eslint
       if (eslintRange) {
-        const targetEslintVersion = await loadHighestNPMVersionMatching(
-          `eslint@${eslintRange}`
+        const targetEslintVersion = await resolveEslintUpgradeTarget(
+          allDependencies['eslint'],
+          eslintRange,
+          loadHighestNPMVersionMatching
         )
-        versionMapping['eslint'] = {
-          version: targetEslintVersion,
-          required: false,
+        if (targetEslintVersion) {
+          versionMapping['eslint'] = {
+            version: targetEslintVersion,
+            required: false,
+          }
         }
       }
     } catch (e) {
