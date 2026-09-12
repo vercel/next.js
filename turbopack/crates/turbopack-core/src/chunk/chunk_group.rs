@@ -6,7 +6,8 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
+    FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs, turbobail,
 };
 
 use super::{
@@ -18,6 +19,7 @@ use crate::{
         ChunkGroupContent, ChunkGroupContentInner, ChunkableModule, ChunkingType, Chunks,
         available_modules::{AvailableModuleItem, AvailableModulesSet},
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
+        worker_type::WorkerType,
     },
     emit_collect::CollectingModule,
     module::{Module, Modules},
@@ -32,6 +34,7 @@ use crate::{
         module_batches::{BatchingConfig, ModuleBatchesGraphEdge},
     },
     output::OutputAssetsReference,
+    resolve::origin::ResolveOrigin,
 };
 
 pub struct MakeChunkGroupResult {
@@ -73,6 +76,7 @@ pub async fn make_chunk_group(
         batch_groups,
         async_modules,
         collecting_modules,
+        worker_modules,
         available_modules: _,
     } = &*inner;
 
@@ -179,6 +183,84 @@ pub async fn make_chunk_group(
 
     chunk_items.extend(async_loader_chunk_items);
 
+    // Insert worker loaders for every worker module.
+    //
+    // Web workers get this chunk group's `new_availability_info`, which is what unrolls a
+    // self-referencing worker: the nested loader sees the worker entry as already available, so
+    // its chunk group comes out empty and the recursion bottoms out.
+    //
+    // Node worker threads get `AvailabilityInfo::root()` instead, for two reasons:
+    //
+    // - Their entry chunk must stay self-contained. A Node worker thread runs in a fresh thread
+    //   that loads only that entry chunk, with no equivalent of the browser `createWorker` preload
+    //   list, so pruning already-available modules would leave it without factories.
+    // - It keeps the arguments of the `worker_loader_chunk_item` task — and therefore its
+    //   memoization key — independent of nesting depth. A worker that spawns itself (`new
+    //   Worker(__filename)`) is rediscovered while chunking its own entry chunk group, and that
+    //   rediscovery has to land on the *same* task, or every level would create a new one and
+    //   recurse without end. This has to happen here, before the task call: arguments are hashed to
+    //   find the cached cell, so normalizing inside the task body would be too late.
+    //
+    //   Availability cannot be used to *detect* that recursion either: for
+    //   `new Worker(__filename)` the target module is the module containing the call, so the
+    //   enclosing chunk group already lists it as its own entry and it looks "available" even
+    //   on the first, non-recursive call.
+    //
+    // The loader also needs the `AssetContext` the worker reference was resolved with, so it can
+    // resolve the `createWorker` runtime helper to the same module `WorkerAssetReference`
+    // registered in the graph. `url_resolve` / `process_resolve_result` resolved the worker
+    // through `origin.asset_context()`, and the resolved module is itself a `ResolveOrigin`
+    // carrying that same context — so recovering it here is equivalent.
+    let worker_loaders = worker_modules
+        .iter()
+        .copied()
+        .map(async |(module, worker_type)| {
+            let Some(origin) = ResolvedVc::try_sidecast::<Box<dyn ResolveOrigin>>(module) else {
+                turbobail!(
+                    "worker module {} must implement ResolveOrigin so the createWorker runtime \
+                     helper can be resolved with the same asset context",
+                    module.ident().to_string().await?
+                );
+            };
+            let availability_info = match worker_type {
+                WorkerType::WebWorker | WorkerType::SharedWebWorker => new_availability_info,
+                WorkerType::NodeWorkerThread => AvailabilityInfo::root(),
+            };
+            chunking_context
+                .worker_loader_chunk_item(
+                    *module,
+                    *origin.into_trait_ref().await?.asset_context(),
+                    worker_type,
+                    *module_graph,
+                    availability_info,
+                )
+                .to_resolved()
+                .await
+        })
+        .try_join()
+        .await?;
+    let worker_loader_chunk_items = worker_loaders
+        .iter()
+        .map(async |&chunk_item| {
+            let chunk_type = chunk_item
+                .into_trait_ref()
+                .await?
+                .ty()
+                .to_resolved()
+                .await?;
+            Ok(ChunkItemOrBatchWithAsyncModuleInfo::ChunkItem(
+                ChunkItemWithAsyncModuleInfo {
+                    chunk_item,
+                    chunk_type,
+                    module: None,
+                    async_info: None,
+                },
+            ))
+        })
+        .try_join()
+        .await?;
+    chunk_items.extend(worker_loader_chunk_items);
+
     // Pass chunk items to chunking algorithm
     let chunks = make_chunks(
         *module_graph,
@@ -190,9 +272,12 @@ pub async fn make_chunk_group(
     .to_resolved()
     .await?;
 
+    let mut all_references: Vec<ResolvedVc<Box<dyn OutputAssetsReference>>> =
+        ResolvedVc::upcast_vec(async_loaders);
+    all_references.extend(ResolvedVc::upcast_vec(worker_loaders));
     Ok(MakeChunkGroupResult {
         chunks,
-        references: ResolvedVc::upcast_vec(async_loaders),
+        references: all_references,
         availability_info: new_availability_info,
     })
 }
@@ -269,6 +354,7 @@ async fn chunk_group_content_operation(
         chunkable_items: FxIndexSet<ChunkableModuleOrBatch>,
         async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
         collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
+        worker_modules: FxIndexSet<(ResolvedVc<Box<dyn ChunkableModule>>, WorkerType)>,
     }
 
     let mut state = TraverseState {
@@ -276,6 +362,7 @@ async fn chunk_group_content_operation(
         chunkable_items: FxIndexSet::default(),
         async_modules: FxIndexSet::default(),
         collecting_modules: FxIndexSet::default(),
+        worker_modules: FxIndexSet::default(),
     };
 
     let available_modules = match availability_info.available_modules() {
@@ -305,6 +392,36 @@ async fn chunk_group_content_operation(
             active_page_entries.as_ref(),
             &mut state,
             |parent_info, &node, state| {
+                // A worker edge points straight at the worker's entry module. Record it (with
+                // the worker type from the edge) so `make_chunk_group` can create the real
+                // `WorkerLoaderModule` from it with this chunk group's availability info, then
+                // exclude it: the worker's own modules belong to the worker's chunk group, not
+                // this one.
+                //
+                // The `createWorker` runtime helper the loader's generated code requires is
+                // *not* discovered through this edge — `WorkerAssetReference` declares it as a
+                // separate reference on the module containing the `new Worker(...)` call, so it
+                // is chunked into this group by normal parallel traversal.
+                if let Some((
+                    _,
+                    ModuleBatchesGraphEdge {
+                        ty: ChunkingType::Worker { ty },
+                        module,
+                        ..
+                    },
+                )) = parent_info
+                {
+                    let worker_entry =
+                        module.context("Module in worker chunking edge is missing")?;
+                    let Some(worker_entry) =
+                        ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(worker_entry)
+                    else {
+                        bail!("worker entry module must be chunkable");
+                    };
+                    state.worker_modules.insert((worker_entry, *ty));
+                    return Ok(GraphTraversalAction::Exclude);
+                }
+
                 if matches!(node, ModuleOrBatch::None(_)) {
                     return Ok(GraphTraversalAction::Continue);
                 }
@@ -413,6 +530,11 @@ async fn chunk_group_content_operation(
                         // TODO currently not implemented
                         GraphTraversalAction::Exclude
                     }
+                    ChunkingType::Worker { .. } => {
+                        // Handled above, before the chunkable downcast, so the worker's entry
+                        // module can be recorded off the edge and excluded from this group.
+                        unreachable!("worker edges return early");
+                    }
                 })
             },
             |_, node, state| {
@@ -505,6 +627,7 @@ async fn chunk_group_content_operation(
         batch_groups,
         async_modules: state.async_modules,
         collecting_modules: state.collecting_modules,
+        worker_modules: state.worker_modules,
         available_modules,
     }
     .cell())
