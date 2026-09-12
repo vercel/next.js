@@ -168,6 +168,24 @@ export type PrefetchTask = {
   isCanceled: boolean
 
   /**
+   * True if the route cache had no entry for the task's URL, not even a
+   * predicted (matchKnownRoute) entry, at the time the task was scheduled.
+   *
+   * A task resolves its route against the cache state at schedule time. When
+   * this is true, the task committed to fetching the route tree, and a route
+   * pattern learned later from a sibling's response must not satisfy it: a
+   * predicted entry describes the route's structure but contains none of this
+   * URL's own data, so a task that consumed one would complete without
+   * fetching anything. This happens when more siblings are prefetched in one
+   * tick than the concurrent request limit allows. The first responses teach
+   * the pattern while the excess tasks are still waiting for bandwidth.
+   *
+   * A concrete entry that appears later (e.g. another task fetched the same
+   * URL) still satisfies the task.
+   */
+  routeCacheMissedWhenScheduled: boolean
+
+  /**
    * Tracks whether the task has attempted to upgrade a fallback ISR response
    * to one based on concrete params.
    *
@@ -353,6 +371,8 @@ export function schedulePrefetchTask(
     fetchStrategy,
     sortId: sortIdCounter++,
     isCanceled: false,
+    routeCacheMissedWhenScheduled:
+      readRouteCacheEntry(Date.now(), key) === null,
     fallbackRetryStatus: EntryStatus.Empty,
     onInvalidate,
     _heapIndex: -1,
@@ -421,6 +441,10 @@ export function reschedulePrefetchTask(
 
   task.treeAtTimeOfPrefetch = treeAtTimeOfPrefetch
   task.fetchStrategy = fetchStrategy
+  // A reschedule is a fresh scheduling decision, so re-evaluate the route
+  // cache state (see the field's docs).
+  task.routeCacheMissedWhenScheduled =
+    readRouteCacheEntry(Date.now(), task.key) === null
 
   trackMostRecentlyHoveredLink(task)
 

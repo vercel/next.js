@@ -711,18 +711,34 @@ export function readOrCreateRouteCacheEntry(
 ): RouteCacheEntry {
   attachInvalidationListener(task)
 
-  const existingEntry = readRouteCacheEntry(now, key)
-  if (existingEntry !== null) {
-    return existingEntry
-  }
-  // Create a pending entry and add it to the cache.
-  const pendingEntry = createDetachedRouteCacheEntry()
   const varyPath: RouteVaryPath = getRouteVaryPath(
     key.pathname,
     key.search,
     key.nextUrl
   )
   const isRevalidation = false
+  // When the route cache had no entry, not even a predicted one, at the time
+  // the task was scheduled, the task committed to fetching the route tree.
+  // Look up the cache map directly, without the predicted-entry fallback in
+  // readRouteCacheEntry: a pattern learned in the meantime from a sibling's
+  // response contains none of this URL's own data, and consuming it would
+  // complete the task without fetching anything. A concrete entry written in
+  // the meantime still satisfies the task.
+  const existingEntry = task.routeCacheMissedWhenScheduled
+    ? getFromCacheMap(
+        now,
+        getCurrentRouteCacheVersion(),
+        routeCacheMap,
+        varyPath,
+        isRevalidation,
+        false
+      )
+    : readRouteCacheEntry(now, key)
+  if (existingEntry !== null) {
+    return existingEntry
+  }
+  // Create a pending entry and add it to the cache.
+  const pendingEntry = createDetachedRouteCacheEntry()
   setInCacheMap(routeCacheMap, varyPath, pendingEntry, isRevalidation)
   return pendingEntry
 }
