@@ -1182,20 +1182,30 @@ export default function Image({
         // it would likely cause the incorrect image to be preloaded.
         //
         // https://html.spec.whatwg.org/multipage/semantics.html#attr-link-imagesrcset
-        <Head>
-          <link
-            key={
-              '__nimg-' +
-              imgAttributes.src +
-              imgAttributes.srcSet +
-              imgAttributes.sizes
-            }
-            rel="preload"
-            as="image"
-            href={imgAttributes.srcSet ? undefined : imgAttributes.src}
-            {...linkProps}
-          />
-        </Head>
+        ReactDOM.preload ?
+          (() => {
+            ReactDOM.preload(imgAttributes.src, {
+              as: 'image',
+              ...linkProps,
+            })
+            return null
+          })()
+        ) : (
+          <Head>
+            <link
+              key={
+                '__nimg-' +
+                imgAttributes.src +
+                imgAttributes.srcSet +
+                imgAttributes.sizes
+              }
+              rel="preload"
+              as="image"
+              href={imgAttributes.srcSet ? undefined : imgAttributes.src}
+              {...linkProps}
+            />
+          </Head>
+        )
       ) : null}
     </>
   )
