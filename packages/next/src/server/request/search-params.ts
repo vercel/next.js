@@ -12,6 +12,7 @@ import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
   throwToInterruptStaticGeneration,
   annotateDynamicAccess,
+  trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { dynamicAccessAsyncStorage } from '../app-render/dynamic-access-async-storage.external'
 
@@ -591,6 +592,7 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
   const proxiedUnderlying = instrumentSearchParamsObjectWithDevWarnings(
     underlyingSearchParams,
     workStore,
+    requestStore,
     promiseInitialized
   )
 
@@ -618,7 +620,8 @@ function makeUntrackedSearchParamsWithDevWarningsImpl(
   return instrumentSearchParamsPromiseWithDevWarnings(
     underlyingSearchParams,
     promise,
-    workStore
+    workStore,
+    requestStore
   )
 }
 
@@ -627,6 +630,7 @@ function ignoreReject() {}
 function instrumentSearchParamsObjectWithDevWarnings(
   underlyingSearchParams: SearchParams,
   workStore: WorkStore,
+  requestStore: RequestStore,
   promiseInitialized: { current: boolean }
 ) {
   // We have an unfortunate sequence of events that requires this initialization logic. We want to instrument the underlying
@@ -638,6 +642,11 @@ function instrumentSearchParamsObjectWithDevWarnings(
   return new Proxy(underlyingSearchParams, {
     get(target, prop, receiver) {
       if (typeof prop === 'string' && promiseInitialized.current) {
+        // Reading a property off the resolved searchParams object means the
+        // route is consuming dynamic data. Flag the request so the dev
+        // static indicator reports "Dynamic".
+        trackDynamicDataInDynamicRender(requestStore)
+
         if (workStore.dynamicShouldError) {
           const expression = describeStringPropertyAccess('searchParams', prop)
           throwWithStaticGenerationBailoutErrorWithDynamicError(
@@ -650,6 +659,9 @@ function instrumentSearchParamsObjectWithDevWarnings(
     },
     has(target, prop) {
       if (typeof prop === 'string') {
+        if (promiseInitialized.current) {
+          trackDynamicDataInDynamicRender(requestStore)
+        }
         if (workStore.dynamicShouldError) {
           const expression = describeHasCheckingStringProperty(
             'searchParams',
@@ -664,6 +676,9 @@ function instrumentSearchParamsObjectWithDevWarnings(
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
+      if (promiseInitialized.current) {
+        trackDynamicDataInDynamicRender(requestStore)
+      }
       if (workStore.dynamicShouldError) {
         const expression =
           '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
@@ -680,7 +695,8 @@ function instrumentSearchParamsObjectWithDevWarnings(
 function instrumentSearchParamsPromiseWithDevWarnings(
   underlyingSearchParams: SearchParams,
   promise: Promise<SearchParams>,
-  workStore: WorkStore
+  workStore: WorkStore,
+  requestStore: RequestStore
 ) {
   // Track which properties we should warn for.
   const proxiedProperties = new Set<string>()
@@ -711,6 +727,11 @@ function instrumentSearchParamsPromiseWithDevWarnings(
             // the underlying searchParams.
             Reflect.has(target, prop) === false)
         ) {
+          // Synchronous access is a usage bug, but it still indicates the
+          // route is consuming dynamic data — track it so the static
+          // indicator reports correctly.
+          trackDynamicDataInDynamicRender(requestStore)
+
           const expression = describeStringPropertyAccess('searchParams', prop)
           warnForSyncAccess(workStore.route, expression)
         }
@@ -732,6 +753,8 @@ function instrumentSearchParamsPromiseWithDevWarnings(
             // the underlying searchParams.
             Reflect.has(target, prop) === false)
         ) {
+          trackDynamicDataInDynamicRender(requestStore)
+
           const expression = describeHasCheckingStringProperty(
             'searchParams',
             prop
@@ -742,6 +765,8 @@ function instrumentSearchParamsPromiseWithDevWarnings(
       return Reflect.has(target, prop)
     },
     ownKeys(target) {
+      trackDynamicDataInDynamicRender(requestStore)
+
       const expression = '`Object.keys(searchParams)` or similar'
       warnForSyncAccess(workStore.route, expression)
       return Reflect.ownKeys(target)
