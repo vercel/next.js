@@ -1,18 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('app dir - css with pageextensions', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       '@picocss/pico': '1.5.7',
       sass: 'latest',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   describe('css support with pageextensions', () => {
     describe('page in app directory with pageextention, css should work', () => {

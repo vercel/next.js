@@ -263,7 +263,7 @@ describe('Image Optimizer', () => {
     }
   })
   describe('Server support for trailingSlash in next.config.js', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       nextConfig: {
         trailingSlash: true,
@@ -272,9 +272,7 @@ describe('Image Optimizer', () => {
           qualities: [70, 75],
         },
       },
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should return successful response for original loader', async () => {
       const query = { url: '/test.png', w: 8, q: 70 }
