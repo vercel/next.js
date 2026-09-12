@@ -6,8 +6,8 @@ use next_core::{
     middleware::get_middleware_module,
     next_edge::entry::wrap_edge_entry,
     next_manifests::{EdgeFunctionDefinition, MiddlewaresManifestV2, ProxyMatcher, Regions},
-    segment_config::NextSegmentConfig,
-    util::{MiddlewareMatcherKind, NextRuntime},
+    segment_config::{NextSegmentConfig, NextSegmentRegion},
+    util::NextRuntime,
 };
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
@@ -37,6 +37,7 @@ use crate::{
     },
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
+    static_info_manifest::StaticInfoManifestAsset,
 };
 
 #[turbo_tasks::value]
@@ -159,68 +160,26 @@ impl MiddlewareEndpoint {
         let has_i18n_locales = i18n.is_some();
         let base_path = next_config.base_path().await?;
 
-        let matchers = if let Some(matchers) = config.middleware_matcher.as_ref() {
-            matchers
-                .iter()
-                .map(|matcher| {
-                    let mut matcher = match matcher {
-                        MiddlewareMatcherKind::Str(matcher) => ProxyMatcher {
-                            original_source: matcher.as_str().into(),
-                            ..Default::default()
-                        },
-                        MiddlewareMatcherKind::Matcher(matcher) => matcher.clone(),
-                    };
+        let matchers = config
+            .get_proxy_matchers(has_i18n, has_i18n_locales, base_path.as_deref())
+            .unwrap_or_else(|| {
+                vec![ProxyMatcher {
+                    regexp: Some(rcstr!("^/.*$")),
+                    original_source: rcstr!("/:path*"),
+                    ..Default::default()
+                }]
+            });
 
-                    // Mirrors implementation in get-page-static-info.ts getMiddlewareMatchers
-                    let mut source = matcher.original_source.to_string();
-                    let is_root = source == "/";
-                    let has_locale = matcher.locale;
-
-                    if has_i18n_locales && has_locale {
-                        if is_root {
-                            source.clear();
-                        }
-                        source.insert_str(0, "/:nextInternalLocale((?!_next/)[^/.]{1,})");
-                    }
-
-                    // Match transport-specific route forms that resolve to the
-                    // same page:
-                    // - Pages Router data routes: /_next/data/<build-id>/...
-                    // - App Router transport routes: .rsc, ...segments/...segment.rsc
-                    if is_root {
-                        source.push('(');
-                        if has_i18n {
-                            source.push_str("|\\.json|");
-                        }
-                        source.push_str("/?index|/?index\\.json|");
-                        source.push_str("/?index(?:\\.rsc|\\.segments/.+\\.segment\\.rsc)");
-                        source.push_str(")?");
-                    } else {
-                        source.push_str("{(\\.json|\\.rsc|\\.segments/.+\\.segment\\.rsc)}?");
-                    };
-
-                    source.insert_str(0, "/:nextData(_next/data/[^/]{1,})?");
-
-                    if let Some(base_path) = base_path.as_ref() {
-                        source.insert_str(0, base_path);
-                    }
-
-                    // TODO: The implementation of getMiddlewareMatchers outputs a regex here
-                    // using path-to-regexp. Currently there is no
-                    // equivalent of that so it post-processes
-                    // this value to the relevant regex in manifest-loader.ts
-                    matcher.regexp = Some(RcStr::from(source));
-
-                    matcher
-                })
-                .collect()
-        } else {
-            vec![ProxyMatcher {
-                regexp: Some(rcstr!("^/.*$")),
-                original_source: rcstr!("/:path*"),
-                ..Default::default()
-            }]
-        };
+        let static_info_manifest = StaticInfoManifestAsset::new_middleware(
+            this.project
+                .node_root()
+                .await?
+                .join("server/middleware/static-info.json")?,
+            *this.config,
+            next_config,
+        )
+        .to_resolved()
+        .await?;
 
         if matches!(this.runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;
@@ -251,6 +210,7 @@ impl MiddlewareEndpoint {
             .to_resolved()
             .await?;
             output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
+            output_assets.push(ResolvedVc::upcast(static_info_manifest));
 
             Ok(Vc::cell(output_assets))
         } else {
@@ -280,17 +240,13 @@ impl MiddlewareEndpoint {
             let all_assets =
                 get_asset_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
-            let regions = if let Some(regions) = config.preferred_region.as_ref() {
-                if regions.len() == 1 {
-                    regions
-                        .first()
-                        .map(|region| Regions::Single(region.clone()))
-                } else {
-                    Some(Regions::Multiple(regions.clone()))
+            let regions = config.preferred_region.as_ref().map(|region| match region {
+                NextSegmentRegion::Single(region) => Regions::Single(region.clone()),
+                NextSegmentRegion::Multiple(regions) if regions.len() == 1 => {
+                    Regions::Single(regions[0].clone())
                 }
-            } else {
-                None
-            };
+                NextSegmentRegion::Multiple(regions) => Regions::Multiple(regions.clone()),
+            });
 
             let edge_function_definition = EdgeFunctionDefinition {
                 files: file_paths_from_root,
@@ -321,6 +277,7 @@ impl MiddlewareEndpoint {
             .to_resolved()
             .await?;
             output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
+            output_assets.push(ResolvedVc::upcast(static_info_manifest));
 
             Ok(Vc::cell(output_assets))
         }

@@ -26,7 +26,7 @@ use next_core::{
         PagesDirectoryStructure, PagesStructure, PagesStructureItem, find_pages_structure,
     },
     parse_segment_config_from_source,
-    segment_config::ParseSegmentMode,
+    segment_config::{NextSegmentRegion, ParseSegmentMode},
     util::{NextRuntime, get_asset_prefix_from_pathname, pages_function_name},
 };
 use tracing::Instrument;
@@ -85,6 +85,7 @@ use crate::{
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs, Route, Routes},
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
+    static_info_manifest::StaticInfoManifestAsset,
 };
 
 #[turbo_tasks::value]
@@ -912,7 +913,10 @@ impl PageEndpoint {
                     // /_app and /_document are always rendered for Node.js for this case. For edge
                     // they're included in the page bundle.
                     runtime: NextRuntime::NodeJs,
-                    regions: config.preferred_region.clone(),
+                    regions: config
+                        .preferred_region
+                        .as_ref()
+                        .map(NextSegmentRegion::to_vec),
                 }
             } else {
                 let modules = create_page_ssr_entry_module(
@@ -937,7 +941,10 @@ impl PageEndpoint {
                     app_module: modules.app_module,
                     document_module: modules.document_module,
                     runtime,
-                    regions: config.preferred_region.clone(),
+                    regions: config
+                        .preferred_region
+                        .as_ref()
+                        .map(NextSegmentRegion::to_vec),
                 }
             }
             .cell(),
@@ -1690,7 +1697,17 @@ impl Endpoint for PageEndpoint {
             let node_root = project.node_root().owned().await?;
             let client_relative_root = project.client_relative_path().owned().await?;
 
-            let output_assets = output.output_assets();
+            let output_assets = output.output_assets().concat_asset(Vc::upcast(
+                StaticInfoManifestAsset::new_pages(
+                    node_root.join(&format!(
+                        "server/pages{}/static-info.json",
+                        get_asset_prefix_from_pathname(&this.pathname),
+                    ))?,
+                    parse_segment_config_from_source(self.source(), ParseSegmentMode::Base),
+                    project.next_config(),
+                ),
+            ));
+
             let output_assets = if let Some(sri) =
                 &*project.next_config().experimental_sri().await?
                 && let Some(algorithm) = sri.algorithm.clone()
