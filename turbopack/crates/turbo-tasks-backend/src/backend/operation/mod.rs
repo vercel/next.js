@@ -31,7 +31,7 @@ use crate::{
         cell_data::CellData,
         snapshot_coordinator::{OperationGuard, SnapshotPhase},
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TrackOutcome},
-        storage_schema::{GC_UNOWNED_ENTRY_REF, TaskStorage, TaskStorageAccessors},
+        storage_schema::{TaskStorage, TaskStorageAccessors},
     },
     data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
 };
@@ -1404,18 +1404,9 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         new_value
     }
 
-    /// Adds one *unowned* entry-point reference, keeping the marker bit set so it stays
-    /// distinguishable from references a handle will release. See `ConnectChildOperation::run`.
+    /// Adds one entry-point reference. See `ConnectChildOperation::run`.
     fn add_entry_ref(&mut self) {
-        let current = self.get_transient_ref_count().copied().unwrap_or(0);
-        // Saturate rather than wrap: the low bits count entry points and the top bit marks them
-        // as unowned; a count large enough to collide with the marker is not a real scenario.
-        let counted = (current & !GC_UNOWNED_ENTRY_REF).saturating_add(1);
-        debug_assert!(
-            counted & GC_UNOWNED_ENTRY_REF == 0,
-            "entry reference count overflowed into the marker bit"
-        );
-        self.set_transient_ref_count(counted | GC_UNOWNED_ENTRY_REF);
+        self.update_and_get_transient_ref_count(1);
     }
 
     /// Whether a GC pass may collect this task: it is non-transient and nothing references it.
@@ -1423,10 +1414,8 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
     /// Only reads `Meta`, so any guard category gives the same answer. See
     /// [`TaskStorage::gc_maybe_collectible`] for the full contract.
     fn is_gc_collectible(&self) -> bool {
-        // Transient-ness is a property of the id, not the storage; transient tasks are never
-        // collected.
         self.check_access(SpecificTaskDataCategory::Meta);
-        !self.id().is_transient() && self.typed().gc_maybe_collectible()
+        self.typed().gc_maybe_collectible()
     }
 
     fn invalidate_serialization(&mut self);

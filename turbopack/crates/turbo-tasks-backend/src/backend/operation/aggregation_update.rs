@@ -25,7 +25,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use ringmap::RingSet;
-use rustc_hash::{FxBuildHasher, FxHashMap};
+use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
 use smallvec::{SmallVec, smallvec};
 #[cfg(feature = "trace_aggregation_update_queue")]
 use tracing::span::Span;
@@ -1183,49 +1183,55 @@ impl AggregationUpdateQueue {
         !self.balance_queue.is_empty() || !self.optimize_queue.is_empty()
     }
 
-    /// Folds another queue's rebalance work into this one.
+    /// Takes the rebalance work left on this queue, for a caller that will run it later.
     ///
-    /// GC defers one queue per collected task and drains them together once the parallel collect
-    /// is quiescent. Merging rather than draining them back to back matters for two reasons:
+    /// Returns the `(upper, task)` edges that still need balancing. Optimize jobs are *not*
+    /// returned: an optimization is recoverable from the task's `optimization_pending` flag, so
+    /// each one is flushed to its task here and picked up by whichever later operation touches it.
+    /// That keeps the deferred state to a plain set of edges, with no queue-level budget to
+    /// reconcile.
     ///
-    /// - **Dedup.** `balance_queue` and `optimize_queue` are ring *sets* keyed by task id, and
-    ///   sibling collects in one subtree overwhelmingly rebalance the *same* shared parent edges.
-    ///   Merged, those collapse to one job each; drained separately, every queue carries its own
-    ///   copy and re-does the work.
-    /// - **Budget.** `MAX_OPTIMIZATIONS_PER_QUEUE` is a per-instance lifetime budget, so N separate
-    ///   queues would silently grant N times the optimizations that the previous inline code
-    ///   allowed. Folding into one queue keeps a single budget, carrying over the count already
-    ///   spent.
-    ///
-    /// Pushes go through the normal paths, so the `MAX_OPTIMIZE_QUEUE_SIZE` cap still applies and
-    /// a dropped optimize job still marks its task `optimization_pending` for later recovery.
-    pub fn merge_rebalance(&mut self, other: Self, ctx: &mut impl ExecuteContext<'_>) {
+    /// GC uses this to hold rebalancing back until the parallel collect is quiescent; see
+    /// `TurboTasksBackend::gc_collect`.
+    pub fn take_deferred_rebalance(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+    ) -> FxHashSet<(TaskId, TaskId)> {
         debug_assert!(
-            other.only_rebalance_remains(),
-            "merge_rebalance expects a queue stopped at the rebalance boundary"
+            self.only_rebalance_remains(),
+            "take_deferred_rebalance expects a queue stopped at the rebalance boundary"
         );
-        // Keep the larger spend so the merged queue cannot hand out a fresh budget.
-        self.optimizations_executed =
-            max(self.optimizations_executed, other.optimizations_executed);
-        for job in other.balance_queue {
-            self.balance_queue.push_back(job);
-        }
-        for job in other.optimize_queue {
-            let OptimizeJob {
-                task_id,
-                optimization_pending_flag_already_set,
-                #[cfg(feature = "trace_aggregation_update_queue")]
-                    span: _,
-            } = job;
-            if !self.try_enqueue_optimize_job(task_id, optimization_pending_flag_already_set)
-                && !optimization_pending_flag_already_set
-            {
+        for OptimizeJob {
+            task_id,
+            optimization_pending_flag_already_set,
+            ..
+        } in take(&mut self.optimize_queue)
+        {
+            if !optimization_pending_flag_already_set {
                 lock_and_mark_optimization_pending(ctx, task_id);
             }
         }
-        #[cfg(feature = "trace_aggregation_update_stats")]
-        {
-            self.stats.balance_edge_batches += other.stats.balance_edge_batches;
+        take(&mut self.balance_queue)
+            .into_iter()
+            .map(|job| (job.upper_id, job.task_id))
+            .collect()
+    }
+
+    /// Queues balance jobs taken by [`Self::take_deferred_rebalance`], skipping any whose endpoints
+    /// have since been collected -- the edge is gone with them, and balancing a deleted task is
+    /// what the deferral exists to avoid.
+    pub fn extend_balance_edges(
+        &mut self,
+        edges: impl IntoIterator<Item = (TaskId, TaskId)>,
+        ctx: &mut impl ExecuteContext<'_>,
+    ) {
+        for (upper_id, task_id) in edges {
+            if ctx.task(upper_id, TaskDataCategory::Meta).deleted()
+                || ctx.task(task_id, TaskDataCategory::Meta).deleted()
+            {
+                continue;
+            }
+            self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
         }
     }
 

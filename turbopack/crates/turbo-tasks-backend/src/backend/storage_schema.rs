@@ -31,16 +31,6 @@ use turbo_tasks::{
     task_storage,
 };
 
-/// The top bit of `transient_ref_count`, marking references taken for *entry points* — tasks
-/// reached from outside the task graph, where no parent lists them as a child.
-///
-/// `ConnectChildOperation::run` adds one per parentless lookup. They are unowned: no handle
-/// exists to release them, so such a task stays resident for the session (cross-session lifetime
-/// is the persisted roots map's job instead). Marking them keeps "pinned because it is an entry
-/// point" distinguishable from "pinned because N handles hold it", which is what a future
-/// caller-identity mechanism would need in order to release them.
-pub(crate) const GC_UNOWNED_ENTRY_REF: u32 = 1 << 31;
-
 use crate::{
     backend::{cell_data::CellData, counter_map::CounterMap},
     data::{
@@ -868,21 +858,6 @@ impl TaskStorage {
         self.get_transient_ref_count().copied().unwrap_or(0)
     }
 
-    /// Whether this task's transient references include the unowned entry-point marker, i.e. it
-    /// was reached from outside the task graph and nothing will release that reference.
-    pub fn gc_has_unowned_entry_ref(&self) -> bool {
-        self.gc_transient_ref_count() & GC_UNOWNED_ENTRY_REF != 0
-    }
-
-    /// Test-only mirror of `TaskGuard::add_entry_ref`, which is implemented on the guard trait
-    /// and so is not reachable from a bare `TaskStorage`.
-    #[cfg(test)]
-    fn add_entry_ref_for_test(&mut self) {
-        let current = self.gc_transient_ref_count();
-        let counted = (current & !GC_UNOWNED_ENTRY_REF).saturating_add(1);
-        self.set_transient_ref_count(counted | GC_UNOWNED_ENTRY_REF);
-    }
-
     /// Whether a GC pass may collect this task: nothing references it, via parents, transient
     /// pins, or aggregation edges.
     ///
@@ -911,6 +886,11 @@ impl TaskStorage {
             // don't re-select it, or a second pass would collect it again while it is still
             // resident.
             && !self.flags.deleted()
+            // A root/once task's lifetime belongs to whoever spawned it: it is created by
+            // `init_transient_task` rather than looked up, so it never passes through
+            // `ConnectChildOperation` and has no reference of its own. `dispose_root_task` is
+            // what ends it.
+            && self.get_transient_task_type().is_none()
             && self.gc_parent_count() == 0
             && self.gc_transient_ref_count() == 0
             && self.get_activeness().is_none()
@@ -1158,40 +1138,6 @@ mod tests {
 
     use super::*;
     use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
-
-    /// Entry references accumulate and stay marked as unowned.
-    #[test]
-    fn entry_refs_accumulate_and_stay_marked() {
-        let mut storage = TaskStorage::new();
-        assert!(!storage.gc_has_unowned_entry_ref());
-        assert_eq!(storage.gc_transient_ref_count(), 0);
-
-        storage.add_entry_ref_for_test();
-        assert!(storage.gc_has_unowned_entry_ref());
-        // Marked, and therefore pinned: a task holding an entry reference is not collectible.
-        assert_ne!(storage.gc_transient_ref_count(), 0);
-
-        // A second entry point reaching the same task counts separately, and the marker persists.
-        storage.add_entry_ref_for_test();
-        assert!(storage.gc_has_unowned_entry_ref());
-        assert_eq!(
-            storage.gc_transient_ref_count() & !GC_UNOWNED_ENTRY_REF,
-            2,
-            "each parentless lookup should count"
-        );
-    }
-
-    /// The marker is independent of ordinary owned references.
-    #[test]
-    fn entry_marker_is_separate_from_owned_refs() {
-        let mut storage = TaskStorage::new();
-        storage.set_transient_ref_count(3);
-        assert!(
-            !storage.gc_has_unowned_entry_ref(),
-            "owned references alone must not look like an entry point"
-        );
-        assert_ne!(storage.gc_transient_ref_count(), 0);
-    }
 
     #[test]
     fn test_accessors() {

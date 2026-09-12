@@ -24,7 +24,7 @@ use std::{
 };
 
 use bincode::{Decode, Encode};
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use turbo_tasks::{TaskId, TurboTasks, scope_unbounded::scope_unbounded_with};
 
 use crate::{
@@ -123,13 +123,14 @@ pub struct GcPassOutcome {
     pub aged_out_roots: usize,
     /// Persisted roots that this pass collected, to be dropped from the roots map.
     pub deleted_roots: Vec<TaskId>,
-    /// Aggregation rebalancing (`balance_edge` / `optimize`) held back from the parallel collect
-    /// and run once it is quiescent. See [`TurboTasksBackend::gc_collect`].
+    /// `(upper, task)` edges needing a `balance_edge`, held back from the parallel collect and
+    /// run once it is quiescent. See [`TurboTasksBackend::gc_collect`].
     ///
-    /// One entry per worker accumulator; they are folded into a single queue (which dedupes the
-    /// repeated rebalances of shared edges) at drain time, where an `ExecuteContext` is available.
-    /// Not a statistic — this is the pass's deferred work list, like `deleted_roots`.
-    pub deferred_rebalance: Vec<AggregationUpdateQueue>,
+    /// A set, so the repeated rebalances of a shared edge collapse. Deferred optimizations are not
+    /// carried here: they are flushed to their task's `optimization_pending` flag instead, which
+    /// keeps this to plain data with no queue budget to reconcile. Not a statistic — this is the
+    /// pass's deferred work list, like `deleted_roots`.
+    pub deferred_balance_edges: FxHashSet<(TaskId, TaskId)>,
     /// The gc loop was interrupted by competing work.
     pub interrupted: bool,
 }
@@ -163,10 +164,15 @@ impl GcPassOutcome {
         } else {
             self.deleted_roots.append(&mut other.deleted_roots);
         }
-        // Merging the queues themselves needs an `ExecuteContext` (a dropped optimize job has to
-        // mark its task pending), which `merge` does not have. Concatenate here and fold at drain.
-        self.deferred_rebalance
-            .append(&mut other.deferred_rebalance);
+        // merge into the larger set and keep that one
+        if other.deferred_balance_edges.len() > self.deferred_balance_edges.len() {
+            std::mem::swap(
+                &mut self.deferred_balance_edges,
+                &mut other.deferred_balance_edges,
+            );
+        }
+        self.deferred_balance_edges
+            .extend(other.deferred_balance_edges);
         self
     }
 }
@@ -288,12 +294,10 @@ impl TurboTasksBackend {
                     AggregationUpdateQueue::new(),
                     &mut ctx,
                 ) {
-                    match stats.deferred_rebalance.first_mut() {
-                        // Fold into this worker's accumulator, so dedup happens as we go rather
-                        // than building one queue per collected task.
-                        Some(existing) => existing.merge_rebalance(queue, &mut ctx),
-                        None => stats.deferred_rebalance.push(queue),
-                    }
+                    let mut queue = queue;
+                    stats
+                        .deferred_balance_edges
+                        .extend(queue.take_deferred_rebalance(&mut ctx));
                 }
                 ControlFlow::Continue(())
             },
@@ -316,16 +320,13 @@ impl TurboTasksBackend {
         // NOTE: this drain is single-threaded and scales with the amount of garbage, so it is a
         // latency risk on a large collection. Left unbounded for now; the existing
         // `optimization_pending` mechanism is how a bound would defer the remainder.
-        let deferred = std::mem::take(&mut stats.deferred_rebalance);
+        let deferred = std::mem::take(&mut stats.deferred_balance_edges);
         if !deferred.is_empty() {
             let noop_collector = |_task_id| {};
             let mut ctx = ExecuteContextImpl::new_for_gc(self, turbo_tasks, phase, &noop_collector);
-            let mut queues = deferred.into_iter();
-            let mut merged = queues.next().expect("checked non-empty");
-            for queue in queues {
-                merged.merge_rebalance(queue, &mut ctx);
-            }
-            while !merged.process(&mut ctx) {}
+            let mut queue = AggregationUpdateQueue::new();
+            queue.extend_balance_edges(deferred, &mut ctx);
+            while !queue.process(&mut ctx) {}
         }
 
         // Collect all active roots

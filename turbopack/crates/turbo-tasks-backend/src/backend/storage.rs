@@ -553,26 +553,19 @@ impl Storage {
         self.map.shards().len()
     }
 
-    /// Iterates the non-transient tasks of a **single** shard of the resident map by index, under
-    /// that shard's read lock.
-    fn for_each_resident_persistent_in_shard(
-        &self,
-        index: usize,
-        mut f: impl FnMut(TaskId, &TaskStorage),
-    ) {
+    /// Iterates the tasks of a **single** shard of the resident map by index, under that shard's
+    /// read lock.
+    fn for_each_resident_in_shard(&self, index: usize, mut f: impl FnMut(TaskId, &TaskStorage)) {
         let shard = self.map.shards()[index].read();
         for (task_id, task) in shard.iter() {
-            if task_id.is_transient() {
-                continue;
-            }
             f(*task_id, task);
         }
     }
 
-    /// Scans a **single** shard by index, invoking `on_candidate` for each resident, non-transient
-    /// task whose storage passes [`TaskStorage::gc_maybe_collectible`].
+    /// Scans a **single** shard by index, invoking `on_candidate` for each resident task whose
+    /// storage passes [`TaskStorage::gc_maybe_collectible`].
     pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
-        self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
+        self.for_each_resident_in_shard(index, |task_id, storage| {
             if storage.gc_maybe_collectible() {
                 on_candidate(task_id);
             }
@@ -590,8 +583,8 @@ impl Storage {
         let per_shard: Vec<Vec<TaskId>> =
             parallel::map_collect(&(0..self.shard_count()).collect::<Vec<_>>(), |&index| {
                 let mut roots = Vec::new();
-                self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
-                    if storage.gc_is_root() {
+                self.for_each_resident_in_shard(index, |task_id, storage| {
+                    if !task_id.is_transient() && storage.gc_is_root() {
                         // The `is_root` criteria is conservative, in debug assert that we aren't
                         // marking things as roots for surprising reasons
                         #[cfg(debug_assertions)]
@@ -730,22 +723,29 @@ impl Storage {
                     }
                 };
             shard.retain(|(task_id, task)| {
+                // GC'd tasks were tombstoned during the snapshot so we can drop them fully now.
+                // This is checked before the transient skip below: a collected transient task has
+                // nothing to persist, but it still has to leave the resident map, or collecting it
+                // would free nothing.
+                if task.flags.deleted() {
+                    if let Some(task_type) = task.get_persistent_task_type() {
+                        remove_from_task_cache(
+                            &mut evicted,
+                            &mut deferred_task_cache_removals,
+                            task_type,
+                        );
+                    } else {
+                        debug_assert!(
+                            task_id.is_transient(),
+                            "a collected persistent task must have a task type: {task_id:?}"
+                        );
+                    }
+                    evicted.full += 1;
+                    return false;
+                }
                 if task_id.is_transient() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
                     return true;
-                }
-                // GC'd tasks were tombstoned during the snapshot so we can drop them fully now.
-                if task.flags.deleted() {
-                    let task_type = task
-                        .get_persistent_task_type()
-                        .expect("GC deleted tasks must have a task type");
-                    remove_from_task_cache(
-                        &mut evicted,
-                        &mut deferred_task_cache_removals,
-                        task_type,
-                    );
-                    evicted.full += 1;
-                    return false;
                 }
                 let (key_evictability, value_evictability) = task.evictability();
                 match key_evictability {
