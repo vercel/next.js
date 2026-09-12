@@ -53,7 +53,7 @@ export function GoogleTagManager(props: GTMParams) {
   return (
     <>
       <Script
-        id="_next-gtm-init"
+        id={`_next-gtm-init-${gtmId}`}
         dangerouslySetInnerHTML={{
           __html: `
       (function(w,l){
@@ -65,7 +65,7 @@ export function GoogleTagManager(props: GTMParams) {
         nonce={nonce}
       />
       <Script
-        id="_next-gtm"
+        id={`_next-gtm-${gtmId}`}
         data-ntpc="GTM"
         src={scriptUrl.href}
         nonce={nonce}
