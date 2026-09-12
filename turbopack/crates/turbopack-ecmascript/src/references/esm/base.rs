@@ -2,6 +2,7 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
+use rustc_hash::FxHashSet;
 use strsim::jaro;
 use swc_core::{
     common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
@@ -88,6 +89,9 @@ pub enum ReferencedAssetIdent {
         namespace_ident: String,
         ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
+        /// Whether the named export can be captured once instead of read through the namespace at
+        /// every use. This is false for namespace imports, live bindings, and circuit breakers.
+        can_value_bind: bool,
         /// Describes what to import to populate the variable that `namespace_ident` names.
         ///
         /// When the ident was resolved through a re-export chain (e.g. `export * as X from
@@ -151,6 +155,7 @@ impl ReferencedAssetIdent {
                 namespace_ident,
                 ctxt,
                 export,
+                can_value_bind: _,
                 import_source: _,
             } => {
                 if let Some(export) = export {
@@ -287,11 +292,13 @@ impl ReferencedAsset {
                                         // but in the module containing the reexport
                                         ctxt: None,
                                         export,
+                                        can_value_bind,
                                         import_source,
                                     }) => Some(ReferencedAssetIdent::Module {
                                         namespace_ident,
                                         ctxt: Some(ctxt),
                                         export,
+                                        can_value_bind,
                                         import_source,
                                     }),
                                     ident => ident,
@@ -306,6 +313,15 @@ impl ReferencedAsset {
                 }
 
                 let import_source = ImportSource::Module { asset: *asset };
+                let can_value_bind = if let Some(export) = &export {
+                    get_export_liveness(*asset, export.clone()).await? == Some(Liveness::Constant)
+                        && !chunking_context
+                            .module_export_usage(*ResolvedVc::upcast(*asset))
+                            .await?
+                            .is_circuit_breaker
+                } else {
+                    false
+                };
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
@@ -319,6 +335,7 @@ impl ReferencedAsset {
                         }
                         None => None,
                     },
+                    can_value_bind,
                     import_source,
                 })
             }
@@ -331,6 +348,7 @@ impl ReferencedAsset {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
                     export,
+                    can_value_bind: false,
                     import_source,
                 })
             }
@@ -375,6 +393,36 @@ impl ReferencedAsset {
         // See `packages/next/src/shared/lib/magic-identifier.ts`
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
+}
+
+/// Follows statically-known reexports to find the behavior of the original local binding.
+/// Import code generation still loads the directly referenced module so intermediate side effects
+/// and namespace identity are preserved; this only supplies metadata for choosing an accessor.
+async fn get_export_liveness(
+    mut module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    mut export: RcStr,
+) -> Result<Option<Liveness>> {
+    let mut visited = FxHashSet::default();
+    while visited.insert((module, export.clone())) {
+        let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
+            return Ok(None);
+        };
+        let expanded = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
+        match expanded.exports.get(&export) {
+            Some(EsmExport::LocalBinding(_, liveness)) => return Ok(Some(*liveness)),
+            Some(EsmExport::ImportedBinding(reference, name, _)) => {
+                let ReferencedAsset::Some(reexported_module) =
+                    ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
+                else {
+                    return Ok(None);
+                };
+                module = reexported_module;
+                export = name.clone();
+            }
+            Some(EsmExport::ImportedNamespace(_) | EsmExport::Error) | None => return Ok(None),
+        }
+    }
+    Ok(None)
 }
 
 impl ReferencedAsset {
@@ -846,6 +894,7 @@ impl EsmAssetReference {
                                 namespace_ident,
                                 ctxt,
                                 export: _,
+                                can_value_bind: _,
                                 import_source,
                             }) => {
                                 let span = this

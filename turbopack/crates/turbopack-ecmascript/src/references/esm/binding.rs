@@ -1,17 +1,22 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
-use swc_core::ecma::{
-    ast::{Expr, KeyValueProp, Prop, PropName, SimpleAssignTarget},
-    visit::fields::{CalleeField, PropField},
+use swc_core::{
+    common::DUMMY_SP,
+    ecma::{
+        ast::{Expr, Ident, KeyValueProp, Prop, PropName, SimpleAssignTarget},
+        visit::fields::{CalleeField, PropField},
+    },
+    quote,
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     ScopeHoistingContext,
-    code_gen::{CodeGen, CodeGeneration},
-    create_visitor,
+    code_gen::{CodeGen, CodeGeneration, CodeGenerationHoistedStmt},
+    create_visitor, magic_identifier,
     references::{
         AstPath,
         esm::{
@@ -71,22 +76,68 @@ impl EsmBinding {
         }
 
         let mut visitors = vec![];
+        let mut hoisted_stmts = vec![];
 
         let export = self.export.clone();
         let imported_module = self.reference.get_referenced_asset().await?;
 
         enum ImportedIdent {
-            Module(ReferencedAssetIdent),
+            Module(ReferencedAssetIdent, Option<Ident>),
             None,
             Unresolvable,
         }
 
         let imported_ident = match &imported_module {
             ReferencedAsset::None => ImportedIdent::None,
-            imported_module => imported_module
+            imported_module => match imported_module
                 .get_ident(chunking_context, export, scope_hoisting_context)
                 .await?
-                .map_or(ImportedIdent::Unresolvable, ImportedIdent::Module),
+            {
+                Some(imported_ident) => {
+                    let value_binding = if !self.keep_this
+                        && !self.ast_path.0.iter().any(|parent| {
+                            matches!(
+                                parent,
+                                swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(_)
+                            )
+                        })
+                        && let ReferencedAssetIdent::Module {
+                            namespace_ident,
+                            ctxt,
+                            export: Some(export),
+                            can_value_bind: true,
+                            ..
+                        } = &imported_ident
+                    {
+                        let binding_ident = Ident::new(
+                            magic_identifier::mangle(&format!(
+                                "imported binding {}",
+                                encode_hex(hash_xxh3_hash64((namespace_ident, export)))
+                            ))
+                            .into(),
+                            DUMMY_SP,
+                            ctxt.unwrap_or_default(),
+                        );
+                        let value = imported_ident
+                            .as_expr_individual(DUMMY_SP)
+                            .map_either(Expr::from, Expr::from)
+                            .into_inner();
+                        hoisted_stmts.push(CodeGenerationHoistedStmt::new(
+                            format!("value binding {} {:?}", binding_ident.sym, ctxt).into(),
+                            quote!(
+                                "var $binding = $value;" as Stmt,
+                                binding = binding_ident.clone(),
+                                value: Expr = value,
+                            ),
+                        ));
+                        Some(binding_ident)
+                    } else {
+                        None
+                    };
+                    ImportedIdent::Module(imported_ident, value_binding)
+                }
+                None => ImportedIdent::Unresolvable,
+            },
         };
 
         let mut ast_path = self.ast_path.0.clone();
@@ -103,12 +154,13 @@ impl EsmBinding {
                         |prop: &mut Prop| {
                             if let Prop::Shorthand(ident) = prop {
                                 match &imported_ident {
-                                    ImportedIdent::Module(imported_ident) => {
+                                    ImportedIdent::Module(imported_ident, value_binding) => {
                                         *prop = Prop::KeyValue(KeyValueProp {
                                             key: PropName::Ident(ident.clone().into()),
-                                            value: Box::new(
-                                                imported_ident.as_expr(ident.span, false),
-                                            ),
+                                            value: Box::new(value_binding.as_ref().map_or_else(
+                                                || imported_ident.as_expr(ident.span, false),
+                                                |binding| Expr::Ident(binding.clone()),
+                                            )),
                                         });
                                     }
                                     ImportedIdent::None => {
@@ -144,8 +196,11 @@ impl EsmBinding {
                         |expr: &mut Expr| {
                             use swc_core::common::Spanned;
                             match &imported_ident {
-                                ImportedIdent::Module(imported_ident) => {
-                                    *expr = imported_ident.as_expr(expr.span(), in_call);
+                                ImportedIdent::Module(imported_ident, value_binding) => {
+                                    *expr = value_binding.as_ref().map_or_else(
+                                        || imported_ident.as_expr(expr.span(), in_call),
+                                        |binding| Expr::Ident(binding.clone()),
+                                    );
                                 }
                                 ImportedIdent::None => {
                                     *expr = *Expr::undefined(expr.span());
@@ -170,7 +225,7 @@ impl EsmBinding {
                         |l: &mut SimpleAssignTarget| {
                             use swc_core::common::Spanned;
                             match &imported_ident {
-                                ImportedIdent::Module(imported_ident) => {
+                                ImportedIdent::Module(imported_ident, _) => {
                                     *l = imported_ident
                                         .as_expr_individual(l.span())
                                         .map_either(
@@ -197,7 +252,13 @@ impl EsmBinding {
             }
         }
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(CodeGeneration::new(
+            visitors,
+            hoisted_stmts,
+            vec![],
+            vec![],
+            vec![],
+        ))
     }
 }
 
