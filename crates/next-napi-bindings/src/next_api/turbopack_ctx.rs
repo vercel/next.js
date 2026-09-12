@@ -6,7 +6,7 @@ use std::{
     io::{self, BufRead, Write},
     path::PathBuf,
     sync::{Arc, LazyLock, Mutex},
-    time::Instant,
+    time::{Duration, Instant},
 };
 
 use anyhow::Result;
@@ -285,6 +285,27 @@ impl From<MemoryEvictionMode> for EvictionMode {
     }
 }
 
+#[napi(object)]
+#[derive(Debug, Clone, Copy)]
+pub struct NapiTurbopackGcOptions {
+    /// How long a GC pass runs before it will honour an interrupt, in milliseconds.
+    pub min_progress_ms: Option<f64>,
+    /// How long a GC root may go un-anchored before it ages out, in milliseconds.
+    pub root_ttl_ms: Option<f64>,
+}
+
+/// Converts a millisecond count that crossed the napi boundary into a `Duration`.
+fn duration_from_millis_f64(ms: Option<f64>) -> Option<Duration> {
+    if let Some(ms) = ms
+        && ms.is_finite()
+        && ms >= 0.0
+    {
+        Duration::try_from_secs_f64(ms / 1000.0).ok()
+    } else {
+        None
+    }
+}
+
 pub fn create_turbo_tasks(
     output_path: PathBuf,
     next_version: &str,
@@ -292,6 +313,7 @@ pub fn create_turbo_tasks(
     dependency_tracking: bool,
     storage_options: BackingStorageOptions,
     turbopack_memory_eviction: MemoryEvictionMode,
+    gc: Option<NapiTurbopackGcOptions>,
 ) -> Result<NextTurboTasks> {
     let BackingStorageOptions {
         is_ci,
@@ -306,6 +328,17 @@ pub fn create_turbo_tasks(
             &version_info,
             storage_options,
         )?;
+        let (gc, gc_min_progress, gc_root_ttl) = match gc {
+            Some(NapiTurbopackGcOptions {
+                min_progress_ms,
+                root_ttl_ms,
+            }) => (
+                Some(true),
+                duration_from_millis_f64(min_progress_ms),
+                duration_from_millis_f64(root_ttl_ms),
+            ),
+            None => (None, None, None),
+        };
         let tt = TurboTasks::new(TurboTasksBackend::new(
             BackendOptions {
                 storage_mode: Some(if env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
@@ -318,6 +351,9 @@ pub fn create_turbo_tasks(
                 dependency_tracking,
                 num_workers: Some(tokio::runtime::Handle::current().metrics().num_workers()),
                 eviction_mode: EvictionMode::from(turbopack_memory_eviction),
+                gc,
+                gc_min_progress,
+                gc_root_ttl,
                 ..Default::default()
             },
             backing_storage,
@@ -331,6 +367,8 @@ pub fn create_turbo_tasks(
             BackendOptions {
                 storage_mode: None,
                 dependency_tracking,
+                // GC is deliberately left at its default (off) here: without backing storage
+                // there is nothing to reclaim from disk, so `gc` would have no effect.
                 ..Default::default()
             },
             noop_backing_storage(),

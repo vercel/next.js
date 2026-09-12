@@ -376,6 +376,15 @@ export const experimentalSchema = {
   turbopackMemoryEviction: z
     .union([z.literal(false), z.literal('full'), z.literal('auto')])
     .optional(),
+  turbopackGc: z
+    .union([
+      z.boolean(),
+      z.strictObject({
+        minProgressMs: z.number().min(0).finite().optional(),
+        rootTtlMs: z.number().min(0).finite().optional(),
+      }),
+    ])
+    .optional(),
   turbopackPluginRuntimeStrategy: z
     .enum(['workerThreads', 'childProcesses', 'forceWorkerThreads'])
     .optional(),

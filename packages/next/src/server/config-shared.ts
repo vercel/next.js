@@ -14,7 +14,7 @@ import type { SupportedTestRunners } from '../cli/next-test'
 import { INFINITE_CACHE } from '../lib/constants'
 import { isStableBuild } from '../shared/lib/errors/canary-only-config-error'
 import type { FallbackRouteParam } from '../build/static-paths/types'
-import type { MemoryEvictionMode } from '../build/swc/types'
+import type { MemoryEvictionMode, TurbopackGcOptions } from '../build/swc/types'
 import type { CacheLife } from './use-cache/cache-life'
 
 /**
@@ -79,6 +79,9 @@ export type NextConfigComplete = Required<
       instantInsights: { validationLevel: ValidationLevel }
       // Normalized by finalized config with a default and the expected type
       turbopackMemoryEvictionMode: MemoryEvictionMode
+      // Normalized by config.ts: `false`/unset becomes `undefined` (GC off),
+      // `true` becomes `{}` (GC on with default timings)
+      turbopackGcOptions: TurbopackGcOptions | undefined
     }
     // The root directory of the distDir. In development mode, this is the parent directory of `distDir`
     // since development builds use `{distDir}/dev`. This is used to ensure that the bundler doesn't
@@ -778,6 +781,21 @@ export interface ExperimentalConfig {
    * Defaults to `'auto'`
    */
   turbopackMemoryEviction?: false | 'full' | 'auto'
+
+  /**
+   * Enables Turbopack's garbage collector, which deletes unreachable
+   * tasks from the persistent cache and from memory.
+   *
+   *
+   * - `false` (default): never collect.
+   * - `true`: collect
+   * - An object: collect, overriding individual timings.
+   *   - `minProgressMs`: how long a GC pass runs before it will honour an
+   *     interrupt. Defaults to 100ms.
+   *   - `rootTtlMs`: how long a GC root may go un-anchored before it ages out.
+   *     Defaults to 3 days.
+   */
+  turbopackGc?: boolean | { minProgressMs?: number; rootTtlMs?: number }
 
   /**
    * Selects the backend used by Turbopack for Node.js evaluation, e.g. webpack
