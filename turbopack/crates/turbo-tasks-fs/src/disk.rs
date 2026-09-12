@@ -699,15 +699,19 @@ impl DiskFileSystem {
         .await
     }
 
-    /// Looks up a system path in any configured filesystem.
+    /// Looks up a system path in any configured filesystem other than the current filesystem.
     ///
     /// Like [`Self::resolve_link_target_ancestry_slow_path`], the fallback handles paths whose
     /// spelling differs from a configured root.
     async fn lookup_in_file_system_map(
         &self,
+        vc_self: ResolvedVc<Self>,
         target_sys_path: &Path,
     ) -> Result<Option<FileSystemPath>> {
         let map = self.inner.map.connect().await?;
+        if !map.has_file_system_other_than(vc_self) {
+            return Ok(None);
+        }
         if let Some(path) = map.lookup(target_sys_path) {
             return Ok(Some(path));
         }
@@ -1013,7 +1017,9 @@ impl FileSystem for DiskFileSystem {
                     .await?;
             }
             if target_fs_path.is_none() {
-                target_fs_path = this.lookup_in_file_system_map(&target_sys_path).await?;
+                target_fs_path = this
+                    .lookup_in_file_system_map(self, &target_sys_path)
+                    .await?;
             }
 
             let Some(target_fs_path) = target_fs_path else {
@@ -1091,7 +1097,7 @@ impl FileSystem for DiskFileSystem {
                     .normalize_lexically()
                     .ok();
                 let Some(resolved) = (match absolute_target {
-                    Some(path) => this.lookup_in_file_system_map(&path).await?,
+                    Some(path) => this.lookup_in_file_system_map(self, &path).await?,
                     None => None,
                 }) else {
                     return Ok(LinkContent::Invalid {
