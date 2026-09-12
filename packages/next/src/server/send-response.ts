@@ -42,26 +42,27 @@ export async function sendResponse(
 
     // Copy over the response headers.
     response.headers?.forEach((value, name) => {
+      const lowercasedName = name.toLowerCase()
+
       // `x-middleware-set-cookie` is an internal header not needed for the response
-      if (name.toLowerCase() === 'x-middleware-set-cookie') {
+      if (lowercasedName === 'x-middleware-set-cookie') {
         return
       }
 
       // The append handling is special cased for `set-cookie`.
-      if (name.toLowerCase() === 'set-cookie') {
+      if (lowercasedName === 'set-cookie') {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
         for (const cookie of splitCookiesString(value)) {
           res.appendHeader(name, cookie)
         }
       } else {
-        // only append the header if it is either not present in the outbound response
-        // or if the header supports multiple values
+        // Append headers that support multiple values. Otherwise, only set the
+        // header if it is not already present in the outbound response.
         const isHeaderPresent = typeof res.getHeader(name) !== 'undefined'
-        if (
-          headersWithMultipleValuesAllowed.includes(name.toLowerCase()) ||
-          !isHeaderPresent
-        ) {
+        if (headersWithMultipleValuesAllowed.includes(lowercasedName)) {
           res.appendHeader(name, value)
+        } else if (!isHeaderPresent) {
+          res.setHeader(name, value)
         }
       }
     })
