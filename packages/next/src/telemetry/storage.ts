@@ -261,7 +261,17 @@ export class Telemetry {
 
     spawn(
       process.execPath,
-      [require.resolve('./detached-flush'), mode, dir, eventsFile],
+      // `this.distDir` is passed explicitly so the child does not have to
+      // evaluate the user's `next.config` to discover it. That evaluation runs
+      // dev-phase config plugins (watchers, bundler services) inside a
+      // detached, unsupervised process, which is what left orphans behind.
+      [
+        require.resolve('./detached-flush'),
+        mode,
+        dir,
+        eventsFile,
+        this.distDir,
+      ],
       {
         detached: !this.NEXT_TELEMETRY_DEBUG,
         windowsHide: true,
