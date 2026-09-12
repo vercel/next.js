@@ -25,7 +25,7 @@ use anyhow::Result;
 use bincode::{Decode, Encode};
 use indexmap::map::Entry;
 use ringmap::RingSet;
-use rustc_hash::{FxBuildHasher, FxHashMap, FxHashSet};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use smallvec::{SmallVec, smallvec};
 #[cfg(feature = "trace_aggregation_update_queue")]
 use tracing::span::Span;
@@ -959,6 +959,16 @@ pub struct AggregationUpdateQueue {
     /// operation could perform arbitrarily many optimizations by going through several
     /// suspend/resume cycles.
     optimizations_executed: usize,
+    /// Refuse every optimization, so `optimize_queue` stays empty and each request is recorded on
+    /// its task's `optimization_pending` flag instead.
+    ///
+    /// GC sets this on the queues it collects with. Optimizing raises a task's aggregation number
+    /// to shrink its fan-out, which is a shape improvement rather than something the graph's
+    /// correctness depends on -- unlike `balance_edge`, which restores the upper/follower
+    /// invariant after a number changes. Collection only removes nodes, so an optimization it
+    /// triggers is regenerable work that the next operation to touch the task can do, and
+    /// dropping it keeps the deferred state to balance edges alone.
+    no_optimizations: bool,
     #[bincode(skip, default = "FxHashMap::default")]
     scheduled_tasks: FxHashMap<TaskId, TaskPriority>,
     #[cfg(feature = "trace_aggregation_update_stats")]
@@ -976,9 +986,18 @@ impl AggregationUpdateQueue {
             balance_queue: FxRingSet::default(),
             optimize_queue: FxRingSet::default(),
             optimizations_executed: 0,
+            no_optimizations: false,
             scheduled_tasks: FxHashMap::default(),
             #[cfg(feature = "trace_aggregation_update_stats")]
             stats: AggregationUpdateQueueStats::default(),
+        }
+    }
+
+    /// A queue that refuses optimizations; see [`Self::no_optimizations`].
+    pub fn new_without_optimizations() -> Self {
+        Self {
+            no_optimizations: true,
+            ..Self::new()
         }
     }
 
@@ -991,6 +1010,7 @@ impl AggregationUpdateQueue {
             balance_queue,
             optimize_queue,
             optimizations_executed: _,
+            no_optimizations: _,
             done_aggregation_number_updates: _,
             scheduled_tasks,
             #[cfg(feature = "trace_aggregation_update_stats")]
@@ -1086,7 +1106,7 @@ impl AggregationUpdateQueue {
     /// While exhausted, popped `OptimizeJob`s are dropped instead of run, and pushes don't
     /// enqueue (see [`Self::try_enqueue_optimize_job`]).
     fn is_optimization_budget_exhausted(&self) -> bool {
-        self.optimizations_executed >= MAX_OPTIMIZATIONS_PER_QUEUE
+        self.no_optimizations || self.optimizations_executed >= MAX_OPTIMIZATIONS_PER_QUEUE
     }
 
     /// Tries to enqueue an `OptimizeJob`. Returns `false` if the in-memory queue is at its
@@ -1183,38 +1203,26 @@ impl AggregationUpdateQueue {
         !self.balance_queue.is_empty() || !self.optimize_queue.is_empty()
     }
 
-    /// Takes the rebalance work left on this queue, for a caller that will run it later.
+    /// Takes the balance edges left on this queue, for a caller that will run them later.
     ///
-    /// Returns the `(upper, task)` edges that still need balancing. Optimize jobs are *not*
-    /// returned: an optimization is recoverable from the task's `optimization_pending` flag, so
-    /// each one is flushed to its task here and picked up by whichever later operation touches it.
-    /// That keeps the deferred state to a plain set of edges, with no queue-level budget to
-    /// reconcile.
-    ///
-    /// GC uses this to hold rebalancing back until the parallel collect is quiescent; see
+    /// Only valid on a queue built by [`Self::new_without_optimizations`] and drained to the
+    /// rebalance boundary, so balance edges are all that can remain. GC uses this to hold
+    /// rebalancing back until the parallel collect is quiescent; see
     /// `TurboTasksBackend::gc_collect`.
-    pub fn take_deferred_rebalance(
+    pub fn take_deferred_balance_edges(
         &mut self,
-        ctx: &mut impl ExecuteContext<'_>,
-    ) -> FxHashSet<(TaskId, TaskId)> {
+    ) -> impl Iterator<Item = (TaskId, TaskId)> + use<> {
         debug_assert!(
             self.only_rebalance_remains(),
-            "take_deferred_rebalance expects a queue stopped at the rebalance boundary"
+            "take_deferred_balance_edges expects a queue stopped at the rebalance boundary"
         );
-        for OptimizeJob {
-            task_id,
-            optimization_pending_flag_already_set,
-            ..
-        } in take(&mut self.optimize_queue)
-        {
-            if !optimization_pending_flag_already_set {
-                lock_and_mark_optimization_pending(ctx, task_id);
-            }
-        }
+        debug_assert!(
+            self.optimize_queue.is_empty(),
+            "a queue built with `new_without_optimizations` must never hold optimize jobs"
+        );
         take(&mut self.balance_queue)
             .into_iter()
             .map(|job| (job.upper_id, job.task_id))
-            .collect()
     }
 
     /// Queues balance jobs taken by [`Self::take_deferred_rebalance`], skipping any whose endpoints

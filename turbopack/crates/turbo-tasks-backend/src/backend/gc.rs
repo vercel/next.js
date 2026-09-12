@@ -288,16 +288,15 @@ impl TurboTasksBackend {
                 // concurrently with collection is what produced edges pointing at tasks another
                 // worker had already deleted, so it is accumulated here and drained once the
                 // parallel phase is quiescent.
-                if let Some(queue) = CleanupOldEdgesOperation::run_edges_only(
+                if let Some(mut queue) = CleanupOldEdgesOperation::run_edges_only(
                     task_id,
                     old_edges,
-                    AggregationUpdateQueue::new(),
+                    AggregationUpdateQueue::new_without_optimizations(),
                     &mut ctx,
                 ) {
-                    let mut queue = queue;
                     stats
                         .deferred_balance_edges
-                        .extend(queue.take_deferred_rebalance(&mut ctx));
+                        .extend(queue.take_deferred_balance_edges());
                 }
                 ControlFlow::Continue(())
             },
