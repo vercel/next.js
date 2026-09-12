@@ -55,6 +55,19 @@ The heap snapshot will be saved to the project root of the Next.js application a
 
 See [how to record and analyze heap snapshots](https://developer.chrome.com/docs/devtools/memory-problems/heap-snapshots) for more information.
 
+## Measure memory at runtime
+
+The strategies above cover `next dev` and `next build`. A production server that grows over hours is a different problem, and a heap snapshot taken without care can point at the wrong thing. Four things make the measurement reliable:
+
+- **Sample from a warm process.** The first requests to a route compile and fill caches that never go away. That growth is expected and isn't a leak.
+- **Force a garbage collection before every sample.** Start Node with `--expose-gc` and call `global.gc()` before reading `process.memoryUsage()`. Growth that survives a full collection is retained; growth that disappears was garbage waiting to be collected.
+- **Watch `rss` and `arrayBuffers`, not only `heapUsed`.** Some retention lives outside the V8 heap and never shows up in a heap snapshot.
+- **Measure one route at a time, in a fresh process.** Otherwise growth can't be attributed to the route that causes it.
+
+A heap snapshot diff between an early and a late sample lists the objects that grew together with their retainer chains. The top of the chain usually names the cache, handler or timer that holds the memory.
+
+Tools such as [memlab](https://github.com/facebook/memlab) and [next-leak](https://github.com/xabierlameiro/next-leak) automate this loop and report a per-route verdict.
+
 ## Webpack build worker
 
 The Webpack build worker allows you to run Webpack compilations inside a separate Node.js worker which will decrease memory usage of your application during builds.
