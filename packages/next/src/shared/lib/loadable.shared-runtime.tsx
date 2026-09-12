@@ -58,6 +58,16 @@ function load(loader: any) {
 }
 
 function createLoadableComponent(loadFn: any, options: any) {
+  // Match the loading state rendered by dynamic() when SSR is disabled.
+  // Keep this snapshot stable while hydration may suspend and retry.
+  const serverSnapshot = {
+    loading: true,
+    loaded: null,
+    error: null,
+    pastDelay: false,
+    timedOut: false,
+  }
+
   let opts = Object.assign(
     {
       loader: null,
@@ -125,7 +135,7 @@ function createLoadableComponent(loadFn: any, options: any) {
     const state = (React as any).useSyncExternalStore(
       subscription.subscribe,
       subscription.getCurrentValue,
-      subscription.getCurrentValue
+      opts.ssr === false ? () => serverSnapshot : subscription.getCurrentValue
     )
 
     React.useImperativeHandle(
