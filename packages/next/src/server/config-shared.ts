@@ -1053,6 +1053,14 @@ export interface ExperimentalConfig {
   turbopackCrossModuleConstants?: boolean
 
   /**
+   * Inline short, identity-free constant exports during Turbopack code generation without using
+   * their values for compile-time analysis.
+   *
+   * Defaults to `false`
+   */
+  turbopackInlineConstantExports?: boolean
+
+  /**
    * Set this to `false` to disable the automatic configuration of the babel loader when a Babel
    * configuration file is present. This option is enabled by default.
    *

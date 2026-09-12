@@ -26,20 +26,34 @@ use crate::{
 pub struct ConstantValueCodeGen {
     value: CompileTimeDefineValue,
     path: AstPath,
+    add_compile_time_marker: bool,
 }
 
 impl ConstantValueCodeGen {
     pub fn new(value: CompileTimeDefineValue, path: AstPath) -> Self {
-        ConstantValueCodeGen { value, path }
+        ConstantValueCodeGen {
+            value,
+            path,
+            add_compile_time_marker: true,
+        }
+    }
+
+    pub fn new_inline_export(value: CompileTimeDefineValue, path: AstPath) -> Self {
+        ConstantValueCodeGen {
+            value,
+            path,
+            add_compile_time_marker: false,
+        }
     }
     pub async fn code_generation(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let value = self.value.clone();
+        let add_compile_time_marker = self.add_compile_time_marker;
 
         let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
-            *expr = value_to_expr(&value);
+            *expr = value_to_expr(&value, add_compile_time_marker);
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
@@ -52,7 +66,10 @@ impl From<ConstantValueCodeGen> for CodeGen {
     }
 }
 
-fn value_to_expr(value: &CompileTimeDefineValue) -> Expr {
+fn value_to_expr(value: &CompileTimeDefineValue, add_compile_time_marker: bool) -> Expr {
+    if !add_compile_time_marker {
+        return value_to_expr_without_marker(value);
+    }
     match value {
         CompileTimeDefineValue::Undefined => {
             quote!("(\"TURBOPACK compile-time value\", void 0)" as Expr)
@@ -88,7 +105,10 @@ fn value_to_expr(value: &CompileTimeDefineValue) -> Expr {
         CompileTimeDefineValue::Array(a) => {
             quote!("(\"TURBOPACK compile-time value\", $e)" as Expr, e: Expr = Expr::Array(ArrayLit {
                 span: DUMMY_SP,
-                elems: a.iter().map(|i| Some(value_to_expr(i).into())).collect(),
+                elems: a
+                    .iter()
+                    .map(|i| Some(value_to_expr(i, true).into()))
+                    .collect(),
             }))
         }
         CompileTimeDefineValue::Object(m) => {
@@ -100,7 +120,7 @@ fn value_to_expr(value: &CompileTimeDefineValue) -> Expr {
                         swc_core::ecma::ast::PropOrSpread::Prop(
                             Prop::KeyValue(KeyValueProp {
                                 key: PropName::Str(Str::from(k.as_str())),
-                                value: value_to_expr(v).into(),
+                                value: value_to_expr(v, true).into(),
                             })
                             .into(),
                         )
@@ -108,6 +128,51 @@ fn value_to_expr(value: &CompileTimeDefineValue) -> Expr {
                     .collect(),
             }))
         }
+        CompileTimeDefineValue::Evaluate(s) => parse_single_expr_lit(s),
+    }
+}
+
+fn value_to_expr_without_marker(value: &CompileTimeDefineValue) -> Expr {
+    match value {
+        CompileTimeDefineValue::Undefined => quote!("void 0" as Expr),
+        CompileTimeDefineValue::Null => quote!("null" as Expr),
+        CompileTimeDefineValue::Bool(true) => quote!("true" as Expr),
+        CompileTimeDefineValue::Bool(false) => quote!("false" as Expr),
+        CompileTimeDefineValue::Number(n) => n
+            .as_f64()
+            .expect("unreachable: serde-json has arbitrary_precision disabled")
+            .into(),
+        CompileTimeDefineValue::String(s) => s.as_str().into(),
+        CompileTimeDefineValue::BigInt(n) => Expr::Lit(Lit::BigInt(n.as_ref().clone().into())),
+        CompileTimeDefineValue::Regex(pattern, flags) => Expr::Lit(Lit::Regex(Regex {
+            span: DUMMY_SP,
+            exp: pattern.as_str().into(),
+            flags: flags.as_str().into(),
+        })),
+        // These values are not eligible for automatic export inlining, but keeping the helper
+        // complete makes its invariant explicit if another caller is added later.
+        CompileTimeDefineValue::Array(a) => Expr::Array(ArrayLit {
+            span: DUMMY_SP,
+            elems: a
+                .iter()
+                .map(|i| Some(value_to_expr_without_marker(i).into()))
+                .collect(),
+        }),
+        CompileTimeDefineValue::Object(m) => Expr::Object(ObjectLit {
+            span: DUMMY_SP,
+            props: m
+                .iter()
+                .map(|(k, v)| {
+                    swc_core::ecma::ast::PropOrSpread::Prop(
+                        Prop::KeyValue(KeyValueProp {
+                            key: PropName::Str(Str::from(k.as_str())),
+                            value: value_to_expr_without_marker(v).into(),
+                        })
+                        .into(),
+                    )
+                })
+                .collect(),
+        }),
         CompileTimeDefineValue::Evaluate(s) => parse_single_expr_lit(s),
     }
 }
