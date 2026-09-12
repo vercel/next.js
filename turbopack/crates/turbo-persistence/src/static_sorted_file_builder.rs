@@ -10,7 +10,7 @@ use byteorder::{BE, ByteOrder, WriteBytesExt};
 use fs_err::File;
 
 use crate::{
-    Compression,
+    CompressionConfig,
     compression::{Compressor, checksum_block},
     constants::{MAX_INLINE_VALUE_SIZE, MAX_SMALL_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE},
     meta_file::MetaEntryFlags,
@@ -340,7 +340,7 @@ pub fn write_static_stored_file<E: Entry>(
     entries: &[E],
     file: &Path,
     flags: MetaEntryFlags,
-    compression: Compression,
+    compression: CompressionConfig,
 ) -> Result<(StaticSortedFileBuilderMeta<'static>, File)> {
     debug_assert!(entries.iter().map(|e| e.key_hash()).is_sorted());
     let mut writer = StreamingSstWriter::new(file, flags, entries.len() as u64, compression)?;
@@ -616,7 +616,7 @@ impl<E: Entry> StreamingSstWriter<E> {
         file: &Path,
         flags: MetaEntryFlags,
         max_entry_count: u64,
-        compression: Compression,
+        compression: CompressionConfig,
     ) -> Result<Self> {
         let file = BufWriter::new(File::create(file)?);
         let compressor = Compressor::new(compression)?;
@@ -1508,7 +1508,7 @@ mod tests {
                 sequence_number: seq,
                 block_count: meta.block_count,
             },
-            Compression::Lz4,
+            CompressionConfig::Lz4,
             AccessMode::Mmap,
         )
     }
@@ -1521,8 +1521,12 @@ mod tests {
         flags: MetaEntryFlags,
     ) -> Result<StaticSortedFileBuilderMeta<'static>> {
         let sst_path = dir.join(format!("{seq:08}.sst"));
-        let mut writer =
-            StreamingSstWriter::new(&sst_path, flags, entries.len() as u64, Compression::Lz4)?;
+        let mut writer = StreamingSstWriter::new(
+            &sst_path,
+            flags,
+            entries.len() as u64,
+            CompressionConfig::Lz4,
+        )?;
         for entry in entries {
             writer.add(entry)?;
         }
@@ -1757,9 +1761,13 @@ mod tests {
     fn is_full_entry_count_limit() {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("test.sst");
-        let mut writer =
-            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100, Compression::Lz4)
-                .unwrap();
+        let mut writer = StreamingSstWriter::new(
+            &sst_path,
+            MetaEntryFlags::default(),
+            100,
+            CompressionConfig::Lz4,
+        )
+        .unwrap();
 
         let max_entries = 50;
         for i in 0..max_entries {
@@ -1784,9 +1792,13 @@ mod tests {
     fn is_full_data_size_limit() {
         let dir = tempfile::tempdir().unwrap();
         let sst_path = dir.path().join("test.sst");
-        let mut writer =
-            StreamingSstWriter::new(&sst_path, MetaEntryFlags::default(), 100, Compression::Lz4)
-                .unwrap();
+        let mut writer = StreamingSstWriter::new(
+            &sst_path,
+            MetaEntryFlags::default(),
+            100,
+            CompressionConfig::Lz4,
+        )
+        .unwrap();
 
         let value = vec![0u8; 1000];
         for i in 0..10 {
@@ -1826,7 +1838,7 @@ mod tests {
             &entries,
             &batch_path,
             MetaEntryFlags::default(),
-            Compression::Lz4,
+            CompressionConfig::Lz4,
         )?;
 
         // Write via streaming API
@@ -1835,7 +1847,7 @@ mod tests {
             &streaming_path,
             MetaEntryFlags::default(),
             entries.len() as u64,
-            Compression::Lz4,
+            CompressionConfig::Lz4,
         )?;
         for entry in &entries {
             writer.add(entry)?;
@@ -1855,7 +1867,7 @@ mod tests {
                 sequence_number: 1,
                 block_count: meta1.block_count,
             },
-            Compression::Lz4,
+            CompressionConfig::Lz4,
             AccessMode::Mmap,
         )?;
         let sst2 = StaticSortedFile::open(
@@ -1864,7 +1876,7 @@ mod tests {
                 sequence_number: 2,
                 block_count: meta2.block_count,
             },
-            Compression::Lz4,
+            CompressionConfig::Lz4,
             AccessMode::Mmap,
         )?;
         let kc = make_cache();
@@ -1924,7 +1936,7 @@ mod tests {
             &sst_path,
             MetaEntryFlags::default(),
             0,
-            Compression::Lz4,
+            CompressionConfig::Lz4,
         )
         .unwrap();
         writer.close().unwrap();

@@ -5,7 +5,8 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rstest::rstest;
 
 use crate::{
-    AccessMode, Compression, DbConfig, FamilyConfig, FamilyKind,
+    AccessMode, Compression, CompressionConfig, DbConfig, FamilyConfig, FamilyKind,
+    SerialScheduler,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence, read_current_version},
     lookup_entry::IterValue,
@@ -148,7 +149,7 @@ fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
         family_configs: [FamilyConfig {
             name: "test",
             kind: FamilyKind::MultiValue,
-            compression: Compression::Lz4,
+            compression: Compression::Lz4.into(),
         }],
         access_mode: if mmap {
             AccessMode::Mmap
@@ -1054,7 +1055,7 @@ fn batch_get_different_sizes(#[case] mmap: bool) -> Result<()> {
     let path = tempdir.path();
 
     let mut config = config_with_mmap(mmap);
-    config.family_configs[0].compression = Compression::Zstd3;
+    config.family_configs[0].compression = Compression::Zstd3.into();
     let db = open_db_with_config::<16>(path, config)?;
 
     // Write values of different sizes
@@ -1109,8 +1110,8 @@ fn batch_get_across_families(#[case] mmap: bool) -> Result<()> {
     let path = tempdir.path();
 
     let mut config = config_with_mmap(mmap);
-    // Set zstd on an arbitrary family; lz4 is used by default.
-    config.family_configs[2].compression = Compression::Zstd3;
+    // Set zstd on an arbitrary family; LZ4 is used by default.
+    config.family_configs[2].compression = Compression::Zstd3.into();
     let db = open_db_with_config::<16>(path, config.clone())?;
 
     // Write compressible values to multiple families so every configured codec is exercised.
@@ -1188,7 +1189,7 @@ fn batch_get_after_compaction(#[case] mmap: bool) -> Result<()> {
     let path = tempdir.path();
 
     let mut config = config_with_mmap(mmap);
-    config.family_configs[0].compression = Compression::Zstd3;
+    config.family_configs[0].compression = Compression::Zstd3.into();
     let db = open_db_with_config::<16>(path, config)?;
 
     // Write data across multiple batches to create multiple SST files
@@ -1561,7 +1562,7 @@ fn multi_value_config() -> DbConfig<1> {
     config.family_configs[0] = FamilyConfig {
         name: "test",
         kind: FamilyKind::MultiValue,
-        compression: Compression::Lz4,
+        compression: Compression::Lz4.into(),
     };
     config
 }
@@ -2456,7 +2457,9 @@ fn count_tombstones(
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
-            for item in StaticSortedFileIter::open(path, sst, Compression::Lz4, AccessMode::Mmap)? {
+            for item in
+                StaticSortedFileIter::open(path, sst, Compression::Lz4.into(), AccessMode::Mmap)?
+            {
                 if matches!(
                     item?.value,
                     IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
@@ -2810,5 +2813,43 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
     );
 
     db.shutdown()?;
+    Ok(())
+}
+
+#[test]
+fn dictionary_config_round_trips_and_rejects_mismatch() -> Result<()> {
+    let samples = (0..100)
+        .map(|index| format!("export default function Component{index}() {{ return null }}"))
+        .collect::<Vec<_>>();
+    let dictionary = zstd::dict::from_samples(&samples, 1024)?;
+    let dictionary = Box::leak(dictionary.into_boxed_slice());
+    let tempdir = tempfile::tempdir()?;
+    let mut config = DbConfig::<1>::default();
+    config.family_configs[0].compression = CompressionConfig::Zstd3WithDictionary(dictionary);
+    let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
+        tempdir.path().to_path_buf(),
+        config.clone(),
+    )?;
+    let batch = db.write_batch()?;
+    batch.put(0, b"key".to_vec(), samples.concat().into_bytes().into())?;
+    db.commit_write_batch(batch)?;
+    db.shutdown()?;
+
+    let db = TurboPersistence::<SerialScheduler, 1>::open_with_config(
+        tempdir.path().to_path_buf(),
+        config,
+    )?;
+    assert!(db.get(0, &b"key".to_vec())?.is_some());
+    db.shutdown()?;
+
+    let mut plain_zstd = DbConfig::<1>::default();
+    plain_zstd.family_configs[0].compression = CompressionConfig::Zstd3;
+    let error = TurboPersistence::<SerialScheduler, 1>::open_with_config(
+        tempdir.path().to_path_buf(),
+        plain_zstd,
+    )
+    .err()
+    .expect("plain zstd config must reject dictionary metadata");
+    assert!(format!("{error:#}").contains("Compression configuration mismatch"));
     Ok(())
 }
