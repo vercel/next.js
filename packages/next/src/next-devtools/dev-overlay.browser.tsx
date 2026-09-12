@@ -52,12 +52,20 @@ import type { SegmentNodeState } from './userspace/app/segment-explorer-node'
 import type { DevToolsConfig } from './dev-overlay/shared'
 import type { SegmentTrieData } from '../shared/lib/mcp-page-metadata-types'
 import { EventQueue } from './dev-overlay/event-queue'
+import {
+  registerHmrTools,
+  dispatchHmrMessage,
+  shouldDeferHmrReload,
+} from './dev-overlay/webmcp'
 import type {
   RequestInsight,
   RequestInsightsSnapshot,
 } from './shared/request-insights'
 
 export interface Dispatcher {
+  registerHmrTools: typeof registerHmrTools
+  dispatchHmrMessage: typeof dispatchHmrMessage
+  shouldDeferHmrReload: typeof shouldDeferHmrReload
   onBuildOk(): void
   onBuildError(message: string): void
   onVersionInfo(versionInfo: VersionInfo): void
@@ -147,6 +155,9 @@ function createQueuable<Args extends any[]>(
 
 // TODO: Extract into separate functions that are imported
 export const dispatcher: Dispatcher = {
+  registerHmrTools,
+  dispatchHmrMessage,
+  shouldDeferHmrReload,
   onBuildOk: createQueuable((dispatch: Dispatch) => {
     dispatch({ type: ACTION_BUILD_OK })
   }),
