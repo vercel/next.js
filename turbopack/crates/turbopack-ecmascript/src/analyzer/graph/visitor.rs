@@ -2803,12 +2803,13 @@ impl VisitAstPath for Analyzer<'_, '_> {
         });
 
         let effects = take(&mut self.effects);
-        // Intern the walk's path, then extend it by the one extra element, rather than
-        // copying the whole path just to append to it.
-        let prefix = self.ast_paths.intern(ast_path.kinds().iter().copied());
+        // Append the extra element to the walk's path as an iterator, rather than copying
+        // the whole path just to push onto it.
         let labeled_body_path = self
             .ast_paths
-            .push(prefix, AstParentKind::LabeledStmt(LabeledStmtField::Body));
+            .intern(ast_path.kinds().iter().copied().chain(iter::once(
+                AstParentKind::LabeledStmt(LabeledStmtField::Body),
+            )));
 
         prev_effects.push(
             self.arena,
