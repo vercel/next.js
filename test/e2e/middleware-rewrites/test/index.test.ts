@@ -196,6 +196,33 @@ describe('Middleware Rewrite', () => {
       expect(await browser.eval('next.router.asPath')).toBe('/param-1')
     })
 
+    it('should trigger getServerSideProps on back navigation when middleware is present', async () => {
+      const browser = await webdriver(next.url, '/')
+
+      const home1Timestamp = await browser.eval(
+        'document.querySelector(".now")?.textContent'
+      )
+      expect(home1Timestamp).toBeDefined()
+
+      await browser.elementByCss('a[href="/ssg"]').click()
+      await browser.waitForElementByCss('h1')
+      const ssgText = await browser.eval('document.body.innerText')
+      expect(ssgText).toContain('SSG Page')
+
+      await browser.back()
+      await browser.waitForElementByCss('.now')
+
+      const home2Timestamp = await browser.eval(
+        'document.querySelector(".now")?.textContent'
+      )
+      expect(home2Timestamp).toBeDefined()
+
+      expect(home1Timestamp).not.toBe(home2Timestamp)
+      expect(parseInt(home2Timestamp)).toBeGreaterThan(parseInt(home1Timestamp))
+
+      await browser.close()
+    })
+
     it('should have props for afterFiles rewrite to SSG page', async () => {
       // TODO: investigate test failure during client navigation
       // on deployment

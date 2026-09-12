@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import { useRouter } from 'next/router'
 
-export default function Home() {
+export default function Home({ now }) {
   const router = useRouter()
   return (
     <div>
       <p className="title">Home Page</p>
+      <p className="now">{now}</p>
       <div />
       <Link href="/article/foo/bar/123" id="to-article-rewrite">
         to /article/foo/bar/123
