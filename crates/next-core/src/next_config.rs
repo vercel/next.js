@@ -1455,7 +1455,8 @@ pub struct ExperimentalConfig {
     turbopack_cjs_scope_hoisting: Option<bool>,
     /// Enable analyzer-aware cross-module constant inlining. Defaults to false.
     turbopack_cross_module_constants: Option<bool>,
-    /// Inline short constant exports during code generation. Defaults to false.
+    /// Inline short constant exports during code generation. Defaults to true for production
+    /// builds and false in development.
     turbopack_inline_constant_exports: Option<bool>,
     /// Devtool option for the segment explorer.
     devtool_segment_explorer: Option<bool>,
@@ -2624,12 +2625,11 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
-    pub fn turbopack_inline_constant_exports(&self) -> Vc<bool> {
-        Vc::cell(
-            self.experimental
-                .turbopack_inline_constant_exports
-                .unwrap_or(false),
-        )
+    pub async fn turbopack_inline_constant_exports(&self, mode: Vc<NextMode>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(inline_constant_exports_enabled(
+            self.experimental.turbopack_inline_constant_exports,
+            *mode.await?,
+        )))
     }
 
     #[turbo_tasks::function]
@@ -3065,9 +3065,30 @@ pub fn lightningcss_feature_names_to_mask(
     Ok(mask.bits())
 }
 
+fn inline_constant_exports_enabled(explicit: Option<bool>, mode: NextMode) -> bool {
+    explicit.unwrap_or(mode.is_production())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_inline_constant_exports_default() {
+        assert!(inline_constant_exports_enabled(None, NextMode::Build));
+        assert!(!inline_constant_exports_enabled(
+            None,
+            NextMode::Development
+        ));
+        assert!(!inline_constant_exports_enabled(
+            Some(false),
+            NextMode::Build
+        ));
+        assert!(inline_constant_exports_enabled(
+            Some(true),
+            NextMode::Development
+        ));
+    }
 
     #[test]
     fn test_serde_rule_config_item_options() {
