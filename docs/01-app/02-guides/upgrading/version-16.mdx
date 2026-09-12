@@ -615,6 +615,20 @@ The `middleware` filename is deprecated, and has been renamed to `proxy` to clar
 
 The `edge` runtime is **NOT** supported in `proxy`. The `proxy` runtime is `nodejs`, and it cannot be configured. If you want to continue using the `edge` runtime, keep using `middleware`. We will follow up on a minor release with further `edge` runtime instructions.
 
+Because migrating to `proxy` changes the execution environment, it may also change the CPU profile and processing time of your code. Those differences can go in either direction and may become meaningful at high request volumes, particularly on platforms that meter CPU usage.
+
+For that reason, treat the `middleware` to `proxy` change separately from the version 16 upgrade. After upgrading to Next.js 16:
+
+1. In your existing `middleware.ts` file, opt into the Node.js runtime:
+
+   ```ts filename="middleware.ts"
+   export const runtime = 'nodejs'
+   ```
+
+2. Deploy and check for regressions in behavior, latency, CPU usage, and other relevant application metrics.
+3. If the runtime change causes regressions, you may need to replace dependencies, adjust implementation patterns, or profile the execution to understand the cause.
+4. Once the application is running correctly on Node.js, rename the file and remove the `runtime` export.
+
 ```bash filename="Terminal"
 # Rename your middleware file
 mv middleware.ts proxy.ts
