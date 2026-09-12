@@ -1,8 +1,10 @@
+import fs from 'fs/promises'
+import path from 'path'
+
 import { nextTestSetup } from 'e2e-utils'
 
-// TODO(lubieowoce): reenable when the cause of flakiness is found and fixed
-// (seems to have increased sharply around 2026-08-24/25)
-describe.skip('sync IO that blocks the root', () => {
+describe('sync IO that blocks the root', () => {
+  const traceDir = path.join(__dirname, '../../../..', 'test/traces')
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -31,7 +33,7 @@ describe.skip('sync IO that blocks the root', () => {
       isDebugPrerender: true,
     },
   ])(
-    'does not hang the build and reports sync IO errors - $description',
+    'does not hang the build and reports the failed route - $description',
     ({ isDebugPrerender }) => {
       it.each([
         '/async-root-sync-page',
@@ -43,11 +45,70 @@ describe.skip('sync IO that blocks the root', () => {
         if (isDebugPrerender) {
           args.push('--debug-prerender')
         }
-        const result = await next.build({ args })
+        const traceFile = `.sync-io-trace-${route.slice(1).replaceAll('/', '-')}-${isDebugPrerender ? 'debug' : 'production'}.log`
+        const result = await next.build({
+          args,
+          env: {
+            NEXT_TEST_SYNC_IO_TRACE: '1',
+            NEXT_TEST_SYNC_IO_TRACE_FILE: path.join(next.testDir, traceFile),
+            NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --require=${path.join(__dirname, 'trace-preload.cjs')}`,
+          },
+        })
 
-        expect(result.cliOutput).toContain(
-          `Error: Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering.`
-        )
+        if (isDebugPrerender) {
+          const trace = await next.readFile(traceFile).catch(() => '')
+          const parsedTrace = trace
+            .trim()
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => JSON.parse(line))
+          await fs.mkdir(traceDir, {
+            recursive: true,
+          })
+          await fs.writeFile(
+            path.join(
+              traceDir,
+              `sync-io-blocks-root-${route.slice(1).replaceAll('/', '-')}.json`
+            ),
+            JSON.stringify(
+              {
+                route,
+                cwd: process.cwd(),
+                reactVersion: process.env.NEXT_TEST_REACT_VERSION ?? 'default',
+                exitCode: result.exitCode,
+                hasDetailedDiagnostic: result.cliOutput.includes(
+                  `Error: Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering.`
+                ),
+                trace: parsedTrace,
+              },
+              null,
+              2
+            )
+          )
+          console.log(
+            JSON.stringify({
+              route,
+              reactVersion: process.env.NEXT_TEST_REACT_VERSION ?? 'default',
+              exitCode: result.exitCode,
+              hasDetailedDiagnostic: result.cliOutput.includes(
+                `Error: Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering.`
+              ),
+              trace: parsedTrace,
+            })
+          )
+        }
+
+        if (isDebugPrerender) {
+          // Diagnostic mode: retain the original assertion so CI exposes the
+          // process trace whenever the detailed message is missing.
+          expect(result.cliOutput).toContain(
+            `Error: Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering.`
+          )
+        } else {
+          expect(result.cliOutput).toContain(
+            `Error: Route "${route}": Next.js encountered the unstable value \`Date.now()\` while prerendering.`
+          )
+        }
         expect(result.cliOutput).not.toMatch(
           /Failed to build .*? because it took more than \d+ seconds\. Retrying again shortly\./
         )
