@@ -13,7 +13,6 @@ function assertSitemapResponse(res: Response) {
 describe('app-dir - dynamic in generate params', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should render sitemap with generateSitemaps in force-dynamic config dynamically', async () => {

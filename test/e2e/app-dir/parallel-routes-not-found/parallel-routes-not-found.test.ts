@@ -2,15 +2,9 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('parallel-routes-and-interception', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // TODO: remove after deployment handling is updated
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   // TODO: revisit the error for missing parallel routes slot
   it('should not render the @children slot when the @slot is not found', async () => {
