@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+  <body>
+    <script>
+      // Deliberately plants the two failure modes this tool exists to catch.
+      // Used to self-test the pipeline end to end: if a run over this page
+      // doesn't report an eager "wrong map" deopt and a megamorphic access in
+      // `plantedShapeHazard`, the tooling is broken.
+      function plantedShapeHazard(o) {
+        return o.x
+      }
+      // Warm up monomorphic so the function gets optimized…
+      for (let i = 0; i < 1e5; i++) plantedShapeHazard({ x: 1 })
+      // …then feed it 5 shapes (megamorphic) to force a "wrong map" deopt…
+      const shapes = [
+        { x: 1 },
+        { x: 1, y: 2 },
+        { x: 1, z: 3 },
+        { x: 1, w: 4 },
+        { x: 1, q: 5 },
+      ]
+      for (let i = 0; i < 1e5; i++) plantedShapeHazard(shapes[i % 5])
+      // …and keep churning brand-new shapes to stay megamorphic.
+      for (let i = 0; i < 1e4; i++)
+        plantedShapeHazard({ x: 'str', ['p' + i]: i })
+      document.title = 'DEOPT_DONE'
+    </script>
+  </body>
+</html>

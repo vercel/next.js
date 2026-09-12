@@ -1,0 +1,15 @@
+{
+  "name": "bench-deopt",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Catch V8 deopt scenarios (deopts, megamorphic ICs) in Next.js runtime code by driving a real built app in headless Chrome with V8 logging enabled.",
+  "type": "module",
+  "dependencies": {
+    "@jridgewell/trace-mapping": "0.3.25",
+    "playwright-core": "1.61.0",
+    "v8-deopt-parser": "0.4.3"
+  },
+  "peerDependencies": {
+    "next": "workspace:*"
+  }
+}

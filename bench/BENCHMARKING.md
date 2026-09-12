@@ -7,6 +7,10 @@ Primary tools:
 - `pnpm bench:render-pipeline`
 - `pnpm bench:render-pipeline:analyze`
 
+For V8 deoptimization analysis (deopts, megamorphic inline caches — e.g. in
+the client segment cache), see [`bench/deopt/README.md`](./deopt/README.md)
+(`pnpm bench:deopt`).
+
 ## 1. Build-first baseline
 
 Always rebuild `next` before benchmark runs when framework source changed.
