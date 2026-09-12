@@ -74,6 +74,23 @@ impl ConnectChildOperation {
         child_task_id: TaskId,
         mut ctx: impl ExecuteContext<'_>,
     ) {
+        if parent_task_id.is_none() {
+            // An entry point: the caller reached this task from outside any task, so nothing in
+            // the graph lists it as a child and no `parent_count` can protect it while the caller
+            // reads the result. Take a reference per such call, on every path that gets here --
+            // freshly created, restored from backing storage, or an in-memory cache hit -- since
+            // the caller cannot tell which happened and each one is a distinct live handle.
+            //
+            // The reference is unowned: nothing releases it, so the task stays resident for the
+            // session. Cross-session lifetime is a separate mechanism (the persisted roots map
+            // and its TTL), which is why restoring must not be treated as durable protection.
+            //
+            // Deliberately not an early return: the rest of this function still has to run for a
+            // parentless child (resurrecting a soft-deleted task, forcing the root aggregation
+            // number, scheduling it if it has no output).
+            let mut child_task = ctx.task(child_task_id, TaskDataCategory::Meta);
+            child_task.add_entry_ref();
+        }
         if let Some(parent_task_id) = parent_task_id {
             let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
             let Some(InProgressState::InProgress(InProgressStateInner { new_children, .. })) =

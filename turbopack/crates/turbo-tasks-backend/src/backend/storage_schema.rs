@@ -859,14 +859,26 @@ impl TaskStorage {
     }
 
     /// Whether a GC pass may collect this task: nothing references it, via parents, transient
-    /// pins, aggregation edges, or dependency edges.
+    /// pins, or aggregation edges.
     ///
-    /// Precision depends on what the caller restored. Meta alone cannot see the three Data-category
-    /// dependent sets, so the answer is a sound *pre-filter*: a `false` is definitive, a `true` may
-    /// still have dependents. With Meta + Data it is the full predicate. That one-directional
-    /// conservatism lets the cheap Meta-only shard scan and the authoritative under-guard recheck
-    /// (which opens `TaskDataCategory::All`, and is what actually gates collection) share this
-    /// single predicate.
+    /// Only reads `Meta`, so the shard scan and the under-guard recheck get the same answer -- it
+    /// is exact in both, not a pre-filter.
+    ///
+    /// The `Data`-category dependent sets are deliberately not consulted:
+    ///
+    /// - `cell_dependents` / `cell_dependents_hashed` are redundant with ancestry. A cell dependent
+    ///   is either a child, whose child edge already orders the teardown, or a sibling reached by
+    ///   passing a `ResolvedVc` laterally, which needs a common ancestor that collects both in the
+    ///   same pass. Counting them deadlocked the caller/callee cycle `NftJsonAsset::content` ->
+    ///   `all_assets_from_entries_filtered`, whose tasks could then never be collected.
+    /// - `output_dependent` is redundant with `parent_count`. It records a read of a task's
+    ///   *output*, which is the `OperationVc` representation, and those reads go through
+    ///   `connect()` -- so the reader is already a child. (A `ResolvedVc` read, the one that
+    ///   travels laterally as an argument, lands in `cell_dependents` instead.)
+    ///
+    /// Removing the cell sets exposed a race in the GC cascade -- rebalancing running while other
+    /// workers were still collecting -- which `gc_collect` now avoids by deferring all rebalance
+    /// work until the parallel phase is quiescent.
     pub fn gc_maybe_collectible(&self) -> bool {
         // None of the predicates below are correct without this.
         self.flags.is_restored(TaskDataCategory::Meta)
@@ -874,32 +886,31 @@ impl TaskStorage {
             // don't re-select it, or a second pass would collect it again while it is still
             // resident.
             && !self.flags.deleted()
+            // A root/once task's lifetime belongs to whoever spawned it: it is created by
+            // `init_transient_task` rather than looked up, so it never passes through
+            // `ConnectChildOperation` and has no reference of its own. `dispose_root_task` is
+            // what ends it.
+            && self.get_transient_task_type().is_none()
             && self.gc_parent_count() == 0
             && self.gc_transient_ref_count() == 0
             && self.get_activeness().is_none()
             && self.get_in_progress().is_none()
-            // It is rare for upper/followers to be present when the ref counts are 0 but it can happen transiently during a concurrent GC pass as uppers are moved around during the cascade.
+
             && self.upper().is_empty()
-            && self.followers().is_none_or(|f| f.is_empty())
-            // `collectibles_dependents` is Meta, so it is always checkable here.
+            // Collectibles are read straight off an `OperationVc` (`peek_collectibles` and
+            // friends never `connect()`), so a collectibles dependent need not be a descendant
+            // and ancestry does not order its collection. This is also the only dependent set
+            // that is `Meta`, so checking it keeps the whole predicate `Meta`-only.
             && self
                 .collectibles_dependents()
                 .is_none_or(|d| d.is_empty())
-            // The remaining dependent sets are Data; skipped (leaving this a pre-filter) when Data
-            // is not restored.
-            && (!self.flags.is_restored(TaskDataCategory::Data)
-                || (self.output_dependent().is_empty()
-                    && self.cell_dependents().is_none_or(|d| d.is_empty())
-                    && self
-                        .cell_dependents_hashed()
-                        .is_none_or(|d| d.is_empty())))
     }
 
     /// Whether this task is a GC **root**: parent-less, but pinned for some reason
     ///
     /// NOTE: this is a conservative classification.  The typical reason is that there is a
     /// [`TaskStorage::transient_ref`] live, but this will return true if there is merely an
-    /// `upper/follower`.
+    /// `upper`.
     pub fn gc_is_root(&self) -> bool {
         self.flags.is_restored(TaskDataCategory::Meta)
             && !self.flags.deleted()
@@ -907,17 +918,65 @@ impl TaskStorage {
             && !self.gc_maybe_collectible()
     }
 
-    /// Assert that a task classified by [`TaskStorage::gc_is_root`] is held by a pin that eviction
-    /// cannot drop.
-    pub fn gc_debug_assert_root_held_by_transient_pin(&self) {
-        debug_assert!(self.gc_is_root()); // sanity for our caller
-        debug_assert!(
-            self.gc_transient_ref_count() > 0
-                || self.get_in_progress().is_some()
-                || self.get_activeness().is_some(),
-            "GC root is held by a non-transient pin: {self:?}.\nBeing held by another kind of \
-             reference implies a bug in GC or the aggregation graph."
-        );
+    /// Whether this task is held by a pin that eviction cannot drop, which is what a task
+    /// classified by [`TaskStorage::gc_is_root`] is expected to be held by.
+    #[cfg(debug_assertions)]
+    pub fn gc_is_held_by_transient_pin(&self) -> bool {
+        self.gc_transient_ref_count() > 0
+            || self.get_in_progress().is_some()
+            || self.get_activeness().is_some()
+    }
+
+    /// The concrete references keeping this task un-collectible, as `(edge kind, holder task)`
+    /// pairs.
+    ///
+    /// This is the diagnostic counterpart to [`TaskStorage::gc_maybe_collectible`]: it reports
+    /// *which* incoming edge blocked collection and *who* is on the other end, rather than the
+    /// bare boolean. Each id is the **dependent** — the task referencing this one — so the pairs
+    /// read as "this task is held by <holder> via <kind>".
+    #[cfg(debug_assertions)]
+    pub fn gc_root_holders(&self) -> GcRootHolders {
+        let mut holders = GcRootHolders::default();
+        for (&upper, _) in self.upper().iter() {
+            holders.push("upper", upper);
+        }
+        if let Some(deps) = self.collectibles_dependents() {
+            for &(_, task) in deps.iter() {
+                holders.push("collectibles_dependent", task);
+            }
+        }
+        for &task in self.output_dependent().iter() {
+            holders.push("output_dependent", task);
+        }
+        if let Some(deps) = self.cell_dependents() {
+            // In a `cell_dependents` entry `CellRef.task` is the DEPENDENT's id, not this task's.
+            for cell_ref in deps.iter() {
+                holders.push("cell_dependent", cell_ref.task);
+            }
+        }
+        if let Some(deps) = self.cell_dependents_hashed() {
+            for (cell_ref, _) in deps.iter() {
+                holders.push("cell_dependent_hashed", cell_ref.task);
+            }
+        }
+        holders
+    }
+}
+
+/// `(edge kind, holder task)` pairs explaining why a task is not collectible.
+/// See [`TaskStorage::gc_root_holders`].
+#[cfg(debug_assertions)]
+#[derive(Default, Debug)]
+pub struct GcRootHolders(Vec<(&'static str, TaskId)>);
+
+#[cfg(debug_assertions)]
+impl GcRootHolders {
+    fn push(&mut self, kind: &'static str, task: TaskId) {
+        self.0.push((kind, task));
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &(&'static str, TaskId)> {
+        self.0.iter()
     }
 }
 

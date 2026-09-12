@@ -1,6 +1,6 @@
 use std::{
     cell::Cell,
-    fmt::{Display, Formatter},
+    fmt::{Display, Formatter, Write as _},
     hash::{BuildHasher, Hash},
     ops::{Deref, DerefMut},
     sync::{
@@ -16,6 +16,8 @@ use tracing::span::Id;
 use turbo_bincode::TurboBincodeBuffer;
 use turbo_tasks::{FxDashMap, TaskId, backend::CachedTaskTypeArc, event::Event, parallel};
 
+#[cfg(debug_assertions)]
+use crate::backend::storage_schema::GcRootHolders;
 use crate::{
     backend::storage_schema::{
         DropPartialOutcome, KeyEvictability, TaskStorage, UnevictableReason, ValueEvictability,
@@ -551,26 +553,19 @@ impl Storage {
         self.map.shards().len()
     }
 
-    /// Iterates the non-transient tasks of a **single** shard of the resident map by index, under
-    /// that shard's read lock.
-    fn for_each_resident_persistent_in_shard(
-        &self,
-        index: usize,
-        mut f: impl FnMut(TaskId, &TaskStorage),
-    ) {
+    /// Iterates the tasks of a **single** shard of the resident map by index, under that shard's
+    /// read lock.
+    fn for_each_resident_in_shard(&self, index: usize, mut f: impl FnMut(TaskId, &TaskStorage)) {
         let shard = self.map.shards()[index].read();
         for (task_id, task) in shard.iter() {
-            if task_id.is_transient() {
-                continue;
-            }
             f(*task_id, task);
         }
     }
 
-    /// Scans a **single** shard by index, invoking `on_candidate` for each resident, non-transient
-    /// task whose storage passes the cheap [`TaskStorage::gc_maybe_collectible`] pre-filter.
+    /// Scans a **single** shard by index, invoking `on_candidate` for each resident task whose
+    /// storage passes [`TaskStorage::gc_maybe_collectible`].
     pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
-        self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
+        self.for_each_resident_in_shard(index, |task_id, storage| {
             if storage.gc_maybe_collectible() {
                 on_candidate(task_id);
             }
@@ -579,19 +574,71 @@ impl Storage {
 
     /// Return the set of all known live roots.
     pub fn gc_scan_roots(&self) -> impl Iterator<Item = TaskId> {
+        // Roots that failed the "held by a transient pin" expectation, with the referencing tasks
+        // that kept them un-collectible. Collected during the scan and reported *after* it: naming
+        // a dependent means reading its storage, and the shard locks are held inside the closure.
+        #[cfg(debug_assertions)]
+        let unexpected = std::sync::Mutex::new(Vec::<(TaskId, GcRootHolders)>::new());
+
         let per_shard: Vec<Vec<TaskId>> =
             parallel::map_collect(&(0..self.shard_count()).collect::<Vec<_>>(), |&index| {
                 let mut roots = Vec::new();
-                self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
-                    if storage.gc_is_root() {
-                        // The `is_root` criteria is conservative, in debug assert that we aren't m
-                        storage.gc_debug_assert_root_held_by_transient_pin();
+                self.for_each_resident_in_shard(index, |task_id, storage| {
+                    if !task_id.is_transient() && storage.gc_is_root() {
+                        // The `is_root` criteria is conservative, in debug assert that we aren't
+                        // marking things as roots for surprising reasons
+                        #[cfg(debug_assertions)]
+                        if !storage.gc_is_held_by_transient_pin() {
+                            unexpected
+                                .lock()
+                                .unwrap()
+                                .push((task_id, storage.gc_root_holders()));
+                        }
                         roots.push(task_id);
                     }
                 });
                 roots
             });
+
+        #[cfg(debug_assertions)]
+        {
+            let unexpected = unexpected.into_inner().unwrap();
+            if !unexpected.is_empty() {
+                let mut report = String::new();
+                for (task_id, holders) in &unexpected {
+                    let _ = writeln!(
+                        report,
+                        "  {} ({task_id:?}) is held by:",
+                        self.describe_task(*task_id)
+                    );
+                    for (kind, holder) in holders.iter() {
+                        let _ = writeln!(
+                            report,
+                            "    via {kind}: {} ({holder:?})",
+                            self.describe_task(*holder)
+                        );
+                    }
+                }
+                panic!(
+                    "{} GC root(s) held by a non-transient pin.\nBeing held by another kind of \
+                     reference implies a bug in GC or the aggregation graph.\n{report}",
+                    unexpected.len()
+                );
+            }
+        }
+
         per_shard.into_iter().flatten()
+    }
+
+    /// A short `name (TaskId)`-style label for a task, for diagnostics. Falls back to the id alone
+    /// when the task is gone or has no persistent type (e.g. a transient task).
+    #[cfg(debug_assertions)]
+    fn describe_task(&self, task_id: TaskId) -> String {
+        self.access_mut(task_id)
+            .get_persistent_task_type()
+            // `NativeFunction`'s `Debug` is the public view of its name fields.
+            .map(|t| format!("{:?}", t.native_fn))
+            .unwrap_or_else(|| "<unknown>".to_string())
     }
 
     pub fn access_pair_mut(
@@ -676,22 +723,29 @@ impl Storage {
                     }
                 };
             shard.retain(|(task_id, task)| {
+                // GC'd tasks were tombstoned during the snapshot so we can drop them fully now.
+                // This is checked before the transient skip below: a collected transient task has
+                // nothing to persist, but it still has to leave the resident map, or collecting it
+                // would free nothing.
+                if task.flags.deleted() {
+                    if let Some(task_type) = task.get_persistent_task_type() {
+                        remove_from_task_cache(
+                            &mut evicted,
+                            &mut deferred_task_cache_removals,
+                            task_type,
+                        );
+                    } else {
+                        debug_assert!(
+                            task_id.is_transient(),
+                            "a collected persistent task must have a task type: {task_id:?}"
+                        );
+                    }
+                    evicted.full += 1;
+                    return false;
+                }
                 if task_id.is_transient() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
                     return true;
-                }
-                // GC'd tasks were tombstoned during the snapshot so we can drop them fully now.
-                if task.flags.deleted() {
-                    let task_type = task
-                        .get_persistent_task_type()
-                        .expect("GC deleted tasks must have a task type");
-                    remove_from_task_cache(
-                        &mut evicted,
-                        &mut deferred_task_cache_removals,
-                        task_type,
-                    );
-                    evicted.full += 1;
-                    return false;
                 }
                 let (key_evictability, value_evictability) = task.evictability();
                 match key_evictability {

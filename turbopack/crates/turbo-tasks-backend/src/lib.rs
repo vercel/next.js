@@ -17,7 +17,7 @@ use turbo_persistence::{CompactConfig, TurboPersistence};
 use crate::database::turbo::{self, TurboKeyValueDatabase};
 pub use crate::{
     backend::{
-        BackendOptions, EvictionMode, GcStats, StorageMode, TestSnapshotOutcome, TtlCounter,
+        BackendOptions, EvictionMode, GcPassOutcome, StorageMode, TestSnapshotOutcome, TtlCounter,
         TurboTasksBackend,
     },
     database::{

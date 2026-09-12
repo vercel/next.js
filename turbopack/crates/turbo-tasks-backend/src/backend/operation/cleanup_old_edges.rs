@@ -107,7 +107,41 @@ impl CleanupOldEdgesOperation {
         .execute_with_stats(ctx)
     }
 
-    fn execute_with_stats(mut self, ctx: &mut impl ExecuteContext<'_>) -> Stats {
+    /// GC variant: tears down `outdated` and drains only the edge-removal work, returning the
+    /// queue with its rebalance (`balance_edge` / `optimize`) jobs still pending.
+    ///
+    /// GC accumulates this remainder across the whole parallel phase and drains it once collection
+    /// is quiescent: collection only removes nodes, and every removal path is correct on its own,
+    /// but `balance_edge` *adds* edges, which is unsafe while other workers are still deleting
+    /// tasks. See `TurboTasksBackend::gc_collect`.
+    pub fn run_edges_only(
+        task_id: TaskId,
+        outdated: Vec<OutdatedEdge>,
+        queue: AggregationUpdateQueue,
+        ctx: &mut impl ExecuteContext<'_>,
+    ) -> Option<AggregationUpdateQueue> {
+        let op = CleanupOldEdgesOperation::RemoveEdges {
+            task_id,
+            outdated,
+            queue,
+        };
+        let mut deferred = None;
+        op.execute_inner(ctx, &mut Some(&mut deferred));
+        deferred
+    }
+
+    fn execute_with_stats(self, ctx: &mut impl ExecuteContext<'_>) -> Stats {
+        self.execute_inner(ctx, &mut None)
+    }
+
+    /// Shared driver. When `defer_rebalance` is `Some`, the loop stops as soon as only rebalance
+    /// work is left and hands that queue out instead of draining it (the GC path); otherwise it
+    /// runs to completion.
+    fn execute_inner(
+        mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        defer_rebalance: &mut Option<&mut Option<AggregationUpdateQueue>>,
+    ) -> Stats {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
@@ -130,27 +164,33 @@ impl CleanupOldEdgesOperation {
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
 
-                                let mut removed_persistent_children =
-                                    SmallVec::<[TaskId; 4]>::new();
+                                // Mirror `ConnectChildrenOperation`'s split exactly: an edge
+                                // counted as durable is released from `parent_count`, everything
+                                // else from `transient_ref_count`. Getting this wrong either
+                                // strands a task forever or underflows the count.
+                                let parent_is_transient = task_id.is_transient();
+                                let mut removed_durable = SmallVec::<[TaskId; 4]>::new();
+                                let mut removed_transient = SmallVec::<[TaskId; 4]>::new();
                                 for child_id in children.iter() {
-                                    if task.remove_children(child_id) && !child_id.is_transient() {
-                                        removed_persistent_children.push(*child_id);
+                                    if task.remove_children(child_id) {
+                                        if parent_is_transient || child_id.is_transient() {
+                                            removed_transient.push(*child_id);
+                                        } else {
+                                            removed_durable.push(*child_id);
+                                        }
                                     }
                                 }
-                                // Each removed persistent child loses a parent.
-                                if !removed_persistent_children.is_empty() {
-                                    let job = if task_id.is_transient() {
-                                        AggregationUpdateJob::AdjustTransientRefCount {
-                                            task_ids: removed_persistent_children,
-                                            delta: -1,
-                                        }
-                                    } else {
-                                        AggregationUpdateJob::AdjustParentCount {
-                                            task_ids: removed_persistent_children,
-                                            delta: -1,
-                                        }
-                                    };
-                                    queue.push(job);
+                                if !removed_durable.is_empty() {
+                                    queue.push(AggregationUpdateJob::AdjustParentCount {
+                                        task_ids: removed_durable,
+                                        delta: -1,
+                                    });
+                                }
+                                if !removed_transient.is_empty() {
+                                    queue.push(AggregationUpdateJob::AdjustTransientRefCount {
+                                        task_ids: removed_transient,
+                                        delta: -1,
+                                    });
                                 }
                                 if is_aggregating_node(get_aggregation_number(&task)) {
                                     drop(task);
@@ -320,6 +360,16 @@ impl CleanupOldEdgesOperation {
                     }
                 }
                 CleanupOldEdgesOperation::AggregationUpdate { ref mut queue } => {
+                    if let Some(slot) = defer_rebalance.as_deref_mut()
+                        && queue.only_rebalance_remains()
+                    {
+                        // Edge removal is done; hand the rebalance back to the caller.
+                        let queue = take(queue);
+                        if queue.has_rebalance_work() {
+                            *slot = Some(queue);
+                        }
+                        return Default::default();
+                    }
                     if queue.process(ctx) {
                         self = CleanupOldEdgesOperation::Done {
                             #[cfg(feature = "trace_aggregation_update_stats")]
