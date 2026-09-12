@@ -1,12 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('next-link', () => {
-  const { skipped, next, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('errors on invalid href', async () => {
     const browser = await next.browser('/invalid-href')

@@ -4,7 +4,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Document and App - Client side', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
 
   it('should share module state with pages', async () => {
