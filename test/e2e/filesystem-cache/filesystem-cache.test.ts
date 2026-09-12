@@ -5,6 +5,7 @@ import fs from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
 import { parseTraceEvents } from '../../lib/parse-trace-file'
+import { getPnpmSymlinkWorkaround } from '../../lib/pnpm-symlink-workaround'
 
 async function getDirectorySize(dirPath: string): Promise<number> {
   try {
@@ -39,32 +40,22 @@ for (const cacheEnabled of [false, true]) {
       delete process.env.NEXT_PUBLIC_ENV_VAR
     })
 
-    let envVars = [
-      `ENABLE_CACHING=${cacheEnabled ? '1' : ''}`,
+    const env = {
+      ENABLE_CACHING: cacheEnabled ? '1' : '',
       // Make it easier to run in development, test directories are cleared between runs already so this is safe.
-      `TURBO_ENGINE_IGNORE_DIRTY=1`,
+      TURBO_ENGINE_IGNORE_DIRTY: '1',
       // decrease the idle timeout to make the test more reliable
-      `TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000`,
+      TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '1000',
       // persist even tiny snapshots so the test doesn't depend on the
       // minimum-compilation-time threshold
-      `TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0`,
-    ].join(' ')
+      TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
+    }
 
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
-      packageJson: {
-        packageManager: 'npm@10.9.2',
-        scripts: {
-          build: `${envVars} next build`,
-          dev: `${envVars} next dev`,
-          start: 'next start',
-        },
-      },
-      // We need to use npm here as pnpms symlinks trigger a weird bug (kernel bug?)
-      installCommand: 'npm i',
-      // Next is always started with caching, but this can disable it for the followup restarts
-      buildCommand: `npm run build`,
-      startCommand: isNextDev ? 'npm run dev' : 'npm run start',
+      overrideFiles: getPnpmSymlinkWorkaround(),
+      // Pass the cache setting through every harness-managed build and restart.
+      env,
     })
 
     beforeAll(() => {

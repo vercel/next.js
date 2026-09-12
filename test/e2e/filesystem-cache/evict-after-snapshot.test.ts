@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getPnpmSymlinkWorkaround } from '../../lib/pnpm-symlink-workaround'
 import { retry, waitFor } from 'next-test-utils'
 
 // Eviction requires the dev server (HMR) and persistent caching (Turbopack).
@@ -8,25 +9,20 @@ import { retry, waitFor } from 'next-test-utils'
 // @force-gate !deploy
 // @force-gate dev
 describe('evict-after-snapshot', () => {
-  const envVars = [
-    'ENABLE_CACHING=1',
-    'TURBO_ENGINE_IGNORE_DIRTY=1',
-    'TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000',
+  const env = {
+    ENABLE_CACHING: '1',
+    TURBO_ENGINE_IGNORE_DIRTY: '1',
+    TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '1000',
     // Persist even tiny snapshots so the test doesn't depend on the
     // minimum-compilation-time threshold.
-    'TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0',
-    'ENABLE_EVICTION=1',
-  ].join(' ')
+    TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
+    ENABLE_EVICTION: '1',
+  }
 
   const { next } = nextTestSetup({
     files: __dirname,
-    packageJson: {
-      scripts: {
-        dev: `${envVars} next dev`,
-      },
-    },
-    installCommand: 'npm i',
-    startCommand: 'npm run dev',
+    overrideFiles: getPnpmSymlinkWorkaround(),
+    env,
   })
 
   async function waitForSnapshotAndEviction() {
