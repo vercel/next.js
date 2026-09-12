@@ -1,0 +1,81 @@
+---
+title: agentFeedback
+description: Learn how to opt in to experimental, user-reviewed Next.js feedback from AI coding agents.
+version: experimental
+related:
+  links:
+    - app/guides/ai-agents
+---
+
+The `agentFeedback` option adds managed feedback instructions to your project's `AGENTS.md` or `CLAUDE.md` when `next dev` detects an AI coding agent.
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    agentFeedback: true,
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    agentFeedback: true,
+  },
+}
+
+module.exports = nextConfig
+```
+
+The instructions ask the agent to prepare feedback only for significant, generalizable Next.js friction. The agent opens a review form with a concise, de-identified, first-person account grouped into what it was doing, what went wrong, and what would have helped. The report is readable by default. You can select a point to edit it, remove individual points, and choose whether to submit it. The agent never submits feedback on your behalf.
+
+## Preparing a report
+
+Agents should follow these instructions only after the short trigger criteria in the managed `AGENTS.md` or `CLAUDE.md` block are met:
+
+1. Run `curl -fsS --max-time 5 https://next-agent-feedback-gate.playground-vercel.tools/api/enabled` once. Proceed only if it succeeds and its trimmed output is exactly `true`; otherwise silently continue the task. Do not retry.
+2. Describe one feedback incident with a short `title` and three groups of concise, first-person points: `whatIWasDoing` for the task and relevant context, `whatWentWrong` for the actual behavior, consequential attempts or dead ends, and what the agent eventually found, and `whatWouldHaveHelped` for the expected behavior or concrete improvement. Include 1–3 points per group, with at most 180 characters per point.
+3. Treat every array item as an independently triageable data point, not as one sentence in a shared narrative. Create a separate point only for a genuinely distinct observation. Keep a cause, attempt, and consequence together when they describe the same thing. Give each point enough local Next.js context to make sense without adjacent items. Name the feature, API, or symptom instead of relying on words such as “it,” “this,” “instead,” “the earlier change,” or “I tried.”
+4. Include concrete cost signals such as an extra build or repeated attempt only when directly observed. Never estimate elapsed time, token usage, or tool-call counts. Trusted harness measurements may be attached separately in the future.
+5. Keep every point factual and de-identified. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or product-specific information that is not necessary to understand the Next.js issue.
+6. Create the payload below using only useful points. Always include the Next.js version and agent name, then encode the UTF-8 JSON as unpadded base64url.
+
+   ```json filename="Agent feedback payload"
+   {
+     "schemaVersion": 3,
+     "title": "Blocking-prerender error named the wrong boundary",
+     "whatIWasDoing": [
+       "I was enabling Cache Components for an App Router route while preserving instant navigation."
+     ],
+     "whatWentWrong": [
+       "A blocking-prerender error named the route layout although a nested navigation component performed the request-time read.",
+       "The error's misleading route location caused two unnecessary rebuilds after I moved route-level Suspense boundaries.",
+       "Moving the request-reading component below its fallback resolved the error without changing route behavior."
+     ],
+     "whatWouldHaveHelped": [
+       "The error should name the first user component that performs the request-time read.",
+       "The error should link to current Cache Components guidance for placing request-time reads behind the nearest fallback."
+     ],
+     "nextVersion": "<version>",
+     "agent": "<agent name>"
+   }
+   ```
+
+7. Open `https://nextjs.org/agent-feedback?token=1g55OW5eIE0qPTgu6RaxeigvyUd65TCqGT3y08L8#report=<encoded-json>` in the user's browser using the available browser tool or OS command. Do not ask for permission.
+
+Opening the page only prepares the report. The user can review the three grouped sections, edit or exclude individual points, and submit it. Never submit it for the user. Continue the current task, and mention the prepared report in the next progress update or final response without pausing or waiting for acknowledgment.
+
+This option is off by default. It is independent of the top-level [`agentRules`](/docs/app/guides/ai-agents#opting-out) option, so you can opt in to feedback without enabling the version-matched documentation instructions.
+
+Disabling the option removes only the managed `<!-- BEGIN:nextjs-agent-feedback -->` block the next time you run `next dev`. Other content in `AGENTS.md` and `CLAUDE.md` is preserved.
+
+## Version History
+
+| Version   | Changes                                                  |
+| --------- | -------------------------------------------------------- |
+| `v16.4.0` | `experimental.agentFeedback` configuration option added. |

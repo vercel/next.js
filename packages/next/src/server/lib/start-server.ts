@@ -30,6 +30,7 @@ import {
   getEnvInfo,
   logExperimentalInfo,
   logStartInfo,
+  syncAgentFeedbackForDev,
 } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import {
@@ -530,6 +531,35 @@ export async function startServer(
                   `Generated ${generated.join(' and ')} for AI agents. Set \`agentRules: false\` in next.config to disable.`
                 )
               }
+            }
+          }
+
+          const feedbackResult = await syncAgentFeedbackForDev(
+            dir,
+            initResult.agentFeedback === true
+          )
+          if (feedbackResult) {
+            const generated: string[] = []
+            const removed: string[] = []
+            for (const [file, action] of [
+              ['AGENTS.md', feedbackResult.agentsMd],
+              ['CLAUDE.md', feedbackResult.claudeMd],
+            ] as const) {
+              if (action === 'created' || action === 'updated') {
+                generated.push(file)
+              } else if (action === 'removed') {
+                removed.push(file)
+              }
+            }
+            if (generated.length > 0) {
+              Log.event(
+                `Generated agent feedback instructions in ${generated.join(' and ')}. Set \`experimental.agentFeedback: false\` in next.config to disable.`
+              )
+            }
+            if (removed.length > 0) {
+              Log.event(
+                `Removed agent feedback instructions from ${removed.join(' and ')} because \`experimental.agentFeedback\` is disabled.`
+              )
             }
           }
         }

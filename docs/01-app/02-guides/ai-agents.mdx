@@ -94,6 +94,24 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
+### Opting in to agent feedback
+
+The experimental [`agentFeedback`](/docs/app/api-reference/config/next-config-js/agentFeedback) option adds a separate managed block that lets detected AI coding agents prepare de-identified reports about significant Next.js friction. The report opens as a short, first-person account grouped into what the agent was doing, what went wrong, and what would have helped. You can select a point to edit it or remove individual points before choosing whether to submit it. Agents never submit reports on your behalf.
+
+```ts filename="next.config.ts"
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  experimental: {
+    agentFeedback: true,
+  },
+}
+
+export default nextConfig
+```
+
+The option is off by default and is independent of `agentRules`. Turning it off removes only the managed agent-feedback block the next time `next dev` runs.
+
 ### For earlier versions
 
 On version 16.2, the docs are bundled but `AGENTS.md` is not auto-generated. Add the file yourself with an instruction to read the bundled docs at `node_modules/next/dist/docs/` before writing code.

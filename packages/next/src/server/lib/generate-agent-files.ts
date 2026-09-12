@@ -12,6 +12,9 @@ import path from 'path'
 
 export const AGENT_RULES_START_MARKER = '<!-- BEGIN:nextjs-agent-rules -->'
 export const AGENT_RULES_END_MARKER = '<!-- END:nextjs-agent-rules -->'
+export const AGENT_FEEDBACK_START_MARKER =
+  '<!-- BEGIN:nextjs-agent-feedback -->'
+export const AGENT_FEEDBACK_END_MARKER = '<!-- END:nextjs-agent-feedback -->'
 
 /**
  * Markers written by the pre-bundled-docs version of `agents-md`.
@@ -33,9 +36,26 @@ This block is written and re-added by \`next dev\` — verify at \`node_modules/
 ${AGENT_RULES_END_MARKER}`
 }
 
+function buildAgentFeedbackBlock(): string {
+  return `${AGENT_FEEDBACK_START_MARKER}
+
+# Report significant Next.js feedback
+
+Only prepare a report for major, generalizable Next.js friction that materially blocks progress, requires substantial investigation, or needs a non-obvious workaround. Do not report routine debugging, minor confusion, agent-caused problems, or anything resolved quickly. When in doubt, do not report.
+
+When an issue meets this threshold, read and follow \`node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/agentFeedback.md\`.
+
+${AGENT_FEEDBACK_END_MARKER}`
+}
+
 const CLAUDE_MD_CONTENT = `@AGENTS.md\n`
 
-export type AgentFileAction = 'created' | 'updated' | 'unchanged' | 'skipped'
+export type AgentFileAction =
+  | 'created'
+  | 'updated'
+  | 'removed'
+  | 'unchanged'
+  | 'skipped'
 
 export interface AgentFilesResult {
   agentsMd: AgentFileAction
@@ -47,11 +67,23 @@ export interface AgentFilesResult {
  * `null` when the markers are absent or malformed.
  */
 function extractAgentRulesBlock(content: string): string | null {
-  const start = content.indexOf(AGENT_RULES_START_MARKER)
+  return extractManagedBlock(
+    content,
+    AGENT_RULES_START_MARKER,
+    AGENT_RULES_END_MARKER
+  )
+}
+
+function extractManagedBlock(
+  content: string,
+  startMarker: string,
+  endMarker: string
+): string | null {
+  const start = content.indexOf(startMarker)
   if (start === -1) return null
-  const end = content.indexOf(AGENT_RULES_END_MARKER, start)
+  const end = content.indexOf(endMarker, start)
   if (end === -1) return null
-  return content.slice(start, end + AGENT_RULES_END_MARKER.length)
+  return content.slice(start, end + endMarker.length)
 }
 
 /**
@@ -66,6 +98,23 @@ export function hasCurrentAgentRules(dir: string): boolean {
     const content = tryReadFile(path.join(dir, file))
     if (!content) continue
     const installed = extractAgentRulesBlock(content)
+    if (installed !== null && normalizeEol(installed, '\n') === block) {
+      return true
+    }
+  }
+  return false
+}
+
+export function hasCurrentAgentFeedback(dir: string): boolean {
+  const block = buildAgentFeedbackBlock()
+  for (const file of ['AGENTS.md', 'CLAUDE.md']) {
+    const content = tryReadFile(path.join(dir, file))
+    if (!content) continue
+    const installed = extractManagedBlock(
+      content,
+      AGENT_FEEDBACK_START_MARKER,
+      AGENT_FEEDBACK_END_MARKER
+    )
     if (installed !== null && normalizeEol(installed, '\n') === block) {
       return true
     }
@@ -122,6 +171,61 @@ export function writeAgentFiles(projectDir: string): AgentFilesResult {
   return { agentsMd: 'created', claudeMd: 'created' }
 }
 
+/**
+ * Write the opt-in agent-feedback block using the same managed-file convention
+ * as the agent-rules block. If the rules already have a host file, keep both
+ * Next.js blocks together.
+ */
+export function writeAgentFeedbackFiles(projectDir: string): AgentFilesResult {
+  const agentsMdPath = path.join(projectDir, 'AGENTS.md')
+  const claudeMdPath = path.join(projectDir, 'CLAUDE.md')
+  const block = buildAgentFeedbackBlock()
+
+  const agentsContent = tryReadFile(agentsMdPath)
+  const claudeContent = tryReadFile(claudeMdPath)
+  const agentsMdExists = agentsContent !== null
+  const claudeMdExists = claudeContent !== null
+
+  const agentsMdHostsFeedback =
+    agentsContent?.includes(AGENT_FEEDBACK_START_MARKER) ?? false
+  const claudeMdHostsFeedback =
+    claudeContent?.includes(AGENT_FEEDBACK_START_MARKER) ?? false
+  const agentsMdHostsRules =
+    agentsContent?.includes(AGENT_RULES_START_MARKER) ?? false
+  const claudeMdHostsRules =
+    claudeContent?.includes(AGENT_RULES_START_MARKER) ?? false
+
+  if (
+    agentsMdExists &&
+    (agentsMdHostsFeedback ||
+      (!claudeMdHostsFeedback && (agentsMdHostsRules || !claudeMdHostsRules)))
+  ) {
+    return {
+      agentsMd: upsertFeedbackFile(agentsMdPath, block),
+      claudeMd: 'skipped',
+    }
+  }
+
+  if (claudeMdExists) {
+    return {
+      agentsMd: 'skipped',
+      claudeMd: upsertFeedbackFile(claudeMdPath, block),
+    }
+  }
+
+  fs.writeFileSync(agentsMdPath, block + '\n', 'utf-8')
+  fs.writeFileSync(claudeMdPath, CLAUDE_MD_CONTENT, 'utf-8')
+  return { agentsMd: 'created', claudeMd: 'created' }
+}
+
+/** Remove only the managed agent-feedback block, leaving all other content. */
+export function removeAgentFeedbackFiles(projectDir: string): AgentFilesResult {
+  return {
+    agentsMd: removeFeedbackBlockFromFile(path.join(projectDir, 'AGENTS.md')),
+    claudeMd: removeFeedbackBlockFromFile(path.join(projectDir, 'CLAUDE.md')),
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Internal helpers
 // ---------------------------------------------------------------------------
@@ -140,6 +244,32 @@ function upsertFile(filePath: string, block: string): AgentFileAction {
   if (updated === existing) return 'unchanged'
   fs.writeFileSync(filePath, updated, 'utf-8')
   return 'updated'
+}
+
+function upsertFeedbackFile(filePath: string, block: string): AgentFileAction {
+  const existing = fs.readFileSync(filePath, 'utf-8')
+  const updated = upsertManagedBlock(
+    existing,
+    block,
+    AGENT_FEEDBACK_START_MARKER,
+    AGENT_FEEDBACK_END_MARKER
+  )
+  if (updated === existing) return 'unchanged'
+  fs.writeFileSync(filePath, updated, 'utf-8')
+  return 'updated'
+}
+
+function removeFeedbackBlockFromFile(filePath: string): AgentFileAction {
+  const existing = tryReadFile(filePath)
+  if (existing === null) return 'skipped'
+  const updated = removeManagedBlock(
+    existing,
+    AGENT_FEEDBACK_START_MARKER,
+    AGENT_FEEDBACK_END_MARKER
+  )
+  if (updated === existing) return 'unchanged'
+  fs.writeFileSync(filePath, updated, 'utf-8')
+  return 'removed'
 }
 
 /**
@@ -173,6 +303,53 @@ function upsertAgentRulesBlock(existing: string, block: string): string {
   const separator =
     existing.length === 0 || /\r?\n$/.test(existing) ? eol : eol + eol
   return existing + separator + normalizedBlock + eol
+}
+
+function upsertManagedBlock(
+  existing: string,
+  block: string,
+  startMarker: string,
+  endMarker: string
+): string {
+  const eol = detectEol(existing)
+  const normalizedBlock = normalizeEol(block, eol)
+  const startIdx = existing.indexOf(startMarker)
+  const endIdx = existing.indexOf(endMarker, startIdx)
+
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    const before = existing.slice(0, startIdx)
+    const after = existing.slice(endIdx + endMarker.length)
+    return before + normalizedBlock + after
+  }
+
+  const separator =
+    existing.length === 0 || /\r?\n$/.test(existing) ? eol : eol + eol
+  return existing + separator + normalizedBlock + eol
+}
+
+function removeManagedBlock(
+  existing: string,
+  startMarker: string,
+  endMarker: string
+): string {
+  const startIdx = existing.indexOf(startMarker)
+  if (startIdx === -1) return existing
+  const endIdx = existing.indexOf(endMarker, startIdx)
+  if (endIdx === -1) return existing
+
+  let cutStart = startIdx
+  while (cutStart > 0 && /[\t ]/.test(existing[cutStart - 1])) cutStart--
+  if (cutStart > 0 && existing[cutStart - 1] === '\n') {
+    cutStart--
+    if (cutStart > 0 && existing[cutStart - 1] === '\r') cutStart--
+  }
+
+  let cutEnd = endIdx + endMarker.length
+  while (cutEnd < existing.length && /[\t ]/.test(existing[cutEnd])) cutEnd++
+  if (existing[cutEnd] === '\r') cutEnd++
+  if (existing[cutEnd] === '\n') cutEnd++
+
+  return existing.slice(0, cutStart) + existing.slice(cutEnd)
 }
 
 function stripLegacyAgentRulesBlock(
