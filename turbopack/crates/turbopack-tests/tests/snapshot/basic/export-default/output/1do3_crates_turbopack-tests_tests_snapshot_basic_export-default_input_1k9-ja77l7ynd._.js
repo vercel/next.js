@@ -3,9 +3,9 @@
 "use strict";
 
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$export$2d$default$2f$input$2f$node_modules$2f$lib$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/export-default/input/node_modules/lib/index.js [test] (ecmascript)");
-var __TURBOPACK__imported__binding__110de6cc11510bbd__ = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$export$2d$default$2f$input$2f$node_modules$2f$lib$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__["default"];
+var __TURBOPACK__imported__binding__default__110de6cc11510bbd__ = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2f$export$2d$default$2f$input$2f$node_modules$2f$lib$2f$index$2e$js__$5b$test$5d$__$28$ecmascript$29$__["default"];
 ;
-console.log(__TURBOPACK__imported__binding__110de6cc11510bbd__);
+console.log(__TURBOPACK__imported__binding__default__110de6cc11510bbd__);
 __turbopack_context__.s([]);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/export-default/input/node_modules/lib/index.js [test] (ecmascript)", ((__turbopack_context__) => {

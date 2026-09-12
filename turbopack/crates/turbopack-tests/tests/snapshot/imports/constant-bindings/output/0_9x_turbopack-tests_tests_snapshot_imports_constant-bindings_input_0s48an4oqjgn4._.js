@@ -3,14 +3,14 @@
 "use strict";
 
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/constant-bindings/input/reexport.js [test] (ecmascript)");
-var __TURBOPACK__imported__binding__487f95178b75cbf6__ = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["v"];
-var __TURBOPACK__imported__binding__1b514eb2e1ddf8db__ = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["U"];
-var __TURBOPACK__imported__binding__7482679cabf086ce__ = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["W"];
+var __TURBOPACK__imported__binding__constant__487f95178b75cbf6__ = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["v"];
+var __TURBOPACK__imported__binding__default__1b514eb2e1ddf8db__ = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["U"];
+var __TURBOPACK__imported__binding__setLive__7482679cabf086ce__ = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["W"];
 ;
-console.log(__TURBOPACK__imported__binding__487f95178b75cbf6__, __TURBOPACK__imported__binding__487f95178b75cbf6__, {
-    constant: __TURBOPACK__imported__binding__487f95178b75cbf6__
-}, __TURBOPACK__imported__binding__1b514eb2e1ddf8db__(), __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["X"]);
-__TURBOPACK__imported__binding__7482679cabf086ce__('updated');
+console.log(__TURBOPACK__imported__binding__constant__487f95178b75cbf6__, __TURBOPACK__imported__binding__constant__487f95178b75cbf6__, {
+    constant: __TURBOPACK__imported__binding__constant__487f95178b75cbf6__
+}, __TURBOPACK__imported__binding__default__1b514eb2e1ddf8db__(), __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["X"]);
+__TURBOPACK__imported__binding__setLive__7482679cabf086ce__('updated');
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["X"]);
 __turbopack_context__.s([]);
 }),

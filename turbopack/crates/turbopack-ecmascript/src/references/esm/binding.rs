@@ -49,6 +49,10 @@ impl EsmBinding {
     }
 
     /// Where possible, bind the namespace to `this` when the named import is called.
+    ///
+    /// TODO: Track whether the imported export can observe `this` (for example, whether it is a
+    /// function that references `this`). Such exports could use a local value binding even in call
+    /// position instead of preserving the namespace as the receiver.
     pub fn new_keep_this(
         reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
@@ -94,6 +98,9 @@ impl EsmBinding {
                 .await?
             {
                 Some(imported_ident) => {
+                    // Capturing an import is only safe when it does not need the namespace as a
+                    // call receiver and cannot be assigned to. Assignment targets must retain the
+                    // namespace access so assigning to a non-writable constant export still throws.
                     let value_binding = if !self.keep_this
                         && !self.ast_path.0.iter().any(|parent| {
                             matches!(
@@ -109,10 +116,14 @@ impl EsmBinding {
                             ..
                         } = &imported_ident
                     {
+                        let imported_name = self.export.as_deref().unwrap_or(export);
                         let binding_ident = Ident::new(
                             magic_identifier::mangle(&format!(
-                                "imported binding {}",
-                                encode_hex(hash_xxh3_hash64((namespace_ident, export)))
+                                "imported binding {imported_name} {}",
+                                encode_hex(hash_xxh3_hash64((
+                                    /* namespace */ namespace_ident,
+                                    /* export */ export,
+                                )))
                             ))
                             .into(),
                             DUMMY_SP,
