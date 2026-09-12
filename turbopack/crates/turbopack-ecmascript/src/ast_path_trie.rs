@@ -17,6 +17,8 @@
 //! requested paths are interned, so the trie stays sparse: it holds the handful of nodes
 //! leading to code-generated locations, not every node in the file.
 
+use std::collections::hash_map::Entry;
+
 use bincode::{Decode, Encode};
 use rustc_hash::FxHashMap;
 use swc_core::ecma::visit::AstParentKind;
@@ -97,18 +99,25 @@ impl AstPathTrieBuilder {
 
     /// Extends the path `parent` by one element.
     pub fn push(&mut self, parent: AstPathId, kind: AstParentKind) -> AstPathId {
-        if let Some(&existing) = self.edges.get(&(parent, kind)) {
-            return existing;
-        }
+        // Computed up front so the entry below doesn't hold a borrow across them; this is
+        // the hot path of interning, so the key is hashed once rather than on both a
+        // lookup and an insert.
         let depth = self.depth(parent) + 1;
-        let id = AstPathId(u32::try_from(self.nodes.len() + 1).expect("too many ast path nodes"));
-        self.nodes.push(Node {
-            parent,
-            kind,
-            depth,
-        });
-        self.edges.insert((parent, kind), id);
-        id
+        let next_id =
+            AstPathId(u32::try_from(self.nodes.len() + 1).expect("too many ast path nodes"));
+
+        match self.edges.entry((parent, kind)) {
+            Entry::Occupied(entry) => *entry.get(),
+            Entry::Vacant(entry) => {
+                entry.insert(next_id);
+                self.nodes.push(Node {
+                    parent,
+                    kind,
+                    depth,
+                });
+                next_id
+            }
+        }
     }
 
     /// The path with its last element removed, or the root when already there.
