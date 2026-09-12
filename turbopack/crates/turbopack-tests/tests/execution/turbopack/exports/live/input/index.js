@@ -1,11 +1,7 @@
 import * as liveDefaultClass from './live_default_class.js'
 import * as liveExports from './live_exports.js'
 import * as constDefaultExportFunction from './const_default_export_function.js'
-import constantDefault, {
-  constant,
-  live,
-  setLive,
-} from './import_bindings.js'
+import constantDefault, { constant, live, setLive } from './import_bindings.js'
 import { result as circularResult } from './cycle_a.js'
 
 it('hoisted declarations are live', () => {

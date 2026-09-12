@@ -127,7 +127,9 @@ impl EsmBinding {
                             ))
                             .into(),
                             DUMMY_SP,
-                            ctxt.unwrap_or_default(),
+                            // This is a synthetic local in the consuming module, not an export of
+                            // the module whose syntax context the namespace accessor carries.
+                            Default::default(),
                         );
                         let value = imported_ident
                             .as_expr_individual(DUMMY_SP)

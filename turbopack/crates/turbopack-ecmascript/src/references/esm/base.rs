@@ -314,11 +314,7 @@ impl ReferencedAsset {
 
                 let import_source = ImportSource::Module { asset: *asset };
                 let can_value_bind = if let Some(export) = &export {
-                    get_export_liveness(*asset, export.clone()).await? == Some(Liveness::Constant)
-                        && !chunking_context
-                            .module_export_usage(*ResolvedVc::upcast(*asset))
-                            .await?
-                            .is_circuit_breaker
+                    *can_capture_export_value(**asset, export.clone(), chunking_context).await?
                 } else {
                     false
                 };
@@ -393,6 +389,27 @@ impl ReferencedAsset {
         // See `packages/next/src/shared/lib/magic-identifier.ts`
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
+}
+
+/// Returns whether an imported export can be safely captured in a local value binding.
+///
+/// This is a turbo task because every use of the same imported binding asks this question during
+/// code generation. Cache the re-export walk and circuit-breaker lookup once per export and
+/// chunking context instead of repeating those reads for every use.
+#[turbo_tasks::function]
+async fn can_capture_export_value(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    export: RcStr,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<bool>> {
+    if get_export_liveness(module, export).await? != Some(Liveness::Constant) {
+        return Ok(Vc::cell(false));
+    }
+
+    let export_usage = chunking_context
+        .module_export_usage(*ResolvedVc::upcast(module))
+        .await?;
+    Ok(Vc::cell(!export_usage.is_circuit_breaker))
 }
 
 /// Follows statically-known reexports to find the behavior of the original local binding.
