@@ -233,6 +233,7 @@ export const experimentalSchema = {
   concurrentRouterQueue: z.boolean().optional(),
   instrumentationClientRouterTransitionEvents: z.boolean().optional(),
   varyParams: z.boolean().optional(),
+  variants: z.boolean().optional(),
   prefetchInlining: z
     .union([
       z.boolean(),
