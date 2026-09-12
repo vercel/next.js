@@ -6,6 +6,7 @@ related:
   title: Next Steps
   description: Learn about other behavior changes when Cache Components is enabled.
   links:
+    - app/guides/optimizing-the-static-shell
     - app/guides/instant-navigation
     - app/getting-started/caching
     - app/guides/preserving-ui-state
@@ -21,7 +22,7 @@ The migration is driven by **instant navigation validation**. With Cache Compone
 
 ## Use the adoption skill (recommended)
 
-The [`next-cache-components-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-cache-components-adoption) skill drives this migration with a coding agent, one feature at a time, checking in at every feature boundary. It supports two modes:
+The [`next-cache-components-adoption`](/docs/app/guides/ai-agents#next-cache-components-adoption) skill drives this migration with a coding agent, one feature at a time, checking in at every feature boundary. It supports two modes:
 
 - **Incremental.** Opens a single mechanical PR that opts every route out of validation, then ships each feature as a follow-up PR. This automates the [Adopting incrementally](#adopting-incrementally) flow below.
 - **Direct.** Adopts every route in place on one branch.

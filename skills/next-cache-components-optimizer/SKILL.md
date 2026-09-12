@@ -1,16 +1,14 @@
 ---
 name: next-cache-components-optimizer
 description: >
-  Drive a Next.js route to instant navigation by setting up an agentic loop,
-  under Cache Components / PPR, on initial load (hard navigation) and
-  client-side navigation (soft navigation). Encode the goal as a failing
-  @next/playwright instant() e2e and work it to green, one verified route at a
-  time; the shipped test then guards against regression. Use when asked to make
-  a route's navigation instant (its static shell commits immediately), fix a
-  route whose static shell isn't prerendered/served/prefetched, grow a route's
-  static shell or fix its slow first paint, diagnose which Suspense boundary
-  keeps a route out of its static shell, or write the instant() e2e guard for
-  one. Requires Next.js 16.3+ with cacheComponents; directs an upgrade if older.
+  Optimize the meaningful UI available immediately from a Next.js route on an
+  initial load (hard navigation) or named client-side navigation (soft
+  navigation). Encode the goal as a failing @next/playwright instant() e2e and
+  work it to green, one verified route and entry point at a time; the shipped
+  test then guards against regression. Use when asked to grow a static shell,
+  fix a slow first paint or non-instant navigation, diagnose which Suspense
+  boundary blocks useful UI, or add instant() regression coverage. Requires
+  Next.js 16.3+ with Cache Components already adopted.
 ---
 
 # next-cache-components-optimizer
@@ -18,12 +16,17 @@ description: >
 Set up an agentic optimization loop that drives a Next.js route from "not
 instant" to "instant" and keeps it there. The loop is test-driven: encode the
 goal as a failing `@next/playwright` `instant()` test, work it to green, and
-ship the test as the regression guard. Run it once per target route. Work the
-phases P → G in order; each ends in a gate. Fix recipes live in two lazily-read
-references — `reference/patterns.md` (before→after for each blocker type) and
-`reference/real-app-patterns.md` (parallel routes, auth gates, the empty-shell
-and responsive-skeleton failure modes). Read one only when its phase points
-there.
+ship the test as the regression guard. Run it once per target route and entry
+point. Work the phases P → G in order; each ends in a gate.
+
+Before changing the route, read the bundled **Optimizing the static shell**
+guide at
+`node_modules/next/dist/docs/01-app/02-guides/optimizing-the-static-shell.md`.
+If it is unavailable, use the [online
+guide](https://nextjs.org/docs/app/guides/optimizing-the-static-shell). The
+guide owns the framework behavior and implementation patterns. This skill owns
+the navigation contract, production rig, trustworthy RED-to-GREEN loop,
+parity check, differential, and report.
 
 ## What is invariant, and what is yours
 
@@ -52,31 +55,37 @@ command, platform, or env var below as a requirement.
   name, env-var spelling, and command below as an example to translate, not a
   requirement.
 
-## Two navigations, two loading states
+## Two entry points, two instant UI contracts
 
-A route reaches the user two ways, and both must be instant:
+A route reaches the user two ways:
 
 - **Initial load (hard navigation)** commits the route's prerendered static
   shell; deferred parts stream in behind their loading skeletons (Suspense
   fallbacks, `loading.tsx`).
-- **Client-side navigation (soft navigation)** commits the destination's
-  prefetched App Shell — the `<Link>` default under Partial Prefetching —
-  re-rendering only the segments that change.
+- **Client-side navigation (soft navigation)** reuses shared layouts and
+  commits the available App Shell for the destination segments that change.
 
-The fix patterns are identical for both; the test differs only in how the
-navigation is driven ("Driving the navigation in tests" below). The two shells
-can differ; guard the one you ship, both when both matter
-(`reference/real-app-patterns.md`).
+The same implementation patterns can make either entry point instant. The test
+differs only in how the navigation is driven ("Driving the navigation in
+tests" below), and the available UI can differ because a soft navigation
+reuses layouts above the source and destination's divergence point. Guard the
+entry point the user named, and both when both matter. See [What "instant"
+means](https://nextjs.org/docs/app/guides/instant-navigation#what-instant-means).
+
+This skill is therefore not limited to increasing the direct-load static
+shell. It can also fix a non-instant client navigation when caching reusable
+work or moving request-time work behind a focused boundary makes the
+destination's available App Shell commit immediately. When that App Shell is
+already instant and the goal is to fetch additional URL-specific content
+before the click, hand off to `next-partial-prefetching-optimizer`.
 
 ## Goal
 
-Maximizing the static shell is the optimization objective: the most meaningful
-prerendered content commits immediately, and only genuinely per-request data
-streams in afterward. The shipped test deterministically encodes **present ∧
-instant**; **non-blank** is the additional bar the workflow enforces by
-judgment (D1/D2/E), because an `instant()` pass alone is satisfied by a blank
-`fallback={null}` shell (the empty-shell failure mode,
-`reference/real-app-patterns.md`).
+Make the most meaningful available App Shell UI commit immediately, and let
+only genuinely request-time work stream afterward. The shipped test
+deterministically encodes **present ∧ instant**. **Non-blank** is the additional
+bar the workflow enforces by judgment because an `instant()` pass alone is
+satisfied by an empty shell.
 
 `instant()` is a ruler, not a stopwatch: assert that the shell appears under
 the lock; do not time it. A trustworthy verdict requires a production build
@@ -121,9 +130,9 @@ hear those words.
 - [ ] B  BASELINE     unlocked: the marker renders for the test user         → test-template.md
 - [ ] C  RED          locked instant(): the shell does not commit            → test-template.md
 - [ ] C-gate          VERIFY-RED: stop until the RED is trustworthy          → reference/red-test-robustness.md
-- [ ] D  FIX          push each Suspense boundary down to the data it guards → reference/patterns.md
-- [ ]      D1 reuse the route's existing loading UI; do not hand-build skeletons
-- [ ]      D2 the shell matches the real render at every breakpoint  → reference/real-app-patterns.md
+- [ ] D  FIX          apply the matching documented pattern                 → guide links below
+- [ ]      D1 reuse existing loading UI; keep the shell meaningful
+- [ ]      D2 preserve layout and responsive behavior
 - [ ] E  PARITY       the refactor changed only whether the route is instant
 - [ ] F  DIFFERENTIAL revert only the fix → RED; re-apply → GREEN            → reference/red-test-robustness.md
 - [ ] G  REVIEW       PR checklist (below)
@@ -230,6 +239,12 @@ Wrap the same navigation in `instant()`; assert the shell commits under the
 lock. A RED here is the gap. **This is the test that ships**
 (`test-template.md`).
 
+Assert the complete intended contract: meaningful shell markers and existing
+loading states are visible, request-time UI is absent under the lock, and the
+completed UI renders after release. Do not change an existing data source,
+production selector, or required route variant to make the test easier. A
+required contract may not be skipped or weakened.
+
 Prefer the self-validating variant when the route has deferred content. If the
 route cannot build while blocked, or a cookie/session read stays GREEN, use the
 RED recipes in `reference/red-test-robustness.md`.
@@ -247,137 +262,57 @@ untrustworthy REDs, the checklist, and worked cases are in
 
 ---
 
-## D. FIX: push each boundary down to the data it guards
+## D. FIX: apply the documented pattern
 
-**The anti-pattern: one coarse boundary.** A single `<Suspense>` high in the
-tree with a page-level fallback has three costs:
+Use the **Optimizing the static shell** guide you read at the start. Follow the
+section that matches the blocker instead of duplicating its framework guidance
+here:
 
-- The layout UI stays out of the static shell: only a throwaway copy of it is
-  prerendered.
-- The entire subtree is replaced when the boundary resolves, which discards
-  client state and shifts layout.
-- The hand-built fallback drifts out of sync as the UI changes, because it
-  duplicates structure that also exists in the resolved tree.
+| Blocker                                                        | Guide pattern                                                                                                             |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Stable UI is hidden by a broader loading state                 | [Keep static UI in the shell](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#keep-static-ui-in-the-shell) |
+| A layout or page awaits request-time data too high in the tree | [Push data access down](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#push-data-access-down)             |
+| New or moved boundaries need useful, stable fallbacks          | [Design loading states](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#design-loading-states)             |
+| A result can be safely reused across requests                  | [Cache reusable work](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#cache-reusable-work)                 |
 
-**The fix: hoist the static, push the Suspense down.** Render the layout UI
-once, synchronously, in the shell, and wrap each await in a boundary scoped to
-the single read it guards. Only that leaf streams; the stable ancestors are
-reused as-is.
+The guide's example covers the common implementation shapes:
 
-**Rule:** if an element renders in both the fallback and the resolved tree,
-hoist it above the boundary.
+- [`params`, `searchParams`, and focused boundaries](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-1-move-url-dependent-work-behind-suspense)
+- [authentication, `cookies()`, and `headers()`](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-2-move-authentication-behind-suspense)
+- [cache placement and revalidation](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#step-3-cache-the-reusable-plan-data)
 
-### The most common blocker: a top-level `await` in a layout on a fallback route
+Preserve the route's existing data source, freshness, authorization, and
+completed behavior. Do not replace a mutable read with a build-time import to
+make it appear static. Cache the existing read when it can be reused. Stream it
+when it must be computed for each request.
 
-```
-app/[locale]/(app)/[tenant]/dashboard/...
-       │ generateStaticParams ✅   │ no generateStaticParams → fallback route
-```
+If development or a build surfaces another instant-navigation Insight during
+the refactor, follow [validation as you
+refactor](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#follow-validation-as-you-refactor)
+and then the canonical Insight it provides. This is especially important for
+API-specific blockers such as metadata, viewport, and nondeterministic values.
 
-When any dynamic segment in the route lacks `generateStaticParams`, the route
-is a fallback route, and **all** params defer to request time, including the
-enumerated ones. A top-level `await` in a layout (`await params`, a
-request-time session read, an auth gate) then blocks the whole subtree out of
-the static shell, even when it reads a statically known param. Minimal shape: a
-dynamic-segment route with one segment lacking `generateStaticParams`, plus a
-top-level `await` in the layout above it.
+Reuse existing loading UI and keep the resulting shell meaningful at every
+supported breakpoint. An empty fallback is valid only when the resolved
+component also has no visual footprint.
 
-### The fix: defer the gate, render children
+If the optimization adds or expands a cache boundary, follow
+[Revalidating](https://nextjs.org/docs/app/getting-started/revalidating). When a
+writer can change the cached data, populate the cache, perform the mutation,
+and verify that the next read returns the updated value. `instant()` proves
+readiness, not mutation freshness.
 
-Render `children` unconditionally; move the top-level `await` into a
-`<Suspense fallback={null}>`-wrapped child. Mechanism and before→after:
-`reference/real-app-patterns.md`, "Deferring an auth gate".
-
-**Fix the page below the shell too, not only the layout.** A page-level
-top-level `await` (commonly `await params`) blocks the same way the layout's
-does, so make the page sync and push its dynamic reads into a
-`<Suspense>`-wrapped leaf as well. `fallback={null}` is correct only when a gate renders nothing on
-success; for data, the fallback must be a real loading skeleton (see D1).
-
-Every other blocker shape — `cookies()`/`headers()`, uncached fetch or database
-reads, `searchParams`, metadata, viewport, non-deterministic values (`Date.now()`,
-`Math.random()`, `crypto.randomUUID()`) — surfaces its own insight when you hit
-it: the build prints a `https://nextjs.org/docs/messages/<slug>` link. The
-default build output is often abbreviated and may carry no usable stack trace;
-add `--debug-prerender` for the full failing frame and to report every blocker
-past the first. Scope the build to the route you're on with
-`next build --debug-build-paths "app/<route>/**"` rather than rebuilding the app.
-Open that page and apply its recipe; don't improvise from the inline message.
-
-The before→after recipe for each shape is in `reference/patterns.md`, which maps it to the insight
-that explains it.
-
-A few things those per-error pages don't stress for the instant-navigation goal:
-
-- **A boundary in the root layout isn't enough for client navigations.** It
-  passes a page-load check but leaves sibling client navigations blocking; put
-  the boundary below the lowest layout the source and destination routes share.
-- **Keep the LCP element** (usually the main heading) out of any boundary, so it
-  paints in the shell instead of waiting on a stream.
-- **A green check isn't always instant.** `export const instant = false` opts
-  the segment out of validation while the navigation still blocks, and a
-  `<Suspense>` above the document `<body>` prerenders an empty shell — neither
-  makes the route instant.
-
-### D1: reuse the route's existing loading UI; do not hand-build skeletons
-
-Before writing any skeleton, search the repository for the loading UI that
-already exists for this route, in order:
-
-1. the route's `loading.tsx`;
-2. an exported `*Skeleton` colocated with the component;
-3. the fallback already inside the component's own `<Suspense>`.
-
-The **divergence point** is the lowest layout shared by the source and
-destination routes: a soft navigation re-renders only the segments below it,
-while an initial load re-runs every layout from the root. (Also called the
-shared boundary.) A `loading.tsx` above the divergence point fills only
-the initial-load shell; it sits above the soft-nav re-render scope. A
-`loading.tsx` at the destination segment is itself the in-tree boundary for a
-soft navigation into that segment and serves both. Reuse whichever boundary
-actually covers the navigation you are shipping; below the divergence point,
-`loading.tsx` and colocated skeletons are interchangeable for that purpose.
-
-If a component has no skeleton, extract its loading markup into a colocated
-skeleton beside it. Do not author a fresh skeleton that mirrors the page
-layout: it duplicates structure, drifts as the page changes, and pulls the
-design back toward a single coarse boundary. Reusing the component's own
-skeleton also keeps the prefetched shell consistent with the loaded UI.
-
-See: [Streaming](https://nextjs.org/docs/app/guides/streaming#push-dynamic-access-down)
-and [loading states](https://nextjs.org/docs/app/guides/instant-navigation#iterate-on-loading-states).
-
-Exception: if the deferred component renders `null` for some users (for
-example, a flag-gated control), `fallback={null}` is correct, since a skeleton
-would flash and then collapse.
-
-### D2: the shell must match the real render at every breakpoint
-
-A skeleton frozen to one breakpoint misaligns on the others. Fix it the same
-way: one responsive component renders both the live UI and the shell (D1
-skeleton in its data slots), so the breakpoint switch happens once. Verify by
-re-asserting the shell marker at two widths
-(`await page.setViewportSize({ width: 1280, height: 800 })`, then
-`{ width: 390, height: 844 }`), or by adding a mobile Playwright project, so
-this gate is as machine-checkable as the others. Detail:
-`reference/real-app-patterns.md`.
+Do not use `export const instant = false`, weaken the contract, or ship an
+empty document shell as the optimization.
 
 > **D-gate: phase D is complete when the locked test from phase C passes GREEN
 > under the lock on the production-build rig**, not when the code compiles. That
 > GREEN is the deterministic stop for the fix loop; proceed to E.
 
-If the optimization adds or expands a cache boundary, follow
-[Revalidating](https://nextjs.org/docs/app/getting-started/revalidating).
-A passing `instant()` test proves shell readiness, not mutation freshness.
-
-**When URL data can't be pushed down** (for example, the whole page depends on
-`params`, `searchParams`, or the full URL), there may be no meaningful static
-shell to grow. Don't force one. Per-link prefetching can make the soft
-navigation instant, but it is outside this optimizer loop: it requires Partial
-Prefetching, a `<Link prefetch={true}>`, and cached URL-dependent content. See
-[Optimizing prefetching](https://nextjs.org/docs/app/guides/optimizing-prefetching)
-and pattern 10 in `reference/patterns.md` for the requirements, cost trade-offs,
-manual prefetch caveat, and `instant()` test gotchas.
+If URL-specific content is the only missing instant UI, stop at [Include
+URL-specific content in the instant
+UI](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#include-url-specific-content-in-the-instant-ui)
+and hand off to `next-partial-prefetching-optimizer`.
 
 ## E. PARITY: the refactor changed only whether the route is instant
 
@@ -389,13 +324,17 @@ now commits instantly. Verify:
 - **Same render output.** The moved `await`s compute and return the same
   values; after the stream, the route shows the same content as the base
   branch for the test user.
+- **Request inputs still work.** Exercise the authentication, cookie,
+  parameter, search-parameter, and data variants named by the route or rig.
 - **Side effects still fire.** A deferred `redirect()` or `notFound()` still
-  happens, at request time rather than during prerender. Confirm an
-  unauthorized user is still redirected and a missing record still returns 404.
-- **Both viewports reach the real UI** after the stream (D2).
+  happens at request time. Confirm unauthorized and missing-record behavior.
+  If the route must preserve an HTTP status, account for [streaming status-code
+  behavior](https://nextjs.org/docs/app/guides/streaming#status-codes).
+- **Supported viewports reach the real UI** after the stream.
 - **Client state survives.** Because the layout UI is hoisted into the stable
   shell rather than swapped on resolve, open menus, scroll position, focus,
-  and input state persist across the stream.
+  and input state persist across the stream. See [Preserving UI
+  state](https://nextjs.org/docs/app/guides/preserving-ui-state).
 - **Pre-existing failures stay separate.** If the route errors after the
   change, reproduce it on the base branch. The same failure there is an
   environment or data problem, not an optimizer regression.
@@ -405,8 +344,14 @@ If anything other than whether the route is instant changed, reduce the refactor
 ## F. DIFFERENTIAL
 
 Revert only the fix → RED; re-apply → GREEN; link both runs
-(`reference/red-test-robustness.md`). On a deployed rig, confirm each run is live
-(LIVENESS, phase A) before trusting its color.
+(`reference/red-test-robustness.md`). Every contract intended to distinguish
+the optimization must be RED after the revert and GREEN after the re-apply. On
+a deployed rig, confirm each run is live (LIVENESS, phase A) before trusting
+its color.
+
+After the final re-apply, run the complete in-scope command from the rig. A
+filtered subset, a written command, or a suite with a required test skipped is
+not final GREEN.
 
 ## G. REVIEW (PR checklist)
 
@@ -420,8 +365,10 @@ PR-specific items:
 - [ ] **Mutations verified when applicable**: after populating any cache whose
       data can be updated, a mutation test confirms the next read returns the
       expected data.
+- [ ] **Freshness preserved**: new cache scopes follow the data's existing or
+      explicitly chosen lifetime.
 - [ ] **Existing loading UI reused (D1)**: no new page-mirroring skeleton.
-- [ ] **Shell matches the real render at desktop and mobile widths (D2)**.
+- [ ] **Shell matches the real render at supported viewports (D2)**.
 - [ ] **Baseline removed**: only the locked test from C remains.
 
 **Stop condition for the whole workflow:** the locked test from C is GREEN on
@@ -432,12 +379,12 @@ three hold, you are not done.
 
 - **Soft navigation** → drive a real `<Link>` click. **Initial load** → use
   `page.goto()` inside `instant()` with the `baseURL` option. Do not substitute
-  `goto` for a soft-nav verdict; the two shells can differ
-  (`test-template.md`, `reference/real-app-patterns.md`).
+  `goto` for a soft-nav verdict; the two contracts can differ
+  (`test-template.md`).
 - With parallel routes, only the slots that change re-render on a soft
   navigation; client-rendered navigation UI does not re-render at all. Do not
-  chase a slot the navigation never touches
-  (`reference/real-app-patterns.md`).
+  chase a slot the navigation never touches. See [Loading and Error UI with
+  Parallel Routes](https://nextjs.org/docs/app/api-reference/file-conventions/parallel-routes#loading-and-error-ui).
 
 ## Files
 
@@ -448,9 +395,6 @@ three hold, you are not done.
 - `reference/red-test-robustness.md`: the C-gate and phase F. The taxonomy of
   untrustworthy REDs, the checklist, the differential recipe, the vacuous-pass
   failure mode, and worked cases.
-- `reference/real-app-patterns.md`: parallel routes, deferring an auth gate,
-  initial-load vs soft-navigation shells, the empty-shell failure mode, the
-  responsive-skeleton mismatch, edge cases.
 
 ## After optimization
 
@@ -468,11 +412,10 @@ If `partialPrefetching: true` is in config, the app is globally adopted. If only
 `prefetch = 'partial'` matches, treat those destination segments as adopted
 during an incremental rollout and keep checking any other target routes.
 
-- **Already adopted:** for any URL-data route that stopped at the limitation
-  above, consider a targeted `<Link prefetch={true}>` on the links where having
-  that URL-specific content ready before the click is worth the per-link server
-  work. Keep the default link behavior everywhere else so the shared App Shell
-  remains the low-cost baseline.
+- **Already adopted:** when the requested instant UI is URL-specific and the
+  destination App Shell is already instant, continue with
+  `next-partial-prefetching-optimizer`. It owns the per-link value and cost
+  decision.
 - **Not adopted yet:** recommend
   [`next-partial-prefetching-adoption`](https://github.com/vercel/next.js/tree/canary/skills/next-partial-prefetching-adoption).
   That skill moves the app onto the better prefetching model: shared App Shell

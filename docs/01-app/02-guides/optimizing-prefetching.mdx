@@ -23,6 +23,22 @@ With [Cache Components](/docs/app/getting-started/caching) and [Partial Prefetch
 
 The shared App Shell does not include URL data that varies by destination, such as [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) and [`params`](/docs/app/api-reference/file-conventions/page#params-optional). Set `prefetch={true}` on a link to resolve cached content that depends on its [URL data](/docs/app/glossary#url-data) before navigation instead of streaming that content after navigation.
 
+## Use the optimizer skill (recommended)
+
+The [`next-partial-prefetching-optimizer`](/docs/app/guides/ai-agents#next-partial-prefetching-optimizer) skill applies this guide with a coding agent. It defines the UI that should be ready for a selected link in an [`instant()` test](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests), proves the current behavior, and works the test to green.
+
+Install the skill:
+
+```bash filename="Terminal"
+npx skills add vercel/next.js --skill next-partial-prefetching-optimizer
+```
+
+Then give the agent the source, destination, and UI that should be available immediately:
+
+```prompt
+Make the search results instant when navigating from / to /search?q=react. Use the next-partial-prefetching-optimizer Skill.
+```
+
 This guide assumes [Cache Components](/docs/app/getting-started/caching) with [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) enabled:
 
 ```ts filename="next.config.ts" highlight={4,5}
