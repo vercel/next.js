@@ -229,7 +229,10 @@ mod tests {
     use super::*;
 
     #[test]
-    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "stalls indefinitely under the Worker-based WASI host; tracked separately"
+    )]
     fn stress_deadlock() {
         const N: usize = 100000;
         const THREADS: usize = 20;
