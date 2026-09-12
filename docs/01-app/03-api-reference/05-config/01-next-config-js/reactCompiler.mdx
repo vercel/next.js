@@ -96,3 +96,36 @@ export default function Page() {
 ```
 
 > **Note:** You can also use the `"use no memo"` directive from React for the opposite effect, to opt-out a component or hook.
+
+## Existing memoization guarantees
+
+You can configure whether the compiler preserves existing memoization guarantees from `useMemo`, `useCallback`, and `React.memo`:
+
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  reactCompiler: {
+    environment: {
+      enablePreserveExistingMemoizationGuarantees: false,
+    },
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  reactCompiler: {
+    environment: {
+      enablePreserveExistingMemoizationGuarantees: false,
+    },
+  },
+}
+
+module.exports = nextConfig
+```
+
+When omitted, Next.js uses the default from the active React Compiler implementation. Because defaults may differ between compiler implementations and versions, set this option explicitly to ensure consistent behavior.

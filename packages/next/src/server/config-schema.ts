@@ -821,6 +821,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
       z
         .object({
           compilationMode: z.enum(['infer', 'annotation', 'all']).optional(),
+          environment: z
+            .object({
+              enablePreserveExistingMemoizationGuarantees: z
+                .boolean()
+                .optional(),
+            })
+            .optional(),
           panicThreshold: z
             .enum(['none', 'critical_errors', 'all_errors'])
             .optional(),
