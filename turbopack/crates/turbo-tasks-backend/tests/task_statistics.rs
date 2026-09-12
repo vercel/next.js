@@ -6,7 +6,7 @@ use std::future::IntoFuture;
 
 use anyhow::Result;
 use serde_json::json;
-use turbo_tasks::{Vc, unmark_top_level_task_may_leak_eventually_consistent_state};
+use turbo_tasks::Vc;
 use turbo_tasks_testing::{Registration, register, run_without_cache_check};
 
 static REGISTRATION: Registration = register!();
@@ -14,25 +14,30 @@ static REGISTRATION: Registration = register!();
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_simple_task() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        enable_stats();
-        for i in 0..10 {
-            double(i).await.unwrap();
-            // use cached results
-            double(i).await.unwrap();
+        #[turbo_tasks::function(operation, root)]
+        async fn operation() -> Result<Vc<()>> {
+            enable_stats();
+            for i in 0..10 {
+                double(i).await.unwrap();
+                // use cached results
+                double(i).await.unwrap();
+            }
+            for i in 0..5 {
+                double(i).await.unwrap();
+            }
+            assert_eq!(
+                stats_json(),
+                json!({
+                    "task_statistics::double": {
+                        "cache_miss": 10,
+                        "cache_hit": 15,
+                    },
+                })
+            );
+            Ok(Vc::cell(()))
         }
-        for i in 0..5 {
-            double(i).await.unwrap();
-        }
-        assert_eq!(
-            stats_json(),
-            json!({
-                "task_statistics::double": {
-                    "cache_miss": 10,
-                    "cache_hit": 15,
-                },
-            })
-        );
+
+        operation().read_strongly_consistent().await?;
         Ok(())
     })
     .await
@@ -41,21 +46,26 @@ async fn test_simple_task() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_await_same_vc_multiple_times() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        enable_stats();
-        let dvc = double(0);
-        // this is awaited multiple times, but only resolved once
-        tokio::try_join!(dvc.into_future(), dvc.into_future()).unwrap();
-        dvc.await.unwrap();
-        assert_eq!(
-            stats_json(),
-            json!({
-                "task_statistics::double": {
-                    "cache_miss": 1,
-                    "cache_hit": 0,
-                },
-            })
-        );
+        #[turbo_tasks::function(operation, root)]
+        async fn operation() -> Result<Vc<()>> {
+            enable_stats();
+            let dvc = double(0);
+            // this is awaited multiple times, but only resolved once
+            tokio::try_join!(dvc.into_future(), dvc.into_future()).unwrap();
+            dvc.await.unwrap();
+            assert_eq!(
+                stats_json(),
+                json!({
+                    "task_statistics::double": {
+                        "cache_miss": 1,
+                        "cache_hit": 0,
+                    },
+                })
+            );
+            Ok(Vc::cell(()))
+        }
+
+        operation().read_strongly_consistent().await?;
         Ok(())
     })
     .await
@@ -64,31 +74,36 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_vc_receiving_task() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        enable_stats();
-        for i in 0..10 {
-            let dvc = double(i);
-            double_vc(dvc).await.unwrap();
-            // use cached results
-            double_vc(dvc).await.unwrap();
+        #[turbo_tasks::function(operation, root)]
+        async fn operation() -> Result<Vc<()>> {
+            enable_stats();
+            for i in 0..10 {
+                let dvc = double(i);
+                double_vc(dvc).await.unwrap();
+                // use cached results
+                double_vc(dvc).await.unwrap();
+            }
+            for i in 0..5 {
+                let dvc = double(i);
+                double_vc(dvc).await.unwrap();
+            }
+            assert_eq!(
+                stats_json(),
+                json!({
+                    "task_statistics::double": {
+                        "cache_miss": 10,
+                        "cache_hit": 5,
+                    },
+                    "task_statistics::double_vc": {
+                        "cache_miss": 10,
+                        "cache_hit": 15,
+                    },
+                })
+            );
+            Ok(Vc::cell(()))
         }
-        for i in 0..5 {
-            let dvc = double(i);
-            double_vc(dvc).await.unwrap();
-        }
-        assert_eq!(
-            stats_json(),
-            json!({
-                "task_statistics::double": {
-                    "cache_miss": 10,
-                    "cache_hit": 5,
-                },
-                "task_statistics::double_vc": {
-                    "cache_miss": 10,
-                    "cache_hit": 15,
-                },
-            })
-        );
+
+        operation().read_strongly_consistent().await?;
         Ok(())
     })
     .await
@@ -97,36 +112,42 @@ async fn test_vc_receiving_task() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_trait_methods() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        enable_stats();
-        for i in 0..10 {
-            let wvc = wrap(i);
-            tokio::try_join!(wvc.double().into_future(), wvc.double().into_future()).unwrap();
-            tokio::try_join!(wvc.double_vc().into_future(), wvc.double_vc().into_future()).unwrap();
+        #[turbo_tasks::function(operation, root)]
+        async fn operation() -> Result<Vc<()>> {
+            enable_stats();
+            for i in 0..10 {
+                let wvc = wrap(i);
+                tokio::try_join!(wvc.double().into_future(), wvc.double().into_future()).unwrap();
+                tokio::try_join!(wvc.double_vc().into_future(), wvc.double_vc().into_future())
+                    .unwrap();
+            }
+            // use cached results
+            for i in 0..5 {
+                let wvc = wrap(i);
+                wvc.double().await.unwrap();
+                wvc.double_vc().await.unwrap();
+            }
+            assert_eq!(
+                stats_json(),
+                json!({
+                    "task_statistics::wrap": {
+                        "cache_miss": 10,
+                        "cache_hit": 5,
+                    },
+                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
+                        "cache_miss": 10,
+                        "cache_hit": 15,
+                    },
+                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
+                        "cache_miss": 10,
+                        "cache_hit": 15,
+                    },
+                })
+            );
+            Ok(Vc::cell(()))
         }
-        // use cached results
-        for i in 0..5 {
-            let wvc = wrap(i);
-            wvc.double().await.unwrap();
-            wvc.double_vc().await.unwrap();
-        }
-        assert_eq!(
-            stats_json(),
-            json!({
-                "task_statistics::wrap": {
-                    "cache_miss": 10,
-                    "cache_hit": 5,
-                },
-                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
-                    "cache_miss": 10,
-                    "cache_hit": 15,
-                },
-                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
-                    "cache_miss": 10,
-                    "cache_hit": 15,
-                },
-            })
-        );
+
+        operation().read_strongly_consistent().await?;
         Ok(())
     })
     .await
@@ -135,44 +156,50 @@ async fn test_trait_methods() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_dyn_trait_methods() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        enable_stats();
-        for i in 0..10 {
-            let wvc: Vc<Box<dyn Doublable>> = Vc::upcast(wrap(i));
-            let _ =
-                tokio::try_join!(wvc.double().to_resolved(), wvc.double().to_resolved()).unwrap();
-            let _ = tokio::try_join!(wvc.double_vc().to_resolved(), wvc.double_vc().to_resolved())
-                .unwrap();
+        #[turbo_tasks::function(operation, root)]
+        async fn operation() -> Result<Vc<()>> {
+            enable_stats();
+            for i in 0..10 {
+                let wvc: Vc<Box<dyn Doublable>> = Vc::upcast(wrap(i));
+                let _ = tokio::try_join!(wvc.double().to_resolved(), wvc.double().to_resolved())
+                    .unwrap();
+                let _ =
+                    tokio::try_join!(wvc.double_vc().to_resolved(), wvc.double_vc().to_resolved())
+                        .unwrap();
+            }
+            // use cached results
+            for i in 0..5 {
+                let wvc: Vc<Box<dyn Doublable>> = Vc::upcast(wrap(i));
+                let _ = wvc.double().to_resolved().await.unwrap();
+                let _ = wvc.double_vc().to_resolved().await.unwrap();
+            }
+            // use cached results without dynamic dispatch
+            for i in 0..2 {
+                let wvc = wrap(i);
+                let _ = wvc.double().await.unwrap();
+                let _ = wvc.double_vc().await.unwrap();
+            }
+            assert_eq!(
+                stats_json(),
+                json!({
+                    "task_statistics::wrap": {
+                        "cache_miss": 10,
+                        "cache_hit": 7,
+                    },
+                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
+                        "cache_miss": 10,
+                        "cache_hit": 17,
+                    },
+                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
+                        "cache_miss": 10,
+                        "cache_hit": 17,
+                    },
+                })
+            );
+            Ok(Vc::cell(()))
         }
-        // use cached results
-        for i in 0..5 {
-            let wvc: Vc<Box<dyn Doublable>> = Vc::upcast(wrap(i));
-            let _ = wvc.double().to_resolved().await.unwrap();
-            let _ = wvc.double_vc().to_resolved().await.unwrap();
-        }
-        // use cached results without dynamic dispatch
-        for i in 0..2 {
-            let wvc = wrap(i);
-            let _ = wvc.double().await.unwrap();
-            let _ = wvc.double_vc().await.unwrap();
-        }
-        assert_eq!(
-            stats_json(),
-            json!({
-                "task_statistics::wrap": {
-                    "cache_miss": 10,
-                    "cache_hit": 7,
-                },
-                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
-                    "cache_miss": 10,
-                    "cache_hit": 17,
-                },
-                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
-                    "cache_miss": 10,
-                    "cache_hit": 17,
-                },
-            })
-        );
+
+        operation().read_strongly_consistent().await?;
         Ok(())
     })
     .await
@@ -182,38 +209,43 @@ async fn test_dyn_trait_methods() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_no_execution() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
-        enable_stats();
-        wrap_vc(double_vc(double(123)))
-            .double()
-            .double_vc()
-            .as_side_effect()
-            .await?;
-        assert_eq!(
-            stats_json(),
-            json!({
-                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
-                    "cache_hit": 0,
-                    "cache_miss": 1
-                },
-                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc":  {
-                    "cache_hit": 0,
-                    "cache_miss": 1
-                },
-                "task_statistics::double":  {
-                    "cache_hit": 0,
-                    "cache_miss": 1
-                },
-                "task_statistics::double_vc":  {
-                    "cache_hit": 0,
-                    "cache_miss": 1
-                },
-                "task_statistics::wrap_vc": {
-                    "cache_hit": 0,
-                    "cache_miss": 1
-                },
-            })
-        );
+        #[turbo_tasks::function(operation, root)]
+        async fn operation() -> Result<Vc<()>> {
+            enable_stats();
+            wrap_vc(double_vc(double(123)))
+                .double()
+                .double_vc()
+                .as_side_effect()
+                .await?;
+            assert_eq!(
+                stats_json(),
+                json!({
+                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
+                        "cache_hit": 0,
+                        "cache_miss": 1
+                    },
+                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc":  {
+                        "cache_hit": 0,
+                        "cache_miss": 1
+                    },
+                    "task_statistics::double":  {
+                        "cache_hit": 0,
+                        "cache_miss": 1
+                    },
+                    "task_statistics::double_vc":  {
+                        "cache_hit": 0,
+                        "cache_miss": 1
+                    },
+                    "task_statistics::wrap_vc": {
+                        "cache_hit": 0,
+                        "cache_miss": 1
+                    },
+                })
+            );
+            Ok(Vc::cell(()))
+        }
+
+        operation().read_strongly_consistent().await?;
         Ok(())
     })
     .await
@@ -222,7 +254,8 @@ async fn test_no_execution() -> Result<()> {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_inline_definitions() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
-        unmark_top_level_task_may_leak_eventually_consistent_state();
+        #[turbo_tasks::function(operation, root)]
+        async fn operation() -> Result<Vc<()>> {
         enable_stats();
         inline_definitions().await?;
         assert_eq!(
@@ -250,6 +283,10 @@ async fn test_inline_definitions() -> Result<()> {
                 }
             }),
         );
+            Ok(Vc::cell(()))
+        }
+
+        operation().read_strongly_consistent().await?;
         Ok(())
     })
     .await
