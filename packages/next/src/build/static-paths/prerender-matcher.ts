@@ -1,6 +1,7 @@
 import {
   PRERENDER_PARAM_MODES,
   type AppSegment,
+  type AppSegmentTree,
   type PrerenderMatcher,
   type PrerenderParamMode,
 } from '../segment-config/app/app-segments'
@@ -9,35 +10,32 @@ import { FallbackMode } from '../../lib/fallback'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param'
 
-function isTreePathPrefix(
-  prefix: readonly string[],
-  value: readonly string[]
-): boolean {
-  if (prefix.length > value.length) return false
-  for (let index = 0; index < prefix.length; index++) {
-    if (prefix[index] !== value[index]) return false
-  }
-  return true
-}
-
 type MatcherCandidate = {
   readonly mode: PrerenderParamMode
   readonly filePath: string | undefined
-  readonly treePath: readonly string[]
 }
 
 export async function compilePrerenderMatcher(
   page: string,
-  segments: readonly Readonly<AppSegment>[],
+  segmentTree: readonly AppSegmentTree[],
   pathnameSegments: ReadonlyArray<{ readonly paramName: string }>
 ): Promise<PrerenderMatcher | undefined> {
-  const matcherSegments = segments.filter(
+  const segments = new Set<AppSegment>()
+  const nodes = [...segmentTree]
+  for (let index = 0; index < nodes.length; index++) {
+    const [segment, children] = nodes[index]
+    segments.add(segment)
+    nodes.push(...children)
+  }
+  const matcherSegments = [...segments].filter(
     (segment) => segment.prerenderMatcher !== undefined
   )
 
   if (matcherSegments.length === 0) return undefined
 
-  if (segments.some((segment) => segment.config?.dynamicParams !== undefined)) {
+  if (
+    [...segments].some((segment) => segment.config?.dynamicParams !== undefined)
+  ) {
     throw new Error(
       `Route "${page}" cannot combine \`dynamicParams\` with \`experimental_paramMatching\` or \`experimental_generateParamMatching\`.`
     )
@@ -48,7 +46,12 @@ export async function compilePrerenderMatcher(
   )
   const candidates = new Map<string, MatcherCandidate[]>()
   const paramsMissingPolicy = new Set<string>()
-  const fragments = await Promise.all(
+  // A module can appear in multiple parallel slots in the loader tree. Those
+  // occurrences share an AppSegment, so invoke its generator once and reuse
+  // the result wherever that module occurs. Start independent generators
+  // together, before merging their results down each branch.
+  const fragments = new Map<AppSegment, PrerenderMatcher>()
+  await Promise.all(
     matcherSegments.map(async (segment) => {
       const matcherExport = segment.prerenderMatcher!
       const value =
@@ -66,51 +69,34 @@ export async function compilePrerenderMatcher(
           )
         }
       }
-      return value
+      fragments.set(segment, value)
     })
   )
 
-  // Include branches without matching exports: they still inherit their
-  // ancestors' policies. An override in one branch must not erase that intent
-  // from a sibling. Keep module evaluation above separate from tree occurrences
-  // so a shared generator is still called only once.
-  const treePaths = segments.flatMap((segment) => segment.treePaths)
-  const branchPaths = treePaths.filter(
-    (treePath) =>
-      !treePaths.some(
-        (other) =>
-          other.length > treePath.length && isTreePathPrefix(treePath, other)
-      )
-  )
-  for (const branchPath of branchPaths) {
-    const branchCandidates = new Map<string, MatcherCandidate>()
-    for (let index = 0; index < matcherSegments.length; index++) {
-      const segment = matcherSegments[index]
-      for (const treePath of segment.treePaths) {
-        if (!isTreePathPrefix(treePath, branchPath)) continue
-
-        for (const [paramName, mode] of Object.entries(fragments[index])) {
-          const inherited = branchCandidates.get(paramName)
-          if (!inherited || inherited.treePath.length < treePath.length) {
-            branchCandidates.set(paramName, {
-              mode,
-              filePath: segment.filePath,
-              treePath,
-            })
-          }
-        }
+  function visit(
+    [segment, children]: AppSegmentTree,
+    inherited: ReadonlyMap<string, MatcherCandidate>,
+    paramNames: readonly string[]
+  ) {
+    const branchCandidates = new Map(inherited)
+    const fragment = fragments.get(segment)
+    if (fragment) {
+      for (const [paramName, mode] of Object.entries(fragment)) {
+        branchCandidates.set(paramName, { mode, filePath: segment.filePath })
       }
     }
+    if (segment.paramName) paramNames = [...paramNames, segment.paramName]
 
-    for (const segment of segments) {
-      if (
-        segment.paramName &&
-        !branchCandidates.has(segment.paramName) &&
-        segment.treePaths.some((treePath) =>
-          isTreePathPrefix(treePath, branchPath)
-        )
-      ) {
-        paramsMissingPolicy.add(segment.paramName)
+    if (children.length > 0) {
+      for (const child of children) visit(child, branchCandidates, paramNames)
+      return
+    }
+
+    // Compare the effective policies at every leaf, including leaves without
+    // exports. A sibling's override must not erase this branch's inheritance.
+    for (const paramName of paramNames) {
+      if (!branchCandidates.has(paramName)) {
+        paramsMissingPolicy.add(paramName)
       }
     }
 
@@ -125,6 +111,7 @@ export async function compilePrerenderMatcher(
       }
     }
   }
+  for (const root of segmentTree) visit(root, new Map(), [])
 
   const policy: PrerenderMatcher = {}
   for (const { paramName } of pathnameSegments) {
@@ -158,7 +145,7 @@ export async function compilePrerenderMatcher(
     const currentPhase = PRERENDER_PARAM_MODES.indexOf(mode)
     if (currentPhase < previousPhase) {
       throw new Error(
-        `Invalid parameter matching for "${page}": parameter "${paramName}" uses "${mode}" after parameter "${previousParamName}" uses a later matching phase. Expected parameters to follow not-found, blocking, fallback, then dynamic order.`
+        `Invalid parameter matching for "${page}": parameter "${paramName}" uses "${mode}" after parameter "${previousParamName}" uses a later matching phase. Expected parameters in this order: "not-found", "blocking", "fallback", then "dynamic".`
       )
     }
     previousPhase = currentPhase

@@ -938,9 +938,9 @@ export async function isPageStatic({
         const ComponentMod: AppPageModule | AppRouteModule =
           componentsResult.ComponentMod
 
-        let segments: AppSegment[]
+        let collectedSegments: Awaited<ReturnType<typeof collectSegments>>
         try {
-          segments = await collectSegments(
+          collectedSegments = await collectSegments(
             // We know this is an app page or app route module because we
             // checked above that the page type is 'app'.
             routeModule as AppPageRouteModule | AppRouteRouteModule
@@ -950,6 +950,7 @@ export async function isPageStatic({
             cause: err,
           })
         }
+        const { segments, segmentTree } = collectedSegments
 
         appConfig =
           originalAppPath === UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY
@@ -1010,6 +1011,7 @@ export async function isPageStatic({
               durableUseCacheEntries,
               staticPageGenerationTimeout,
               segments,
+              segmentTree,
               distDir,
               requestHeaders: {},
               isrFlushToDisk,

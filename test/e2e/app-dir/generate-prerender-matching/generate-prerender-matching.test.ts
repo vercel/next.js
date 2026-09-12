@@ -438,7 +438,7 @@ describe('experimental parameter matching ordering validation', () => {
   it('rejects incoherent policies after layout and page merging', async () => {
     await retry(() => {
       expect(next.cliOutput).toContain(
-        'Expected parameters to follow not-found, blocking, fallback, then dynamic order'
+        'Expected parameters in this order: "not-found", "blocking", "fallback", then "dynamic"'
       )
     })
   })

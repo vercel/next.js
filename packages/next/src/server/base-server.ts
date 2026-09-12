@@ -2760,8 +2760,8 @@ export default abstract class Server<
           pathsResults.prerenderedRoutes?.length ||
           pathsResults.prerenderRouteMatchers?.length
         ) {
-          // Include concrete routes with no fallback params as well as
-          // matcher-only entries that intentionally have no fallback output.
+          // Match both build-time prerenders and routes that have no
+          // build-time output, such as an explicit blocking match.
           let matchedRoute: PrerenderedRoute | PrerenderRouteMatcher | undefined
           for (const route of pathsResults.prerenderedRoutes ?? []) {
             if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
@@ -2793,8 +2793,9 @@ export default abstract class Server<
           }
 
           if (matchedRoute) {
-            // Explicit shell requests render the matched artifact. Ordinary
-            // requests stage and validate the same required or completed shell.
+            // Shell requests keep the matched route's fallback params unknown.
+            // Ordinary requests use stagedFallbackParams below to determine
+            // which params resolve in the static phase.
             addRequestMeta(
               req,
               'fallbackRouteParams',
@@ -2806,8 +2807,10 @@ export default abstract class Server<
             )
             let stagedFallbackParams = getStagedFallbackParams({
               ...matchedRoute,
-              // Matcher-only entries have no source shell to validate. Stage
-              // the completed shell, retaining any always-dynamic tail.
+              // A match without a build-time prerender has no shell validation
+              // metadata. With false, getStagedFallbackParams lets remaining
+              // prerenderable params resolve in the static phase; params that
+              // cannot be prerendered still wait for the dynamic phase.
               throwOnEmptyStaticShell:
                 'throwOnEmptyStaticShell' in matchedRoute
                   ? matchedRoute.throwOnEmptyStaticShell

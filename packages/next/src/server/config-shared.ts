@@ -487,8 +487,8 @@ export function resolveCssChunkingMode(
 
 export interface ExperimentalConfig {
   /**
-   * Enables per-parameter prerender matching directives in App Router layouts
-   * and pages.
+   * Enables parameter matching segment configuration in App Router layouts
+   * and pages using Cache Components.
    */
   paramMatching?: boolean
 
