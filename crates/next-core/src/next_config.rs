@@ -1370,6 +1370,7 @@ pub struct ExperimentalConfig {
     /// the specified packages.
     optimize_package_imports: Option<Vec<RcStr>>,
     taint: Option<bool>,
+    ledgers: Option<bool>,
     proxy_timeout: Option<f64>,
     /// enables the minification of server code.
     server_minification: Option<bool>,
@@ -2481,7 +2482,8 @@ impl NextConfig {
         let taint = self.experimental.taint.unwrap_or(false);
         let transition_indicator = self.experimental.transition_indicator.unwrap_or(false);
         let gesture_transition = self.experimental.gesture_transition.unwrap_or(false);
-        Vc::cell(blocking_ssr || taint || transition_indicator || gesture_transition)
+        let ledgers = self.experimental.ledgers.unwrap_or(false);
+        Vc::cell(blocking_ssr || taint || transition_indicator || gesture_transition || ledgers)
     }
 
     #[turbo_tasks::function]

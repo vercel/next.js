@@ -211,6 +211,10 @@ export default class NextNodeServer extends BaseServer<
     // Initialize super class
     super(options)
 
+    process.env.__NEXT_LEDGERS = this.nextConfig.experimental.ledgers
+      ? 'true'
+      : ''
+
     installGlobalBehaviors(this.nextConfig)
 
     // Load prefetch hints from the build output. This must happen before

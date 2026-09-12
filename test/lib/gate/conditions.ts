@@ -171,6 +171,10 @@ export const conditions: Record<string, Condition> = {
     'client navigations are cached (implied by `cacheComponents`)',
     (config) => config.experimental?.cachedNavigations
   ),
+  ledgers: lazyCondition(
+    'built-in React Ledgers are enabled',
+    (config) => config.experimental?.ledgers
+  ),
   optimisticRouting: lazyCondition(
     'optimistic routing is enabled',
     (config) => config.experimental?.optimisticRouting

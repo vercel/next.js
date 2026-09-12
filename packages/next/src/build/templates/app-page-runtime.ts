@@ -941,6 +941,7 @@ export function createAppPageEntrypoint({
               isRoutePPREnabled,
               expireTime: nextConfig.expireTime,
               staleTimes: nextConfig.experimental.staleTimes,
+              ledgers: nextConfig.experimental.ledgers,
               dynamicOnHover: Boolean(nextConfig.experimental.dynamicOnHover),
               optimisticRouting: Boolean(
                 nextConfig.experimental.optimisticRouting
