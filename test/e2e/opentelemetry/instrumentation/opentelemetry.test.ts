@@ -16,24 +16,39 @@ const ROUTE_PREPARATION_COLLECTOR_PORT = 9002
 const INSTRUMENTATION_STARTUP_COLLECTOR_PORT = 9003
 const APP_ROUTE_MODULE_LOADING_COLLECTOR_PORT = 9004
 
-function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
-  let collector: Collector
+type NextInstance = ReturnType<typeof nextTestSetup>['next']
 
-  function getCollector(): Collector {
+function setupCollector(next: NextInstance, port: number) {
+  let collector: Collector | undefined
+
+  // The app's span exporter remains active for the entire suite. Keep its
+  // endpoint available for the same lifetime and only reset collected state.
+  beforeAll(async () => {
+    collector = await connectCollector({ port })
+    await next.start()
+  })
+
+  beforeEach(() => {
+    collector?.reset()
+  })
+
+  afterAll(async () => {
+    await collector?.shutdown()
+  })
+
+  return function getCollector(): Collector {
+    if (!collector) {
+      throw new Error('OpenTelemetry collector is not connected')
+    }
     return collector
   }
+}
 
-  beforeEach(async () => {
-    collector = await connectCollector({ port: COLLECTOR_PORT })
-  })
-
-  afterEach(async () => {
-    await collector.shutdown()
-  })
-
-  let next = nextTestSetup({
+function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
+  const testSetup = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    skipStart: true,
     dependencies: require('./package.json').dependencies,
     ...(!useDirectEntrypointHandler
       ? {
@@ -65,7 +80,14 @@ function setup({ useDirectEntrypointHandler, useNodeMiddleware }) {
         }
       : undefined,
   })
-  return { next, getCollector }
+  return {
+    next: testSetup,
+    getCollector: testSetup.skipped
+      ? () => {
+          throw new Error('OpenTelemetry test setup was skipped')
+        }
+      : setupCollector(testSetup.next, COLLECTOR_PORT),
+  }
 }
 
 describe.each(
@@ -88,6 +110,32 @@ describe.each(
   if (skipped) {
     return
   }
+
+  let connectedCollector: Collector
+
+  async function expectAppRouteTrace(pathname: string) {
+    expect((await next.fetch(pathname)).status).toBe(200)
+    await expectTrace(getCollector(), [
+      {
+        name: 'GET /api/app/[param]/data',
+        attributes: {
+          'http.target': pathname,
+          'next.span_type': 'BaseServer.handleRequest',
+        },
+      },
+    ])
+  }
+
+  it('collects a trace before the per-test reset', async () => {
+    connectedCollector = getCollector()
+    await expectAppRouteTrace('/api/app/param/data')
+  })
+
+  it('keeps the collector connected across per-test resets', async () => {
+    expect(getCollector()).toBe(connectedCollector)
+    expect(getCollector().getSpans()).toEqual([])
+    await expectAppRouteTrace('/api/app/param/data')
+  })
 
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
@@ -1945,6 +1993,7 @@ describe.each(
     const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
+      skipStart: true,
       dependencies: require('./package.json').dependencies,
       env: {
         TEST_OTEL_COLLECTOR_PORT: String(COLLECTOR_PORT),
@@ -1957,16 +2006,7 @@ describe.each(
       return
     }
 
-    let collector: Collector | undefined
-
-    beforeEach(async () => {
-      collector = await connectCollector({ port: COLLECTOR_PORT })
-    })
-
-    afterEach(async () => {
-      await collector?.shutdown()
-      collector = undefined
-    })
+    const getCollector = setupCollector(next, COLLECTOR_PORT)
 
     // Regression for https://github.com/vercel/otel/issues/107.
     it('all spans (including verbose) inherit traceId from incoming traceparent header', async () => {
@@ -1979,7 +2019,7 @@ describe.each(
 
       let spans: SavedSpan[] = []
       await retry(async () => {
-        const all = collector?.getSpans() ?? []
+        const all = getCollector().getSpans()
         const root = all.find(
           (s) =>
             s.attributes?.['next.span_type'] === 'BaseServer.handleRequest' &&
@@ -2012,6 +2052,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    skipStart: true,
     dependencies: require('./package.json').dependencies,
     env: {
       NEXT_OTEL_FETCH_DISABLED: '1',
@@ -2023,20 +2064,7 @@ describe('opentelemetry with disabled fetch tracing', () => {
     return
   }
 
-  let collector: Collector
-
-  function getCollector(): Collector {
-    return collector
-  }
-
-  beforeEach(async () => {
-    collector = await connectCollector({ port: COLLECTOR_PORT })
-  })
-
-  afterEach(async () => {
-    await collector.shutdown()
-    await new Promise((r) => setTimeout(r, 1000))
-  })
+  const getCollector = setupCollector(next, COLLECTOR_PORT)
   ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
     'root context',
     () => {
@@ -2094,6 +2122,7 @@ describe('opentelemetry with custom server', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
+    skipStart: true,
     dependencies: require('./package.json').dependencies,
     startCommand: 'pnpm start',
     packageJson: {
@@ -2113,19 +2142,7 @@ describe('opentelemetry with custom server', () => {
     return
   }
 
-  let collector: Collector
-
-  function getCollector(): Collector {
-    return collector
-  }
-
-  beforeEach(async () => {
-    collector = await connectCollector({ port: COLLECTOR_PORT })
-  })
-
-  afterEach(async () => {
-    await collector.shutdown()
-  })
+  const getCollector = setupCollector(next, COLLECTOR_PORT)
 
   it('should set attributes correctly on handleRequest span', async () => {
     await next.fetch('/app/param/rsc-fetch')
@@ -2272,6 +2289,7 @@ if (isNextStart) {
     const { next, skipped } = nextTestSetup({
       files: __dirname,
       skipDeployment: true,
+      skipStart: true,
       dependencies: require('./package.json').dependencies,
       startCommand: 'pnpm start-entrypoint',
       packageJson: {
@@ -2291,19 +2309,7 @@ if (isNextStart) {
       return
     }
 
-    let collector: Collector
-
-    function getCollector(): Collector {
-      return collector
-    }
-
-    beforeEach(async () => {
-      collector = await connectCollector({ port: COLLECTOR_PORT })
-    })
-
-    afterEach(async () => {
-      await collector.shutdown()
-    })
+    const getCollector = setupCollector(next, COLLECTOR_PORT)
 
     const directEntrypointCases = [
       { pathname: '/app/param/rsc-fetch', route: '/app/[param]/rsc-fetch' },
@@ -2327,7 +2333,7 @@ if (isNextStart) {
 
           await retry(
             async () => {
-              const spans = collector.getSpans()
+              const spans = getCollector().getSpans()
               const handleRequestSpan = spans.find((span) => {
                 if (
                   span.attributes?.['next.span_type'] !==

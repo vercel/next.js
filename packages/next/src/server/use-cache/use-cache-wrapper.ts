@@ -3675,12 +3675,11 @@ export async function cache(
  * This returns a cache key that has to cover everything that can affect the result of the cached
  * function (apart from the arguments). So
  * - codeHash: the code itself that generates the return value
- *    - Notably, this excludes the following modules.  Those are included via the Next.js version
- *      anyway:
+ *    - Notably, this excludes the following modules.  Those are included via the Next.js version anyway:
  *    - react, react-dom, private-next-rsc-server-reference, private-next-rsc-cache-wrapper
- * - runtimeEnvVars: the keys and values runtime environment variables that the code reads (and are
- *   not inlined)
- * - the version of Next.js (to account for RSC wire format changes, or use-cache-wrapper.ts
+ * - runtimeEnvVarsRead: the keys and values of runtime environment variables that the code reads
+ * - runtimeEnvVarExistence: the unset/falsy/truthy state of runtime environment variables used in boolean contexts
+ * - the version of Next.js (to account for RSC wire format changes, or use-cache-wrapper.ts changes)
  *
  * In case that granular information isn't available, fall back to
  * buildId/deploymentId/hmrRefreshHash, which is a correct hash but over-invalidates way too often.
@@ -3702,16 +3701,21 @@ async function computeCacheKeyImplementationPart(
       // Hash the env var values, to not leak secrets into the cache key.
       .createHash('sha256')
       .update(
-        durability.runtimeEnvVars
-          .map((k) => {
+        [
+          ...durability.runtimeEnvVarsRead.map((k) => {
             // Make sure not to stringify `undefined` and `"undefined"` to the same value.
-            return process.env[k] != null ? `${k}=${process.env[k]}` : k
-          })
-          .join('\0') ?? ''
+            return process.env[k] != null ? `${k}==${process.env[k]}` : k
+          }),
+          ...durability.runtimeEnvVarsExistence.map((k) => {
+            const value = process.env[k]
+            const state = value == null ? 'unset' : value ? 'truthy' : 'falsy'
+            return `${k}~=${state}`
+          }),
+        ].join('\0') ?? ''
       )
       .digest('hex')
 
-    // When more accurate analysis information is available, use codeHash + runtimeEnvVars
+    // When more accurate analysis information is available, use codeHash + runtime env vars
     return [durability.codeHash, nextVersion, runtimeEnvVarStateHash]
   } else {
     // Because the Action ID is not yet unique per implementation of that Action we can't

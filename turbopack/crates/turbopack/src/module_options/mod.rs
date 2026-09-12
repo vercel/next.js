@@ -250,6 +250,7 @@ impl ModuleOptions {
                     mangle_export_names,
                     cjs_scope_hoisting,
                     cross_module_constants,
+                    lazy_compilation,
                     ref preset_env_config,
                     ..
                 },
@@ -347,6 +348,7 @@ impl ModuleOptions {
             mangle_export_names,
             cjs_scope_hoisting,
             cross_module_constants,
+            lazy_compilation,
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
@@ -501,6 +503,7 @@ impl ModuleOptions {
                                     *execution_context,
                                     *rule.loaders,
                                     *webpack_loaders_options.target,
+                                    webpack_loaders_options.mode.clone(),
                                     rule.rename_as.clone(),
                                     resolve_options_context,
                                     matches!(ecmascript_source_maps, SourceMapsType::Full),

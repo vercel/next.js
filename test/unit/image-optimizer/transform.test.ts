@@ -1,7 +1,11 @@
 /* eslint-env jest */
 import { readFile } from 'fs-extra'
 import { join } from 'path'
-import { imageOptimizerTransform } from 'next/dist/server/image-optimizer/transform'
+import {
+  getSharp,
+  imageOptimizerTransform,
+  type ImageOptimizerTransformConfig,
+} from 'next/dist/server/image-optimizer/transform'
 import type {
   CachedRouteKind,
   IncrementalResponseCacheEntry,
@@ -24,7 +28,11 @@ const config = {
   },
 }
 
-async function transform(filename: string, mimeType = 'image/webp') {
+async function transform(
+  filename: string,
+  mimeType = 'image/webp',
+  nextConfig: ImageOptimizerTransformConfig = config
+) {
   const buffer = await getImage(filename)
   return imageOptimizerTransform(
     {
@@ -34,7 +42,7 @@ async function transform(filename: string, mimeType = 'image/webp') {
       etag: 'source-etag',
     },
     { href: `/${filename}`, width: 64, quality: 75, mimeType },
-    config
+    nextConfig
   )
 }
 
@@ -87,6 +95,24 @@ describe('imageOptimizerTransform', () => {
     expect(result.buffer.byteLength).toBeGreaterThan(0)
     expect(result.maxAge).toBe(120)
   })
+
+  it.each([undefined, true, false])(
+    'encodes JPEGs with imgOptMozjpeg=%s',
+    async (imgOptMozjpeg) => {
+      const result = await transform('test.jpg', 'image/jpeg', {
+        ...config,
+        experimental: { ...config.experimental, imgOptMozjpeg },
+      })
+      expect(result.error).toBeUndefined()
+      expect(result.contentType).toBe('image/jpeg')
+      const sharp = getSharp(1, false)
+      expect(await sharp(result.buffer).metadata()).toMatchObject({
+        format: 'jpeg',
+        width: 64,
+        isProgressive: imgOptMozjpeg ?? true,
+      })
+    }
+  )
 
   it('preserves the source format when no output format is requested', async () => {
     const result = await transform('test.png', '')

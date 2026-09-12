@@ -338,6 +338,11 @@ export interface DynamicPrerenderManifestRoute
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
 
   /**
+   * Whether this candidate must produce a nonempty static shell.
+   */
+  throwOnEmptyStaticShell?: boolean
+
+  /**
    * When defined, it describes the revalidation configuration for the fallback
    * route.
    */
@@ -3888,6 +3893,8 @@ export default async function build(
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
+                  throwOnEmptyStaticShell:
+                    prerenderCandidate?.throwOnEmptyStaticShell,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
