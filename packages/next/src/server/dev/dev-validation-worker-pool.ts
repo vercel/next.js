@@ -9,6 +9,7 @@ import type {
   DevValidationSnapshot,
   DevValidationWorkerMessage,
   DevValidationWorkerResult,
+  SerializedDevValidationError,
 } from '../app-render/dev-validation-worker-globals'
 
 import { Worker } from 'next/dist/compiled/jest-worker'
@@ -16,6 +17,7 @@ import { setDevValidationWorker } from '../app-render/dev-validation-worker-glob
 import { onCacheInvalidation } from './require-cache'
 import { getFormattedNodeOptionsWithoutInspect } from '../lib/utils'
 import { needsExperimentalReact } from '../../lib/needs-experimental-react'
+import { formatValidationEvent } from '../app-render/dev-validation-events'
 
 interface InstallOptions {
   distDir: string
@@ -45,7 +47,7 @@ type DevModuleStateChange =
 /**
  * Replays a change the dev server made to its own module state in the
  * validation worker. Installed alongside the worker, so it is absent when no
- * worker runs (`experimental.devValidationWorker: false`, or Webpack).
+ * worker runs (`experimental.devValidationWorker: false`).
  */
 let mirrorModuleState: ((change: DevModuleStateChange) => void) | undefined
 
@@ -63,6 +65,19 @@ let mirrorModuleState: ((change: DevModuleStateChange) => void) | undefined
  * current code from disk.
  */
 let dropWorker: (() => void) | undefined
+
+const isTestLoggingEnabled = !!(
+  process.env.__NEXT_TEST_MODE && process.env.NEXT_TEST_LOG_VALIDATION
+)
+
+function deserializeValidationError(
+  serialized: SerializedDevValidationError
+): Error {
+  const error = new Error(serialized.message)
+  error.name = serialized.name
+  error.stack = serialized.stack
+  return error
+}
 
 export function mirrorModuleStateToDevValidationWorker(
   change: DevModuleStateChange
@@ -206,11 +221,23 @@ export function installDevValidationWorker(options: InstallOptions): void {
     snapshot: DevValidationSnapshot,
     validationAbortSignal: AbortSignal
   ): Promise<DevValidationWorkerResult> => {
+    const logValidationErrorsOnMainThread = !process.env.TURBOPACK
     let activePool: ValidationPool
     try {
       activePool = getPool()
     } catch {
       return null
+    }
+
+    if (isTestLoggingEnabled && logValidationErrorsOnMainThread) {
+      console.log(
+        formatValidationEvent({
+          type: 'validation_start',
+          requestId: snapshot.requestId,
+          url: snapshot.request.urlPathname + snapshot.request.urlSearch,
+          responseFinished: snapshot.responseFinished,
+        })
+      )
     }
 
     const message: DevValidationWorkerMessage = {
@@ -250,7 +277,18 @@ export function installDevValidationWorker(options: InstallOptions): void {
     }
 
     try {
-      return await activePool.runDevValidation(message, abortBuffer)
+      const result = await activePool.runDevValidation(message, abortBuffer)
+      if (result === null) {
+        return null
+      }
+
+      if (logValidationErrorsOnMainThread) {
+        for (const serializedError of result.errorsForMainThread) {
+          console.error(deserializeValidationError(serializedError))
+        }
+      }
+
+      return result.chunks
     } catch {
       // Worker crash or IPC error: tear down so the next validation starts
       // fresh. The main thread treats a missing result as "nothing to deliver."
@@ -261,6 +299,18 @@ export function installDevValidationWorker(options: InstallOptions): void {
       // explicitly to bound its lifetime to this run when validation completed
       // without being superseded.
       validationAbortSignal.removeEventListener('abort', propagateAbort)
+
+      if (isTestLoggingEnabled && logValidationErrorsOnMainThread) {
+        console.log(
+          formatValidationEvent({
+            type: validationAbortSignal.aborted
+              ? 'validation_aborted'
+              : 'validation_end',
+            requestId: snapshot.requestId,
+            url: snapshot.request.urlPathname + snapshot.request.urlSearch,
+          })
+        )
+      }
     }
   }
 
