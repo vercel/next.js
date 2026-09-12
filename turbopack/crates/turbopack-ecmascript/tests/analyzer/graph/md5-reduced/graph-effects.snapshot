@@ -39,6 +39,7 @@
             ),
         ],
         span: 1622..1636,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "module",
@@ -165,6 +166,7 @@
             ),
         ],
         span: 138..149,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -236,6 +238,7 @@
             ),
         ],
         span: 173..206,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -294,6 +297,7 @@
             ),
         ],
         span: 380..388,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -376,6 +380,7 @@
             ),
         ],
         span: 484..488,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -606,6 +611,7 @@
             ),
         ],
         span: 532..540,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -848,6 +854,7 @@
             ),
         ],
         span: 585..593,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1090,6 +1097,7 @@
             ),
         ],
         span: 637..645,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1332,6 +1340,7 @@
             ),
         ],
         span: 691..699,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1574,6 +1583,7 @@
             ),
         ],
         span: 743..751,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1816,6 +1826,7 @@
             ),
         ],
         span: 796..804,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2058,6 +2069,7 @@
             ),
         ],
         span: 850..858,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2300,6 +2312,7 @@
             ),
         ],
         span: 902..910,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2542,6 +2555,7 @@
             ),
         ],
         span: 954..962,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -2784,6 +2798,7 @@
             ),
         ],
         span: 1008..1017,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -3026,6 +3041,7 @@
             ),
         ],
         span: 1058..1067,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -3268,6 +3284,7 @@
             ),
         ],
         span: 1113..1122,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -3510,6 +3527,7 @@
             ),
         ],
         span: 1166..1175,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -3752,6 +3770,7 @@
             ),
         ],
         span: 1219..1228,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -3994,6 +4013,7 @@
             ),
         ],
         span: 1274..1283,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(

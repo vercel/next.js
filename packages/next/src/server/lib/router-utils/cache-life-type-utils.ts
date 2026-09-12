@@ -71,6 +71,7 @@ function formatTimespanWithSeconds(seconds: undefined | number): string {
 export function generateCacheLifeTypes(cacheLife: {
   [profile: string]: CacheLife
 }): string {
+  let profileKeys = ''
   let overloads = ''
 
   const profileNames = Object.keys(cacheLife)
@@ -80,6 +81,9 @@ export function generateCacheLifeTypes(cacheLife: {
     if (typeof profile !== 'object' || profile === null) {
       continue
     }
+
+    profileKeys += `
+    ${JSON.stringify(profileName)}: true`
 
     let description = ''
 
@@ -136,58 +140,21 @@ export function generateCacheLifeTypes(cacheLife: {
     `
   }
 
-  overloads += `
-    /**
-     * Cache this \`"use cache"\` using a custom timespan.
-     * \`\`\`
-     *   stale: ... // seconds
-     *   revalidate: ... // seconds
-     *   expire: ... // seconds
-     * \`\`\`
-     *
-     * This is similar to Cache-Control: max-age=\`stale\`,s-max-age=\`revalidate\`,stale-while-revalidate=\`expire-revalidate\`
-     *
-     * If a value is left out, the lowest of other cacheLife() calls or the default, is used instead.
-     */
-    export function cacheLife(profile: {
-      /**
-       * This cache may be stale on clients for ... seconds before checking with the server.
-       */
-      stale?: number,
-      /**
-       * If the server receives a new request after ... seconds, start revalidating new values in the background.
-       */
-      revalidate?: number,
-      /**
-       * If this entry has no traffic for ... seconds it will expire. The next request will recompute it.
-       */
-      expire?: number
-    }): void
-  `
-
-  // Redefine the cacheLife() accepted arguments.
+  // The top-level `export {}` makes this file a module, which in turn makes
+  // the block below a module augmentation that merges into the `next/cache`
+  // types. Without it the file is a script, the block is a standalone ambient
+  // module declaration, and it shadows `next/cache` instead of merging: every
+  // other export then has to be redeclared here, and TypeScript offers two
+  // identical auto-import completions for each of them, one from this file and
+  // one from the package's own types.
   return `// Type definitions for Next.js cacheLife configs
 
+export {}
+
 declare module 'next/cache' {
-  export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
-  export {
-    updateTag,
-    revalidateTag,
-    revalidatePath,
-    refresh,
-  } from 'next/dist/server/web/spec-extension/revalidate'
-  export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
-  export { io } from 'next/dist/server/request/io'
-  export { unstable_navigation } from 'next/dist/server/request/cache-stages'
-  export { unstable_prefetch } from 'next/dist/server/request/cache-stages'
-
+  export interface CacheLifeProfiles {${profileKeys}
+  }
   ${overloads}
-
-  import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
-  export { cacheTag }
-
-  export const unstable_cacheTag: typeof cacheTag
-  export const unstable_cacheLife: typeof cacheLife
 }
 `
 }

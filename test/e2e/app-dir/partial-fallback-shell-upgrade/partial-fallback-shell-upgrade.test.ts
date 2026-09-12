@@ -1,4 +1,5 @@
 import cheerio from 'cheerio'
+import { randomUUID } from 'crypto'
 import { nextTestSetup } from 'e2e-utils'
 import { splitResponseWithPPRSentinel } from 'e2e-utils/ppr'
 import { retry, waitFor } from 'next-test-utils'
@@ -130,6 +131,51 @@ describe('partial-fallback-shell-upgrade', () => {
     expect(result.static$('#two').length).toBe(0)
     expect(result.dynamicPart).toContain('<div id="two">bar</div>')
     expect(result.dynamicPart).not.toContain('<div id="two">foo</div>')
+  })
+
+  it('should upgrade a required fallback shell with mixed generateStaticParams lengths', async () => {
+    // A second cold path must still use the required source shell after the
+    // first exact path completes.
+    for (const bottom of [`first-${randomUUID()}`, `second-${randomUUID()}`]) {
+      const pathname = `/mixed/short/${bottom}`
+      const firstResult = await fetchSplitHTML(pathname)
+
+      expect(firstResult.static$('#top').text()).toBe('short')
+      expect(firstResult.static$('#top-fallback').length).toBe(0)
+      expect(firstResult.static$('#bottom').length).toBe(0)
+      expect(firstResult.static$('#bottom-fallback').text()).toBe(
+        'loading bottom...'
+      )
+      expect(firstResult.dynamicPart).toContain(
+        `<div id="bottom">${bottom}</div>`
+      )
+      expect(firstResult.static$('#dynamic').length).toBe(0)
+      expect(firstResult.static$('#dynamic-fallback').text()).toBe(
+        'loading dynamic...'
+      )
+      expect(firstResult.dynamicPart).toContain(
+        '<div id="dynamic">Dynamic content</div>'
+      )
+
+      await retry(async () => {
+        const completedResult = await fetchSplitHTML(pathname)
+
+        expect(completedResult.static$('#top').text()).toBe('short')
+        expect(completedResult.static$('#top-fallback').length).toBe(0)
+        expect(completedResult.static$('#bottom').text()).toBe(bottom)
+        expect(completedResult.static$('#bottom-fallback').length).toBe(0)
+        expect(completedResult.dynamicPart).not.toContain(
+          `<div id="bottom">${bottom}</div>`
+        )
+        expect(completedResult.static$('#dynamic').length).toBe(0)
+        expect(completedResult.static$('#dynamic-fallback').text()).toBe(
+          'loading dynamic...'
+        )
+        expect(completedResult.dynamicPart).toContain(
+          '<div id="dynamic">Dynamic content</div>'
+        )
+      })
+    }
   })
 
   it('should not keep upgrading once only fully dynamic params remain', async () => {

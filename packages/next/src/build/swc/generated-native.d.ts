@@ -79,13 +79,13 @@ export declare function codeFrameColumns(
 
 export declare function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
-  func: (err: Error, value: TurbopackResult) => void
+  func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
 export declare function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
-  func: (err: Error, value: TurbopackResult) => void
+  func: (err: Error, value: TurbopackResult<undefined>) => void
 ): { __napiType: 'RootTask' }
 
 export declare function endpointWriteToDisk(endpoint: {
@@ -567,6 +567,11 @@ export declare function parse(
   signal?: AbortSignal | undefined | null
 ): Promise<string>
 
+export declare function projectActivateLazyChunk(
+  project: { __napiType: 'Project' },
+  chunkPath: RcStr
+): Promise<boolean>
+
 export declare function projectClientHmrChunkNamesSubscribe(
   project: { __napiType: 'Project' },
   func: (err: Error, value: TurbopackResult<HmrChunkNames>) => void
@@ -581,17 +586,20 @@ export declare function projectClientHmrEvents(
 /** Subscribes to all compilation events that are not cached like timing and progress information. */
 export declare function projectCompilationEventsSubscribe(
   project: { __napiType: 'Project' },
-  func: (err: Error, value: TurbopackResult<CompilationEvent>) => void,
+  func: (err: Error, value: CompilationEvent) => void,
   eventTypes?: Array<string> | undefined | null
 ): void
 
 export declare function projectEntrypoints(project: {
   __napiType: 'Project'
-}): Promise<TurbopackResult<Partial<NapiEntrypoints>>>
+}): Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>
 
 export declare function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
-  func: (err: Error, value: TurbopackResult<Partial<NapiEntrypoints>>) => void
+  func: (
+    err: Error,
+    value: TurbopackResult<Partial<NapiEntrypoints> | null>
+  ) => void
 ): { __napiType: 'RootTask' }
 
 /**
@@ -693,13 +701,13 @@ export declare function projectUpdate(
 export declare function projectUpdateInfoSubscribe(
   project: { __napiType: 'Project' },
   aggregationMs: number,
-  func: (err: Error, value: TurbopackResult<UpdateMessage>) => void
+  func: (err: Error, value: UpdateMessage) => void
 ): void
 
 export declare function projectWriteAllEntrypointsToDisk(
   project: { __napiType: 'Project' },
   appDirOnly: boolean
-): Promise<TurbopackResult<Partial<NapiEntrypoints>>>
+): Promise<TurbopackResult<Partial<NapiEntrypoints> | null>>
 
 export declare function projectWriteAnalyzeData(
   project: { __napiType: 'Project' },

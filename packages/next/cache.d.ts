@@ -20,6 +20,8 @@ import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
 
 export { cacheTag }
 
+export interface CacheLifeProfiles {}
+
 /**
  * Cache this `"use cache"` for a timespan defined by the `"default"` profile.
  * ```
@@ -128,7 +130,9 @@ export function cacheLife(profile: 'max'): void
  *
  * You can define custom profiles in `next.config.ts`.
  */
-export function cacheLife(profile: string): void
+export function cacheLife(
+  profile: keyof CacheLifeProfiles extends never ? string : never
+): void
 
 /**
  * Cache this `"use cache"` using a custom timespan.
