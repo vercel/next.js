@@ -139,13 +139,13 @@ pub struct NextConfig {
     /// Enables the bundling of node_modules packages (externals) for pages
     /// server-side bundles.
     ///
-    /// [API Reference](https://nextjs.org/docs/pages/api-reference/next-config-js/bundlePagesRouterDependencies)
+    /// [API Reference](https://nextjs.org/docs/pages/api-reference/config/next-config-js/bundlePagesRouterDependencies)
     bundle_pages_router_dependencies: Option<bool>,
 
     /// A list of packages that should be treated as external on the server
     /// build.
     ///
-    /// [API Reference](https://nextjs.org/docs/app/api-reference/next-config-js/serverExternalPackages)
+    /// [API Reference](https://nextjs.org/docs/app/api-reference/config/next-config-js/serverExternalPackages)
     server_external_packages: Option<Vec<RcStr>>,
 
     /// A salt to mix into chunk and asset content hashes. Empty string means
@@ -1301,7 +1301,7 @@ pub struct ExperimentalConfig {
     fetch_cache_key_prefix: Option<RcStr>,
     isr_flush_to_disk: Option<bool>,
     /// For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
-    /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/mdxRs)
+    /// @see [api reference](https://nextjs.org/docs/app/api-reference/config/next-config-js/mdxRs)
     mdx_rs: Option<MdxRsOptions>,
     strict_next_head: Option<bool>,
     #[bincode(with = "turbo_bincode::serde_self_describing")]
