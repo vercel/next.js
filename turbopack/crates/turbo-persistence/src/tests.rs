@@ -1,9 +1,14 @@
 use std::{fs, path::Path, time::Instant};
 
 use anyhow::Result;
+#[cfg(not(miri))]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rstest::rstest;
 
+// Miri rejects a process that exits while rayon's global worker threads are still parked, so
+// run the same tests on the serial scheduler there. The alias keeps the test bodies identical.
+#[cfg(miri)]
+use crate::parallel_scheduler::SerialScheduler as RayonParallelScheduler;
 use crate::{
     AccessMode, Compression, DbConfig, FamilyConfig, FamilyKind,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
@@ -14,9 +19,11 @@ use crate::{
     write_batch::WriteBatch,
 };
 
+#[cfg(not(miri))]
 #[derive(Clone, Copy)]
 struct RayonParallelScheduler;
 
+#[cfg(not(miri))]
 impl ParallelScheduler for RayonParallelScheduler {
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where
@@ -165,6 +172,7 @@ fn open_multi_value_db(
     open_db_with_config(path, multi_value_config_with_mmap(mmap))
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -551,6 +559,7 @@ fn full_cycle(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -663,6 +672,7 @@ fn persist_changes(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -750,6 +760,7 @@ fn partial_compaction(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -1046,6 +1057,8 @@ fn batch_get_large_batch(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+// This test is too slow to run under Miri.
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -1371,6 +1384,7 @@ fn batch_get_after_restore(#[case] mmap: bool) -> Result<()> {
 
 /// Test that compaction works with many small values without overflowing block indices.
 /// Reproduces a CI benchmark failure with key_4/value_512/entries_1.98Mi/compacted.
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -1417,6 +1431,7 @@ fn many_small_values_compaction(#[case] mmap: bool) -> Result<()> {
 
 /// Test compaction with MAX_SMALL_VALUE_SIZE (4096-byte) values.
 /// Worst case for small value blocks: fewest entries per block.
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -1462,6 +1477,7 @@ fn many_max_small_values_compaction(#[case] mmap: bool) -> Result<()> {
 
 /// Test compaction with 4097-byte values (minimum medium size).
 /// Each medium value gets its own dedicated block, so this is the worst case for block count.
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -1983,6 +1999,7 @@ fn count_blob_files(dir: &Path) -> usize {
 
 /// Test that compaction deletes blob files when their entries are superseded
 /// by newer values (SingleValue family).
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -2042,6 +2059,7 @@ fn compaction_deletes_superseded_blob(#[case] mmap: bool) -> Result<()> {
 
 /// Test that compaction deletes blob files when a key is deleted via tombstone
 /// (SingleValue family).
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -2093,6 +2111,7 @@ fn compaction_deletes_blob_on_tombstone(#[case] mmap: bool) -> Result<()> {
 
 /// Test that compaction deletes blob files for MultiValue families when a
 /// tombstone prunes older blob entries.
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -2142,6 +2161,7 @@ fn compaction_deletes_blob_multi_value_tombstone(#[case] mmap: bool) -> Result<(
 
 /// Test that compaction preserves blob files that are still referenced
 /// (not superseded).
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -2293,6 +2313,7 @@ fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
 
 /// A partial compaction must NOT drop a key-value tombstone: an unmerged older SST may still hold a
 /// matching value, and dropping the tombstone would resurrect it.
+#[cfg(not(miri))]
 #[test]
 fn valued_tombstone_survives_partial_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2471,6 +2492,7 @@ fn count_tombstones(
 
 /// Compaction reclaims tombstones once no *older* SST outside the job can still hold the key.
 /// Without this, tombstones accumulate forever.
+#[cfg(not(miri))]
 #[test]
 fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2552,6 +2574,7 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
 
 /// When an older SST *outside* the compaction job still holds the key, the tombstone must be
 /// kept. Dropping it would resurrect the value.
+#[cfg(not(miri))]
 #[test]
 fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2633,6 +2656,7 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
 ///
 /// This is the case a sequence-number threshold gets wrong — it would treat the skipped SST as
 /// part of the job and drop a tombstone that is still load-bearing.
+#[cfg(not(miri))]
 #[test]
 fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;

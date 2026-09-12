@@ -300,6 +300,7 @@ jobs:
     with:
       needsRust: 'yes'
       needsNextest: 'yes'
+      needsRustJsInstall: 'yes'
       skipNativeBuild: 'yes'
       skipInstallBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
@@ -311,6 +312,21 @@ jobs:
       # trace unusual packages, who may have since changed how they package
       # themselves.
       runs_on_labels: '["ubuntu-latest-16-core-oss"]'
+    secrets: inherit
+
+  test-cargo-unit-miri:
+    name: test cargo unit (miri)
+    needs: ['changes', 'build-next']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      needsRust: 'yes'
+      needsNextest: 'yes'
+      skipNativeBuild: 'yes'
+      skipInstallBuild: 'yes'
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit-miri ${TURBO_ARGS}
+      stepName: 'test-cargo-unit-miri'
     secrets: inherit
 
   test-bench:
