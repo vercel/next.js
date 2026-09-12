@@ -66,11 +66,9 @@ pub(crate) fn new_atom(text: Cow<'_, str>) -> RcStr {
 
     let prehashed = DynamicPrehashedString {
         // NOTE: This will capture as a Box<str> which will essentially
-        // `shrink_to_fit` the bytes. An owned string is moved rather than copied.
-        value: match text {
-            Cow::Borrowed(text) => text.into(),
-            Cow::Owned(text) => text.into_boxed_str(),
-        },
+        // `shrink_to_fit` the bytes. `Box<str>`'s own `From<Cow<'_, str>>` impl already moves an
+        // owned string's buffer in rather than copying it.
+        value: text.into(),
         hash,
     };
     new_atom_from_prehashed(prehashed)
