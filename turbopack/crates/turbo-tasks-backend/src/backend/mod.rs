@@ -1635,29 +1635,21 @@ impl TurboTasksBackend {
             )));
         }
 
-        let wall_start_ms = wall_start
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .unwrap_or_default()
-            // as_millis_f64 is not stable yet
-            .as_secs_f64()
-            * 1000.0;
-        let wall_end_ms: f64 = wall_start_ms + elapsed.as_secs_f64() * 1000.0;
-        let (persist_start_ms, persist_end_ms) = if let Some(gc_elapsed) = gc_elapsed {
-            let persist_begin_ms = wall_start_ms + gc_elapsed.as_secs_f64() * 1000.0;
-            turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+        let (persist_wall_start, persist_wall_duration) = if let Some(gc_elapsed) = gc_elapsed {
+            turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
                 "turbopack-gc",
-                wall_start_ms,
-                persist_begin_ms,
+                wall_start,
+                gc_elapsed,
                 serde_json::json!([]),
             )));
-            (persist_begin_ms, wall_end_ms)
+            (wall_start + gc_elapsed, elapsed.saturating_sub(gc_elapsed))
         } else {
-            (wall_start_ms, wall_end_ms)
+            (wall_start, elapsed)
         };
-        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new(
+        turbo_tasks.send_compilation_event(Arc::new(TraceEvent::new_with_duration(
             "turbopack-persistence",
-            persist_start_ms,
-            persist_end_ms,
+            persist_wall_start,
+            persist_wall_duration,
             serde_json::json!([
                 ["reason", reason.as_str()],
                 [
