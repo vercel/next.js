@@ -9,6 +9,7 @@ import { interopDefault } from '../../lib/interop-default'
 import type { RouteHas } from '../../lib/load-custom-routes'
 import { recursiveReadDir } from '../../lib/recursive-readdir'
 import { isDynamicRoute } from '../../shared/lib/router/utils'
+import { isAPIRoute } from '../../lib/is-api-route'
 import type { Revalidate } from '../../server/lib/cache-control'
 import type { NextConfigComplete } from '../../server/config-shared'
 import {
@@ -520,6 +521,11 @@ export interface NextAdapter {
   ) => Promise<NextConfigComplete> | NextConfigComplete
   onBuildComplete?: (ctx: {
     routing: {
+      /**
+       * Version of the routing manifest contract. Unversioned manifests use
+       * the legacy version 1 semantics.
+       */
+      version: 2
       beforeMiddleware: Array<Route>
       /**
        * middlewareMatchers are the middleware matcher definitions emitted by
@@ -2121,7 +2127,7 @@ export async function handleBuildComplete({
         route.page
       )
 
-      const shouldLocalize = Boolean(config.i18n)
+      const shouldLocalize = Boolean(config.i18n && !isAPIRoute(route.page))
 
       const routeRegex = getNamedRouteRegex(route.page, {
         prefixRouteKeys: true,
@@ -2396,6 +2402,7 @@ export async function handleBuildComplete({
 
       await adapterMod.onBuildComplete({
         routing: {
+          version: 2,
           beforeMiddleware: [...headers, ...redirects],
           middlewareMatchers:
             outputs.middleware?.config.matchers?.map((matcher) => ({
