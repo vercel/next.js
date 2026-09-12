@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server'
 import { wrapProxy } from 'next/dist/server/variants/wrap-proxy'
-import { locale, theme } from './variants'
+import { country, locale, theme } from './variants'
 
 // This table names the variants of each route by hand.
 //
@@ -15,6 +15,10 @@ import { locale, theme } from './variants'
 const variantsByRoute = {
   '/': [locale, theme],
   '/rewrite-target': [locale, theme],
+  // This route declares static combinations that assign `country`, so a request
+  // to it resolves that variant as well, even though the route reads only the
+  // other two.
+  '/declared': [country, locale, theme],
   // The `config.matcher` below omits this route on purpose. See the route.
   '/unmatched-by-proxy': [locale, theme],
 }
@@ -46,5 +50,5 @@ export const proxy = wrapProxy(variantsByRoute, (request: NextRequest) => {
 })
 
 export const config = {
-  matcher: ['/', '/rewrite-source', '/external'],
+  matcher: ['/', '/declared', '/rewrite-source', '/external'],
 }
