@@ -51,9 +51,9 @@ describe('@next/third-parties basic usage', () => {
     const browser = await next.browser('/ga')
 
     await browser.waitForElementByCss('script#_next-ga')
-    await browser.elementByCss('script#_next-ga-init')
+    await browser.elementByCss('script#_next-ga-init[data-ga-script="app-dir"]')
     await browser.elementByCss(
-      'script[src^="https://www.googletagmanager.com/gtag/js?id=GA-XYZ"]'
+      'script[src^="https://www.googletagmanager.com/gtag/js?id=GA-XYZ"][data-ga-script="app-dir"]'
     )
 
     const dataLayer = await browser.eval('window.dataLayer')
