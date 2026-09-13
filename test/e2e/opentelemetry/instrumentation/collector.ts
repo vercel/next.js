@@ -3,6 +3,7 @@ import { SavedSpan } from './constants'
 
 export interface Collector {
   getSpans: () => SavedSpan[]
+  reset: () => void
   shutdown: () => Promise<void>
 }
 
@@ -56,6 +57,9 @@ export async function connectCollector({
   return {
     getSpans() {
       return spans
+    },
+    reset() {
+      spans.length = 0
     },
     shutdown() {
       return new Promise<void>((resolve, reject) =>
