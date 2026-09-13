@@ -49,7 +49,7 @@ export { default as RenderFromTemplateContext } from '../../client/components/re
 export { ClientPageRoot } from '../../client/components/client-page'
 export { ClientSegmentRoot } from '../../client/components/client-segment'
 export {
-  createServerSearchParamsForServerPage,
+  getServerSearchParamsForServerPage,
   createPrerenderSearchParamsForClientPage,
 } from '../request/search-params'
 export {

@@ -10,7 +10,7 @@ import {
 } from './resolve-metadata'
 import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import type { MetadataContext } from './types/resolvers'
-import { createServerSearchParamsForMetadata } from '../../server/request/search-params'
+import { getServerSearchParamsForMetadata } from '../../server/request/search-params'
 import { createServerPathnameForMetadata } from '../../server/request/pathname'
 
 import {
@@ -48,7 +48,7 @@ export function createMetadataComponents({
   Metadata: React.ComponentType
   MetadataOutlet: React.ComponentType<{ tree: LoaderTree }>
 } {
-  const searchParams = createServerSearchParamsForMetadata()
+  const searchParams = getServerSearchParamsForMetadata()
   const pathnameForMetadata = createServerPathnameForMetadata(pathname)
 
   async function Viewport() {
