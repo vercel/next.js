@@ -1,0 +1,19 @@
+{
+  "name": "Unattended workflow failed",
+  "type": "ci-pipelines alert",
+  "query": "ci-pipelines(\"ci_level:pipeline @git.repository.id:\\\"github.com/vercel/next.js\\\" @ci.status:error @ci.pipeline.name:(\\\"Lock Threads\\\" OR \\\"Next Maintainer Auto Close\\\" OR \\\"Rspack Next.js production integration tests\\\" OR \\\"Rspack Next.js development integration tests\\\" OR \\\"Update Rspack test manifest\\\" OR \\\"test-e2e-project-reset-cron\\\" OR \\\"Trigger Release\\\" OR \\\"Update Font Data\\\" OR \\\"Update React\\\" OR \\\"Poll React Sync\\\" OR \\\"Triage issues\\\" OR \\\"Allow issue participants to reopen issues\\\" OR \\\"PR CI Comment\\\" OR \\\"retry-tests\\\" OR \\\"retry-deploy-tests\\\" OR \\\"upload-preview-tarballs\\\")\").rollup(\"count\").by(\"@ci.pipeline.name\").last(\"15m\") >= 1",
+  "message": "{{#is_alert}}[Failed \"{{ [@ci.pipeline.name].name }}\"]({{ cipipeline.attributes.[ci.pipeline.url] }}) @slack-TODO{{/is_alert}}\n{{#is_recovery}}Recovered: \"{{ [@ci.pipeline.name].name }}\" @slack-TODO{{/is_recovery}}\n{{#is_no_data}}No data: \"{{ [@ci.pipeline.name].name }}\" @slack-TODO{{/is_no_data}}",
+  "tags": ["team:nextjs", "monitor:workflow-health"],
+  "priority": 2,
+  "options": {
+    "thresholds": {
+      "critical": 1
+    },
+    "notify_no_data": true,
+    "no_data_timeframe": 30,
+    "include_tags": false,
+    "notification_preset_name": "hide_all",
+    "renotify_interval": 10080,
+    "renotify_statuses": ["alert", "no data"]
+  }
+}
