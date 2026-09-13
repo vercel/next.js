@@ -313,11 +313,14 @@ impl AssetIdent {
         }
         const MAX_FILENAME: usize = 80;
         if name.len() - i > MAX_FILENAME {
-            i = name.len() - MAX_FILENAME;
+            i = name.floor_char_boundary(name.len() - MAX_FILENAME);
             if let Some(j) = name[i..].find('_')
                 && j < 20
             {
-                i += j + 1;
+                let new_i = i + j + 1;
+                if new_i <= name.len() {
+                    i = name.floor_char_boundary(new_i);
+                }
             }
         }
         if i > 0 {
