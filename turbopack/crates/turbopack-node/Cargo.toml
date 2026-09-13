@@ -14,7 +14,7 @@ default = ["process_pool"]
 # enable "HMR" for embedded assets
 dynamic_embed_contents = ["turbo-tasks-fs/dynamic_embed_contents"]
 process_pool = ["tokio/full"]
-worker_pool = ["tokio/sync", "napi", "napi-derive", "turbo-rcstr/napi"]
+worker_pool = ["napi", "napi-derive", "turbo-rcstr/napi"]
 
 [lints]
 workspace = true
@@ -39,7 +39,7 @@ rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_with = { workspace = true, features = ["base64"] }
-tokio = { workspace = true, optional = true }
+tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
 turbo-bincode = { workspace = true }
 turbo-rcstr = { workspace = true }
