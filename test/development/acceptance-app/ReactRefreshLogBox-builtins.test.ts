@@ -54,7 +54,19 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "source": "./node_modules/my-package/index.js (1:13)
        Error: Module not found: Can't resolve 'dns'
        > 1 | const dns = require('dns')
-           |             ^^^^^^^^^^^^^^",
+           |             ^^^^^^^^^^^^^^
+       Import traces:
+         Client Component Browser:
+           ./node_modules/my-package/index.js [Client Component Browser]
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./node_modules/my-package/index.js [Client Component SSR]
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]
+       https://nextjs.org/docs/messages/module-not-found",
          "stack": [],
        }
       `)
@@ -87,7 +99,11 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "source": "./node_modules/my-package/index.js (1:1)
        Module not found: Can't resolve 'dns'
        > 1 | const dns = require('dns')
-           | ^",
+           | ^
+       https://nextjs.org/docs/messages/module-not-found
+       Import trace for requested module:
+       ./index.js
+       ./app/page.js",
          "stack": [],
        }
       `)
@@ -121,7 +137,17 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "source": "./index.js (1:1)
        Error: Module not found: Can't resolve 'b'
        > 1 | import Comp from 'b'
-           | ^^^^^^^^^^^^^^^^^^^^",
+           | ^^^^^^^^^^^^^^^^^^^^
+       Import traces:
+         Client Component Browser:
+           ./index.js [Client Component Browser]
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./index.js [Client Component SSR]
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]
+       https://nextjs.org/docs/messages/module-not-found",
          "stack": [],
        }
       `)
@@ -155,7 +181,10 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "source": "./index.js (1:1)
        Module not found: Can't resolve 'b'
        > 1 | import Comp from 'b'
-           | ^",
+           | ^
+       https://nextjs.org/docs/messages/module-not-found
+       Import trace for requested module:
+       ./app/page.js",
          "stack": [],
        }
       `)
@@ -190,7 +219,15 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "source": "./app/page.js (2:1)
        Error: Module not found: Can't resolve 'b'
        > 2 | import Comp from 'b'
-           | ^^^^^^^^^^^^^^^^^^^^",
+           | ^^^^^^^^^^^^^^^^^^^^
+       Import traces:
+         Client Component Browser:
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]
+       https://nextjs.org/docs/messages/module-not-found",
          "stack": [],
        }
       `)
@@ -223,7 +260,8 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "source": "./app/page.js (2:1)
        Module not found: Can't resolve 'b'
        > 2 | import Comp from 'b'
-           | ^",
+           | ^
+       https://nextjs.org/docs/messages/module-not-found",
          "stack": [],
        }
       `)
@@ -256,7 +294,15 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "source": "./app/page.js (2:1)
        Error: Module not found: Can't resolve './non-existent.css'
        > 2 | import './non-existent.css'
-           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^",
+           | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       Import traces:
+         Client Component Browser:
+           ./app/page.js [Client Component Browser]
+           ./app/page.js [Server Component]
+         Client Component SSR:
+           ./app/page.js [Client Component SSR]
+           ./app/page.js [Server Component]
+       https://nextjs.org/docs/messages/module-not-found",
          "stack": [],
        }
       `)
@@ -287,7 +333,8 @@ describe('ReactRefreshLogBox-builtins app', () => {
          "source": "./app/page.js (2:1)
        Module not found: Can't resolve './non-existent.css'
        > 2 | import './non-existent.css'
-           | ^",
+           | ^
+       https://nextjs.org/docs/messages/module-not-found",
          "stack": [],
        }
       `)
