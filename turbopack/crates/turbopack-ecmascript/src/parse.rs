@@ -199,7 +199,7 @@ pub fn generate_js_source_map<'a>(
     let fast_path_single_original_source_map =
         original_source_maps.len() == 1 && original_source_maps_complete;
 
-    let mut new_mappings = build_source_map(
+    let new_mappings = build_source_map(
         files_map,
         &mappings,
         None,
@@ -216,6 +216,7 @@ pub fn generate_js_source_map<'a>(
     );
 
     if original_source_maps.is_empty() {
+        let mut new_mappings = drop_invalid_source_map_tokens(new_mappings);
         // We don't convert sourcemap::SourceMap into raw_sourcemap::SourceMap because we don't
         // need to adjust mappings
         add_default_ignore_list(&mut new_mappings);
@@ -233,11 +234,72 @@ pub fn generate_js_source_map<'a>(
             .or_else(|_| StructuredSourceMap::from_json_slice(&serde_json::to_vec(&map)?))
     } else {
         let mut map = new_mappings.adjust_mappings_from_multiple(original_source_maps);
+        map = drop_invalid_source_map_tokens(map);
 
         add_default_ignore_list(&mut map);
 
         StructuredSourceMap::from_swc_map(map)
     }
+}
+
+fn drop_invalid_source_map_tokens(map: swc_sourcemap::SourceMap) -> swc_sourcemap::SourceMap {
+    let source_line_lengths = (0..map.get_source_count())
+        .map(|source_id| {
+            map.get_source_contents(source_id).map(|content| {
+                content
+                    .split('\n')
+                    .map(|line| line.encode_utf16().count() as u32)
+                    .collect::<Vec<_>>()
+            })
+        })
+        .collect::<Vec<_>>();
+    if source_line_lengths.iter().all(Option::is_none) {
+        return map;
+    }
+
+    let mut removed_invalid_token = false;
+    let tokens = map
+        .tokens()
+        .filter_map(|token| {
+            if token.has_source()
+                && let Some(Some(line_lengths)) =
+                    source_line_lengths.get(token.get_src_id() as usize)
+            {
+                let source_line = token.get_src_line() as usize;
+                if source_line >= line_lengths.len()
+                    || token.get_src_col() > line_lengths[source_line]
+                {
+                    removed_invalid_token = true;
+                    return None;
+                }
+            }
+
+            Some(token.get_raw_token())
+        })
+        .collect::<Vec<_>>();
+
+    if !removed_invalid_token {
+        return map;
+    }
+
+    let file = map.get_file().cloned();
+    let names = map.names().cloned().collect();
+    let sources = map.sources().cloned().collect::<Vec<_>>();
+    let source_contents = (0..sources.len())
+        .map(|source_id| map.get_source_contents(source_id as u32).cloned())
+        .collect::<Vec<_>>();
+    let source_root = map.get_source_root().cloned();
+    let debug_id = map.get_debug_id();
+    let ignore_list = map.ignore_list().copied().collect::<Vec<_>>();
+
+    let mut map =
+        swc_sourcemap::SourceMap::new(file, tokens, names, sources, Some(source_contents));
+    map.set_source_root(source_root);
+    map.set_debug_id(debug_id);
+    for source_id in ignore_list {
+        map.add_to_ignore_list(source_id);
+    }
+    map
 }
 
 /// A config to generate a source map which includes the source content of every
@@ -801,7 +863,7 @@ mod tests {
         ecma::parser::{Parser, Syntax, TsSyntax, lexer::Lexer},
     };
 
-    use super::VarDeclWithTsDeclareCollector;
+    use super::{VarDeclWithTsDeclareCollector, drop_invalid_source_map_tokens};
 
     fn parse_and_collect(code: &str) -> Vec<String> {
         GLOBALS.set(&Default::default(), || {
@@ -874,5 +936,38 @@ mod tests {
         // `declare namespace Foo {}` should also be collected
         let ids = parse_and_collect("declare namespace Foo {}");
         assert_eq!(ids, vec!["Foo"]);
+    }
+
+    #[test]
+    fn test_drop_invalid_source_map_tokens() {
+        let mut builder = swc_sourcemap::SourceMapBuilder::new(None);
+        let source_id = builder.add_source("vendor.min.js".into());
+        builder.set_source_contents(source_id, Some("abc\ndef".into()));
+        builder.add_raw(0, 0, 0, 0, Some(source_id), None, false);
+        builder.add_raw(0, 1, 1, u32::MAX - 4, Some(source_id), None, false);
+        builder.add_raw(0, 2, 1, 2, Some(source_id), None, false);
+
+        let map = drop_invalid_source_map_tokens(builder.into_sourcemap());
+        let tokens = map.tokens().collect::<Vec<_>>();
+        assert_eq!(tokens.len(), 2);
+        assert_eq!(tokens[0].get_src_col(), 0);
+        assert_eq!(tokens[1].get_src_col(), 2);
+
+        let mut output = vec![];
+        map.to_writer(&mut output).expect("map should serialize");
+        let map = serde_json::from_slice::<serde_json::Value>(&output).expect("map should be json");
+        let mappings = map["mappings"].as_str().expect("map should have mappings");
+        for segment in mappings
+            .split(';')
+            .flat_map(|line| line.split(','))
+            .filter(|segment| !segment.is_empty())
+        {
+            let nums =
+                swc_sourcemap::vlq::parse_vlq_segment(segment).expect("segment should decode");
+            assert!(
+                nums.iter().all(|value| value.abs() < 1_000_000),
+                "segment {segment} contains huge VLQ deltas {nums:?}"
+            );
+        }
     }
 }
