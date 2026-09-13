@@ -369,12 +369,7 @@ function ImagePreload({
   )
 }
 
-/**
- * The `Image` component is used to optimize images.
- *
- * Read more: [Next.js docs: `Image`](https://nextjs.org/docs/app/api-reference/components/image)
- */
-export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
+const ImageImpl = forwardRef<HTMLImageElement | null, ImageProps>(
   (props, forwardedRef) => {
     const pagesRouter = useContext(RouterContext)
     // We're in the app directory if there is no pages router.
@@ -451,3 +446,15 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
     )
   }
 )
+
+// The type annotation is required. Without it, declaration emit expands
+// `ImageProps` inline (it is declared in another module) and drops the JSDoc of
+// every member, so `@deprecated` tags never reach editors at the call site.
+/**
+ * The `Image` component is used to optimize images.
+ *
+ * Read more: [Next.js docs: `Image`](https://nextjs.org/docs/app/api-reference/components/image)
+ */
+export const Image: React.ForwardRefExoticComponent<
+  ImageProps & React.RefAttributes<HTMLImageElement | null>
+> = ImageImpl
