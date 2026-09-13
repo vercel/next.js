@@ -35,17 +35,69 @@ This will create a folder at `.next/standalone` which can then be deployed on it
 
 Additionally, a minimal `server.js` file is also output which can be used instead of `next start`. This minimal server does not copy the `public` or `.next/static` folders by default as these should ideally be handled by a CDN instead, although these folders can be copied to the `standalone/public` and `standalone/.next/static` folders manually, after which `server.js` file will serve these automatically.
 
-To copy these manually, you can use the `cp` command-line tool after you `next build`:
+### Standalone folder structure in monorepos
+
+In a monorepo, dependencies can exist at multiple levels (for example, the repository root and the app package). Next.js traces external dependencies from the [tracing root](#caveats) and mirrors that folder structure inside `.next/standalone` so each dependency resolves from the same relative location at runtime.
+
+For an app at `apps/web`, the standalone output typically looks like this:
+
+```txt filename="apps/web/.next/standalone"
+node_modules/
+apps/
+  web/
+    package.json
+    server.js
+```
+
+In this case, `server.js` is **not** at `.next/standalone/server.js`. It is at `.next/standalone/apps/web/server.js` relative to the app directory (or `apps/web/.next/standalone/apps/web/server.js` relative to the monorepo root).
+
+The path to `server.js` inside `.next/standalone` matches the app's path relative to the tracing root. Next.js usually infers the tracing root from the nearest lockfile (such as `pnpm-lock.yaml` at the monorepo root). You can also set [`outputFileTracingRoot`](#caveats) explicitly.
+
+> **Good to know**: If you see a nested `server.js` path but expected a flat `.next/standalone/server.js` layout, check for a lockfile in a parent directory. An unexpected lockfile can make Next.js treat a parent folder as the tracing root.
+
+To copy `public` and `.next/static` manually, run these commands from your app directory (the folder that contains `next.config.js`) after `next build`:
 
 ```bash filename="Terminal"
+# App at the repository root (tracing root matches the app directory)
 cp -r public .next/standalone/ && cp -r .next/static .next/standalone/.next/
+
+# App in a monorepo, for example apps/web
+cp -r public .next/standalone/apps/web/ && cp -r .next/static .next/standalone/apps/web/.next/
 ```
 
-To start your minimal `server.js` file locally, run the following command:
+To start the minimal `server.js` file locally, run `node` from the same app directory:
 
 ```bash filename="Terminal"
+# App at the repository root
 node .next/standalone/server.js
+
+# App in a monorepo, for example apps/web
+node .next/standalone/apps/web/server.js
 ```
+
+#### Docker
+
+When using multi-stage Docker builds for a monorepo app, copy the traced standalone folder and static assets using the same relative paths:
+
+```dockerfile filename="Dockerfile"
+# Build from the monorepo root; adjust paths for your repository layout
+WORKDIR /app/apps/web
+RUN npm run build
+
+FROM node:24-slim AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
+
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
+
+CMD ["node", "apps/web/server.js"]
+```
+
+For a single-package repository, see the [`with-docker` example](https://github.com/vercel/next.js/tree/canary/examples/with-docker).
 
 <AppOnly>
 
@@ -66,7 +118,7 @@ node .next/standalone/server.js
 
 ## Caveats
 
-- While tracing in monorepo setups, the project directory is used for tracing by default. For `next build packages/web-app`, `packages/web-app` would be the tracing root and any files outside of that folder will not be included. To include files outside of this folder you can set `outputFileTracingRoot` in your `next.config.js`.
+- In monorepo setups, Next.js usually infers the tracing root from the nearest lockfile (often the repository root). Files outside that root are not included in the trace unless you set `outputFileTracingRoot` in your `next.config.js`. See [standalone folder structure in monorepos](#standalone-folder-structure-in-monorepos) for how this affects `.next/standalone` and `server.js`.
 
 ```js filename="packages/web-app/next.config.js"
 const path = require('path')
