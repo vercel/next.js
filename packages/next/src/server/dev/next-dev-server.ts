@@ -521,6 +521,16 @@ export default class DevServer extends Server {
     res: NodeNextResponse,
     parsedUrl?: NextUrlWithParsedQuery
   ): Promise<void> {
+    const pathname = req.url?.split('?')[0] || '/'
+    const isPageRoute = await this.hasPage(pathname)
+    if (isPageRoute && req.method !== 'GET' && req.method !== 'HEAD') {
+      //If a non GET/HEAD request is sent to a page, send a 405 unsupported error
+      res.statusCode = 405
+      res.setHeader('Allow', ['GET', 'HEAD'])
+      res.body('Method Not Allowed').send()
+      return
+    }
+
     const span = trace('handle-request', undefined, { url: req.url })
     const result = await span.traceAsyncFn(async () => {
       await this.ready?.promise
