@@ -598,4 +598,79 @@ describe('next-lint-to-eslint-cli', () => {
       `)
     })
   })
+
+  describe('legacy-config-cjs', () => {
+    it('should migrate a CommonJS legacy config to a CommonJS flat config', async () => {
+      const testDir = path.join(fixturesDir, 'legacy-config-cjs')
+      // Check BEFORE state
+      const beforeEslintrc = fs.readFileSync(
+        path.join(testDir, '.eslintrc.cjs'),
+        'utf8'
+      )
+
+      expect(beforeEslintrc).toMatchInlineSnapshot(`
+        "module.exports = {
+          extends: ['next/core-web-vitals'],
+          rules: {
+            'no-console': 'error',
+          },
+        }
+        "
+      `)
+
+      // Run transformer
+      await transformer([testDir], { skipInstall: true })
+
+      // The migration tool keeps the CommonJS format of the legacy config,
+      // so the generated flat config is eslint.config.cjs, not .mjs
+      expect(fs.existsSync(path.join(testDir, 'eslint.config.mjs'))).toBe(false)
+
+      // Check AFTER state - eslint.config.cjs was created and transformed
+      // without ESM import statements
+      const actualConfig = fs.readFileSync(
+        path.join(testDir, 'eslint.config.cjs'),
+        'utf8'
+      )
+      expect(actualConfig).not.toContain('import ')
+      expect(actualConfig).toMatchInlineSnapshot(`
+       "const {
+           defineConfig,
+       } = require("eslint/config");
+
+       const nextCoreWebVitals = require("eslint-config-next/core-web-vitals");
+
+       module.exports = defineConfig([{
+           extends: [...nextCoreWebVitals],
+
+           rules: {
+               "no-console": "error",
+           },
+       }]);
+       "
+      `)
+
+      // Check package.json transformed
+      const actualPackage = fs.readFileSync(
+        path.join(testDir, 'package.json'),
+        'utf8'
+      )
+      expect(actualPackage).toMatchInlineSnapshot(`
+       "{
+         "scripts": {
+           "lint": "eslint ."
+         },
+         "dependencies": {
+           "react": "^19",
+           "react-dom": "^19",
+           "next": "^16"
+         },
+         "devDependencies": {
+           "eslint": "^9",
+           "eslint-config-next": "^16"
+         }
+       }
+       "
+      `)
+    })
+  })
 })
