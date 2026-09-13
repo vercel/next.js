@@ -10,6 +10,10 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withCustomPageExtensions = path.join(
+  __dirname,
+  'with-custom-page-extensions'
+)
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +30,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withCustomPageExtensions: new Linter({
+    cwd: withCustomPageExtensions,
     configType: 'eslintrc',
   }),
 }
@@ -78,6 +86,31 @@ for (const linter of Object.values(linters)) {
     'no-html-link-for-pages': NextESLintRule,
   })
 }
+
+// Test for custom pageExtensions support
+describe('no-html-link-for-pages with custom pageExtensions', function () {
+  it('valid link element with custom pageExtensions', function () {
+    const report = linters.withCustomPageExtensions.verify(
+      validCodeWithCustomPageExtensions,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
+  })
+
+  it('invalid anchor element with custom pageExtensions', function () {
+    const [report] = linters.withCustomPageExtensions.verify(
+      invalidCodeWithCustomPageExtensions,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/about/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+})
 
 const validCode = `
 import Link from 'next/link';
@@ -235,6 +268,36 @@ export class Blah extends Head {
     return (
       <div>
         <Link href='/photo/1/'>Photo</Link>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const validCodeWithCustomPageExtensions = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <Link href='/about'>About</Link>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const invalidCodeWithCustomPageExtensions = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/about'>About</a>
         <h1>Hello title</h1>
       </div>
     );
