@@ -1,13 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('metadata-invalid-image-file', () => {
-  const { next, isTurbopack, isNextDev, skipped, isRspack } = nextTestSetup({
+  const { next, isTurbopack, isNextDev, isRspack } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: true,
   })
-
-  if (skipped) return
 
   it('should error on invalid metadata image file', async () => {
     // In dev, it needs to render the page first

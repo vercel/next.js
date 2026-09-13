@@ -1,9 +1,11 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('svgo-webpack loader', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       '@svgr/webpack': '8.1.0',
     },
