@@ -2,7 +2,7 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('app dir - dynamic css', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
   })
@@ -13,8 +13,19 @@ describe('app dir - dynamic css', () => {
 
   it('should preload all chunks of dynamic component during SSR', async () => {
     const $ = await next.render$('/ssr')
-    const cssLinks = $('link[rel="stylesheet"][data-precedence="dynamic"]')
+    // CSS from dynamic imports now uses the same precedence as static imports
+    const cssLinks = $('link[rel="stylesheet"][data-precedence]')
+    expect(cssLinks.length).toBeGreaterThan(0)
     expect(cssLinks.attr('href')).toContain('.css')
+
+    const precedence = cssLinks.attr('data-precedence')
+    if (isNextDev) {
+      // In development: precedence="next_" + chunk path
+      expect(precedence).toMatch(/^next_/)
+    } else {
+      // In production: precedence="next"
+      expect(precedence).toBe('next')
+    }
 
     const preloadJsChunks = $('link[rel="preload"]')
     expect(preloadJsChunks.attr('as')).toBe('script')
