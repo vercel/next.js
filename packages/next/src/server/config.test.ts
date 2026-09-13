@@ -1,5 +1,15 @@
 import { PHASE_INFO, PHASE_PRODUCTION_BUILD } from '../api/constants'
 
+// Jest lowers dynamic import() to require(), which does not resolve file: URLs.
+// Keep the production code path intact while exercising a real adapter module.
+jest.mock('url', () => {
+  const actual = jest.requireActual('url')
+  return {
+    ...actual,
+    pathToFileURL: (path: string) => ({ href: path }),
+  }
+})
+
 describe('loadConfig', () => {
   let loadConfig: typeof import('./config').default
 
@@ -12,6 +22,128 @@ describe('loadConfig', () => {
     const configModule = await import('./config')
     loadConfig = configModule.default
   })
+
+  describe('experimental.webSocketRouteHandlers', () => {
+    it.each([null, false])(
+      'does not reject an unrelated legacy experimental shape %#',
+      async (experimental) => {
+        await expect(
+          loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+            customConfig: { experimental: experimental as any },
+            silent: true,
+          })
+        ).resolves.toBeDefined()
+      }
+    )
+
+    it.each([
+      false,
+      true,
+      {},
+      { allowedOrigins: undefined },
+      { allowedOrigins: [] },
+      {
+        allowedOrigins: [
+          'https://app.example.com',
+          'http://127.0.0.1:3000',
+          'https://[2001:db8::1]:8443',
+        ],
+      },
+    ])('accepts the canonical configuration %#', async (value) => {
+      const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+        customConfig: {
+          experimental: { webSocketRouteHandlers: value },
+        },
+        silent: true,
+      })
+
+      expect(result.experimental.webSocketRouteHandlers).toEqual(value)
+    })
+
+    it.each([
+      null,
+      [],
+      { extra: true },
+      { allowedOrigins: null },
+      { allowedOrigins: [undefined] },
+      { allowedOrigins: ['https://app.example.com/'] },
+      { allowedOrigins: ['https://app.example.com:443'] },
+      { allowedOrigins: ['https://user@app.example.com'] },
+      { allowedOrigins: ['https://*.example.com'] },
+      { allowedOrigins: ['wss://app.example.com'] },
+      { allowedOrigins: ['https://app.example.com/path'] },
+      { allowedOrigins: ['https://app.example.com?query'] },
+      { allowedOrigins: ['https://app.example.com#fragment'] },
+    ])('rejects the malformed configuration %#', async (value) => {
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: { webSocketRouteHandlers: value as any },
+          },
+          silent: true,
+        })
+      ).rejects.toThrow(/experimental\.webSocketRouteHandlers/)
+    })
+
+    it('accepts structurally valid getter-backed configuration', async () => {
+      const accessor = Object.create(null)
+      Object.defineProperty(accessor, 'allowedOrigins', {
+        enumerable: true,
+        get: () => ['https://app.example.com'],
+      })
+
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: { webSocketRouteHandlers: accessor },
+          },
+          silent: true,
+        })
+      ).resolves.toBeDefined()
+    })
+
+    it('rejects sparse allowedOrigins arrays', async () => {
+      const sparse = new Array(1)
+
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            experimental: {
+              webSocketRouteHandlers: { allowedOrigins: sparse },
+            },
+          },
+          silent: true,
+        })
+      ).rejects.toThrow(/allowedOrigins/)
+    })
+
+    it('fails closed for static export', async () => {
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            output: 'export',
+            experimental: { webSocketRouteHandlers: true },
+          },
+          silent: true,
+        })
+      ).rejects.toThrow('cannot be used with output: "export"')
+    })
+
+    it('retains adapter provenance when modifyConfig returns a replacement', async () => {
+      await expect(
+        loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {
+          customConfig: {
+            adapterPath: require.resolve(
+              '../../../../test/unit/fixtures/websocket-route-handler-adapter.js'
+            ),
+            experimental: { webSocketRouteHandlers: true },
+          },
+          silent: true,
+        })
+      ).rejects.toThrow('cannot be used with `adapterPath`')
+    })
+  })
+
   describe('nextConfig.images defaults', () => {
     it('should assign a `images.remotePatterns` when using assetPrefix', async () => {
       const result = await loadConfig(PHASE_PRODUCTION_BUILD, __dirname, {

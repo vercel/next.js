@@ -8,6 +8,7 @@ import {
 } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
+import { isWebSocketUpgradeResponse } from './spec-extension/websocket-upgrade-response'
 import {
   parseRelativeURL,
   getRelativeURL,
@@ -380,6 +381,12 @@ export async function adapter(
   // check if response is a Response object
   if (response && !(response instanceof Response)) {
     throw new TypeError('Expected an instance of Response to be returned')
+  }
+
+  if (response && isWebSocketUpgradeResponse(response)) {
+    throw new Error(
+      'NextResponse.upgrade() is only supported in App Route Handlers and cannot be returned from proxy.ts.'
+    )
   }
 
   if (response && cookiesFromResponse) {
