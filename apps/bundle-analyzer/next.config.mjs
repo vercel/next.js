@@ -4,6 +4,10 @@ const developmentRewrites = () => {
       source: '/data/:path*',
       destination: 'http://localhost:4000/data/:path*',
     },
+    {
+      source: '/history/:path*',
+      destination: 'http://localhost:4000/history/:path*',
+    },
   ]
 }
 
