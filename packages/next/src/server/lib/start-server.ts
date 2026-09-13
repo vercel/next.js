@@ -43,6 +43,10 @@ import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
 import { durationToString } from '../../build/duration-to-string'
+import {
+  detectLoopbackAddressMismatch,
+  getLoopbackAddressMismatchWarning,
+} from './loopback-address-mismatch'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -379,6 +383,22 @@ export async function startServer(
         envInfo,
         logBundler: isDev,
       })
+
+      void detectLoopbackAddressMismatch({
+        isDev,
+        hostname,
+        actualHostname,
+        port,
+        protocol,
+      })
+        .then((hasMismatch) => {
+          if (hasMismatch) {
+            Log.warn(getLoopbackAddressMismatchWarning(port, protocol))
+          }
+        })
+        .catch((error) => {
+          debug('Failed to check loopback address mismatch', error)
+        })
 
       // Calculate and log "Ready in X" before loading config
       // so it reflects actual framework startup time.
