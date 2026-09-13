@@ -64,18 +64,11 @@ impl EcmascriptNodeChunkContent {
         write!(code, "module.exports = [")?;
 
         let content = self.content.await?;
-        let mut chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
-        chunk_items.sort_by(|a, b| {
-            a.first()
-                .map(|(id, _, path)| (path, id))
-                .cmp(&b.first().map(|(id, _, path)| (path, id)))
-        });
-        for item in &chunk_items {
-            for (id, item_code, _) in &**item {
-                write!(code, "\n{}, ", StringifyJs(id))?;
-                code.push_code(item_code);
-                write!(code, ",")?;
-            }
+        let chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
+        for (id, item_code, _) in &chunk_items {
+            write!(code, "\n{}, ", StringifyJs(id))?;
+            code.push_code(item_code);
+            write!(code, ",")?;
         }
 
         write!(code, "\n];")?;
