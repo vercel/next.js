@@ -49,6 +49,7 @@ import {
 } from '../../app-render/work-async-storage.external'
 import {
   workUnitAsyncStorage,
+  EMPTY_SEARCH_PARAMS,
   type RequestStore,
   type PrerenderStore,
 } from '../../app-render/work-unit-async-storage.external'
@@ -581,6 +582,7 @@ export class AppRouteRouteModule extends RouteModule<
             // This replicates prior behavior where rootParams is empty in routes
             // TODO we need to make this have the proper rootParams for this route
             rootParams: {},
+            searchParams: EMPTY_SEARCH_PARAMS,
             fallbackRouteParams: null,
             implicitTags,
             segmentStore: null,
@@ -684,6 +686,7 @@ export class AppRouteRouteModule extends RouteModule<
           type: 'prerender',
           phase: 'action',
           rootParams: {},
+          searchParams: EMPTY_SEARCH_PARAMS,
           fallbackRouteParams: null,
           implicitTags,
           segmentStore: null,
@@ -773,6 +776,7 @@ export class AppRouteRouteModule extends RouteModule<
           type: 'prerender-legacy',
           phase: 'action',
           rootParams: {},
+          searchParams: EMPTY_SEARCH_PARAMS,
           implicitTags,
           segmentStore: null,
           metadataSegmentStore: null,
