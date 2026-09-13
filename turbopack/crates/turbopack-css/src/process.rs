@@ -543,16 +543,20 @@ async fn process_content(
         ) {
             Ok(mut ss) => {
                 for err in warnings.read().unwrap().iter() {
-                    // Unsupported pseudo-classes/elements are common in real-world CSS
-                    // (vendor prefixes, custom frameworks) and do not prevent the
-                    // stylesheet from being used — treat them as recoverable warnings.
-                    // All other previously-ignored parser warnings are also surfaced.
-                    let severity = match err.kind {
+                    // Skip recoverable warnings for unrecognized pseudo-class/element
+                    // names — lightningcss's table lags Baseline CSS and vendor
+                    // prefixes, producing false positives for valid modern selectors.
+                    if matches!(
+                        err.kind,
                         lightningcss::error::ParserError::SelectorError(
                             lightningcss::error::SelectorError::UnsupportedPseudoClass(_)
-                            | lightningcss::error::SelectorError::UnsupportedPseudoElement(_),
-                        ) => IssueSeverity::Warning,
+                                | lightningcss::error::SelectorError::UnsupportedPseudoElement(_),
+                        )
+                    ) {
+                        continue;
+                    }
 
+                    let severity = match err.kind {
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
                         | lightningcss::error::ParserError::SelectorError(..)
