@@ -42,6 +42,12 @@ export async function proxyRequest(
 
   let finished = false
 
+  const resCloseListeners: Array<() => void> = []
+  const onResClose = (fn: () => void) => {
+    resCloseListeners.push(fn)
+    res.on('close', fn)
+  }
+
   // httpxy does not properly detect a client disconnect in newer
   // versions of Node.js. This is caused because it only listens for the
   // `aborted` event on the our request object, but it also fully reads
@@ -50,14 +56,14 @@ export async function proxyRequest(
   // object will detect the disconnect, and we can abort the proxy's
   // connection.
   proxy.on('proxyReq', (proxyReq) => {
-    res.on('close', () => proxyReq.destroy())
+    onResClose(() => proxyReq.destroy())
   })
 
   proxy.on('proxyRes', (proxyRes) => {
     if (res.destroyed) {
       proxyRes.destroy()
     } else {
-      res.on('close', () => proxyRes.destroy())
+      onResClose(() => proxyRes.destroy())
     }
   })
 
@@ -136,6 +142,9 @@ export async function proxyRequest(
 
   // When the proxy finishes proxying the request, shut down the proxy.
   return detached.promise.finally(() => {
+    for (const listener of resCloseListeners) {
+      res.removeListener('close', listener)
+    }
     proxy.close()
   })
 }
