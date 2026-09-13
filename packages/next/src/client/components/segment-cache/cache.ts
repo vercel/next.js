@@ -99,6 +99,9 @@ import {
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 
+const SHOULD_DEBUG = false
+const debug = SHOULD_DEBUG ? console.log : undefined
+
 /**
  * Ensures a minimum stale time of 30s to avoid issues where the server sends a too
  * short-lived stale time, which would prevent anything from being prefetched.
@@ -323,6 +326,8 @@ type SegmentCacheEntryShared = {
    * `wouldRuntimeRequestProvideMore`.
    */
   fetchStrategy: FetchStrategy
+
+  fetchStrategyOnFollowUp: FetchStrategy.PPRRuntime | null
 
   /**
    * True if this entry was fulfilled from a fallback shell response (the page
@@ -1052,14 +1057,22 @@ function isExistingSegmentEntryPreferred(
     // in favor of an entry with nothing in it.)
     return false
   }
+  debug?.(
+    `  isExistingSegmentEntryPreferred: existing=${FetchStrategy[existingEntry.fetchStrategy]}, candidate=${FetchStrategy[candidateEntry.fetchStrategy]}`
+  )
   return (
     // We fetched the new segment using a different, less specific fetch
     // strategy than the segment we already have in the cache, so it can't
     // have more content.
     (candidateEntry.fetchStrategy !== existingEntry.fetchStrategy &&
       !canNewFetchStrategyProvideMoreContent(
-        existingEntry.fetchStrategy,
-        candidateEntry.fetchStrategy
+        // We may be holding either of these entries temporarily
+        // and will retry them later if they're insufficient.
+        // (when inserting a temporary entry, it's the candidate entry,
+        // and when its request resolves, it may be the existing entry
+        // when writing the rewound shell
+        existingEntry.fetchStrategyOnFollowUp ?? existingEntry.fetchStrategy,
+        candidateEntry.fetchStrategyOnFollowUp ?? candidateEntry.fetchStrategy
       )) ||
     // The existing entry isn't partial, but the new one is.
     // (TODO: can this be true if `candidateEntry.fetchStrategy >= existingEntry.fetchStrategy`?)
@@ -1267,6 +1280,7 @@ export function createDetachedSegmentCacheEntry(
     rsc: null,
     isPartial: true,
     isUpgradeableISRFallback: false,
+    fetchStrategyOnFollowUp: null,
     promise: null,
 
     // Map-related fields
@@ -1276,6 +1290,18 @@ export function createDetachedSegmentCacheEntry(
     version: 0,
   }
   return emptyEntry
+}
+
+export function preserveEntryForRuntimeFollowUp(entry: SegmentCacheEntry) {
+  if (entry.fetchStrategy === FetchStrategy.PPR) {
+    entry.fetchStrategyOnFollowUp = FetchStrategy.PPRRuntime
+  }
+}
+
+export function releaseEntryHeldForRuntimeFollowUp(entry: SegmentCacheEntry) {
+  if (entry.fetchStrategy === FetchStrategy.PPR) {
+    entry.fetchStrategyOnFollowUp = null
+  }
 }
 
 export function upgradeToPendingSegment(
@@ -1640,6 +1666,16 @@ function fulfillSegmentCacheEntry(
   fulfilledEntry.isPartial = isPartial
   fulfilledEntry.isUpgradeableISRFallback = isUpgradeableISRFallback
   fulfilledEntry.fetchStrategy = fetchStrategy
+
+  // This entry was being held in the cache despite an ostensibly lower strategy
+  // (e.g. PPR being less than RuntimeShell), so that if it's insufficient,
+  // we can find it again and follow up with a runtime request.
+  // It turned out that we're resolving it with that strategy, so
+  // a runtime follow-up won't be performed, and we can clear this.
+  if (fulfilledEntry.fetchStrategyOnFollowUp === fetchStrategy) {
+    fulfilledEntry.fetchStrategyOnFollowUp = null
+  }
+
   // Resolve any listeners that were waiting for this data.
   if (segmentCacheEntry.promise !== null) {
     segmentCacheEntry.promise.resolve(fulfilledEntry)
@@ -2102,6 +2138,7 @@ export async function fetchSegmentPrefetchesUsingStaticRequest(
   // fulfills the entries.
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
 ): Promise<PrefetchSubtaskResult<null> | null> {
+  debug?.('fetchSegmentPrefetchesUsingStaticRequest', spawnedEntries)
   // This function is allowed to use async/await because it contains the actual
   // fetch that gets issued on a cache miss. Notice it writes the result to the
   // cache entry directly, rather than return data that is then written by
@@ -3242,6 +3279,9 @@ function writeServerResponseIntoCache(
         )
       : null
 
+  debug?.('>>>>>>>>>>>>>>>>>>>>>>>>')
+  debug?.(`writing tree: ${FetchStrategy[fetchStrategy]}`)
+
   // The route tree carries the render output of every segment the response
   // included, so a single traversal from the root writes all of it into
   // the cache.
@@ -3297,6 +3337,8 @@ function writeServerResponseIntoCache(
       writtenEntries.push(writtenHeadEntry)
     }
   }
+  debug?.('<<<<<<<<<<<<<<<<<<<<<<<<<')
+
   // Any entry that's still pending was intentionally not rendered by the
   // server, because it was inside the loading boundary. Mark them as rejected
   // so we know not to fetch them again.
@@ -3497,6 +3539,16 @@ function writeSegmentDataIntoCache(
     }
   }
 
+  debug?.('writeSegmentDataIntoCache', tree.requestKey, {
+    recordedFetchStrategy: FetchStrategy[recordedFetchStrategy],
+    fetchStrategy: FetchStrategy[fetchStrategy],
+    contentFetchStrategy: contentFetchStrategy
+      ? FetchStrategy[contentFetchStrategy]
+      : null,
+    responseNeedsRuntimeRequest,
+    isPartial,
+  })
+
   // Decide whether to re-key the entry under a more generic vary path based on
   // which params the segment actually depends on.
   //
@@ -3645,6 +3697,7 @@ function writeSegmentDataIntoCache(
     // unreachable at the concrete read path: the scheduler would keep
     // re-reading the stale entry and, for a revalidation, respawn it
     // forever. See evictShadowingSegmentEntries.
+    debug?.('upsertSegmentEntry', tree.requestKey)
     const installedEntry = upsertSegmentEntry(
       now,
       map,
@@ -3652,6 +3705,7 @@ function writeSegmentDataIntoCache(
       fulfilledEntry,
       tree.varyPath
     )
+    debug?.('  -->', installedEntry)
     if (installedEntry === null && !isOwned) {
       // The upsert declined the detached candidate (an existing entry took
       // precedence, or the candidate was already expired), so no cache slot

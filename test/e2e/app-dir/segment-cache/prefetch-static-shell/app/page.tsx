@@ -141,6 +141,36 @@ export default function Page() {
             Speculative cookies
           </LinkAccordion>
         </li>
+
+        <li>
+          <LinkAccordion href="/speculative-static-param/one" prefetch={true}>
+            Speculative static param one
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/speculative-static-param/two" prefetch={true}>
+            Speculative static param one
+          </LinkAccordion>
+        </li>
+
+        <li>
+          <LinkAccordion href="/maybe-runtime-shell/no-cookies" prefetch={true}>
+            Build-time prerender that does not use cookies
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/maybe-runtime-shell/yes-cookies">
+            ISR prerender that uses cookies in the shell (prefetch=auto)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion
+            href="/maybe-runtime-shell/yes-cookies-speculative"
+            prefetch={true}
+          >
+            Another ISR prerender that uses cookies in the shell (prefetch=true)
+          </LinkAccordion>
+        </li>
       </ul>
     </main>
   )

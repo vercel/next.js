@@ -14,20 +14,6 @@ import { retry } from 'next-test-utils'
 const REPRODUCE_STATIC_PAGE_UPGRADE_BUG =
   !!process.env.REPRODUCE_STATIC_PAGE_UPGRADE_BUG || false
 
-/**
- * When a page switches from static to partial during a revalidation,
- * and the response indicates that runtime data should be used,
- * we'll perform a runtime follow up. However, if a navigation happens
- * before the runtime prefetch completes and the shell and the prefetch
- * share the same vary path, we'll show the static app shell
- * instead of the static prefetch if the latter has more content.
- *
- * This variable enables failing assertions that demonstrate this.
- * We keep both codepaths to also demonstrate the current (incorrect) behavior.
- * */
-const REPRODUCE_STATIC_SHELL_PRECEDENCE_BUG =
-  !!process.env.REPRODUCE_STATIC_SHELL_PRECEDENCE_BUG || false
-
 describe('App Shell revalidation', () => {
   const { next, isNextDev, skipped } = nextTestSetup({
     files: __dirname,
@@ -38,6 +24,19 @@ describe('App Shell revalidation', () => {
     it('is skipped', () => {})
     return
   }
+
+  beforeAll(async () => {
+    const initial = next.readFileSync('value.json')
+    const expected: typeof import('./value.json') = {
+      tag: 'original',
+      timestamp: -1,
+    }
+    if (JSON.stringify(JSON.parse(initial)) !== JSON.stringify(expected)) {
+      throw new Error(
+        `Unexpected cache value:\n\n${initial}\n\nDid the initial state get overwritten?`
+      )
+    }
+  })
 
   async function updateCachedValue() {
     await next.fetch('/update-cached-value', { method: 'POST' })
@@ -431,7 +430,7 @@ describe('App Shell revalidation', () => {
       )
     })
 
-    it('[FAILING] shows static prefetch content if the runtime follow-up has not finished', async () => {
+    it('shows static prefetch content if the runtime follow-up has not finished', async () => {
       let page: Playwright.Page
       const browser = await next.browser('/', {
         beforePageLoad(p: Playwright.Page) {
@@ -463,7 +462,7 @@ describe('App Shell revalidation', () => {
 
       // Reveal a prefetch-true link to the page, but block its response, and navigate.
       // We have a sufficient shell, but the prefetch requires runtime data.
-      // Howver, the the runtime request is blocked, so the client has to use
+      // Howver, the runtime request is blocked, so the client has to use
       // the static data it prefetched from the first requests.
       await act(async () => {
         await act(async () => {
@@ -482,20 +481,10 @@ describe('App Shell revalidation', () => {
         // Navigate while the runtime prefetch is blocked.
         await browser.elementByCss(`a[href="${route}"]`).click()
 
-        // We should show the most complete static prefetch we have
-        // (instead of the static app shell)
-        // However, the client currently prefers the shell, because it did not use any runtime data
-        // and was recorded at `FetchStrategy.ShellRuntime` which outranks the whole response's
-        // `FetchStrategy.PPR`, so it will be used despite technically containing less data.
-        if (REPRODUCE_STATIC_SHELL_PRECEDENCE_BUG) {
-          expect(await browser.elementById('prefetch-data').text()).toBe(
-            'Prefetch data'
-          )
-        } else {
-          expect(
-            await browser.elementById('prefetch-data-fallback').text()
-          ).toBe('Loading prefetch data...')
-        }
+        // We should show the most complete static prefetch we have.
+        expect(await browser.elementById('prefetch-data').text()).toBe(
+          'Prefetch data'
+        )
       })
     })
   })
