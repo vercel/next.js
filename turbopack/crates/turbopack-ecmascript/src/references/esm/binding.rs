@@ -99,15 +99,10 @@ impl EsmBinding {
             {
                 Some(imported_ident) => {
                     // Capturing an import is only safe when it does not need the namespace as a
-                    // call receiver and cannot be assigned to. Assignment targets must retain the
-                    // namespace access so assigning to a non-writable constant export still throws.
+                    // call receiver. Source-level assignments to ESM imports are illegal, but SWC
+                    // still parses them; retain namespace access for those assignment targets so
+                    // assigning to the non-writable export continues to throw.
                     let value_binding = if !self.keep_this
-                        && !self.ast_path.0.iter().any(|parent| {
-                            matches!(
-                                parent,
-                                swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(_)
-                            )
-                        })
                         && let ReferencedAssetIdent::Module {
                             namespace_ident,
                             ctxt,
@@ -115,7 +110,12 @@ impl EsmBinding {
                             can_value_bind: true,
                             ..
                         } = &imported_ident
-                    {
+                        && !self.ast_path.0.iter().any(|parent| {
+                            matches!(
+                                parent,
+                                swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(_)
+                            )
+                        }) {
                         let imported_name = self.export.as_deref().unwrap_or(export);
                         let binding_ident = Ident::new(
                             magic_identifier::mangle(&format!(
