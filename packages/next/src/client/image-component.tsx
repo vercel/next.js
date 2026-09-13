@@ -9,6 +9,7 @@ import React, {
   forwardRef,
   use,
   useLayoutEffect,
+  useId,
 } from 'react'
 import ReactDOM from 'react-dom'
 import Head from '../shared/lib/head'
@@ -31,6 +32,8 @@ import { RouterContext } from '../shared/lib/router-context.shared-runtime'
 // This is replaced by webpack alias
 import defaultLoader from 'next/dist/shared/lib/image-loader'
 import { useMergedRef } from './use-merged-ref'
+import type { ImageWithBlur } from './image-blur-bootstrap'
+import { ImagePlaceholderBootstrap } from './image-placeholder-bootstrap'
 
 // This is replaced by webpack define plugin
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
@@ -42,13 +45,15 @@ if (typeof window === 'undefined') {
 export type { ImageLoaderProps }
 export type ImageLoader = (p: ImageLoaderProps) => string
 
-type ImgElementWithDataProp = HTMLImageElement & {
+type ImgElementWithDataProp = ImageWithBlur & {
   'data-loaded-src'?: string | undefined
 }
 
 type ImageElementProps = ImgProps & {
   unoptimized: boolean
   placeholder: PlaceholderValue
+  blurComplete: boolean
+  earlyPlaceholder: boolean
   onLoadRef: React.MutableRefObject<OnLoad | undefined>
   onLoadingCompleteRef: React.MutableRefObject<OnLoadingComplete | undefined>
   setBlurComplete: (b: boolean) => void
@@ -203,6 +208,8 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       style,
       fetchPriority,
       placeholder,
+      blurComplete,
+      earlyPlaceholder,
       loading,
       unoptimized,
       fill,
@@ -218,13 +225,15 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
     forwardedRef
   ) => {
     const didInsertRef = useRef(false)
-    const insertedImgRef = useRef<HTMLImageElement>(null)
+    const insertedImgRef = useRef<ImageWithBlur>(null)
+    const placeholderId = useId()
 
     useNonWarningLayoutEffect(() => {
       const { current: didInsert } = didInsertRef
       const { current: img } = insertedImgRef
 
       if (!didInsert && img !== null) {
+        img.__nextImageHydrated = true
         // Replay events from during hydration that React doesn't replay.
         if (onError) {
           // If the image has an error before react hydrates, then the error is lost.
@@ -269,6 +278,26 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
       sizesInput,
     ])
 
+    useNonWarningLayoutEffect(() => {
+      const img = insertedImgRef.current
+      const earlyBlur = img?.__nextImageBlur
+      // Keep the override until React commits the replacement style. Effect
+      // cleanup also runs during Strict Mode replay, before decode completes;
+      // actual DOM removal is handled by the bootstrap's observer instead.
+      if (
+        img &&
+        earlyBlur &&
+        (blurComplete ||
+          placeholder === 'empty' ||
+          earlyBlur.src !== img.src ||
+          earlyBlur.srcSet !== img.srcset ||
+          earlyBlur.sizes !== img.sizes)
+      ) {
+        earlyBlur.cleanup()
+        delete img.__nextImageBlur
+      }
+    }, [blurComplete, placeholder, src, srcSet, sizes])
+
     const ref = useMergedRef(forwardedRef, insertedImgRef)
 
     return (
@@ -286,6 +315,9 @@ const ImageElement = forwardRef<HTMLImageElement | null, ImageElementProps>(
         height={height}
         decoding={decoding}
         data-nimg={fill ? 'fill' : '1'}
+        data-nimg-placeholder={
+          earlyPlaceholder && !blurComplete ? placeholderId : undefined
+        }
         className={className}
         style={style}
         // It's intended to keep `src` the last attribute because React updates
@@ -424,6 +456,23 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
       blurComplete,
       showAltText,
     })
+    // A shorthand cannot be used as a longhand's var() fallback. Preserve the
+    // existing React path for inline background shorthands rather than guessing
+    // their expansion on the server. getImageProps keeps its existing output.
+    const earlyPlaceholder =
+      imgMeta.placeholder !== 'empty' && !props.style?.background
+    if (earlyPlaceholder && !blurComplete) {
+      const style = imgAttributes.style as React.CSSProperties &
+        Record<string, string | number>
+      for (const name of ['Image', 'Size', 'Position', 'Repeat'] as const) {
+        const property = `background${name}` as const
+        const variable = `--next-image-${name.toLowerCase()}`
+        const fallback = props.style?.[property]
+        style[variable] = style[property]!
+        style[property] =
+          `var(${variable}, ${fallback == null || fallback === '' ? 'revert-layer' : fallback})`
+      }
+    }
 
     return (
       <>
@@ -432,6 +481,8 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             {...imgAttributes}
             unoptimized={imgMeta.unoptimized}
             placeholder={imgMeta.placeholder}
+            blurComplete={blurComplete}
+            earlyPlaceholder={earlyPlaceholder}
             fill={imgMeta.fill}
             onLoadRef={onLoadRef}
             onLoadingCompleteRef={onLoadingCompleteRef}
@@ -441,6 +492,7 @@ export const Image = forwardRef<HTMLImageElement | null, ImageProps>(
             ref={forwardedRef}
           />
         }
+        {earlyPlaceholder ? <ImagePlaceholderBootstrap /> : null}
         {imgMeta.preload ? (
           <ImagePreload
             isAppRouter={isAppRouter}
