@@ -4,7 +4,7 @@
 "purposefully empty stub";
 "@emtion/styled/index.js";
 }),
-(function(){"use strict";return[
+(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/emotion/emotion/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.s([]);

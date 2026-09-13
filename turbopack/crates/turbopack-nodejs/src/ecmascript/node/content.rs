@@ -11,8 +11,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkContent, EcmascriptChunkContentEntries, should_group_strict_factories,
-        sort_chunk_items_by_path, write_module_factories,
+        EcmascriptChunkContent, EcmascriptChunkContentEntries, sort_chunk_items_by_path,
+        strict_factory_mode, write_module_factories,
     },
     hmr::{
         EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
@@ -62,24 +62,34 @@ impl EcmascriptNodeChunkContent {
             .await?;
 
         let mut code = CodeBuilder::new(true, *self.chunking_context.debug_ids_enabled().await?);
-
-        write!(code, "module.exports = [")?;
-
+        let supports_arrow_functions = *self
+            .chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?;
         let content = self.content.await?;
         let mut chunk_items = content.chunk_item_code_module_ids_and_paths(false).await?;
-        let strict_factory_count = chunk_items
-            .iter()
-            .flat_map(|item| item.iter())
-            .filter(|(_, _, _, mode)| mode.is_strict())
-            .count();
-        let group_strict_factories = should_group_strict_factories(strict_factory_count);
-        if group_strict_factories {
+        let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
+        if strict_factory_mode.omits_use_strict() {
             chunk_items = content.chunk_item_code_module_ids_and_paths(true).await?;
         }
         sort_chunk_items_by_path(&mut chunk_items);
-        write_module_factories(&mut code, &chunk_items, group_strict_factories)?;
 
+        if let Some(prefix) = strict_factory_mode.chunk_prefix(supports_arrow_functions) {
+            code += prefix;
+        }
+        write!(code, "module.exports = [")?;
+        write_module_factories(
+            &mut code,
+            &chunk_items,
+            strict_factory_mode,
+            supports_arrow_functions,
+        )?;
         write!(code, "\n];")?;
+        if let Some(suffix) = strict_factory_mode.chunk_suffix() {
+            code += suffix;
+        }
 
         let mut code = code.build();
 

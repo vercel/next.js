@@ -1,3 +1,1 @@
-import { small } from './small-strict'
-
-export const value = small + 1
+export const value = 2

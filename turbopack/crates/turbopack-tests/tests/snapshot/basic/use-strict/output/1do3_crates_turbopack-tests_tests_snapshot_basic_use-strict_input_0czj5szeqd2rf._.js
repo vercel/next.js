@@ -13,7 +13,7 @@ __turbopack_context__.v((parentImport) => {
 
 __turbopack_context__.v((parentImport) => {
     return Promise.all([
-  "output/1do3_crates_turbopack-tests_tests_snapshot_basic_use-strict_input_0v4-_y433jhtb._.js"
+  "output/1jsg_tests_snapshot_basic_use-strict_input_below-threshold_1my1mnvsmmqb0.js"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {
         return parentImport("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/use-strict/input/below-threshold.js [test] (ecmascript)");
     });

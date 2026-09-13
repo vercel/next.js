@@ -15,8 +15,8 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkContent, EcmascriptChunkContentEntries, should_group_strict_factories,
-        sort_chunk_items_by_path, write_module_factories,
+        EcmascriptChunkContent, EcmascriptChunkContentEntries, sort_chunk_items_by_path,
+        strict_factory_mode, write_module_factories,
     },
     hmr::{
         EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
@@ -88,6 +88,24 @@ impl EcmascriptBrowserChunkContent {
             *this.chunking_context.debug_ids_enabled().await?,
         );
 
+        let supports_arrow_functions = *this
+            .chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?;
+        let content = this.content.await?;
+        let mut chunk_items = content.chunk_item_code_module_ids_and_paths(false).await?;
+        let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
+        if strict_factory_mode.omits_use_strict() {
+            chunk_items = content.chunk_item_code_module_ids_and_paths(true).await?;
+        }
+        sort_chunk_items_by_path(&mut chunk_items);
+
+        if let Some(prefix) = strict_factory_mode.chunk_prefix(supports_arrow_functions) {
+            code += prefix;
+        }
+
         // When a chunk is executed, it will either register itself with the current
         // instance of the runtime, or it will push itself onto the list of pending
         // chunks (using the configured chunk loading global variable).
@@ -103,22 +121,17 @@ impl EcmascriptBrowserChunkContent {
             r#"(globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([{script_or_path},"#,
             chunk_loading_global = StringifyJs(&chunk_loading_global),
         )?;
-
-        let content = this.content.await?;
-        let mut chunk_items = content.chunk_item_code_module_ids_and_paths(false).await?;
-        let strict_factory_count = chunk_items
-            .iter()
-            .flat_map(|item| item.iter())
-            .filter(|(_, _, _, mode)| mode.is_strict())
-            .count();
-        let group_strict_factories = should_group_strict_factories(strict_factory_count);
-        if group_strict_factories {
-            chunk_items = content.chunk_item_code_module_ids_and_paths(true).await?;
-        }
-        sort_chunk_items_by_path(&mut chunk_items);
-        write_module_factories(&mut code, &chunk_items, group_strict_factories)?;
-
+        write_module_factories(
+            &mut code,
+            &chunk_items,
+            strict_factory_mode,
+            supports_arrow_functions,
+        )?;
         write!(code, "\n]);")?;
+
+        if let Some(suffix) = strict_factory_mode.chunk_suffix() {
+            code += suffix;
+        }
 
         let mut code = code.build();
 

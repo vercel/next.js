@@ -2123,9 +2123,8 @@ function registerChunk(registration) {
         markChunkComponentsAvailable(chunk);
     }
     let runtimeParams;
-    // When bootstrapping we are passed a single RuntimeParams object. An all-strict
-    // module chunk also has length 2, but its second item is the strict factory array.
-    if (registration.length === 2 && !Array.isArray(registration[1])) {
+    // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
+    if (registration.length === 2) {
         runtimeParams = registration[1];
     } else {
         let chunkPath = getPathFromScript(chunk);

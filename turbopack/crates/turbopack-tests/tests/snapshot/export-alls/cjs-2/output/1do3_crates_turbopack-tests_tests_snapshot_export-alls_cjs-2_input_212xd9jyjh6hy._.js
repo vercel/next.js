@@ -4,7 +4,7 @@
 // commonjs.js
 exports.hello = 'World';
 }),
-(function(){"use strict";return[
+(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/export-alls/cjs-2/input/b.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.s([], undefined, true);

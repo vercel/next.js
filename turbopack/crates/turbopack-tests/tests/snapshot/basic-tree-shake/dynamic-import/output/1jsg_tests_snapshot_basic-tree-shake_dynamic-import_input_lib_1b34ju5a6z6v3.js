@@ -1,5 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_1b34ju5a6z6v3.js",
-(function(){"use strict";return[
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_1b34ju5a6z6v3.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/dynamic-import/input/lib.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.s([
@@ -170,7 +169,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 }),
-]})(),
-]);
+]);})()
 
 //# sourceMappingURL=1jsg_tests_snapshot_basic-tree-shake_dynamic-import_input_lib_1b34ju5a6z6v3.js.map

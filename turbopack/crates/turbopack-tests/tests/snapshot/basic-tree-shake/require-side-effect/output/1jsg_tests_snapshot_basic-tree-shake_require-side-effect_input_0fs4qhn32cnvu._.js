@@ -3,7 +3,7 @@
 
 const { cat } = __turbopack_context__.r("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/lib.js [test] (ecmascript)");
 }),
-(function(){"use strict";return[
+(()=>{"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/require-side-effect/input/lib.js [test] (ecmascript)", ((__turbopack_context__) => {
 
 __turbopack_context__.s([

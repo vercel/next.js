@@ -1,6 +1,5 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_0zs_dr_r82cwm._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_0zs_dr_r82cwm._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/UserAPI.js [test] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
 
 return __turbopack_context__.a(async (__turbopack_handle_async_dependencies__, __turbopack_async_result__) => { try {
 __turbopack_context__.s([
@@ -23,7 +22,6 @@ const createUser = async (name)=>{
 __turbopack_async_result__();
 } catch(e) { __turbopack_async_result__(e); } }, false);}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/top-level-await/input/db-connection.js [test] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
 
 return __turbopack_context__.a(async (__turbopack_handle_async_dependencies__, __turbopack_async_result__) => { try {
 __turbopack_context__.s([
@@ -49,6 +47,6 @@ const close = ()=>{
 };
 __turbopack_async_result__();
 } catch(e) { __turbopack_async_result__(e); } }, true);}),
-]);
+]);})()
 
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_basic_top-level-await_input_0zs_dr_r82cwm._.js.map
