@@ -50,6 +50,7 @@ export function createInitialRSCPayloadFromFallbackPrerender(
   const canonicalUrl = createHrefFromUrl(new URL(location.href))
   const fallbackTransportData = fallbackInitialRSCPayload.t
   const payload: InitialRSCPayload = {
+    D: fallbackInitialRSCPayload.D,
     c: canonicalUrl.split('/'),
     q: renderedSearch,
     i: fallbackInitialRSCPayload.i,

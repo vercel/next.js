@@ -25,6 +25,7 @@ import { fetch } from './fetch'
 import {
   pingPrefetchTask,
   isPrefetchTaskDirty,
+  isPrefetchingAllowed,
   type PrefetchTask,
   type PrefetchSubtaskResult,
 } from './scheduler'
@@ -2446,13 +2447,14 @@ function readFulfilledStaleAt(
  * task's *other* fallback segments get re-attempted. If every attempt is
  * still a fallback (or fails), it gives up.
  *
- * A loop runs at most once per task, ever (fetchAndWritePerSegmentPrefetchResponse
- * gates on `fallbackRetryStatus === Empty`, set to `Pending` before this runs
- * and never reset to `Empty`). The sleep timer is never `clearTimeout`-ed, so
- * the awaited sleep always settles; the loop simply checks `isCanceled` after
- * waking and bails if the task was canceled in the meantime. On success the
- * status becomes `Fulfilled`; on any non-success exit (exhausted retries,
- * fetch error, or cancel) it becomes `Rejected`.
+ * A loop runs at most once per task, ever
+ * (fetchAndWritePerSegmentPrefetchResponse gates on `fallbackRetryStatus ===
+ * Empty`, set to `Pending` before this runs and never reset to `Empty`). The
+ * sleep timer is never `clearTimeout`-ed, so the awaited sleep always settles;
+ * the loop simply checks `isCanceled` and `isPrefetchingAllowed` after waking
+ * and bails if the task was canceled or prefetching was paused in the meantime.
+ * On success the status becomes `Fulfilled`; on any non-success exit (exhausted
+ * retries, fetch error, cancel, or pause) it becomes `Rejected`.
  */
 async function retryUpgradeableFallbackPrefetch(
   task: PrefetchTask,
@@ -2467,7 +2469,7 @@ async function retryUpgradeableFallbackPrefetch(
     await new Promise<void>((resolve) =>
       setTimeout(resolve, FALLBACK_RETRY_DELAY_MS)
     )
-    if (task.isCanceled) {
+    if (task.isCanceled || !isPrefetchingAllowed(task)) {
       break
     }
 
@@ -2512,7 +2514,8 @@ async function retryUpgradeableFallbackPrefetch(
   }
 
   // The loop finished without success (exhausted its retries, broke out on a
-  // fetch error, or the task was canceled). It won't run again for this task.
+  // fetch error, the task was canceled, or prefetching was paused). It won't
+  // run again for this task.
   task.fallbackRetryStatus = EntryStatus.Rejected
 }
 

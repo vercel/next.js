@@ -15,6 +15,7 @@ import {
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
   NEXT_ACTION_REVALIDATED_HEADER,
+  NEXT_ACTION_DRAFT_MODE_HEADER,
 } from '../../client/components/app-router-headers'
 import {
   getAccessFallbackHTTPStatus,
@@ -79,6 +80,7 @@ import {
   ActionDidRevalidateStaticAndDynamic,
 } from '../../shared/lib/action-revalidation-kind'
 import { computeCacheBustingSearchParam } from '../../shared/lib/router/utils/cache-busting-search-param'
+import { COOKIE_NAME_PRERENDER_BYPASS } from '../api-utils'
 
 const INLINE_ACTION_PREFIX = '$$RSC_SERVER_ACTION_'
 
@@ -158,7 +160,7 @@ function getForwardedHeaders(
   return new Headers(mergedHeaders)
 }
 
-function addRevalidationHeader(
+function addActionResponseHeaders(
   res: BaseNextResponse,
   {
     workStore,
@@ -190,11 +192,22 @@ function addRevalidationHeader(
   )
     ? 1
     : 0
-  const isCookieRevalidated = getModifiedCookieValues(
-    requestStore.mutableCookies
-  ).length
-    ? 1
-    : 0
+  const modifiedCookies = getModifiedCookieValues(requestStore.mutableCookies)
+  const isCookieRevalidated = modifiedCookies.length ? 1 : 0
+
+  // Report draft mode only when this action writes its cookie. An unrelated
+  // action can finish after a mode change and still have the old request's
+  // draft state.
+  if (
+    modifiedCookies.some(
+      (cookie) => cookie.name === COOKIE_NAME_PRERENDER_BYPASS
+    )
+  ) {
+    res.setHeader(
+      NEXT_ACTION_DRAFT_MODE_HEADER,
+      requestStore.draftMode.isEnabled ? '1' : '0'
+    )
+  }
 
   // First check if a tag, cookie, or path was revalidated.
   if (isTagRevalidated || isCookieRevalidated) {
@@ -299,6 +312,11 @@ async function createForwardedActionResponse(
     if (
       response.headers.get('content-type')?.startsWith(RSC_CONTENT_TYPE_HEADER)
     ) {
+      // Forward cookie changes together with the action's revalidation and
+      // draft-mode headers.
+      for (const cookie of response.headers.getSetCookie()) {
+        res.appendHeader('set-cookie', cookie)
+      }
       // copy the headers from the redirect response to the response we're sending
       for (const [key, value] of response.headers) {
         if (!actionsForbiddenHeaders.includes(key)) {
@@ -1284,7 +1302,7 @@ export async function handleAction({
             requestStore,
             shouldSkipPageRendering
           ).finally(() => {
-            addRevalidationHeader(res, { workStore, requestStore })
+            addActionResponseHeaders(res, { workStore, requestStore })
             if (logInfo) {
               // Store server action log info to be logged after the request log
               const duration = Math.round(performance.now() - startTime)

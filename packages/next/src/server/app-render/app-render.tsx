@@ -246,6 +246,7 @@ import { runInSequentialTasks } from './app-render-render-utils'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
 import {
   getHmrRefreshHash,
+  throwInvariantForMissingStore,
   workUnitAsyncStorage,
   type PrerenderStore,
 } from './work-unit-async-storage.external'
@@ -2136,6 +2137,34 @@ function getRenderedSearch(query: NextParsedUrlQuery): string {
   return '?' + pairs.join('&')
 }
 
+function getInitialDraftMode(workStore: WorkStore): boolean {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (!workUnitStore) {
+    throwInvariantForMissingStore()
+  }
+
+  switch (workUnitStore.type) {
+    case 'request':
+    case 'prerender-runtime':
+      // These stores carry the request's validated draft-cookie state. The Edge
+      // SSR entrypoint sets renderOpts.isDraftMode to false, so
+      // workStore.isDraftMode can be false even when the request is in draft
+      // mode.
+      return workUnitStore.draftMode.isEnabled
+    case 'prerender':
+    case 'prerender-client':
+    case 'prerender-legacy':
+    case 'validation-client':
+    case 'cache':
+    case 'private-cache':
+    case 'unstable-cache':
+    case 'generate-static-params':
+      return workStore.isDraftMode === true
+    default:
+      return workUnitStore satisfies never
+  }
+}
+
 // This is the data necessary to render <AppRouter /> when no SSR errors are encountered
 async function getRSCPayload(
   tree: LoaderTree,
@@ -2263,6 +2292,7 @@ async function getRSCPayload(
     P: createElement(Preloads, {
       preloadCallbacks: preloadCallbacks,
     }),
+    D: getInitialDraftMode(ctx.workStore),
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     i: !!couldBeIntercepted,
@@ -2412,6 +2442,7 @@ async function getErrorRSCPayload(
   const isPossiblyPartialHead = ctx.renderCapabilities.isPossiblyPartialResponse
 
   return maybeAppendBuildIdToRSCPayload(ctx, {
+    D: getInitialDraftMode(ctx.workStore),
     c: prepareInitialCanonicalUrl(url),
     q: getRenderedSearch(query),
     m: undefined,
