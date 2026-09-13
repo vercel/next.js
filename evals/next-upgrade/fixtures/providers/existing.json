@@ -1,0 +1,23 @@
+{
+  "repository": {
+    "simulated": true,
+    "repository": "fixture/next-upgrade",
+    "base": "main",
+    "app": ".",
+    "provider": "fixture",
+    "origin": "fixture://next-upgrade"
+  },
+  "prs": [
+    {
+      "number": 41,
+      "url": "fixture://next-upgrade/pull/41",
+      "repository": "fixture/next-upgrade",
+      "base": "main",
+      "app": ".",
+      "state": "open",
+      "draft": true,
+      "body": "<!-- next-upgrade: security -->",
+      "diff": "diff --git a/package.json b/package.json\n-    \"next\": \"15.5.23\"\n+    \"next\": \"15.5.24\"\n"
+    }
+  ]
+}

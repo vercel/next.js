@@ -12,6 +12,7 @@ import type {
 } from 'jscodeshift'
 
 import fs from 'fs'
+import { migrationError } from '../lib/migration-marker'
 import { join, parse } from 'path'
 import { isNextConfigFile } from './lib/utils'
 import { createParserFromPath } from '../lib/parser'
@@ -540,7 +541,9 @@ function handleMiddlewareFileRename(file: FileInfo, source: string): string {
     return ''
   } catch (cause) {
     console.error(
-      `Failed to write "${newFilePath}" and delete "${file.path}".\n${JSON.stringify({ cause })}`
+      migrationError(
+        `Failed to write "${newFilePath}" and delete "${file.path}".\n${JSON.stringify({ cause })}`
+      )
     )
     return file.source
   }

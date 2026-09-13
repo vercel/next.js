@@ -70,6 +70,20 @@ program
     'Skip every interactive prompt and accept its default. Also auto-enabled when stdin is not a TTY (e.g. running under an agent or in CI).',
     false
   )
+  .option(
+    '--skip-codemod <name>',
+    'Exclude a named codemod from this upgrade (repeatable).',
+    (value: string, previous: string[]) => [...previous, value],
+    []
+  )
+  .option(
+    '--react-version <version>',
+    'Use an exact compatible React and React DOM version.'
+  )
+  .option(
+    '--no-turbopack',
+    'Preserve existing bundlers instead of adopting Turbopack.'
+  )
   .action(async (revision, options) => {
     try {
       await runUpgrade(revision, options)

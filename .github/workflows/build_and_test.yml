@@ -4,7 +4,7 @@ on:
   push:
     branches: ['canary']
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, ready_for_review]
 
 concurrency:
   # Limit concurrent runs to 1 per PR,
@@ -65,6 +65,15 @@ jobs:
           fi
 
     outputs:
+      # TEMPORARY: draft iteration for PR #98554 only. Remove before merge.
+      # Label changes take effect on the next push; ready_for_review runs full CI.
+      skip-expensive: >-
+        ${{
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.number == 98554 &&
+          github.event.pull_request.draft &&
+          contains(github.event.pull_request.labels.*.name, 'ci:lightweight')
+        }}
       docs-only: ${{ steps.docs-change.outputs.DOCS_ONLY != 'false' }}
       is-release: ${{ steps.is-release.outputs.IS_RELEASE == 'true' }}
       # Pull requests only, so canary and release run all Webpack tests.
@@ -171,7 +180,7 @@ jobs:
     name: fetch test timings
     runs-on: ubuntu-latest
     needs: ['changes']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.changes.outputs.docs-only == 'false' }}
     steps:
       - name: Setup Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -291,7 +300,7 @@ jobs:
   test-cargo-unit:
     name: test cargo unit
     needs: ['changes', 'build-next']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -316,7 +325,7 @@ jobs:
   test-bench:
     name: test cargo benches
     needs: ['optimize-ci', 'changes', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -327,7 +336,7 @@ jobs:
   rust-check:
     name: rust check
     needs: ['changes', 'build-next']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -344,7 +353,7 @@ jobs:
   rustdoc-check:
     name: rustdoc check
     needs: ['changes', 'build-next']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -375,7 +384,7 @@ jobs:
   devlow-bench:
     name: Run devlow benchmarks
     needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && github.event_name != 'pull_request' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && github.event_name != 'pull_request' }}
 
     strategy:
       fail-fast: false
@@ -425,7 +434,7 @@ jobs:
         'build-native',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -469,7 +478,7 @@ jobs:
         'build-native',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -510,7 +519,7 @@ jobs:
         'build-native',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -559,7 +568,7 @@ jobs:
         'build-native',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.rspack == 'true' }}
     strategy:
       fail-fast: false
       matrix:
@@ -597,7 +606,7 @@ jobs:
   test-next-swc-wasm:
     name: test next-swc wasm
     needs: ['optimize-ci', 'changes', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -624,7 +633,7 @@ jobs:
   test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -669,7 +678,7 @@ jobs:
   test-next-config-ts-native-ts-dev:
     name: test next-config-ts-native-ts dev
     needs: ['changes', 'build-next', 'build-native']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -697,7 +706,7 @@ jobs:
   test-next-config-ts-native-ts-prod:
     name: test next-config-ts-native-ts prod
     needs: ['changes', 'build-next', 'build-native']
-    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -746,7 +755,7 @@ jobs:
   test-new-tests-dev:
     name: Test new and changed tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -773,7 +782,7 @@ jobs:
   test-new-tests-start:
     name: Test new and changed tests for flakes (prod)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -809,7 +818,7 @@ jobs:
     needs: ['optimize-ci', 'changes']
     # `docs-only` and `is-release` mirror the cases where `build-and-deploy`
     # resolves its deploy target to `skipped` and never publishes a tarball.
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.is-release == 'false' }}
     runs-on: ubuntu-latest
     # Outer bound only. The script gives up first, so a tarball that never
     # arrives is reported by it rather than by the runner killing the job.
@@ -843,7 +852,7 @@ jobs:
   test-new-tests-deploy:
     name: Test new and changed tests when deployed
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -874,7 +883,7 @@ jobs:
   test-new-tests-deploy-cache-components:
     name: Test new and changed tests when deployed (cache components)
     needs: ['optimize-ci', 'changes', 'wait-for-preview-tarball']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -913,7 +922,7 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -948,7 +957,7 @@ jobs:
   test-dev-windows:
     name: test dev windows
     needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -973,7 +982,7 @@ jobs:
   test-integration-windows:
     name: test integration windows
     needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -1001,7 +1010,7 @@ jobs:
   test-prod-windows:
     name: test prod windows
     needs: ['optimize-ci', 'changes', 'build-native-windows', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -1035,7 +1044,7 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && needs.changes.outputs.turbopack-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -1066,7 +1075,7 @@ jobs:
   test-firefox-safari:
     name: test firefox and safari
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     permissions:
       contents: read
@@ -1111,7 +1120,7 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false
@@ -1150,7 +1159,7 @@ jobs:
         'build-next',
         'fetch-test-timings',
       ]
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    if: ${{ needs.changes.outputs.skip-expensive != 'true' && needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
     strategy:
       fail-fast: false

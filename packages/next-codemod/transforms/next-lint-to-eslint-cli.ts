@@ -1,3 +1,4 @@
+import { migrationError } from '../lib/migration-marker'
 import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs'
 import path from 'node:path'
 import { execSync } from 'node:child_process'
@@ -532,7 +533,11 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
       console.error(
         `   Generated code has invalid syntax: ${parseError instanceof Error ? parseError.message : parseError}`
       )
-      console.error('   Skipping update to prevent breaking the config file')
+      console.error(
+        migrationError(
+          'Skipping update to prevent breaking the config file; migrate this ESLint config manually.'
+        )
+      )
       return false
     }
 
@@ -563,7 +568,7 @@ function replaceFlatCompatInConfig(configPath: string): boolean {
 
       return true
     } catch (error) {
-      console.error(`   Error writing config file: ${error}`)
+      console.error(migrationError(`Error writing config file: ${error}`))
 
       // Restore from backup on failure
       try {
@@ -769,7 +774,11 @@ function updateExistingFlatConfig(
       console.error(
         `   Generated code has invalid syntax: ${parseError instanceof Error ? parseError.message : parseError}`
       )
-      console.error('   Skipping update to prevent breaking the config file')
+      console.error(
+        migrationError(
+          'Skipping update to prevent breaking the config file; migrate this ESLint config manually.'
+        )
+      )
       return false
     }
 
@@ -800,7 +809,7 @@ function updateExistingFlatConfig(
 
       return true
     } catch (error) {
-      console.error(`   Error writing config file: ${error}`)
+      console.error(migrationError(`Error writing config file: ${error}`))
 
       // Restore from backup on failure
       try {
@@ -1037,7 +1046,7 @@ function updatePackageJsonScripts(packageJsonContent: string): {
     const updatedContent = `${JSON.stringify(packageJson, null, 2)}\n`
     return { updated: needsUpdate, content: updatedContent }
   } catch (error) {
-    console.error('Error updating package.json:', error)
+    console.error(migrationError('Error updating package.json:'), error)
     return { updated: false, content: packageJsonContent }
   }
 }
@@ -1085,7 +1094,7 @@ export default function transformer(
       writeFileSync(eslintConfigPath, template)
       console.log(`   Created ${path.basename(eslintConfigPath)}`)
     } catch (error) {
-      console.error('   Error creating ESLint config:', error)
+      console.error(migrationError('Error creating ESLint config:'), error)
     }
   } else {
     let eslintConfigFilename = path.basename(existingConfig.path)
@@ -1119,7 +1128,10 @@ export default function transformer(
         eslintConfigFilename = path.basename(eslintConfigPath)
       } catch (cause) {
         throw new Error(
-          `Failed to run "${command}" to migrate the legacy ESLint config "${eslintConfigFilename}".\n` +
+          migrationError(
+            `Failed to run "${command}" to migrate the legacy ESLint config "${eslintConfigFilename}".`
+          ) +
+            `\n` +
             `Please try the migration to Flat config manually.\n` +
             `Learn more: https://eslint.org/docs/latest/use/configure/migration-guide`,
           { cause }
@@ -1137,7 +1149,11 @@ export default function transformer(
     const updated = updateExistingFlatConfig(eslintConfigPath, isTypeScript)
 
     if (!updated) {
-      console.log('   Could not automatically update the existing flat config.')
+      console.log(
+        migrationError(
+          'Could not automatically update the existing flat config.'
+        )
+      )
       console.log(
         '   Please manually ensure your ESLint config includes the Next.js configurations'
       )
@@ -1192,7 +1208,9 @@ export default function transformer(
 
             console.log('   Dependencies installed successfully!')
           } catch (_error) {
-            console.error('   Failed to install dependencies automatically.')
+            console.error(
+              migrationError('Failed to install dependencies automatically.')
+            )
             console.error(
               `   Please run: ${getPkgManager(projectRoot)} install`
             )
@@ -1200,7 +1218,7 @@ export default function transformer(
         }
       }
     } catch (error) {
-      console.error('Error writing package.json:', error)
+      console.error(migrationError('Error writing package.json:'), error)
     }
   }
 

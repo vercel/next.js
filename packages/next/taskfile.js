@@ -30,6 +30,12 @@ export async function copy_regenerator_runtime(task, opts) {
     .target('src/compiled/regenerator-runtime')
 }
 
+export async function copy_upgrade_docs(task, opts) {
+  await task
+    .source('src/lib/upgrade/docs/**/*.md')
+    .target('dist/lib/upgrade/docs')
+}
+
 export async function copy_docs(task, opts) {
   // Copy documentation from repo root into the package.
   // Rename .mdx → .md so AI agents find them when globbing for *.md.
@@ -2231,7 +2237,13 @@ export async function ncc_safe_stable_stringify(task, opts) {
 
 export async function precompile(task, opts) {
   await task.parallel(
-    ['browser_polyfills', 'copy_ncced', 'copy_styled_jsx_assets', 'copy_docs'],
+    [
+      'browser_polyfills',
+      'copy_ncced',
+      'copy_styled_jsx_assets',
+      'copy_docs',
+      'copy_upgrade_docs',
+    ],
     opts
   )
 }
@@ -2779,6 +2791,7 @@ export default async function (task) {
   await task.watch('src/client', 'client', opts)
   await task.watch('src/client', 'client_esm', opts)
   await task.watch('src/diagnostics', 'diagnostics', opts)
+  await task.watch('src/lib/upgrade/docs', 'copy_upgrade_docs', opts)
   await task.watch('src/lib', 'lib', opts)
   await task.watch('src/lib', 'lib_esm', opts)
   await task.watch('src/cli', 'cli', opts)

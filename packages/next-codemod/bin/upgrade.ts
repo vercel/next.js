@@ -20,6 +20,13 @@ import { runTransform } from './transform'
 import { onCancel, TRANSFORMER_INQUIRER_CHOICES } from '../lib/utils'
 import { refreshAgentRulesBlock } from '../lib/agents-md'
 import { BadInput } from './shared'
+import {
+  filterCodemods,
+  preserveBundler,
+  validateReactVersion,
+  validateUpgradeOptions,
+  type UpgradeOptions,
+} from '../lib/upgrade-options'
 
 type PackageManager = 'pnpm' | 'npm' | 'yarn' | 'bun'
 
@@ -113,8 +120,9 @@ function resolveSemanticRevision(
 
 export async function runUpgrade(
   revision: string | undefined,
-  options: { verbose: boolean; yes?: boolean }
+  options: UpgradeOptions
 ): Promise<void> {
+  validateUpgradeOptions(options)
   const { verbose } = options
   const nonInteractive = options.yes === true || !process.stdin.isTTY
   if (nonInteractive) {
@@ -211,9 +219,32 @@ export async function runUpgrade(
   const usesAppDir = isUsingAppDir(cwd)
   const usesPagesDir = isUsingPagesDir(cwd)
 
+  if (options.reactVersion) {
+    const react = JSON.parse(
+      execSync(`npm --silent view "react@${options.reactVersion}" --json`, {
+        encoding: 'utf-8',
+      })
+    )
+    const reactDom = JSON.parse(
+      execSync(`npm --silent view "react-dom@${options.reactVersion}" --json`, {
+        encoding: 'utf-8',
+      })
+    )
+    validateReactVersion(
+      options.reactVersion,
+      targetNextVersion,
+      targetNextPackageJson.peerDependencies,
+      usesAppDir,
+      react,
+      reactDom
+    )
+    shouldStayOnReact18 = options.reactVersion.startsWith('18.')
+  }
+
   const isPureAppRouter = usesAppDir && !usesPagesDir
   const isMixedApp = usesPagesDir && usesAppDir
   if (
+    !options.reactVersion &&
     // From release v14.3.0-canary.45, Next.js expects the React version to be 19.0.0-beta.0
     // If the user is on a version higher than this but is still on React 18, we ask them
     // if they still want to stay on React 18 after the upgrade.
@@ -256,13 +287,28 @@ export async function runUpgrade(
   // E.g. in peerDependencies we could have `^18.2.0 || ^19.0.0 || 20.0.0-canary`
   // If we'd just `npm add` that, the manifest would read the same version query.
   // This is basically a `npm --save-exact react@$versionQuery` that works for every package manager.
-  const targetReactVersion = shouldStayOnReact18
-    ? '18.3.1'
-    : await loadHighestNPMVersionMatching(
-        `react@${targetNextPackageJson.peerDependencies['react']}`
+  const targetReactVersion =
+    options.reactVersion ??
+    (shouldStayOnReact18
+      ? '18.3.1'
+      : await loadHighestNPMVersionMatching(
+          `react@${targetNextPackageJson.peerDependencies['react']}`
+        ))
+
+  if (options.turbopack === false) {
+    for (const script of preserveBundler(
+      appPackageJson.scripts ?? {},
+      installedNextVersion,
+      targetNextVersion
+    )) {
+      console.warn(
+        `@next-codemod-error Review the "${script}" script's bundler: Next.js 16 defaults to Turbopack. Preserve its existing bundler explicitly; use --webpack for Webpack.`
       )
+    }
+  }
 
   if (
+    options.turbopack !== false &&
     compareVersions(targetNextVersion, '15.0.0-canary') >= 0 &&
     compareVersions(targetNextVersion, '16.0.0-canary') < 0
   ) {
@@ -272,7 +318,8 @@ export async function runUpgrade(
   const codemods = await suggestCodemods(
     installedNextVersion,
     targetNextVersion,
-    nonInteractive
+    nonInteractive,
+    options.skipCodemod
   )
   const packageManager: PackageManager = getPkgManager(cwd)
 
@@ -641,7 +688,8 @@ async function suggestTurbopack(
 async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string,
-  nonInteractive: boolean
+  nonInteractive: boolean,
+  skipped: string[] = []
 ): Promise<string[]> {
   // example:
   // codemod version: 15.0.0-canary.45
@@ -667,9 +715,9 @@ async function suggestCodemods(
     targetVersionIndex = TRANSFORMER_INQUIRER_CHOICES.length
   }
 
-  const relevantCodemods = TRANSFORMER_INQUIRER_CHOICES.slice(
-    initialVersionIndex,
-    targetVersionIndex
+  const relevantCodemods = filterCodemods(
+    TRANSFORMER_INQUIRER_CHOICES.slice(initialVersionIndex, targetVersionIndex),
+    skipped
   )
 
   if (relevantCodemods.length === 0) {

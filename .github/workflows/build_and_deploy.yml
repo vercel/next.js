@@ -10,7 +10,7 @@ on:
       - 'v*'
   # we need the preview tarball for deploy tests
   pull_request:
-    types: [opened, synchronize]
+    types: [opened, synchronize, ready_for_review]
   workflow_dispatch:
 
 concurrency:
@@ -75,7 +75,12 @@ jobs:
           RELEASE_VERSION="$(node ./scripts/check-is-release.js 2> /dev/null || :)"
           RELEASE_ENVIRONMENT=""
 
-          if [[ "$RELEASE_VERSION" == v* ]];
+          # TEMPORARY: mirror PR #98554's draft-only test opt-out.
+          # Remove this override before merge along with the test-workflow gate.
+          if [[ "$SKIP_EXPENSIVE" == 'true' ]];
+          then
+            echo "value=skipped" >> $GITHUB_OUTPUT
+          elif [[ "$RELEASE_VERSION" == v* ]];
           then
             if [[ "$GIT_REF" != refs/tags/* ]];
             then
@@ -122,6 +127,13 @@ jobs:
           fi
         env:
           GIT_REF: ${{ github.ref }}
+          SKIP_EXPENSIVE: >-
+            ${{
+              github.event_name == 'pull_request' &&
+              github.event.pull_request.number == 98554 &&
+              github.event.pull_request.draft &&
+              contains(github.event.pull_request.labels.*.name, 'ci:lightweight')
+            }}
       - name: Print deploy plan
         run: |
           echo "Deploy target is '${{ steps.deploy-target.outputs.value }}'"
