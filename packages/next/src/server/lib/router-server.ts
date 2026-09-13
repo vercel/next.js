@@ -59,6 +59,7 @@ import { filterInternalHeaders } from './server-ipc/utils'
 import { blockCrossSiteDEV } from './router-utils/block-cross-site-dev'
 import { traceGlobals } from '../../trace/shared'
 import { NoFallbackError } from '../../shared/lib/no-fallback-error.external'
+import { getOutputExportStartError } from './output-error'
 import {
   RouterServerContextSymbol,
   routerServerGlobal,
@@ -165,6 +166,10 @@ export async function initialize(opts: {
   )
   if (bundlerBeforeConfig !== undefined) {
     finalizeBundlerFromConfig(bundlerBeforeConfig)
+  }
+
+  if (!opts.dev && config.output === 'export') {
+    throw new Error(getOutputExportStartError(config))
   }
 
   let compress: ReturnType<typeof setupCompression> | undefined
