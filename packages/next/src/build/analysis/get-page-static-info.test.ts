@@ -86,5 +86,51 @@ describe('get-page-static-infos', () => {
         regex.test('/index.segments/$c$children/__PAGE__.segment.rsc')
       ).toBe(true)
     })
+
+    it('matches the bare basePath root for a catch-all matcher', () => {
+      // Regression test for https://github.com/vercel/next.js/issues/73786
+      const matcher = '/((?!api|_next/static|_next/image|favicon.ico).*)'
+      const regex = new RegExp(
+        getMiddlewareMatchers(matcher, {
+          i18n: undefined,
+          basePath: '/docs',
+        })[0].regexp
+      )
+
+      // The bare basePath root must match (previously it did not).
+      expect(regex.test('/docs')).toBe(true)
+      expect(regex.test('/docs/')).toBe(true)
+      expect(regex.test('/docs/foo')).toBe(true)
+      // Negative lookahead and word boundaries must still hold.
+      expect(regex.test('/docs/api/x')).toBe(false)
+      expect(regex.test('/docsfoo')).toBe(false)
+      expect(regex.test('/foo')).toBe(false)
+    })
+
+    it('does not match the bare basePath root for a specific matcher', () => {
+      const regex = new RegExp(
+        getMiddlewareMatchers('/dashboard', {
+          i18n: undefined,
+          basePath: '/docs',
+        })[0].regexp
+      )
+
+      expect(regex.test('/docs/dashboard')).toBe(true)
+      // A non-root matcher should not be widened to match the basePath root.
+      expect(regex.test('/docs')).toBe(false)
+      expect(regex.test('/docs/')).toBe(false)
+    })
+
+    it('does not match the bare basePath root for a param matcher', () => {
+      const regex = new RegExp(
+        getMiddlewareMatchers('/:id', {
+          i18n: undefined,
+          basePath: '/docs',
+        })[0].regexp
+      )
+
+      expect(regex.test('/docs/apple')).toBe(true)
+      expect(regex.test('/docs')).toBe(false)
+    })
   })
 })
