@@ -18,7 +18,6 @@ describe(`Handle new URL asset references`, () => {
       NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
       __NEXT_SUPPORTS_IMMUTABLE_ASSETS: isNextStart ? '1' : undefined,
     },
-    skipDeployment: true,
   })
 
   if (skipped) {
