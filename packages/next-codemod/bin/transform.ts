@@ -80,7 +80,7 @@ export async function runTransform(
     transformer = res.transformer
   }
 
-  if (transformer === 'next-request-geo-ip') {
+  if (transformer === 'next-request-geo-ip' && !options.nonInteractive) {
     const { isAppDeployedToVercel } = await prompts(
       {
         type: 'confirm',
@@ -139,7 +139,7 @@ export async function runTransform(
   args.push('--ignore-pattern=**/node_modules/**')
   args.push('--ignore-pattern=**/.next/**')
 
-  args.push('--extensions=tsx,ts,jsx,js')
+  args.push('--extensions=tsx,ts,jsx,js,mjs')
 
   args = args.concat(['--transform', transformerPath])
 

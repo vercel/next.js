@@ -169,9 +169,15 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
+    'process.env.__NEXT_PARALLEL_ROUTE_METADATA': Boolean(
+      config.experimental.parallelRouteMetadata
+    ),
     'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME': Boolean(
       config.experimental.turbopackSharedRuntime
     ),
+    'process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL': `${
+      config.turbopack?.chunkLoadingGlobal ?? 'TURBOPACK'
+    }_CHUNK_UPDATE_LISTENERS`,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
       config.experimental.cachedNavigations
@@ -249,6 +255,9 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
+    ),
+    'process.env.__NEXT_EXPERIMENTAL_REACT_BROWSER_BAILOUT': Boolean(
+      config.experimental.reactBrowserBailout
     ),
     'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
     'process.env.__NEXT_PREFETCH_INLINING': Boolean(

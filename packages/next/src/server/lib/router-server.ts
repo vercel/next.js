@@ -638,6 +638,10 @@ export async function initialize(opts: {
             res.setHeader('Cache-Control', 'public, max-age=0, must-revalidate')
             res.setHeader('Service-Worker-Allowed', config.basePath || '/')
           } else if (opts.dev && !isNextFont(parsedUrl.pathname)) {
+            // Development assets stay revalidatable. `serveStatic` adds an
+            // `ETag`, so the browser sends a conditional request and reuses the
+            // stored body when the server answers `304`. This keeps the browser
+            // from downloading every chunk again on each page load.
             res.setHeader('Cache-Control', 'no-cache, must-revalidate')
           } else {
             res.setHeader(

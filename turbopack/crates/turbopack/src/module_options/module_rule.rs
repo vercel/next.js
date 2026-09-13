@@ -143,6 +143,7 @@ pub enum ModuleType {
         ty: CssModuleType,
         environment: Option<ResolvedVc<Environment>>,
         lightningcss_features: turbopack_css::LightningCssFeatureFlags,
+        module_css_debuggable_idents: bool,
     },
     StaticUrlJs {
         /// The tag that is passed to ChunkingContext::asset_url
@@ -283,6 +284,8 @@ impl ConfiguredModuleType {
                 ty: CssModuleType::Default,
                 environment,
                 lightningcss_features,
+                // This is global CSS, so the CSS Module naming pattern is unused.
+                module_css_debuggable_idents: false,
             }),
             ConfiguredModuleType::CssModule => ModuleRuleEffect::ModuleType(ModuleType::CssModule),
             ConfiguredModuleType::Json => {

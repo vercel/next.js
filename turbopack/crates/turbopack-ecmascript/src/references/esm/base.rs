@@ -51,6 +51,7 @@ use crate::{
         esm::{
             EsmExport,
             export::{all_known_export_names, is_export_missing},
+            mangle::generated_export_key,
         },
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
@@ -308,7 +309,16 @@ impl ReferencedAsset {
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
-                    export,
+                    // The target module may emit its exports under shortened keys. This is the
+                    // only place a cross-module export access is materialized, and it resolves
+                    // the same map the producing module uses (see
+                    // `EsmExports::code_generation`), so the two always agree.
+                    export: match &export {
+                        Some(export) => {
+                            Some(generated_export_key(*asset, chunking_context, export).await?)
+                        }
+                        None => None,
+                    },
                     import_source,
                 })
             }

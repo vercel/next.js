@@ -916,6 +916,8 @@ function RequestInstance(
   this.writtenClientReferences = new Map();
   this.writtenServerReferences = new Map();
   this.writtenObjects = new WeakMap();
+  this.writtenImportStrings = new Map();
+  this.writtenImportStringsSize = 0;
   this.temporaryReferences = temporaryReferences;
   this.identifierPrefix = identifierPrefix || "";
   this.identifierCount = 1;
@@ -1611,10 +1613,29 @@ function serializeClientReference(
       !0 === resolvedModuleData.async || !0 === clientReference.$$async
         ? [resolvedModuleData.id, resolvedModuleData.chunks, existingId, 1]
         : [resolvedModuleData.id, resolvedModuleData.chunks, existingId];
+    var copy = transformImportMetadata(request, JSCompiler_inline_result, 0);
+    if (copy !== NOT_PLAIN_IMPORT_METADATA)
+      var JSCompiler_temp = stringify(copy);
+    else
+      b: {
+        clientReference = importStringRequest;
+        importStringRequest = request;
+        try {
+          JSCompiler_temp = stringify(
+            JSCompiler_inline_result,
+            importMetadataReplacer
+          );
+          break b;
+        } finally {
+          importStringRequest = clientReference;
+        }
+        JSCompiler_temp = void 0;
+      }
+    var JSCompiler_inline_result$jscomp$0 = JSCompiler_temp;
     request.pendingChunks++;
     var importId = request.nextChunkId++,
-      json = stringify(JSCompiler_inline_result),
-      processedChunk = importId.toString(16) + ":I" + json + "\n";
+      processedChunk =
+        importId.toString(16) + ":I" + JSCompiler_inline_result$jscomp$0 + "\n";
     request.completedImportChunks.push(processedChunk);
     writtenClientReferences.set(clientReferenceKey, importId);
     return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
@@ -1685,6 +1706,25 @@ function serializeBlob(request, blob) {
   request.cacheController.signal.addEventListener("abort", abortBlob);
   reader.read().then(progress).catch(error);
   return "$B" + newTask.id.toString(16);
+}
+function escapeStringValue(value) {
+  return "$" === value[0] ? "$" + value : value;
+}
+function serializeImportString(request, value) {
+  if (16 > value.length) return escapeStringValue(value);
+  var writtenStrings = request.writtenImportStrings,
+    existing = writtenStrings.get(value);
+  if (void 0 !== existing) return existing;
+  existing = request.writtenImportStringsSize + value.length;
+  if (32768 < existing) return escapeStringValue(value);
+  request.writtenImportStringsSize = existing;
+  request.pendingChunks++;
+  existing = request.nextChunkId++;
+  var json = stringify(escapeStringValue(value));
+  request.completedImportChunks.push(existing.toString(16) + ":" + json + "\n");
+  request = serializeByValueID(existing);
+  writtenStrings.set(value, request);
+  return request;
 }
 var modelRoot = !1;
 function renderModelDestructive(
@@ -1902,25 +1942,21 @@ function renderModelDestructive(
       );
     return value;
   }
-  if ("string" === typeof value) {
-    task = TaintRegistryValues.get(value);
-    void 0 !== task && throwTaintViolation(task.message);
-    serializedSize += value.length;
-    if (
+  if ("string" === typeof value)
+    return (
+      (task = TaintRegistryValues.get(value)),
+      void 0 !== task && throwTaintViolation(task.message),
+      (serializedSize += value.length),
       "Z" === value[value.length - 1] &&
       parent[parentPropertyName] instanceof Date
-    )
-      return "$D" + value;
-    if (1024 <= value.length && null !== byteLengthOfChunk)
-      return (
-        request.pendingChunks++,
-        (parentPropertyName = request.nextChunkId++),
-        emitTextChunk(request, parentPropertyName, value, !1),
-        serializeByValueID(parentPropertyName)
-      );
-    value = "$" === value[0] ? "$" + value : value;
-    return value;
-  }
+        ? "$D" + value
+        : 1024 <= value.length && null !== byteLengthOfChunk
+          ? (request.pendingChunks++,
+            (parentPropertyName = request.nextChunkId++),
+            emitTextChunk(request, parentPropertyName, value, !1),
+            serializeByValueID(parentPropertyName))
+          : escapeStringValue(value)
+    );
   if ("boolean" === typeof value) return value;
   if ("number" === typeof value)
     return Number.isFinite(value)
@@ -2047,6 +2083,69 @@ function emitErrorChunk(request, id, digest) {
   digest = { digest: digest };
   id = id.toString(16) + ":E" + stringify(digest) + "\n";
   request.completedErrorChunks.push(id);
+}
+var importStringRequest = null;
+function importMetadataReplacer(key, value) {
+  return "string" === typeof value
+    ? ((key = importStringRequest),
+      null === key
+        ? escapeStringValue(value)
+        : serializeImportString(key, value))
+    : value;
+}
+var NOT_PLAIN_IMPORT_METADATA = {};
+function transformImportMetadata(request, value, depth) {
+  switch (typeof value) {
+    case "string":
+      return serializeImportString(request, value);
+    case "number":
+    case "boolean":
+    case "undefined":
+      return value;
+    case "object":
+      if (null === value) return null;
+      if (16 < depth || "function" === typeof value.toJSON)
+        return NOT_PLAIN_IMPORT_METADATA;
+      if (isArrayImpl(value)) {
+        for (
+          var length = value.length, copy = Array(length), i = 0;
+          i < length;
+          i++
+        ) {
+          var element = value[i];
+          if ("string" === typeof element)
+            copy[i] = serializeImportString(request, element);
+          else {
+            element = transformImportMetadata(request, element, depth + 1);
+            if (element === NOT_PLAIN_IMPORT_METADATA)
+              return NOT_PLAIN_IMPORT_METADATA;
+            copy[i] = element;
+          }
+        }
+        return copy;
+      }
+      length = getPrototypeOf(value);
+      if (length !== ObjectPrototype$1 && null !== length)
+        return NOT_PLAIN_IMPORT_METADATA;
+      length = Object.keys(value);
+      copy = {};
+      for (i = 0; i < length.length; i++) {
+        element = length[i];
+        if (element in ObjectPrototype$1) return NOT_PLAIN_IMPORT_METADATA;
+        var element$28 = value[element];
+        if ("string" === typeof element$28)
+          copy[element] = serializeImportString(request, element$28);
+        else {
+          element$28 = transformImportMetadata(request, element$28, depth + 1);
+          if (element$28 === NOT_PLAIN_IMPORT_METADATA)
+            return NOT_PLAIN_IMPORT_METADATA;
+          copy[element] = element$28;
+        }
+      }
+      return copy;
+    default:
+      return NOT_PLAIN_IMPORT_METADATA;
+  }
 }
 function emitTypedArrayChunk(request, id, tag, typedArray, debug) {
   if (TaintRegistryByteLengths.has(typedArray.byteLength)) {
@@ -2317,13 +2416,13 @@ function flushCompletedChunks(request) {
     "function" === typeof destination.flush && destination.flush();
   }
   0 === request.pendingChunks &&
-    (cleanupTaintQueue(request),
-    12 > request.status &&
+    (12 > request.status &&
       request.cacheController.abort(
         Error(
           "This render completed successfully. All cacheSignals are now aborted to allow clean up of any unused resources."
         )
       ),
+    cleanupTaintQueue(request),
     null !== request.destination &&
       ((request.status = 14),
       request.destination.end(),
@@ -2388,6 +2487,17 @@ function finishAbort(request, abortedTasks, errorId) {
     logRecoverableError(request, error, null), fatalError(request, error);
   }
 }
+function attachAbortSignal(request, signal) {
+  signal.aborted
+    ? abort(request, signal.reason)
+    : signal.addEventListener(
+        "abort",
+        function () {
+          abort(request, signal.reason);
+        },
+        { signal: request.cacheController.signal }
+      );
+}
 function abort(request, reason) {
   if (!(11 < request.status))
     try {
@@ -2432,9 +2542,9 @@ function abort(request, reason) {
         onAllReady();
         flushCompletedChunks(request);
       }
-    } catch (error$31) {
-      logRecoverableError(request, error$31, null),
-        fatalError(request, error$31);
+    } catch (error$35) {
+      logRecoverableError(request, error$35, null),
+        fatalError(request, error$35);
     }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -3217,12 +3327,12 @@ function parseReadableStream(response, reference, type) {
               (previousBlockedChunk = chunk));
         } else {
           chunk = previousBlockedChunk;
-          var chunk$36 = new ReactPromise("pending", null, null);
-          chunk$36.then(enqueue, flightController.error);
-          previousBlockedChunk = chunk$36;
+          var chunk$40 = new ReactPromise("pending", null, null);
+          chunk$40.then(enqueue, flightController.error);
+          previousBlockedChunk = chunk$40;
           chunk.then(function () {
-            previousBlockedChunk === chunk$36 && (previousBlockedChunk = null);
-            resolveModelChunk(response, chunk$36, json, -1);
+            previousBlockedChunk === chunk$40 && (previousBlockedChunk = null);
+            resolveModelChunk(response, chunk$40, json, -1);
           });
         }
       },
@@ -3954,17 +4064,7 @@ exports.prerender = function (model, webpackMap, options) {
       options ? options.identifierPrefix : void 0,
       options ? options.temporaryReferences : void 0
     );
-    if (options && options.signal) {
-      var signal = options.signal;
-      if (signal.aborted) abort(request, signal.reason);
-      else {
-        var listener = function () {
-          abort(request, signal.reason);
-          signal.removeEventListener("abort", listener);
-        };
-        signal.addEventListener("abort", listener);
-      }
-    }
+    options && options.signal && attachAbortSignal(request, options.signal);
     startWork(request);
   });
 };
@@ -3988,17 +4088,7 @@ exports.prerenderToNodeStream = function (model, webpackMap, options) {
       options ? options.identifierPrefix : void 0,
       options ? options.temporaryReferences : void 0
     );
-    if (options && options.signal) {
-      var signal = options.signal;
-      if (signal.aborted) abort(request, signal.reason);
-      else {
-        var listener = function () {
-          abort(request, signal.reason);
-          signal.removeEventListener("abort", listener);
-        };
-        signal.addEventListener("abort", listener);
-      }
-    }
+    options && options.signal && attachAbortSignal(request, options.signal);
     startWork(request);
   });
 };
@@ -4076,17 +4166,7 @@ exports.renderToReadableStream = function (model, webpackMap, options) {
     options ? options.identifierPrefix : void 0,
     options ? options.temporaryReferences : void 0
   );
-  if (options && options.signal) {
-    var signal = options.signal;
-    if (signal.aborted) abort(request, signal.reason);
-    else {
-      var listener = function () {
-        abort(request, signal.reason);
-        signal.removeEventListener("abort", listener);
-      };
-      signal.addEventListener("abort", listener);
-    }
-  }
+  options && options.signal && attachAbortSignal(request, options.signal);
   var writable;
   return new ReadableStream(
     {

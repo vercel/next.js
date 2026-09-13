@@ -261,6 +261,9 @@ pub async fn get_server_resolve_options_context(
         custom_conditions,
         import_map: Some(next_server_import_map),
         fallback_import_map: Some(next_server_fallback_import_map),
+        // A request starting with `/` is resolved from the project directory, which is not
+        // necessarily the root of the filesystem (e.g. in a monorepo).
+        server_relative_root: Some(project_path.clone()),
         after_resolve_plugins,
         ..Default::default()
     };
@@ -548,7 +551,9 @@ pub async fn get_server_module_options_context(
             source_maps,
             infer_module_side_effects: *next_config.turbopack_infer_module_side_effects().await?,
             cjs_tree_shaking: *next_config.turbopack_cjs_tree_shaking().await?,
+            mangle_export_names: *next_config.turbopack_mangle_export_names(mode).await?,
             cjs_scope_hoisting: *next_config.turbopack_cjs_scope_hoisting().await?,
+            cross_module_constants: *next_config.turbopack_cross_module_constants().await?,
             ..Default::default()
         },
         execution_context: Some(execution_context),
@@ -557,6 +562,7 @@ pub async fn get_server_module_options_context(
             source_maps,
             module_css_condition: Some(module_styles_rule_condition()),
             lightningcss_features: *next_config.lightningcss_feature_flags().await?,
+            module_css_debuggable_idents: next_mode.is_development(),
             ..Default::default()
         },
         follow_reexports: true,

@@ -792,7 +792,15 @@
         ));
       bootstrapScriptContent = [];
       void 0 !== importMap &&
-        (bootstrapScriptContent.push(importMapScriptStart),
+        (bootstrapScriptContent.push(
+          void 0 === externalRuntimeConfig
+            ? importMapScriptStart
+            : stringToPrecomputedChunk(
+                '<script type="importmap" nonce="' +
+                  escapeTextForBrowser(externalRuntimeConfig) +
+                  '">'
+              )
+        ),
         bootstrapScriptContent.push(
           escapeEntireInlineScriptContent(JSON.stringify(importMap))
         ),
@@ -4733,6 +4741,7 @@
       this.onShellReady = void 0 === onShellReady ? noop : onShellReady;
       this.onShellError = void 0 === onShellError ? noop : onShellError;
       this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
+      this.renderLifetimeController = null;
       this.formState = void 0 === formState ? null : formState;
       this.didWarnForKey = null;
     }
@@ -5390,6 +5399,7 @@
         ? (shellComplete || debugTask.run(errorInfo.bind(null, error)),
           debugTask.run(onFatalError.bind(null, error)))
         : (shellComplete || errorInfo(error), onFatalError(error));
+      endRenderLifetime(request);
       null !== request.destination
         ? ((request.status = CLOSED), request.destination.destroy(error))
         : ((request.status = 12),
@@ -9132,6 +9142,7 @@
                 console.error(
                   "There was still abortable task at the root when we closed. This is a bug in React."
                 ),
+              endRenderLifetime(request),
               (request.status = CLOSED),
               destination.end(),
               (request.destination = null))
@@ -9203,10 +9214,29 @@
           fatalError(request, error$5, abortableTasks, null);
       }
     }
+    function endRenderLifetime(request) {
+      request = request.renderLifetimeController;
+      null !== request && request.abort(RENDER_ENDED);
+    }
+    function attachAbortSignal(request, signal) {
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var renderLifetimeController = new AbortController();
+        request.renderLifetimeController = renderLifetimeController;
+        signal.addEventListener(
+          "abort",
+          function () {
+            abort(request, signal.reason);
+          },
+          { signal: renderLifetimeController.signal }
+        );
+      }
+    }
     function abort(request, reason) {
       if (
         !(request.aborted || (11 !== request.status && 10 !== request.status))
       ) {
+        endRenderLifetime(request);
         var isRecoverableReason =
           "object" === typeof reason &&
           null !== reason &&
@@ -9293,11 +9323,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-canary-eb8feb71-20260814" !== isomorphicReactPackageVersion)
+      if ("19.3.0-canary-019019be-20260911" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-canary-eb8feb71-20260814\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-canary-019019be-20260911\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -10950,6 +10980,7 @@
       ERRORED = 4,
       POSTPONED = 5,
       CLOSED = 13,
+      RENDER_ENDED = "The render ended.",
       currentRequest = null,
       didWarnAboutBadClass = {},
       didWarnAboutContextTypes = {},
@@ -11024,17 +11055,7 @@
             void 0,
             reject
           );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
+        options && options.signal && attachAbortSignal(request, options.signal);
         startWork(request);
       });
     };
@@ -11079,17 +11100,7 @@
             void 0,
             reject
           );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
+        options && options.signal && attachAbortSignal(request, options.signal);
         startWork(request);
       });
     };
@@ -11200,17 +11211,7 @@
             onFatalError,
             options ? options.formState : void 0
           );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
+        options && options.signal && attachAbortSignal(request, options.signal);
         startWork(request);
       });
     };
@@ -11266,17 +11267,7 @@
             },
             onFatalError
           );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
+        options && options.signal && attachAbortSignal(request, options.signal);
         startWork(request);
       });
     };
@@ -11323,17 +11314,7 @@
           void 0,
           reject
         );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
+        options && options.signal && attachAbortSignal(request, options.signal);
         startWork(request);
       });
     };
@@ -11373,17 +11354,7 @@
           void 0,
           reject
         );
-        if (options && options.signal) {
-          var signal = options.signal;
-          if (signal.aborted) abort(request, signal.reason);
-          else {
-            var listener = function () {
-              abort(request, signal.reason);
-              signal.removeEventListener("abort", listener);
-            };
-            signal.addEventListener("abort", listener);
-          }
-        }
+        options && options.signal && attachAbortSignal(request, options.signal);
         startWork(request);
       });
     };
@@ -11422,5 +11393,5 @@
         }
       };
     };
-    exports.version = "19.3.0-canary-eb8feb71-20260814";
+    exports.version = "19.3.0-canary-019019be-20260911";
   })();

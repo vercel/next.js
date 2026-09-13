@@ -4,7 +4,6 @@ import { join } from 'path'
 import { fetchViaHTTP } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import cheerio from 'cheerio'
-import type { Response } from 'node-fetch'
 
 describe('Middleware Request Headers Overrides', () => {
   const { next } = nextTestSetup({

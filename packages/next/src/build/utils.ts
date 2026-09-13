@@ -69,7 +69,10 @@ import { createIncrementalCache } from '../export/helpers/create-incremental-cac
 import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from './static-paths/app'
 import { buildPagesStaticPaths } from './static-paths/pages'
-import type { PrerenderedRoute } from './static-paths/types'
+import type {
+  PrerenderRouteMatcher,
+  PrerenderedRoute,
+} from './static-paths/types'
 import type { CacheControl } from '../server/lib/cache-control'
 import { formatExpire, formatRevalidate } from './output/format'
 import type {
@@ -672,6 +675,7 @@ type PageIsStaticResult = {
   hasServerProps?: boolean
   hasStaticProps?: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
+  prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
   prerenderFallbackMode: FallbackMode | undefined
   rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
@@ -695,6 +699,7 @@ export async function isPageStatic({
   cacheComponents,
   authInterrupts,
   useCacheTimeout,
+  durableUseCacheEntries,
   staticPageGenerationTimeout,
   originalAppPath,
   isrFlushToDisk,
@@ -714,6 +719,7 @@ export async function isPageStatic({
   cacheComponents: boolean
   authInterrupts: boolean
   useCacheTimeout: number
+  durableUseCacheEntries: boolean
   staticPageGenerationTimeout: number
   configFileName: string
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
@@ -742,6 +748,7 @@ export async function isPageStatic({
       isRoutePPREnabled: false,
       prerenderFallbackMode: undefined,
       prerenderedRoutes: undefined,
+      prerenderRouteMatchers: undefined,
       rootParamKeys: undefined,
       hasStaticProps: false,
       hasServerProps: false,
@@ -768,6 +775,7 @@ export async function isPageStatic({
 
       let componentsResult: LoadComponentsReturnType
       let prerenderedRoutes: PrerenderedRoute[] | undefined
+      let prerenderRouteMatchers: PrerenderRouteMatcher[] | undefined
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
       let rootParamKeys: readonly string[] | undefined
@@ -887,29 +895,33 @@ export async function isPageStatic({
             ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
               buildStaticMetadataStaticPaths(page))
           } else {
-            ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
-              await buildAppStaticPaths({
-                dir,
-                page,
-                route,
-                cacheComponents,
-                authInterrupts,
-                useCacheTimeout,
-                staticPageGenerationTimeout,
-                segments,
-                distDir,
-                requestHeaders: {},
-                isrFlushToDisk,
-                cacheMaxMemorySize,
-                cacheHandler,
-                cacheLifeProfiles,
-                ComponentMod,
-                nextConfigOutput,
-                isRoutePPREnabled,
-                buildId,
-                deploymentId,
-                rootParamKeys,
-              }))
+            ;({
+              prerenderedRoutes,
+              prerenderRouteMatchers,
+              fallbackMode: prerenderFallbackMode,
+            } = await buildAppStaticPaths({
+              dir,
+              page,
+              route,
+              cacheComponents,
+              authInterrupts,
+              useCacheTimeout,
+              durableUseCacheEntries,
+              staticPageGenerationTimeout,
+              segments,
+              distDir,
+              requestHeaders: {},
+              isrFlushToDisk,
+              cacheMaxMemorySize,
+              cacheHandler,
+              cacheLifeProfiles,
+              ComponentMod,
+              nextConfigOutput,
+              isRoutePPREnabled,
+              buildId,
+              deploymentId,
+              rootParamKeys,
+            }))
           }
         }
       } else {
@@ -982,6 +994,7 @@ export async function isPageStatic({
         isRoutePPREnabled,
         prerenderFallbackMode,
         prerenderedRoutes,
+        prerenderRouteMatchers,
         rootParamKeys,
         hasStaticProps,
         hasServerProps,

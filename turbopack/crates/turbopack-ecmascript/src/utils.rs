@@ -35,7 +35,7 @@ pub(crate) fn extract_name_from_member_prop(prop: &MemberProp) -> Option<SmallVe
     match prop {
         MemberProp::Ident(ident) => Some(SmallVec::from_buf([ident.sym.as_str().into()])),
         MemberProp::Computed(ComputedPropName {
-            expr: box Expr::Lit(Lit::Str(s)),
+            expr: Expr::Lit(Lit::Str(s)),
             ..
         }) => s.value.as_str().map(|v| SmallVec::from_buf([v.into()])),
         _ => None,
@@ -83,7 +83,7 @@ pub fn js_value_to_pattern(value: &JsValue<'_>) -> Pattern {
             ConstantValue::Null => rcstr!("null"),
             ConstantValue::Num(ConstantNumber(n)) => n.to_string().into(),
             ConstantValue::BigInt(n) => n.to_string().into(),
-            ConstantValue::Regex(box (exp, flags)) => format!("/{exp}/{flags}").into(),
+            ConstantValue::Regex((exp, flags)) => format!("/{exp}/{flags}").into(),
             ConstantValue::Undefined => rcstr!("undefined"),
         }),
         JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_rcstr()),
@@ -268,6 +268,7 @@ pub fn module_value_to_well_known_object<'a>(module_value: &ModuleValue) -> Opti
         b"resolve-from" => JsValue::WellKnownFunction(WellKnownFunctionKind::NodeResolveFrom),
         b"@grpc/proto-loader" => JsValue::WellKnownObject(WellKnownObjectKind::NodeProtobufLoader),
         b"fs-extra" => JsValue::WellKnownObject(WellKnownObjectKind::FsExtraModule),
+        b"graceful-fs" => JsValue::WellKnownObject(WellKnownObjectKind::GracefulFsModule),
         _ => return None,
     })
 }

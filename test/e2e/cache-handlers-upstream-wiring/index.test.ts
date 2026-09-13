@@ -3,15 +3,13 @@ import { retry } from 'next-test-utils'
 import { join } from 'path'
 
 describe('cache-handlers-upstream-wiring', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('pages router non-edge', () => {
-    const { next, skipped, isNextDev } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures/pages-router-non-edge'),
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     let outputIndex = 0
 
@@ -51,15 +49,13 @@ describe('cache-handlers-upstream-wiring', () => {
     })
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('cacheComponents enabled, non-edge app router', () => {
-    const { next, skipped, isNextDev } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures/non-edge-cache-components'),
-      skipDeployment: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     let outputIndex = 0
 
@@ -98,40 +94,36 @@ describe('cache-handlers-upstream-wiring', () => {
       })
     })
   })
-  ;(process.env.__NEXT_CACHE_COMPONENTS ? describe.skip : describe)(
-    'cacheComponents disabled, edge app router',
-    () => {
-      const { next, skipped } = nextTestSetup({
-        files: join(__dirname, 'fixtures/edge-without-cache-components'),
-        skipDeployment: true,
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
+  // @force-gate !cacheComponents
+  describe('cacheComponents disabled, edge app router', () => {
+    const { next } = nextTestSetup({
+      files: join(__dirname, 'fixtures/edge-without-cache-components'),
+    })
+
+    let outputIndex = 0
+
+    beforeEach(() => {
+      outputIndex = next.cliOutput.length
+    })
+
+    it('uses configured cacheHandler for edge app page and edge app route', async () => {
+      const edgePageResponse = await next.fetch('/edge-page')
+      expect(edgePageResponse.status).toBe(200)
+
+      const edgeRouteResponse = await next.fetch('/api/edge-route')
+      expect(edgeRouteResponse.status).toBe(200)
+      expect(await edgeRouteResponse.json()).toEqual({ ok: true })
+
+      await retry(async () => {
+        const output = next.cliOutput.slice(outputIndex)
+        const constructorLogs =
+          output.match(/WiringIncrementalCacheHandler::constructor/g) ?? []
+
+        expect(constructorLogs.length).toBeGreaterThanOrEqual(2)
       })
-
-      if (skipped) {
-        return
-      }
-
-      let outputIndex = 0
-
-      beforeEach(() => {
-        outputIndex = next.cliOutput.length
-      })
-
-      it('uses configured cacheHandler for edge app page and edge app route', async () => {
-        const edgePageResponse = await next.fetch('/edge-page')
-        expect(edgePageResponse.status).toBe(200)
-
-        const edgeRouteResponse = await next.fetch('/api/edge-route')
-        expect(edgeRouteResponse.status).toBe(200)
-        expect(await edgeRouteResponse.json()).toEqual({ ok: true })
-
-        await retry(async () => {
-          const output = next.cliOutput.slice(outputIndex)
-          const constructorLogs =
-            output.match(/WiringIncrementalCacheHandler::constructor/g) ?? []
-
-          expect(constructorLogs.length).toBeGreaterThanOrEqual(2)
-        })
-      })
-    }
-  )
+    })
+  })
 })

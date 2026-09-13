@@ -264,7 +264,7 @@ export async function startServer(
           'memory.heapSizeLimit': String(memoryRestartStats.heap_size_limit),
           'memory.heapUsed': String(memoryRestartStats.used_heap_size),
         }).stop()
-        await flushAllTraces()
+        flushAllTraces()
         process.exit(RESTART_EXIT_CODE)
       }
     }
@@ -428,7 +428,7 @@ export async function startServer(
             ])
 
             // Flush any remaining traces to the trace file on shutdown
-            await flushAllTraces()
+            flushAllTraces()
 
             // Flush telemetry if this is a dev server
             if (isDev) {
@@ -600,6 +600,8 @@ export async function startServer(
       if (dirWatchPaths.includes(removedPath)) {
         Log.error(
           `The directory at "${removedPath}" was deleted.\n\n` +
+            'Deleting this directory removes caches and will cause slower ' +
+            'performance.\n\n' +
             'Deleting this directory while Next.js is running can lead to ' +
             'undefined behavior. Restarting the server to recover...'
         )

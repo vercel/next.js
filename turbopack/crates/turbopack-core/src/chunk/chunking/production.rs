@@ -76,15 +76,13 @@ pub async fn make_production_chunks(
                             },
                         ..
                     } => Prepared::ChunkItem(
-                        if let Some(module_chunk_groups) =
-                            module_chunk_groups.get(&ResolvedVc::upcast(module)).await?
-                        {
+                        if let Some(module_chunk_groups) = module_chunk_groups.get(&module).await? {
                             module_chunk_groups
                         } else {
                             // Merged modules don't have a chunk group in chunk_group_info, so
                             // lookup using the original module.
                             let original_module = merged_modules
-                                .get_original_module(ResolvedVc::upcast(module))
+                                .get_original_module(module)
                                 .await?
                                 .context("every module should have a chunk group")?;
                             module_chunk_groups

@@ -434,6 +434,7 @@ Add `useOptimistic` with a reducer to remap the card's status on the current fra
 'use client'
 
 import { startTransition, use, useOptimistic } from 'react'
+import { toast } from 'sonner'
 import { updateStatus } from '@/features/task/task-actions'
 
 export function Board({ tasksPromise }) {
@@ -449,7 +450,8 @@ export function Board({ tasksPromise }) {
   function handleDrop(targetStatus, taskId) {
     startTransition(async () => {
       moveTask({ taskId, status: targetStatus })
-      await updateStatus(taskId, targetStatus)
+      const result = await updateStatus(taskId, targetStatus)
+      if (!result.success) toast.error(result.error)
     })
   }
 
@@ -467,9 +469,9 @@ export function Board({ tasksPromise }) {
 }
 ```
 
-The reducer maps over the task list and updates the status of the dragged card, leaving the rest unchanged. If a background refresh arrives mid-drag, for example from polling or another user's mutation, React re-runs the reducer with the updated base data so the optimistic move sits on top of fresh data.
+The reducer maps over the task list and updates the status of the dragged card, leaving the rest unchanged. If a background refresh arrives mid-drag, for example from polling or another user's mutation, React re-runs the reducer with the updated base data so the optimistic move sits on top of fresh data. The Server Function returns an error result when the task no longer exists, which the client displays in a toast.
 
-This step uses the standalone `startTransition` instead of `useTransition` because the hook's `isPending` would trigger the board fade from Step 3. The optimistic move already covers the visual feedback, so no pending indicator is needed. If the Server Function fails, the card reverts.
+This step uses the standalone `startTransition` instead of `useTransition` because the hook's `isPending` would trigger the board fade from Step 3. The optimistic move already covers the visual feedback, so no pending indicator is needed. If the Server Function returns an expected error, the card reverts. Unexpected errors are forwarded to the nearest [error boundary](/docs/app/getting-started/error-handling).
 
 A card dragged from "Todo" to "In Progress" now lands in the target column the moment you release.
 
@@ -724,11 +726,17 @@ The per-id tag `task-${id}` gives a single task its own handle. The broader `tas
 'use server'
 
 import { updateTag } from 'next/cache'
+import { updateTaskStatus } from '@/lib/db'
 
 export async function updateStatus(taskId: string, newStatus: Status) {
-  // …mutate
+  const updated = await updateTaskStatus(taskId, newStatus)
+  if (!updated) {
+    return { success: false as const, error: 'Task no longer exists' }
+  }
+
   updateTag('tasks')
   updateTag(`task-${taskId}`)
+  return { success: true as const, status: newStatus }
 }
 ```
 

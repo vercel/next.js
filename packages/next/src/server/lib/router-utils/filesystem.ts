@@ -1,7 +1,7 @@
 import type {
   FunctionsConfigManifest,
   ManifestRoute,
-  PrerenderManifest,
+  PreviewPropsManifest,
   RoutesManifest,
 } from '../../../build'
 import type { NextConfigRuntime } from '../../config-shared'
@@ -49,7 +49,7 @@ import {
   FUNCTIONS_CONFIG_MANIFEST,
   MIDDLEWARE_MANIFEST,
   PAGES_MANIFEST,
-  PRERENDER_MANIFEST,
+  PREVIEW_PROPS_MANIFEST,
   ROUTES_MANIFEST,
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
@@ -346,7 +346,11 @@ export async function setupFsCheck(opts: {
     }
 
     const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
-    const prerenderManifestPath = path.join(distDir, PRERENDER_MANIFEST)
+    const previewPropsManifestPath = path.join(
+      distDir,
+      'server',
+      PREVIEW_PROPS_MANIFEST
+    )
     const middlewareManifestPath = path.join(
       distDir,
       'server',
@@ -369,11 +373,9 @@ export async function setupFsCheck(opts: {
       await fs.readFile(routesManifestPath, 'utf8')
     ) as RoutesManifest
 
-    previewProps = (
-      JSON.parse(
-        await fs.readFile(prerenderManifestPath, 'utf8')
-      ) as PrerenderManifest
-    ).preview
+    previewProps = JSON.parse(
+      await fs.readFile(previewPropsManifestPath, 'utf8')
+    ) as PreviewPropsManifest
 
     const middlewareManifest = JSON.parse(
       await fs.readFile(middlewareManifestPath, 'utf8').catch(() => '{}')
@@ -743,7 +745,8 @@ export async function setupFsCheck(opts: {
         const fsPath = staticMetadataFiles.get(itemPath)
         if (fsPath) {
           return {
-            // "nextStaticFolder" sets Cache-Control "no-store" on dev.
+            // "nextStaticFolder" sets Cache-Control
+            // "no-cache, must-revalidate" on dev.
             type: 'nextStaticFolder',
             fsPath,
             itemPath: fsPath,

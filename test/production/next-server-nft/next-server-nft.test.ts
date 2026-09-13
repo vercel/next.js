@@ -247,7 +247,6 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/default-transpiled-packages.json",
            "/node_modules/next/dist/lib/detect-typo.js",
            "/node_modules/next/dist/lib/download-swc.js",
-           "/node_modules/next/dist/lib/error-telemetry-utils.js",
            "/node_modules/next/dist/lib/fallback.js",
            "/node_modules/next/dist/lib/file-exists.js",
            "/node_modules/next/dist/lib/find-config.js",
@@ -298,10 +297,14 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/metadata/generate/icon-mark.js",
            "/node_modules/next/dist/lib/metadata/generate/utils.js",
            "/node_modules/next/dist/lib/metadata/get-metadata-route.js",
+           "/node_modules/next/dist/lib/metadata/index.js",
            "/node_modules/next/dist/lib/metadata/is-metadata-route.js",
            "/node_modules/next/dist/lib/metadata/metadata-context.js",
+           "/node_modules/next/dist/lib/metadata/metadata-elements.js",
+           "/node_modules/next/dist/lib/metadata/metadata-parallel.js",
            "/node_modules/next/dist/lib/metadata/metadata-resolution-primitives.js",
            "/node_modules/next/dist/lib/metadata/metadata.js",
+           "/node_modules/next/dist/lib/metadata/resolve-metadata-parallel.js",
            "/node_modules/next/dist/lib/metadata/resolve-metadata.js",
            "/node_modules/next/dist/lib/metadata/resolvers/resolve-basics.js",
            "/node_modules/next/dist/lib/metadata/resolvers/resolve-icons.js",
@@ -445,8 +448,8 @@ async function readNormalizedNFT(next, name) {
 
         expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
                 [
-                  "./page/react-loadable-manifest.json",
-                  "./page_client-reference-manifest.js",
+                  "page/react-loadable-manifest.json",
+                  "page_client-reference-manifest.js",
                 ]
               `)
       })
@@ -565,8 +568,8 @@ async function readNormalizedNFT(next, name) {
 
         expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
          [
-           "./page/react-loadable-manifest.json",
-           "./page_client-reference-manifest.js",
+           "page/react-loadable-manifest.json",
+           "page_client-reference-manifest.js",
          ]
         `)
       })
@@ -624,6 +627,7 @@ async function readNormalizedNFT(next, name) {
            "./.next/server/next-font-manifest.json",
            "./.next/server/pages-manifest.json",
            "./.next/server/prefetch-hints.json",
+           "./.next/server/preview-props.json",
            "./.next/server/server-reference-manifest.js",
            "./.next/server/server-reference-manifest.json",
            "/node_modules/@swc/helpers/cjs/_interop_require_default.cjs",
@@ -707,13 +711,12 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/router-context.js",
            "/node_modules/next/dist/server/route-modules/app-page/vendored/contexts/server-inserted-html.js",
            "/node_modules/next/dist/server/runtime-reacts.external.js",
-           "/node_modules/next/dist/server/web/spec-extension/adapters/reflect.js",
            "/node_modules/next/dist/shared/lib/deep-freeze.js",
            "/node_modules/next/dist/shared/lib/instant-messages.js",
            "/node_modules/next/dist/shared/lib/invariant-error.js",
            "/node_modules/next/dist/shared/lib/is-plain-object.js",
            "/node_modules/next/dist/shared/lib/is-thenable.js",
-           "/node_modules/next/dist/shared/lib/lazy-dynamic/bailout-to-csr.js",
+           "/node_modules/next/dist/shared/lib/lazy-dynamic/react-browser-bailout.js",
            "/node_modules/next/dist/shared/lib/no-fallback-error.external.js",
            "/node_modules/next/dist/shared/lib/promise-with-resolvers.js",
            "/node_modules/next/dist/shared/lib/server-reference-info.js",

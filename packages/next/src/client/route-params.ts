@@ -11,6 +11,7 @@ import {
   NEXT_RSC_UNION_QUERY,
 } from './components/app-router-headers'
 import { hasBasePath } from './has-base-path'
+import { normalizePathTrailingSlash } from './normalize-trailing-slash'
 import { removeBasePath } from './remove-base-path'
 import type {
   NormalizedPathname,
@@ -225,9 +226,15 @@ export function urlToUrlWithoutFlightMarker(url: URL): URL {
       urlWithoutFlightParameters.pathname.endsWith('.txt')
     ) {
       const { pathname } = urlWithoutFlightParameters
-      const length = pathname.endsWith('/index.txt') ? 10 : 4
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
-      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
+      // Undo the marker appended in `fetchServerResponse`, which is keyed on
+      // whether the requested pathname ended with a slash: `index.txt` for
+      // `/foo/`, `.txt` for `/foo`. Slicing off only `index.txt` keeps that
+      // slash, then `normalizePathTrailingSlash` applies the configured
+      // policy so we don't hand-roll a second one here.
+      const length = pathname.endsWith('/index.txt') ? 9 : 4
+      urlWithoutFlightParameters.pathname = normalizePathTrailingSlash(
+        pathname.slice(0, -length)
+      )
     }
   }
   return urlWithoutFlightParameters

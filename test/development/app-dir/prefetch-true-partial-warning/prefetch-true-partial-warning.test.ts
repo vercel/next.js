@@ -34,7 +34,6 @@ describe('prefetch-true-partial-warning', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E1435",
        "description": "Next.js encountered dynamic data during prefetching.",
        "environmentLabel": null,
        "label": "Instant",

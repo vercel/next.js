@@ -31,6 +31,7 @@ import type {
   ManifestRewriteRoute,
   ManifestRoute,
   PrerenderManifest,
+  PreviewPropsManifest,
 } from '../build'
 import type { ClientReferenceManifest } from '../build/webpack/plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../build/webpack/plugins/next-font-manifest-plugin'
@@ -102,7 +103,6 @@ import {
   NEXT_URL,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_INSTANT_TEST_COOKIE,
-  NEXT_HMR_REFRESH_HEADER,
 } from '../client/components/app-router-headers'
 import { nanoid } from 'next/dist/compiled/nanoid'
 import { LocaleRouteNormalizer } from './normalizers/locale-route-normalizer'
@@ -159,7 +159,10 @@ import { fixMojibake } from './lib/fix-mojibake'
 import { setCacheBustingSearchParamWithHash } from '../client/components/router-reducer/set-cache-busting-search-param'
 import type { CacheControl } from './lib/cache-control'
 import type { PrerenderedRoute } from '../build/static-paths/types'
-import { createOpaqueFallbackRouteParams } from './request/fallback-params'
+import {
+  createOpaqueFallbackRouteParams,
+  getStagedFallbackParams,
+} from './request/fallback-params'
 import { RouteKind } from './route-kind'
 import type { ErrorModule } from './load-default-error-components'
 import {
@@ -378,6 +381,7 @@ export default abstract class Server<
     url?: string
   }): Promise<FindComponentsResult | null>
   protected abstract getPrerenderManifest(): DeepReadonly<PrerenderManifest>
+  protected abstract getPreviewProps(): DeepReadonly<PreviewPropsManifest>
   protected abstract getNextFontManifest():
     | DeepReadonly<NextFontManifest>
     | undefined
@@ -571,7 +575,7 @@ export default abstract class Server<
       trailingSlash: this.nextConfig.trailingSlash,
       poweredByHeader: this.nextConfig.poweredByHeader,
       generateEtags,
-      previewProps: this.getPrerenderManifest().preview,
+      previewProps: this.getPreviewProps(),
       basePath: this.nextConfig.basePath,
       images: this.nextConfig.images,
       optimizeCss: this.nextConfig.experimental.optimizeCss,
@@ -604,13 +608,20 @@ export default abstract class Server<
         dynamicOnHover: this.nextConfig.experimental.dynamicOnHover ?? false,
         optimisticRouting:
           this.nextConfig.experimental.optimisticRouting ?? false,
+        parallelRouteMetadata:
+          this.nextConfig.experimental.parallelRouteMetadata ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         prefetchInlining:
           this.nextConfig.experimental.prefetchInlining ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        reactBrowserBailout:
+          this.nextConfig.experimental.reactBrowserBailout ?? false,
         serverComponentsHmrCancellation:
           this.nextConfig.experimental.serverComponentsHmrCancellation,
         useCacheTimeout: this.nextConfig.experimental.useCacheTimeout,
+        durableUseCacheEntries: Boolean(
+          this.nextConfig.experimental.durableUseCacheEntries
+        ),
         cachedNavigations:
           this.nextConfig.experimental.cachedNavigations ?? false,
         maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
@@ -2140,21 +2151,14 @@ export default abstract class Server<
     if (!res.sent) {
       const { generateEtags, poweredByHeader } = this.renderOpts
 
-      // Dev responses use `no-cache` so the browser can restore them from the
-      // HTTP cache on back/forward instead of reloading. HMR refresh responses
-      // opt out into `no-store` because a superseded refresh's fetch is aborted
-      // mid-write: under `no-cache` the response is stored, so the abort leaves
-      // the cache entry shared with the superseding refresh (same URL)
-      // half-written; Chromium then discards it and reissues the superseding
-      // refresh on a second connection as a duplicate request. `no-store` keeps
-      // that entry from being created.
+      // Documents and data responses must not be stored in development.
+      // Browsers reuse a stored response for a history navigation without
+      // revalidating it, so a back navigation would restore a page from before
+      // the latest edit. Static assets never reach this code. They keep a
+      // revalidatable `Cache-Control`, so the browser caches them between page
+      // loads.
       if (this.dev) {
-        res.setHeader(
-          'Cache-Control',
-          req.headers[NEXT_HMR_REFRESH_HEADER] === '1'
-            ? 'no-store'
-            : 'no-cache, must-revalidate'
-        )
+        res.setHeader('Cache-Control', 'no-store')
         cacheControl = undefined
       }
 
@@ -2745,44 +2749,39 @@ export default abstract class Server<
 
       if (isAppPath && this.nextConfig.cacheComponents) {
         if (pathsResults.prerenderedRoutes?.length) {
-          // Replicate, on demand, the per-URL fallback set a production build
-          // writes to the prerender manifest. Production matches the requested
-          // URL to the most-specific prerendered route and defers that route's
-          // `fallbackRouteParams` (so `generateStaticParams`-covered params
-          // resolve in the static shell and only the uncovered ones are
-          // deferred). The dev prerender manifest isn't populated for these
-          // ad-hoc routes, but `getStaticPaths` already computed every
-          // prerendered route here, so we do the same match: among the routes
-          // whose canonical regex matches this URL, pick the one with the
-          // fewest fallback params (the most-specific) and thread it via the
-          // `fallbackParams` meta. A fully-covered concrete route (e.g.
-          // `/blog/a`) has zero fallback params and is the most-specific match
-          // for its own URL, so it must be considered alongside the others: it
-          // wins over the base dynamic route (`/blog/[slug]`) and leaves its
-          // statically-known params out of the deferred set.
-          let perUrlFallbackRouteParams: NonNullable<
-            (typeof pathsResults.prerenderedRoutes)[number]['fallbackRouteParams']
-          > | null = null
+          // The source selection includes concrete routes with no fallback
+          // params. Otherwise it could choose a generic fallback for a fully
+          // generated URL.
+          let matchedRoute: PrerenderedRoute | undefined
           for (const route of pathsResults.prerenderedRoutes) {
-            const fallbackRouteParams = route.fallbackRouteParams ?? []
             if (!getRouteRegex(route.pathname).re.test(urlPathname)) {
               continue
             }
             if (
-              perUrlFallbackRouteParams === null ||
-              fallbackRouteParams.length < perUrlFallbackRouteParams.length
+              matchedRoute === undefined ||
+              (route.fallbackRouteParams?.length ?? 0) <
+                (matchedRoute.fallbackRouteParams?.length ?? 0)
             ) {
-              perUrlFallbackRouteParams = fallbackRouteParams
+              matchedRoute = route
             }
           }
-          if (
-            perUrlFallbackRouteParams &&
-            perUrlFallbackRouteParams.length > 0
-          ) {
+          if (matchedRoute) {
+            // Explicit shell requests render the matched artifact. Ordinary
+            // requests stage and validate the same required or completed shell
+            // target.
             addRequestMeta(
               req,
-              'fallbackParams',
-              createOpaqueFallbackRouteParams(perUrlFallbackRouteParams)!
+              'fallbackRouteParams',
+              matchedRoute.fallbackRouteParams
+                ? createOpaqueFallbackRouteParams(
+                    matchedRoute.fallbackRouteParams
+                  )
+                : null
+            )
+            addRequestMeta(
+              req,
+              'stagedFallbackParams',
+              getStagedFallbackParams(matchedRoute)
             )
           }
         }

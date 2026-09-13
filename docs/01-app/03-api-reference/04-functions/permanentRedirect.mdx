@@ -12,8 +12,6 @@ When used in a streaming context, this will insert a meta tag to emit the redire
 
 If a resource doesn't exist, you can use the [`notFound` function](/docs/app/api-reference/functions/not-found) instead.
 
-> **Good to know**: If you prefer to return a 307 (Temporary) HTTP redirect instead of 308 (Permanent), you can use the [`redirect` function](/docs/app/api-reference/functions/redirect) instead.
-
 ## Parameters
 
 The `permanentRedirect` function accepts two arguments:
@@ -44,6 +42,11 @@ The `type` parameter has no effect when used in Server Components.
 ## Returns
 
 `permanentRedirect` does not return a value.
+
+## Behavior
+
+- In Server Actions and Route Handlers, `permanentRedirect` should be called **outside** the `try` block when using `try/catch` statements because it throws an error.
+- If you prefer to return a 307 (Temporary) HTTP redirect instead of 308 (Permanent), you can use the [`redirect` function](/docs/app/api-reference/functions/redirect) instead.
 
 ## Example
 

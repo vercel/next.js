@@ -137,7 +137,6 @@ describe('Error overlay for hydration errors in App router', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E394",
          "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -172,7 +171,6 @@ describe('Error overlay for hydration errors in App router', () => {
     } else {
       await expect(browser).toDisplayCollapsedRedbox(`
        {
-         "code": "E394",
          "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -332,7 +330,6 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "code": "E394",
          "componentStack": "...
          <Next.js Internal Component>
            <Next.js Internal Component>
@@ -404,7 +401,6 @@ describe('Error overlay for hydration errors in App router', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E394",
        "componentStack": "...
          <Next.js Internal Component>
            <Next.js Internal Component>
@@ -499,7 +495,6 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "code": "E394",
          "componentStack": "...
          <Next.js Internal Component>
            <Next.js Internal Component>
@@ -557,7 +552,6 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "code": "E394",
          "componentStack": "...
          <Next.js Internal Component>
            <Next.js Internal Component>
@@ -615,7 +609,6 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "code": "E394",
          "componentStack": "...
          <Next.js Internal Component>
            <Next.js Internal Component>
@@ -673,7 +666,6 @@ describe('Error overlay for hydration errors in App router', () => {
     await expect(browser).toDisplayCollapsedRedbox(`
      [
        {
-         "code": "E394",
          "componentStack": "...
          <Next.js Internal Component>
            <Next.js Internal Component>
@@ -710,7 +702,6 @@ describe('Error overlay for hydration errors in App router', () => {
          ],
        },
        {
-         "code": "E394",
          "description": "<p> cannot contain a nested <p>.
      See this log for the ancestor stack trace.",
          "environmentLabel": null,
@@ -753,7 +744,6 @@ describe('Error overlay for hydration errors in App router', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
-           "code": "E394",
            "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
            "environmentLabel": null,
            "label": "Console Error",
@@ -765,7 +755,6 @@ describe('Error overlay for hydration errors in App router', () => {
            ],
          },
          {
-           "code": "E394",
            "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -800,7 +789,6 @@ describe('Error overlay for hydration errors in App router', () => {
            ],
          },
          {
-           "code": "E394",
            "description": "<html> cannot contain a nested <script>.
        See this log for the ancestor stack trace.",
            "environmentLabel": null,
@@ -819,7 +807,6 @@ describe('Error overlay for hydration errors in App router', () => {
       await expect(browser).toDisplayCollapsedRedbox(`
        [
          {
-           "code": "E394",
            "description": "Cannot render a sync or defer <script> outside the main document without knowing its order. Try adding async="" or moving it into the root <head> tag.",
            "environmentLabel": null,
            "label": "Console Error",
@@ -831,7 +818,6 @@ describe('Error overlay for hydration errors in App router', () => {
            ],
          },
          {
-           "code": "E394",
            "componentStack": "...
            <Next.js Internal Component>
              <Next.js Internal Component>
@@ -865,7 +851,6 @@ describe('Error overlay for hydration errors in App router', () => {
            ],
          },
          {
-           "code": "E394",
            "description": "<html> cannot contain a nested <script>.
        See this log for the ancestor stack trace.",
            "environmentLabel": null,
