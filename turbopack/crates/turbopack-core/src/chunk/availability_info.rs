@@ -61,6 +61,29 @@ impl AvailabilityInfo {
         })
     }
 
+    /// Replaces the available modules with a flat, single-link set, discarding the parent chain.
+    ///
+    /// Used to build a minimal `AvailabilityInfo` for async loaders: the set is pre-filtered to
+    /// the modules that the loader's target can actually observe, so many different parent
+    /// availabilities collapse onto the same value.
+    pub fn with_flattened_modules(self, modules: ResolvedVc<AvailableModules>) -> Self {
+        Self {
+            flags: self.flags,
+            available_modules: Some(modules),
+            entry_group: self.entry_group,
+        }
+    }
+
+    /// Removes the entry group. Only valid when no `ChunkingType::Collected` edge is reachable,
+    /// since the entry group exists to activate those edges during traversal.
+    pub fn without_entry_group(self) -> Self {
+        Self {
+            flags: self.flags,
+            available_modules: self.available_modules,
+            entry_group: None,
+        }
+    }
+
     pub fn in_async_module(self) -> Self {
         let mut flags = self.flags;
         flags.set_is_in_async_module(true);

@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_reexport-drop_dynamic_input_lib_062uldbido_hx.js",
+(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/0_9x_turbopack-tests_tests_snapshot_reexport-drop_dynamic_input_lib_1c-lg__bxau54.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/reexport-drop/dynamic/input/lib.js [test] (ecmascript, async loader)", ((__turbopack_context__) => {
 
 __turbopack_context__.v((parentImport) => {
