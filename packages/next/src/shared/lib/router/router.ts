@@ -1379,7 +1379,7 @@ export default class Router implements BaseRouter {
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
 
-    if (!isQueryUpdating && this.onlyAHashChange(cleanedAs) && !localeChange) {
+  if (!isQueryUpdating && this.onlyAHashChange(cleanedAs, url) && !localeChange) {
       nextState.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
@@ -2334,17 +2334,34 @@ export default class Router implements BaseRouter {
     this._bps = cb
   }
 
-  onlyAHashChange(as: string): boolean {
+  // Accept an optional `url` (href) to ensure that when the href/search
+  // changes we don't incorrectly treat the navigation as only a hash
+  // change. When `url` is not provided we fallback to previous behavior.
+  onlyAHashChange(as: string, url?: string): boolean {
     if (!this.asPath) return false
     const [oldUrlNoHash, oldHash] = this.asPath.split('#', 2)
-    const [newUrlNoHash, newHash] = as.split('#', 2)
+    const [newAsNoHash, newHash] = as.split('#', 2)
+
+    // If a `url` (href) is provided, prefer comparing against it so we
+    // can detect changes in the search/query part of the href which
+    // should *not* be considered a hash-only change even if the `as`
+    // stays the same.
+    let newUrlNoHash = newAsNoHash
+    if (url) {
+      try {
+        const parsed = parseRelativeUrl(url)
+        newUrlNoHash = `${parsed.pathname}${parsed.search || ''}`
+      } catch (e) {
+        newUrlNoHash = newAsNoHash
+      }
+    }
 
     // Makes sure we scroll to the provided hash if the url/hash are the same
     if (newHash && oldUrlNoHash === newUrlNoHash && oldHash === newHash) {
       return true
     }
 
-    // If the urls are change, there's more than a hash change
+    // If the urls are changed (path or search), there's more than a hash change
     if (oldUrlNoHash !== newUrlNoHash) {
       return false
     }
