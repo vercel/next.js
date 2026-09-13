@@ -1,0 +1,13 @@
+import { useState, useEffect } from 'react';
+import { usePathname } from 'next/navigation';
+
+export function useRouteChange() {
+  const pathname = usePathname();
+  const [routeKey, setRouteKey] = useState(pathname);
+
+  useEffect(() => {
+    setRouteKey(pathname);
+  }, [pathname]);
+
+  return routeKey;
+}
