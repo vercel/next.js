@@ -1,4 +1,29 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1do3_crates_turbopack-tests_tests_snapshot_comptime_typeof_input_1y4b353ijz1yk._.js",
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+
+var __TURBOPACK__import$2e$meta__ = {
+    get url () {
+        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js");
+    },
+    env: {
+        DEV: true,
+        PROD: false,
+        MODE: "development",
+        BASE_URL: "/",
+        SSR: false
+    }
+};
+console.log('typeof require', ("TURBOPACK compile-time value", "function"));
+console.log('typeof import.meta', ("TURBOPACK compile-time value", "object"));
+// CJS, should be `object`
+console.log('typeof module', ("TURBOPACK compile-time value", "object"));
+console.log('typeof exports', ("TURBOPACK compile-time value", "object"));
+// CJS, should be real require
+console.log(/*TURBOPACK member replacement*/ __turbopack_context__.t);
+}),
+"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/dep.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
+
+}),
 (function(){"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-automatic.js [test] (ecmascript)", ((__turbopack_context__) => {
 
@@ -58,33 +83,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 }),
-]})(),[
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
-
-var __TURBOPACK__import$2e$meta__ = {
-    get url () {
-        return __turbopack_context__.F("turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/cjs.js");
-    },
-    env: {
-        DEV: true,
-        PROD: false,
-        MODE: "development",
-        BASE_URL: "/",
-        SSR: false
-    }
-};
-console.log('typeof require', ("TURBOPACK compile-time value", "function"));
-console.log('typeof import.meta', ("TURBOPACK compile-time value", "object"));
-// CJS, should be `object`
-console.log('typeof module', ("TURBOPACK compile-time value", "object"));
-console.log('typeof exports', ("TURBOPACK compile-time value", "object"));
-// CJS, should be real require
-console.log(/*TURBOPACK member replacement*/ __turbopack_context__.t);
-}),
-"[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/dep.js [test] (ecmascript)", ((__turbopack_context__, module, exports) => {
-
-}),
-]
+]})(),
 ]);
 
 //# sourceMappingURL=1do3_crates_turbopack-tests_tests_snapshot_comptime_typeof_input_1y4b353ijz1yk._.js.map

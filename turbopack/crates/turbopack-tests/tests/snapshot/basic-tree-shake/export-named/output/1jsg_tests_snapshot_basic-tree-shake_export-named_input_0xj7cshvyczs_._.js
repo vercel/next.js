@@ -85,8 +85,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 }),
-]})(),[
-]
+]})(),
 ]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_basic-tree-shake_export-named_input_0xj7cshvyczs_._.js.map

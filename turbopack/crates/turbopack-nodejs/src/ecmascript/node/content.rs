@@ -66,11 +66,16 @@ impl EcmascriptNodeChunkContent {
         write!(code, "module.exports = [")?;
 
         let content = self.content.await?;
-        let group_strict_factories =
-            should_group_strict_factories(content.strict_module_factory_count().await?);
-        let mut chunk_items = content
-            .chunk_item_code_module_ids_and_paths(group_strict_factories)
-            .await?;
+        let mut chunk_items = content.chunk_item_code_module_ids_and_paths(false).await?;
+        let strict_factory_count = chunk_items
+            .iter()
+            .flat_map(|item| item.iter())
+            .filter(|(_, _, _, mode)| mode.is_strict())
+            .count();
+        let group_strict_factories = should_group_strict_factories(strict_factory_count);
+        if group_strict_factories {
+            chunk_items = content.chunk_item_code_module_ids_and_paths(true).await?;
+        }
         sort_chunk_items_by_path(&mut chunk_items);
         write_module_factories(&mut code, &chunk_items, group_strict_factories)?;
 

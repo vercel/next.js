@@ -176,8 +176,7 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 }),
-]})(),[
-]
+]})(),
 ]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_basic-tree-shake_export-namespace_input_1mqgz2-3_b4v8._.js.map

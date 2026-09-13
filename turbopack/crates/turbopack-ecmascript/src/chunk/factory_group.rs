@@ -14,18 +14,14 @@ use crate::{
 pub const STRICT_MODE_DIRECTIVE: &str = "\"use strict\";\n\n";
 /// Start of the strict array's IIFE.
 const STRICT_FACTORY_GROUP_PREFIX: &str = "\n(function(){\"use strict\";return[";
-/// Separates the strict array returned by the IIFE from the non-strict array.
-const STRICT_FACTORY_GROUP_SEPARATOR: &str = "\n]})(),[";
-/// Closes the non-strict factory array.
-const STRICT_FACTORY_GROUP_SUFFIX: &str = "\n]";
+/// Closes the strict array and IIFE while leaving the outer factory sequence open.
+const STRICT_FACTORY_GROUP_SUFFIX: &str = "\n]})(),";
 
 /// Grouping the strict factories only pays off when the directives it removes outweigh the wrapper
 /// it adds, which is the case from three strict factories onwards.
 pub fn should_group_strict_factories(strict_factory_count: usize) -> bool {
     strict_factory_count.saturating_mul(STRICT_MODE_DIRECTIVE.len())
-        > STRICT_FACTORY_GROUP_PREFIX.len()
-            + STRICT_FACTORY_GROUP_SEPARATOR.len()
-            + STRICT_FACTORY_GROUP_SUFFIX.len()
+        > STRICT_FACTORY_GROUP_PREFIX.len() + STRICT_FACTORY_GROUP_SUFFIX.len()
 }
 
 /// Sorts chunk items by module path so that similar modules stay together and the chunk gzips
@@ -40,20 +36,19 @@ pub fn sort_chunk_items_by_path(chunk_items: &mut [ReadRef<CodeModuleIdsAndPaths
 
 /// Writes the `id, factory,` pairs of a chunk into `code`.
 ///
-/// When `group_strict_factories` is set, the strict factories are written into an array returned by
-/// a strict-mode IIFE and the non-strict factories into a second array, so that the strict-mode
-/// directive is emitted once per chunk instead of once per factory. Otherwise all factories are
-/// written into a single flat sequence.
+/// When `group_strict_factories` is set, non-strict factories stay in the flat sequence and the
+/// strict factories are appended as an array returned by a strict-mode IIFE. This emits the
+/// strict-mode directive once per chunk instead of once per factory without adding an empty array
+/// to all-strict chunks. Otherwise all factories are written into one flat sequence.
 pub fn write_module_factories(
     code: &mut CodeBuilder,
     chunk_items: &[ReadRef<CodeModuleIdsAndPaths>],
     group_strict_factories: bool,
 ) -> Result<()> {
     if group_strict_factories {
+        write_factories(code, chunk_items, |mode| !mode.is_strict())?;
         *code += STRICT_FACTORY_GROUP_PREFIX;
         write_factories(code, chunk_items, ModuleFactoryMode::is_strict)?;
-        *code += STRICT_FACTORY_GROUP_SEPARATOR;
-        write_factories(code, chunk_items, |mode| !mode.is_strict())?;
         *code += STRICT_FACTORY_GROUP_SUFFIX;
     } else {
         write_factories(code, chunk_items, |_| true)?;

@@ -55,8 +55,7 @@ __turbopack_context__.s([
 const lower = 'lowercase';
 const UPPER = 'UPPER';
 }),
-]})(),[
-]
+]})(),
 ]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_comptime_cross-module-attribute_input_0scutbfo13k0p._.js.map

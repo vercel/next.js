@@ -68,8 +68,7 @@ __turbopack_context__.s([
     y
 ]);
 }),
-]})(),[
-]
+]})(),
 ]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_remove-unused-imports_exports_input_07rt4kfe5xt7p._.js.map
