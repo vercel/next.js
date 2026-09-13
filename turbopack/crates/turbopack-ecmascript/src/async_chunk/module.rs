@@ -1,17 +1,22 @@
 use anyhow::{Result, bail};
 use indoc::formatdoc;
+use rustc_hash::FxHashSet;
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, OperationVc, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        ChunksData, ModuleChunkItemIdExt, availability_info::AvailabilityInfo,
+        ChunkingType, ChunksData, ModuleChunkItemIdExt,
+        availability_info::AvailabilityInfo,
+        available_modules::{AvailableModuleItem, AvailableModules, AvailableModulesSet},
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
     module_graph::{
-        ModuleGraph, chunk_group_info::ChunkGroup, module_batch::ChunkableModuleOrBatch,
+        GraphTraversalAction, ModuleGraph,
+        chunk_group_info::ChunkGroup,
+        module_batch::{ChunkableModuleOrBatch, ModuleOrBatch},
     },
     output::OutputAssetsWithReferenced,
     reference::ModuleReferences,
@@ -35,10 +40,140 @@ pub struct AsyncLoaderModule {
     pub availability_info: AvailabilityInfo,
 }
 
+/// Computes the subset of `availability_info` that `module`'s chunk group can observe.
+///
+/// The loader's output depends on the parent's availability only through the chunk group of
+/// `module`, which only ever queries availability for modules reachable from `module`. Everything
+/// else in the parent's availability is an over-approximation that splits the loader into one
+/// variant per parent, even when every variant produces identical code.
+///
+/// Narrowing to the reachable set lets many parents collapse onto one `AsyncLoaderModule` cell, so
+/// the chunk group, chunk items and output chunk are computed once instead of once per parent.
+///
+/// This is a plain helper rather than a cached function: it has the same inputs as its only
+/// caller, so a task of its own would add bookkeeping without ever adding a cache hit.
+///
+/// The reachable set is taken over the whole subgraph, including across async edges, because the
+/// result replaces the parent chain (see `AvailabilityInfo::with_flattened_modules`) and nested
+/// chunk groups chain their own availability onto it.
+async fn filtered_available_modules(
+    module: ResolvedVc<Box<dyn ChunkableModule>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+    availability_info: AvailabilityInfo,
+) -> Result<FxIndexSet<AvailableModuleItem>> {
+    let Some(available_modules) = availability_info.available_modules() else {
+        return Ok(FxIndexSet::default());
+    };
+    let snapshot = available_modules.snapshot().await?;
+    let batches = module_graph
+        .module_batches(chunking_context.batching_config())
+        .await?;
+
+    // Walk the whole subgraph reachable from the target, keeping the available items among it.
+    // `active_page_entries` is passed through so that the same `Collected` edges are active here
+    // as in `chunk_group_content`.
+    let entry = batches.get_entry_index(ResolvedVc::upcast(module)).await?;
+    let active_page_entries: Option<FxHashSet<ResolvedVc<Box<dyn Module>>>> =
+        if let Some(entry_group) = availability_info.entry_group() {
+            Some(entry_group.await?.iter().copied().collect())
+        } else {
+            None
+        };
+    let mut filtered: FxIndexSet<AvailableModuleItem> = FxIndexSet::default();
+    batches.traverse_edges_from_entries_dfs(
+        [entry],
+        active_page_entries.as_ref(),
+        &mut filtered,
+        |parent_info, &node, filtered| {
+            // Placeholder nodes carry no module; keep descending past them.
+            if matches!(node, ModuleOrBatch::None(_)) {
+                return Ok(GraphTraversalAction::Continue);
+            }
+
+            // Traced modules are ignored during chunking entirely.
+            if let Some((_, edge)) = parent_info
+                && matches!(edge.ty, ChunkingType::Traced { .. })
+            {
+                return Ok(GraphTraversalAction::Exclude);
+            }
+
+            // This chunk group stops at async edges: the target becomes its own chunk group, and
+            // only its `AsyncLoader` item is probed here. But the nested chunk group *chains* its
+            // availability onto this one, so the modules behind the edge have to be collected too
+            // — otherwise the nested loader would inherit a set that is missing modules its parent
+            // really did have available, and would redundantly re-chunk them.
+            if let Some((_, edge)) = parent_info
+                && matches!(edge.ty, ChunkingType::Async)
+                && let Some(chunkable) = edge.module.and_then(ResolvedVc::try_downcast)
+            {
+                let item = AvailableModuleItem::AsyncLoader(chunkable);
+                if snapshot.get(item) {
+                    filtered.insert(item);
+                }
+            }
+
+            let Some(chunkable_node) = ChunkableModuleOrBatch::from_module_or_batch(node) else {
+                return Ok(GraphTraversalAction::Exclude);
+            };
+            let item: AvailableModuleItem = chunkable_node.into();
+            if snapshot.get(item) {
+                filtered.insert(item);
+            }
+            // Keep descending even through available nodes and async edges: `chunk_group_content`
+            // prunes there, but a nested chunk group inheriting this set may not.
+            Ok(GraphTraversalAction::Continue)
+        },
+        |_, _, _| {},
+    )?;
+    Ok(filtered)
+}
+
+/// Re-exposes an already-computed set as an operation.
+///
+/// `AvailableModules` stores its set as an `OperationVc`, whose identity is the task it came from.
+/// Passing the filtered set through this function keys that task on the set *contents*, so two
+/// parents whose filtered availability is equal share one task, one `AvailableModules` cell, one
+/// `AvailabilityInfo` and therefore one `AsyncLoaderModule`.
+#[turbo_tasks::function(operation)]
+fn available_modules_set(items: Vec<AvailableModuleItem>) -> Vc<AvailableModulesSet> {
+    Vc::cell(items.into_iter().collect())
+}
+
 #[turbo_tasks::value_impl]
 impl AsyncLoaderModule {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        availability_info: AvailabilityInfo,
+    ) -> Result<Vc<Self>> {
+        let filtered =
+            filtered_available_modules(module, chunking_context, module_graph, availability_info)
+                .await?;
+        let filtered: OperationVc<AvailableModulesSet> =
+            available_modules_set(filtered.into_iter().collect());
+        let mut availability_info = availability_info
+            .with_flattened_modules(AvailableModules::new(filtered).to_resolved().await?);
+
+        // `entry_group` only exists to activate `ChunkingType::Collected` edges during traversal
+        // (and to serve collecting modules). When the graph has no collected modules at all, no
+        // such edge exists, so the entry group cannot affect this chunk group and keeping it would
+        // needlessly split the loader once per entry.
+        if module_graph.collected_modules().await?.is_empty() {
+            availability_info = availability_info.without_entry_group();
+        }
+
+        Ok(Self::new_deduped(
+            *module,
+            *chunking_context,
+            availability_info,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn new_deduped(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         availability_info: AvailabilityInfo,
