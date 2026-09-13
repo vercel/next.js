@@ -12,7 +12,10 @@ import {
   type RouteModuleHandleContext,
   type RouteModuleOptions,
 } from '../route-module'
-import { createRequestStoreForAPI } from '../../async-storage/request-store'
+import {
+  createRequestStoreForAPI,
+  synchronizeMutableCookies,
+} from '../../async-storage/request-store'
 import {
   createPrerenderWorkStore,
   createWorkStore,
@@ -839,6 +842,13 @@ export class AppRouteRouteModule extends RouteModule<
         requestStore,
         context
       )
+    } finally {
+      // `after()` callbacks run once the response is done, when `cookies()`
+      // returns the immutable `cookies` snapshot instead of the mutable
+      // cookies. Synchronize them so that the callbacks see any cookies the
+      // handler set, like `executeActionAndPrepareForRender` does for Server
+      // Actions.
+      synchronizeMutableCookies(requestStore)
     }
 
     return this.finalizeResponse(
