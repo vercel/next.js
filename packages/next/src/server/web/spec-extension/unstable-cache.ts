@@ -163,6 +163,8 @@ export function unstable_cache<T extends Callback>(
         phase: 'render',
         consumerWillServerCache: true,
         implicitTags,
+        segmentStore: null,
+        metadataSegmentStore: null,
         draftMode:
           workUnitStore &&
           workStore &&
