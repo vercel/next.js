@@ -1,6 +1,5 @@
 ---
-title: Turbopack Memory Eviction
-nav_title: turbopackMemoryEviction
+title: turbopackMemoryEviction
 description: Learn how to control Turbopack's memory eviction strategy for the persistent cache.
 ---
 
@@ -14,7 +13,7 @@ Currently there are three options
 - `'auto'` (default): evict after a snapshot only once enough memory has been allocated since the last eviction to make it worthwhile. Leverages thresholds and memory pressure feedback from the operating system.
 - `'full'`: evict all possible data from memory every time we save to disk.
 
-> **Good to know:** This option only has an effect in `next dev` sessions when the [FileSystem Cache](/docs/app/api-reference/config/next-config-js/turbopackFileSystemCache) is enabled, since eviction relies on data already being persisted to disk. It is experimental and under active development.
+> **Good to know:** This option only has an effect in `next dev` sessions when the [FileSystem Cache](/docs/turbopack/configuration/turbopackFileSystemCache) is enabled, since eviction relies on data already being persisted to disk. It is experimental and under active development.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
