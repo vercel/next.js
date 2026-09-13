@@ -1069,14 +1069,14 @@ pub async fn get_server_chunking_context_with_client_assets(
         node_root.clone(),
         node_root_to_root_path,
         client_root.clone(),
-        node_root.join("server/chunks/ssr")?,
+        node_root.join("server/chunks")?,
         client_root
             .join(&client_static_folder_name)?
             .join("media")?,
         environment.to_resolved().await?,
         next_mode.runtime_type(),
     )
-    .asset_prefix(Some(asset_prefix))
+    .asset_prefix_override(rcstr!("client"), asset_prefix)
     .url_behavior_override(
         rcstr!("client"),
         UrlBehavior {
