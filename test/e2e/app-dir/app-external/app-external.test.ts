@@ -15,8 +15,11 @@ async function resolveStreamResponse(response: any, onData?: any) {
   return result
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app dir - external dependency', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     dependencies: {
       swr: '2.2.5',
@@ -32,12 +35,7 @@ describe('app dir - external dependency', () => {
     installCommand: 'pnpm i',
     startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
     buildCommand: 'pnpm build',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should be able to opt-out 3rd party packages being bundled in server components', async () => {
     await next.fetch('/react-server/optout').then(async (response) => {
