@@ -803,7 +803,7 @@ export default class DevServer extends Server {
             }
 
             if (
-              !prerenderedRoutes.some((item) => item.pathname === urlPathname)
+              !prerenderedRoutes.some((item) => item.pathname === decodeURIComponent(urlPathname))
             ) {
               throw new Error(
                 `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
