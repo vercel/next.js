@@ -3,32 +3,88 @@ import * as fs from 'fs'
 
 // Cache for fs.readdirSync lookup.
 // Prevent multiple blocking IO requests that have already been calculated.
-const fsReadDirSyncCache = {}
+const fsReadDirSyncCache: Record<string, fs.Dirent[]> = {}
+
+const DEFAULT_EXTENSIONS = ['js', 'jsx', 'ts', 'tsx']
+
+type PageExtensionUtils = {
+  matchesFile: (name: string) => boolean
+  stripExtension: (name: string) => string
+}
+
+const sanitizeExtensions = (extensions: string[]): string[] => {
+  if (!extensions.length) {
+    return DEFAULT_EXTENSIONS
+  }
+
+  const normalized = extensions
+    .map((extension) => extension.replace(/^\./, '').toLowerCase())
+    .filter(Boolean)
+
+  if (!normalized.length) {
+    return DEFAULT_EXTENSIONS
+  }
+
+  return Array.from(new Set(normalized))
+}
+
+const createPageExtensionUtils = (pageExtensions: string[]): PageExtensionUtils => {
+  const normalized = sanitizeExtensions(pageExtensions)
+  const sortedExtensions = [...normalized].sort((a, b) => b.length - a.length)
+
+  return {
+    matchesFile(name: string) {
+      const lowerName = name.toLowerCase()
+      return sortedExtensions.some((extension) =>
+        lowerName.endsWith(`.${extension}`)
+      )
+    },
+    stripExtension(name: string) {
+      const lowerName = name.toLowerCase()
+      for (const extension of sortedExtensions) {
+        const suffix = `.${extension}`
+        if (lowerName.endsWith(suffix)) {
+          return name.slice(0, -suffix.length)
+        }
+      }
+      return name
+    },
+  }
+}
 
 /**
  * Recursively parse directory for page URLs.
  */
-function parseUrlForPages(urlprefix: string, directory: string) {
+function parseUrlForPages(
+  urlprefix: string,
+  directory: string,
+  utils: PageExtensionUtils
+) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
-  const res = []
+  const res: string[] = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^index(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(
-          `${urlprefix}${dirent.name.replace(/^index(\.(j|t)sx?)$/, '')}`
-        )
-      }
-      res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
-    } else {
-      const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
-      }
+    const dirPath = path.join(directory, dirent.name)
+
+    if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+      res.push(
+        ...parseUrlForPages(urlprefix + dirent.name + '/', dirPath, utils)
+      )
+      return
     }
+
+    if (!dirent.isFile() || !utils.matchesFile(dirent.name)) {
+      return
+    }
+
+    const strippedName = utils.stripExtension(dirent.name)
+
+    if (/^index$/i.test(strippedName)) {
+      res.push(`${urlprefix}`)
+    }
+
+    res.push(`${urlprefix}${strippedName}`)
   })
   return res
 }
@@ -36,26 +92,41 @@ function parseUrlForPages(urlprefix: string, directory: string) {
 /**
  * Recursively parse app directory for URLs.
  */
-function parseUrlForAppDir(urlprefix: string, directory: string) {
+function parseUrlForAppDir(
+  urlprefix: string,
+  directory: string,
+  utils: PageExtensionUtils
+) {
   fsReadDirSyncCache[directory] ??= fs.readdirSync(directory, {
     withFileTypes: true,
   })
-  const res = []
+  const res: string[] = []
   fsReadDirSyncCache[directory].forEach((dirent) => {
-    // TODO: this should account for all page extensions
-    // not just js(x) and ts(x)
-    if (/(\.(j|t)sx?)$/.test(dirent.name)) {
-      if (/^page(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/^page(\.(j|t)sx?)$/, '')}`)
-      } else if (!/^layout(\.(j|t)sx?)$/.test(dirent.name)) {
-        res.push(`${urlprefix}${dirent.name.replace(/(\.(j|t)sx?)$/, '')}`)
-      }
-    } else {
-      const dirPath = path.join(directory, dirent.name)
-      if (dirent.isDirectory(dirPath) && !dirent.isSymbolicLink()) {
-        res.push(...parseUrlForPages(urlprefix + dirent.name + '/', dirPath))
-      }
+    const dirPath = path.join(directory, dirent.name)
+
+    if (dirent.isDirectory() && !dirent.isSymbolicLink()) {
+      res.push(
+        ...parseUrlForAppDir(urlprefix + dirent.name + '/', dirPath, utils)
+      )
+      return
     }
+
+    if (!dirent.isFile() || !utils.matchesFile(dirent.name)) {
+      return
+    }
+
+    const strippedName = utils.stripExtension(dirent.name)
+
+    if (strippedName === 'layout') {
+      return
+    }
+
+    if (strippedName === 'page') {
+      res.push(`${urlprefix}`)
+      return
+    }
+
+    res.push(`${urlprefix}${strippedName}`)
   })
   return res
 }
@@ -136,13 +207,16 @@ export function normalizeAppPath(route: string) {
  */
 export function getUrlFromPagesDirectories(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  pageExtensions: string[]
 ) {
+  const utils = createPageExtensionUtils(pageExtensions)
+
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .flatMap((directory) => parseUrlForPages(urlPrefix, directory))
+        .flatMap((directory) => parseUrlForPages(urlPrefix, directory, utils))
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
           (url) => `^${normalizeURL(url)}$`
@@ -156,13 +230,16 @@ export function getUrlFromPagesDirectories(
 
 export function getUrlFromAppDirectory(
   urlPrefix: string,
-  directories: string[]
+  directories: string[],
+  pageExtensions: string[]
 ) {
+  const utils = createPageExtensionUtils(pageExtensions)
+
   return Array.from(
     // De-duplicate similar pages across multiple directories.
     new Set(
       directories
-        .map((directory) => parseUrlForAppDir(urlPrefix, directory))
+        .map((directory) => parseUrlForAppDir(urlPrefix, directory, utils))
         .flat()
         .map(
           // Since the URLs are normalized we add `^` and `$` to the RegExp to make sure they match exactly.
