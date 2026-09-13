@@ -158,6 +158,7 @@
         export: Some(
             "createRequire",
         ),
+        local: None,
         ast_path: [
             Program(
                 Module,

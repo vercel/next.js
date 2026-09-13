@@ -4,6 +4,9 @@
         export: Some(
             "calledA1",
         ),
+        local: Some(
+            "calledA1",
+        ),
         ast_path: [
             Program(
                 Module,
@@ -175,6 +178,9 @@
         export: Some(
             "unreachableA3",
         ),
+        local: Some(
+            "unreachableA3",
+        ),
         ast_path: [
             Program(
                 Module,
@@ -295,6 +301,9 @@
     ImportedBinding {
         esm_reference_index: 8,
         export: Some(
+            "unreachableB1",
+        ),
+        local: Some(
             "unreachableB1",
         ),
         ast_path: [
@@ -496,6 +505,9 @@
         export: Some(
             "calledB1",
         ),
+        local: Some(
+            "calledB1",
+        ),
         ast_path: [
             Program(
                 Module,
@@ -616,6 +628,9 @@
     ImportedBinding {
         esm_reference_index: 3,
         export: Some(
+            "calledC1",
+        ),
+        local: Some(
             "calledC1",
         ),
         ast_path: [
@@ -815,6 +830,9 @@
     ImportedBinding {
         esm_reference_index: 4,
         export: Some(
+            "calledC2",
+        ),
+        local: Some(
             "calledC2",
         ),
         ast_path: [
