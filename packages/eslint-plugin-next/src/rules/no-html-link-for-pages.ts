@@ -62,6 +62,20 @@ export default defineRule({
           },
         ],
       },
+      {
+        oneOf: [
+          {
+            type: 'array',
+            uniqueItems: true,
+            items: {
+              type: 'string',
+            },
+          },
+          {
+            type: 'null',
+          },
+        ],
+      },
     ],
   },
 
@@ -69,8 +83,16 @@ export default defineRule({
    * Creates an ESLint rule listener.
    */
   create(context) {
-    const ruleOptions: (string | string[])[] = context.options
-    const [customPagesDirectory] = ruleOptions
+    const ruleOptions: (string | string[] | null)[] = context.options
+    const [customPagesDirectory, customPageExtensions] = ruleOptions
+
+    // Default page extensions from Next.js
+    const pageExtensions = customPageExtensions || ['tsx', 'ts', 'jsx', 'js']
+
+    // Create regex pattern for matching page files with custom extensions
+    const pageExtensionsPattern = pageExtensions.length > 0
+      ? new RegExp(`\\.(${pageExtensions.join('|')})$`)
+      : /\.(j|t)sx?$/
 
     const rootDirs = getRootDirs(context)
 
@@ -107,8 +129,8 @@ export default defineRule({
       return {}
     }
 
-    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs)
-    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs)
+    const pageUrls = cachedGetUrlFromPagesDirectories('/', foundPagesDirs, pageExtensions)
+    const appDirUrls = cachedGetUrlFromAppDirectory('/', foundAppDirs, pageExtensions)
     const allUrlRegex = [...pageUrls, ...appDirUrls]
 
     return {
