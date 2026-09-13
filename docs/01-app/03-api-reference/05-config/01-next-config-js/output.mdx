@@ -152,7 +152,13 @@ Common include patterns for native/runtime assets:
 ```js filename="next.config.js"
 module.exports = {
   outputFileTracingIncludes: {
-    '/*': ['node_modules/sharp/**/*', 'node_modules/aws-crt/dist/bin/**/*'],
+    '/*': [
+      'node_modules/sharp/**/*',
+      'node_modules/@img/**/*',
+      'node_modules/aws-crt/dist/bin/**/*',
+    ],
   },
 }
 ```
+
+> **Good to know**: As of `sharp@0.33`, the prebuilt native binaries live in separate `@img/*` packages (hoisted as siblings of `sharp` in `node_modules`), so `node_modules/@img/**/*` must be included alongside `node_modules/sharp/**/*` — otherwise the trace omits the native binary and the function fails at runtime with `Could not load the "sharp" module`. These globs supplement static tracing: when a package is statically imported, `@vercel/nft` already pulls in its pure-JS dependencies automatically.
