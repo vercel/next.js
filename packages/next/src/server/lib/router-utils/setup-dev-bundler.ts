@@ -91,6 +91,7 @@ import { normalizePath } from '../../../lib/normalize-path'
 import { recursiveReadDir } from '../../../lib/recursive-readdir'
 import {
   JSON_CONTENT_TYPE_HEADER,
+  JAVASCRIPT_CONTENT_TYPE_HEADER,
   MIDDLEWARE_FILENAME,
   PROXY_FILENAME,
 } from '../../../lib/constants'
@@ -1517,14 +1518,23 @@ async function startWatcher(
       return { finished: true }
     }
 
-    if (
-      pathname !== null &&
-      (pathname.includes(devMiddlewareManifestPath) ||
-        pathname.includes(devTurbopackMiddlewareManifestPath))
-    ) {
+    if (pathname !== null && pathname.includes(devMiddlewareManifestPath)) {
       res.statusCode = 200
       res.setHeader('Content-Type', JSON_CONTENT_TYPE_HEADER)
       res.end(JSON.stringify(serverFields.middleware?.matchers || []))
+      return { finished: true }
+    }
+
+    if (
+      pathname !== null &&
+      pathname.includes(devTurbopackMiddlewareManifestPath)
+    ) {
+      res.statusCode = 200
+      res.setHeader('Content-Type', JAVASCRIPT_CONTENT_TYPE_HEADER)
+      const matchers = serverFields.middleware?.matchers || []
+      res.end(
+        `self.__MIDDLEWARE_MATCHERS = ${JSON.stringify(matchers)};self.__MIDDLEWARE_MATCHERS_CB && self.__MIDDLEWARE_MATCHERS_CB()`
+      )
       return { finished: true }
     }
     return { finished: false }
