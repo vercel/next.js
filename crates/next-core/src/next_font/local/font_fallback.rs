@@ -26,9 +26,37 @@ pub(crate) enum FontFallbackResult {
     FontFileNotFound(FontFileNotFound),
 }
 
-// From
-// https://github.com/vercel/next.js/blob/7457be0c74e64b4d0617943ed27f4d557cc916be/packages/font/src/local/get-fallback-metrics-from-font-file.ts#L34
-static AVG_CHARACTERS: &str = "aaabcdeeeefghiijklmnnoopqrrssttuvwxyz      ";
+// English letter frequency weights from capsize/Wikipedia.
+// https://github.com/seek-oss/capsize/blob/42d6dc39d58247bc6b9e013a4b1c4463bf287dca/packages/unpack/src/index.ts#L7-L34
+static X_WIDTH_AVG_WEIGHTS: [(char, f64); 27] = [
+    ('a', 0.0668),
+    ('b', 0.0122),
+    ('c', 0.0228),
+    ('d', 0.0348),
+    ('e', 0.1039),
+    ('f', 0.0182),
+    ('g', 0.0165),
+    ('h', 0.0499),
+    ('i', 0.0570),
+    ('j', 0.0013),
+    ('k', 0.0063),
+    ('l', 0.0329),
+    ('m', 0.0197),
+    ('n', 0.0552),
+    ('o', 0.0614),
+    ('p', 0.0158),
+    ('q', 0.0008),
+    ('r', 0.0490),
+    ('s', 0.0518),
+    ('t', 0.0741),
+    ('u', 0.0226),
+    ('v', 0.0080),
+    ('w', 0.0193),
+    ('x', 0.0012),
+    ('y', 0.0162),
+    ('z', 0.0006),
+    (' ', 0.1818),
+];
 static NORMAL_WEIGHT: f64 = 400.0;
 static BOLD_WEIGHT: f64 = 700.0;
 
@@ -115,7 +143,7 @@ async fn get_font_adjustment(
         )
     })?;
 
-    let az_avg_width = calc_average_width(&mut font);
+    let x_width_avg = calc_x_width_avg(&mut font);
     let units_per_em = font
         .head_table()?
         .with_context(|| {
@@ -126,11 +154,9 @@ async fn get_font_adjustment(
         })?
         .units_per_em as f64;
 
-    let fallback_avg_width = fallback_font.az_avg_width / fallback_font.units_per_em as f64;
-    // TODO: Use xWidthAvg like next/google.
-    //       JS implementation: https://github.com/seek-oss/capsize/blob/42d6dc39d58247bc6b9e013a4b1c4463bf287dca/packages/unpack/src/index.ts#L7-L83
-    let size_adjust = match az_avg_width {
-        Some(az_avg_width) => az_avg_width as f64 / units_per_em / fallback_avg_width,
+    let fallback_avg_width = fallback_font.x_width_avg / fallback_font.units_per_em as f64;
+    let size_adjust = match x_width_avg {
+        Some(x_width_avg) => x_width_avg / units_per_em / fallback_avg_width,
         None => 1.0,
     };
 
@@ -142,9 +168,12 @@ async fn get_font_adjustment(
     }))
 }
 
-fn calc_average_width(font: &mut Font<DynamicFontTableProvider>) -> Option<f32> {
-    let has_all_glyphs = AVG_CHARACTERS.chars().all(|c| {
-        font.lookup_glyph_index(c, allsorts::font::MatchingPresentation::NotRequired, None)
+/// Calculates a frequency-weighted average character width (xWidthAvg) from the
+/// font, matching the capsize library's approach used by next/google.
+/// Each character's advance width is weighted by its frequency in English text.
+fn calc_x_width_avg(font: &mut Font<DynamicFontTableProvider>) -> Option<f64> {
+    let has_all_glyphs = X_WIDTH_AVG_WEIGHTS.iter().all(|(c, _)| {
+        font.lookup_glyph_index(*c, allsorts::font::MatchingPresentation::NotRequired, None)
             .0
             > 0
     });
@@ -152,17 +181,17 @@ fn calc_average_width(font: &mut Font<DynamicFontTableProvider>) -> Option<f32> 
         return None;
     }
 
-    Some(
-        font.map_glyphs(
-            AVG_CHARACTERS,
-            allsorts::tag::LATN,
-            allsorts::font::MatchingPresentation::NotRequired,
-        )
+    let weighted_width = X_WIDTH_AVG_WEIGHTS
         .iter()
-        .map(|g| font.horizontal_advance(g.glyph_index).unwrap())
-        .sum::<u16>() as f32
-            / AVG_CHARACTERS.len() as f32,
-    )
+        .fold(0.0_f64, |sum, (c, weight)| {
+            let glyph_index = font
+                .lookup_glyph_index(*c, allsorts::font::MatchingPresentation::NotRequired, None)
+                .0;
+            let advance = font.horizontal_advance(glyph_index).unwrap_or(0) as f64;
+            sum + advance * weight
+        });
+
+    Some(weighted_width.round())
 }
 
 /// From [implementation](https://github.com/vercel/next.js/blob/dbdf47cf617b8d7213ffe1ff28318ea8eb88c623/packages/font/src/local/pick-font-file-for-fallback-generation.ts#L59)
