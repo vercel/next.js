@@ -2,15 +2,15 @@ import { nextTestSetup } from 'e2e-utils'
 
 // Only implemented in Webpack
 // Fixture uses force-dynamic which doesn't work with cache components enabled
-;(process.env.IS_TURBOPACK_TEST && !process.env.__NEXT_CACHE_COMPONENTS
-  ? describe
-  : describe.skip)('turbopack-emit-collect', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+// Deploy mode exclusion: This suite restarts the local server to inspect
+// process-global module state.
+// @force-gate !deploy
+// @force-gate turbopack
+// @force-gate !cacheComponents
+describe('turbopack-emit-collect', () => {
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   function formatId(id: string) {
     return id.slice(id.lastIndexOf('/src/') + 5).replace(' (ecmascript)', '')
