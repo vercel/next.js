@@ -77,6 +77,14 @@ pub trait Module {
     /// [packagejson]: https://webpack.js.org/guides/tree-shaking/#mark-the-file-as-side-effect-free
     #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects>;
+
+    /// Whether an `All` export reference to this module should instead forward the exports used
+    /// from the referencing module. Transparent module proxies use this to preserve precise export
+    /// usage across the proxy boundary.
+    #[turbo_tasks::function]
+    fn is_export_usage_passthrough(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
 }
 
 #[turbo_tasks::value_trait]

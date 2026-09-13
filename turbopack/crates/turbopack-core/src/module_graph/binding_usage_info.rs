@@ -265,6 +265,23 @@ pub async fn compute_binding_usage_info(
                     }
                 }
 
+                if matches!(
+                    &ref_data.binding_usage.export,
+                    ExportUsage::Passthrough {
+                        namespace_object_may_escape: true
+                    }
+                ) {
+                    partial_namespace_modules.insert(target);
+                }
+                let parent_usage = used_exports
+                    .get(&parent)
+                    .context("parent module must have usage info")?;
+                let passthrough_usage = resolve_passthrough_usage(
+                    &ref_data.binding_usage.export,
+                    ref_data.target_export_usage_passthrough,
+                    parent_usage,
+                );
+
                 let entry = used_exports.entry(target);
                 let is_first_visit = matches!(entry, Entry::Vacant(_));
                 if matches!(
@@ -275,7 +292,12 @@ pub async fn compute_binding_usage_info(
                     // not that every read of them was lowered to a direct named access.
                     partial_namespace_modules.insert(target);
                 }
-                if entry.or_default().add(&ref_data.binding_usage.export) || is_first_visit {
+                let changed = if let Some(passthrough_usage) = &passthrough_usage {
+                    entry.or_default().add_usage_info(passthrough_usage)
+                } else {
+                    entry.or_default().add(&ref_data.binding_usage.export)
+                };
+                if changed || is_first_visit {
                     // First visit, or the used exports changed. This can cause more imports to get
                     // used downstream.
                     Ok(GraphTraversalAction::Continue)
@@ -373,6 +395,21 @@ pub async fn compute_binding_usage_info(
     .await
 }
 
+fn resolve_passthrough_usage(
+    export_usage: &ExportUsage,
+    target_is_passthrough: bool,
+    parent_usage: &ModuleExportUsageInfo,
+) -> Option<ModuleExportUsageInfo> {
+    let should_passthrough = matches!(export_usage, ExportUsage::Passthrough { .. })
+        || target_is_passthrough && matches!(export_usage, ExportUsage::All);
+    should_passthrough.then(|| match parent_usage {
+        // Evaluation means the proxy is executed without a statically known export read. Preserve
+        // the previous conservative behavior instead of dropping potentially observed exports.
+        ModuleExportUsageInfo::Evaluation => ModuleExportUsageInfo::All,
+        usage => usage.clone(),
+    })
+}
+
 #[turbo_tasks::value]
 #[derive(Default, Clone, Debug)]
 pub enum ModuleExportUsageInfo {
@@ -421,6 +458,34 @@ impl ModuleExportUsageInfo {
                 changed
             }
             (_, ExportUsage::Evaluation) => false,
+            (_, ExportUsage::Passthrough { .. }) => {
+                // Passthrough is normally resolved before `add`. If it reaches this fallback,
+                // preserve correctness by widening rather than panicking during graph analysis.
+                *self = Self::All;
+                true
+            }
+        }
+    }
+
+    /// Merge another module's resolved export usage into this one. Returns true if self changed.
+    fn add_usage_info(&mut self, usage: &Self) -> bool {
+        match (&mut *self, usage) {
+            (Self::All, _) | (_, Self::Evaluation) => false,
+            (_, Self::All) => {
+                *self = Self::All;
+                true
+            }
+            (Self::Evaluation, Self::Exports(exports)) => {
+                *self = Self::Exports(exports.clone());
+                true
+            }
+            (Self::Exports(left), Self::Exports(right)) => {
+                let mut changed = false;
+                for export in right {
+                    changed |= left.insert(export.clone());
+                }
+                changed
+            }
         }
     }
 
@@ -430,5 +495,74 @@ impl ModuleExportUsageInfo {
             Self::Evaluation => false,
             Self::Exports(exports) => exports.contains(export),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use turbo_rcstr::rcstr;
+
+    use super::{ModuleExportUsageInfo, resolve_passthrough_usage};
+    use crate::resolve::ExportUsage;
+
+    #[test]
+    fn transparent_target_forwards_parent_exports() {
+        let parent_usage = ModuleExportUsageInfo::Exports([rcstr!("used")].into_iter().collect());
+
+        let result = resolve_passthrough_usage(&ExportUsage::All, true, &parent_usage)
+            .expect("transparent target should forward usage");
+
+        assert!(result.is_export_used(&rcstr!("used")));
+        assert!(!result.is_export_used(&rcstr!("unused")));
+    }
+
+    #[test]
+    fn ordinary_all_usage_is_not_forwarded() {
+        assert!(
+            resolve_passthrough_usage(
+                &ExportUsage::All,
+                false,
+                &ModuleExportUsageInfo::Evaluation,
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
+    fn explicit_passthrough_forwards_all_parent_usage() {
+        let result = resolve_passthrough_usage(
+            &ExportUsage::Passthrough {
+                namespace_object_may_escape: true,
+            },
+            false,
+            &ModuleExportUsageInfo::All,
+        )
+        .expect("explicit passthrough should forward usage");
+
+        assert!(matches!(result, ModuleExportUsageInfo::All));
+    }
+
+    #[test]
+    fn evaluation_passthrough_is_conservatively_all() {
+        let result = resolve_passthrough_usage(
+            &ExportUsage::Passthrough {
+                namespace_object_may_escape: false,
+            },
+            false,
+            &ModuleExportUsageInfo::Evaluation,
+        )
+        .expect("explicit passthrough should forward usage");
+
+        assert!(matches!(result, ModuleExportUsageInfo::All));
+    }
+
+    #[test]
+    fn unresolved_passthrough_falls_back_to_all() {
+        let mut usage = ModuleExportUsageInfo::Evaluation;
+
+        assert!(usage.add(&ExportUsage::Passthrough {
+            namespace_object_may_escape: false,
+        }));
+        assert!(matches!(usage, ModuleExportUsageInfo::All));
     }
 }
