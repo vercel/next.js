@@ -1474,46 +1474,59 @@ export default class Router implements BaseRouter {
       shouldResolveHref = false
     }
 
+    // In case of shallow routing, we do not want to resolve a new route, in case the pathname stays the same.
+    // Otherwise, it might cause the wrong route component to be loaded
+    const shouldResolveDynamicRoute = !(
+      shallow && parsePath(this.state.asPath).pathname === pathname
+    )
+
     if (shouldResolveHref && pathname !== '/_error') {
       ;(options as any)._shouldResolveHref = true
 
-      if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
-        const rewritesResult = resolveRewrites(
-          addBasePath(addLocale(cleanedAs, nextState.locale), true),
-          pages,
-          rewrites,
-          query,
-          (p: string) => resolveDynamicRoute(p, pages),
-          this.locales
-        )
+      if (!shouldResolveDynamicRoute) {
+        pathname = this.state.pathname
+        parsed.pathname = addBasePath(pathname)
+      }
 
-        if (rewritesResult.externalDest) {
-          handleHardNavigation({ url: as, router: this })
-          return true
-        }
-        if (!isMiddlewareMatch) {
-          resolvedAs = rewritesResult.asPath
-        }
+      if (shouldResolveDynamicRoute) {
+        if (process.env.__NEXT_HAS_REWRITES && as.startsWith('/')) {
+          const rewritesResult = resolveRewrites(
+            addBasePath(addLocale(cleanedAs, nextState.locale), true),
+            pages,
+            rewrites,
+            query,
+            (p: string) => resolveDynamicRoute(p, pages),
+            this.locales
+          )
 
-        if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
-          // if this directly matches a page we need to update the href to
-          // allow the correct page chunk to be loaded
-          pathname = rewritesResult.resolvedHref
-          parsed.pathname = addBasePath(pathname)
-
-          if (!isMiddlewareMatch) {
-            url = formatWithValidation(parsed)
+          if (rewritesResult.externalDest) {
+            handleHardNavigation({ url: as, router: this })
+            return true
           }
-        }
-      } else {
-        parsed.pathname = resolveDynamicRoute(pathname, pages)
-
-        if (parsed.pathname !== pathname) {
-          pathname = parsed.pathname
-          parsed.pathname = addBasePath(pathname)
-
           if (!isMiddlewareMatch) {
-            url = formatWithValidation(parsed)
+            resolvedAs = rewritesResult.asPath
+          }
+
+          if (rewritesResult.matchedPage && rewritesResult.resolvedHref) {
+            // if this directly matches a page we need to update the href to
+            // allow the correct page chunk to be loaded
+            pathname = rewritesResult.resolvedHref
+            parsed.pathname = addBasePath(pathname)
+
+            if (!isMiddlewareMatch) {
+              url = formatWithValidation(parsed)
+            }
+          }
+        } else {
+          parsed.pathname = resolveDynamicRoute(pathname, pages)
+
+          if (parsed.pathname !== pathname) {
+            pathname = parsed.pathname
+            parsed.pathname = addBasePath(pathname)
+
+            if (!isMiddlewareMatch) {
+              url = formatWithValidation(parsed)
+            }
           }
         }
       }
@@ -1576,7 +1589,10 @@ export default class Router implements BaseRouter {
         ? interpolateAs(route, asPathname, query)
         : ({} as { result: undefined; params: undefined })
 
-      if (!routeMatch || (shouldInterpolate && !interpolatedAs.result)) {
+      if (
+        shouldResolveDynamicRoute &&
+        (!routeMatch || (shouldInterpolate && !interpolatedAs.result))
+      ) {
         const missingParams = Object.keys(routeRegex.groups).filter(
           (param) => !query[param] && !routeRegex.groups[param].optional
         )
