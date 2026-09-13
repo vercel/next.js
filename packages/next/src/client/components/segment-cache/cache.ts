@@ -3738,6 +3738,14 @@ function fulfillEntrySpawnedByRuntimePrefetch(
       fulfilledVaryPath = tree.shellVaryPath
     } else if (
       fetchStrategy !== FetchStrategy.Full &&
+      // The runtime-stage metadata response does not reliably include params
+      // that were accessed while resolving metadata. Keep it keyed to the
+      // concrete URL until that tracking is available, rather than allowing
+      // one dynamic param's complete head to be reused by another.
+      !(
+        fetchStrategy === FetchStrategy.PPRRuntime &&
+        tree.requestKey === HEAD_REQUEST_KEY
+      ) &&
       segmentVaryParams !== null
     ) {
       fulfilledVaryPath = getFulfilledSegmentVaryPath(
