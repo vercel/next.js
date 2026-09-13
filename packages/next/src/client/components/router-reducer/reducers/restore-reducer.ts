@@ -1,7 +1,8 @@
-import type {
-  ReadonlyReducerState,
-  ReducerState,
-  RestoreAction,
+import {
+  type ReadonlyReducerState,
+  type ReducerState,
+  type RestoreAction,
+  ScrollBehavior,
 } from '../router-reducer-types'
 import { extractPathFromFlightRouterState } from '../compute-changed-path'
 import {
@@ -100,6 +101,9 @@ export function restoreReducer(
     null,
     // History traversal always uses 'replace'.
     'replace',
+    // A history traversal restores scroll from the ScrollRef, so a retry
+    // dispatched on mismatch keeps the default scroll handling.
+    ScrollBehavior.Default,
     // Instant Navigation Testing API: a traversal is not a capture. Spawn its
     // dynamic requests ungated (null lock) so they render from cache or fetch
     // normally rather than being withheld behind the lock.
