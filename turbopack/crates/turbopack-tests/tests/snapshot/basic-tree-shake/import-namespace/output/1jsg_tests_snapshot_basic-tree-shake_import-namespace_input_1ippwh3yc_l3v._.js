@@ -1,6 +1,6 @@
 (globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_basic-tree-shake_import-namespace_input_1ippwh3yc_l3v._.js",
+(function(){"use strict";return[
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$namespace$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__2$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 2>");
@@ -9,7 +9,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$namespace$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$exports$3e$__["cat"]);
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <exports>", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([
     "cat",
@@ -31,7 +30,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 0>", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([
     "a",
@@ -42,7 +40,6 @@ let dog = 'dog';
 ;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 1>", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$namespace$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 0>");
@@ -51,7 +48,6 @@ __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack
 __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$namespace$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"] += '!';
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 2>", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$namespace$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 0>");
@@ -66,7 +62,6 @@ console.log(__TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$
 ;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 3>", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([
     "b",
@@ -102,7 +97,6 @@ const dogRef = {
 ;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 4>", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([]);
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$namespace$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 0>");
@@ -112,7 +106,6 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$basic$2d$tree$2d$shake$2f$import$2d$namespace$2f$input$2f$lib$2e$js__$5b$test$5d$__$28$ecmascript$29$__$3c$internal__part__0$3e$__["a"] += '!';
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 5>", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([
     "e",
@@ -123,7 +116,6 @@ let cat = 'cat';
 ;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 6>", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([
     "f",
@@ -139,7 +131,6 @@ const initialCat = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$
 ;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 7>", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([
     "g",
@@ -161,7 +152,6 @@ function getChimera() {
 ;
 }),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic-tree-shake/import-namespace/input/lib.js [test] (ecmascript) <internal part 8>", ((__turbopack_context__) => {
-"use strict";
 
 __turbopack_context__.s([
     "cat",
@@ -171,6 +161,8 @@ var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbo
 ;
 ;
 }),
+]})(),[
+]
 ]);
 
 //# sourceMappingURL=1jsg_tests_snapshot_basic-tree-shake_import-namespace_input_1ippwh3yc_l3v._.js.map
