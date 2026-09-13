@@ -3,7 +3,11 @@
 import React, { useEffect } from 'react'
 import Script from 'next/script'
 
-import type { GAParams } from '../types/google'
+import type {
+  GAParams,
+  GARecommendedEventName,
+  GARecommendedEventParams,
+} from '../types/google'
 
 declare global {
   interface Window {
@@ -56,7 +60,22 @@ export function GoogleAnalytics(props: GAParams) {
   )
 }
 
-export function sendGAEvent(..._args: Object[]) {
+// Typed overload: recommended GA4 events with autocomplete
+export function sendGAEvent<T extends GARecommendedEventName>(
+  command: 'event',
+  eventName: T,
+  eventParameters?: GARecommendedEventParams[T]
+): void
+// Typed overload: custom events
+export function sendGAEvent(
+  command: 'event',
+  eventName: string,
+  eventParameters?: { [key: string]: string | number | boolean }
+): void
+// Legacy overload: backward compatible with any arguments
+export function sendGAEvent(..._args: Object[]): void
+ 
+export function sendGAEvent(..._args: any[]) {
   if (currDataLayerName === undefined) {
     console.warn(`@next/third-parties: GA has not been initialized`)
     return
