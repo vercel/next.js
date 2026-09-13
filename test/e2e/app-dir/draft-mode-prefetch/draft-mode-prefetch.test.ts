@@ -2,15 +2,21 @@ import { nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 import type * as Playwright from 'playwright'
 import { instant } from '@next/playwright'
+import { createPromiseWithResolvers } from 'next/dist/shared/lib/promise-with-resolvers'
 
 // @force-gate prefetching
-describe.each([
-  { cacheComponents: false, partialPrefetching: false },
-  { cacheComponents: true, partialPrefetching: false },
-  { cacheComponents: true, partialPrefetching: true },
-])(
-  'draft-mode-prefetch - Cache Components: $cacheComponents, Partial Prefetching: $partialPrefetching',
-  ({ cacheComponents, partialPrefetching }) => {
+describe.each(
+  [
+    { cacheComponents: false, partialPrefetching: false },
+    { cacheComponents: true, partialPrefetching: false },
+    { cacheComponents: true, partialPrefetching: true },
+  ].flatMap((config) => [
+    { ...config, exposeTestingApi: false },
+    { ...config, exposeTestingApi: true },
+  ])
+)(
+  'draft-mode-prefetch - Cache Components: $cacheComponents, Partial Prefetching: $partialPrefetching, Testing API: $exposeTestingApi',
+  ({ cacheComponents, partialPrefetching, exposeTestingApi }) => {
     const { next } = nextTestSetup({
       files: __dirname,
       nextConfig: {
@@ -18,7 +24,7 @@ describe.each([
         partialPrefetching,
         experimental: {
           cachedNavigations: cacheComponents,
-          exposeTestingApiInProductionBuild: true,
+          exposeTestingApiInProductionBuild: exposeTestingApi,
         },
       },
     })
@@ -246,6 +252,105 @@ describe.each([
       )
     })
 
+    it.each(['auto', 'full'])(
+      'does not reuse sibling content after a blocked imperative %s prefetch crosses a draft-mode change',
+      async (kind) => {
+        const { browser, act, page } = await startBrowser('/')
+
+        await act(async () => {
+          await act(async () => {
+            await page.evaluate(
+              `window.next.router.prefetch('/article/imperative', { kind: '${kind}' })`
+            )
+          }, 'block')
+          await pauseClock(page)
+          await act(async () => {
+            await act(
+              async () => {
+                await browser.elementById('enable-draft-mode').click()
+              },
+              { includes: 'Draft mode: enabled', block: true }
+            )
+          }, 'no-requests')
+          await act(async () => {
+            await page.clock.fastForward(300)
+          }, 'no-requests')
+        })
+
+        await act(async () => {
+          await browser
+            .elementByCss('input[data-link-accordion="/article/foreground"]')
+            .click()
+          await browser.elementByCss('a[href="/article/foreground"]').click()
+        })
+        expect(await browser.elementById('target-content').text()).toBe(
+          'Draft content: foreground'
+        )
+        expect(await browser.elementById('draft-mode').text()).toBe(
+          'Draft mode: enabled'
+        )
+        expect(await browser.eval('window.__testDocument')).toBe('retained')
+      }
+    )
+
+    it('does not replay an imperative prefetch made during draft mode after disabling it', async () => {
+      const { browser, act, page } = await startBrowser('/draft')
+      await pauseClock(page)
+      await act(async () => {
+        await browser.elementById('router-prefetch').click()
+      }, 'no-requests')
+
+      await act(
+        async () => {
+          await browser.elementById('disable-draft-mode').click()
+        },
+        { includes: 'Draft mode: disabled' }
+      )
+      await act(async () => {
+        await page.clock.fastForward(300)
+      }, 'no-requests')
+      expect(await browser.elementById('draft-mode').text()).toBe(
+        'Draft mode: disabled'
+      )
+    })
+
+    it('cancels a prefetch queued immediately before processing the draft-mode action response', async () => {
+      const { browser, act, page } = await startBrowser('/')
+      await pauseClock(page)
+      // Queue a prefetch before the action reducer receives the response. The
+      // reducer must cancel it before the already-scheduled queue flush runs.
+      await page.evaluate(`{
+        window.__testPrefetchCalls = 0
+        const originalFetch = window.fetch.bind(window)
+        window.fetch = async (...args) => {
+          const response = await originalFetch(...args)
+          if (response.headers.get('x-action-draft-mode') === '1') {
+            queueMicrotask(() => {
+              window.next.router.prefetch('/article/imperative')
+              window.__testPrefetchCalls++
+            })
+          }
+          return response
+        }
+      }`)
+
+      await act(async () => {
+        await act(
+          async () => {
+            await browser.elementById('enable-draft-mode').click()
+          },
+          { includes: 'Draft mode: enabled', block: true }
+        )
+      }, 'no-requests')
+      await act(async () => {
+        await page.clock.fastForward(300)
+      }, 'no-requests')
+      expect(await page.evaluate('window.__testPrefetchCalls')).toBe(1)
+      expect(await browser.elementById('draft-mode').text()).toBe(
+        'Draft mode: enabled'
+      )
+    })
+
     it('does not reset draft mode when an earlier unrelated action finishes', async () => {
       const { browser, act, page } = await startBrowser('/')
       await pauseClock(page)
@@ -311,6 +416,9 @@ describe.each([
             .click()
         },
         { includes: 'Forwarded target draft mode: disabled' }
+      )
+      expect(await browser.elementById('forwarded-target-mode').text()).toBe(
+        'Forwarded target draft mode: disabled'
       )
       expect(new URL(await browser.url()).pathname).toBe(
         '/forwarded/action-target'
@@ -403,6 +511,9 @@ describe.each([
             .click()
         },
         { includes: 'Forwarded target draft mode: disabled' }
+      )
+      expect(await browser.elementById('forwarded-target-mode').text()).toBe(
+        'Forwarded target draft mode: disabled'
       )
       expect(new URL(await browser.url()).pathname).toBe(
         '/forwarded/action-target'
@@ -497,6 +608,34 @@ describe.each([
       expect(await browser.eval('window.__testDocument')).toBe('retained')
     })
 
+    it('cancels an imperative prefetch waiting for bandwidth when draft mode is enabled', async () => {
+      const session = await startBrowser('/')
+      const { browser, act, page } = session
+
+      await act(async () => {
+        await queuePrefetches(session)
+        await act(async () => {
+          await browser.elementById('router-prefetch').click()
+        }, 'no-requests')
+        await pauseClock(page)
+        await act(async () => {
+          await act(
+            async () => {
+              await browser.elementById('enable-draft-mode').click()
+            },
+            { includes: 'Draft mode: enabled', block: true }
+          )
+        }, 'no-requests')
+        await act(async () => {
+          await page.clock.fastForward(300)
+        }, 'no-requests')
+      }, 'no-requests')
+
+      expect(await browser.elementById('draft-mode').text()).toBe(
+        'Draft mode: enabled'
+      )
+    })
+
     it('resumes prefetches if the disable action response body fails', async () => {
       const { browser, act, page } = await startBrowser('/draft')
       await pauseClock(page)
@@ -539,8 +678,69 @@ describe.each([
       ).toBe(false)
     })
 
-    if (cacheComponents) {
-      it('does not let paused Link prefetches block an instant test navigation', async () => {
+    if (cacheComponents && exposeTestingApi) {
+      it('preserves a queued instant navigation when an earlier action enables draft mode', async () => {
+        const session = await startBrowser('/')
+        const { browser, act, page } = session
+        await pauseClock(page)
+
+        const navigationQueued = createPromiseWithResolvers<void>()
+        let navigation: Promise<void> | undefined
+        await act(async () => {
+          await act(async () => {
+            await queuePrefetches(session)
+            await act(async () => {
+              // Start the action before the navigation lock. Deliver its
+              // response only after the foreground task is queued.
+              await act(
+                async () => {
+                  await browser.elementById('enable-draft-mode').click()
+                },
+                { includes: 'Draft mode: enabled', block: true }
+              )
+              navigation = instant(page, async () => {
+                await Promise.all([
+                  page.waitForRequest(
+                    (request) =>
+                      new URL(request.url()).pathname ===
+                        '/article/foreground' &&
+                      request.headers()['next-router-prefetch'] !== undefined
+                  ),
+                  act(async () => {
+                    await browser
+                      .elementByCss(
+                        'input[data-link-accordion="/article/foreground"]'
+                      )
+                      .click()
+                    await browser
+                      .elementByCss('a[href="/article/foreground"]')
+                      .click()
+                  }, 'no-requests').then(navigationQueued.resolve),
+                ])
+              })
+              // Also notify the waiter if navigation fails before it is queued.
+              navigation.catch(navigationQueued.reject)
+              await navigationQueued.promise
+            })
+            await act(async () => {
+              await page.clock.fastForward(300)
+            }, 'no-requests')
+          })
+          if (navigation === undefined) {
+            throw new Error('The locked navigation was not started')
+          }
+          await navigation
+        }, 'no-requests')
+        expect(new URL(await browser.url()).pathname).toBe(
+          '/article/foreground'
+        )
+        expect(await browser.elementById('target-content').text()).toBe(
+          'Draft content: foreground'
+        )
+        expect(await browser.eval('window.__testDocument')).toBe('retained')
+      })
+
+      it('allows an instant test navigation while ordinary prefetching is disabled', async () => {
         const { browser, act, page } = await startBrowser('/draft')
         await act(async () => {
           for (const target of ['auto', 'full']) {
