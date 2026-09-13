@@ -25,7 +25,7 @@ export type RouterBFCacheEntry = {
  *
  * The purpose of this cache is to we can preserve the React and DOM state of
  * some number of inactive trees, by rendering them in an <Activity> boundary.
- * That means it would not make sense for the the lifetime of the cache to be
+ * That means it would not make sense for the lifetime of the cache to be
  * any longer than the lifetime of the React tree; e.g. if the hook were
  * unmounted, then the React tree would be, too. So, we use React state to
  * manage it.
