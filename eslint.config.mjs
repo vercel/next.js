@@ -24,6 +24,7 @@ const compat = new FlatCompat({
   allConfig: js.configs.all,
 })
 
+// Enhanced ESLint configuration to improve realtime error detection in IDEs (Issue #86449)
 // This is the default eslint config that is used by IDEs. It does not use
 // computation-heavy type-checked rules to ensure maximum responsiveness while
 // writing code. In addition, there is .eslintrc.cli.json that does use
