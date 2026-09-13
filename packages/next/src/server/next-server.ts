@@ -1084,7 +1084,8 @@ export default class NextNodeServer extends BaseServer<
           cacheEntry.isMiss ? 'MISS' : cacheEntry.isStale ? 'STALE' : 'HIT',
           imagesConfig,
           cacheEntry.cacheControl?.revalidate || 0,
-          Boolean(this.dev)
+          Boolean(this.dev),
+          Boolean(this.nextConfig.generateEtags)
         )
         return true
       } catch (err) {
