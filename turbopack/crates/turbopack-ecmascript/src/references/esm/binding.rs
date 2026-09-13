@@ -30,6 +30,7 @@ use crate::{
 pub struct EsmBinding {
     reference: ResolvedVc<EsmAssetReference>,
     export: Option<RcStr>,
+    local: Option<RcStr>,
     ast_path: AstPath,
     keep_this: bool,
 }
@@ -38,11 +39,13 @@ impl EsmBinding {
     pub fn new(
         reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
+        local: Option<RcStr>,
         ast_path: AstPath,
     ) -> Self {
         EsmBinding {
             reference,
             export,
+            local,
             ast_path,
             keep_this: false,
         }
@@ -61,6 +64,7 @@ impl EsmBinding {
         EsmBinding {
             reference,
             export,
+            local: None,
             ast_path,
             keep_this: true,
         }
@@ -110,22 +114,28 @@ impl EsmBinding {
                             can_value_bind: true,
                             ..
                         } = &imported_ident
-                        && !self.ast_path.0.iter().any(|parent| {
-                            matches!(
-                                parent,
-                                swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(_)
-                            )
-                        }) {
-                        let imported_name = self.export.as_deref().unwrap_or(export);
+                        && !is_assignment_target(&self.ast_path)
+                    {
+                        // A source alias is unique in an ordinary module. Under scope hoisting the
+                        // capture needs a globally unique name because bindings from multiple
+                        // source modules share one output scope.
+                        let binding_name = self
+                            .local
+                            .clone()
+                            .filter(|_| ctxt.is_none())
+                            .unwrap_or_else(|| {
+                                let imported_name = self.export.as_deref().unwrap_or(export);
+                                magic_identifier::mangle(&format!(
+                                    "imported binding {imported_name} {}",
+                                    encode_hex(hash_xxh3_hash64((
+                                        /* namespace */ namespace_ident,
+                                        /* export */ export,
+                                    )))
+                                ))
+                                .into()
+                            });
                         let binding_ident = Ident::new(
-                            magic_identifier::mangle(&format!(
-                                "imported binding {imported_name} {}",
-                                encode_hex(hash_xxh3_hash64((
-                                    /* namespace */ namespace_ident,
-                                    /* export */ export,
-                                )))
-                            ))
-                            .into(),
+                            binding_name.as_str().into(),
                             DUMMY_SP,
                             // This is a synthetic local in the consuming module, not an export of
                             // the module whose syntax context the namespace accessor carries.
@@ -273,6 +283,15 @@ impl EsmBinding {
             vec![],
         ))
     }
+}
+
+fn is_assignment_target(ast_path: &AstPath) -> bool {
+    ast_path.iter().any(|parent| {
+        matches!(
+            parent,
+            swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(_)
+        )
+    })
 }
 
 impl From<EsmBinding> for CodeGen {

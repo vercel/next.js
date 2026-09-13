@@ -1376,6 +1376,7 @@ async fn analyze_ecmascript_module_internal(
                 Effect::ImportedBinding {
                     esm_reference_index,
                     export,
+                    local,
                     ast_path,
                     span: _,
                 } => {
@@ -1454,6 +1455,7 @@ async fn analyze_ecmascript_module_internal(
                         analysis.add_code_gen(EsmBinding::new(
                             *r,
                             export,
+                            local.map(|local| local.as_str().into()),
                             ast_path.to_vec().into(),
                         ));
                     }
@@ -3761,6 +3763,7 @@ async fn handle_free_var_reference(
             analysis.add_code_gen(EsmBinding::new(
                 esm_reference,
                 export.clone(),
+                None,
                 ast_path.to_vec().into(),
             ));
         }

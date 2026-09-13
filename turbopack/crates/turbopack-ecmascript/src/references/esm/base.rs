@@ -393,6 +393,10 @@ impl ReferencedAsset {
 
 /// Returns whether an imported export can be safely captured in a local value binding.
 ///
+/// Follows statically-known reexports to find the original local binding's liveness. Import code
+/// generation still loads the directly referenced module so intermediate side effects and namespace
+/// identity are preserved; this only supplies metadata for choosing an accessor.
+///
 /// This is a turbo task because every use of the same imported binding asks this question during
 /// code generation. Cache the re-export walk and circuit-breaker lookup once per export and
 /// chunking context instead of repeating those reads for every use.
@@ -402,44 +406,42 @@ async fn can_capture_export_value(
     export: RcStr,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<bool>> {
-    if get_export_liveness(module, export).await? != Some(Liveness::Constant) {
-        return Ok(Vc::cell(false));
-    }
-
-    let export_usage = chunking_context
-        .module_export_usage(*ResolvedVc::upcast(module))
-        .await?;
-    Ok(Vc::cell(!export_usage.is_circuit_breaker))
-}
-
-/// Follows statically-known reexports to find the behavior of the original local binding.
-/// Import code generation still loads the directly referenced module so intermediate side effects
-/// and namespace identity are preserved; this only supplies metadata for choosing an accessor.
-async fn get_export_liveness(
-    mut module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-    mut export: RcStr,
-) -> Result<Option<Liveness>> {
+    let imported_module = module;
+    let mut module = module;
+    let mut export = export;
     let mut visited = FxHashSet::default();
-    while visited.insert((module, export.clone())) {
+    let is_constant = loop {
+        if !visited.insert((module, export.clone())) {
+            break false;
+        }
         let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
-            return Ok(None);
+            break false;
         };
         let expanded = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
         match expanded.exports.get(&export) {
-            Some(EsmExport::LocalBinding(_, liveness)) => return Ok(Some(*liveness)),
+            Some(EsmExport::LocalBinding(_, liveness)) => {
+                break *liveness == Liveness::Constant;
+            }
             Some(EsmExport::ImportedBinding(reference, name, _)) => {
                 let ReferencedAsset::Some(reexported_module) =
                     ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
                 else {
-                    return Ok(None);
+                    break false;
                 };
                 module = reexported_module;
                 export = name.clone();
             }
-            Some(EsmExport::ImportedNamespace(_) | EsmExport::Error) | None => return Ok(None),
+            Some(EsmExport::ImportedNamespace(_) | EsmExport::Error) | None => break false,
         }
+    };
+    if !is_constant {
+        return Ok(Vc::cell(false));
     }
-    Ok(None)
+
+    let export_usage = chunking_context
+        .module_export_usage(*ResolvedVc::upcast(imported_module))
+        .await?;
+    Ok(Vc::cell(!export_usage.is_circuit_breaker))
 }
 
 impl ReferencedAsset {

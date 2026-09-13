@@ -171,6 +171,7 @@ pub enum Effect<'a> {
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
+        local: Option<Atom>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,
     },
