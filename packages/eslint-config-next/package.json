@@ -44,19 +44,19 @@
   },
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
+      "types": "./dist/src/index.d.ts",
       "default": "./dist/index.js"
     },
     "./core-web-vitals": {
-      "types": "./dist/core-web-vitals.d.ts",
+      "types": "./dist/src/core-web-vitals.d.ts",
       "default": "./dist/core-web-vitals.js"
     },
     "./typescript": {
-      "types": "./dist/typescript.d.ts",
+      "types": "./dist/src/typescript.d.ts",
       "default": "./dist/typescript.js"
     },
     "./parser": {
-      "types": "./dist/parser.d.ts",
+      "types": "./dist/src/parser.d.ts",
       "default": "./dist/parser.js"
     }
   }
