@@ -1,5 +1,8 @@
 import type { ComponentType, ErrorInfo, JSX, ReactNode } from 'react'
-import type { PartialTransportData } from '../../shared/lib/rsc-transport'
+import type {
+  FullTransportNode,
+  PartialTransportData,
+} from '../../shared/lib/rsc-transport'
 import type { RenderOpts, PreloadCallbacks } from './types'
 import type {
   ActionResult,
@@ -2308,6 +2311,66 @@ function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
   return null
 }
 
+function nearestNotFoundLoaderTree(tree: LoaderTree): LoaderTree | null {
+  const [segment, parallelRoutes, components, staticSiblings] = tree
+  const children = parallelRoutes.children
+  if (children) {
+    const nested = nearestNotFoundLoaderTree(children)
+    if (nested !== null) {
+      return [
+        segment,
+        { ...parallelRoutes, children: nested },
+        components,
+        staticSiblings,
+      ]
+    }
+  }
+  const notFound = components['not-found']
+  if (!notFound) {
+    return null
+  }
+  return [
+    segment,
+    { children: [PAGE_SEGMENT_KEY, {}, { page: notFound }, null] },
+    components,
+    staticSiblings,
+  ]
+}
+
+async function notFoundTransportTree(
+  tree: LoaderTree,
+  ctx: AppRenderContext,
+  hintTree: PrefetchHints | null,
+  MetadataOutlet: ComponentType<{ tree: LoaderTree }>
+): Promise<FullTransportNode | null> {
+  const loaderTree = tree[2]['global-not-found']
+    ? createNotFoundLoaderTree(tree)
+    : nearestNotFoundLoaderTree(tree)
+  if (loaderTree === null) {
+    return null
+  }
+  try {
+    return await createFullComponentTree({
+      ctx,
+      loaderTree,
+      parentParams: {},
+      parentOptionalCatchAllParamName: null,
+      parentRuntimePrefetchable: false,
+      rootLayoutIncluded: false,
+      injectedCSS: new Set(),
+      injectedJS: new Set(),
+      injectedFontPreloadTags: new Set(),
+      preloadCallbacks: [],
+      authInterrupts: ctx.renderOpts.experimental.authInterrupts,
+      MetadataOutlet,
+      isPrerendering: false,
+      hintTree,
+    })
+  } catch {
+    return null
+  }
+}
+
 // This is the data necessary to render <AppRouter /> when an error state is triggered
 async function getErrorRSCPayload(
   tree: LoaderTree,
@@ -2325,6 +2388,7 @@ async function getErrorRSCPayload(
 
   let Viewport: ComponentType | null = null
   let Metadata: ComponentType | null = null
+  let MetadataOutlet: ComponentType<{ tree: LoaderTree }> = () => null
   if (shouldRenderMetadataAndViewport) {
     const serveStreamingMetadata = !!ctx.renderOpts.serveStreamingMetadata
     const metadataComponents = createMetadataComponents({
@@ -2338,6 +2402,7 @@ async function getErrorRSCPayload(
     })
     Viewport = metadataComponents.Viewport
     Metadata = metadataComponents.Metadata
+    MetadataOutlet = metadataComponents.MetadataOutlet
   }
 
   const initialHead = createElement(
@@ -2391,18 +2456,29 @@ async function getErrorRSCPayload(
     )
   )
 
-  const initialTree = await createFullTransportTreeFromLoaderTree(
-    tree,
-    errorHints,
-    errorPrefetchInliningEnabled,
-    ctx.missingPrefetchHintPolicy,
-    Boolean(ctx.renderOpts.partialPrefetching),
-    getDynamicParamFromSegment,
-    query
-  )
-  // Attach the error shell as the root's render output. Vary params are not
-  // tracked for error pages.
-  initialTree.d = { r: errorShell, p: false, v: null }
+  let initialTree: FullTransportNode | null = null
+  if (errorType === 'not-found') {
+    initialTree = await notFoundTransportTree(
+      tree,
+      ctx,
+      errorHints,
+      MetadataOutlet
+    )
+  }
+  if (initialTree === null) {
+    initialTree = await createFullTransportTreeFromLoaderTree(
+      tree,
+      errorHints,
+      errorPrefetchInliningEnabled,
+      ctx.missingPrefetchHintPolicy,
+      Boolean(ctx.renderOpts.partialPrefetching),
+      getDynamicParamFromSegment,
+      query
+    )
+    // Attach the error shell as the root's render output. Vary params are not
+    // tracked for error pages.
+    initialTree.d = { r: errorShell, p: false, v: null }
+  }
 
   const { GlobalError, styles: globalErrorStyles } = await getGlobalErrorStyles(
     tree,
