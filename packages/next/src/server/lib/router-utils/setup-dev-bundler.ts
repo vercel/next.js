@@ -138,6 +138,7 @@ export type SetupOpts = {
   nextConfig: NextConfigComplete
   port: number
   onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
+  restartServer?: () => Promise<void>
   resetFetch: () => void
   serverFastRefresh?: boolean
 }
@@ -293,6 +294,7 @@ async function startWatcher(
           resetFetch,
           lockfile,
           onDevServerCleanup: opts.onDevServerCleanup,
+          restartServer: opts.restartServer,
         })
       })()
 

@@ -127,7 +127,9 @@ app.prepare().then(() => {
 })
 ```
 
-Use one outer upgrade dispatcher when another WebSocket protocol shares the same server. Multiple independent upgrade listeners can race to write to the same socket. During shutdown, call `server.close()` to stop accepting new HTTP connections without awaiting it, await `app.close()` to drain Next.js-owned upgrades and connections, and then await the HTTP server's close callback. The HTTP server remains owned by your custom server.
+Use one outer upgrade dispatcher when multiple Next.js apps or another WebSocket protocol share the same server. The dispatcher must select exactly one owner, for example from the request pathname or host, before calling that app's `getUpgradeHandler()` result. Do not call multiple Next.js upgrade handlers for one request. For a selected WebSocket upgrade while the experiment is enabled, the handler owns the request and returns `404 Not Found` when no route matches. Multiple independent upgrade listeners can race to write to the same socket.
+
+During shutdown, call `server.close()` to stop accepting new HTTP connections without awaiting it, await `app.close()` to drain Next.js-owned upgrades and connections, and then await the HTTP server's close callback. The HTTP server remains owned by your custom server.
 
 </AppOnly>
 
