@@ -168,9 +168,10 @@ export async function buildPagesStaticPaths({
           typeof paramValue === 'undefined'
         ) {
           throw new Error(
-            `A required parameter (${validParamKey}) was not provided as ${
-              repeat ? 'an array' : 'a string'
-            } received ${typeof paramValue} in getStaticPaths for ${page}`
+            `Invalid \`params\` value returned from getStaticPaths for ${page}. ` +
+              `A required parameter (${validParamKey}) was not provided as ${
+                repeat ? 'an array' : 'a string'
+              }, received ${typeof paramValue} instead.`
           )
         }
 
