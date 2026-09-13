@@ -10,6 +10,10 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withAppDirCustomExtensions = path.join(
+  __dirname,
+  'with-app-dir-custom-extensions'
+)
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +30,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withAppCustomExtensions: new Linter({
+    cwd: withAppDirCustomExtensions,
     configType: 'eslintrc',
   }),
 }
@@ -255,6 +263,29 @@ export class Blah extends Head {
   }
 }
 `
+
+const invalidCustomExtensionAppRouteCode = `
+import Link from 'next/link';
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/blog/'>Blog</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+
+const linterConfigWithCustomPageExtensions = {
+  ...linterConfig,
+  settings: {
+    next: {
+      pageExtensions: ['js', 'jsx', 'ts', 'tsx', 'mdx'],
+    },
+  },
+}
 describe('no-html-link-for-pages', function () {
   it('does not print warning when there are "pages" or "app" directories with rootDir in context settings', function () {
     const consoleSpy = jest.spyOn(console, 'warn').mockImplementation()
@@ -493,6 +524,26 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('does not crash and ignores routes with non-default extensions in appDir when pageExtensions is not configured', function () {
+    const report = linters.withAppCustomExtensions.verify(
+      invalidCustomExtensionAppRouteCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
+  })
+  it('respects custom pageExtensions for appDir routes', function () {
+    const [report] = linters.withAppCustomExtensions.verify(
+      invalidCustomExtensionAppRouteCode,
+      linterConfigWithCustomPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/blog/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })
