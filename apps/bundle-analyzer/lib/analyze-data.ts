@@ -464,6 +464,7 @@ export class AnalyzeData {
       } else if (outputFile.filename.startsWith('[project]/')) {
         traced = true
         server = true
+        continue
       } else {
         server = true
       }
