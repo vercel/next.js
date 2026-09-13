@@ -982,6 +982,16 @@ impl AggregationUpdateQueue {
         }
     }
 
+    /// A queue that defers every optimization: each request is recorded on its task's
+    /// `optimization_pending` flag instead of being enqueued.
+    pub fn new_without_optimizations() -> Self {
+        Self {
+            // Start the budget already spent, so every optimization is refused.
+            optimizations_executed: MAX_OPTIMIZATIONS_PER_QUEUE,
+            ..Self::new()
+        }
+    }
+
     /// Returns true, when the queue is empty.
     pub fn is_empty(&self) -> bool {
         let Self {
@@ -1166,6 +1176,57 @@ impl AggregationUpdateQueue {
         let mut queue = Self::new();
         queue.push(job);
         queue.execute(ctx);
+    }
+
+    /// Whether only rebalance work (`balance_edge` / `optimize`) is left.
+    ///
+    /// The queue drains in strict priority order — `jobs`, then aggregation-number updates, then
+    /// `balance_queue`, then `optimize_queue` — so once the first two are empty everything that
+    /// remains rebalances the graph rather than tearing edges out of it. GC uses this to stop at
+    /// that boundary and defer the rest until the parallel collect is quiescent.
+    pub fn only_rebalance_remains(&self) -> bool {
+        self.jobs.is_empty() && self.aggregation_number_updates.is_empty()
+    }
+
+    /// Whether any rebalance work is actually pending.
+    pub fn has_rebalance_work(&self) -> bool {
+        !self.balance_queue.is_empty() || !self.optimize_queue.is_empty()
+    }
+
+    /// Takes the deferred balance edges, leaving the queue empty of them.
+    ///
+    /// Public because GC drives this from `gc.rs`; see `TurboTasksBackend::gc_collect`.
+    pub fn take_deferred_balance_edges(
+        &mut self,
+    ) -> impl Iterator<Item = (TaskId, TaskId)> + use<> {
+        debug_assert!(
+            self.only_rebalance_remains(),
+            "take_deferred_balance_edges expects a queue stopped at the rebalance boundary"
+        );
+        debug_assert!(
+            self.optimize_queue.is_empty(),
+            "a queue built with `new_without_optimizations` must never hold optimize jobs"
+        );
+        take(&mut self.balance_queue)
+            .into_iter()
+            .map(|job| (job.upper_id, job.task_id))
+    }
+
+    /// Queues balance jobs for `edges`, skipping any whose endpoints have since been collected:
+    /// the edge went with them, and balancing a deleted task is what the deferral exists to avoid.
+    pub fn extend_balance_edges(
+        &mut self,
+        edges: impl IntoIterator<Item = (TaskId, TaskId)>,
+        ctx: &mut impl ExecuteContext<'_>,
+    ) {
+        for (upper_id, task_id) in edges {
+            if ctx.task(upper_id, TaskDataCategory::Meta).deleted()
+                || ctx.task(task_id, TaskDataCategory::Meta).deleted()
+            {
+                continue;
+            }
+            self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
+        }
     }
 
     /// Executes a single step of the queue. Returns true, when the queue is empty.
