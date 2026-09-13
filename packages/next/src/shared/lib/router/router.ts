@@ -990,7 +990,11 @@ export default class Router implements BaseRouter {
       url,
       as,
       Object.assign<{}, TransitionOptions, TransitionOptions>({}, options, {
-        shallow: options.shallow && this._shallow,
+        // Do not inherit shallow from history state on browser back/forward navigation.
+        // The shallow flag in history state was only meant for the original replace/push call,
+        // not for subsequent popstate events (which should always trigger a fresh data fetch).
+        // See: https://github.com/vercel/next.js/issues/93844
+        shallow: false,
         locale: options.locale || this.defaultLocale,
         // @ts-ignore internal value not exposed on types
         _h: 0,
