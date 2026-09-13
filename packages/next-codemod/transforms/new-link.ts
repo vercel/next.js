@@ -5,6 +5,10 @@ import type { API, Collection, FileInfo, JSXElement } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
 import { NEXT_CODEMOD_ERROR_PREFIX } from './lib/async-request-api/utils'
 
+function detectLineTerminator(source: string): '\n' | '\r\n' {
+  return source.includes('\r\n') ? '\r\n' : '\n'
+}
+
 export default function transformer(file: FileInfo, _api: API) {
   const j = createParserFromPath(file.path)
 
@@ -117,7 +121,7 @@ export default function transformer(file: FileInfo, _api: API) {
   )
 
   if (hasChanges) {
-    return $j.toSource()
+    return $j.toSource({ lineTerminator: detectLineTerminator(file.source) })
   }
   return file.source
 }
