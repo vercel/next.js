@@ -362,7 +362,25 @@ export async function startServer(
       // - re-use it for automatic dev server restarts with a randomly selected port
       process.env.PORT = port + ''
 
-      process.env.__NEXT_PRIVATE_ORIGIN = appUrl
+      // Respect an explicit `__NEXT_PRIVATE_ORIGIN` if the caller has already
+      // set one. The standalone server template (see
+      // `packages/next/src/build/utils.ts:1418`) passes `process.env.HOSTNAME`
+      // as the bind address; in Linux containers that env var is the
+      // container's actual hostname (e.g. on ECS Fargate it resolves to the
+      // pod's `ip-X-Y-Z-W.ec2.internal` DNS name). When that propagates here,
+      // every internal Next.js fetch (server-action forwarding via
+      // `app-render/action-handler.ts`, RSC prefetch via the segment cache,
+      // etc.) ends up issuing self-fetches via that public DNS name. Each
+      // round trip retains response bodies plus undici keep-alive sockets in
+      // the singleton agent pool; a busy app accumulates 100+ MB per traffic
+      // burst until V8 hits `--max-old-space-size` and aborts.
+      //
+      // Letting users pre-set `__NEXT_PRIVATE_ORIGIN` gives deployers an
+      // escape hatch (e.g. `__NEXT_PRIVATE_ORIGIN=http://localhost:3000`)
+      // without having to fight with `$HOSTNAME` in their start script.
+      if (!process.env.__NEXT_PRIVATE_ORIGIN) {
+        process.env.__NEXT_PRIVATE_ORIGIN = appUrl
+      }
 
       // Set experimental HTTPS flag for metadata resolution
       if (selfSignedCertificate) {
