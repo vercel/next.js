@@ -71,7 +71,12 @@ export function validateLocalFontFunctionCall(
   }
 
   src = src.map((fontFile: any) => {
-    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(fontFile.path)?.[1]
+    const ext = /\.(woff|woff2|eot|ttf|otf)$/.exec(
+      typeof fontFile.path === 'string'
+        ? fontFile.path.toLowerCase()
+        : String(fontFile.path || '')
+    )?.[1]
+
     if (!ext) {
       nextFontError(`Unexpected file \`${fontFile.path}\``)
     }
