@@ -30,13 +30,13 @@ export type SegmentNodeState = {
   setBoundaryType: (type: SegmentBoundaryType | null) => void
 }
 
-function SegmentTrieNode({
+function useRegisterSegmentNode({
   type,
   pagePath,
 }: {
   type: string
   pagePath: string
-}): React.ReactNode {
+}): void {
   const { boundaryType, setBoundaryType } = useSegmentState()
   const nodeState: SegmentNodeState = useMemo(() => {
     return {
@@ -55,8 +55,6 @@ function SegmentTrieNode({
       dispatcher.segmentExplorerNodeRemove(nodeState)
     }
   }, [nodeState])
-
-  return null
 }
 
 function NotFoundSegmentNode(): React.ReactNode {
@@ -106,16 +104,8 @@ export function SegmentViewNode({
   pagePath: string
   children?: ReactNode
 }): React.ReactNode {
-  const segmentNode = (
-    <SegmentTrieNode key={type} type={type} pagePath={pagePath} />
-  )
-
-  return (
-    <>
-      {segmentNode}
-      {children}
-    </>
-  )
+  useRegisterSegmentNode({ type, pagePath })
+  return children ?? null
 }
 
 const SegmentStateContext = createContext<{
