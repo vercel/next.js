@@ -2469,7 +2469,14 @@ async function retryUpgradeableFallbackPrefetch(
     await new Promise<void>((resolve) =>
       setTimeout(resolve, FALLBACK_RETRY_DELAY_MS)
     )
-    if (task.isCanceled || !isPrefetchingAllowed(task)) {
+    if (
+      task.isCanceled ||
+      !isPrefetchingAllowed(
+        process.env.__NEXT_EXPOSE_TESTING_API
+          ? task._navigationLockPrefetch
+          : null
+      )
+    ) {
       break
     }
 

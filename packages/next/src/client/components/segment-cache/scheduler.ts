@@ -298,16 +298,46 @@ export function startRevalidationCooldown(): void {
   }, REVALIDATION_COOLDOWN_MS)
 }
 
-// Whether the browser session is in draft mode. Prefetching pauses while it is,
-// because a draft response must not be stored as speculative data. Null until
-// hydration reports the initial state; a Server Action that writes the draft
-// cookie updates it from its response headers. The state lives here, not in the
-// router state, because the cookie still changes when a navigation discards the
-// action's render result.
+// Draft mode prevents ordinary prefetch tasks from entering the queue. The
+// state is separate from router state because an action can change its cookie
+// even when the router discards the action's render result.
 let isDraftMode: boolean | null = null
 
 export function setIsDraftMode(value: boolean): void {
+  if (isDraftMode === value) {
+    return
+  }
   isDraftMode = value
+
+  if (!value || taskHeap.length === 0) {
+    return
+  }
+
+  // Cancel queued prefetches at the transition. Blocked tasks must pass the
+  // same policy when their responses requeue them through pingPrefetchTask.
+  let navigationTasks: PrefetchTask[] | null = null
+  let task = heapPop(taskHeap)
+  while (task !== null) {
+    if (
+      process.env.__NEXT_EXPOSE_TESTING_API &&
+      task._navigationLockPrefetch != null
+    ) {
+      if (navigationTasks === null) {
+        navigationTasks = []
+      }
+      navigationTasks.push(task)
+    } else {
+      cancelPrefetchTask(task)
+    }
+    task = heapPop(taskHeap)
+  }
+
+  if (navigationTasks !== null) {
+    for (const navigationTask of navigationTasks) {
+      heapPush(taskHeap, navigationTask)
+    }
+  }
+  pingPrefetchScheduler()
 }
 
 export type IncludeDynamicData = null | 'full' | 'dynamic'
@@ -317,7 +347,8 @@ export type IncludeDynamicData = null | 'full' | 'dynamic'
  * is already in progress, this will bump it to the top of the queue.
  *
  * This is not a user-facing function. By the time this is called, the href is
- * expected to be validated and normalized.
+ * expected to be validated and normalized. Returns null when prefetching is
+ * disabled, unless the task drives a locked navigation.
  *
  * @param key The RouteCacheKey to prefetch.
  * @param treeAtTimeOfPrefetch The app's current FlightRouterState
@@ -334,7 +365,11 @@ export function schedulePrefetchTask(
   priority: PrefetchPriority,
   onInvalidate: null | (() => void),
   navigationLockPrefetch: NavigationLockPrefetch | null
-): PrefetchTask {
+): PrefetchTask | null {
+  if (!isPrefetchingAllowed(navigationLockPrefetch)) {
+    return null
+  }
+
   // Bind the task to the segment cache map that is active right now: the
   // shared map, unless the Instant Navigation Testing lock is held, in which
   // case the task gets the lock scope's private map. This is the single
@@ -407,6 +442,17 @@ export function reschedulePrefetchTask(
   fetchStrategy: PrefetchTaskFetchStrategy,
   priority: PrefetchPriority
 ): void {
+  if (
+    !isPrefetchingAllowed(
+      process.env.__NEXT_EXPOSE_TESTING_API
+        ? task._navigationLockPrefetch
+        : null
+    )
+  ) {
+    cancelPrefetchTask(task)
+    return
+  }
+
   // Bump the prefetch task to the top of the queue, as if it were a fresh
   // task. This is essentially the same as canceling the task and scheduling
   // a new one, except it reuses the original object.
@@ -490,11 +536,10 @@ export function pingPrefetchScheduler() {
   scheduleMicrotask(processQueueInMicrotask)
 }
 
-export function isPrefetchingAllowed(task: PrefetchTask): boolean {
-  if (
-    process.env.__NEXT_EXPOSE_TESTING_API &&
-    task._navigationLockPrefetch != null
-  ) {
+export function isPrefetchingAllowed(
+  navigationLockPrefetch: NavigationLockPrefetch | null | undefined
+): boolean {
+  if (process.env.__NEXT_EXPOSE_TESTING_API && navigationLockPrefetch != null) {
     // The testing API uses this task to fulfill a navigation, not to fetch
     // speculative data. Blocking it would leave that navigation waiting
     // forever.
@@ -607,6 +652,16 @@ export function pingPrefetchTask(task: PrefetchTask) {
   ) {
     return
   }
+  if (
+    !isPrefetchingAllowed(
+      process.env.__NEXT_EXPOSE_TESTING_API
+        ? task._navigationLockPrefetch
+        : null
+    )
+  ) {
+    cancelPrefetchTask(task)
+    return
+  }
   // Add the task back to the queue.
   heapPush(taskHeap, task)
   pingPrefetchScheduler()
@@ -621,27 +676,8 @@ function processQueueInMicrotask() {
   const now = Date.now()
 
   // Process the task queue until we run out of network bandwidth.
-  let pausedTasks: PrefetchTask[] | null = null
   let task = heapPeek(taskHeap)
-  processTasks: while (task !== null) {
-    if (!isPrefetchingAllowed(task)) {
-      if (process.env.__NEXT_EXPOSE_TESTING_API) {
-        // A navigation-testing task may be behind a paused Link prefetch. Keep
-        // the paused tasks out of this pass so they cannot block the
-        // navigation.
-        heapPop(taskHeap)
-        if (pausedTasks === null) {
-          pausedTasks = []
-        }
-        pausedTasks.push(task)
-        task = heapPeek(taskHeap)
-        continue
-      }
-      break
-    }
-    if (!hasNetworkBandwidth(task)) {
-      break
-    }
+  while (task !== null && hasNetworkBandwidth(task)) {
     task.routeCacheVersion = getCurrentRouteCacheVersion()
     task.segmentCacheVersion = getCurrentSegmentCacheVersion()
 
@@ -660,7 +696,7 @@ function processQueueInMicrotask() {
       case PrefetchTaskExitStatus.InProgress:
         // The task yielded because there are too many requests in progress.
         // Stop processing tasks until we have more bandwidth.
-        break processTasks
+        return
       case PrefetchTaskExitStatus.Blocked:
         // The task is blocked. It needs more data before it can proceed.
         // Keep the task out of the queue until the server responds.
@@ -743,21 +779,11 @@ function processQueueInMicrotask() {
     }
   }
 
-  if (pausedTasks !== null) {
-    for (const pausedTask of pausedTasks) {
-      heapPush(taskHeap, pausedTask)
-    }
-    task = heapPeek(taskHeap)
-  }
-
-  // Run LRU cleanup only when the scheduler is fully idle: no runnable tasks
-  // and no in-progress requests. At that point, all active prefetch tasks have
+  // Run LRU cleanup only when the scheduler is fully idle: no queued tasks and
+  // no in-progress requests. At that point, all active prefetch tasks have
   // finished reading from the cache (moving recently used entries to the front
   // of the list), so only genuinely stale data gets evicted.
-  if (
-    inProgressRequests === 0 &&
-    (task === null || !isPrefetchingAllowed(task))
-  ) {
+  if (task === null && inProgressRequests === 0) {
     cleanup()
   }
 }
