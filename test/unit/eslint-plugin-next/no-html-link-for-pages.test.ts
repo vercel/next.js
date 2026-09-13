@@ -10,6 +10,7 @@ const withCustomPagesDir = path.join(__dirname, 'with-custom-pages-dir')
 const withNestedPagesDir = path.join(__dirname, 'with-nested-pages-dir')
 const withoutPagesDir = path.join(__dirname, 'without-pages-dir')
 const withAppDir = path.join(__dirname, 'with-app-dir')
+const withMdxPages = path.join(__dirname, 'with-mdx-pages')
 
 const linters = {
   withoutPages: new Linter({
@@ -26,6 +27,10 @@ const linters = {
   }),
   withCustomPages: new Linter({
     cwd: withCustomPagesDir,
+    configType: 'eslintrc',
+  }),
+  withMdxPages: new Linter({
+    cwd: withMdxPages,
     configType: 'eslintrc',
   }),
 }
@@ -62,6 +67,14 @@ const linterConfigWithMultipleDirectories = {
         path.join(withCustomPagesDir, 'custom-pages/list'),
       ],
     ],
+  },
+}
+const linterConfigWithPageExtensions: any = {
+  ...linterConfig,
+  settings: {
+    next: {
+      pageExtensions: ['tsx', 'ts', 'jsx', 'js', 'mdx'],
+    },
   },
 }
 const linterConfigWithNestedContentRootDirDirectory = {
@@ -493,6 +506,52 @@ describe('no-html-link-for-pages', function () {
     assert.equal(
       report.message,
       'Do not use an `<a>` element to navigate to `/photo/1/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('detects pages with custom pageExtensions setting', function () {
+    const [report] = linters.withMdxPages.verify(
+      invalidStaticCode,
+      linterConfigWithPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
+    )
+  })
+  it('ignores mdx pages without pageExtensions setting', function () {
+    const report = linters.withMdxPages.verify(
+      invalidStaticCode,
+      linterConfig,
+      { filename: 'foo.js' }
+    )
+    assert.deepEqual(report, [])
+  })
+  it('detects non-mdx pages alongside mdx with pageExtensions', function () {
+    const invalidContactCode = `
+import Link from 'next/link';
+
+export class Blah extends Head {
+  render() {
+    return (
+      <div>
+        <a href='/contact'>Contact</a>
+        <h1>Hello title</h1>
+      </div>
+    );
+  }
+}
+`
+    const [report] = linters.withMdxPages.verify(
+      invalidContactCode,
+      linterConfigWithPageExtensions,
+      { filename: 'foo.js' }
+    )
+    assert.notEqual(report, undefined, 'No lint errors found.')
+    assert.equal(
+      report.message,
+      'Do not use an `<a>` element to navigate to `/contact/`. Use `<Link />` from `next/link` instead. See: https://nextjs.org/docs/messages/no-html-link-for-pages'
     )
   })
 })
