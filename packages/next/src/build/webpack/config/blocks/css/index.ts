@@ -1,3 +1,4 @@
+import path from 'path'
 import curry from 'next/dist/compiled/lodash.curry'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { loader, plugin } from '../../helpers'
@@ -153,7 +154,8 @@ export const css: (
       prependData: sassPrependData,
       additionalData: sassAdditionalData,
       implementation: sassImplementation,
-      ...sassOptions
+      loadPaths: userLoadPaths,
+      ...restSassOptions
     } = ctx.sassOptions
 
     const lazyPostCSSInitializer = () =>
@@ -163,6 +165,21 @@ export const css: (
         ctx.experimental.disablePostcssPresetEnv,
         ctx.experimental.useLightningcss
       )
+
+    // Merge the project's node_modules directory into loadPaths so Dart Sass
+    // can resolve @import statements from packages natively. Without this,
+    // relative @imports inside node_modules packages (e.g. `@import
+    // './themes/light.scss'` inside @primer/css) fail on Windows because the
+    // webpack importer loses path context when dealing with backslash-separated
+    // Windows paths. User-provided loadPaths are preserved and appended after.
+    const mergedLoadPaths = [
+      path.join(ctx.rootDirectory, 'node_modules'),
+      ...(Array.isArray(userLoadPaths)
+        ? userLoadPaths
+        : userLoadPaths != null
+          ? [userLoadPaths]
+          : []),
+    ]
 
     const sassPreprocessors: webpack.RuleSetUseItem[] = [
       // First, process files with `sass-loader`: this inlines content, and
@@ -174,7 +191,10 @@ export const css: (
           // Source maps are required so that `resolve-url-loader` can locate
           // files original to their source directory.
           sourceMap: true,
-          sassOptions,
+          sassOptions: {
+            ...restSassOptions,
+            loadPaths: mergedLoadPaths,
+          },
           additionalData: sassPrependData || sassAdditionalData,
         },
       },
