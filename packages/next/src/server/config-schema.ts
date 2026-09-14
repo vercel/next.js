@@ -247,6 +247,11 @@ export const experimentalSchema = {
   disablePostcssPresetEnv: z.boolean().optional(),
   cacheComponents: z.boolean().optional(),
   inlineCss: z.boolean().optional(),
+  inlineScriptHashes: z
+    .object({
+      algorithm: z.enum(['sha256', 'sha384', 'sha512']).optional(),
+    })
+    .optional(),
   esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
   serverActions: z
     .object({

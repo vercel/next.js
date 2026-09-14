@@ -73,6 +73,10 @@ import {
   NEXT_RESUME_HEADER,
   NEXT_RESUME_STATE_LENGTH_HEADER,
 } from '../../lib/constants' with { 'turbopack-transition': 'next-server-utility' }
+import {
+  collectInlineScriptHashes,
+  withInlineScriptHashes,
+} from '../../server/app-render/inline-script-hashes' with { 'turbopack-transition': 'next-server-utility' }
 import type { CacheControl } from '../../server/lib/cache-control'
 import { ENCODED_TAGS } from '../../server/stream-utils/encoded-tags' with { 'turbopack-transition': 'next-server-utility' }
 import { sendRenderResult } from '../../server/send-payload' with { 'turbopack-transition': 'next-server-utility' }
@@ -844,6 +848,12 @@ export function createAppPageEntrypoint({
 
         renderOperation: AppPageRenderOperation
       }): Promise<ResponseCacheEntry> => {
+        // A render that answers the request itself streams to the client: a
+        // dynamic response, or the resume of a postponed shell.
+        const respondsDynamically =
+          renderOperation === 'render' &&
+          (typeof postponed === 'string' || supportsDynamicResponse)
+
         const context: AppPageRouteHandlerContext = {
           query,
           params,
@@ -871,9 +881,7 @@ export function createAppPageEntrypoint({
             postponed,
             allowEmptyStaticShell,
             serveStreamingMetadata,
-            supportsDynamicResponse:
-              renderOperation === 'render' &&
-              (typeof postponed === 'string' || supportsDynamicResponse),
+            supportsDynamicResponse: respondsDynamically,
             buildManifest,
             nextFontManifest,
             reactLoadableManifest,
@@ -949,6 +957,7 @@ export function createAppPageEntrypoint({
                 nextConfig.experimental.parallelRouteMetadata
               ),
               inlineCss: Boolean(nextConfig.experimental.inlineCss),
+              inlineScriptHashes: nextConfig.experimental.inlineScriptHashes,
               prefetchInlining:
                 nextConfig.experimental.prefetchInlining ?? false,
               authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
@@ -1064,11 +1073,46 @@ export function createAppPageEntrypoint({
           throw err
         }
 
+        // The hashes of the inline scripts are only known once the document is
+        // complete, so a response that carries them is buffered rather than
+        // streamed. Only a cached response is: it is served again from the
+        // cache with the headers it was stored with, while a dynamic one keeps
+        // streaming and is admitted by a nonce instead.
+        const inlineScriptHashesConfig =
+          nextConfig.experimental.inlineScriptHashes
+        const isCached =
+          isSSG && !respondsDynamically && cacheControl?.revalidate !== 0
+        let html = result
+        let inlineScriptHashes: string[] | undefined
+
+        if (
+          inlineScriptHashesConfig &&
+          isCached &&
+          result.contentType !== RSC_CONTENT_TYPE_HEADER &&
+          metadata.postponed === undefined
+        ) {
+          const document = await result.toUnchunkedString(true)
+          const hashes = collectInlineScriptHashes(
+            document,
+            inlineScriptHashesConfig.algorithm
+          )
+
+          if (hashes.length > 0) {
+            inlineScriptHashes = hashes
+          }
+
+          html = RenderResult.fromStatic(
+            document,
+            result.contentType ?? HTML_CONTENT_TYPE_HEADER
+          )
+        }
+
         return {
           value: {
             kind: CachedRouteKind.APP_PAGE,
-            html: result,
+            html,
             headers,
+            inlineScriptHashes,
             rscData: metadata.flightData,
             postponed: metadata.postponed,
             status: metadata.statusCode,
@@ -1462,6 +1506,7 @@ export function createAppPageEntrypoint({
                 postponed,
                 segmentData: undefined,
                 headers: undefined,
+                inlineScriptHashes: undefined,
                 status: undefined,
               } satisfies CachedAppPageValue,
             }
@@ -1854,6 +1899,24 @@ export function createAppPageEntrypoint({
           })
 
           if (finished) return null
+        }
+
+        // The hashes admit the inline scripts of the body being served, so they
+        // are added to the policy of every response carrying it, cached or not.
+        if (cachedData.inlineScriptHashes) {
+          for (const name of [
+            'content-security-policy',
+            'content-security-policy-report-only',
+          ]) {
+            const policy = res.getHeader(name)
+
+            if (typeof policy === 'string') {
+              res.setHeader(
+                name,
+                withInlineScriptHashes(policy, cachedData.inlineScriptHashes)
+              )
+            }
+          }
         }
 
         if (cachedData.headers) {

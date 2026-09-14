@@ -5,6 +5,7 @@ export type RouteMetadata = {
   status: number | undefined
   headers: OutgoingHttpHeaders | undefined
   postponed: string | undefined
+  inlineScriptHashes: Array<string> | undefined
   segmentPaths: Array<string> | undefined
   prefetchHints: PrefetchHints | undefined
 }
