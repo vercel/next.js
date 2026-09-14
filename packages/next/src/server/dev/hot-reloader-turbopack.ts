@@ -569,7 +569,11 @@ export async function createHotReloaderTurbopack(
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     setBundlerFindSourceMapURLImplementation(() => null)
-    await project.onExit()
+    if (process.env.NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1') {
+      await project.shutdown()
+    } else {
+      await project.onExit()
+    }
     await lockfile?.unlock()
   })
   // Subscription detects route additions/removals; returned endpoints stay lazy.
