@@ -10,8 +10,8 @@ import { bold, cyan, dim } from '../picocolors'
 
 // Model defaults for newly launched sessions; existing agents keep their model.
 const UPGRADE_MODELS = {
-  codex: 'gpt-5.6-luna',
-  claude: 'claude-haiku-4-5',
+  codex: 'gpt-5.6-terra',
+  claude: 'sonnet',
 } as const
 
 type UpgradeHarness = {
@@ -24,7 +24,9 @@ async function findHarnesses(): Promise<UpgradeHarness[]> {
   const directories = (process.env.PATH ?? '').split(delimiter).filter(Boolean)
   const extensions =
     process.platform === 'win32'
-      ? (process.env.PATHEXT || '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
+      ? (process.env.PATHEXT || '.EXE;.CMD;.BAT;.COM')
+          .split(';')
+          .filter(Boolean)
       : ['']
 
   // Probe agents independently, preserving menu order and each detected path.
@@ -51,12 +53,15 @@ async function findHarnesses(): Promise<UpgradeHarness[]> {
     })
   )
 
-  return installed.filter((harness): harness is UpgradeHarness => harness !== null)
+  return installed.filter(
+    (harness): harness is UpgradeHarness => harness !== null
+  )
 }
 
 async function chooseHarness(
   harnesses: UpgradeHarness[]
 ): Promise<UpgradeHarness | 'copy' | undefined> {
+  Log.bootstrap('')
   Log.bootstrap('  How would you like to continue?')
   Log.bootstrap(`  ${dim('Use ↑/↓ to choose, then press Enter.')}\n`)
 
@@ -66,7 +71,9 @@ async function chooseHarness(
         ...Object.fromEntries(
           harnesses.map(({ name }) => [
             name,
-            name === 'codex' ? 'Continue with Codex' : 'Continue with Claude Code',
+            name === 'codex'
+              ? 'Continue with Codex'
+              : 'Continue with Claude Code',
           ])
         ),
         copy: 'Copy upgrade prompt',
@@ -132,7 +139,7 @@ function launchHarness(
     prompt = prompt.replace(/[\r\n]+/g, ' ')
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((finish, reject) => {
     const child = spawn(
       harness.path,
       ['--model', UPGRADE_MODELS[harness.name], prompt],
@@ -154,7 +161,7 @@ function launchHarness(
       'close',
       (code: number | null, signal: NodeJS.Signals | null) => {
         cleanup()
-        resolve(code ?? (signal ? 128 + (osConstants.signals[signal] ?? 1) : 1))
+        finish(code ?? (signal ? 128 + (osConstants.signals[signal] ?? 1) : 1))
       }
     )
   })
@@ -180,7 +187,9 @@ export async function handoffUpgrade(
   const installed = await findHarnesses()
 
   if (installed.length === 0) {
-    Log.info('No supported agent found. Paste the prompt into your coding agent.')
+    Log.info(
+      'No supported agent found. Paste the prompt into your coding agent.'
+    )
     copyUpgradePrompt(prompt)
     return
   }
