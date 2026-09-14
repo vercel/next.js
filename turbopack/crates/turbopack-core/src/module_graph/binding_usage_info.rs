@@ -2,7 +2,7 @@ use std::collections::hash_map::Entry;
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
-use petgraph::Direction;
+use petgraph::visit::EdgeRef;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -167,6 +167,28 @@ pub async fn compute_binding_usage_info(
             None
         };
 
+        // A module with an outgoing passthrough reference needs a separate, precise usage
+        // accumulator. Its regular usage can be `All` (e.g. when it is a chunk group entry), but
+        // every update from an importer still has to revisit the passthrough reference.
+        let mut passthrough_modules = FxHashSet::default();
+        for graph in &graph_ref.graphs {
+            for edge in graph.graph.edge_references() {
+                if matches!(
+                    edge.weight().binding_usage.export,
+                    ExportUsage::Passthrough { .. }
+                ) {
+                    passthrough_modules.insert(
+                        graph
+                            .graph
+                            .node_weight(edge.source())
+                            .expect("edge source must exist")
+                            .module(),
+                    );
+                }
+            }
+        }
+        let mut passthrough_used_exports = FxHashMap::<_, ModuleExportUsageInfo>::default();
+
         let entries = graph_ref.all_chunk_group_entry_modules();
 
         let visit_count = graph_ref.traverse_edges_fixed_point_with_priority(
@@ -176,6 +198,9 @@ pub async fn compute_binding_usage_info(
                 // Entries are always used
                 let Some((parent, ref_data, edge)) = parent else {
                     used_exports.insert(target, ModuleExportUsageInfo::All);
+                    if passthrough_modules.contains(&target) {
+                        passthrough_used_exports.insert(target, ModuleExportUsageInfo::All);
+                    }
                     return Ok(GraphTraversalAction::Continue);
                 };
 
@@ -266,10 +291,26 @@ pub async fn compute_binding_usage_info(
                     }
                 }
 
-                // A passthrough reference forwards the exports that are used from the referencing
-                // module itself, so resolve them from its incoming references. The referencing
-                // module may be a chunk group entry (seeded with `All`), which would otherwise
-                // discard the precise usage the proxy exists to carry.
+                let source_usage = used_exports
+                    .get(&parent)
+                    .context("parent module must have usage info")?;
+                // Accumulate the precise usage of a module that forwards its exports on. Its
+                // regular `used_exports` entry may widen to `All` (it is a chunk group entry), so
+                // the forwarded set is tracked separately and updated on every incoming reference.
+                let passthrough_changed = if passthrough_modules.contains(&target) {
+                    let source_usage = match source_usage {
+                        // Evaluation alone doesn't identify which forwarded exports may be read.
+                        ModuleExportUsageInfo::Evaluation => ModuleExportUsageInfo::All,
+                        usage => usage.clone(),
+                    };
+                    passthrough_used_exports
+                        .entry(target)
+                        .or_default()
+                        .add_usage_info(&source_usage)
+                } else {
+                    false
+                };
+
                 let passthrough_usage = if let ExportUsage::Passthrough {
                     namespace_object_may_escape,
                 } = &ref_data.binding_usage.export
@@ -279,38 +320,14 @@ pub async fn compute_binding_usage_info(
                         // target has to keep its original export names.
                         partial_namespace_modules.insert(target);
                     }
-
-                    let parent_node = graph_ref.get_entry(parent)?;
-                    let mut usage = ModuleExportUsageInfo::Evaluation;
-                    let mut has_incoming_module = false;
-                    for (_, source) in
-                        graph_ref.iter_graphs_neighbors_rev(parent_node, Direction::Incoming, false)
-                    {
-                        has_incoming_module = true;
-                        let source = graph_ref.get_node(source)?.module();
-                        // An unvisited source, or one that is only evaluated, tells us nothing
-                        // about which exports are read, so stay conservative.
-                        let Some(source_usage) = used_exports.get(&source) else {
-                            usage = ModuleExportUsageInfo::All;
-                            break;
-                        };
-                        if matches!(source_usage, ModuleExportUsageInfo::Evaluation) {
-                            usage = ModuleExportUsageInfo::All;
-                            break;
-                        }
-                        usage.add_usage_info(source_usage);
-                        if matches!(usage, ModuleExportUsageInfo::All) {
-                            break;
-                        }
-                    }
-
-                    // Without an incoming reference the referencing module is reached some other
-                    // way (e.g. as an entry), so all of its exports have to be assumed used.
-                    Some(if has_incoming_module {
-                        usage
-                    } else {
-                        ModuleExportUsageInfo::All
-                    })
+                    // `parent` is always in `passthrough_modules` (it owns this reference), so the
+                    // accumulator is missing only before its first incoming reference is visited.
+                    Some(
+                        passthrough_used_exports
+                            .get(&parent)
+                            .cloned()
+                            .unwrap_or(ModuleExportUsageInfo::All),
+                    )
                 } else {
                     None
                 };
@@ -330,7 +347,7 @@ pub async fn compute_binding_usage_info(
                 } else {
                     entry.or_default().add(&ref_data.binding_usage.export)
                 };
-                if changed || is_first_visit {
+                if changed || passthrough_changed || is_first_visit {
                     // First visit, or the used exports changed. This can cause more imports to get
                     // used downstream.
                     Ok(GraphTraversalAction::Continue)
