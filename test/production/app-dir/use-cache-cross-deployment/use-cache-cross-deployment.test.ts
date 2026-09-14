@@ -220,6 +220,38 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'BUILD_ID', 'default'])(
       await next.deleteFile('handler-remote-data.json')
     })
 
+    it('should not miss when an env var changes during cache generation', async () => {
+      // Regression test for mutating env vars which changes the cache key mid-rendering and breaks
+      // the multi-phase rendering process (be it within the next build prerendering, or in the
+      // resume case at runtime).
+      // RDC stores cache entries, and we should use those entries regardless of whether env vars
+      // changed in the meantime (among other things, to prevent tearing).
+      //
+      // Error: Route "foo": Unexpected cache miss after cache warming phase during prerendering.
+      // This is likely caused by non-deterministic arguments that differ between the cache warming
+      // phase and the final prerender phase (e.g. unstable array order). Ensure that arguments
+      // passed to cached functions are deterministic.
+      //
+      // Error: Route "foo": Next.js encountered uncached or runtime data during prerendering.
+      await next.stop()
+      delete next.env.MUTATED_DURING_CACHE_GENERATION
+
+      try {
+        await next.start()
+        const output = next.getCliOutputFromHere()
+        const browser = await next.browser('/env-mutation/test')
+
+        expect(output()).not.toContain('Error')
+        expect(output()).not.toContain(
+          'Unexpected cache miss after cache warming phase during prerendering'
+        )
+        expect(await browser.elementById('data').text()).toBe('test:unset')
+      } finally {
+        await next.stop()
+        delete next.env.MUTATED_DURING_CACHE_GENERATION
+      }
+    })
+
     it('should not recompute when nothing changes', async () => {
       const key1 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-1')
       const key2 = await execute(next, 'NEXT_DEPLOYMENT_ID', 'dpl-id-2')
