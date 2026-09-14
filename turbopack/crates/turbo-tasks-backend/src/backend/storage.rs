@@ -544,8 +544,8 @@ impl Storage {
     }
 
     /// The number of **persistent** (non-transient) tasks resident in the map. Use this to assert
-    /// GC returns to a flat baseline across re-rooting: GC never collects transient tasks (e.g.
-    /// `run_once`/Once roots), so their count is not expected to settle.
+    /// GC returns to a flat baseline across re-rooting, without the noise of root/once tasks,
+    /// which are never collected.
     #[doc(hidden)]
     pub fn resident_persistent_task_count_for_testing(&self) -> usize {
         let mut persistent = 0;
@@ -567,30 +567,15 @@ impl Storage {
         self.map.shards().len()
     }
 
-    /// Iterates the non-transient tasks of a **single** shard of the resident map by index, under
-    /// that shard's read lock.
-    fn for_each_resident_persistent_in_shard(
-        &self,
-        index: usize,
-        mut f: impl FnMut(TaskId, &TaskStorage),
-    ) {
+    /// Scans a **single** shard by index, invoking `on_candidate` for each resident task whose
+    /// storage passes [`TaskStorage::gc_maybe_collectible`].
+    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
         let shard = self.map.shards()[index].read();
         for (task_id, task) in shard.iter() {
-            if task_id.is_transient() {
-                continue;
+            if task.gc_maybe_collectible() {
+                on_candidate(*task_id);
             }
-            f(*task_id, task);
         }
-    }
-
-    /// Scans a **single** shard by index, invoking `on_candidate` for each resident, non-transient
-    /// task whose storage passes the cheap [`TaskStorage::gc_maybe_collectible`] pre-filter.
-    pub fn gc_scan_shard(&self, index: usize, mut on_candidate: impl FnMut(TaskId)) {
-        self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
-            if storage.gc_maybe_collectible() {
-                on_candidate(task_id);
-            }
-        });
     }
 
     /// Return the set of all known live roots.
@@ -604,20 +589,21 @@ impl Storage {
         let per_shard: Vec<Vec<TaskId>> =
             parallel::map_collect(&(0..self.shard_count()).collect::<Vec<_>>(), |&index| {
                 let mut roots = Vec::new();
-                self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
-                    if storage.gc_is_root() {
-                        // The `is_root` criteria is conservative, in debug assert that we aren't
-                        // marking things as roots for surprising reasons
+                let shard = self.map.shards()[index].read();
+                for (task_id, task) in shard.iter() {
+                    if !task_id.is_transient() && task.gc_is_root() {
+                        // The `is_root` criteria is conservative, in debug assert that we
+                        // aren't marking things as roots for surprising reasons
                         #[cfg(debug_assertions)]
-                        if !storage.gc_is_held_by_transient_pin() {
+                        if !task.gc_is_held_by_transient_pin() {
                             unexpected
                                 .lock()
                                 .unwrap()
-                                .push((task_id, storage.gc_root_holders()));
+                                .push((*task_id, task.gc_root_holders()));
                         }
-                        roots.push(task_id);
+                        roots.push(*task_id);
                     }
-                });
+                }
                 roots
             });
 
@@ -741,7 +727,12 @@ impl Storage {
                     }
                 };
             shard.retain(|(task_id, task)| {
-                if task_id.is_transient() {
+                // A collected transient task can be dropped outright: there is nothing to
+                // tombstone, since it was never persisted. Checked before the retain below, which
+                // would otherwise keep it resident for the rest of the session and waste the
+                // memory GC just reclaimed. Root/once tasks never reach here -- they hold
+                // `activeness`/`in_progress`, so `gc_maybe_collectible` rejects them.
+                if task_id.is_transient() && !task.flags.deleted() {
                     evicted.unevictable_reasons[UnevictableReason::Transient.index()] += 1;
                     return true;
                 }
