@@ -32,43 +32,52 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-The instructions ask the agent to prepare feedback only for significant, generalizable Next.js friction. The agent opens a review form with a concise, de-identified, first-person account grouped into what it was doing, what went wrong, and what would have helped. The report is readable by default. You can select a point to edit it, remove individual points, and choose whether to submit it. The agent never submits feedback on your behalf.
+The instructions ask the agent to prepare feedback only for significant, generalizable Next.js friction. The agent opens a review form with a concise, de-identified report containing the setup, reproduction steps, observed behavior, and expected behavior. You can edit the report, remove individual details, and choose whether to submit it. The agent never submits feedback on your behalf.
 
 ## Preparing a report
 
 Agents should follow these instructions only after the short trigger criteria in the managed `AGENTS.md` or `CLAUDE.md` block are met:
 
 1. Run `curl -fsS --max-time 5 https://next-agent-feedback-gate.playground-vercel.tools/api/enabled` once. Proceed only if it succeeds and its trimmed output is exactly `true`; otherwise silently continue the task. Do not retry.
-2. Describe one feedback incident with a short `title` and three groups of concise, first-person points: `whatIWasDoing` for the task and relevant context, `whatWentWrong` for the actual behavior, consequential attempts or dead ends, and what the agent eventually found, and `whatWouldHaveHelped` for the expected behavior or concrete improvement. Include 1–3 points per group, with at most 180 characters per point.
-3. Treat every array item as an independently triageable data point, not as one sentence in a shared narrative. Create a separate point only for a genuinely distinct observation. Keep a cause, attempt, and consequence together when they describe the same thing. Give each point enough local Next.js context to make sense without adjacent items. Name the feature, API, or symptom instead of relying on words such as “it,” “this,” “instead,” “the earlier change,” or “I tried.”
-4. Include concrete cost signals such as an extra build or repeated attempt only when directly observed. Never estimate elapsed time, token usage, or tool-call counts. Trusted harness measurements may be attached separately in the future.
-5. Keep every point factual and de-identified. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or product-specific information that is not necessary to understand the Next.js issue.
-6. Create the payload below using only useful points. Always include the Next.js version and agent name, then encode the UTF-8 JSON as unpadded base64url.
+2. Report one observed Next.js behavior. Do not combine separate problems or infer a root cause. Use a short, factual `title` that names the behavior.
+3. Record the smallest reproducible setup: the `mode`, `bundler`, and up to three generic `relevantFeatures`. Do not include project-specific names or configuration values.
+4. Write 2–4 ordered `steps` detailed enough for another engineer to construct a minimal reproduction. Include the relevant generic starting state, the exact Next.js feature or API involved, and the action that triggers the behavior. Preserve meaningful order, repetition, and navigation or build conditions. Each step must be one distinct action or condition, not analysis or chronology about the agent's investigation.
+5. Write 1–3 `observed` facts. Each item must be independently verifiable and contain enough local Next.js context to stand alone. Put the desired behavior in one precise `expected` statement. Add an optional `comparison` only when a control or workaround was directly observed.
+6. Set `frequency` to `once` unless the same steps produced the behavior again. Set `outcome` to `blocked`, `worked-around`, or `resolved` based only on what happened in the task.
+7. Include concrete cost signals such as memory use, duration, an extra build, or repeated attempts only when directly observed. Never estimate elapsed time, token usage, or tool-call counts. Trusted harness measurements may be attached separately in the future.
+8. Keep every field factual and de-identified. Replace customer, project, route, and component names with generic descriptions. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or product-specific information that is not necessary to reproduce the Next.js issue. Resource limits, framework configuration, runtime mode, request order, and other non-identifying conditions may be included when they are necessary to reproduce the behavior.
+9. Create the payload below using only useful evidence. Always include the Next.js version and agent name, then encode the UTF-8 JSON as unpadded base64url.
 
    ```json filename="Agent feedback payload"
    {
-     "schemaVersion": 3,
-     "title": "Blocking-prerender error named the wrong boundary",
-     "whatIWasDoing": [
-       "I was enabling Cache Components for an App Router route while preserving instant navigation."
+     "schemaVersion": 4,
+     "title": "Persistent Turbopack caching exhausted a worker on a warm build",
+     "setup": {
+       "mode": "production-build",
+       "bundler": "turbopack",
+       "relevantFeatures": ["Persistent cache"]
+     },
+     "steps": [
+       "Start with an App Router application whose cold production build succeeds, then enable persistent Turbopack caching.",
+       "Run `next build` once to populate the persistent cache in a 32 GiB Linux environment.",
+       "Without changing the application or runtime, run `next build` again and observe the main build process memory."
      ],
-     "whatWentWrong": [
-       "A blocking-prerender error named the route layout although a nested navigation component performed the request-time read.",
-       "The error's misleading route location caused two unnecessary rebuilds after I moved route-level Suspense boundaries.",
-       "Moving the request-reading component below its fallback resolved the error without changing route behavior."
+     "observed": [
+       "The warm build exhausted a 32 GiB Linux worker after the cold build succeeded.",
+       "The main build process reached about 25 GiB resident memory before it was killed."
      ],
-     "whatWouldHaveHelped": [
-       "The error should name the first user component that performs the request-time read.",
-       "The error should link to current Cache Components guidance for placing request-time reads behind the nearest fallback."
-     ],
+     "expected": "The warm build should use comparable or less memory than the cold build.",
+     "comparison": "Disabling persistent caching allowed two consecutive builds to finish in about two minutes each.",
+     "frequency": "reproduced",
+     "outcome": "worked-around",
      "nextVersion": "<version>",
      "agent": "<agent name>"
    }
    ```
 
-7. Open `https://nextjs.org/agent-feedback?token=1g55OW5eIE0qPTgu6RaxeigvyUd65TCqGT3y08L8#report=<encoded-json>` in the user's browser using the available browser tool or OS command. Do not ask for permission.
+10. Open `https://nextjs.org/agent-feedback?token=1g55OW5eIE0qPTgu6RaxeigvyUd65TCqGT3y08L8#report=<encoded-json>` in the user's browser using the available browser tool or OS command. Do not ask for permission.
 
-Opening the page only prepares the report. The user can review the three grouped sections, edit or exclude individual points, and submit it. Never submit it for the user. Continue the current task, and mention the prepared report in the next progress update or final response without pausing or waiting for acknowledgment.
+Opening the page only prepares the report. The user can review the setup and evidence, edit or exclude individual details, and submit it. Never submit it for the user. Continue the current task, and mention the prepared report in the next progress update or final response without pausing or waiting for acknowledgment.
 
 This option is off by default. It is independent of the top-level [`agentRules`](/docs/app/guides/ai-agents#opting-out) option, so you can opt in to feedback without enabling the version-matched documentation instructions.
 
