@@ -289,6 +289,9 @@ completed behavior. Do not replace a mutable read with a build-time import to
 make it appear static. Cache the existing read when it can be reused. Stream it
 when it must be computed for each request.
 
+Do not treat one cached loader as proof that the rendered route is cached.
+Trace each async subtree to its own cache, Suspense, and navigation boundary.
+
 If development or a build surfaces another instant-navigation Insight during
 the refactor, follow [validation as you
 refactor](https://nextjs.org/docs/app/guides/optimizing-the-static-shell#follow-validation-as-you-refactor)
