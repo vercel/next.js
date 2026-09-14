@@ -30,7 +30,7 @@ use turbo_tasks::{
     OperationVc, ReadRef, ResolvedVc, TurboTasksApi, ValueToString, Vc, debug::ValueDebugFormat,
     parallel, trace::TraceRawVcs, turbo_tasks_weak, turbobail,
 };
-use turbo_tasks_hash::{DeterministicHash, hash_xxh3_hash64, hash_xxh3_hash128};
+use turbo_tasks_hash::{hash_xxh3_hash64, hash_xxh3_hash128};
 use turbo_unix_path::{normalize_path, sys_to_unix, unix_to_sys};
 
 #[cfg(windows)]
@@ -38,7 +38,7 @@ use crate::windows::{is_link_junction_point, to_verbatim_with_case_folded_disk};
 use crate::{
     AnyhowWrapper, DiskFileSystemMap, File, FileComparison, FileContent, FileMeta, FileSystem,
     FileSystemPath, LinkContent, LinkTarget, PersistedFileContent, RawDirectoryContent,
-    RawDirectoryEntry, WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
+    RawDirectoryEntry, WriteLinkContent, WriteLinkTargetType,
     invalidation::Write,
     invalidator_map::InvalidatorMap,
     mutex_map::MutexMap,
@@ -1371,49 +1371,43 @@ impl FileSystem for DiskFileSystem {
         if this.inner.is_path_denied(&fs_path) {
             turbobail!("Cannot write link to denied path: {fs_path}");
         }
-        let full_path = this.to_sys_path_raw(&fs_path);
+        let full_path = Arc::new(this.to_sys_path_raw(&fs_path));
 
         validate_path_length(&full_path)?;
 
-        let target = target.await?;
-        let is_directory = matches!(
-            target.target_type,
-            WriteLinkTargetType::DirectoryOrJunctionPoint
-        );
-        let target_path = match &target.target {
-            WriteLinkTarget::Absolute { root, path } => root
-                .await?
-                .inner
-                .root_path()
-                .join(unix_to_sys(path).as_ref()),
-            WriteLinkTarget::Relative(path) => {
-                let relative_target = PathBuf::from(unix_to_sys(path).as_ref());
-                if cfg!(windows) && is_directory {
-                    full_path
-                        .parent()
-                        .unwrap_or(&full_path)
-                        .join(relative_target)
-                } else {
-                    relative_target
-                }
-            }
-        };
+        let content = target.await?;
 
-        #[derive(DeterministicHash)]
-        struct ResolvedWriteLinkContent<'a> {
-            target: &'a [u8],
-            target_type: &'a WriteLinkTargetType,
-        }
-        let content_hash = hash_xxh3_hash128(&ResolvedWriteLinkContent {
-            target: target_path.as_os_str().as_encoded_bytes(),
-            target_type: &target.target_type,
-        });
+        let target_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(content.target.fs)
+            .context("link target must use a disk filesystem")?
+            .await?;
+        let target_abs_sys_path = target_fs.to_sys_path_raw(&content.target);
+        let target_type = content.target_type.clone();
+        let is_directory = matches!(target_type, WriteLinkTargetType::DirectoryOrJunctionPoint);
+        // Prefer to write relative links.
+        //
+        // Windows: Junction points require absolute paths. `pathdiff` may return an absolute path
+        // if paths cross drives.
+        let target_sys_path = if cfg!(windows) && is_directory {
+            None
+        } else {
+            full_path
+                .parent()
+                .and_then(|parent| pathdiff::diff_paths(&target_abs_sys_path, parent))
+        };
+        let target_sys_path = match target_sys_path {
+            Some(target_sys_path) if target_sys_path.as_os_str().is_empty() => PathBuf::from("."),
+            Some(target_sys_path) => target_sys_path,
+            None => target_abs_sys_path,
+        };
+        let target_sys_path = Arc::new(target_sys_path);
+        let content_hash =
+            hash_xxh3_hash128((target_sys_path.as_os_str().as_encoded_bytes(), &target_type));
 
         #[turbo_tasks::value(eq = "manual", cell = "new")]
         struct WriteLinkEffect {
-            full_path: Arc<PathBuf>,
             fs: ResolvedVc<DiskFileSystem>,
-            target_path: Arc<PathBuf>,
+            full_path: Arc<PathBuf>,
+            target_sys_path: Arc<PathBuf>,
             target_type: WriteLinkTargetType,
             content_hash: u128,
         }
@@ -1422,20 +1416,20 @@ impl FileSystem for DiskFileSystem {
         #[turbo_tasks::value_impl]
         impl Effect for WriteLinkEffect {
             async fn capture(&self) -> Result<Box<dyn CapturedEffect>> {
+                // Untracked, a tracked read of this cell occurred in the write effect so if it
+                // somehow changes the effect will be re-emitted
                 let inner = (*self.fs).untracked().await?.inner.clone();
 
-                // Skip target materialization if the per-key effect state already records
+                // Skip the write entirely if the per-key effect state already records
                 // `Applied { value_hash }` matching our hash. See `WriteEffect::capture`.
-                let key_bytes: Box<[u8]> = self.full_path.as_os_str().as_encoded_bytes().into();
+                let key_bytes = self.full_path.as_os_str().as_encoded_bytes();
                 let content = if inner
                     .effect_state_storage
-                    .matches_applied(&key_bytes, self.content_hash)
+                    .matches_applied(key_bytes, self.content_hash)
                 {
                     None
                 } else {
-                    // The target was resolved before constructing the effect, so capture only
-                    // needs to retain the materialized path and target type.
-                    Some((self.target_path.clone(), self.target_type.clone()))
+                    Some((self.target_sys_path.clone(), self.target_type.clone()))
                 };
                 Ok(Box::new(CapturedWriteLinkEffect {
                     full_path: self.full_path.clone(),
@@ -1492,30 +1486,15 @@ impl FileSystem for DiskFileSystem {
                 #[cfg(not(windows))]
                 let _ = target_type;
 
-                let old_content = match retry_blocking(|| std::fs::read_link(&**full_path))
+                let old_content = retry_blocking(|| std::fs::read_link(&**full_path))
                     .instrument(tracing::info_span!("read symlink before write", name = ?full_path))
                     .concurrency_limited(&self.inner.read_semaphore)
                     .await
-                {
-                    Ok(res) => Some((res.is_absolute(), res)),
-                    Err(_) => None,
-                };
-                #[cfg(not(windows))]
-                let is_equal = match &old_content {
-                    Some((old_is_absolute, old_target)) => {
-                        **target == *old_target && target.is_absolute() == *old_is_absolute
-                    }
-                    None => false,
-                };
+                    .ok();
+                let is_equal = old_content.as_deref() == Some(&**target);
                 #[cfg(windows)]
-                let is_equal = match &old_content {
-                    Some((old_is_absolute, old_target)) => {
-                        **target == *old_target
-                            && target.is_absolute() == *old_is_absolute
-                            && is_link_junction_point(&full_path).ok() == Some(is_directory)
-                    }
-                    None => false,
-                };
+                let is_equal =
+                    is_equal && is_link_junction_point(&full_path).ok() == Some(is_directory);
                 if is_equal {
                     return Ok(());
                 }
@@ -1624,10 +1603,10 @@ impl FileSystem for DiskFileSystem {
         }
 
         WriteLinkEffect {
-            full_path: Arc::new(full_path),
             fs: self,
-            target_path: Arc::new(target_path),
-            target_type: target.target_type.clone(),
+            full_path,
+            target_sys_path,
+            target_type,
             content_hash,
         }
         .resolved_cell()
@@ -1830,7 +1809,7 @@ mod tests {
         use crate::{DirectoryContent, FileContent, RawDirectoryContent};
         use crate::{
             DiskFileSystem, FileSystem, FileSystemEntryType, FileSystemPath, LinkContent,
-            LinkTarget, RealPathErrorType, WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
+            LinkTarget, RealPathErrorType, WriteLinkContent, WriteLinkTargetType,
             canonicalize_to_rcstr,
         };
 
@@ -1840,11 +1819,13 @@ mod tests {
             path: FileSystemPath,
             target: RcStr,
         ) -> anyhow::Result<()> {
+            let file_target = path.join(&format!("{target}/data.txt"))?;
+            let directory_target = path.join(&target)?;
             let write_file = |f| {
                 fs.write_link(
                     f,
                     WriteLinkContent {
-                        target: WriteLinkTarget::Relative(format!("{target}/data.txt").into()),
+                        target: file_target.clone(),
                         target_type: WriteLinkTargetType::FileNonPortable,
                     }
                     .cell(),
@@ -1858,7 +1839,7 @@ mod tests {
                 fs.write_link(
                     f,
                     WriteLinkContent {
-                        target: WriteLinkTarget::Relative(target.clone()),
+                        target: directory_target.clone(),
                         target_type: WriteLinkTargetType::DirectoryOrJunctionPoint,
                     }
                     .cell(),
@@ -1867,6 +1848,16 @@ mod tests {
             // Write it twice (same content)
             write_dir(path.join("symlink-dir")?).await?;
             write_dir(path.join("symlink-dir")?).await?;
+
+            fs.write_link(
+                path.join("symlink-parent")?,
+                WriteLinkContent {
+                    target: path,
+                    target_type: WriteLinkTargetType::DirectoryOrJunctionPoint,
+                }
+                .cell(),
+            )
+            .await?;
 
             Ok(())
         }
@@ -1914,6 +1905,11 @@ mod tests {
                 assert_eq!(
                     read_to_string(path.join("symlink-dir/data.txt")).unwrap(),
                     "foo"
+                );
+                #[cfg(not(windows))]
+                assert_eq!(
+                    std::fs::read_link(path.join("symlink-parent")).unwrap(),
+                    std::path::PathBuf::from(".")
                 );
 
                 // Write the same links again but with different targets
@@ -2489,11 +2485,12 @@ mod tests {
                 .map(|(symlink_idx, target_idx)| {
                     let target = RcStr::from(format!("../_targets/{target_idx}"));
                     let symlink_path = symlinks_dir.join(&symlink_idx.to_string()).unwrap();
+                    let target = symlinks_dir.join(&target).unwrap();
                     async move {
                         fs.write_link(
                             symlink_path,
                             WriteLinkContent {
-                                target: WriteLinkTarget::Relative(target),
+                                target,
                                 target_type: WriteLinkTargetType::DirectoryOrJunctionPoint,
                             }
                             .cell(),

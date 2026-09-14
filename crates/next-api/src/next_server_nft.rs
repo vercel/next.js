@@ -228,7 +228,7 @@ impl Asset for ServerNftJsonAsset {
         .await?;
 
         for (path, hash, content) in server_output_assets {
-            nft_json.add(path, hash, &content).await?;
+            nft_json.add(path, hash, &content)?;
         }
 
         let next_dir = get_next_package(this.project.project_path().owned().await?).await?;
@@ -241,7 +241,7 @@ impl Asset for ServerNftJsonAsset {
                 .owned()
                 .await?;
             let content = content.await?;
-            nft_json.add(module_path, hash, &content).await?;
+            nft_json.add(module_path, hash, &content)?;
 
             let contexts_dir = dir.join("vendored/contexts")?;
             let DirectoryContent::Entries(contexts_files) = &*contexts_dir.read_dir().await? else {
@@ -261,7 +261,7 @@ impl Asset for ServerNftJsonAsset {
                         .owned()
                         .await?;
                     let content = content.await?;
-                    nft_json.add(file.clone(), hash, &content).await?;
+                    nft_json.add(file.clone(), hash, &content)?;
                 }
             }
         }

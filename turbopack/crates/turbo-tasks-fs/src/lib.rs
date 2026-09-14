@@ -57,8 +57,7 @@ pub(crate) use crate::{
 pub use crate::{
     content::{
         File, FileContent, FileJsonContent, FileLine, FileLinesContent, FileMeta, LinkContent,
-        LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTarget,
-        WriteLinkTargetType,
+        LinkTarget, Permissions, PersistedFileContent, WriteLinkContent, WriteLinkTargetType,
     },
     disk::{DiskFileSystem, canonicalize_to_rcstr, validate_path_length},
     fs_map::DiskFileSystemMap,

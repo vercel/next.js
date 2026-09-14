@@ -184,7 +184,7 @@ impl Asset for NftJsonAsset {
                 .await?;
 
             for (path, hash, content) in result {
-                nft_json.add(path, hash, &content).await?;
+                nft_json.add(path, hash, &content)?;
             }
 
             for file_path in &traced_files.includes {
@@ -194,7 +194,7 @@ impl Asset for NftJsonAsset {
                     .owned()
                     .await?;
                 let content = content.await?;
-                nft_json.add(file_path.clone(), hash, &content).await?;
+                nft_json.add(file_path.clone(), hash, &content)?;
             }
             // We can't just add this into "files" because Next.js sometimes decides to delete
             // output files such as `.next/server/pages/index.js` if that page was prerendered and

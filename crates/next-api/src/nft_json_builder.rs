@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 use serde::{Serialize, Serializer, ser::SerializeTuple};
 use turbo_rcstr::RcStr;
 use turbo_tasks::ResolvedVc;
-use turbo_tasks_fs::{FileSystem, FileSystemPath, WriteLinkContent, WriteLinkTarget};
+use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbo_unix_path::get_relative_path_to;
 use turbopack_core::asset::AssetContent;
 
@@ -138,7 +138,7 @@ impl NftJsonBuilder {
         let Some(root) = self.root_configs.get(&path.fs) else {
             bail!("NFT cannot handle filepath '{path}' because it is outside every accepted root")
         };
-        let relative_path = get_relative_path_to(&root.base, &path.path).into();
+        let relative_path = RcStr::from(get_relative_path_to(&root.base, &path.path));
         if let Some(root_index) = root.additional_root_index {
             Ok(AssetLocation::AdditionalRoot {
                 root_index,
@@ -151,32 +151,11 @@ impl NftJsonBuilder {
         }
     }
 
-    async fn classify_link_target(
-        &self,
-        link_path: &FileSystemPath,
-        content: &WriteLinkContent,
-    ) -> Result<AssetLocation> {
-        let target = match &content.target {
-            WriteLinkTarget::Relative(path) => link_path.parent().join(path)?,
-            WriteLinkTarget::Absolute { root, path } => {
-                FileSystemPath::new_normalized_unchecked(ResolvedVc::upcast(*root), path.clone())
-            }
-        };
-        self.classify(&target)
-    }
-
-    pub async fn add(
-        &mut self,
-        path: FileSystemPath,
-        hash: RcStr,
-        content: &AssetContent,
-    ) -> Result<()> {
+    pub fn add(&mut self, path: FileSystemPath, hash: RcStr, content: &AssetContent) -> Result<()> {
         let location = self.classify(&path)?;
         let symlink_target = match content {
             AssetContent::File(_) => None,
-            AssetContent::Redirect(content) => {
-                Some(self.classify_link_target(&path, content).await?)
-            }
+            AssetContent::Redirect(content) => Some(self.classify(&content.target)?),
         };
         self.asset_refs.push(AssetReference {
             location,

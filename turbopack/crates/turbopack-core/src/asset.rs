@@ -126,7 +126,9 @@ impl AssetContent {
     pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
         Ok(match self {
             AssetContent::File(content) => content.hash(salt, algorithm),
-            AssetContent::Redirect(content) => content.clone().cell().hash(salt, algorithm),
+            AssetContent::Redirect(content) => {
+                Vc::cell(content.hash(&*salt.await?, algorithm).await?)
+            }
         })
     }
 
