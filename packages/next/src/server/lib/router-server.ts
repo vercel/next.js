@@ -224,6 +224,11 @@ export async function initialize(opts: {
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
       // Advisory requests must not delay startup. The helper handles failures.
       void nudgeIfSecurityUpgradeNeeded(opts.dir)
+    } else if (developmentConfig.experimental.agenticAutoUpgrade === 'latest') {
+      const { nudgeIfLatestUpgradeNeeded } =
+        require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
+      // Release reminders must not delay or interrupt development.
+      void nudgeIfLatestUpgradeNeeded(opts.dir)
     }
 
     // Resolve the effective serverFastRefresh value.

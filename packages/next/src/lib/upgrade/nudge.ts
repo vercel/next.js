@@ -2,6 +2,34 @@ import * as Log from '../../build/output/log'
 import { getAgentName } from '../../telemetry/agent-name'
 import { bold } from '../picocolors'
 
+export async function nudgeIfLatestUpgradeNeeded(
+  directory: string
+): Promise<void> {
+  try {
+    if (!(await getAgentName())) {
+      return
+    }
+
+    const { getLatestUpgradeVersion } =
+      require('./prepare-upgrade') as typeof import('./prepare-upgrade')
+    const installedVersion = process.env.__NEXT_VERSION || 'unknown'
+    const latestVersion = await getLatestUpgradeVersion(installedVersion)
+
+    if (!latestVersion) {
+      return
+    }
+
+    Log.info(
+      `Next.js ${latestVersion} is available. You're using ${installedVersion}.\n` +
+        `Run \`next upgrade ${JSON.stringify(directory)} --agentic=latest\` to upgrade when you're ready.\n\n` +
+        'Reference: https://registry.npmjs.org/next/latest\n\n' +
+        "Note: This reminder is enabled by `experimental.agenticAutoUpgrade: 'latest'`."
+    )
+  } catch {
+    // A release reminder is best-effort; lookup failures should stay quiet.
+  }
+}
+
 export async function nudgeIfSecurityUpgradeNeeded(
   directory: string
 ): Promise<void> {

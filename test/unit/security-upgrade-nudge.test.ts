@@ -1,15 +1,23 @@
-import { nudgeIfSecurityUpgradeNeeded } from 'next/dist/lib/upgrade/nudge'
+import {
+  nudgeIfLatestUpgradeNeeded,
+  nudgeIfSecurityUpgradeNeeded,
+} from 'next/dist/lib/upgrade/nudge'
 import { getAgentName } from 'next/dist/telemetry/agent-name'
-import { getSecurityAdvisorySummary } from 'next/dist/lib/upgrade/prepare-upgrade'
-import { warn } from 'next/dist/build/output/log'
+import {
+  getLatestUpgradeVersion,
+  getSecurityAdvisorySummary,
+} from 'next/dist/lib/upgrade/prepare-upgrade'
+import { info, warn } from 'next/dist/build/output/log'
 
 jest.mock('next/dist/telemetry/agent-name', () => ({
   getAgentName: jest.fn(),
 }))
 jest.mock('next/dist/lib/upgrade/prepare-upgrade', () => ({
+  getLatestUpgradeVersion: jest.fn(),
   getSecurityAdvisorySummary: jest.fn(),
 }))
 jest.mock('next/dist/build/output/log', () => ({
+  info: jest.fn(),
   warn: jest.fn(),
 }))
 jest.mock('next/dist/lib/picocolors', () => ({
@@ -117,5 +125,104 @@ describe('security upgrade nudge', () => {
        ],
      ]
     `)
+  })
+})
+
+describe('latest nudge release selection', () => {
+  const { getLatestUpgradeVersion: readLatestUpgradeVersion } =
+    jest.requireActual<
+      typeof import('../../packages/next/src/lib/upgrade/prepare-upgrade')
+    >('../../packages/next/src/lib/upgrade/prepare-upgrade')
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  it.each<[string, string, string | null]>([
+    ['15.5.9', '16.0.0', '16.0.0'],
+    ['16.0.9', '16.1.0', '16.1.0'],
+    ['16.1.0', '16.1.1', null],
+    ['16.1.1', '16.1.1', null],
+    ['16.2.0', '16.1.1', null],
+    ['16.1.0', '17.0.0-canary.1', null],
+    ['16.1.0-canary.1', '16.1.0', null],
+  ])(
+    'selects %s → %s for a nudge only across major/minor versions',
+    async (installed, latest, expected) => {
+      jest
+        .spyOn(global, 'fetch')
+        .mockResolvedValue(new Response(JSON.stringify({ version: latest })))
+
+      await expect(readLatestUpgradeVersion(installed)).resolves.toBe(expected)
+    }
+  )
+})
+
+describe('latest upgrade nudge', () => {
+  const originalNextVersion = process.env.__NEXT_VERSION
+
+  beforeEach(() => {
+    jest.resetAllMocks()
+    process.env.__NEXT_VERSION = '15.0.0'
+    jest.mocked(getAgentName).mockResolvedValue('codex')
+    jest.mocked(getLatestUpgradeVersion).mockResolvedValue(null)
+  })
+
+  afterEach(() => {
+    if (originalNextVersion === undefined) {
+      delete process.env.__NEXT_VERSION
+    } else {
+      process.env.__NEXT_VERSION = originalNextVersion
+    }
+  })
+
+  it('shows an informational reminder with the app policy and upgrade command', async () => {
+    jest.mocked(getLatestUpgradeVersion).mockResolvedValue('16.0.0')
+
+    await nudgeIfLatestUpgradeNeeded('/workspace/my app')
+
+    expect(getLatestUpgradeVersion).toHaveBeenCalledWith('15.0.0')
+    expect(warn).not.toHaveBeenCalled()
+    expect(jest.mocked(info).mock.calls).toMatchInlineSnapshot(`
+     [
+       [
+         "Next.js 16.0.0 is available. You're using 15.0.0.
+     Run \`next upgrade "/workspace/my app" --agentic=latest\` to upgrade when you're ready.
+
+     Reference: https://registry.npmjs.org/next/latest
+
+     Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: 'latest'\`.",
+       ],
+     ]
+    `)
+  })
+
+  it('stays silent when there is no newer stable release', async () => {
+    await nudgeIfLatestUpgradeNeeded('/app')
+
+    expect(getLatestUpgradeVersion).toHaveBeenCalledWith('15.0.0')
+    expect(info).not.toHaveBeenCalled()
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('does not look up releases or log outside an agent', async () => {
+    jest.mocked(getAgentName).mockResolvedValue(null)
+
+    await nudgeIfLatestUpgradeNeeded('/app')
+
+    expect(getLatestUpgradeVersion).not.toHaveBeenCalled()
+    expect(info).not.toHaveBeenCalled()
+    expect(warn).not.toHaveBeenCalled()
+  })
+
+  it('stays silent without rejecting when release lookup fails', async () => {
+    jest.mocked(getLatestUpgradeVersion).mockRejectedValue(
+      new Error('Registry unavailable')
+    )
+
+    await expect(nudgeIfLatestUpgradeNeeded('/app')).resolves.toBeUndefined()
+
+    expect(info).not.toHaveBeenCalled()
+    expect(warn).not.toHaveBeenCalled()
   })
 })

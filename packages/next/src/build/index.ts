@@ -1148,6 +1148,11 @@ export default async function build(
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
         // Advisory requests must not delay startup. The helper handles failures.
         void nudgeIfSecurityUpgradeNeeded(dir)
+      } else if (config.experimental.agenticAutoUpgrade === 'latest') {
+        const { nudgeIfLatestUpgradeNeeded } =
+          require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
+        // Release reminders must not delay or interrupt the build.
+        void nudgeIfLatestUpgradeNeeded(dir)
       }
 
       // Resolve selective build paths now that the page extensions are known.
