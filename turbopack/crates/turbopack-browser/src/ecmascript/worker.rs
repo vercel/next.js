@@ -21,7 +21,8 @@ use crate::BrowserChunkingContext;
 /// A pre-compiled worker entrypoint that bootstraps workers by reading config from URL params.
 ///
 /// The worker receives a JSON array via URL params of the following structure:
-/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...forwarded_global_values]`
+/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, PRELOAD_CHUNK_URLS,
+/// ...forwarded_global_values]`
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Browser Worker Entrypoint")]
@@ -148,7 +149,8 @@ impl GenerateSourceMap for EcmascriptBrowserWorkerEntrypoint {
 /// Generates the worker bootstrap code as inline JavaScript.
 ///
 /// The worker receives a JSON array via URL params of the following structure:
-/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...forwarded_global_values]`
+/// `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, PRELOAD_CHUNK_URLS,
+/// ...forwarded_global_values]`
 fn generate_worker_bootstrap_code(
     forwarded_globals: &[RcStr],
     shared_runtime: bool,
@@ -157,15 +159,16 @@ fn generate_worker_bootstrap_code(
 
     // Generate the Object.assign properties for forwarded globals
     // params[0] = chunk URLs, params[1] = ASSET_SUFFIX,
-    // params[2] = WORKER_CHUNK_BASE_PATH, params[3+] = forwarded globals
+    // params[2] = WORKER_CHUNK_BASE_PATH, params[3] = preload chunk URLs,
+    // params[4+] = forwarded globals
     let mut global_assignments = vec![
-        "TURBOPACK_NEXT_CHUNK_URLS: chunkUrls".to_string(),
+        "TURBOPACK_NEXT_CHUNK_URLS: nextChunkUrls".to_string(),
         "TURBOPACK_ASSET_SUFFIX: param(1)".to_string(),
         "TURBOPACK_CHUNK_BASE_PATH: param(2)".to_string(),
     ];
     for (i, name) in forwarded_globals.iter().enumerate() {
-        // Forwarded globals start at params[3]
-        global_assignments.push(format!("{name}: param({n})", n = i + 3));
+        // Forwarded globals start at params[4]
+        global_assignments.push(format!("{name}: param({n})", n = i + 4));
     }
     let globals_js = global_assignments.join(",\n    ");
 
@@ -210,6 +213,20 @@ fn generate_worker_bootstrap_code(
         var params = JSON.parse(paramsString);
         var param = (n) => typeof params[n] === 'string' ? params[n] : '';
         var chunkUrls = Array.isArray(params[0]) ? params[0] : [];
+        // Chunks already loaded in the runtime that created this worker. They
+        // carry module factories this worker's own chunk group omitted (because
+        // the creating runtime already had them), so they must be registered
+        // before the worker's evaluate chunk instantiates the entry module.
+        var preloadUrls = Array.isArray(params[3]) ? params[3] : [];
+
+        // Chunks are relative to the origin; only allow loading same-origin scripts.
+        function sameOriginUrl(chunk) {{
+            var chunkUrl = new URL(chunk, location.origin);
+            if (chunkUrl.origin !== location.origin) {{
+                abort("Refusing to load script from foreign origin: " + chunkUrl.origin);
+            }}
+            return chunkUrl.toString();
+        }}
         "##,
     )?;
 
@@ -220,15 +237,6 @@ fn generate_worker_bootstrap_code(
             code,
             r##"
 
-            // Chunks are relative to the origin; only allow loading same-origin scripts.
-            function sameOriginUrl(chunk) {{
-                var chunkUrl = new URL(chunk, location.origin);
-                if (chunkUrl.origin !== location.origin) {{
-                    abort("Refusing to load script from foreign origin: " + chunkUrl.origin);
-                }}
-                return chunkUrl.toString();
-            }}
-
             // The Turbopack runtime is the last asset emitted by (see
             // `BrowserChunkingContext::evaluated_chunk_group`). `createWorker`
             // reverses the chunk list, so it is the first item in `chunkUrls`.
@@ -236,6 +244,22 @@ fn generate_worker_bootstrap_code(
             "##,
         )?;
     }
+
+    // Build the actual load order and the matching `TURBOPACK_NEXT_CHUNK_URLS`
+    // bookkeeping array. `chunkUrls` arrives reversed (see `createWorker`), so
+    // reversing it back yields the worker's own chunks in load order. Preloaded
+    // chunks go first so their factories are registered before the worker's
+    // evaluate chunk runs the entry module. The runtime reads the current chunk
+    // for each registration by `pop()`ing `TURBOPACK_NEXT_CHUNK_URLS`, so that
+    // array must be exactly the reverse of the load order.
+    writedoc!(
+        code,
+        r##"
+
+        var loadOrder = preloadUrls.concat(chunkUrls.slice().reverse());
+        var nextChunkUrls = loadOrder.slice().reverse();
+        "##,
+    )?;
 
     writedoc!(
         code,
@@ -253,14 +277,11 @@ fn generate_worker_bootstrap_code(
             code,
             r##"
 
-            if (chunkUrls.length > 0 || runtimeUrl) {{
+            if (loadOrder.length > 0 || runtimeUrl) {{
                 var scriptsToLoad = [];
-                for (var i = 0; i < chunkUrls.length; i++) {{
-                    scriptsToLoad.push(sameOriginUrl(chunkUrls[i]));
+                for (var i = 0; i < loadOrder.length; i++) {{
+                    scriptsToLoad.push(sameOriginUrl(loadOrder[i]));
                 }}
-
-                // As scripts are loaded, allow them to pop from the array
-                chunkUrls.reverse();
 
                 // Load the runtime last so it drains the registrations enqueued above.
                 if (runtimeUrl) {{
@@ -277,20 +298,11 @@ fn generate_worker_bootstrap_code(
             code,
             r##"
 
-            if (chunkUrls.length > 0) {{
+            if (loadOrder.length > 0) {{
                 var scriptsToLoad = [];
-                for (var i = 0; i < chunkUrls.length; i++) {{
-                    var chunk = chunkUrls[i];
-                    // Chunks are relative to the origin.
-                    var chunkUrl = new URL(chunk, location.origin);
-                    if (chunkUrl.origin !== location.origin) {{
-                        abort("Refusing to load script from foreign origin: " + chunkUrl.origin);
-                    }}
-                    scriptsToLoad.push(chunkUrl.toString());
+                for (var i = 0; i < loadOrder.length; i++) {{
+                    scriptsToLoad.push(sameOriginUrl(loadOrder[i]));
                 }}
-
-                // As scripts are loaded, allow them to pop from the array
-                chunkUrls.reverse();
                 importScripts.apply(self, scriptsToLoad);
             }}
             }})();
