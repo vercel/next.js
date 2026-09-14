@@ -282,17 +282,13 @@ impl MiddlewareEndpoint {
             let all_assets =
                 get_asset_paths_from_root(&node_root_value, edge_all_assets.await?).await?;
 
-            let regions = if let Some(regions) = config.preferred_region.as_ref() {
-                if regions.len() == 1 {
-                    regions
-                        .first()
-                        .map(|region| Regions::Single(region.clone()))
-                } else {
-                    Some(Regions::Multiple(regions.clone()))
+            let regions = config.preferred_region.as_ref().map(|region| match region {
+                NextSegmentRegion::Single(region) => Regions::Single(region.clone()),
+                NextSegmentRegion::Multiple(regions) if regions.len() == 1 => {
+                    Regions::Single(regions[0].clone())
                 }
-            } else {
-                None
-            };
+                NextSegmentRegion::Multiple(regions) => Regions::Multiple(regions.clone()),
+            });
 
             let edge_function_definition = EdgeFunctionDefinition {
                 files: file_paths_from_root,
