@@ -2,38 +2,39 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
 describe('pages router - shallow navigation with a stale app router marker', () => {
-  const { next } = nextTestSetup({ files: __dirname })
+  const { next, isNextDev } = nextTestSetup({ files: __dirname })
 
-  it('should fetch route info again instead of rendering the marker', async () => {
-    const browser = await next.browser('/blog/first')
-    expect(await browser.elementById('tab').text()).toBe('a')
+  // `router.prefetch()` is a no-op in development, so the client router filter
+  // marker is only ever written by production builds.
+  ;(isNextDev ? describe.skip : describe)('production mode', () => {
+    it('should keep the page props and state after a prefetch marked the current route', async () => {
+      const browser = await next.browser('/blog/first')
+      expect(await browser.elementById('slug').text()).toBe('first')
+      expect(await browser.elementById('tab').text()).toBe('a')
 
-    await browser.eval('window.beforeNav = 1')
-    // `router.prefetch()` writes this marker into `router.components` when the
-    // client router filter matches a prefetched path. Plant it directly so the
-    // test does not depend on the Bloom filter contents or on production mode.
-    await browser.eval(
-      "window.next.router.components['/blog/[slug]'] = { __appRouter: true }"
-    )
+      await browser.elementById('counter').click()
+      await retry(async () => {
+        expect(await browser.elementById('counter').text()).toBe('1')
+      })
 
-    // Push with the concrete pathname as `url`. `change()` first checks
-    // `this.components[pathname]` with the raw `href` pathname; with
-    // '/blog/[slug]' that guard would hit the marker and hard navigate before
-    // `getRouteInfo()` runs. With '/blog/first' the dynamic route is resolved
-    // to '/blog/[slug]' inside `getRouteInfo()`, which is where the marker
-    // must be ignored, exactly like a concrete `href` from `next/link` does.
-    await browser.eval(
-      "window.next.router.push('/blog/first?tab=b', '/blog/first?tab=b', { shallow: true })"
-    )
+      // `href` is the route of this page, `as` is an app route. Without the
+      // fix the prefetch replaces the cached route info of this page with the
+      // `{ __appRouter: true }` marker.
+      await browser.elementById('prefetch-new').click()
+      await retry(async () => {
+        expect(await browser.elementById('prefetch-state').text()).toBe('done')
+      })
 
-    await retry(async () => {
-      expect(await browser.elementById('tab').text()).toBe('b')
+      // a normal shallow link on the same page reads the cache entry
+      await browser.elementById('tab-b').click()
+      await retry(async () => {
+        expect(await browser.elementById('tab').text()).toBe('b')
+      })
+
+      // the props from getServerSideProps and the client state must survive
+      expect(await browser.elementById('slug').text()).toBe('first')
+      expect(await browser.elementById('counter').text()).toBe('1')
+      expect(await browser.eval('location.search')).toBe('?tab=b')
     })
-    expect(await browser.elementById('pages-page').text()).toBe(
-      'hello from pages/blog/[slug] (first)'
-    )
-    // A shallow navigation must stay on the client.
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-    expect(await browser.eval('location.search')).toBe('?tab=b')
   })
 })
