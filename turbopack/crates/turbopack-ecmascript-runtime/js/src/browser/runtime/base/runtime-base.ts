@@ -306,6 +306,11 @@ function loadScriptByUrl(url: string): Promise<void> {
     document.head.appendChild(script)
   })
   externalScriptCache.set(url, promise)
+  void promise.catch(() => {
+    if (externalScriptCache.get(url) === promise) {
+      externalScriptCache.delete(url)
+    }
+  })
   return promise
 }
 browserContextPrototype.o = loadScriptByUrl
