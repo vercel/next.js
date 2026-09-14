@@ -243,8 +243,12 @@ configuration. Without a configured policy, provide an explicit target to procee
 Use only one agentic option; `--revision` is reserved for traditional upgrades.
 
 Explicit agentic targets do not require `experimental.agenticAutoUpgrade`.
-Security mode chooses a safe stable release from advisory evidence. An exact
-version is an explicit upgrade request and does not require an applicable vulnerability.
+Security mode chooses a safe stable release from advisory evidence.
+Security upgrades and reminders currently assess stable installed versions only.
+For a prerelease install, request an explicit version instead; it does not carry
+a security assessment. Prerelease security support is deferred.
+
+An exact version is an explicit upgrade request and does not require an applicable vulnerability.
 Version and tag targets exit if the resolved version is installed and reject
 downgrades. All targets check Node.js compatibility before handoff.
 

@@ -15,8 +15,10 @@ this document's directory (`docs/01-app/02-guides/upgrading/`). Resolve artifact
 paths from that root. Bundled guides describe the invoking CLI, not necessarily
 the installed app version.
 
-For `security`, the CLI checked the advisory policy. For an explicit
-version, it honored the user's selected target without a security assessment.
+For `security`, the CLI assessed a stable installed version and selected a stable
+target. Prerelease security assessment is deferred; do not infer it from stable
+advisory ranges. For an explicit version, it honored the user's selected target
+without a security assessment.
 Use the same repair and verification steps for both modes.
 
 ## 1. Confirm the baseline

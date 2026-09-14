@@ -34,6 +34,13 @@ export async function prepareUpgrade(
   let evidenceReferences: string[]
 
   if (targetRequest === 'security') {
+    // Prerelease advisory coverage and remediation policy are deferred.
+    if (semver.prerelease(nextVersion)) {
+      throw new Error(
+        'Security upgrades for prerelease Next.js versions are not supported yet. Provide an explicit target with --agentic=<version>.'
+      )
+    }
+
     const snapshot = await readSecuritySnapshot()
     Log.info('Selecting a compatible security target')
     const selected = selectSecurityTarget(nextVersion, snapshot, new Date())
@@ -428,11 +435,7 @@ function selectSecurityTarget(
 
   const ranges = affectedRanges(snapshot.advisories)
 
-  if (
-    !ranges.some((range) =>
-      semver.satisfies(source, range, { includePrerelease: true })
-    )
-  ) {
+  if (!ranges.some((range) => semver.satisfies(source, range))) {
     return
   }
 
