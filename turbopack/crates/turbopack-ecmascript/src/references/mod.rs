@@ -282,9 +282,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Interns an AST path, returning the handle code generation stores.
-    ///
-    /// Takes `&self` so it composes with the `add_*` methods, which take `&mut self`: the
-    /// common shape is `analysis.add_code_gen(X::new(analysis.intern_path(..)))`.
     pub fn intern_path(&self, path: &[AstParentKind]) -> AstPathId {
         self.ast_paths.borrow_mut().intern(path.iter().copied())
     }
