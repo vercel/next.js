@@ -93,6 +93,9 @@ in a React Activity boundary. Follow the
 [preserved-state testing guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
 and assert the visible UI instead of counting matching DOM nodes.
 
+Assert each independently suspended region separately. Its position in the
+rendered page does not determine when its data becomes available.
+
 ### Test context
 
 Record the state required to reach the target route and shell marker:
