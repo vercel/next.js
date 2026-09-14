@@ -18,9 +18,15 @@ module.exports = {
     return cfg
   },
   outputFileTracingIncludes: {
-    // Full path includes "app" or "pages"
+    // Full path includes "app" or "pages".
     '/pages/index': ['include-me/**/*'],
-    '/app/route1': ['./include-me/**/*', 'node_modules/pkg-behind-symlink/*'],
+    '/index': ['include-me/link-to-dir'],
+    // Normalized route form.
+    '/route1': [
+      './include-me/**/*',
+      './include-me/link-to-dir',
+      'node_modules/pkg-behind-symlink/*',
+    ],
     '/*': ['include-me-global.txt'],
   },
   outputFileTracingExcludes: {
