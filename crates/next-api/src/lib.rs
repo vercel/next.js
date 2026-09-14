@@ -14,6 +14,7 @@ mod font;
 mod instrumentation;
 mod loadable_manifest;
 mod middleware;
+mod module_federation;
 mod module_graph;
 pub mod next_server_nft;
 mod nft;
