@@ -283,6 +283,7 @@ type SideEffectsPage = {
   selector: string
   color: string
   background: string
+  turbopackOnly?: boolean
 }
 
 const SIDE_EFFECTS_PAGES: SideEffectsPage[] = [
@@ -327,6 +328,7 @@ const SIDE_EFFECTS_PAGES: SideEffectsPage[] = [
     selector: '#vendor-side-effects-array-server-client-subcomponent',
     color: 'rgb(254, 0, 0)',
     background: 'rgb(0, 254, 0)',
+    turbopackOnly: true,
   },
   {
     name: 'app router client component, sideEffects true',
@@ -341,6 +343,7 @@ const SIDE_EFFECTS_PAGES: SideEffectsPage[] = [
     selector: '#vendor-side-effects-true-server-client-subcomponent',
     color: 'rgb(253, 0, 0)',
     background: 'rgb(0, 253, 0)',
+    turbopackOnly: true,
   },
   {
     name: 'app router client component, sideEffects false',
@@ -355,6 +358,7 @@ const SIDE_EFFECTS_PAGES: SideEffectsPage[] = [
     selector: '#vendor-side-effects-false-server-client-subcomponent',
     color: 'rgb(252, 0, 0)',
     background: 'rgb(0, 252, 0)',
+    turbopackOnly: true,
   },
   {
     name: 'app router client component, global CSS array',
@@ -369,6 +373,7 @@ const SIDE_EFFECTS_PAGES: SideEffectsPage[] = [
     selector: '#vendor-side-effects-global-array-server-client',
     color: 'rgb(250, 0, 0)',
     background: 'rgb(0, 250, 0)',
+    turbopackOnly: true,
   },
   {
     name: 'pages router, CSS array',
@@ -642,26 +647,30 @@ describe.each(
   }
 })
 
-// PR #70087's webpack assertions depend on its unmerged loader fix for
-// webpack/webpack#7094. This migration validates current Turbopack behavior only.
-if (process.env.IS_TURBOPACK_TEST) {
-  describe.each(TURBO_MODES)(
-    'css-order sideEffects %s',
-    (_label: string, value: CssChunkingValue) => {
-      const { next } = nextTestSetup(options(value))
+// Webpack currently applies the client child's CSS module after the parent module in
+// App Router server-component-with-client-child cases. Gate only those known divergences;
+// the other package sideEffects scenarios share expectations across both bundlers.
+describe.each(
+  process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
+)('css-order sideEffects %s', (_label: string, value: CssChunkingValue) => {
+  const { next } = nextTestSetup(options(value))
+  const testPage = (page: SideEffectsPage) => async () => {
+    const browser = await next.browser(page.url)
+    const element = browser.waitForElementByCss(page.selector)
 
-      for (const page of SIDE_EFFECTS_PAGES) {
-        it(`should load correct styles for ${page.name}`, async () => {
-          const browser = await next.browser(page.url)
-          const element = browser.waitForElementByCss(page.selector)
+    expect(await element.getComputedCss('color')).toBe(page.color)
+    expect(await element.getComputedCss('background-color')).toBe(
+      page.background
+    )
+    await browser.close()
+  }
 
-          expect(await element.getComputedCss('color')).toBe(page.color)
-          expect(await element.getComputedCss('background-color')).toBe(
-            page.background
-          )
-          await browser.close()
-        })
-      }
-    }
-  )
-}
+  for (const page of SIDE_EFFECTS_PAGES.filter((page) => !page.turbopackOnly)) {
+    it(`should load correct styles for ${page.name}`, testPage(page))
+  }
+
+  for (const page of SIDE_EFFECTS_PAGES.filter((page) => page.turbopackOnly)) {
+    // @gate turbopack
+    it(`should load correct styles for ${page.name}`, testPage(page))
+  }
+})
