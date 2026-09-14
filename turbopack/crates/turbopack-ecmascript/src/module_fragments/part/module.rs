@@ -340,7 +340,7 @@ impl Module for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
-    async fn side_effects(&self) -> Vc<ModuleSideEffects> {
+    fn side_effects(&self) -> Vc<ModuleSideEffects> {
         match self.part {
             ModulePart::Exports | ModulePart::Export(..) => {
                 ModuleSideEffects::SideEffectFree.cell()

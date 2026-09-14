@@ -740,9 +740,11 @@ impl PageEndpoint {
 
         if *project.per_page_module_graph().await? {
             let next_mode = project.next_mode();
-            let next_mode_ref = next_mode.await?;
-            let should_trace = *project.should_write_nft_manifests().await?;
-            let should_read_binding_usage = next_mode_ref.is_production();
+            let remove_unused_imports = *project
+                .next_config()
+                .turbopack_remove_unused_imports(next_mode)
+                .await?;
+            let graph_options = project.module_graph_options().await?;
 
             let ssr_chunk_module = self.internal_ssr_chunk_module().await?;
             // Implements layout segment optimization to compute a graph "chain" for document, app,
@@ -759,8 +761,7 @@ impl PageEndpoint {
                 let graph = SingleModuleGraph::new_with_entries_visited_intern(
                     GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(module)]),
                     visited_modules,
-                    should_trace,
-                    should_read_binding_usage,
+                    graph_options,
                 );
                 graphs.push(graph);
                 visited_modules = VisitedModules::concatenate(visited_modules, graph);
@@ -772,15 +773,9 @@ impl PageEndpoint {
                     heuristics: EntryHeuristics::default(),
                 }]),
                 visited_modules,
-                should_trace,
-                should_read_binding_usage,
+                graph_options,
             );
             graphs.push(graph);
-
-            let remove_unused_imports = *project
-                .next_config()
-                .turbopack_remove_unused_imports(next_mode)
-                .await?;
 
             let graph = if remove_unused_imports {
                 let graph = ModuleGraph::from_graphs(graphs.clone(), None);
