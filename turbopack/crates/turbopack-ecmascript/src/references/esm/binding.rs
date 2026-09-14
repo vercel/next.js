@@ -4,7 +4,7 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::{Expr, Ident, KeyValueProp, Prop, PropName, SimpleAssignTarget},
-        visit::fields::{CalleeField, PropField},
+        visit::fields::{CalleeField, PropField, TaggedTplField},
     },
     quote,
 };
@@ -51,22 +51,35 @@ impl EsmBinding {
         }
     }
 
-    /// Where possible, bind the namespace to `this` when the named import is called.
+    /// Rewrites a namespace member access such as `import * as ns from "m"; ns.f`.
+    ///
+    /// Keeps the namespace as the `this` receiver, but only where the member access is actually
+    /// invoked as a method. Every other use is an ordinary binding and can be captured in a local
+    /// value, so it is built as one.
     ///
     /// TODO: Track whether the imported export can observe `this` (for example, whether it is a
     /// function that references `this`). Such exports could use a local value binding even in call
     /// position instead of preserving the namespace as the receiver.
-    pub fn new_keep_this(
+    pub fn new_namespace_member(
         reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
         ast_path: AstPath,
     ) -> Self {
+        // The path ends at the namespace object inside the member expression
+        // (`.., <enclosing>, Expr(Member), MemberExpr(Obj)`). Drop those two trailing entries so
+        // the enclosing position is the last element.
+        let enclosing = ast_path
+            .0
+            .len()
+            .checked_sub(2)
+            .map_or(&[][..], |end| &ast_path.0[..end]);
+        let keep_this = is_this_receiver_position(enclosing);
         EsmBinding {
             reference,
             export,
             local: None,
             ast_path,
-            keep_this: true,
+            keep_this,
         }
     }
 
@@ -204,13 +217,9 @@ impl EsmBinding {
                 // Any other expression can be replaced with the import accessor.
                 Some(swc_core::ecma::visit::AstParentKind::Expr(_)) => {
                     ast_path.pop();
-                    let in_call = !self.keep_this
-                        && matches!(
-                            ast_path.last(),
-                            Some(swc_core::ecma::visit::AstParentKind::Callee(
-                                CalleeField::Expr
-                            ))
-                        );
+                    // `ast_path` no longer has the trailing `Expr`, so it already describes the
+                    // enclosing position that `is_this_receiver_position` inspects.
+                    let in_call = !self.keep_this && is_this_receiver_position(&ast_path);
 
                     visitors.push(create_visitor!(
                         exact,
@@ -292,6 +301,26 @@ fn is_assignment_target(ast_path: &AstPath) -> bool {
             swc_core::ecma::visit::AstParentKind::SimpleAssignTarget(_)
         )
     })
+}
+
+/// Whether `parents` describes a position where the member expression is invoked with its object
+/// as the `this` receiver, i.e. `ns.f()` or ``ns.f`...` ``.
+///
+/// `parents` must be the path of the enclosing node, with any trailing entries that describe the
+/// member expression itself already removed. Both the `keep_this` decision made when the binding is
+/// created and the `in_call` decision made during code generation go through this function so the
+/// two can never disagree.
+fn is_this_receiver_position(parents: &[swc_core::ecma::visit::AstParentKind]) -> bool {
+    use swc_core::ecma::visit::AstParentKind;
+
+    matches!(
+        parents.last(),
+        // `ns.f()` calls `f` with `ns` as the receiver.
+        Some(AstParentKind::Callee(CalleeField::Expr))
+            // ``ns.tag`...` `` also calls `tag` with `ns` as the receiver. `NewExpr::Callee` is
+            // deliberately absent: `new ns.C()` does not pass `ns` as `this`.
+            | Some(AstParentKind::TaggedTpl(TaggedTplField::Tag))
+    )
 }
 
 impl From<EsmBinding> for CodeGen {
