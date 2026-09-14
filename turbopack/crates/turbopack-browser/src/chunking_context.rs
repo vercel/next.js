@@ -254,6 +254,26 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn output_root(
+        mut self,
+        output_root: FileSystemPath,
+        output_root_to_root_path: RcStr,
+    ) -> Self {
+        self.chunking_context.output_root = output_root;
+        self.chunking_context.output_root_to_root_path = output_root_to_root_path;
+        self
+    }
+
+    pub fn chunk_root_path(mut self, chunk_root_path: FileSystemPath) -> Self {
+        self.chunking_context.chunk_root_path = chunk_root_path;
+        self
+    }
+
+    pub fn asset_root_path(mut self, asset_root_path: FileSystemPath) -> Self {
+        self.chunking_context.asset_root_path = asset_root_path;
+        self
+    }
+
     pub fn hash_salt(mut self, salt: ResolvedVc<RcStr>) -> Self {
         self.chunking_context.hash_salt = salt;
         self
@@ -1117,10 +1137,7 @@ impl ChunkingContext for BrowserChunkingContext {
         extra_referenced_assets: Vc<OutputAssets>,
         availability_info: AvailabilityInfo,
     ) -> Result<Vc<EntryChunkGroupResult>> {
-        if !self.await?.single_chunk {
-            bail!("Browser chunking context only supports entry chunk groups in single-chunk mode");
-        }
-
+        let this = self.await?;
         if !extra_chunks.await?.is_empty() {
             bail!("single-chunk entry does not support extra chunks");
         }
@@ -1145,11 +1162,22 @@ impl ChunkingContext for BrowserChunkingContext {
 
             let chunks = chunks.await?;
 
-            let ecmascript_chunk = chunks
+            let mut ecmascript_chunks = chunks
                 .iter()
-                .find_map(|chunk| ResolvedVc::try_downcast_type::<EcmascriptChunk>(*chunk));
+                .filter_map(|chunk| ResolvedVc::try_downcast_type::<EcmascriptChunk>(*chunk))
+                .collect::<Vec<_>>();
+            let other_chunks = chunks
+                .iter()
+                .filter_map(|chunk| {
+                    if ResolvedVc::try_downcast_type::<EcmascriptChunk>(*chunk).is_some() {
+                        None
+                    } else {
+                        ResolvedVc::try_sidecast::<Box<dyn OutputAsset>>(*chunk)
+                    }
+                })
+                .collect::<Vec<_>>();
 
-            if chunks.len() != 1 || ecmascript_chunk.is_none() {
+            if this.single_chunk && (chunks.len() != 1 || ecmascript_chunks.len() != 1) {
                 SingleChunkProducedMultipleChunksIssue {
                     path: path.clone(),
                     chunk_count: chunks.len(),
@@ -1158,10 +1186,8 @@ impl ChunkingContext for BrowserChunkingContext {
                 .emit();
             }
 
-            // use a stub if chunks == 0, we already emitted an issue
-            let ecmascript_chunk = match ecmascript_chunk {
-                Some(ecmascript_chunk) => ecmascript_chunk,
-                None => {
+            if ecmascript_chunks.is_empty() {
+                ecmascript_chunks.push(
                     EcmascriptChunk::new(
                         Vc::upcast(*self),
                         EcmascriptChunkContent {
@@ -1172,9 +1198,9 @@ impl ChunkingContext for BrowserChunkingContext {
                         Vec::new(),
                     )
                     .to_resolved()
-                    .await?
-                }
-            };
+                    .await?,
+                );
+            }
 
             let evaluatable_assets = chunk_group
                 .entries()
@@ -1184,13 +1210,15 @@ impl ChunkingContext for BrowserChunkingContext {
                 })
                 .collect::<Result<Vec<_>>>()?;
 
+            let referenced_output_assets =
+                OutputAssets::concat(vec![extra_referenced_assets, Vc::cell(other_chunks)]);
             let asset = ResolvedVc::upcast(
                 EcmascriptBrowserSingleEntryChunk::new(
                     *self,
                     path,
-                    *ecmascript_chunk,
+                    ecmascript_chunks.into_iter().map(|chunk| *chunk).collect(),
                     Vc::cell(evaluatable_assets),
-                    extra_referenced_assets,
+                    referenced_output_assets,
                     Vc::cell(references),
                     *module_graph,
                 )

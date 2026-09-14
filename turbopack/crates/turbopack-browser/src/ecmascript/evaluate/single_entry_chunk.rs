@@ -1,10 +1,14 @@
-use anyhow::Result;
+use std::io::Write;
+
+use anyhow::{Context, Result};
+use indoc::writedoc;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext, EvaluatableAssets},
     code_builder::{Code, CodeBuilder},
+    environment::ChunkLoading,
     module_graph::ModuleGraph,
     output::{
         OutputAsset, OutputAssets, OutputAssetsReference, OutputAssetsReferences,
@@ -12,25 +16,24 @@ use turbopack_core::{
     },
     source_map::{GenerateSourceMap, SourceMapAsset},
 };
-use turbopack_ecmascript::chunk::EcmascriptChunk;
+use turbopack_ecmascript::{chunk::EcmascriptChunk, utils::StringifyJs};
 
 use crate::{
     BrowserChunkingContext,
     ecmascript::{chunk::EcmascriptBrowserChunk, evaluate::chunk::EcmascriptBrowserEvaluateChunk},
 };
 
-/// A self-contained chunk that inlines the entire module together with
-/// the Turbopack browser runtime and the evaluation of the entry modules.
+/// A browser entry asset that concatenates the synchronous ECMAScript chunks,
+/// the Turbopack browser runtime, and evaluation of the entry modules.
 ///
-/// Unlike the regular evaluate chunk, this emits everything into one file at a
-/// fixed path and never loads additional chunks at runtime.
+/// Async chunks remain separate and are referenced from this fixed-path entry.
 #[turbo_tasks::value(shared)]
 #[derive(ValueToString)]
 #[value_to_string("Ecmascript Browser Single Entry Chunk")]
 pub(crate) struct EcmascriptBrowserSingleEntryChunk {
     chunking_context: ResolvedVc<BrowserChunkingContext>,
     path: FileSystemPath,
-    chunk: ResolvedVc<EcmascriptChunk>,
+    chunks: Vec<ResolvedVc<EcmascriptChunk>>,
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
     referenced_output_assets: ResolvedVc<OutputAssets>,
     references: ResolvedVc<OutputAssetsReferences>,
@@ -43,7 +46,7 @@ impl EcmascriptBrowserSingleEntryChunk {
     pub fn new(
         chunking_context: ResolvedVc<BrowserChunkingContext>,
         path: FileSystemPath,
-        chunk: ResolvedVc<EcmascriptChunk>,
+        chunks: Vec<ResolvedVc<EcmascriptChunk>>,
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
         referenced_output_assets: ResolvedVc<OutputAssets>,
         references: ResolvedVc<OutputAssetsReferences>,
@@ -52,7 +55,7 @@ impl EcmascriptBrowserSingleEntryChunk {
         EcmascriptBrowserSingleEntryChunk {
             chunking_context,
             path,
-            chunk,
+            chunks,
             evaluatable_assets,
             referenced_output_assets,
             references,
@@ -74,12 +77,38 @@ impl EcmascriptBrowserSingleEntryChunk {
             *this.chunking_context.debug_ids_enabled().await?,
         );
 
-        let module_chunk = EcmascriptBrowserChunk::new(*this.chunking_context, *this.chunk);
-        code.push_code(&*module_chunk.own_content().code().await?);
+        if !matches!(
+            *this.chunking_context.chunk_loading().await?,
+            ChunkLoading::Edge | ChunkLoading::SingleChunk
+        ) {
+            let output_root = this.chunking_context.output_root().owned().await?;
+            let mut chunk_base = this
+                .path
+                .parent()
+                .get_relative_path_to(&output_root)
+                .context("browser entry and chunk output must use the same file system")?;
+            if chunk_base.is_empty() {
+                chunk_base = "./".into();
+            } else if !chunk_base.ends_with('/') {
+                chunk_base = format!("{chunk_base}/").into();
+            }
+            writedoc!(
+                code,
+                r#"
+                    var TURBOPACK_CHUNK_BASE_PATH = new URL({}, document.currentScript.src).href;
+                "#,
+                StringifyJs(&chunk_base)
+            )?;
+        }
+
+        for chunk in &this.chunks {
+            let module_chunk = EcmascriptBrowserChunk::new(*this.chunking_context, **chunk);
+            code.push_code(&*module_chunk.own_content().code().await?);
+        }
 
         let evaluate_chunk = EcmascriptBrowserEvaluateChunk::new(
             *this.chunking_context,
-            this.chunk.ident(),
+            this.chunks[0].ident(),
             OutputAssets::empty(),
             *this.evaluatable_assets,
             *this.module_graph,
