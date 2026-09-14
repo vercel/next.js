@@ -29,10 +29,18 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
   let timer: ReturnType<typeof setTimeout>
 
   function init() {
-    if (source) source.close()
+    if (source) {
+      source.onerror = null
+      source.onclose = null
+      source.close()
+    }
+
+    const url = getSocketUrl(options.assetPrefix)
+
+    const newSource = new window.WebSocket(`${url}${options.path}`)
 
     function handleOnline() {
-      logQueue.onSocketReady(source)
+      logQueue.onSocketReady(newSource)
       reconnections = 0
       window.console.log('[HMR] connected')
     }
@@ -70,9 +78,9 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
     }
 
     function handleDisconnect() {
-      source.onerror = null
-      source.onclose = null
-      source.close()
+      newSource.onerror = null
+      newSource.onclose = null
+      newSource.close()
       reconnections++
       // After WEB_SOCKET_MAX_RECONNECTIONS reconnects we'll want to reload the page as it indicates the dev server is no longer running.
       if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
@@ -86,19 +94,18 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
       timer = setTimeout(init, reconnections > 5 ? 5000 : 1000)
     }
 
-    const url = getSocketUrl(options.assetPrefix)
+    newSource.onopen = handleOnline
+    newSource.onerror = handleDisconnect
+    newSource.onclose = handleDisconnect
+    newSource.onmessage = handleMessage
 
-    source = new window.WebSocket(`${url}${options.path}`)
-    source.onopen = handleOnline
-    source.onerror = handleDisconnect
-    source.onclose = handleDisconnect
-    source.onmessage = handleMessage
+    source = newSource
   }
 
   function handleVisibilityChange() {
     if (
       document.visibilityState === 'visible' &&
-      source.readyState !== WebSocket.OPEN
+      source.readyState === WebSocket.CLOSED
     ) {
       reconnections = 0
       clearTimeout(timer)
@@ -107,7 +114,7 @@ export function connectHMR(options: { path: string; assetPrefix: string }) {
   }
 
   function handleOnlineEvent() {
-    if (source.readyState !== WebSocket.OPEN) {
+    if (source.readyState === WebSocket.CLOSED) {
       reconnections = 0
       clearTimeout(timer)
       init()
