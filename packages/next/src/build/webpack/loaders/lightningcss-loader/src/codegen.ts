@@ -105,7 +105,7 @@ export function getModuleCode(
       const { hash, needQuotes } = item
       const getUrlOptions = [
         ...(hash ? [`hash: ${JSON.stringify(hash)}`] : []),
-        ...(needQuotes ? 'needQuotes: true' : []),
+        ...(needQuotes ? ['needQuotes: true'] : []),
       ]
       const preparedOptions =
         getUrlOptions.length > 0 ? `, { ${getUrlOptions.join(', ')} }` : ''
