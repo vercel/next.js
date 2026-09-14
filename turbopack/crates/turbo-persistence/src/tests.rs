@@ -1,22 +1,30 @@
-use std::{fs, path::Path, time::Instant};
+#[cfg(not(target_family = "wasm"))]
+use std::time::Instant;
+use std::{fs, path::Path};
 
 use anyhow::Result;
+#[cfg(not(target_family = "wasm"))]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rstest::rstest;
 
+#[cfg(not(target_family = "wasm"))]
+use crate::parallel_scheduler::ParallelScheduler;
+#[cfg(target_family = "wasm")]
+use crate::parallel_scheduler::SerialScheduler as RayonParallelScheduler;
 use crate::{
     AccessMode, Compression, DbConfig, FamilyConfig, FamilyKind,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence, read_current_version},
     lookup_entry::IterValue,
-    parallel_scheduler::ParallelScheduler,
     static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
     write_batch::WriteBatch,
 };
 
+#[cfg(not(target_family = "wasm"))]
 #[derive(Clone, Copy)]
 struct RayonParallelScheduler;
 
+#[cfg(not(target_family = "wasm"))]
 impl ParallelScheduler for RayonParallelScheduler {
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where
@@ -117,7 +125,7 @@ fn tuple_key(prefix: u8, suffix: [u8; 4]) -> Box<[u8]> {
 fn config_with_mmap<const F: usize>(mmap: bool) -> DbConfig<F> {
     DbConfig {
         access_mode: if mmap {
-            AccessMode::Mmap
+            crate::mmap_access_mode_for_tests()
         } else {
             AccessMode::File
         },
@@ -151,7 +159,7 @@ fn multi_value_config_with_mmap(mmap: bool) -> DbConfig<1> {
             compression: Compression::Lz4,
         }],
         access_mode: if mmap {
-            AccessMode::Mmap
+            crate::mmap_access_mode_for_tests()
         } else {
             AccessMode::File
         },
@@ -165,6 +173,7 @@ fn open_multi_value_db(
     open_db_with_config(path, multi_value_config_with_mmap(mmap))
 }
 
+#[cfg(not(target_family = "wasm"))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -2456,7 +2465,12 @@ fn count_tombstones(
                 sequence_number: entry.sequence_number,
                 block_count: entry.block_count,
             };
-            for item in StaticSortedFileIter::open(path, sst, Compression::Lz4, AccessMode::Mmap)? {
+            for item in StaticSortedFileIter::open(
+                path,
+                sst,
+                Compression::Lz4,
+                crate::mmap_access_mode_for_tests(),
+            )? {
                 if matches!(
                     item?.value,
                     IterValue::KeyDeleted | IterValue::KeyValueDeleted { .. }
