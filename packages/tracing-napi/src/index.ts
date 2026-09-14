@@ -39,6 +39,8 @@ function nativePlatform(): string {
     case 'win32':
       if (process.arch === 'x64') return 'win32-x64-msvc'
       break
+    default:
+      break
   }
 
   throw new Error(
