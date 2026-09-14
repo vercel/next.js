@@ -23,6 +23,7 @@ import { isDynamicRoute } from './utils/is-dynamic'
 import { parseRelativeUrl } from './utils/parse-relative-url'
 import { getRouteMatcher } from './utils/route-matcher'
 import { getRouteRegex } from './utils/route-regex'
+import { hasDynamicFilterCandidate } from './utils/dynamic-filter-pattern'
 import { formatWithValidation } from './utils/format-url'
 import { detectDomainLocale } from '../../../client/detect-domain-locale'
 import { parsePath } from './utils/parse-path'
@@ -1515,6 +1516,36 @@ export default class Router implements BaseRouter {
             url = formatWithValidation(parsed)
           }
         }
+      }
+    }
+
+    // The pages client router resolves a navigation against pages routes only.
+    // When it resolves to a dynamic pages route, an app route that begins with
+    // a dynamic segment may be more specific and own this path on the server
+    // (e.g. `/en/about` resolves to the pages route `/[locale]/[category]`, but
+    // the app route `/[locale]/about` should win). Such app routes have no
+    // static prefix for the early `_bfl` check, so reconstruct the candidate
+    // patterns from the resolved route and hard navigate when one is in the
+    // dynamic filter.
+    if (
+      !isQueryUpdating &&
+      !options.shallow &&
+      process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED &&
+      this._bfl_d &&
+      isDynamicRoute(pathname)
+    ) {
+      const concretePathname = removeTrailingSlash(
+        parseRelativeUrl(cleanedAs).pathname
+      )
+      const isShadowedByAppRoute = hasDynamicFilterCandidate(
+        pathname,
+        concretePathname,
+        (candidate) => !!this._bfl_d?.contains(candidate)
+      )
+
+      if (isShadowedByAppRoute) {
+        handleHardNavigation({ url: as, router: this })
+        return new Promise(() => {})
       }
     }
 

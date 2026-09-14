@@ -18,7 +18,7 @@ Instead of unmounting pages on navigation, Next.js hides them using React's [`<A
 
 Next.js preserves up to 3 routes. Beyond that, the oldest route is evicted and will re-render fresh.
 
-> **Good to know:** Opt-out strategies are being considered for gradual migration.
+> **Good to know:** Use [`useRouter().bfcacheId`](/docs/app/api-reference/functions/use-router#bfcacheid) as a [React `key`](https://react.dev/learn/preserving-and-resetting-state#option-2-resetting-state-with-a-key): a single `<Fragment key={bfcacheId}>` resets an entire subtree on push or replace navigations (including `<Link>` clicks and `router.push` / `router.replace`) while still restoring state on browser back/forward. `bfcacheId` is mainly a migration tool. For new code, prefer the per-pattern resets below.
 
 ## Choosing what to preserve
 
@@ -227,7 +227,7 @@ function ContactForm() {
 
 The `shouldReset` ref ensures the cleanup only runs after a successful submission. If the user navigates away mid-draft without submitting, their input is preserved.
 
-If you use [`useActionState`](https://react.dev/reference/react/useActionState), the same approach applies. See [Reset state](https://react.dev/reference/react/useActionState#reset-state) in the React docs for how to add a `RESET` action to your reducer.
+If you use [`useActionState`](https://react.dev/reference/react/useActionState), the same approach applies. See [Reset state](https://react.dev/reference/react/useActionState#reset-state) in the React docs for how to add a `RESET` action to your reducer. For more on building responsive interactions with these hooks, see the [Building interactive apps](/docs/app/guides/interactive-apps) guide.
 
 <details>
 <summary>Resetting all form fields with a callback ref</summary>
@@ -321,6 +321,34 @@ function PageWithStyles() {
 ```
 
 When Activity hides the component, the cleanup sets `media="not all"`, which disables the stylesheet. When visible again, the effect re-runs and resets `media` to enable it.
+
+### The `:has` selector
+
+A [`:root:has(...)`](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/:has) rule applies styles based on its selector. Neither the selected element nor the matched element knows about the relationship. It's valid CSS, but it bypasses React's data flow and couples unrelated components.
+
+For global state, prefer a `data-*` attribute that React owns:
+
+```tsx
+<html data-modal-open={modalOpen ? "true" : undefined}>
+```
+
+```css
+html[data-modal-open='true'] {
+  overflow: hidden;
+}
+```
+
+Reserve `:has()` for local parent/child styling within a component:
+
+```css
+.card:has(img) {
+  padding-top: 0;
+}
+```
+
+This isn't only a React data-flow or Next.js concern. Broad `:has()` selectors are a real performance bottleneck. See [Performance considerations](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Selectors/:has#performance_considerations) on MDN.
+
+> **Good to know:** If the hidden component itself defines the global `:has` rule, the toggle from the section above disables it along with the component's other styles.
 
 ## Testing
 

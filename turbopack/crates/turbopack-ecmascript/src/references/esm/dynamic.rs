@@ -10,7 +10,6 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkingContext, ChunkingType},
-    environment::ChunkLoading,
     issue::IssueSource,
     module::Module,
     reference::ModuleReference,
@@ -25,6 +24,8 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
+    async_chunk::proxy::LazyCompilationProxyModule,
+    chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -39,7 +40,6 @@ use crate::{
 pub struct EsmAsyncAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
     pub error_mode: ResolveErrorMode,
     pub import_externals: bool,
@@ -48,20 +48,13 @@ pub struct EsmAsyncAssetReference {
     /// callback destructuring, or webpackExports/turbopackExports comments.
     pub export_usage: ExportUsage,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    /// Whether the target is compiled only after its runtime proxy is activated.
+    pub lazy_compilation: bool,
 }
 
 impl EsmAsyncAssetReference {
-    fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
-        if let Some(transition) = self.annotations.transition() {
-            self.origin.with_transition(transition.into())
-        } else {
-            *self.origin
-        }
-    }
-}
-
-impl EsmAsyncAssetReference {
-    pub fn new(
+    #[allow(clippy::too_many_arguments)]
+    pub async fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         issue_source: IssueSource,
@@ -70,17 +63,29 @@ impl EsmAsyncAssetReference {
         import_externals: bool,
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
-    ) -> Self {
-        EsmAsyncAssetReference {
+        lazy_compilation: bool,
+    ) -> Result<Self> {
+        // Apply any annotation-driven transition eagerly so the stored origin is final and the
+        // `annotations` don't need to be retained on the reference.
+        let origin = if let Some(transition) = annotations.transition() {
+            origin
+                .with_transition(transition.into())
+                .await?
+                .to_resolved()
+                .await?
+        } else {
+            origin
+        };
+        Ok(EsmAsyncAssetReference {
             origin,
             request,
             issue_source,
-            annotations,
             error_mode,
             import_externals,
             export_usage,
             resolve_override,
-        }
+            lazy_compilation,
+        })
     }
 }
 
@@ -88,14 +93,27 @@ impl EsmAsyncAssetReference {
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        if let Some(resolved) = &self.resolve_override {
-            return Ok(*ModuleResolveResult::module(*resolved));
+        if let Some(resolved) = self.resolve_override {
+            if self.lazy_compilation
+                && let Some(module) =
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(resolved)
+            {
+                let proxy = LazyCompilationProxyModule::new_direct(*module)
+                    .to_resolved()
+                    .await?;
+                return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(proxy)));
+            }
+            return Ok(*ModuleResolveResult::module(resolved));
         }
 
         esm_resolve(
-            *self.get_origin().to_resolved().await?,
+            *self.origin,
             *self.request,
-            EcmaScriptModulesReferenceSubType::DynamicImport,
+            if self.lazy_compilation {
+                EcmaScriptModulesReferenceSubType::LazyDynamicImport
+            } else {
+                EcmaScriptModulesReferenceSubType::DynamicImport
+            },
             self.error_mode,
             Some(self.issue_source),
         )
@@ -112,9 +130,17 @@ impl ModuleReference for EsmAsyncAssetReference {
             export: self.export_usage.clone(),
         }
     }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
+    }
 }
 
 impl IntoCodeGenReference for EsmAsyncAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         path: AstPath,
@@ -150,14 +176,12 @@ impl EsmAsyncAssetReferenceCodeGen {
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
-            if matches!(
-                *chunking_context.environment().chunk_loading().await?,
-                ChunkLoading::Edge
-            ) {
-                ResolveType::ChunkItem
-            } else {
+            if chunking_context.chunk_loading().await?.can_split_async() {
                 ResolveType::AsyncChunkLoader
+            } else {
+                ResolveType::ChunkItem
             },
+            Some(Vc::upcast(*self.reference)),
         )
         .await?;
 

@@ -436,7 +436,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       // @ts-ignore the timeouts have weird types in the edge runtime
       context.setInterval = (...args: Parameters<typeof setInterval>) =>
-        intervalsManager.add(args)
+        intervalsManager.add([context, ...args])
 
       // @ts-ignore the timeouts have weird types in the edge runtime
       context.clearInterval = (interval: number) =>
@@ -444,7 +444,7 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
 
       // @ts-ignore the timeouts have weird types in the edge runtime
       context.setTimeout = (...args: Parameters<typeof setTimeout>) =>
-        timeoutsManager.add(args)
+        timeoutsManager.add([context, ...args])
 
       // @ts-ignore the timeouts have weird types in the edge runtime
       context.clearTimeout = (timeout: number) =>

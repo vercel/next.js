@@ -1,7 +1,7 @@
 import type { Instant } from 'next'
 import { ParamsReader } from './params-reader'
 
-export const unstable_instant: Instant = {
+export const instant: Instant = {
   level: 'experimental-error',
   unstable_samples: [
     {

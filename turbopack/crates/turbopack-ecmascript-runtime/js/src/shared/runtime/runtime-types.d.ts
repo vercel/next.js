@@ -21,6 +21,14 @@ type ChunkScript = CurrentScript & { readonly brand: unique symbol }
  * CHUNK_SUFFIX), e.g. `/_next/static/chunks/21a106126841c540.js?dpl=1123123`
  */
 type ChunkUrl = string & { readonly brand: unique symbol }
+/**
+ * Stores CHUNK_BASE_PATH.
+ */
+type ChunkBasePath = string & { readonly brand: unique symbol }
+/**
+ * Stores ASSET_SUFFIX.
+ */
+type AssetSuffix = string & { readonly brand: unique symbol }
 /** The dependency specifier when importing externals */
 type DependencySpecifier = string
 /** This is a string in development and a number in production (both arbitrary, implementation defined) */
@@ -41,6 +49,11 @@ type ChunkData =
       moduleChunks: ChunkPath[]
     }
 
+type GetChunkRelativeURL = (
+  chunkPath: ChunkPath | ChunkListPath,
+  basePath?: string
+) => ChunkUrl
+
 type CommonJsRequire = (moduleId: ModuleId) => Exports
 type RuntimeRequire = (request: string) => Exports
 type ModuleContextFactory = (map: ModuleContextMap) => ModuleContext
@@ -49,9 +62,16 @@ type EsmImport = (
   allowExportDefault: boolean
 ) => EsmNamespaceObject | Promise<EsmNamespaceObject>
 type InvokeAsyncLoader = (moduleId: ModuleId) => Promise<Exports>
+type ModuleFactoryFunction<
+  M extends Module,
+  C extends TurbopackBaseContext<M>,
+> = {
+  bivarianceHack(this: M['exports'], context: C): unknown
+}['bivarianceHack']
 type EsmExport = (
-  exportGetters: Record<string, () => any>,
-  id: ModuleId | undefined
+  bindings: EsmBindings,
+  id: ModuleId | undefined,
+  dynamic?: boolean
 ) => void
 type ExportValue = (value: any, id: ModuleId | undefined) => void
 type ExportUrl = (url: string, id: ModuleId | undefined) => void
@@ -63,15 +83,6 @@ type DynamicExport = (
 
 type LoadChunk = (chunkPath: ChunkPath) => Promise<any> | undefined
 type LoadChunkByUrl = (chunkUrl: ChunkUrl) => Promise<any> | undefined
-type LoadWebAssembly = (
-  wasmChunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module,
-  imports: WebAssembly.Imports
-) => Exports
-type LoadWebAssemblyModule = (
-  wasmChunkPath: ChunkPath,
-  edgeModule: () => WebAssembly.Module
-) => WebAssembly.Module
 
 type ModuleCache<M> = Record<ModuleId, M>
 // TODO properly type values here
@@ -97,11 +108,7 @@ type AsyncModule = (
 ) => void
 
 type ResolveAbsolutePath = (modulePath?: string) => string
-type GetWorkerURL = (
-  entrypoint: ChunkPath,
-  moduleChunks: ChunkPath[],
-  shared: boolean
-) => URL
+type ResolveFileUrl = (modulePath?: string) => string
 
 type ExternalRequire = (
   id: DependencySpecifier,
@@ -145,11 +152,13 @@ interface TurbopackBaseContext<M> {
   M: ModuleFactories
   l: LoadChunk
   L: LoadChunkByUrl
-  w: LoadWebAssembly
-  u: LoadWebAssemblyModule
+  h: GetChunkRelativeURL
+  w: string
   P: ResolveAbsolutePath
+  F: ResolveFileUrl
   U: RelativeURL
-  b: GetWorkerURL
+  b: ChunkBasePath
+  X: AssetSuffix
   x: ExternalRequire
   y: ExternalImport
   z: CommonJsRequire

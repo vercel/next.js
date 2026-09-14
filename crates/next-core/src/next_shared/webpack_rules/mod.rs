@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{NonLocalValue, OperationValue, ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{
     WebpackLoaderBuiltinConditionSet, WebpackLoaderBuiltinConditionSetMatch, WebpackLoadersOptions,
@@ -33,6 +33,7 @@ pub(crate) mod sass;
 //
 // Note: Sets of conditions could be stored more efficiently as a bitset, but it's probably not used
 // in enough places for it to matter.
+#[turbo_tasks::task_input]
 #[derive(
     Copy,
     Clone,
@@ -43,9 +44,7 @@ pub(crate) mod sass;
     Ord,
     Hash,
     Deserialize,
-    TaskInput,
     TraceRawVcs,
-    NonLocalValue,
     OperationValue,
     Encode,
     Decode,
@@ -151,6 +150,18 @@ pub async fn webpack_loader_options(
         &mut get_babel_loader_rules(&project_path, next_config, &builtin_conditions, &user_rules)
             .await?,
     );
+    let target = ResolvedVc::cell(
+        if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Node) {
+            rcstr!("node")
+        } else {
+            rcstr!("web")
+        },
+    );
+    let mode = if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Development) {
+        rcstr!("development")
+    } else {
+        rcstr!("production")
+    };
 
     Ok(Vc::cell(Some(
         WebpackLoadersOptions {
@@ -159,6 +170,8 @@ pub async fn webpack_loader_options(
             builtin_conditions: NextWebpackLoaderBuiltinConditionSet::new(builtin_conditions)
                 .to_resolved()
                 .await?,
+            target,
+            mode,
         }
         .resolved_cell(),
     )))

@@ -21,6 +21,7 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 bincode = { workspace = true }
+either = { workspace = true }
 indoc = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

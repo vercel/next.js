@@ -23,6 +23,7 @@ export function computeDynamicStaleAt(
 import {
   setInCacheMap,
   getFromCacheMap,
+  EntryStatus,
   type UnknownMapEntry,
   type CacheMap,
   createCacheMap,
@@ -49,6 +50,10 @@ export type BFCacheEntry = {
   navigatedAt: number
   staleAt: number
   version: number
+  // A BFCacheEntry always represents a completed navigation, so the status is
+  // always Fulfilled. The field exists so that BFCacheEntry conforms to the
+  // MapValue protocol.
+  status: EntryStatus.Fulfilled
 }
 
 const bfcacheMap: CacheMap<BFCacheEntry> = createCacheMap()
@@ -102,6 +107,7 @@ export function writeToBFCache(
     // is exported by a page.
     staleAt: dynamicStaleAt,
     version: currentBfCacheVersion,
+    status: EntryStatus.Fulfilled,
   }
   const isRevalidation = false
   setInCacheMap(bfcacheMap, varyPath, entry, isRevalidation)
@@ -148,7 +154,8 @@ export function updateBFCacheEntryStaleAt(
     currentBfCacheVersion,
     bfcacheMap,
     varyPath,
-    isRevalidation
+    isRevalidation,
+    false
   )
   if (entry !== null) {
     entry.staleAt = newStaleAt
@@ -170,7 +177,8 @@ export function readFromBFCache(
     currentBfCacheVersion,
     bfcacheMap,
     varyPath,
-    isRevalidation
+    isRevalidation,
+    false
   )
 }
 
@@ -187,6 +195,7 @@ export function readFromBFCacheDuringRegularNavigation(
     currentBfCacheVersion,
     bfcacheMap,
     varyPath,
-    isRevalidation
+    isRevalidation,
+    false
   )
 }

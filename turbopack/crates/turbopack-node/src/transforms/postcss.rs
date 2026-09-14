@@ -4,8 +4,8 @@ use indoc::formatdoc;
 use serde::Deserialize;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    Completion, Completions, NonLocalValue, ResolvedVc, TaskInput, TryFlatJoinIterExt, Vc,
-    fxindexmap, trace::TraceRawVcs,
+    Completion, Completions, ResolvedVc, TryFlatJoinIterExt, Vc, fxindexmap, trace::TraceRawVcs,
+    turbofmt,
 };
 use turbo_tasks_fs::{
     File, FileContent, FileSystemEntryType, FileSystemPath, json::parse_json_with_source_context,
@@ -45,20 +45,8 @@ struct PostCssProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
-#[derive(
-    Default,
-    Copy,
-    Clone,
-    PartialEq,
-    Eq,
-    Hash,
-    Debug,
-    TraceRawVcs,
-    TaskInput,
-    NonLocalValue,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Default, Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Encode, Decode)]
 pub enum PostCssConfigLocation {
     /// Searches for postcss config only starting from the project root directory.
     /// Used for foreign code (node_modules) where per-directory configs should be ignored.
@@ -84,40 +72,35 @@ pub struct PostCssTransformOptions {
 
 #[turbo_tasks::function]
 fn postcss_configs() -> Vc<Vec<RcStr>> {
-    Vc::cell(
-        [
-            ".postcssrc",
-            ".postcssrc.json",
-            ".postcssrc.yaml",
-            ".postcssrc.yml",
-            ".postcssrc.js",
-            ".postcssrc.mjs",
-            ".postcssrc.cjs",
-            ".postcssrc.ts",
-            ".postcssrc.mts",
-            ".postcssrc.cts",
-            ".config/postcssrc",
-            ".config/postcssrc.json",
-            ".config/postcssrc.yaml",
-            ".config/postcssrc.yml",
-            ".config/postcssrc.js",
-            ".config/postcssrc.mjs",
-            ".config/postcssrc.cjs",
-            ".config/postcssrc.ts",
-            ".config/postcssrc.mts",
-            ".config/postcssrc.cts",
-            "postcss.config.js",
-            "postcss.config.mjs",
-            "postcss.config.cjs",
-            "postcss.config.ts",
-            "postcss.config.mts",
-            "postcss.config.cts",
-            "postcss.config.json",
-        ]
-        .into_iter()
-        .map(RcStr::from)
-        .collect(),
-    )
+    Vc::cell(vec![
+        rcstr!(".postcssrc"),
+        rcstr!(".postcssrc.json"),
+        rcstr!(".postcssrc.yaml"),
+        rcstr!(".postcssrc.yml"),
+        rcstr!(".postcssrc.js"),
+        rcstr!(".postcssrc.mjs"),
+        rcstr!(".postcssrc.cjs"),
+        rcstr!(".postcssrc.ts"),
+        rcstr!(".postcssrc.mts"),
+        rcstr!(".postcssrc.cts"),
+        rcstr!(".config/postcssrc"),
+        rcstr!(".config/postcssrc.json"),
+        rcstr!(".config/postcssrc.yaml"),
+        rcstr!(".config/postcssrc.yml"),
+        rcstr!(".config/postcssrc.js"),
+        rcstr!(".config/postcssrc.mjs"),
+        rcstr!(".config/postcssrc.cjs"),
+        rcstr!(".config/postcssrc.ts"),
+        rcstr!(".config/postcssrc.mts"),
+        rcstr!(".config/postcssrc.cts"),
+        rcstr!("postcss.config.js"),
+        rcstr!("postcss.config.mjs"),
+        rcstr!("postcss.config.cjs"),
+        rcstr!("postcss.config.ts"),
+        rcstr!("postcss.config.mts"),
+        rcstr!("postcss.config.cts"),
+        rcstr!("postcss.config.json"),
+    ])
 }
 
 #[turbo_tasks::value]
@@ -250,7 +233,7 @@ async fn extra_configs_changed(
 
     let configs = config_paths
         .into_iter()
-        .map(|path| async move {
+        .map(async |path| {
             Ok(
                 if matches!(&*path.get_type().await?, FileSystemEntryType::File) {
                     match *asset_context
@@ -360,8 +343,7 @@ pub(crate) async fn config_loader_source(
     project_path: FileSystemPath,
     postcss_config_path: FileSystemPath,
 ) -> Result<Vc<Box<dyn Source>>> {
-    let postcss_config_path_value = postcss_config_path.clone();
-    let postcss_config_path_filename = postcss_config_path_value.file_name();
+    let postcss_config_path_filename = postcss_config_path.file_name();
 
     if postcss_config_path_filename == "package.json" {
         return Ok(Vc::upcast(JsonSource::new(
@@ -371,9 +353,7 @@ pub(crate) async fn config_loader_source(
         )));
     }
 
-    if postcss_config_path_value.path.ends_with(".json")
-        || postcss_config_path_filename == ".postcssrc"
-    {
+    if postcss_config_path.path.ends_with(".json") || postcss_config_path_filename == ".postcssrc" {
         return Ok(Vc::upcast(JsonSource::new(
             postcss_config_path,
             Vc::cell(None),
@@ -382,11 +362,11 @@ pub(crate) async fn config_loader_source(
     }
 
     // We can only load js files with `import()`.
-    if !postcss_config_path_value.path.ends_with(".js") {
+    if !postcss_config_path.path.ends_with(".js") {
         return Ok(Vc::upcast(FileSource::new(postcss_config_path)));
     }
 
-    let Some(config_path) = project_path.get_relative_path_to(&postcss_config_path_value) else {
+    let Some(config_path) = project_path.get_relative_path_to(&postcss_config_path) else {
         bail!("Unable to get relative path to postcss config");
     };
 
@@ -423,7 +403,7 @@ async fn postcss_executor(
 ) -> Result<Vc<ProcessResult>> {
     let config_asset = asset_context
         .process(
-            config_loader_source(project_path, postcss_config_path),
+            config_loader_source(project_path, postcss_config_path.clone()),
             ReferenceType::Entry(EntryReferenceSubType::Undefined),
         )
         .module()
@@ -431,10 +411,11 @@ async fn postcss_executor(
         .await?;
 
     Ok(asset_context.process(
-        Vc::upcast(FileSource::new(
+        Vc::upcast(FileSource::new_with_query(
             embed_file_path(rcstr!("transforms/postcss.ts"))
                 .owned()
                 .await?,
+            turbofmt!("?config={postcss_config_path}").await?,
         )),
         ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             rcstr!("CONFIG") => config_asset
@@ -588,6 +569,7 @@ impl PostCssTransformedAsset {
                 ResolvedVc::cell(source_map.into()),
             ],
             additional_invalidation: config_changed,
+            loader_names: vec![turbo_rcstr::rcstr!("postcss")],
         })
         .await?;
 

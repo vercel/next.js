@@ -1,4 +1,4 @@
-// Same violation as `bare/page.tsx`, but with `unstable_instant = true`.
+// Same violation as `bare/page.tsx`, but with `instant = true`.
 // `true` is "opt in at the framework default level" — under
 // 'experimental-error', this resolves to error-level validation.
 // Validation fires in dev and build. Same observable behavior as
@@ -6,7 +6,7 @@
 // same level as the configured one.
 import { connection } from 'next/server'
 
-export const unstable_instant = true
+export const instant = true
 
 export default async function Page() {
   await connection()

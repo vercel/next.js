@@ -7,7 +7,6 @@ target
 packages/next/wasm/@next
 tarballs/
 packages/**/*.tgz
-.errors/
 
 # rust compiler crashes
 rustc-ice-*.txt
@@ -74,6 +73,7 @@ test-timings.json
 .claude/plans/
 .claude/todos.json
 .claude/worktrees
+.claude/scheduled_tasks.lock
 CLAUDE.local.md
 
 # Conductor (worktrees created by Conductor app, but keep scripts/)

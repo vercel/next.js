@@ -9,6 +9,7 @@ related:
     - app/guides/authentication
     - app/guides/content-security-policy
     - app/guides/forms
+    - app/guides/server-actions
 ---
 
 [React Server Components](https://react.dev/reference/rsc/server-components) improve performance and simplify data fetching, but also shift where and how data is accessed, changing some of the traditional security assumptions for handling data in frontend apps.
@@ -33,7 +34,7 @@ You should follow a **Zero Trust** model when adopting Server Components in an e
 import { cookies } from 'next/headers'
 
 export default async function Page() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const token = cookieStore.get('AUTH_TOKEN')?.value
 
   const res = await fetch('https://api.example.com/profile', {
@@ -54,7 +55,7 @@ This approach works well when:
 
 ### Data Access Layer
 
-For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is a internal library that controls how and when data is fetched, and what gets passed to your render context.
+For new projects, we recommend creating a dedicated **Data Access Layer (DAL)**. This is an internal library that controls how and when data is fetched, and what gets passed to your render context.
 
 A Data Access Layer should:
 
@@ -73,7 +74,8 @@ import { cookies } from 'next/headers'
 // Component to Server Component which minimizes risk of passing it to a Client
 // Component.
 export const getCurrentUser = cache(async () => {
-  const token = cookies().get('AUTH_TOKEN')
+  const cookieStore = await cookies()
+  const token = cookieStore.get('AUTH_TOKEN')
   const decodedToken = await decryptAndValidate(token)
   // Don't include secret tokens or private information as public fields.
   // Use classes to avoid accidentally passing the whole object to the client.
@@ -116,12 +118,13 @@ export async function getProfileDTO(slug: string) {
 ```
 
 ```tsx filename="app/page.tsx"
-import { getProfile } from '../../data/user'
+import { getProfileDTO } from '../../data/user-dto'
 
-export async function Page({ params: { slug } }) {
+export default async function Page({ params }) {
+  const { slug } = await params
   // This page can now safely pass around this profile knowing
   // that it shouldn't contain anything sensitive.
-  const profile = await getProfile(slug);
+  const profile = await getProfileDTO(slug)
   ...
 }
 ```
@@ -137,7 +140,8 @@ This approach, however, makes it easier to accidentally expose private data to t
 ```tsx filename="app/page.tsx"
 import Profile from './components/profile.tsx'
 
-export async function Page({ params: { slug } }) {
+export default async function Page({ params }) {
+  const { slug } = await params
   const [rows] = await sql`SELECT * FROM user WHERE slug = ${slug}`
   const userData = rows[0]
   // EXPOSED: This exposes all the fields in userData to the client because
@@ -184,10 +188,11 @@ import { getUser } from '../data/user'
 import Profile from './ui/profile'
 
 export default async function Page({
-  params: { slug },
+  params,
 }: {
-  params: { slug: string }
+  params: Promise<{ slug: string }>
 }) {
+  const { slug } = await params
   const publicProfile = await getUser(slug)
   return <Profile user={publicProfile} />
 }
@@ -307,7 +312,7 @@ You should always validate input from client, as they can be easily modified. Fo
 ```tsx filename="app/page.tsx"
 // BAD: Trusting searchParams directly
 export default async function Page({ searchParams }) {
-  const isAdmin = searchParams.get('isAdmin')
+  const isAdmin = (await searchParams).isAdmin
   if (isAdmin === 'true') {
     // Vulnerable: relies on untrusted client data
     return <AdminPanel />
@@ -319,7 +324,8 @@ import { cookies } from 'next/headers'
 import { verifyAdmin } from './auth'
 
 export default async function Page() {
-  const token = cookies().get('AUTH_TOKEN')
+  const cookieStore = await cookies()
+  const token = cookieStore.get('AUTH_TOKEN')
   const isAdmin = await verifyAdmin(token)
 
   if (isAdmin) {
@@ -565,8 +571,9 @@ Mutations (e.g. logging out users, updating databases, invalidating caches) shou
 ```tsx filename="app/page.tsx"
 // BAD: Triggering a mutation during rendering
 export default async function Page({ searchParams }) {
-  if (searchParams.get('logout')) {
-    cookies().delete('AUTH_TOKEN')
+  if ((await searchParams).logout) {
+    const cookieStore = await cookies()
+    cookieStore.delete('AUTH_TOKEN')
   }
 
   return <UserProfile />

@@ -1,9 +1,21 @@
 # Contributing to Next.js
 
-[Watch the 40-minute walkthrough video on how to contribute to Next.js.](https://www.youtube.com/watch?v=cuoNzXFLitc)
-
 - Read about our [Commitment to Open Source](https://vercel.com/oss).
 - Before jumping into a PR be sure to search [existing PRs](https://github.com/vercel/next.js/pulls) or [issues](https://github.com/vercel/next.js/issues) for an open or closed item that relates to your submission.
+
+## What to contribute
+
+Start with the issue tracker; the [`good first issue`](https://github.com/vercel/next.js/labels/good%20first%20issue) or [Documentation](https://github.com/vercel/next.js/labels/Documentation) labels are a good entry point, but any [open issue](https://github.com/vercel/next.js/issues) works.
+
+You do not need permission to work on an issue. For new **features**, open a [discussion](https://github.com/vercel/next.js/discussions/new?category=ideas) and get the proposal accepted first.
+
+## Trivial changes
+
+Every pull request has to be reviewed by a maintainer. Automation helps, but it does not eliminate that: someone still has to read the change and decide it is correct. Reviewer attention is the scarcest resource the project has. Trivial PRs such as typo fixes, formatting, or code style changes are likely to be closed. For the Next.js documentation (under `docs/`) we are more open to such changes; see the [Docs Contribution Guide](https://nextjs.org/docs/community/contribution-guide) for more information.
+
+## Walkthrough video
+
+[Watch a walkthrough video on how to contribute to Next.js.](https://www.youtube.com/watch?v=cuoNzXFLitc)
 
 ## Signed commits
 

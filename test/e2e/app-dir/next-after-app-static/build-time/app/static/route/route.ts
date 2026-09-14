@@ -7,5 +7,5 @@ export async function GET() {
   after(() => {
     cliLog({ source: '[route] /static/route' })
   })
-  return new Response()
+  return new Response('hello')
 }

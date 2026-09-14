@@ -158,7 +158,7 @@ You can continue nesting folders to create nested routes. For example, to create
 />
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
-function generateStaticParams() {}
+export function generateStaticParams() {}
 
 export default function Page() {
   return <h1>Hello, Blog Post Page!</h1>
@@ -166,7 +166,7 @@ export default function Page() {
 ```
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
-function generateStaticParams() {}
+export function generateStaticParams() {}
 
 export default function Page() {
   return <h1>Hello, Blog Post Page!</h1>
@@ -247,7 +247,7 @@ export default async function BlogPostPage({ params }) {
 
 Learn more about [Dynamic Segments](/docs/app/api-reference/file-conventions/dynamic-routes) and the [`params`](/docs/app/api-reference/file-conventions/page#params-optional) props.
 
-Nested [layouts within Dynamic Segments](/docs/app/api-reference/file-conventions/layout#params-optional), can also access the `params` props.
+Nested [layouts within Dynamic Segments](/docs/app/api-reference/file-conventions/layout#params-optional) can also access the `params` props.
 
 ## Rendering with search params
 
@@ -287,10 +287,11 @@ You can use the [`<Link>` component](/docs/app/api-reference/components/link) to
 
 For example, to generate a list of blog posts, import `<Link>` from `next/link` and pass a `href` prop to the component:
 
-```tsx filename="app/ui/post.tsx" highlight={1,10} switcher
+```tsx filename="app/ui/post.tsx" highlight={1,2,11} switcher
 import Link from 'next/link'
+import { getPosts } from '@/lib/posts'
 
-export default async function Post({ post }) {
+export default async function Posts() {
   const posts = await getPosts()
 
   return (
@@ -305,10 +306,11 @@ export default async function Post({ post }) {
 }
 ```
 
-```jsx filename="app/ui/post.js" highlight={1,10}  switcher
+```jsx filename="app/ui/post.js" highlight={1,2,11} switcher
 import Link from 'next/link'
+import { getPosts } from '@/lib/posts'
 
-export default async function Post({ post }) {
+export default async function Posts() {
   const posts = await getPosts()
 
   return (

@@ -158,18 +158,19 @@ describe('async imports in cacheComponents', () => {
   })
 })
 
+// This block intentionally exercises a failed build, so there is no deployment to test.
+// @force-gate !deploy
 describe('async imports in cacheComponents - external packages', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: path.join(__dirname, 'external'),
-    skipDeployment: true,
     skipStart: true,
   })
-  if (skipped) return
 
   // This is currently expected to fail because we can only track `import()` in bundled code,
   // and packages marked as external aren't bundled.
   it('does not instrument import() in external packages', async () => {
-    const expectedError = 'https://nextjs.org/docs/messages/blocking-route'
+    const expectedError =
+      'https://nextjs.org/docs/messages/blocking-prerender-dynamic'
     if (isNextStart) {
       // in prod, we fail during the build
       await expect(() => next.start()).rejects.toThrow()

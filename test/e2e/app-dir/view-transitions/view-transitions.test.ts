@@ -1,6 +1,5 @@
 import * as path from 'path'
-import { nextTestSetup } from 'e2e-utils'
-import { Playwright } from 'next-webdriver'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 
 async function assertNoConsoleErrors(browser: Playwright) {
   const logs = await browser.log()

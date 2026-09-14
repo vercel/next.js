@@ -25,17 +25,17 @@ const IGNORE_CONTENT_NEXT_REGEX = new RegExp(
     .join('|')
 )
 
+const IGNORE = /(^|\/)(trace|trace-build)$/
+
 async function readFilesNext(
   next: NextInstance
 ): Promise<Map<string, Map<string, string>>> {
-  // These are cosmetic files which aren't deployed.
-  const IGNORE = /^trace$|^trace-build$/
-
   const files = (
     (await glob('**/*', {
       cwd: path.join(next.testDir, next.distDir),
       nodir: true,
       dot: true,
+      ignore: 'cache/**',
     })) as string[]
   )
     .filter((f) => !IGNORE.test(f) && !IGNORE_CONTENT_NEXT_REGEX.test(f))
@@ -65,9 +65,28 @@ async function readFilesBuilder(
       nodir: true,
     })) as string[]
   ).sort()
+  const statics = (
+    (await glob('.vercel/output/static/**/*', {
+      cwd: next.testDir,
+      nodir: true,
+    })) as string[]
+  )
+    .sort()
+    // HTML Prerenders contain `<html data-dpl-id="foo-dpl-id">`
+    .filter((f) => !f.endsWith('.html') && !IGNORE.test(f))
 
-  return new Map(
-    await Promise.all(
+  return new Map([
+    [
+      'static' as string,
+      new Map(
+        await Promise.all(
+          statics.map(async (f) => {
+            return [f, await next.readFile(f)] as const
+          })
+        )
+      ),
+    ] as const,
+    ...(await Promise.all(
       functions.map(async (fn) => {
         let config = await next.readJSON(fn)
         let fnDir = path.dirname(fn)
@@ -110,8 +129,8 @@ async function readFilesBuilder(
           ),
         ] as const
       })
-    )
-  )
+    )),
+  ])
 }
 
 async function runTest(

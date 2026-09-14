@@ -93,7 +93,7 @@ export async function turbopackAnalyze(
       nextVersion: process.env.__NEXT_VERSION as string,
     },
     {
-      memoryLimit: config.experimental?.turbopackMemoryLimit,
+      turbopackMemoryEviction: config.experimental.turbopackMemoryEvictionMode,
       dependencyTracking: persistentCaching,
       isCi: isCI,
       isShortSession: true,

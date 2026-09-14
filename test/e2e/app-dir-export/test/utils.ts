@@ -15,7 +15,6 @@ import {
   fetchViaHTTP,
 } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 
 const glob = promisify(globOrig)
 
@@ -218,7 +217,14 @@ export function runTests({
   dynamicPage?: string
   dynamicParams?: string
   dynamicApiRoute?: string
-  generateStaticParamsOpt?: 'set noop' | 'set client'
+  generateStaticParamsOpt?:
+    | 'set noop'
+    | 'set client'
+    | 'set empty'
+    | 'set invalid entry'
+    | 'set mixed params'
+    | 'set non-array'
+    | 'set wrong param'
   expectedErrMsg?: string | RegExp
 }) {
   let { next, skipped, isNextDev } = nextTestSetup({
@@ -277,6 +283,41 @@ export function runTests({
         'app/another/[slug]/page.js',
         (content) => '"use client"\n' + content
       )
+    } else if (generateStaticParamsOpt === 'set non-array') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return { slug: 'first' }`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set invalid entry') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [null]`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set empty') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          'return []'
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set wrong param') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [{ id: 'first' }]`
+        )
+      )
+    } else if (generateStaticParamsOpt === 'set mixed params') {
+      await next.patchFile('app/another/[slug]/page.js', (content) =>
+        content.replace(
+          `return [{ slug: 'first' }, { slug: 'second' }]`,
+          `return [{ slug: 'first' }, { id: 'second' }]`
+        )
+      )
     }
   })
 
@@ -299,12 +340,13 @@ export function runTests({
       await stopOrKill()
     }
   })
+  const openBrowser = (url: string) => next.browser(url, { baseUrl: port })
 
   it('should work', async () => {
     if (expectedErrMsg) {
       if (isNextDev) {
         const url = dynamicPage ? '/another/first' : '/api/json'
-        const browser = await webdriver(port, url)
+        const browser = await openBrowser(url)
         await waitForRedbox(browser)
         const header = await getRedboxHeader(browser)
         const source = await getRedboxSource(browser)
@@ -319,7 +361,7 @@ export function runTests({
       expect(next.cliOutput).toMatch(expectedErrMsg)
     } else {
       const a = (n: number) => `li:nth-child(${n}) a`
-      const browser = await webdriver(port, '/')
+      const browser = await openBrowser('/')
       await retry(async () =>
         expect(await browser.elementByCss('h1').text()).toContain('Home')
       )

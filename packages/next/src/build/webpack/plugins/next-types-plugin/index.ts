@@ -71,8 +71,8 @@ checkFields<Diff<{
   }
   config?: {}
   generateStaticParams?: Function
-  unstable_instant?: InstantConfigForTypeCheckInternal
-  unstable_prefetch?: Prefetch
+  instant?: InstantConfigForTypeCheckInternal
+  prefetch?: Prefetch
   unstable_dynamicStaleTime?: number
   revalidate?: RevalidateRange<TEntry> | false
   dynamic?: 'auto' | 'force-dynamic' | 'error' | 'force-static'

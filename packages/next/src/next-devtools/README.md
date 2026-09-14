@@ -69,7 +69,7 @@ export function ComponentStyles() {
         // ...
         ${COMPONENT_NAME_STYLES}
       `}
-    </style
+    </style>
   )
 }
 ```

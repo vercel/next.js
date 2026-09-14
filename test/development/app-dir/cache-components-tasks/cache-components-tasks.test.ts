@@ -1,7 +1,6 @@
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import * as nodePath from 'node:path'
-import type { Playwright } from '../../../lib/next-webdriver'
 
 describe.each([
   {
@@ -17,7 +16,7 @@ describe.each([
 ])(
   'cache-components-tasks - $description',
   ({ fixturePath, hasRuntimePrefetch }) => {
-    const { next, isTurbopack, isNextDev } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: nodePath.join(__dirname, fixturePath),
     })
 
@@ -28,7 +27,7 @@ describe.each([
     ) {
       // Match logs that contain the message, with any environment.
       const logPattern = new RegExp(
-        `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Prefetchable|Server)\\b).*`
+        `^(?=.*\\b${message}\\b)(?=.*\\b(Cache|Prerender|Prefetch|Server)\\b).*`
       )
       const logMessages = logs.map((log) => log.message)
       const messages = logMessages.filter((message) => logPattern.test(message))
@@ -80,19 +79,6 @@ describe.each([
       await retry(() => assertLogs(browser))
       assertNoUnexpectedErrorsInCli()
 
-      if (isNextDev && isTurbopack) {
-        // FIXME:
-        // In Turbopack, requests to the /revalidate route seem to occasionally crash
-        // due to some HMR or compilation issue. `revalidatePath` throws this error:
-        //
-        //   Invariant: static generation store missing in revalidatePath <path>
-        //
-        // This is unrelated to the logic being tested here, so for now, we skip the assertions
-        // that require us to revalidate.
-        console.log('WARNING: skipping revalidation assertions in turbopack')
-        return
-      }
-
       // After a revalidation the subsequent warmup render must discard stale
       // cache entries.
       // This should not affect the environment labels.
@@ -120,19 +106,6 @@ describe.each([
       await retry(() => assertLogs(browser))
       assertNoUnexpectedErrorsInCli()
 
-      if (isNextDev && isTurbopack) {
-        // FIXME:
-        // In Turbopack, requests to the /revalidate route seem to occasionally crash
-        // due to some HMR or compilation issue. `revalidatePath` throws this error:
-        //
-        //   Invariant: static generation store missing in revalidatePath <path>
-        //
-        // This is unrelated to the logic being tested here, so for now, we skip the assertions
-        // that require us to revalidate.
-        console.log('WARNING: skipping revalidation assertions in turbopack')
-        return
-      }
-
       // After a revalidation the subsequent warmup render must discard stale
       // cache entries.
       // This should not affect the environment labels.
@@ -155,8 +128,6 @@ describe.each([
       }
     }
 
-    const RUNTIME_ENV = hasRuntimePrefetch ? 'Prefetch' : 'Prefetchable'
-
     describe.each([
       { description: 'initial load', isInitialLoad: true },
       { description: 'navigation', isInitialLoad: false },
@@ -168,10 +139,10 @@ describe.each([
           assertLog(logs, 'after immediate - static - layout', 'Prerender')
           assertLog(logs, 'after immediate - static - page', 'Prerender')
 
-          assertLog(logs, 'after cookies - layout', RUNTIME_ENV)
-          assertLog(logs, 'after cookies - page', RUNTIME_ENV)
-          assertLog(logs, 'after immediate - runtime - layout', RUNTIME_ENV)
-          assertLog(logs, 'after immediate - runtime - page', RUNTIME_ENV)
+          assertLog(logs, 'after cookies - layout', 'Prefetch')
+          assertLog(logs, 'after cookies - page', 'Prefetch')
+          assertLog(logs, 'after immediate - runtime - layout', 'Prefetch')
+          assertLog(logs, 'after immediate - runtime - page', 'Prefetch')
 
           assertLog(logs, 'after connection - layout', 'Server')
           assertLog(logs, 'after connection - page', 'Server')

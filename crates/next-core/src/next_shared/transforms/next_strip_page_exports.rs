@@ -6,7 +6,7 @@ use next_custom_transforms::transforms::strip_page_exports::{
 };
 use swc_core::ecma::ast::Program;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TaskInput, Vc, trace::TraceRawVcs};
+use turbo_tasks::{ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 use turbopack_ecmascript::{
@@ -16,7 +16,8 @@ use turbopack_ecmascript::{
 use super::module_rule_match_js_no_url;
 
 /// A [`TaskInput`]-compatible mirror of [`ExportFilter`].
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 enum ExportFilterInput {
     StripDataExports,
     StripDefaultExport,

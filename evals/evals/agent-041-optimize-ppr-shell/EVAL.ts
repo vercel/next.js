@@ -11,51 +11,54 @@
  * loading.tsx creates an all-or-nothing loading state, and that optimizing
  * the PPR shell requires replacing it with per-section Suspense boundaries
  * so each section can stream independently.
+ *
+ * This eval is judged semantically end to end. It previously also grepped
+ * app/page.tsx for >=3 literal <Suspense> tags and for each section sitting in
+ * its own block in that file. Those two assertions contradicted the judge: a
+ * model that co-locates each boundary inside the section component builds
+ * fine, yields a correctly partially prerendered route, and was passed by the
+ * judge, yet failed the greps purely because the tags were not typed in
+ * page.tsx. They vetoed the judge they were meant to be replaced by, so they
+ * are gone; the granularity requirement they encoded now lives in the
+ * criterion below.
+ *
+ * The does-Page-block-on-data check is semantic, so it uses the agentic LLM
+ * judge rather than regex. The old /getDashboardData\s*\(/ whole-file ban
+ * rejected functionally correct streaming — e.g. async section components
+ * defined in page.tsx itself, or the documented pattern of starting the
+ * fetch in Page without awaiting and passing the promise down — while a
+ * byte-identical solution split across two files passed. The judge reasons
+ * about whether Page actually blocks before returning, whatever the form.
  */
 
 import { expect, test } from 'vitest'
-import { readFileSync } from 'fs'
-import { join } from 'path'
+import { environment } from '@vercel/agent-eval/eval'
 
-const appDir = join(process.cwd(), 'app')
+test('Page does not await all data before rendering', async () => {
+  await expect(environment).toSatisfyCriterion(
+    `The dashboard page must produce a static PPR shell: the default-exported Page component in app/page.tsx returns its JSX frame without blocking on dashboard data, and the data-driven sections suspend independently of one another rather than collapsing into a single all-or-nothing loading state. Judge where the boundaries sit in the rendered tree, not how many there are or which file the <Suspense> tag is written in. Docs for the exact Next.js version installed here ship at node_modules/next/dist/docs — see 01-app/03-api-reference/05-config/01-next-config-js/cacheComponents.md and 01-app/03-api-reference/03-file-conventions/loading.md.
 
-function readFile(name: string): string {
-  return readFileSync(join(appDir, name), 'utf-8')
-}
+For reference, one correct solution keeps Page synchronous and moves each await into a Suspense-wrapped child:
 
-test('Page has at least 3 Suspense boundaries', () => {
-  const page = readFile('page.tsx')
-
-  const suspenseCount = (page.match(/<Suspense[\s>]/g) || []).length
-  expect(suspenseCount).toBeGreaterThanOrEqual(3)
-})
-
-test('Each dashboard section has its own Suspense boundary in page.tsx', () => {
-  const page = readFile('page.tsx')
-
-  // Split page into Suspense blocks: text between each <Suspense and </Suspense>
-  const suspenseBlocks = page.split(/<Suspense[\s>]/).slice(1)
-
-  const components = ['CardStats', 'RevenueChart', 'LatestInvoices']
-  for (const component of components) {
-    const inOwnBlock = suspenseBlocks.some(
-      (block) => block.includes(component) && block.includes('</Suspense>')
-    )
-    expect(inOwnBlock, `${component} should be inside its own <Suspense>`).toBe(
-      true
+  export default function Page() {
+    return (
+      <main>
+        <h1>Dashboard</h1>
+        <Suspense fallback={<CardStatsSkeleton />}>
+          <CardStatsSection />
+        </Suspense>
+        {/* ...RevenueChart and LatestInvoices sections likewise... */}
+      </main>
     )
   }
-})
 
-test('Page does not await all data before rendering', () => {
-  const page = readFile('page.tsx')
+  async function CardStatsSection() {
+    const data = await getDashboardData()
+    return <CardStats totalRevenue={data.totalRevenue} totalInvoices={data.totalInvoices} />
+  }
 
-  // The page should not call getDashboardData() or fetch() at the top level.
-  // A simple check: the page shouldn't contain the original monolithic fetch.
-  expect(page).not.toMatch(/await\s+getDashboardData\s*\(/)
+Equivalent forms are also correct, judge runtime behavior rather than style: the section components may live in this same file or be imported from another file; Page may start the fetch without awaiting it and pass the promise to children that unwrap it; the fetch may be deduplicated with React's cache().
 
-  // The page component itself should not be async (data fetching moves into children)
-  // OR if it is async, it should not await a data fetch before returning JSX.
-  // We check the simpler signal: getDashboardData should not be called in page.tsx at all.
-  expect(page).not.toMatch(/getDashboardData\s*\(/)
+Incorrect: the Page component itself blocks on the data before returning JSX — e.g. it awaits the fetch (or unwraps it with use()) in its own body — or the sections do not actually suspend independently, which collapses the shell back to the original all-or-nothing loading state.`
+  )
 })

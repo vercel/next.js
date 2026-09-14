@@ -1,9 +1,9 @@
 import { Suspense } from 'react'
 import Link from 'next/link'
-
-export const dynamic = 'force-dynamic'
+import { connection } from 'next/server'
 
 export default async function Layout(props) {
+  await connection()
   return (
     <>
       <div>

@@ -114,7 +114,7 @@ const { next } = nextTestSetup({
 })
 ```
 
-Consider also sett `NEXT_E2E_TEST_TIMEOUT=0`
+Consider also setting `NEXT_E2E_TEST_TIMEOUT=0`
 
 To debug the test process itself you need to pass the `inspect` flag to the node process running jest. e.g. `IS_TURBOPACK_TEST=1 TURBOPACK_DEV=1 NEXT_TEST_MODE=dev node --inspect node_modules/jest/bin/jest.js ...`
 
@@ -130,7 +130,7 @@ To run the test suite using Turbopack, you can use the `-turbo` version of the n
 pnpm test-dev-turbo test/e2e/app-dir/app/
 ```
 
-If you want to run a test again both Turbopack and Webpack, use Jest's `--projects` flag:
+If you want to run a test against both Turbopack and Webpack, use Jest's `--projects` flag:
 
 ```sh
 pnpm test-dev test/e2e/app-dir/app/ --projects jest.config.*
@@ -152,25 +152,39 @@ and point it at your branch (this requires passing a custom tarball).
 
 #### Running Deploy Tests Locally
 
-You can run deploy tests locally against a specific commit using the `NEXT_TEST_VERSION` environment variable:
+**Local Changes**
+
+By default, deploy tests use your checkout's JavaScript packages. Build the package outputs first, or keep the watch build running:
 
 ```sh
-NEXT_TEST_VERSION=https://vercel-packages.vercel.app/next/commits/<commitSha>/next pnpm test-deploy <path-to-test>
+pnpm build
+pnpm test-deploy-turbo test/e2e/app-dir/actions/
 ```
 
-For example, to test against commit `abc123`:
+The harness packs the outputs and includes the tarballs in the deployment source, with relative `file:` dependency references. The remote build uses published SWC binaries matching the local Next.js version. Locally built Rust binaries are not included.
+
+**Version Overrides**
+
+Set the `NEXT_TEST_VERSION` environment variable to use a published version, a dist-tag such as `canary`, or a CI preview tarball URL instead of local packages. This skips local packing:
 
 ```sh
-NEXT_TEST_VERSION=https://vercel-packages.vercel.app/next/commits/abc123/next pnpm test-deploy test/e2e/app-dir/actions/
+NEXT_TEST_VERSION=canary pnpm test-deploy-turbo test/e2e/app-dir/actions/
 ```
 
-This downloads a pre-built Next.js tarball from the specified commit and runs the deploy tests against it.
-
-If you already have a deployment URL and want to skip the Vercel deploy step,
-use `NEXT_TEST_DEPLOY_URL` instead:
+For a specific commit, use its CI-published tarball:
 
 ```sh
-NEXT_TEST_DEPLOY_URL=https://your-deployment.vercel.app pnpm test-deploy test/e2e/app-dir/actions/
+NEXT_TEST_VERSION="https://vercel-packages.vercel.app/next/commits/<commitSha>/next" pnpm test-deploy-turbo test/e2e/app-dir/actions/
+```
+
+To test Rust changes, use a CI preview that includes the corresponding SWC binaries.
+
+**Existing Deployments**
+
+Set `NEXT_TEST_DEPLOY_URL` to run against an existing deployment instead of creating one. This skips both local packing and deployment:
+
+```sh
+NEXT_TEST_DEPLOY_URL=https://your-deployment.vercel.app pnpm test-deploy-turbo test/e2e/app-dir/actions/
 ```
 
 ## Integration testing outside the repository with local builds
@@ -213,6 +227,15 @@ be shown information about how to use these tarballs in a project by modifying t
 On Linux, this generates stripped `@next/swc` binaries to avoid exceeding 2 GiB, [which is
 known to cause problems with `pnpm`](https://github.com/libuv/libuv/pull/1501). That behavior can be
 overridden with `--compress objcopy-zstd` on Linux (which is slower, but retains debuginfo).
+
+To create tarballs that can be deployed with a project, use:
+
+```bash
+pnpm pack-next --project ~/my-project/ --deployable-tar
+```
+
+This writes the tarballs to a `tarballs` directory next to the patched project `package.json` and
+uses relative `file:` references so the tarballs can be included with the project.
 
 These tarballs can be extracted directly into a project's `node_modules` directory (bypassing the
 package manager) by using:

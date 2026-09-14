@@ -13,14 +13,6 @@ async function main() {
   const port = await getPort()
 
   const server = new http.Server((req, res) => {
-    if (/setAssetPrefix/.test(req.url)) {
-      app.setAssetPrefix(`http://127.0.0.1:${port}`)
-    } else if (/setEmptyAssetPrefix/.test(req.url)) {
-      app.setAssetPrefix('')
-    } else {
-      app.setAssetPrefix('')
-    }
-
     handleNextRequests(req, res)
   })
 

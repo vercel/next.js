@@ -1,11 +1,11 @@
 import path from 'path'
 import escapeRegex from 'escape-string-regexp'
-import webdriver from 'next-webdriver'
 import {
   waitFor,
   stopApp,
   startStaticServer,
   fetchViaHTTP,
+  fetchViaRawHttp,
   retry,
 } from 'next-test-utils'
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
@@ -55,6 +55,8 @@ function runTests({
   // `fetchViaHTTP` with a numeric port concatenates the path onto the origin
   // verbatim, preserving the repeated-slash/backslash behavior under test.
   const resolvePort = () => (getPort ? getPort() : Number(next.appPort))
+  const openBrowser = (url: string, baseUrl: number = resolvePort()) =>
+    next.browser(url, { baseUrl })
 
   if (!isExport) {
     it('should normalize repeated slashes in redirects correctly', async () => {
@@ -66,7 +68,7 @@ function runTests({
       )
 
       expect(res.status).toBe(307)
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(res.headers.get('location'), res.url)
 
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl.pathname).toBe('/test/google.com')
@@ -81,7 +83,7 @@ function runTests({
       )
 
       expect(res2.status).toBe(307)
-      const parsedUrl2 = new URL(res2.headers.get('location'))
+      const parsedUrl2 = new URL(res2.headers.get('location'), res2.url)
 
       expect(parsedUrl2.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(parsedUrl2.pathname).toBe('/test/google.com')
@@ -98,13 +100,13 @@ function runTests({
       })
       expect(res.status).toBe(308)
 
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(res.headers.get('location'), res.url)
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     }
 
-    const browser = await webdriver(port, '//google.com')
+    const browser = await openBrowser('//google.com', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -126,7 +128,7 @@ function runTests({
         { redirect: 'manual' }
       )
       expect(res.status).toBe(308)
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(res.headers.get('location'), res.url)
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({
@@ -134,7 +136,7 @@ function runTests({
       })
     }
 
-    const browser = await webdriver(port, '//google.com?h=1')
+    const browser = await openBrowser('//google.com?h=1', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -153,13 +155,13 @@ function runTests({
         redirect: 'manual',
       })
       expect(res.status).toBe(308)
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(res.headers.get('location'), res.url)
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
     }
 
-    const browser = await webdriver(port, '//google.com#hello')
+    const browser = await openBrowser('//google.com#hello', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -181,7 +183,7 @@ function runTests({
       expect(await res.text()).toContain(notFoundContent)
     }
 
-    const browser = await webdriver(port, '/%2Fgoogle.com')
+    const browser = await openBrowser('/%2Fgoogle.com', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       '/%2Fgoogle.com'
@@ -204,7 +206,7 @@ function runTests({
       expect(await res.text()).toContain(notFoundContent)
     }
 
-    const browser = await webdriver(port, '/%2Fgoogle.com?hello=1')
+    const browser = await openBrowser('/%2Fgoogle.com?hello=1', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       '/%2Fgoogle.com'
@@ -225,7 +227,7 @@ function runTests({
       expect(await res.text()).toContain(notFoundContent)
     }
 
-    const browser = await webdriver(port, '/%2Fgoogle.com#hello')
+    const browser = await openBrowser('/%2Fgoogle.com#hello', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       '/%2Fgoogle.com'
@@ -239,18 +241,19 @@ function runTests({
   it('should handle backslashes correctly', async () => {
     const port = resolvePort()
     if (!isExport) {
-      const res = await fetchViaHTTP(port, '/\\google.com', undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaRawHttp(port, '/\\google.com')
       expect(res.status).toBe(308)
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(
+        res.headers.get('location'),
+        `http://localhost:${port}`
+      )
       expect(parsedUrl.pathname).toBe('/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
       expect(await res.text()).toBe('/google.com')
     }
 
-    const browser = await webdriver(port, '/\\google.com')
+    const browser = await openBrowser('/\\google.com', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '//google.com' : '/google.com'
@@ -265,18 +268,19 @@ function runTests({
   it('should handle mixed backslashes/forward slashes correctly', async () => {
     const port = resolvePort()
     if (!isExport) {
-      const res = await fetchViaHTTP(port, '/\\/google.com', undefined, {
-        redirect: 'manual',
-      })
+      const res = await fetchViaRawHttp(port, '/\\/google.com')
       expect(res.status).toBe(308)
-      const parsedUrl = new URL(res.headers.get('location'))
+      const parsedUrl = new URL(
+        res.headers.get('location'),
+        `http://localhost:${port}`
+      )
       expect(parsedUrl.pathname).toBe(isExport ? '//google.com' : '/google.com')
       expect(parsedUrl.hostname).toBeOneOf(['localhost', '127.0.0.1'])
       expect(Object.fromEntries(parsedUrl.searchParams.entries())).toEqual({})
       expect(await res.text()).toBe('/google.com')
     }
 
-    const browser = await webdriver(port, '/\\/google.com#hello')
+    const browser = await openBrowser('/\\/google.com#hello', port)
     await didNotReload(browser)
     expect(await browser.eval('window.location.pathname')).toBe(
       isExport ? '///google.com' : '/google.com'
@@ -290,7 +294,10 @@ function runTests({
 
   it('should handle slashes in next/link correctly', async () => {
     const port = resolvePort()
-    const browser = await webdriver(port, `/invalid${isExport ? '.html' : ''}`)
+    const browser = await openBrowser(
+      `/invalid${isExport ? '.html' : ''}`,
+      port
+    )
     const invalidHrefs = [
       '//google.com',
       '//google.com?hello=1',
@@ -338,7 +345,7 @@ function runTests({
         hash: '#hello',
       },
     ]) {
-      const browser = await webdriver(resolvePort(), '/')
+      const browser = await openBrowser('/')
       await browser.eval(
         `window.next.router.push("${item.href}"${
           item.as ? `, "${item.as}"` : ''
@@ -382,7 +389,7 @@ function runTests({
         hash: '#hello',
       },
     ]) {
-      const browser = await webdriver(resolvePort(), '/')
+      const browser = await openBrowser('/')
       await browser.eval(`(function() {
         window.beforeNav = 1
         window.next.router.push("${item.href}"${

@@ -42,10 +42,10 @@ pub fn any_as_encode<T: Any>(this: &dyn Any) -> &T {
 /// A trait for task arguments that may reside on the stack.
 ///
 /// This enables deferred boxing: on the cache-hit path (~85%), we only borrow
-/// the argument via [`as_ref`](StackDynTaskInputs::as_ref) for hash/equality lookups,
-/// avoiding any heap allocation. On cache miss, [`take_box`](StackDynTaskInputs::take_box)
+/// the argument via [`as_ref`](DynTaskInputsStorage::as_ref) for hash/equality lookups,
+/// avoiding any heap allocation. On cache miss, [`take_box`](DynTaskInputsStorage::take_box)
 /// moves the value into a `Box` with zero clones.
-pub trait StackDynTaskInputs {
+pub trait DynTaskInputsStorage {
     /// Borrow the argument as a type-erased reference (for cache lookup).
     fn as_ref(&self) -> &dyn DynTaskInputs;
     /// Move the argument out into a heap-allocated Box (panics if already taken).
@@ -57,13 +57,13 @@ pub trait StackDynTaskInputs {
 /// Stack-resident slot wrapping a concrete typed value.
 ///
 /// Created by macro-generated callsites. The value starts in `Some` on the
-/// stack; [`take_box`](StackDynTaskInputs::take_box) moves it to the heap on cache miss.
+/// stack; [`take_box`](DynTaskInputsStorage::take_box) moves it to the heap on cache miss.
 #[repr(transparent)]
-pub struct StackDynTaskInputsSlot<T> {
+pub struct StackDynTaskInputsStorage<T> {
     slot: Option<T>,
 }
 
-impl<T> StackDynTaskInputsSlot<T> {
+impl<T> StackDynTaskInputsStorage<T> {
     #[inline]
     pub fn new(value: T) -> Self {
         Self { slot: Some(value) }
@@ -73,16 +73,16 @@ impl<T> StackDynTaskInputsSlot<T> {
     pub fn take(&mut self) -> T {
         self.slot
             .take()
-            .expect("StackDynTaskInputsSlot::take called after value was already taken")
+            .expect("StackDynTaskInputsStorage::take called after value was already taken")
     }
 }
 
-impl<T: DynTaskInputs> StackDynTaskInputs for StackDynTaskInputsSlot<T> {
+impl<T: DynTaskInputs> DynTaskInputsStorage for StackDynTaskInputsStorage<T> {
     #[inline]
     fn as_ref(&self) -> &dyn DynTaskInputs {
         self.slot
             .as_ref()
-            .expect("StackDynTaskInputsSlot::as_ref called after take_box")
+            .expect("StackDynTaskInputsStorage::as_ref called after take_box")
     }
 
     #[inline]
@@ -90,7 +90,7 @@ impl<T: DynTaskInputs> StackDynTaskInputs for StackDynTaskInputsSlot<T> {
         Box::new(
             self.slot
                 .take()
-                .expect("StackDynTaskInputsSlot::take_box called twice"),
+                .expect("StackDynTaskInputsStorage::take_box called twice"),
         )
     }
 
@@ -101,31 +101,31 @@ impl<T: DynTaskInputs> StackDynTaskInputs for StackDynTaskInputsSlot<T> {
 }
 
 /// Adapter for an already-boxed value (e.g., from async resolution tasks).
-pub struct OwnedStackDynTaskInputs {
+pub struct HeapDynTaskInputsStorage {
     slot: Option<Box<dyn DynTaskInputs>>,
 }
 
-impl OwnedStackDynTaskInputs {
+impl HeapDynTaskInputsStorage {
     #[inline]
     pub fn new(value: Box<dyn DynTaskInputs>) -> Self {
         Self { slot: Some(value) }
     }
 }
 
-impl StackDynTaskInputs for OwnedStackDynTaskInputs {
+impl DynTaskInputsStorage for HeapDynTaskInputsStorage {
     #[inline]
     fn as_ref(&self) -> &dyn DynTaskInputs {
         &**self
             .slot
             .as_ref()
-            .expect("OwnedStackDynTaskInputs::as_ref called after take_box")
+            .expect("HeapDynTaskInputsStorage::as_ref called after take_box")
     }
 
     #[inline]
     fn take_box(&mut self) -> Box<dyn DynTaskInputs> {
         self.slot
             .take()
-            .expect("OwnedStackDynTaskInputs::take_box called twice")
+            .expect("HeapDynTaskInputsStorage::take_box called twice")
     }
 
     #[inline]

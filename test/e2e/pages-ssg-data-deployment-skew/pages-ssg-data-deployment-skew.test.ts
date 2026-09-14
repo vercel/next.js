@@ -1,16 +1,18 @@
 import http from 'http'
 import httpProxy from 'http-proxy'
 import type { ChildProcess } from 'child_process'
-import webdriver from 'next-webdriver'
 import { findPort, killApp } from 'next-test-utils'
 import { isNextDeploy, isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 
 let proxyPort: number
 
-const runTests = (switchDeployment: (bool) => void) => {
+const runTests = (
+  next: ReturnType<typeof nextTestSetup>['next'],
+  switchDeployment: (bool) => void
+) => {
   it('index to gsp', async () => {
     switchDeployment(false)
-    const browser = await webdriver(proxyPort, '/')
+    const browser = await next.browser('/', { baseUrl: proxyPort })
 
     await browser.eval('window.beforeNav = 1')
     await browser.waitForElementByCss('#index')
@@ -27,7 +29,7 @@ const runTests = (switchDeployment: (bool) => void) => {
 
   it('gsp to gssp', async () => {
     switchDeployment(false)
-    const browser = await webdriver(proxyPort, '/gsp')
+    const browser = await next.browser('/gsp', { baseUrl: proxyPort })
 
     await browser.eval('window.beforeNav = 1')
     await browser.waitForElementByCss('#gsp')
@@ -141,7 +143,7 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
         proxyServer.close()
       })
 
-      runTests((v) => {
+      runTests(next, (v) => {
         should404Data = v
       })
     })
@@ -239,7 +241,7 @@ describe('pages ssg data deployment skew - hard navigate when a new deployment o
           proxyServer.close()
         })
 
-        runTests((v) => {
+        runTests(next, (v) => {
           shouldSwitchDeployment = v
         })
       }

@@ -1,0 +1,1 @@
+{"version":3,"sources":["input.js"],"sourcesContent":["// Local helper that is never exported, so the runtime never reads it.\nasync function generateStaticParams() {\n  return []\n}\n\nexport default function Page() {\n  return null\n}\n"],"names":[],"mappings":"AAAA,sEAAsE;AACtE,eAAe;IACb,OAAO,EAAE;AACX;AAEA,eAAe,SAAS;IACtB,OAAO;AACT"}

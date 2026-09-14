@@ -26,7 +26,8 @@ export function ErrorMessage({ errorMessage, errorType }: ErrorMessageProps) {
   // Instant errors are formatted specifically for the overlay rather than
   // passed through from the console, so we don't truncate them — they rely
   // on scroll overflow instead.
-  const shouldTruncate = isTooTall && errorType !== 'Instant'
+  const shouldTruncate =
+    isTooTall && errorType !== 'Instant' && errorType !== 'Blocking Route'
 
   return (
     <>
@@ -34,7 +35,7 @@ export function ErrorMessage({ errorMessage, errorType }: ErrorMessageProps) {
         <div
           ref={messageRef}
           id="nextjs__container_errors_desc"
-          className={`nextjs__container_errors_desc ${shouldTruncate && !isExpanded ? 'truncated' : ''} ${errorType === 'Instant' ? 'nextjs__container_errors_desc_instant' : ''}`}
+          className={`nextjs__container_errors_desc ${shouldTruncate && !isExpanded ? 'truncated' : ''} ${errorType === 'Instant' || errorType === 'Blocking Route' ? 'nextjs__container_errors_desc_instant' : ''}`}
         >
           {errorMessage}
         </div>

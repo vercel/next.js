@@ -1,4 +1,4 @@
-// No `export const unstable_instant = ...` is needed, we default to static
+// No `export const instant = ...` is needed, we default to static
 
 export default function Page() {
   return (

@@ -8,14 +8,14 @@ import { getOwnerStack } from '../next-devtools/userspace/app/errors/stitched-er
 import { isRecoverableError } from './react-client-callbacks/on-recoverable-error'
 
 // eslint-disable-next-line @next/internal/typechecked-require
-const instrumentationHooks = require('../lib/require-instrumentation-client')
+const instrumentationModules = require('../lib/require-instrumentation-client')
 
 appBootstrap((assetPrefix) => {
   const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS
 
   const { hydrate } = require('./app-index') as typeof import('./app-index')
   try {
-    hydrate(instrumentationHooks, assetPrefix)
+    hydrate(instrumentationModules, assetPrefix)
   } finally {
     renderAppDevOverlay(getOwnerStack, isRecoverableError, enableCacheIndicator)
   }

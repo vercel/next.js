@@ -6,13 +6,14 @@ use bincode::{Decode, Encode};
 use modularize_imports::{Config, PackageConfig, modularize_imports};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{FxIndexMap, NonLocalValue, OperationValue, ResolvedVc, Vc, trace::TraceRawVcs};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{
-    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
-};
+use turbo_tasks::{FxIndexMap, NonLocalValue, OperationValue, Vc, trace::TraceRawVcs};
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use crate::{next_config::ModularizeImports, next_shared::transforms::module_rule_match_js_no_url};
+use crate::{
+    next_config::ModularizeImports,
+    next_shared::transforms::{EcmascriptTransformStage, get_ecma_transform_rule},
+};
 
 #[derive(
     Clone,
@@ -64,19 +65,13 @@ pub async fn get_next_modularize_imports_rule(
     modularize_imports_config: Vc<ModularizeImports>,
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
-    let transformer = EcmascriptInputTransform::Plugin(
-        modularize_imports_transform_plugin(modularize_imports_config)
-            .to_resolved()
-            .await?,
-    );
-    // TODO: use get_ecma_transform_rule instead
-    Ok(ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![transformer]),
-        }],
+    let transformer = modularize_imports_transform_plugin(modularize_imports_config)
+        .to_resolved()
+        .await?;
+    Ok(get_ecma_transform_rule(
+        transformer,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Postprocess,
     ))
 }
 

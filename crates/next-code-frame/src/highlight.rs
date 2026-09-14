@@ -107,6 +107,16 @@ static JS_KEYWORDS: phf::Set<&'static str> = phf_set! {
     "yield",
 };
 
+pub(crate) const ANSI_CODE_RESET: &str = "\x1b[0m";
+pub(crate) const ANSI_CODE_CYAN: &str = "\x1b[36m";
+pub(crate) const ANSI_CODE_YELLOW: &str = "\x1b[33m";
+pub(crate) const ANSI_CODE_GREEN: &str = "\x1b[32m";
+pub(crate) const ANSI_CODE_MAGENTA: &str = "\x1b[35m";
+pub(crate) const ANSI_CODE_GRAY: &str = "\x1b[90m";
+pub(crate) const ANSI_CODE_RED_BOLD: &str = "\x1b[31m\x1b[1m";
+pub(crate) const ANSI_CODE_YELLOW_BOLD: &str = "\x1b[33m\x1b[1m";
+pub(crate) const ANSI_CODE_CYAN_BOLD: &str = "\x1b[36m\x1b[1m";
+
 /// ANSI color codes for token types
 #[derive(Debug, Clone, Copy)]
 pub struct ColorScheme {
@@ -124,18 +134,18 @@ pub struct ColorScheme {
 
 impl ColorScheme {
     /// Get a color scheme with ANSI colors (matching babel-code-frame)
-    pub const fn colored() -> Self {
+    pub const fn colored(marker_color: &'static str) -> Self {
         Self {
-            reset: "\x1b[0m",
-            keyword: "\x1b[36m",        // cyan
-            identifier: "\x1b[33m",     // yellow
-            string: "\x1b[32m",         // green
-            number: "\x1b[35m",         // magenta
-            regex: "\x1b[35m",          // magenta
-            comment: "\x1b[90m",        // gray
-            gutter: "\x1b[90m",         // gray
-            marker: "\x1b[31m\x1b[1m",  // red + bold
-            message: "\x1b[31m\x1b[1m", // red + bold (same as marker for now)
+            reset: ANSI_CODE_RESET,
+            keyword: ANSI_CODE_CYAN,
+            identifier: ANSI_CODE_YELLOW,
+            string: ANSI_CODE_GREEN,
+            number: ANSI_CODE_MAGENTA,
+            regex: ANSI_CODE_MAGENTA,
+            comment: ANSI_CODE_GRAY,
+            gutter: ANSI_CODE_GRAY,
+            marker: marker_color,
+            message: marker_color,
         }
     }
 
@@ -1059,7 +1069,7 @@ pub mod tests {
     fn test_apply_line_highlights_basic() {
         let source = "const Foo = 123";
         let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
-        let color_scheme = ColorScheme::colored();
+        let color_scheme = ColorScheme::colored(ANSI_CODE_RED_BOLD);
 
         let result = apply_line_highlights(source, &highlights[0], &color_scheme, 0, 0);
 
@@ -1112,7 +1122,7 @@ pub mod tests {
     fn test_apply_line_highlights_with_truncation() {
         let source = "const Foo = 123";
         let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
-        let color_scheme = ColorScheme::colored();
+        let color_scheme = ColorScheme::colored(ANSI_CODE_RED_BOLD);
 
         // Truncate to show "Foo = 123" (offset 6, length 9, no prefix)
         let visible = &source[6..];
@@ -1133,7 +1143,7 @@ pub mod tests {
         let source = r#"const x = "hello world";"#;
         let truncation_offset = 15;
         let highlights = extract_highlights(&Lines::new(source), 0..usize::MAX, JS, None);
-        let color_scheme = ColorScheme::colored();
+        let color_scheme = ColorScheme::colored(ANSI_CODE_RED_BOLD);
 
         let visible = &source[truncation_offset..];
         let result =

@@ -1,27 +1,30 @@
-import { join } from 'path'
-import { execFileSync } from 'child_process'
-import { nextTestSetup, isNextDev } from 'e2e-utils'
+import {
+  nextTestSetup,
+  isNextDev,
+  isNextDeploy,
+  type NextInstance,
+} from 'e2e-utils'
+import execa from 'execa'
 import { shouldUseTurbopack } from 'next-test-utils'
 
-const relayCompilerPath = join(
-  __dirname,
-  '../../../node_modules/relay-compiler/cli.js'
-)
-
-describe('Relay Compiler Transform - Multi Project Config', () => {
-  beforeAll(() => {
-    execFileSync(process.execPath, [relayCompilerPath], {
-      cwd: __dirname,
-      stdio: 'inherit',
+function relayCompilerValidate(next: NextInstance) {
+  ;(isNextDeploy ? it.skip : it)('has up-to-date graphql types', async () => {
+    await execa('pnpm', ['exec', 'relay-compiler', '--validate'], {
+      cwd: next.testDir,
+      stdout: 'inherit',
+      stderr: 'inherit',
     })
   })
+}
 
+describe('Relay Compiler Transform - Multi Project Config', () => {
   describe('project-a', () => {
     const { next } = nextTestSetup({
       files: __dirname,
       dependencies: {
-        'relay-runtime': '13.0.2',
-        '@types/relay-runtime': '14.1.13',
+        'relay-compiler': '21.0.1',
+        'relay-runtime': '21.0.1',
+        '@types/relay-runtime': '20.1.1',
         react: '19.3.0-canary-fef12a01-20260413',
         'react-dom': '19.3.0-canary-fef12a01-20260413',
       },
@@ -45,6 +48,8 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       skipDeployment: true,
     })
 
+    relayCompilerValidate(next)
+
     it('should resolve index page correctly', async () => {
       const html = await next.render('/')
       expect(html).toContain('Project A')
@@ -56,8 +61,9 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
     const { next } = nextTestSetup({
       files: __dirname,
       dependencies: {
-        'relay-runtime': '13.0.2',
-        '@types/relay-runtime': '14.1.13',
+        'relay-compiler': '21.0.1',
+        'relay-runtime': '21.0.1',
+        '@types/relay-runtime': '20.1.1',
         react: '19.3.0-canary-fef12a01-20260413',
         'react-dom': '19.3.0-canary-fef12a01-20260413',
       },
@@ -75,6 +81,8 @@ describe('Relay Compiler Transform - Multi Project Config', () => {
       // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
       skipDeployment: true,
     })
+
+    relayCompilerValidate(next)
 
     it('should resolve index page correctly', async () => {
       const html = await next.render('/')

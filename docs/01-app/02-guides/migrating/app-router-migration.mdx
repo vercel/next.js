@@ -108,7 +108,7 @@ To upgrade your links to Next.js 13, you can use the [`new-link` codemod](/docs/
 
 The behavior of [`next/script`](/docs/app/api-reference/components/script) has been updated to support both `pages` and `app`, but some changes need to be made to ensure a smooth migration:
 
-- Move any `beforeInteractive` scripts you previously included in `_document.js` to the root layout file (`app/layout.tsx`).
+- Move any `beforeInteractive` scripts you previously included in `_document.js` to a [root layout](/docs/app/api-reference/file-conventions/layout#root-layout), such as `app/layout.tsx` or `app/[locale]/layout.tsx`.
 - The experimental `worker` strategy does not yet work in `app` and scripts denoted with this strategy will either have to be removed or modified to use a different strategy (e.g. `lazyOnload`).
 - `onLoad`, `onReady`, and `onError` handlers will not work in Server Components so make sure to move them to a [Client Component](/docs/app/getting-started/server-and-client-components) or remove them altogether.
 
@@ -525,18 +525,20 @@ The `pages` directory uses `getServerSideProps` and `getStaticProps` to fetch da
 
 ```tsx filename="app/page.tsx" switcher
 export default async function Page() {
-  // This request should be cached until manually invalidated.
+  // Opt into the Next.js Data Cache for this request.
+  // The cached response can be reused across requests and revalidated on demand.
   // Similar to `getStaticProps`.
-  // `force-cache` is the default and can be omitted.
-  const staticData = await fetch(`https://...`, { cache: 'force-cache' })
+  const cachedData = await fetch('https://...', { cache: 'force-cache' })
 
-  // This request should be refetched on every request.
+  // Opt out of caching for this request.
+  // Next.js fetches this from the data source on every request.
+  // This is the default fetch behavior.
   // Similar to `getServerSideProps`.
-  const dynamicData = await fetch(`https://...`, { cache: 'no-store' })
+  const uncachedData = await fetch('https://...', { cache: 'no-store' })
 
-  // This request should be cached with a lifetime of 10 seconds.
+  // Cache this request, but revalidate it at most every 10 seconds.
   // Similar to `getStaticProps` with the `revalidate` option.
-  const revalidatedData = await fetch(`https://...`, {
+  const revalidatedData = await fetch('https://...', {
     next: { revalidate: 10 },
   })
 
@@ -546,18 +548,20 @@ export default async function Page() {
 
 ```jsx filename="app/page.js" switcher
 export default async function Page() {
-  // This request should be cached until manually invalidated.
+  // Opt into the Next.js Data Cache for this request.
+  // The cached response can be reused across requests and revalidated on demand.
   // Similar to `getStaticProps`.
-  // `force-cache` is the default and can be omitted.
-  const staticData = await fetch(`https://...`, { cache: 'force-cache' })
+  const cachedData = await fetch('https://...', { cache: 'force-cache' })
 
-  // This request should be refetched on every request.
+  // Opt out of caching for this request.
+  // Next.js fetches this from the data source on every request.
+  // This is the default fetch behavior.
   // Similar to `getServerSideProps`.
-  const dynamicData = await fetch(`https://...`, { cache: 'no-store' })
+  const uncachedData = await fetch('https://...', { cache: 'no-store' })
 
-  // This request should be cached with a lifetime of 10 seconds.
+  // Cache this request, but revalidate it at most every 10 seconds.
   // Similar to `getStaticProps` with the `revalidate` option.
-  const revalidatedData = await fetch(`https://...`, {
+  const revalidatedData = await fetch('https://...', {
     next: { revalidate: 10 },
   })
 

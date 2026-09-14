@@ -1,10 +1,99 @@
 import { nextTestSetup } from 'e2e-utils'
+import { randomUUID } from 'crypto'
+import escapeStringRegexp from 'escape-string-regexp'
+import stripAnsi from 'strip-ansi'
 import { join } from 'path'
 import { assertNoConsoleErrors, retry, waitForNoRedbox } from 'next-test-utils'
 
 describe('app-root-param-getters - cache - at runtime', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-runtime'),
+  })
+
+  async function readSWR(key: string, roots: string) {
+    const $ = await next.render$(`/${roots}/swr?key=${key}`)
+    expect(`${$('#lang').text()}/${$('#country-code').text()}`).toBe(roots)
+    const value = $('#value').text()
+    expect(value).toBeDateString()
+    return value
+  }
+
+  async function revalidateSWR(key: string, roots: string) {
+    const response = await next.fetch(`/${roots}/swr/revalidate?key=${key}`, {
+      method: 'POST',
+    })
+    expect(response.status).toBe(204)
+  }
+
+  it('should revalidate only the tagged root params', async () => {
+    const key = randomUUID()
+    const enValue = await readSWR(key, 'en/us')
+    const frValue = await readSWR(key, 'fr/ca')
+    expect(enValue).not.toBe(frValue)
+
+    await revalidateSWR(key, 'en/us')
+    // TODO: Restore this assertion on deploy when tag revalidation supports
+    // stale-while-revalidate for remote cache entries.
+    if (!isNextDeploy) {
+      expect(await readSWR(key, 'en/us')).toBe(enValue)
+    }
+    expect(await readSWR(key, 'fr/ca')).toBe(frValue)
+    await retry(async () => {
+      expect(new Date(await readSWR(key, 'en/us'))).toBeAfter(new Date(enValue))
+    })
+    expect(await readSWR(key, 'fr/ca')).toBe(frValue)
+  })
+
+  // @force-gate !deploy
+  it('should deduplicate background revalidation separately for each root pair', async () => {
+    const key = randomUUID()
+    const roots = ['en/us', 'fr/ca']
+    const values = await Promise.all(roots.map((root) => readSWR(key, root)))
+    await Promise.all(roots.map((root) => revalidateSWR(key, root)))
+    const outputIndex = next.cliOutput.length
+    const getOutput = () =>
+      stripAnsi(next.cliOutput.slice(outputIndex))
+        .split('\n')
+        .filter((line) => !line.includes(' Cache '))
+        .join('\n')
+
+    // Complete the triggering responses before more requests read the stale
+    // entries.
+    expect(await Promise.all(roots.map((root) => readSWR(key, root)))).toEqual(
+      values
+    )
+    expect(await Promise.all(roots.map((root) => readSWR(key, root)))).toEqual(
+      values
+    )
+
+    await retry(() => {
+      const output = getOutput()
+      for (const root of roots) {
+        expect(output).toIncludeRepeated(
+          escapeStringRegexp(`swr start ${key} ${root}`),
+          1
+        )
+        expect(output).toIncludeRepeated(
+          escapeStringRegexp(`swr finish ${key} ${root}`),
+          1
+        )
+      }
+    })
+    for (const [index, root] of roots.entries()) {
+      await retry(async () => {
+        expect(new Date(await readSWR(key, root))).toBeAfter(
+          new Date(values[index])
+        )
+      })
+      expect(getOutput()).toIncludeRepeated(
+        escapeStringRegexp(`swr start ${key} ${root}`),
+        1
+      )
+      expect(getOutput()).toIncludeRepeated(
+        escapeStringRegexp(`swr finish ${key} ${root}`),
+        1
+      )
+    }
   })
 
   if (isNextDev) {
@@ -18,7 +107,6 @@ describe('app-root-param-getters - cache - at runtime', () => {
       const browser = await next.browser('/en/us/unstable_cache')
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1141",
          "description": "Route /[lang]/[countryCode]/unstable_cache used \`import('next/root-params').lang()\` inside \`unstable_cache\`. This is not supported. Use \`"use cache"\` instead.",
          "environmentLabel": "Server",
          "label": "Runtime Error",
@@ -37,7 +125,6 @@ describe('app-root-param-getters - cache - at runtime', () => {
       const browser = await next.browser('/en/us/nested-in-unstable_cache')
       await expect(browser).toDisplayRedbox(`
        {
-         "code": "E1140",
          "description": "Route /[lang]/[countryCode]/nested-in-unstable_cache used \`import('next/root-params').lang()\` inside \`"use cache"\` nested within \`unstable_cache\`. Root params are not available in this context.",
          "environmentLabel": "Cache",
          "label": "Runtime Error",
@@ -258,6 +345,13 @@ describe('app-root-param-getters - private cache', () => {
 
       await waitForNoRedbox(browser)
       expect(await browser.elementById('param').text()).toBe('en us')
+
+      // A different set of root params must produce a separate entry. Since
+      // private caches are persisted in dev, this confirms the entry is keyed
+      // by root params and isn't reused for a different `[lang]/[locale]`.
+      await browser.loadPage(next.url + '/es/es/use-cache-private')
+      await waitForNoRedbox(browser)
+      expect(await browser.elementById('param').text()).toBe('es es')
     })
   } else {
     it('should allow using root params within a "use cache: private" - start', async () => {
@@ -286,14 +380,13 @@ describe('app-root-param-getters - cache - at build', () => {
   }
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// In deploy mode, concurrent requests could hit different lambdas.
+// @force-gate !deploy
 describe('app-root-param-getters - cache dedup with root params', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'use-cache-dedup'),
-    // In deploy mode, concurrent requests could hit different lambdas.
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should dedupe same root params and isolate different root params', async () => {
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
@@ -315,5 +408,35 @@ describe('app-root-param-getters - cache dedup with root params', () => {
 
     // Both ca/fr requests should have the same result (deduped).
     expect(randomFr1).toBe(randomFr2)
+  })
+
+  it('should dedupe same root params and isolate different root params for private caches', async () => {
+    // Three concurrent requests: ca/en, ca/fr, ca/fr.
+    const [$en, $fr1, $fr2] = await Promise.all([
+      next.render$('/ca/en/use-cache-private'),
+      next.render$('/ca/fr/use-cache-private'),
+      next.render$('/ca/fr/use-cache-private'),
+    ])
+
+    const randomEn = $en('#random').text()
+    const randomFr1 = $fr1('#random').text()
+    const randomFr2 = $fr2('#random').text()
+
+    expect(randomEn).toBeTruthy()
+    expect(randomFr1).toBeTruthy()
+
+    // Different root params produce different entries, in dev and production.
+    expect(randomEn).not.toBe(randomFr1)
+
+    if (isNextDev) {
+      // In dev, private caches are persisted and participate in cross-request
+      // deduplication keyed by root params, so the two ca/fr requests join one
+      // in-flight invocation and share a single fill.
+      expect(randomFr1).toBe(randomFr2)
+    } else {
+      // In production, private caches are not persisted and are never deduped
+      // across requests, so each ca/fr request generates its own value.
+      expect(randomFr1).not.toBe(randomFr2)
+    }
   })
 })

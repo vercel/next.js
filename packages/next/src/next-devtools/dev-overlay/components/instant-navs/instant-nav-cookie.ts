@@ -2,9 +2,9 @@
  * Cookie reading and subscription for the instant navigation devtools panel.
  *
  * The cookie value is a JSON array:
- *   [0]        — pending (waiting to capture)
- *   [1, null]  — captured MPA page load
- *   [1, { from, to }] — captured SPA navigation (from/to route trees)
+ *   [0, id]        — pending (waiting to capture)
+ *   [1, id, null]  — captured MPA page load
+ *   [1, id, { from, to }] — captured SPA navigation (from/to route trees)
  *
  * The "to" tree may be null initially and updated after the prefetch resolves.
  */
@@ -15,37 +15,12 @@ import type {
   FlightRouterState,
   Segment,
 } from '../../../../shared/lib/app-router-types'
+import {
+  parseInstantNavCookieValue,
+  type InstantNavCookieData,
+} from '../../../../shared/lib/instant-nav-cookie'
 
 const COOKIE_NAME = 'next-instant-navigation-testing'
-
-export type InstantNavCookieData =
-  | { state: 'pending' }
-  | { state: 'mpa' }
-  | {
-      state: 'spa'
-      fromTree: FlightRouterState
-      toTree: FlightRouterState | null
-    }
-
-function parseCookieValue(raw: string): InstantNavCookieData {
-  try {
-    const parsed = JSON.parse(raw)
-    if (Array.isArray(parsed) && parsed.length >= 3) {
-      const rawState = parsed[2]
-      if (rawState === null) {
-        return { state: 'mpa' }
-      }
-      // SPA capture: rawState is { from, to }
-      if (typeof rawState === 'object' && rawState !== null) {
-        const fromTree: FlightRouterState = rawState.from ?? ['', {}]
-        const toTree: FlightRouterState | null = rawState.to ?? null
-        return { state: 'spa', fromTree, toTree }
-      }
-      return { state: 'spa', fromTree: ['', {}], toTree: null }
-    }
-  } catch {}
-  return { state: 'pending' }
-}
 
 export function readInstantNavCookieState():
   | InstantNavCookieData['state']
@@ -53,7 +28,7 @@ export function readInstantNavCookieState():
   if (typeof document === 'undefined') return null
   const match = document.cookie.match(/next-instant-navigation-testing=([^;]*)/)
   if (!match) return null
-  return parseCookieValue(match[1]).state
+  return parseInstantNavCookieValue(match[1]).state
 }
 
 /**
@@ -127,6 +102,15 @@ function getSnapshot(): string {
   return readRawCookieValue()
 }
 
+function isInitialInstantTestStaticShell(rawValue: string): boolean {
+  return (
+    rawValue !== '' &&
+    cachedRawValue === undefined &&
+    typeof self !== 'undefined' &&
+    Boolean(self.__next_instant_test)
+  )
+}
+
 function subscribe(callback: () => void): () => void {
   if (typeof cookieStore === 'undefined') {
     return () => {}
@@ -166,6 +150,12 @@ export function useInstantNavCookieState(): InstantNavCookieData | null {
   const rawValue = useSyncExternalStore(subscribe, getSnapshot)
   return useMemo(() => {
     if (!rawValue) return null
-    return parseCookieValue(rawValue)
+    // A full page load into an instant-test static shell writes the MPA
+    // cookie asynchronously. Until that CookieStore event lands, the cookie
+    // may still contain the previous SPA capture from before the reload.
+    if (isInitialInstantTestStaticShell(rawValue)) {
+      return { state: 'mpa' }
+    }
+    return parseInstantNavCookieValue(rawValue)
   }, [rawValue])
 }

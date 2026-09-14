@@ -56,6 +56,8 @@ export const styles = `
     justify-content: center;
     align-items: center;
     gap: 4px;
+    white-space: nowrap;
+    flex-shrink: 0;
 
     height: var(--size-24);
     padding: 6px 8px 6px 6px;

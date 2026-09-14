@@ -17,7 +17,8 @@ use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    CollectiblesSource, FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -102,12 +103,11 @@ impl NextDynamicGraphs {
                 let result = self
                     .0
                     .iter()
-                    .map(|graph| async move {
+                    .map(async |graph| {
                         Ok(graph
                             .get_next_dynamic_imports_for_endpoint(entry)
                             .await?
                             .into_iter()
-                            .map(|(k, v)| (*k, *v))
                             // TODO remove this collect and return an iterator instead
                             .collect::<Vec<_>>())
                     })
@@ -170,7 +170,7 @@ impl NextDynamicGraph {
                 }
                 Either::Left(std::iter::once(entry))
             } else {
-                Either::Right(graph.graphs.first().unwrap().entry_modules())
+                Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
             };
 
             let mut result = vec![];
@@ -226,6 +226,7 @@ impl NextDynamicGraph {
                     })
                 },
                 |_, _, _| Ok(()),
+                false,
             )?;
             Ok(Vc::cell(result))
         }
@@ -257,9 +258,8 @@ impl ServerActionsGraphs {
         let server_actions = async {
             graphs_ref
                 .iter()
-                .map(|graph| {
-                    ServerActionsGraph::new_with_entries(graph.connect(), is_single_page)
-                        .to_resolved()
+                .map(|&graph| {
+                    ServerActionsGraph::new_with_entries(graph, is_single_page).to_resolved()
                 })
                 .try_join()
                 .await
@@ -300,11 +300,10 @@ impl ServerActionsGraphs {
                 let result = self
                     .0
                     .iter()
-                    .map(|graph| async move {
+                    .map(|graph| {
                         graph
                             .get_server_actions_for_endpoint(entry, rsc_asset_context)
                             .owned()
-                            .await
                     })
                     .try_flat_join()
                     .await?;
@@ -321,14 +320,14 @@ impl ServerActionsGraphs {
 impl ServerActionsGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(
-        graph: ResolvedVc<ModuleGraphLayer>,
+        graph: OperationVc<ModuleGraphLayer>,
         is_single_page: bool,
     ) -> Result<Vc<Self>> {
-        let mapped = map_server_actions(*graph);
+        let mapped = map_server_actions(graph);
 
         Ok(ServerActionsGraph {
             is_single_page,
-            graph,
+            graph: graph.connect().to_resolved().await?,
             data: mapped.to_resolved().await?,
         }
         .cell())
@@ -372,7 +371,7 @@ impl ServerActionsGraph {
 
             let actions = data
                 .iter()
-                .map(|(module, (layer, actions))| async move {
+                .map(async |(module, (layer, actions))| {
                     let actions = actions.await?;
                     actions
                         .actions
@@ -557,7 +556,7 @@ impl ClientReferencesGraph {
                 }
                 Either::Left(std::iter::once(entry))
             } else {
-                Either::Right(graph.graphs.first().unwrap().entry_modules())
+                Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
             };
 
             // Because we care about 'evaluation order' we need to collect client references in the
@@ -784,7 +783,7 @@ async fn validate_pages_css_imports_individual(
         }
         Either::Left(std::iter::once(entry))
     } else {
-        Either::Right(graph.graphs.first().unwrap().entry_modules())
+        Either::Right(graph.graphs.first().unwrap().chunk_group_modules())
     };
 
     let mut candidates = vec![];
@@ -835,6 +834,7 @@ async fn validate_pages_css_imports_individual(
             Ok(GraphTraversalAction::Continue)
         },
         |_, _, _| Ok(()),
+        false,
     )?;
 
     candidates

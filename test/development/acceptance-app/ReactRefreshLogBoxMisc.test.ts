@@ -38,7 +38,7 @@ describe('ReactRefreshLogBox app', () => {
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./app/page.js (3:23)
-       "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
+       Error: "getStaticProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
        > 3 | export async function getStaticProps() {
            |                       ^^^^^^^^^^^^^^",
          "stack": [],

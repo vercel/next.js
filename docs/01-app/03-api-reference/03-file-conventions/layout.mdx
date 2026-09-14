@@ -143,7 +143,7 @@ export default function RootLayout({ children }) {
   - Using [route groups](/docs/app/api-reference/file-conventions/route-groups) like `app/(shop)/layout.js` and `app/(marketing)/layout.js`
   - Omitting `app/layout.js` so layouts in subdirectories like `app/dashboard/layout.js` and `app/blog/layout.js` each become root layouts for their respective directories.
   - Navigating **across multiple root layouts** will cause a **full page load** (as opposed to a client-side navigation).
-- The root layout can be under a **dynamic segment**, for example when implementing [internationalization](/docs/app/guides/internationalization) with `app/[lang]/layout.js`.
+- The root layout can be under a **dynamic segment**, for example when implementing [internationalization](/docs/app/guides/internationalization) with `app/[lang]/layout.js`. Dynamic segments before the root layout are **root parameters** and can be read from any Server Component with [`next/root-params`](/docs/app/api-reference/functions/next-root-params).
 
 ## Caveats
 

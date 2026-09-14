@@ -78,6 +78,9 @@ describe('trace-build-file', () => {
       }
 
       if (process.env.IS_TURBOPACK_TEST) {
+        // Compaction only runs when it is due, so it may or may not appear.
+        foundEvents.delete('turbopack-compaction')
+
         expect([...foundEvents].sort()).toMatchInlineSnapshot(`
                 [
                   "next-build",
@@ -86,7 +89,6 @@ describe('trace-build-file', () => {
                   "static-check",
                   "static-generation",
                   "telemetry-flush",
-                  "turbopack-build-events",
                   "turbopack-persistence",
                 ]
               `)

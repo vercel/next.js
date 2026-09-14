@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 import fs from 'fs-extra'
 import { findPort, initNextServerScript, killApp } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
 
 describe('standalone mode: server actions', () => {
   let server: ChildProcess
@@ -56,14 +55,15 @@ describe('standalone mode: server actions', () => {
   })
 
   it('should be able to execute server actions', async () => {
-    const browser = await webdriver(appPort, `/world`)
+    const browser = await next.browser(`/world`, { baseUrl: appPort })
     await browser.elementByCss('button').click()
 
     expect(await browser.elementByCss('#result').text()).toBe('hello world')
   })
 
   it('should be able to execute MPA server actions', async () => {
-    const browser = await webdriver(appPort, `/world`, {
+    const browser = await next.browser(`/world`, {
+      baseUrl: appPort,
       disableJavaScript: true,
     })
 

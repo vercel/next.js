@@ -6,6 +6,7 @@ const OUTPUT_ROOT = path.join(__dirname, 'pr-status')
 const RESULTS_DIR = path.join(OUTPUT_ROOT, 'results')
 const INTERMEDIATE_DIR = path.join(OUTPUT_ROOT, 'intermediate')
 const ANSI_RE = new RegExp(String.raw`\u001B\[[0-9;]*[A-Za-z]`, 'g')
+const JOBS_PAGE_SIZE = 30
 
 // ============================================================================
 // Helper Functions
@@ -288,7 +289,7 @@ function getAllJobs(runId) {
     for (let attempt = 1; attempt <= 3; attempt++) {
       try {
         output = exec(
-          `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=100&page=${page}" --jq '${jqQuery}'`
+          `gh api "repos/vercel/next.js/actions/runs/${runId}/jobs?per_page=${JOBS_PAGE_SIZE}&page=${page}" --jq '${jqQuery}'`
         )
         lastError = null
         break
@@ -327,7 +328,7 @@ function getAllJobs(runId) {
 
     allJobs.push(...jobs)
 
-    if (jobs.length < 100) break
+    if (jobs.length < JOBS_PAGE_SIZE) break
     page++
   }
 
@@ -1310,16 +1311,7 @@ async function getFlakyTests(currentBranch, runsToCheck = 5) {
   const runJobResults = await Promise.all(
     allRuns.map(async (run) => {
       try {
-        const jobsJq =
-          '.jobs[] | select(.conclusion == "failure" or .conclusion == "timed_out" or .conclusion == "startup_failure") | {id, name}'
-        const jobsOutput = exec(
-          `gh api "repos/vercel/next.js/actions/runs/${run.id}/jobs?per_page=100" --jq '${jobsJq}'`
-        )
-        if (!jobsOutput.trim()) return { run, jobs: [] }
-        const jobs = jobsOutput
-          .split('\n')
-          .filter((line) => line.trim())
-          .map((line) => JSON.parse(line))
+        const jobs = getFailedJobs(run.id)
         // Skip runs with 20+ failed jobs (likely systemic, not flaky)
         if (jobs.length > 20) return { run, jobs: [] }
         return { run, jobs }

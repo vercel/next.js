@@ -269,6 +269,89 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('prints the errors of an AggregateError behind a `cause`', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-aggregate-nested')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log-aggregate-nested'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'Error: rsc-error-log-aggregate-nested' +
+          '\n    at logError (app/rsc-error-log-aggregate-nested/page.js:7:5)' +
+          '\n    at Page (app/rsc-error-log-aggregate-nested/page.js:12:3)' +
+          "\n   5 |   const aggregateError = new AggregateError([error1, error2], 'Aggregate')" +
+          '\n   6 |   console.error(' +
+          "\n>  7 |     new Error('rsc-error-log-aggregate-nested', { cause: aggregateError })" +
+          '\n     |     ^' +
+          '\n   8 |   )' +
+          '\n   9 | }' +
+          '\n  10 | {' +
+          '\n  [cause]: AggregateError: Aggregate' +
+          '\n      at logError (app/rsc-error-log-aggregate-nested/page.js:5:26)' +
+          '\n      at Page (app/rsc-error-log-aggregate-nested/page.js:12:3)' +
+          "\n    3 |   const error1 = Object.assign(new Error('Error 1'), { code: 'ERR_ONE' })" +
+          "\n    4 |   const error2 = Object.assign(new TypeError('Error 2'), { code: 'ERR_TWO' })" +
+          "\n  > 5 |   const aggregateError = new AggregateError([error1, error2], 'Aggregate')" +
+          '\n      |                          ^' +
+          '\n    6 |   console.error(' +
+          "\n    7 |     new Error('rsc-error-log-aggregate-nested', { cause: aggregateError })" +
+          '\n    8 |   ) {' +
+          '\n    [errors]: [' +
+          '\n      Error: Error 1' +
+          '\n          at logError (app/rsc-error-log-aggregate-nested/page.js:3:32)' +
+          '\n          at Page (app/rsc-error-log-aggregate-nested/page.js:12:3)' +
+          '\n        1 | /* global AggregateError */' +
+          '\n        2 | function logError() {' +
+          "\n      > 3 |   const error1 = Object.assign(new Error('Error 1'), { code: 'ERR_ONE' })" +
+          '\n          |                                ^' +
+          "\n        4 |   const error2 = Object.assign(new TypeError('Error 2'), { code: 'ERR_TWO' })" +
+          "\n        5 |   const aggregateError = new AggregateError([error1, error2], 'Aggregate')" +
+          '\n        6 |   console.error( {' +
+          "\n        code: 'ERR_ONE'" +
+          '\n      },' +
+          '\n      TypeError: Error 2' +
+          '\n          at logError (app/rsc-error-log-aggregate-nested/page.js:4:32)' +
+          '\n          at Page (app/rsc-error-log-aggregate-nested/page.js:12:3)' +
+          '\n        2 | function logError() {' +
+          "\n        3 |   const error1 = Object.assign(new Error('Error 1'), { code: 'ERR_ONE' })" +
+          "\n      > 4 |   const error2 = Object.assign(new TypeError('Error 2'), { code: 'ERR_TWO' })" +
+          '\n          |                                ^' +
+          "\n        5 |   const aggregateError = new AggregateError([error1, error2], 'Aggregate')" +
+          '\n        6 |   console.error(' +
+          "\n        7 |     new Error('rsc-error-log-aggregate-nested', { cause: aggregateError }) {" +
+          "\n        code: 'ERR_TWO'" +
+          '\n      }' +
+          '\n    ]' +
+          '\n  }' +
+          '\n}'
+      )
+      // The errors of the AggregateError carry own properties, so Node.js
+      // applies its depth limit to them. They must not collapse to `[Error]`.
+      expect(
+        normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      ).not.toContain('[Error]')
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        //
+        // TODO(veil): relative paths in production
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(app/rsc-error-log-aggregate-nested/page.js:7:5)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).toContain('[cause]:')
+        expect(normalizeCliOutput(next.cliOutput)).toContain('[errors]:')
+        expect(normalizeCliOutput(next.cliOutput)).toContain("code: 'ERR_ONE'")
+        expect(normalizeCliOutput(next.cliOutput)).toContain("code: 'ERR_TWO'")
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
+  })
+
   it('logged errors in client components during ssr have a sourcemapped stack with a codeframe', async () => {
     if (isNextDev) {
       const outputIndex = next.cliOutput.length
@@ -537,6 +620,47 @@ describe('app-dir - server source maps', () => {
     }
   })
 
+  it('thrown errors from "use cache" have a sourcemapped stack with a codeframe', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-throw-cached')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-throw-cached'
+        )
+      })
+      const cliOutput = normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      expect(cliOutput).toContain(
+        'Error: rsc-error-throw-cached' +
+          '\n    at throwsInCache (app/rsc-error-throw-cached/page.js:5:9)' +
+          '\n  3 | async function throwsInCache() {' +
+          "\n  4 |   'use cache'" +
+          "\n> 5 |   throw new Error('rsc-error-throw-cached')" +
+          '\n    |         ^' +
+          '\n  6 | }' +
+          '\n  7 |' +
+          '\n  8 | export default async function Page() {'
+      )
+      // The logged error is the one revived by the consuming Flight client,
+      // not the original from the cache environment.
+      expect(cliOutput).toContain("environmentName: 'Cache'")
+    } else {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-throw-cached')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-throw-cached'
+        )
+      })
+      // React only creates fake stack frames in development.
+      expect(
+        normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      ).not.toContain('about://React/')
+    }
+  })
+
   it('logged errors preserve their name', async () => {
     let cliOutput = next.cliOutput
     if (isNextDev) {
@@ -560,6 +684,51 @@ describe('app-dir - server source maps', () => {
         ? 'Error [MyError]: rsc-error-log-custom-name-Bar'
         : 'Error [MyError]: rsc-error-log-custom-name-Bar'
     )
+  })
+
+  it('does not print a stack frame for the error message line', async () => {
+    if (isNextDev) {
+      const outputIndex = next.cliOutput.length
+      await next.render('/rsc-error-log-location-message')
+
+      await retry(() => {
+        expect(next.cliOutput.slice(outputIndex)).toContain(
+          'Error: rsc-error-log-location-message'
+        )
+      })
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'Error: rsc-error-log-location-message: connect ECONNREFUSED ::1:45999' +
+          '\n    at logError (app/rsc-error-log-location-message/page.js:7:5)' +
+          '\n    at Page (app/rsc-error-log-location-message/page.js:12:3)' +
+          '\n   5 |   // test match this error only.' +
+          '\n   6 |   console.error(' +
+          "\n>  7 |     new Error('rsc-error-log-location-message: connect ECONNREFUSED ::1:45999')" +
+          '\n     |     ^' +
+          '\n   8 |   )' +
+          '\n   9 | }'
+      )
+      // `stacktrace-parser` reads the `<name>: <message>` line as a frame when
+      // the message ends with text that looks like a file location. A real
+      // anonymous frame also reads `at <unknown>`, so this assertion names the
+      // message to keep the two apart.
+      expect(
+        normalizeCliOutput(next.cliOutput.slice(outputIndex))
+      ).not.toContain('at <unknown> (Error: rsc-error-log-location-message')
+    } else {
+      if (isTurbopack) {
+        // TODO(veil): Sourcemap names
+        //
+        // TODO(veil): relative paths in production
+        expect(normalizeCliOutput(next.cliOutput)).toContain(
+          '(app/rsc-error-log-location-message/page.js:7:5)'
+        )
+        expect(normalizeCliOutput(next.cliOutput)).not.toContain(
+          'at <unknown> (Error: rsc-error-log-location-message'
+        )
+      } else {
+        // TODO(veil): line/column numbers are flaky in Webpack
+      }
+    }
   })
 
   it('handles invalid sourcemaps gracefully', async () => {
@@ -678,11 +847,9 @@ describe('app-dir - server source maps', () => {
              "eval app/module-evaluation/module.js (1:22)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
-             "eval about:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:60)",
+             "eval about:/Prerender/webpack-internal:///(rsc)/app/module-evaluation/page.js (5:45)",
              "<FIXME-file-protocol>",
              "<FIXME-file-protocol>",
-             "Function.all <anonymous>",
-             "Function.all <anonymous>",
              "Page <anonymous>",
            ],
          }

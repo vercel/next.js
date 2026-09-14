@@ -1,6 +1,6 @@
 import { Suspense } from 'react'
 
-export const unstable_instant = { level: 'experimental-error' }
+export const instant = { level: 'experimental-error' }
 
 export default function StaticLayout({ children }) {
   return (

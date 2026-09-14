@@ -163,6 +163,9 @@ pub struct TimingEvent {
     ///
     /// Example:
     /// ```rust
+    /// use std::time::Duration;
+    /// use turbo_tasks::message_queue::{CompilationEvent, TimingEvent};
+    ///
     /// let event = TimingEvent::new("Compiled successfully".to_string(), Duration::from_millis(100));
     /// let message = event.message();
     /// assert_eq!(message, "Compiled successfully in 100ms");
@@ -244,7 +247,8 @@ pub struct TraceEvent {
     pub name: &'static str,
     pub start_time_ms: f64,
     pub end_time_ms: f64,
-    pub attributes: Vec<(&'static str, serde_json::Value)>,
+    /// Should be an array of key value pairs
+    pub attributes: serde_json::Value,
 }
 
 impl TraceEvent {
@@ -252,8 +256,10 @@ impl TraceEvent {
         name: &'static str,
         start_time_ms: f64,
         end_time_ms: f64,
-        attributes: Vec<(&'static str, serde_json::Value)>,
+        attributes: serde_json::Value,
     ) -> Self {
+        // basic sanity test
+        debug_assert!(matches!(attributes, serde_json::Value::Array(_)));
         Self {
             name,
             start_time_ms,

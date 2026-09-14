@@ -1,7 +1,6 @@
 ---
 title: 'use cache: private'
 description: 'Learn how to use the "use cache: private" directive to cache functions that access runtime request APIs.'
-version: experimental
 related:
   title: Related
   description: View related API references.
@@ -12,20 +11,20 @@ related:
     - app/api-reference/functions/cacheTag
 ---
 
-The `'use cache: private'` directive allows functions to access runtime request APIs like `cookies()`, `headers()`, and `searchParams` within a cached scope. However, results are **never stored on the server**, they're cached only in the browser's memory and do not persist across page reloads.
+The `'use cache: private'` directive allows functions to access runtime request APIs like `cookies()`, `headers()`, and `searchParams` within a cached scope. In production, matching calls within one request can reuse the same result, but Next.js does not store it in a server cache across requests.
+
+The client router can keep the rendered output in browser memory for the [`stale` time](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) configured with `cacheLife`. This client-side cache does not persist across page reloads.
 
 Reach for `'use cache: private'` when:
 
 - You want to cache a function that already accesses runtime data, and refactoring to [move the runtime access outside and pass values as arguments](/docs/app/getting-started/caching#working-with-runtime-apis) is not practical.
-- Compliance requirements prevent storing certain data on the server, even temporarily
+- You need request-specific data to be excluded from server caches that persist across production requests.
 
-Because this directive accesses runtime data, the function executes on every server render and is excluded from running during [static shell](/docs/app/getting-started/caching#how-rendering-works) generation.
+Private Cache Functions run at request time and are excluded from [static shell](/docs/app/getting-started/caching#prerendering) generation. To start a private Cache Function before a component needs its result, see [Preloading data](/docs/app/getting-started/fetching-data#preloading-data).
 
 It is **not** possible to configure custom cache handlers for `'use cache: private'`.
 
 For a comparison of the different cache directives, see [How `use cache: remote` differs from `use cache` and `use cache: private`](/docs/app/api-reference/directives/use-cache-remote#how-use-cache-remote-differs-from-use-cache-and-use-cache-private).
-
-> **Good to know**: This directive is marked as `experimental` because it depends on runtime prefetching, which is not yet stable. Runtime prefetching is an upcoming feature that will let the router prefetch past the [static shell](/docs/app/getting-started/caching#how-rendering-works) into **any** cached scope, not just private caches.
 
 ## Usage
 
@@ -47,12 +46,10 @@ const nextConfig = {
   cacheComponents: true,
 }
 
-export default nextConfig
+module.exports = nextConfig
 ```
 
 Then add `'use cache: private'` to your function along with a `cacheLife` configuration.
-
-> **Good to know**: This directive is not available in Route Handlers.
 
 ### Basic example
 
@@ -154,7 +151,13 @@ async function getRecommendations(productId) {
 }
 ```
 
-> **Good to know**: The `stale` time must be at least 30 seconds for runtime prefetching to work. See [`cacheLife` client cache behavior](/docs/app/api-reference/functions/cacheLife#client-cache-behavior) for details.
+> **Good to know:** The `stale` time must be at least 30 seconds for per-link prefetching to work, and at least 5 minutes for the content to be included in the route's [App Shell](/docs/app/glossary#app-shell). See [`cacheLife` prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for details.
+
+### Configuring the client stale time
+
+Private Cache Functions contribute their `stale` time to the route's [Client Cache](/docs/app/glossary#client-cache). If a function only needs request-scoped deduplication, use `cacheLife({ stale: Infinity })` to keep it from lowering the route's stale time.
+
+Next.js uses the shortest stale time from the route's cache entries, so another cache or route setting can still set a finite value. Setting `stale` to `Infinity` does not store the private result on the server across production requests. Use a finite value when the client router should revalidate personalized output after a known interval.
 
 ## Request APIs allowed in private caches
 

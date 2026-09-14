@@ -7,7 +7,7 @@ use std::{
 use anyhow::anyhow;
 use bincode::{Decode, Encode};
 use clap::{Args, Parser, ValueEnum};
-use turbo_tasks::{NonLocalValue, TaskInput, trace::TraceRawVcs};
+use turbo_tasks::trace::TraceRawVcs;
 use turbopack_core::issue::IssueSeverity;
 
 #[derive(Debug, Parser)]
@@ -35,20 +35,8 @@ impl Arguments {
     }
 }
 
-#[derive(
-    Copy,
-    Clone,
-    Debug,
-    ValueEnum,
-    PartialEq,
-    Eq,
-    Hash,
-    TaskInput,
-    NonLocalValue,
-    TraceRawVcs,
-    Encode,
-    Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, ValueEnum, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum Target {
     Browser,
     Node,

@@ -32,9 +32,9 @@ use crate::{
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier::MAGIC_IDENTIFIER_DEFAULT_EXPORT_ATOM,
-    references::esm::base::ReferencedAsset,
+    module_fragments::part::module::EcmascriptModulePartAsset,
+    references::esm::{base::ReferencedAsset, mangle::mangled_export_names},
     runtime_functions::{TURBOPACK_DYNAMIC, TURBOPACK_ESM},
-    tree_shake::part::module::EcmascriptModulePartAsset,
     utils::module_id_to_lit,
 };
 
@@ -83,7 +83,7 @@ pub async fn is_export_missing(
         EcmascriptExports::None => return Ok(Vc::cell(true)),
         EcmascriptExports::Unknown => return Ok(Vc::cell(false)),
         EcmascriptExports::Value => return Ok(Vc::cell(false)),
-        EcmascriptExports::CommonJs => return Ok(Vc::cell(false)),
+        EcmascriptExports::CommonJs(_) => return Ok(Vc::cell(false)),
         EcmascriptExports::EmptyCommonJs => return Ok(Vc::cell(export_name != "default")),
         EcmascriptExports::DynamicNamespace => return Ok(Vc::cell(false)),
         EcmascriptExports::EsmExports(exports) => *exports,
@@ -110,7 +110,7 @@ pub async fn is_export_missing(
         let exports = dynamic_module.get_exports().await?;
         match &*exports {
             EcmascriptExports::Value
-            | EcmascriptExports::CommonJs
+            | EcmascriptExports::CommonJs(_)
             | EcmascriptExports::DynamicNamespace
             | EcmascriptExports::Unknown => {
                 return Ok(Vc::cell(false));
@@ -375,7 +375,7 @@ async fn get_all_export_names(
     let star_export_names = exports
         .star_exports
         .iter()
-        .map(|esm_ref| async {
+        .map(async |esm_ref| {
             Ok(
                 if let ReferencedAsset::Some(m) =
                     ReferencedAsset::from_resolve_result(esm_ref.resolve_reference()).await?
@@ -479,7 +479,7 @@ pub async fn expand_star_exports(
                 )
                 .await?
             }
-            EcmascriptExports::CommonJs => {
+            EcmascriptExports::CommonJs(_) => {
                 dynamic_exporting_modules.push(asset);
                 emit_star_exports_issue(
                     asset.ident(),
@@ -533,6 +533,10 @@ pub struct EsmExports {
     pub exports: FrozenMap<RcStr, EsmExport>,
     /// Unexpanded `export * from ...` statements (expanded in `expand_star_exports`)
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    /// Whether the keys these exports are emitted under may be shortened. Carried with the exports
+    /// so a module deriving its exports from another (facade, locals, part, rename) inherits it.
+    /// `mangle::mangled_export_names` decides whether they actually are.
+    pub mangle_export_names: bool,
 }
 
 /// The expanded version of [`EsmExports`], the `exports` field here includes all exports that could
@@ -571,6 +575,9 @@ impl EsmExports {
             EsmExports {
                 exports: FrozenMap::from(exports),
                 star_exports: vec![module_reference],
+                // These facades exist so that a host framework can find the wrapped module's
+                // exports by name, so their keys have to stay as written.
+                mangle_export_names: false,
             }
             .resolved_cell(),
         )
@@ -697,6 +704,9 @@ impl EsmExports {
         }
 
         let mut getters = Vec::new();
+        // The keys this module's exports are emitted under. Consumers resolve the same map for this
+        // module (see `ReferencedAsset::get_ident_inner`), so both sides always agree.
+        let mangled_names = mangled_export_names(*module, chunking_context).await?;
         for (exported, local) in &expanded.exports {
             let exprs: ExportBinding = match local {
                 EsmExport::Error => ExportBinding::Getter(quote!(
@@ -706,8 +716,11 @@ impl EsmExports {
                     // TODO ideally, this information would just be stored in
                     // EsmExport::LocalBinding and we wouldn't have to re-correlated this
                     // information with eval_context.imports.exports to get the syntax context.
-                    let binding = if let Some((local, ctxt)) =
-                        eval_context.imports.exports_ids.get(exported)
+                    let binding = if let Some((local, ctxt)) = eval_context
+                        .imports
+                        .exports_ids
+                        .get(exported)
+                        .map(|(id, _)| id)
                     {
                         Some((local.clone(), *ctxt))
                     } else {
@@ -836,7 +849,14 @@ impl EsmExports {
                 getters.push(Some(
                     Expr::Lit(Lit::Str(Str {
                         span: DUMMY_SP,
-                        value: exported.as_str().into(),
+                        // The key this export is emitted under: the mangled one when this module's
+                        // names are shortened, otherwise the original.
+                        value: mangled_names
+                            .as_ref()
+                            .and_then(|names| names.get(exported))
+                            .unwrap_or(exported)
+                            .as_str()
+                            .into(),
                         raw: None,
                     }))
                     .into(),
@@ -875,14 +895,32 @@ impl EsmExports {
             vec![]
         };
 
+        // When a module has dynamic re-exports (`export *` from a module whose
+        // exports are only known at runtime), its namespace object must stay
+        // extensible so the dynamic export proxy can surface those keys. Signal
+        // that to the runtime so it skips sealing the namespace.
+        let has_dynamic_exports = !expanded.dynamic_exports.is_empty();
         let esm_exports = vec![CodeGenerationHoistedStmt::new(
             rcstr!("__turbopack_esm__"),
             if let Some(module) = scope_hoisting_context.module() {
                 let id = module.chunk_item_id(chunking_context).await?;
-                quote!("$turbopack_esm($getters, $id);" as Stmt,
+                if has_dynamic_exports {
+                    quote!("$turbopack_esm($getters, $id, true);" as Stmt,
+                        turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                        getters: Expr = getters,
+                        id: Expr = module_id_to_lit(&id)
+                    )
+                } else {
+                    quote!("$turbopack_esm($getters, $id);" as Stmt,
+                        turbopack_esm: Expr = TURBOPACK_ESM.into(),
+                        getters: Expr = getters,
+                        id: Expr = module_id_to_lit(&id)
+                    )
+                }
+            } else if has_dynamic_exports {
+                quote!("$turbopack_esm($getters, undefined, true);" as Stmt,
                     turbopack_esm: Expr = TURBOPACK_ESM.into(),
-                    getters: Expr = getters,
-                    id: Expr = module_id_to_lit(&id)
+                    getters: Expr = getters
                 )
             } else {
                 quote!("$turbopack_esm($getters);" as Stmt,

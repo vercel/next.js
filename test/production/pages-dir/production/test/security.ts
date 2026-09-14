@@ -1,5 +1,4 @@
 /* eslint-env jest */
-import webdriver from 'next-webdriver'
 import { readFileSync } from 'fs'
 import http from 'http'
 import { join } from 'path'
@@ -126,8 +125,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         '/\',document.body.innerHTML="INJECTED",\''
       )
       await checkInjected(browser)
@@ -135,8 +133,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using single quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/'-(document.body.innerHTML='INJECTED')-'`
       )
       await checkInjected(browser)
@@ -144,8 +141,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using double quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/"-(document.body.innerHTML='INJECTED')-"`
       )
       await checkInjected(browser)
@@ -154,8 +150,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using semicolons and double quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/;"-(document.body.innerHTML='INJECTED')-"`
       )
       await checkInjected(browser)
@@ -164,8 +159,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using semicolons and single quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/;'-(document.body.innerHTML='INJECTED')-'`
       )
       await checkInjected(browser)
@@ -174,8 +168,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using src', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/javascript:(document.body.innerHTML='INJECTED')`
       )
       await checkInjected(browser)
@@ -184,8 +177,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using querystring', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/?javascript=(document.body.innerHTML='INJECTED')`
       )
       await checkInjected(browser)
@@ -194,8 +186,7 @@ export default (next: NextInstance) => {
     })
 
     it('should prevent URI based XSS attacks using querystring and quotes', async () => {
-      const browser = await webdriver(
-        next.appPort,
+      const browser = await next.browser(
         `/?javascript="(document.body.innerHTML='INJECTED')"`
       )
       await checkInjected(browser)
@@ -212,7 +203,10 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname } = new URL(res.headers.get('location') || '')
+      const { pathname, hostname } = new URL(
+        res.headers.get('location') || '',
+        res.url
+      )
       expect(res.status).toBe(307)
       expect(pathname).toBe(encodeURI('/\\google.com/about'))
       expect(hostname).toBeOneOf(['localhost', '127.0.0.1'])
@@ -228,7 +222,10 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname } = new URL(res.headers.get('location') || '')
+      const { pathname, hostname } = new URL(
+        res.headers.get('location') || '',
+        res.url
+      )
       expect(res.status).toBe(307)
       expect(pathname).toBe('/%25google.com/about')
       expect(hostname).toBeOneOf(['localhost', '127.0.0.1'])
@@ -245,7 +242,8 @@ export default (next: NextInstance) => {
       )
 
       const { pathname, hostname, search } = new URL(
-        res.headers.get('location') || ''
+        res.headers.get('location') || '',
+        res.url
       )
       expect(res.status).toBe(308)
       expect(pathname).toBe('/trailing-redirect')
@@ -265,7 +263,10 @@ export default (next: NextInstance) => {
         }
       )
 
-      const { pathname, hostname } = new URL(res.headers.get('location') || '')
+      const { pathname, hostname } = new URL(
+        res.headers.get('location') || '',
+        res.url
+      )
       expect(res.status).toBe(307)
       expect(pathname).toBe('/%2fgoogle.com/about')
       expect(hostname).not.toBe('google.com')
@@ -282,7 +283,8 @@ export default (next: NextInstance) => {
       )
 
       const { pathname, hostname, search } = new URL(
-        res.headers.get('location') || ''
+        res.headers.get('location') || '',
+        res.url
       )
       expect(res.status).toBe(307)
       expect(pathname).toBe('/about')
@@ -299,7 +301,10 @@ export default (next: NextInstance) => {
         { redirect: 'manual' }
       )
 
-      const { pathname, hostname } = new URL(res.headers.get('location') || '')
+      const { pathname, hostname } = new URL(
+        res.headers.get('location') || '',
+        res.url
+      )
       expect(res.status).toBe(308)
       expect(pathname).toBe('/%2fexample.com')
       expect(hostname).not.toBe('example.com')
@@ -309,7 +314,7 @@ export default (next: NextInstance) => {
       it('should not execute script embedded inside svg image, even if dangerouslyAllowSVG=true', async () => {
         let browser
         try {
-          browser = await webdriver(next.appPort, '/svg-image')
+          browser = await next.browser('/svg-image')
           await browser.eval(`document.getElementById("img").scrollIntoView()`)
           const src = await browser.elementById('img').getAttribute('src')
           expect(src).toMatch(/_next\/image\?.*xss\.svg/)

@@ -48,8 +48,10 @@ interface ModulesDataHeader {
   modules: AnalyzeModule[]
   module_dependents: EdgesDataReference
   async_module_dependents: EdgesDataReference
+  traced_module_dependents: EdgesDataReference
   module_dependencies: EdgesDataReference
   async_module_dependencies: EdgesDataReference
+  traced_module_dependencies: EdgesDataReference
 }
 
 /**
@@ -167,6 +169,13 @@ export class ModulesData {
     )
   }
 
+  tracedModuleDependents(index: ModuleIndex): ModuleIndex[] {
+    return this.readEdgesDataAtIndex(
+      this.modulesHeader.traced_module_dependents,
+      index
+    )
+  }
+
   moduleDependencies(index: ModuleIndex): ModuleIndex[] {
     return this.readEdgesDataAtIndex(
       this.modulesHeader.module_dependencies,
@@ -177,6 +186,13 @@ export class ModulesData {
   asyncModuleDependencies(index: ModuleIndex): ModuleIndex[] {
     return this.readEdgesDataAtIndex(
       this.modulesHeader.async_module_dependencies,
+      index
+    )
+  }
+
+  tracedModuleDependencies(index: ModuleIndex): ModuleIndex[] {
+    return this.readEdgesDataAtIndex(
+      this.modulesHeader.traced_module_dependencies,
       index
     )
   }
@@ -447,10 +463,15 @@ export class AnalyzeData {
         client = true
       } else if (outputFile.filename.startsWith('[project]/')) {
         traced = true
+        server = true
       } else {
         server = true
       }
-      if (outputFile.filename.endsWith('.js')) {
+      if (
+        outputFile.filename.endsWith('.js') ||
+        outputFile.filename.endsWith('.mjs') ||
+        outputFile.filename.endsWith('.cjs')
+      ) {
         js = true
       } else if (outputFile.filename.endsWith('.css')) {
         css = true

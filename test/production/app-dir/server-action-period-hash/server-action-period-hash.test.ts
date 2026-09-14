@@ -7,6 +7,13 @@ async function getServerActionManifestNodeKeys(next: NextInstance) {
   return Object.keys(manifest.node)
 }
 
+// Each test runs two production builds, and webpack builds are much slower than
+// Turbopack, so the default 60s per-test budget is too tight on slower CI
+// runners. Turbopack keeps the default.
+if (process.env.IS_WEBPACK_TEST) {
+  jest.setTimeout(120_000)
+}
+
 describe('app-dir - server-action-period-hash', () => {
   const { next } = nextTestSetup({
     files: __dirname,

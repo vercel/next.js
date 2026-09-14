@@ -4,6 +4,11 @@ import { retry } from 'next-test-utils'
 describe('stale-dev-types', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    nextConfig: {
+      experimental: {
+        useTypeScriptCli: false,
+      },
+    },
   })
 
   it('should not fail build when .next/dev has stale types from deleted routes', async () => {

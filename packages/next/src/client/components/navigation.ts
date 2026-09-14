@@ -18,28 +18,18 @@ import {
   getSelectedLayoutSegmentPath,
 } from '../../shared/lib/segment'
 
-const useDynamicRouteParams =
-  typeof window === 'undefined'
-    ? (
-        require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
-      ).useDynamicRouteParams
-    : undefined
-
-const useDynamicSearchParams =
-  typeof window === 'undefined'
-    ? (
-        require('../../server/app-render/dynamic-rendering') as typeof import('../../server/app-render/dynamic-rendering')
-      ).useDynamicSearchParams
-    : undefined
+import {
+  useDynamicRouteParams,
+  useDynamicSearchParams,
+} from './navigation-dynamic-rendering'
 
 const {
   instrumentParamsForClientValidation,
   instrumentSearchParamsForClientValidation,
   expectCompleteParamsInClientValidation,
-} =
-  typeof window === 'undefined' && process.env.__NEXT_CACHE_COMPONENTS
-    ? (require('../../server/app-render/instant-validation/instant-samples-client') as typeof import('../../server/app-render/instant-validation/instant-samples-client'))
-    : {}
+} = process.env.__NEXT_CACHE_COMPONENTS
+  ? (require('./instant-samples') as typeof import('./instant-samples'))
+  : {}
 
 /**
  * A [Client Component](https://nextjs.org/docs/app/building-your-application/rendering/client-components) hook

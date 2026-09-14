@@ -1,5 +1,5 @@
 import { bold, cyan, red, yellow } from './picocolors'
-import path, { join } from 'path'
+import path from 'path'
 
 import { hasNecessaryDependencies } from './has-necessary-dependencies'
 import type {
@@ -17,16 +17,28 @@ import { writeConfigurationDefaults } from './typescript/writeConfigurationDefau
 import { installDependencies } from './install-dependencies'
 import { isCI } from '../server/ci-info'
 import { missingDepsError } from './typescript/missingDependencyError'
-import { resolveFrom } from './resolve-from'
+import {
+  getTypeScriptApiMissingError,
+  getTypeScriptPackageInfo,
+  hasNativeTypeScriptPreview,
+} from './typescript/runTypeScriptCli'
 
-const typescriptPackage: MissingDependency = {
+const typescriptApiPackage: MissingDependency = {
   file: 'typescript/lib/typescript.js',
+  pkg: 'typescript',
+  install: 'typescript@^6.0.0',
+  exportsRestrict: true,
+}
+
+const typescriptCliPackage: MissingDependency = {
+  // The CLI path is resolved from the package's bin metadata after this initial
+  // package-presence check, since aliased TypeScript packages may rename it.
+  file: 'typescript/package.json',
   pkg: 'typescript',
   exportsRestrict: true,
 }
 
-const requiredPackages: MissingDependency[] = [
-  typescriptPackage,
+const requiredTypePackages: MissingDependency[] = [
   {
     file: '@types/react/index.d.ts',
     pkg: '@types/react',
@@ -38,20 +50,6 @@ const requiredPackages: MissingDependency[] = [
     exportsRestrict: true,
   },
 ]
-
-/**
- * Check if @typescript/native-preview is installed as an alternative TypeScript compiler.
- * This is a Go-based native TypeScript compiler that can be used instead of the standard
- * TypeScript package for faster compilation.
- */
-function hasNativeTypeScriptPreview(dir: string): boolean {
-  try {
-    resolveFrom(dir, '@typescript/native-preview/package.json')
-    return true
-  } catch {
-    return false
-  }
-}
 
 export async function verifyAndRunTypeScript({
   dir,
@@ -67,7 +65,8 @@ export async function verifyAndRunTypeScript({
   appDir,
   pagesDir,
   debugBuildPaths,
-  rootParams,
+  useTypeScriptCli = false,
+  onFirstCliOutput,
 }: {
   dir: string
   distDir: string
@@ -82,10 +81,20 @@ export async function verifyAndRunTypeScript({
   appDir?: string
   pagesDir?: string
   debugBuildPaths?: { app?: string[]; pages?: string[] }
-  rootParams?: boolean
-}): Promise<{ result?: TypeCheckResult; version: string | null }> {
+  useTypeScriptCli?: boolean
+  /**
+   * Called once when the CLI checker first produces output, so the caller can
+   * stop the build spinner. Only used on the in-process CLI path.
+   */
+  onFirstCliOutput?: () => void
+}): Promise<{
+  result?: TypeCheckResult
+  version: string | null
+  typeCheckMode: 'typescript-api' | 'typescript-cli'
+}> {
   const tsConfigFileName = tsconfigPath || 'tsconfig.json'
   const resolvedTsConfigPath = path.join(dir, tsConfigFileName)
+  const typeCheckMode = useTypeScriptCli ? 'typescript-cli' : 'typescript-api'
 
   // Construct intentDirs from appDir and pagesDir for getTypeScriptIntent
   const intentDirs = [pagesDir, appDir].filter(Boolean) as string[]
@@ -94,11 +103,26 @@ export async function verifyAndRunTypeScript({
     // Check if the project uses TypeScript:
     const intent = await getTypeScriptIntent(dir, intentDirs, tsConfigFileName)
     if (!intent) {
-      return { version: null }
+      return { version: null, typeCheckMode }
     }
 
     // Check if @typescript/native-preview is installed as an alternative
     const hasNativePreview = hasNativeTypeScriptPreview(dir)
+    const installedTypeScript = getTypeScriptPackageInfo(dir)
+
+    if (
+      !useTypeScriptCli &&
+      !hasNativePreview &&
+      installedTypeScript &&
+      !installedTypeScript.apiPath
+    ) {
+      throw getTypeScriptApiMissingError(installedTypeScript.version)
+    }
+
+    const requiredPackages: MissingDependency[] = [
+      useTypeScriptCli ? typescriptCliPackage : typescriptApiPackage,
+      ...requiredTypePackages,
+    ]
 
     // Ensure TypeScript and necessary `@types/*` are installed:
     let deps: NecessaryDependencies = hasNecessaryDependencies(
@@ -109,7 +133,7 @@ export async function verifyAndRunTypeScript({
     // If @typescript/native-preview is installed and only the typescript package is missing,
     // we can skip auto-installing typescript since the native preview provides TS compilation.
     // However, we still need @types/react and @types/node for type checking.
-    if (hasNativePreview && deps.missing?.length > 0) {
+    if (!useTypeScriptCli && hasNativePreview && deps.missing?.length > 0) {
       const missingWithoutTypescript = deps.missing.filter(
         (dep) => dep.pkg !== 'typescript'
       )
@@ -133,10 +157,9 @@ export async function verifyAndRunTypeScript({
           hasAppDir,
           strictRouteTypes,
           typedRoutes,
-          rootParams: !!rootParams,
         })
 
-        return { version: null }
+        return { version: null, typeCheckMode }
       }
 
       // If there are other missing deps besides typescript, only install those
@@ -183,13 +206,21 @@ export async function verifyAndRunTypeScript({
       deps = hasNecessaryDependencies(dir, requiredPackages)
     }
 
-    // Load TypeScript after we're sure it exists:
-    const tsPackageJsonPath = deps.resolved.get(
-      join('typescript', 'package.json')
-    )!
-    const typescriptPackageJson = require(tsPackageJsonPath)
+    const typeScriptPackage = getTypeScriptPackageInfo(dir)
+    const typeScriptPath = useTypeScriptCli
+      ? typeScriptPackage?.tscPath
+      : typeScriptPackage?.apiPath
 
-    const typescriptVersion = typescriptPackageJson.version
+    if (!typeScriptPackage || !typeScriptPath) {
+      missingDepsError(
+        dir,
+        deps.missing.length > 0
+          ? deps.missing
+          : [useTypeScriptCli ? typescriptCliPackage : typescriptApiPackage]
+      )
+    }
+
+    const typescriptVersion = typeScriptPackage.version
 
     if (semver.lt(typescriptVersion, '5.1.0')) {
       log.warn(
@@ -217,60 +248,90 @@ export async function verifyAndRunTypeScript({
       hasAppDir,
       strictRouteTypes,
       typedRoutes,
-      rootParams: !!rootParams,
     })
 
     let result
     if (shouldRunTypeCheck) {
-      const { runTypeCheck } =
-        require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
-      // Install native bindings so that code frame rendering works in the worker
-      const { installBindings } =
-        require('../build/swc/install-bindings') as typeof import('../build/swc/install-bindings')
-      await installBindings()
+      if (useTypeScriptCli) {
+        if (debugBuildPaths) {
+          log.warn(
+            '`experimental.useTypeScriptCli` checks the complete TypeScript project; `--debug-build-paths` does not limit type checking.'
+          )
+        }
 
-      const tsPath = deps.resolved.get('typescript')!
-      const typescript = (await Promise.resolve(
-        require(tsPath)
-      )) as typeof import('typescript')
-
-      // Verify the project passes type-checking before we go to webpack phase:
-      result = await runTypeCheck(
-        typescript,
-        dir,
-        distDir,
-        resolvedTsConfigPath,
-        cacheDir,
-        hasAppDir,
-        { app: appDir, pages: pagesDir },
-        debugBuildPaths
-      )
-    }
-    return { result, version: typescriptVersion }
-  } catch (err) {
-    // These are special errors that should not show a stack trace:
-    if (err instanceof CompileError) {
-      console.error(red('Failed to type check.\n'))
-      console.error(err.message)
-      process.exit(1)
-    }
-
-    /**
-     * verifyAndRunTypeScript can be either invoked directly in the main thread (during next dev / next lint)
-     * or run in a worker (during next build). In the latter case, we need to print the error message, as the
-     * parent process will only receive an `Jest worker encountered 1 child process exceptions, exceeding retry limit`.
-     */
-
-    // we are in a worker, print the error message and exit the process
-    if (process.env.IS_NEXT_WORKER) {
-      if (err instanceof Error) {
-        console.error(err.message)
+        const { runTypeCheckCli } =
+          require('./typescript/runTypeCheckCli') as typeof import('./typescript/runTypeCheckCli')
+        result = await runTypeCheckCli({
+          baseDir: dir,
+          tsConfigPath: resolvedTsConfigPath,
+          tscPath: typeScriptPath,
+          cacheDir,
+          onFirstOutput: onFirstCliOutput,
+        })
       } else {
-        console.error(err)
+        const { runTypeCheck } =
+          require('./typescript/runTypeCheck') as typeof import('./typescript/runTypeCheck')
+        // Install native bindings so that code frame rendering works in the worker
+        const { installBindings } =
+          require('../build/swc/install-bindings') as typeof import('../build/swc/install-bindings')
+        await installBindings()
+
+        const typescript = (await Promise.resolve(
+          require(typeScriptPath)
+        )) as typeof import('typescript')
+
+        // Verify the project passes type-checking before we go to webpack phase:
+        result = await runTypeCheck(
+          typescript,
+          dir,
+          distDir,
+          resolvedTsConfigPath,
+          cacheDir,
+          hasAppDir,
+          { app: appDir, pages: pagesDir },
+          debugBuildPaths
+        )
       }
-      process.exit(1)
     }
-    // we are in the main thread, throw the error and it will be handled by the caller
+    return { result, version: typescriptVersion, typeCheckMode }
+  } catch (err) {
+    // Print the user-facing message here and rethrow. This function runs both
+    // in-process (next dev / next test / next typegen, and the CLI type-check
+    // during build) and inside a jest worker (the TypeScript-API type-check
+    // during build). A thrown error does not survive the worker boundary — the
+    // parent only sees `Call retries were exceeded` — so the message must be
+    // printed on this side. The caller decides what to do with the throw (exit,
+    // or tolerate it as `next dev` does on re-verification).
+    if (err instanceof CompileError) {
+      // The checker already printed its diagnostics.
+      console.error(red('Failed to type check.\n'))
+      if (err.message) {
+        console.error(err.message)
+      }
+    } else if (err instanceof Error) {
+      console.error(err.message)
+    } else {
+      console.error(err)
+    }
     throw err
+  }
+}
+
+/**
+ * Worker entrypoint used by `next build` for the TypeScript-API type-check.
+ * `verifyAndRunTypeScript` has already printed any error, so on failure we exit
+ * the worker directly rather than rethrowing: a thrown error would be retried by
+ * jest-worker and surface in the parent as the unhelpful
+ * `Jest worker encountered 1 child process exceptions, exceeding retry limit`.
+ */
+export async function verifyAndRunTypeScriptInWorker(
+  options: Parameters<typeof verifyAndRunTypeScript>[0]
+): ReturnType<typeof verifyAndRunTypeScript> {
+  try {
+    return await verifyAndRunTypeScript(options)
+  } catch {
+    // The error was already printed by `verifyAndRunTypeScript`.
+    // Kill the worker with a non-zero exit code.
+    process.exit(1)
   }
 }

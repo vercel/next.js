@@ -8,7 +8,6 @@ const MILLISECONDS_PER_SECOND = 1000
 // Time thresholds and conversion factors for nanoseconds
 const NANOSECONDS_PER_SECOND = 1_000_000_000
 const NANOSECONDS_PER_MILLISECOND = 1_000_000
-const NANOSECONDS_PER_MICROSECOND = 1_000
 const NANOSECONDS_IN_MINUTE = 60_000_000_000 // 60 * 1_000_000_000
 const MINUTES_THRESHOLD_NANOSECONDS = 120_000_000_000 // 2 minutes in nanoseconds
 const SECONDS_THRESHOLD_HIGH_NANOSECONDS = 40_000_000_000 // 40 seconds in nanoseconds
@@ -23,7 +22,7 @@ const MILLISECONDS_THRESHOLD_NANOSECONDS = 2_000_000 // 2 milliseconds in nanose
  * - >= 2 seconds: show in seconds with 1 decimal place (e.g., "3.2s")
  * - < 2 seconds: show in whole milliseconds (e.g., "1500ms")
  *
- * @deprecated Use durationToStringWithNanoseconds instead, collect time in nanoseconds using process.hrtime.bigint().
+ * @deprecated Use hrtimeBigIntDurationToString instead, collect time in nanoseconds using process.hrtime.bigint().
  * @param compilerDuration - Duration in seconds as a number
  * @returns Formatted duration string with appropriate unit and precision
  */
@@ -46,7 +45,7 @@ export function durationToString(compilerDuration: number) {
  * - >= 40 seconds: show in whole seconds (e.g., "45s")
  * - >= 2 seconds: show in seconds with 1 decimal place (e.g., "3.2s")
  * - >= 2 milliseconds: show in whole milliseconds (e.g., "250ms")
- * - < 2 milliseconds: show in whole microseconds (e.g., "500µs")
+ * - < 2 milliseconds: show in milliseconds with 1 decimal place (e.g., "0.5ms")
  *
  * @param durationBigInt - Duration in nanoseconds as a BigInt
  * @returns Formatted duration string with appropriate unit and precision
@@ -62,7 +61,7 @@ function durationToStringWithNanoseconds(durationBigInt: bigint): string {
   } else if (duration >= MILLISECONDS_THRESHOLD_NANOSECONDS) {
     return `${(duration / NANOSECONDS_PER_MILLISECOND).toFixed(0)}ms`
   } else {
-    return `${(duration / NANOSECONDS_PER_MICROSECOND).toFixed(0)}µs`
+    return `${(duration / NANOSECONDS_PER_MILLISECOND).toFixed(1)}ms`
   }
 }
 

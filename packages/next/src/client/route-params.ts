@@ -10,6 +10,9 @@ import {
   NEXT_REWRITTEN_QUERY_HEADER,
   NEXT_RSC_UNION_QUERY,
 } from './components/app-router-headers'
+import { hasBasePath } from './has-base-path'
+import { normalizePathTrailingSlash } from './normalize-trailing-slash'
+import { removeBasePath } from './remove-base-path'
 import type {
   NormalizedPathname,
   NormalizedSearch,
@@ -44,9 +47,27 @@ export function getRenderedPathname(
   // page will be different from the pathname in the request URL. In this case,
   // the response will include a header that gives the rewritten pathname.
   const rewrittenPath = response.headers.get(NEXT_REWRITTEN_PATH_HEADER)
-  return (rewrittenPath ??
-    urlToUrlWithoutFlightMarker(new URL(response.url))
-      .pathname) as NormalizedPathname
+  if (rewrittenPath !== null) {
+    return rewrittenPath as NormalizedPathname
+  }
+
+  const pathname = urlToUrlWithoutFlightMarker(new URL(response.url)).pathname
+  return (
+    hasBasePath(pathname) ? removeBasePath(pathname) : pathname
+  ) as NormalizedPathname
+}
+
+/**
+ * Like getRenderedPathname, but derived from the request URL rather than the
+ * response. Used in output: "export" mode, where the response URL has the
+ * segment filename appended to the pathname — and where rewrites don't
+ * exist, so the request pathname is always the rendered pathname.
+ */
+export function getPathnameFromRequestURL(url: URL): NormalizedPathname {
+  const pathname = url.pathname
+  return (
+    hasBasePath(pathname) ? removeBasePath(pathname) : pathname
+  ) as NormalizedPathname
 }
 
 // Pathname parts come from `URL.pathname.split('/')`, so they are already
@@ -57,7 +78,7 @@ export function getRenderedPathname(
 // `encodeURIComponent` percent-encodes them. To produce the same canonical
 // form on the client (and avoid double-encoding `%xx` sequences such as
 // `%2F` → `%252F`), we decode the URL part first and re-encode it.
-function canonicalizeURLPart(part: string): string {
+export function canonicalizeURLPart(part: string): string {
   try {
     return encodeURIComponent(decodeURIComponent(part))
   } catch {
@@ -186,7 +207,7 @@ export function getCacheKeyForDynamicParam(
     // search string instead of turning it into JSON.
     const pageSegmentWithSearchParams = addSearchParamsIfPageSegment(
       paramValue,
-      Object.fromEntries(new URLSearchParams(renderedSearch))
+      urlSearchParamsToParsedUrlQuery(new URLSearchParams(renderedSearch))
     ) as string
     return pageSegmentWithSearchParams
   } else if (paramValue === null) {
@@ -205,9 +226,15 @@ export function urlToUrlWithoutFlightMarker(url: URL): URL {
       urlWithoutFlightParameters.pathname.endsWith('.txt')
     ) {
       const { pathname } = urlWithoutFlightParameters
-      const length = pathname.endsWith('/index.txt') ? 10 : 4
-      // Slice off `/index.txt` or `.txt` from the end of the pathname
-      urlWithoutFlightParameters.pathname = pathname.slice(0, -length)
+      // Undo the marker appended in `fetchServerResponse`, which is keyed on
+      // whether the requested pathname ended with a slash: `index.txt` for
+      // `/foo/`, `.txt` for `/foo`. Slicing off only `index.txt` keeps that
+      // slash, then `normalizePathTrailingSlash` applies the configured
+      // policy so we don't hand-roll a second one here.
+      const length = pathname.endsWith('/index.txt') ? 9 : 4
+      urlWithoutFlightParameters.pathname = normalizePathTrailingSlash(
+        pathname.slice(0, -length)
+      )
     }
   }
   return urlWithoutFlightParameters

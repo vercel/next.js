@@ -8,11 +8,13 @@ export type {
   DebugChannelPair,
   DebugChannelServer,
 } from './debug-channel-server.web'
+export type { NodeDebugChannelPair } from './debug-channel-server.node'
 import type { DebugChannelPair } from './debug-channel-server.web'
+import type { NodeDebugChannelPair } from './debug-channel-server.node'
 
 type DebugChannelMod = {
   createWebDebugChannel: typeof import('./debug-channel-server.web').createWebDebugChannel
-  createNodeDebugChannel: typeof import('./debug-channel-server.web').createNodeDebugChannel
+  createNodeDebugChannel: typeof import('./debug-channel-server.node').createNodeDebugChannel
 }
 
 let _m: DebugChannelMod
@@ -32,7 +34,7 @@ export function createWebDebugChannel(): DebugChannelPair | undefined {
   return _m.createWebDebugChannel()
 }
 
-export function createNodeDebugChannel(): DebugChannelPair | undefined {
+export function createNodeDebugChannel(): NodeDebugChannelPair | undefined {
   if (process.env.NODE_ENV === 'production') {
     return undefined
   }

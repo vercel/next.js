@@ -10,8 +10,8 @@ import isError from '../lib/is-error'
 import { hrtimeDurationToString } from './duration-to-string'
 
 /**
- * typescript will be loaded in "next/lib/verify-typescript-setup" and
- * then passed to "next/lib/typescript/runTypeCheck" as a parameter.
+ * TypeScript setup and type checking run in a worker so the compiler's memory
+ * can be released before the rest of the build continues.
  *
  * Since it is impossible to pass a function from main thread to a worker,
  * instead of running "next/lib/typescript/runTypeCheck" in a worker,
@@ -32,19 +32,20 @@ function verifyAndRunTypeScript(
   appDir: string | undefined,
   pagesDir: string | undefined,
   debugBuildPaths: { app: string[]; pages: string[] } | undefined,
-  rootParams: boolean
+  useTypeScriptCli: boolean,
+  onFirstCliOutput?: () => void
 ) {
   let impl: typeof import('../lib/verify-typescript-setup').verifyAndRunTypeScript
   let typeCheckWorker:
     | (Worker & {
-        verifyAndRunTypeScript: typeof impl
+        verifyAndRunTypeScriptInWorker: typeof impl
       })
     | undefined
-  if (shouldRunTypeCheck) {
+  if (shouldRunTypeCheck && !useTypeScriptCli) {
     typeCheckWorker = new Worker(
       require.resolve('../lib/verify-typescript-setup'),
       {
-        exposedMethods: ['verifyAndRunTypeScript'],
+        exposedMethods: ['verifyAndRunTypeScriptInWorker'],
         debuggerPortOffset: -1,
         isolatedMemory: false,
         numWorkers: 1,
@@ -52,10 +53,10 @@ function verifyAndRunTypeScript(
         maxRetries: 0,
       }
     ) as typeof typeCheckWorker
-    impl = typeCheckWorker!.verifyAndRunTypeScript
+    impl = typeCheckWorker!.verifyAndRunTypeScriptInWorker
   } else {
-    // When not running typecheck, just run the implementation in-process without spawning a worker,
-    // to avoid the overhead of the worker.
+    // No worker: either we are not type-checking (just writing setup files), or
+    // the CLI checker runs `tsc` in-process. Avoid the worker overhead.
     impl = (
       require('../lib/verify-typescript-setup') as typeof import('../lib/verify-typescript-setup')
     ).verifyAndRunTypeScript
@@ -75,15 +76,18 @@ function verifyAndRunTypeScript(
     appDir,
     pagesDir,
     debugBuildPaths,
-    rootParams,
+    useTypeScriptCli,
+    onFirstCliOutput,
   })
     .then((result) => {
       typeCheckWorker?.end()
       return result
     })
     .catch(() => {
-      // The error is already logged in the worker, we simply exit the main thread to prevent the
-      // `Jest worker encountered 1 child process exceptions, exceeding retry limit` from showing up
+      // The error is already logged (in the worker for the API checker, or
+      // directly for the in-process CLI checker); we simply exit to prevent the
+      // `Jest worker encountered 1 child process exceptions, exceeding retry
+      // limit` message from showing up.
       process.exit(1)
     })
 }
@@ -108,6 +112,7 @@ export async function startTypeChecking({
   debugBuildPaths: { app: string[]; pages: string[] } | undefined
 }) {
   const ignoreTypeScriptErrors = Boolean(config.typescript.ignoreBuildErrors)
+  const useTypeScriptCli = Boolean(config.experimental.useTypeScriptCli)
 
   if (ignoreTypeScriptErrors) {
     Log.info('Skipping validation of types')
@@ -145,7 +150,11 @@ export async function startTypeChecking({
           appDir,
           pagesDir,
           debugBuildPaths,
-          !!config.experimental.rootParams || !!config.cacheComponents
+          useTypeScriptCli,
+          // Stop the spinner before as soon as the subprocess reports output.
+          useTypeScriptCli && typeCheckingSpinner
+            ? () => typeCheckingSpinner.stop()
+            : undefined
         ).then((resolved) => {
           const checkEnd = process.hrtime(typeCheckAndLintStart)
           return [resolved, checkEnd] as const
@@ -168,6 +177,7 @@ export async function startTypeChecking({
           inputFilesCount: verifyResult.result?.inputFilesCount,
           totalFilesCount: verifyResult.result?.totalFilesCount,
           incremental: verifyResult.result?.incremental,
+          typeCheckMode: verifyResult.typeCheckMode,
         })
       )
     }

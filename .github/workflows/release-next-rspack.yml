@@ -30,7 +30,7 @@ env:
 jobs:
   build:
     name: Build
-    uses: rspack-contrib/rspack-toolchain/.github/workflows/build.yml@f69dc04fcae6b38d97b87acef448ed7a285b01cc
+    uses: rstackjs/rspack-toolchain/.github/workflows/build.yml@c0b7f47d0d657adbc4fddb3b3f2b607019004491
     with:
       package-json-path: rspack/crates/binding/package.json
       napi-build-command: pnpm build --release
@@ -38,7 +38,7 @@ jobs:
 
   release:
     runs-on: ubuntu-latest
-    environment: npm
+    environment: npm-release-next-rspack
     name: Release
     permissions:
       contents: write
@@ -47,7 +47,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
 
       - name: Display release mode
         run: |
@@ -65,6 +67,7 @@ jobs:
         with:
           node-version: '24'
           registry-url: 'https://registry.npmjs.org'
+          package-manager-cache: false
 
       - name: Enable corepack
         run: corepack enable
@@ -77,7 +80,7 @@ jobs:
         working-directory: ./rspack
 
       - name: Cache pnpm dependencies
-        uses: actions/cache@6f8efc29b200d32929f49075959781ed54ec270c # v3.5.0
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ~/.pnpm-store
           key: ${{ runner.os }}-${{ runner.arch }}-pnpm-v2-${{ hashFiles('**/pnpm-lock.yaml') }}
@@ -89,12 +92,12 @@ jobs:
 
       - name: Get NAPI info
         id: napi-info
-        uses: rspack-contrib/rspack-toolchain/get-napi-info@f69dc04fcae6b38d97b87acef448ed7a285b01cc
+        uses: rstackjs/rspack-toolchain/get-napi-info@c0b7f47d0d657adbc4fddb3b3f2b607019004491
         with:
           package-json-path: rspack/crates/binding/package.json
 
       - name: Download rspack binding
-        uses: rspack-contrib/rspack-toolchain/download-rspack-binding@f69dc04fcae6b38d97b87acef448ed7a285b01cc
+        uses: rstackjs/rspack-toolchain/download-rspack-binding@c0b7f47d0d657adbc4fddb3b3f2b607019004491
         with:
           path: ${{ steps.napi-info.outputs.binding-directory }}/artifacts
 
@@ -118,6 +121,7 @@ jobs:
         run: |
           npm config set access public
           npm config set provenance true
+          npm config set tag "${{ inputs.npm-tag }}"
           pnpm napi pre-publish --no-gh-release -t npm ${{ inputs.dry-run && '--dry-run' || '' }}
         working-directory: ${{ steps.napi-info.outputs.binding-directory }}
 

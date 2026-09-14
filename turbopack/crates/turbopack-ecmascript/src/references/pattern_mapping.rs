@@ -2,6 +2,7 @@ use std::{borrow::Cow, collections::HashSet};
 
 use anyhow::Result;
 use bincode::{Decode, Encode};
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
@@ -12,8 +13,8 @@ use swc_core::{
 };
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    FxIndexMap, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    FxIndexMap, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, ModuleChunkItemIdExt, ModuleId},
@@ -21,6 +22,8 @@ use turbopack_core::{
         IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue,
         module::emit_unknown_module_type_error,
     },
+    module::Module,
+    reference::ModuleReference,
     resolve::{
         ExternalType, ModuleResolveResult, ModuleResolveResultItem, origin::ResolveOrigin,
         parse::Request,
@@ -65,6 +68,8 @@ pub(crate) enum SinglePatternMapping {
     ModuleLoader(ModuleId),
     /// External reference with request and type
     External(RcStr, ExternalType),
+    /// The target was unused and dropped from the module graph, so nothing is loaded for it.
+    Dropped,
 }
 
 /// A mapping from a request pattern (e.g. "./module", `./images/${name}.png`)
@@ -88,9 +93,8 @@ pub(crate) enum PatternMapping {
     Map(#[bincode(with = "turbo_bincode::indexmap")] FxIndexMap<RcStr, SinglePatternMapping>),
 }
 
-#[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,
     ChunkItem,
@@ -106,7 +110,7 @@ impl SinglePatternMapping {
                 )
             }
             Self::Unresolvable(request) => throw_module_not_found_expr(request),
-            Self::Ignored => {
+            Self::Ignored | Self::Dropped => {
                 quote!("undefined" as Expr)
             }
             Self::Module(module_id) | Self::ModuleLoader(module_id) => module_id_to_lit(module_id),
@@ -119,6 +123,7 @@ impl SinglePatternMapping {
             Self::Invalid => self.create_id(key_expr),
             Self::Unresolvable(request) => throw_module_not_found_expr(request),
             Self::Ignored => quote!("{}" as Expr),
+            Self::Dropped => quote!("0" as Expr),
             Self::Module(_) | Self::ModuleLoader(_) => quote!(
                 "$turbopack_require($arg)" as Expr,
                 turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
@@ -132,6 +137,34 @@ impl SinglePatternMapping {
             Self::External(request, ty) => throw_module_not_found_error_expr(
                 request,
                 &format!("Unsupported external type {ty:?} for commonjs reference"),
+            ),
+        }
+    }
+
+    /// Like [`Self::create_require`], but evaluates to the ESM *namespace* of the
+    /// module instead of its CommonJS `exports` object, so that the CommonJS
+    /// interop applies. This is what a static `import * as ns from "..."`
+    /// produces, and it is the difference between a JSON (or CommonJS) module
+    /// having a `default` export and not having one.
+    pub fn create_esm_require(&self, key_expr: Cow<'_, Expr>) -> Expr {
+        match self {
+            Self::Invalid => self.create_id(key_expr),
+            Self::Unresolvable(request) => throw_module_not_found_expr(request),
+            Self::Ignored => quote!("{}" as Expr),
+            Self::Dropped => quote!("0" as Expr),
+            Self::Module(_) | Self::ModuleLoader(_) => quote!(
+                "$turbopack_import($arg)" as Expr,
+                turbopack_import: Expr = TURBOPACK_IMPORT.into(),
+                arg: Expr = self.create_id(key_expr)
+            ),
+            Self::External(request, ExternalType::CommonJs) => quote!(
+                "$turbopack_external_require($arg, () => require($arg), true)" as Expr,
+                turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
+                arg: Expr = request.as_str().into()
+            ),
+            Self::External(request, ty) => throw_module_not_found_error_expr(
+                request,
+                &format!("Unsupported external type {ty:?} for esm reference"),
             ),
         }
     }
@@ -205,7 +238,7 @@ impl SinglePatternMapping {
                     id: Expr = module_id_to_lit(module_id)
                 )
             }
-            Self::Ignored => {
+            Self::Ignored | Self::Dropped => {
                 quote!("Promise.resolve({})" as Expr)
             }
             Self::Module(_) => Expr::Call(CallExpr {
@@ -306,6 +339,7 @@ async fn to_single_pattern_mapping(
     resolve_item: &ModuleResolveResultItem,
     primary: &[(turbopack_core::resolve::RequestKey, ModuleResolveResultItem)],
     resolve_type: ResolveType,
+    dropped_targets: Option<&FxHashSet<ResolvedVc<Box<dyn Module>>>>,
 ) -> Result<SinglePatternMapping> {
     let module = match resolve_item {
         ModuleResolveResultItem::Module(module) => *module,
@@ -336,6 +370,7 @@ async fn to_single_pattern_mapping(
                 &primary[*first].1,
                 primary,
                 resolve_type,
+                dropped_targets,
             ))
             .await;
         }
@@ -355,7 +390,7 @@ async fn to_single_pattern_mapping(
                     .into(),
                 )
                 .resolved_cell(),
-                path: origin.origin_path().owned().await?,
+                path: origin.into_trait_ref().await?.origin_path(),
                 source: None,
             }
             .resolved_cell()
@@ -363,6 +398,10 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::Invalid);
         }
     };
+    // The module graph dropped the edge to this target, so it has no chunk item to point at.
+    if dropped_targets.is_some_and(|dropped| dropped.contains(&module)) {
+        return Ok(SinglePatternMapping::Dropped);
+    }
     if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) {
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
@@ -381,13 +420,18 @@ async fn to_single_pattern_mapping(
         }
     }
     CodeGenerationIssue {
-        severity: IssueSeverity::Bug,
+        severity: IssueSeverity::Error,
         title: StyledString::Text(rcstr!("non-ecmascript placeable asset")).resolved_cell(),
-        message: StyledString::Text(rcstr!(
-            "asset is not placeable in ESM chunks, so it doesn't have a module id"
-        ))
+        message: StyledString::Text(
+            format!(
+                "{} is not placeable in ESM chunks, so it doesn't have a module id and can't be \
+                 imported here. Only modules that are compiled to JavaScript can be imported.",
+                module.ident().to_string().await?
+            )
+            .into(),
+        )
         .resolved_cell(),
-        path: origin.origin_path().owned().await?,
+        path: origin.into_trait_ref().await?.origin_path(),
         source: None,
     }
     .resolved_cell()
@@ -407,8 +451,18 @@ impl PatternMapping {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         resolve_result: Vc<ModuleResolveResult>,
         resolve_type: ResolveType,
+        reference: Option<ResolvedVc<Box<dyn ModuleReference>>>,
     ) -> Result<Vc<PatternMapping>> {
         let result = resolve_result.await?;
+        // Targets of this reference that were dropped from the module graph as unused.
+        let unused_references;
+        let dropped_targets = match reference {
+            Some(reference) => {
+                unused_references = chunking_context.unused_references().await?;
+                unused_references.get(&reference)
+            }
+            None => None,
+        };
         match result.primary.len() {
             0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolvable(
                 request_to_string(request).await?.to_string(),
@@ -422,6 +476,7 @@ impl PatternMapping {
                     resolve_item,
                     &result.primary,
                     resolve_type,
+                    dropped_targets,
                 )
                 .await?;
                 Ok(PatternMapping::Single(single_pattern_mapping).cell())
@@ -438,13 +493,14 @@ impl PatternMapping {
                     .collect();
                 let map = items
                     .into_iter()
-                    .map(|(k, v)| async move {
+                    .map(async |(k, v)| {
                         let single_pattern_mapping = to_single_pattern_mapping(
                             origin,
                             chunking_context,
                             v,
                             primary,
                             resolve_type,
+                            dropped_targets,
                         )
                         .await?;
                         Ok((k, single_pattern_mapping))

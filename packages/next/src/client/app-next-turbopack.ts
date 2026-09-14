@@ -6,12 +6,12 @@ window.next.turbopack = true
 ;(self as any).__webpack_hash__ = ''
 
 // eslint-disable-next-line @next/internal/typechecked-require
-const instrumentationHooks = require('../lib/require-instrumentation-client')
+const instrumentationModules = require('../lib/require-instrumentation-client')
 
 appBootstrap((assetPrefix) => {
   const { hydrate } = require('./app-index') as typeof import('./app-index')
   try {
-    hydrate(instrumentationHooks, assetPrefix)
+    hydrate(instrumentationModules, assetPrefix)
   } finally {
     if (process.env.__NEXT_DEV_SERVER) {
       const enableCacheIndicator = process.env.__NEXT_CACHE_COMPONENTS

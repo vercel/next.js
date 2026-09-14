@@ -2,10 +2,10 @@ import { Suspense } from 'react'
 import { cookies } from 'next/headers'
 import { connection } from 'next/server'
 
-export const unstable_instant = {
+export const instant = {
   unstable_samples: [{ cookies: [{ name: 'test', value: null }] }],
 }
-export const unstable_prefetch = 'force-runtime'
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

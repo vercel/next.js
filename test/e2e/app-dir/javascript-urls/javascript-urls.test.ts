@@ -1,4 +1,4 @@
-import { isReact18, nextTestSetup } from 'e2e-utils'
+import { isReact18, nextTestSetup, type Playwright } from 'e2e-utils'
 import {
   getRedboxDescription,
   retry,
@@ -38,7 +38,7 @@ describe('javascript-urls', () => {
    * then asserts no navigation requests were made.
    */
   async function expectJavascriptUrlBlocked(
-    browser: Awaited<ReturnType<typeof next.browser>>,
+    browser: Playwright,
     initialUrl: string,
     getNavigationRequests: () => Request[]
   ) {

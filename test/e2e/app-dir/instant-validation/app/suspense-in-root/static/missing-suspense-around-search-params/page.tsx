@@ -1,4 +1,4 @@
-export const unstable_instant = {
+export const instant = {
   level: 'experimental-error',
   unstable_samples: [{ searchParams: { foo: 'bar' } }],
 }

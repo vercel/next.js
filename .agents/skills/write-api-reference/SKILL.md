@@ -120,6 +120,13 @@ description: {API Reference for the {API name} {function|component|file conventi
 | "You can conveniently access..."                        | "Returns an object containing..."                                                           |
 | "The best way to handle navigation"                     | "`<Link>` extends the HTML `<a>` element to provide prefetching and client-side navigation" |
 
+13. **Bridge new framework terms with legacy or generic vocabulary.** When the API renames or differentiates from a prior concept (Pages-era term, generic web term, REST vocabulary), include one such synonym in the frontmatter `description` and once in prose. Example: `description: "Use Dynamic Segments to read URL parameters and generate routes from dynamic data."` mentions "URL parameters" alongside "Dynamic Segments". One synonym, folded into natural prose. No separate "Synonyms" or "Also known as" section, no keyword stuffing. Goal: preserve discoverability for users still searching the old vocabulary even when the framework has moved on.
+
+| Don't                              | Do                                                                                   |
+| ---------------------------------- | ------------------------------------------------------------------------------------ |
+| "Learn how to use Route Handlers"  | "Build API endpoints with Route Handlers, the App Router replacement for API Routes" |
+| "Configure dynamic route segments" | "Read URL parameters from dynamic route segments"                                    |
+
 ## Workflow
 
 1. **Ask for reference material.** Ask the user if they have any RFCs, PRs, design docs, or other context that should inform the doc.

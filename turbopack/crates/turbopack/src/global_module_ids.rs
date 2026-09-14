@@ -49,7 +49,7 @@ pub async fn get_global_module_id_strategy(
             .into_iter()
             .map(|m| m.ident())
             .chain(async_idents.into_iter())
-            .map(|ident| async move {
+            .map(async |ident| {
                 let ident = ident.to_resolved().await?;
                 let ident_str = ident.to_string().await?;
                 let hash = hash_xxh3_hash64(&ident_str);

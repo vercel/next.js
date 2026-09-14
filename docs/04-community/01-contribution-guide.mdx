@@ -34,7 +34,7 @@ The docs are written in [MDX](https://mdxjs.com/), a markdown format that suppor
 
 VSCode has a built-in markdown previewer that you can use to see your edits locally. To enable the previewer for MDX files, you'll need to add a configuration option to your user settings.
 
-Open the command palette (`⌘ + ⇧ + P` on Mac or `Ctrl + Shift + P` on Windows) and search from `Preferences: Open User Settings (JSON)`.
+Open the command palette (`⌘ + ⇧ + P` on Mac or `Ctrl + Shift + P` on Windows) and search for `Preferences: Open User Settings (JSON)`.
 
 Then, add the following line to your `settings.json` file:
 
@@ -396,7 +396,7 @@ While we don't have a strict template for pages, there are page sections you'll 
 - **Overview:** The first paragraph of a page should tell the user what the feature is and what it's used for. Followed by a minimum working example or its API reference.
 - **Convention:** If the feature has a convention, it should be explained here.
 - **Examples**: Show how the feature can be used with different use cases.
-- **API Tables**: API Pages should have an overview table at the of the page with jump-to-section links (when possible).
+- **API Tables**: API Pages should have an overview table at the top of the page with jump-to-section links (when possible).
 - **Next Steps (Related Links)**: Add links to related pages to guide the user's learning journey.
 
 Feel free to add these sections as needed.

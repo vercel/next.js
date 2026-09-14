@@ -13,12 +13,17 @@ use turbopack_core::{
     source_map::{GenerateSourceMap, SourceMapAsset},
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
-use turbopack_ecmascript::{chunk::EcmascriptChunkContent, minify::minify, utils::StringifyJs};
-
-use super::{
-    chunk::EcmascriptBrowserChunk, content_entry::EcmascriptBrowserChunkContentEntries,
-    merged::merger::EcmascriptBrowserChunkContentMerger, version::EcmascriptBrowserChunkVersion,
+use turbopack_ecmascript::{
+    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    hmr::{
+        EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
+        version::EcmascriptChunkVersion,
+    },
+    minify::minify,
+    utils::StringifyJs,
 };
+
+use super::chunk::EcmascriptBrowserChunk;
 use crate::{
     BrowserChunkingContext,
     chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
@@ -51,24 +56,7 @@ impl EcmascriptBrowserChunkContent {
     }
 
     #[turbo_tasks::function]
-    pub fn entries(&self) -> Vc<EcmascriptBrowserChunkContentEntries> {
-        EcmascriptBrowserChunkContentEntries::new(*self.content)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptBrowserChunkContent {
-    #[turbo_tasks::function]
-    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBrowserChunkVersion>> {
-        Ok(EcmascriptBrowserChunkVersion::new(
-            self.chunking_context.output_root().owned().await?,
-            self.chunk.path().owned().await?,
-            *self.content,
-        ))
-    }
-
-    #[turbo_tasks::function]
-    async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
+    pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let source_maps = *this
             .chunking_context
@@ -114,10 +102,17 @@ impl EcmascriptBrowserChunkContent {
         )?;
 
         let content = this.content.await?;
-        let chunk_items = content.chunk_item_code_and_ids().await?;
-        for item in chunk_items {
-            for (id, item_code) in item {
-                write!(code, "\n{}, ", StringifyJs(&id))?;
+        let mut chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
+        // Sort items by their module path so that similar modules stay
+        // together so that the chunks gzips better.
+        chunk_items.sort_by(|a, b| {
+            a.first()
+                .map(|(id, _, path)| (path, id))
+                .cmp(&b.first().map(|(id, _, path)| (path, id)))
+        });
+        for item in &chunk_items {
+            for (id, item_code, _) in &**item {
+                write!(code, "\n{}, ", StringifyJs(id))?;
                 code.push_code(item_code);
                 write!(code, ",")?;
             }
@@ -153,7 +148,25 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
 
     #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
-        Vc::upcast(self.own_version())
+        Vc::upcast(self.ecmascript_chunk_version())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptHmrChunkContent for EcmascriptBrowserChunkContent {
+    #[turbo_tasks::function]
+    fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
+        EcmascriptChunkContentEntries::new(*self.content)
+    }
+
+    #[turbo_tasks::function]
+    async fn ecmascript_chunk_version(&self) -> Result<Vc<EcmascriptChunkVersion>> {
+        Ok(EcmascriptChunkVersion::new(
+            self.chunking_context.output_root().owned().await?,
+            self.chunk.path().owned().await?,
+            *self.content,
+            *self.chunking_context.minify_type().await?,
+        ))
     }
 }
 
@@ -161,7 +174,7 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
 impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     fn get_merger(&self) -> Vc<Box<dyn VersionedContentMerger>> {
-        Vc::upcast(EcmascriptBrowserChunkContentMerger::new())
+        Vc::upcast(EcmascriptChunkContentMerger::new())
     }
 }
 

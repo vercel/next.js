@@ -36,7 +36,6 @@ nodeDevContextPrototype.q = exportUrl
 nodeDevContextPrototype.M = moduleFactories
 nodeDevContextPrototype.c = devModuleCache
 nodeDevContextPrototype.R = resolvePathFromModule
-nodeDevContextPrototype.b = createWorker
 nodeDevContextPrototype.C = clearChunkCache
 
 /**

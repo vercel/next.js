@@ -9,7 +9,6 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use either::Either;
 use owo_colors::OwoColorize;
 use rustc_hash::FxHashSet;
 use turbo_rcstr::{RcStr, rcstr};
@@ -19,8 +18,8 @@ use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
 };
 use turbo_tasks_backend::{
-    BackendOptions, GitVersionInfo, NoopBackingStorage, StartupCacheState, StorageMode,
-    TurboBackingStorage, TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
+    BackendOptions, BackingStorageOptions, GitVersionInfo, StartupCacheState, StorageMode,
+    TurboTasksBackend, noop_backing_storage, turbo_backing_storage,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
@@ -56,10 +55,8 @@ use crate::{
 
 pub(crate) mod web_entry_source;
 
-type Backend = TurboTasksBackend<Either<TurboBackingStorage, NoopBackingStorage>>;
-
 pub struct TurbopackDevServerBuilder {
-    turbo_tasks: Arc<TurboTasks<Backend>>,
+    turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
@@ -76,7 +73,7 @@ pub struct TurbopackDevServerBuilder {
 
 impl TurbopackDevServerBuilder {
     pub fn new(
-        turbo_tasks: Arc<TurboTasks<Backend>>,
+        turbo_tasks: Arc<TurboTasks<TurboTasksBackend>>,
         project_dir: RcStr,
         root_dir: RcStr,
     ) -> TurbopackDevServerBuilder {
@@ -298,6 +295,9 @@ async fn source(
         node_build_environment().to_resolved().await?,
         RuntimeType::Development,
     )
+    // Shared by every build-time JS evaluation, each with its own module graph but all emitting
+    // the same runtime chunk.
+    .shared_runtime_chunk(true)
     .build();
 
     let node_backend = child_process_backend();
@@ -390,8 +390,15 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
             .cache_dir
             .clone()
             .unwrap_or_else(|| PathBuf::from(&*project_dir).join(".turbopack/cache"));
-        let (backing_storage, cache_state) =
-            turbo_backing_storage(&cache_dir, &version_info, is_ci, is_short_session, false)?;
+        let (backing_storage, cache_state) = turbo_backing_storage(
+            &cache_dir,
+            &version_info,
+            BackingStorageOptions {
+                is_ci,
+                is_short_session,
+                skip_compaction: false,
+            },
+        )?;
         let storage_mode = if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
             StorageMode::ReadOnly
         } else if is_ci || is_short_session {
@@ -404,7 +411,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                 storage_mode: Some(storage_mode),
                 ..Default::default()
             },
-            Either::Left(backing_storage),
+            backing_storage,
         ));
         if let StartupCacheState::Invalidated { reason_code } = cache_state {
             eprintln!(
@@ -423,7 +430,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
                 storage_mode: None,
                 ..Default::default()
             },
-            Either::Right(noop_backing_storage()),
+            noop_backing_storage(),
         ))
     };
 
@@ -568,7 +575,10 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 #[cfg(feature = "profile")]
 // When profiling, exits the process when no new updates have been received for
 // a given timeout and there are no more tasks in progress.
-async fn profile_timeout<T>(tt: &TurboTasks<Backend>, future: impl Future<Output = T>) -> T {
+async fn profile_timeout<T>(
+    tt: &TurboTasks<TurboTasksBackend>,
+    future: impl Future<Output = T>,
+) -> T {
     /// How long to wait in between updates before force-exiting the process
     /// during profiling.
     const PROFILE_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -588,7 +598,7 @@ async fn profile_timeout<T>(tt: &TurboTasks<Backend>, future: impl Future<Output
 
 #[cfg(not(feature = "profile"))]
 fn profile_timeout<T>(
-    _tt: &TurboTasks<Backend>,
+    _tt: &TurboTasks<TurboTasksBackend>,
     future: impl Future<Output = T>,
 ) -> impl Future<Output = T> {
     future

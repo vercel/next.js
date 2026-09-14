@@ -1,14 +1,5 @@
 // @ts-check
 
-if (process.env.POLYFILL_FETCH) {
-  // @ts-expect-error
-  global.fetch = require('node-fetch').default
-  // @ts-expect-error
-  global.Request = require('node-fetch').Request
-  // @ts-expect-error
-  global.Headers = require('node-fetch').Headers
-}
-
 const { readFileSync } = require('fs')
 
 /** @type {import('next').default} */
@@ -58,12 +49,14 @@ async function main() {
       return res.end('ok')
     }
 
-    if (/setAssetPrefix/.test(req.url)) {
-      app.setAssetPrefix(`http://127.0.0.1:${port}`)
-    } else if (/setEmptyAssetPrefix/.test(req.url)) {
-      app.setAssetPrefix('')
-    } else {
-      app.setAssetPrefix('')
+    if (/\/asset(?:\?|$)/.test(req.url)) {
+      if (/setAssetPrefix/.test(req.url)) {
+        app.setAssetPrefix(`http://127.0.0.1:${port}`)
+      } else if (/setEmptyAssetPrefix/.test(req.url)) {
+        app.setAssetPrefix('')
+      } else {
+        app.setAssetPrefix('')
+      }
     }
 
     if (/test-index-hmr/.test(req.url)) {
@@ -90,6 +83,35 @@ async function main() {
       return handleNextRequests(req, res, parse('/dashboard', true))
     }
 
+    if (/legacy-methods\/log-error-with-original-stack/.test(req.url)) {
+      try {
+        await app.logErrorWithOriginalStack(
+          new Error('custom server logErrorWithOriginalStack test'),
+          'warning'
+        )
+      } catch {}
+      res.end('ok')
+      return
+    }
+
+    if (/legacy-methods\/log-error/.test(req.url)) {
+      app.logError(new Error('custom server logError test'))
+      res.end('ok')
+      return
+    }
+
+    if (/legacy-methods\/revalidate/.test(req.url)) {
+      try {
+        await app.revalidate({ urlPath: '/', headers: {}, opts: {} })
+      } catch (err) {
+        res.statusCode = 500
+        res.end(err.stack)
+        return
+      }
+      res.end('ok')
+      return
+    }
+
     if (/legacy-methods\/render-to-html/.test(req.url)) {
       try {
         const html = await app.renderToHTML(req, res, '/dynamic-dashboard', {
@@ -111,18 +133,6 @@ async function main() {
       return
     }
 
-    if (/legacy-methods\/render-error/.test(req.url)) {
-      try {
-        res.statusCode = 500
-        await app.renderError(new Error('kaboom'), req, res, '/dashboard', {
-          q: '1',
-        })
-      } catch (err) {
-        res.end(err.message)
-      }
-      return
-    }
-
     if (/legacy-methods\/render-error-to-html/.test(req.url)) {
       try {
         res.statusCode = 500
@@ -134,6 +144,18 @@ async function main() {
           { q: '1' }
         )
         res.end(html)
+      } catch (err) {
+        res.end(err.message)
+      }
+      return
+    }
+
+    if (/legacy-methods\/render-error/.test(req.url)) {
+      try {
+        res.statusCode = 500
+        await app.renderError(new Error('kaboom'), req, res, '/dashboard', {
+          q: '1',
+        })
       } catch (err) {
         res.end(err.message)
       }

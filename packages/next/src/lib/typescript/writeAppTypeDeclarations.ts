@@ -10,7 +10,6 @@ export async function writeAppTypeDeclarations({
   hasAppDir,
   strictRouteTypes,
   typedRoutes,
-  rootParams,
 }: {
   baseDir: string
   distDir: string
@@ -19,7 +18,6 @@ export async function writeAppTypeDeclarations({
   hasAppDir: boolean
   strictRouteTypes: boolean
   typedRoutes: boolean
-  rootParams: boolean
 }): Promise<void> {
   // Reference `next` types
   const appTypeDeclarations = path.join(baseDir, 'next-env.d.ts')
@@ -71,13 +69,11 @@ export async function writeAppTypeDeclarations({
   // Use ESM import instead of triple-slash reference for better ESLint compatibility
   lines.push(`import "./${routeTypesPath}";`)
 
-  if (rootParams) {
-    const rootParamsTypesPath = path.posix.join(
-      distDir.replaceAll(path.win32.sep, path.posix.sep),
-      'types/root-params.d.ts'
-    )
-    lines.push(`import "./${rootParamsTypesPath}";`)
-  }
+  const rootParamsTypesPath = path.posix.join(
+    distDir.replaceAll(path.win32.sep, path.posix.sep),
+    'types/root-params.d.ts'
+  )
+  lines.push(`import "./${rootParamsTypesPath}";`)
 
   if (strictRouteTypes) {
     const cacheLifePath = path.posix.join(
