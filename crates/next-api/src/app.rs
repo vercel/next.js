@@ -89,6 +89,7 @@ use crate::{
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     service_worker::service_worker_output_assets,
     sri_manifest::get_sri_manifest_asset,
+    static_info_manifest::StaticInfoManifestAsset,
 };
 
 #[turbo_tasks::value]
@@ -1163,6 +1164,7 @@ impl AppEndpoint {
             self.app_project.project().project_path().owned().await?,
             // Route Handlers only use their own exports, not ancestor layout configuration.
             None,
+            None,
             next_config,
         ))
     }
@@ -2204,8 +2206,20 @@ impl Endpoint for AppEndpoint {
             let project = this.app_project.project();
             let node_root = project.node_root().owned().await?;
             let client_relative_root = project.client_relative_path().owned().await?;
+            let app_entry = self.app_endpoint_entry().await?;
 
-            let output_assets = output.output_assets();
+            let output_assets =
+                output
+                    .output_assets()
+                    .concat_asset(Vc::upcast(StaticInfoManifestAsset::new_app(
+                        node_root.join(&format!(
+                            "server/app{}/static-info.json",
+                            app_entry.original_name
+                        ))?,
+                        *app_entry.static_info_config,
+                        project.next_config(),
+                    )));
+
             let output_assets = if let Some(sri) =
                 &*project.next_config().experimental_sri().await?
                 && let Some(algorithm) = sri.algorithm.clone()
@@ -2213,7 +2227,7 @@ impl Endpoint for AppEndpoint {
                 let sri_manifest = get_sri_manifest_asset(
                     node_root.join(&format!(
                         "server/app{}/subresource-integrity-manifest.json",
-                        &self.app_endpoint_entry().await?.original_name
+                        app_entry.original_name
                     ))?,
                     output_assets,
                     client_relative_root.clone(),

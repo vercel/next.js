@@ -3,7 +3,7 @@ use std::{fmt::Display, str::FromStr};
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
-use serde::{Deserialize, de::DeserializeOwned};
+use serde::{Deserialize, Serialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{FxIndexMap, NonLocalValue, Vc, fxindexset, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
@@ -333,7 +333,19 @@ pub fn pages_function_name(page: impl Display) -> String {
 
 #[turbo_tasks::task_input]
 #[derive(
-    Default, PartialEq, Eq, Clone, Copy, Debug, Deserialize, Hash, PartialOrd, Ord, Encode, Decode,
+    Default,
+    PartialEq,
+    Eq,
+    Clone,
+    Copy,
+    Debug,
+    Serialize,
+    Deserialize,
+    Hash,
+    PartialOrd,
+    Ord,
+    Encode,
+    Decode,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {
