@@ -44,8 +44,8 @@ Agents should follow these instructions only after the short trigger criteria in
 2. Set `triggerReason` to the single reason that best explains why the report qualified: `unexpected-behavior`, `documentation-mismatch`, `misleading-error`, `repeated-failed-approach`, or `non-obvious-workaround`.
 3. Report one observed Next.js behavior. Do not combine separate problems or infer a root cause. Use a short, factual `title` that names the behavior.
 4. Record the smallest reproducible setup: the `mode`, `bundler`, and up to three generic `relevantFeatures`. Do not include project-specific names or configuration values.
-5. Write 2–4 ordered `steps` detailed enough for another engineer to construct a minimal reproduction. Include the relevant generic starting state, the exact Next.js feature or API involved, and the action that triggers the behavior. Preserve meaningful order, repetition, and navigation or build conditions. Each step must be one distinct action or condition, not analysis or chronology about the agent's investigation.
-6. Write 1–3 `observed` facts. Each item must be independently verifiable and contain enough local Next.js context to stand alone. Put the desired behavior in one precise `expected` statement. Add an optional `comparison` only when a control or workaround was directly observed.
+5. Write 1–4 ordered `steps` detailed enough for another engineer to construct a minimal reproduction. Include the relevant generic starting state, the exact Next.js feature or API involved, and the action that triggers the behavior. Use one step when one action or condition is sufficient. Split only distinct actions or conditions whose order matters; do not manufacture steps from one sentence or from the agent's investigation chronology.
+6. Write 1–3 `observed` facts. Use a separate item when a fact can stand alone and a user may reasonably remove it independently. Keep one causal statement together instead of splitting it only for visual structure. Each item must be independently verifiable and contain enough local Next.js context to stand alone. Put the desired behavior in one precise `expected` statement. Add an optional `comparison` only when a control or workaround was directly observed.
 7. Set `frequency` to `once` unless the same steps produced the behavior again. Set `outcome` to `blocked`, `worked-around`, or `resolved` based only on what happened in the task.
 8. Include concrete cost signals such as memory use, duration, an extra build, or repeated attempts only when directly observed. Never estimate elapsed time, token usage, or tool-call counts. Trusted harness measurements may be attached separately in the future.
 9. Keep every field factual and de-identified. Replace customer, project, route, and component names with generic descriptions. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or product-specific information that is not necessary to reproduce the Next.js issue. Resource limits, framework configuration, runtime mode, request order, and other non-identifying conditions may be included when they are necessary to reproduce the behavior.
@@ -62,8 +62,7 @@ Agents should follow these instructions only after the short trigger criteria in
     "relevantFeatures": ["Persistent cache"]
   },
   "steps": [
-    "Start with an App Router application whose cold production build succeeds, then enable persistent Turbopack caching.",
-    "Run `next build` once to populate the persistent cache in a 32 GiB Linux environment.",
+    "Enable persistent Turbopack caching and run a successful cold `next build` in a 32 GiB Linux environment.",
     "Without changing the application or runtime, run `next build` again and observe the main build process memory."
   ],
   "observed": [
