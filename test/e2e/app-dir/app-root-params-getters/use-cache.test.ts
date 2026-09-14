@@ -386,6 +386,9 @@ describe('app-root-param-getters - cache dedup with root params', () => {
   })
 
   it('should dedupe same root params and isolate different root params', async () => {
+    // In deploy mode, this can flake if Fluid routes concurrent requests
+    // to different function instances: each instance may independently
+    // compute a value before the cache is populated.
     // Three concurrent requests: ca/en, ca/fr, ca/fr.
     const [$en, $fr1, $fr2] = await Promise.all([
       next.render$('/ca/en'),
