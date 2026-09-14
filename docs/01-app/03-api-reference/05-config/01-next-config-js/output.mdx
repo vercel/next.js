@@ -23,6 +23,8 @@ To leverage the `.nft.json` files emitted to the `.next` output directory, you c
 
 Next.js can automatically create a `standalone` folder that copies only the necessary files for a production deployment including select files in `node_modules`.
 
+> **When to use standalone mode:** `output: 'standalone'` is recommended for self-hosted Node.js deployments (Docker, VMs, bare metal) where you want to minimize the deployed footprint. It is **not** needed for Vercel deployments (Vercel handles optimization automatically), and is incompatible with `output: 'export'` (static site generation). If you are unsure, check your hosting provider's documentation for the recommended output mode.
+
 To leverage this automatic copying you can enable it in your `next.config.js`:
 
 ```js filename="next.config.js"
