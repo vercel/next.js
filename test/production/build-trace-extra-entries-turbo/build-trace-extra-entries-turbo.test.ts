@@ -8,7 +8,12 @@ describe('build trace with extra entries', () => {
       skipStart: true,
       skipDeployment: true,
     })
+
     if (skipped) return
+    //
+    //
+    //
+    //
 
     it('should build and trace correctly', async () => {
       const { exitCode } = await next.build()
@@ -30,19 +35,31 @@ describe('build trace with extra entries', () => {
         await next.readFile('.next/server/app/route1/route.js.nft.json')
       )
 
+      expect(appDirRoute1Trace.files).toContain(
+        '../../../../include-me/hello.txt'
+      )
+      expect(appDirRoute1Trace.files).toContain(
+        '../../../../include-me/second.txt'
+      )
       expect(
         appDirRoute1Trace.files.some(
-          (file: string) => file === '../../../../include-me/hello.txt'
-        )
-      ).toBe(true)
-      expect(
-        appDirRoute1Trace.files.some(
-          (file: string) => file === '../../../../include-me/second.txt'
+          (file: string) => file === '../../../../include-me-global.txt'
         )
       ).toBe(true)
       expect(
         appDirRoute1Trace.files.some((file: string) =>
           file.includes('exclude-me')
+        )
+      ).toBe(false)
+      expect(appDirRoute1Trace.files).toEqual(
+        expect.arrayContaining([
+          '../../../../node_modules/pkg-behind-symlink/index.js',
+          '../../../../node_modules/pkg-behind-symlink/package.json',
+        ])
+      )
+      expect(
+        appDirRoute1Trace.files.some((file: string) =>
+          file.startsWith('../../../../node_modules/pkg/')
         )
       ).toBe(false)
 
