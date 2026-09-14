@@ -8,13 +8,14 @@ export function RemoteMessage() {
   const [scriptCount, setScriptCount] = useState('loading')
 
   useEffect(() => {
+    const remoteEntry = `${process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN}/browser/remoteEntry.js`
     // Insert the remote entry first. Federation should attach to this in-flight script rather
     // than adding a duplicate tag.
     if (
-      !document.querySelector('script[src="/webpack-remote/remoteEntry.js"]')
+      !Array.from(document.scripts).some((script) => script.src === remoteEntry)
     ) {
       const script = document.createElement('script')
-      script.src = '/webpack-remote/remoteEntry.js'
+      script.src = remoteEntry
       document.head.appendChild(script)
     }
     // @ts-expect-error -- provided by Module Federation at runtime
@@ -22,8 +23,8 @@ export function RemoteMessage() {
       setMessage(module.message ?? `missing export: ${JSON.stringify(module)}`)
       setScriptCount(
         String(
-          document.querySelectorAll(
-            'script[src="/webpack-remote/remoteEntry.js"]'
+          Array.from(document.scripts).filter(
+            (script) => script.src === remoteEntry
           ).length
         )
       )

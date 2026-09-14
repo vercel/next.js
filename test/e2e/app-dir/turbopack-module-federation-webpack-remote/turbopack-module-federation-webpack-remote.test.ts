@@ -9,6 +9,7 @@ const webpack = require('next/dist/compiled/webpack/webpack')
 async function buildRemote(
   context: string,
   outputPath: string,
+  remoteOrigin: string,
   worker = false
 ) {
   await new Promise<void>((resolve, reject) => {
@@ -20,7 +21,7 @@ async function buildRemote(
         entry: {},
         output: {
           path: outputPath,
-          publicPath: worker ? '/webpack-worker-remote/' : '/webpack-remote/',
+          publicPath: `${remoteOrigin}/${worker ? 'worker' : 'browser'}/`,
           uniqueName: worker ? 'webpack-worker-catalog' : 'webpack-catalog',
           chunkLoading: worker ? 'import-scripts' : 'jsonp',
           globalObject: 'globalThis',
@@ -68,13 +69,23 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
 
   beforeAll(async () => {
     const remotePort = await findPort()
+    const remoteOrigin = `http://localhost:${remotePort}`
     const remoteOutput = join(next.testDir, 'remote-dist')
     const remoteContext = join(next.testDir, 'remote')
-    await buildRemote(remoteContext, join(remoteOutput, 'browser'))
-    await buildRemote(remoteContext, join(remoteOutput, 'worker'), true)
+    await buildRemote(
+      remoteContext,
+      join(remoteOutput, 'browser'),
+      remoteOrigin
+    )
+    await buildRemote(
+      remoteContext,
+      join(remoteOutput, 'worker'),
+      remoteOrigin,
+      true
+    )
     remoteServer = await startStaticServer(remoteOutput, undefined, remotePort)
-    process.env.MF_REMOTE_ORIGIN = `http://localhost:${remotePort}`
-    process.env.MF_REMOTE_URL = '/webpack-remote/remoteEntry.js'
+    process.env.MF_REMOTE_ORIGIN = remoteOrigin
+    process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN = remoteOrigin
     await next.start()
   })
 
@@ -83,7 +94,7 @@ describeTurbopack('turbopack module federation with a webpack remote', () => {
       remoteServer.close((error) => (error ? reject(error) : resolve()))
     })
     delete process.env.MF_REMOTE_ORIGIN
-    delete process.env.MF_REMOTE_URL
+    delete process.env.NEXT_PUBLIC_MF_REMOTE_ORIGIN
   })
 
   it('loads a module exposed by webpack', async () => {
