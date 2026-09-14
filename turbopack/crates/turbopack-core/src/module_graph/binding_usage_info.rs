@@ -265,37 +265,31 @@ pub async fn compute_binding_usage_info(
                     }
                 }
 
-                let passthrough_usage = if let ExportUsage::Passthrough {
-                    namespace_object_may_escape,
-                } = &ref_data.binding_usage.export
-                {
-                    if *namespace_object_may_escape {
-                        partial_namespace_modules.insert(target);
-                    }
-                    Some(
-                        used_exports
+                let is_first_visit = !used_exports.contains_key(&target);
+                let changed = match &ref_data.binding_usage.export {
+                    ExportUsage::Passthrough {
+                        namespace_object_may_escape,
+                    } => {
+                        if *namespace_object_may_escape {
+                            partial_namespace_modules.insert(target);
+                        }
+                        let passthrough_usage = used_exports
                             .get(&parent)
                             .context("parent module must have usage info")?
-                            .clone(),
-                    )
-                } else {
-                    None
-                };
-
-                let entry = used_exports.entry(target);
-                let is_first_visit = matches!(entry, Entry::Vacant(_));
-                if matches!(
-                    &ref_data.binding_usage.export,
-                    ExportUsage::PartialNamespaceObject(_)
-                ) {
-                    // `target` is read through a namespace value. We know which names are used, but
-                    // not that every read of them was lowered to a direct named access.
-                    partial_namespace_modules.insert(target);
-                }
-                let changed = if let Some(passthrough_usage) = &passthrough_usage {
-                    entry.or_default().add_usage_info(passthrough_usage)
-                } else {
-                    entry.or_default().add(&ref_data.binding_usage.export)
+                            .clone();
+                        used_exports
+                            .entry(target)
+                            .or_default()
+                            .add_usage_info(&passthrough_usage)
+                    }
+                    export_usage => {
+                        if matches!(export_usage, ExportUsage::PartialNamespaceObject(_)) {
+                            // `target` is read through a namespace value. We know which names are
+                            // used, but not that every read was lowered to a direct named access.
+                            partial_namespace_modules.insert(target);
+                        }
+                        used_exports.entry(target).or_default().add(export_usage)
+                    }
                 };
                 if changed || is_first_visit {
                     // First visit, or the used exports changed. This can cause more imports to get

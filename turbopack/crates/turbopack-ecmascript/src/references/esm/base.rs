@@ -741,22 +741,21 @@ impl ModuleReference for EsmAssetReference {
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
             import: self.import_usage.clone(),
-            export: if self
-                .extras
-                .as_deref()
-                .is_some_and(|extras| extras.export_usage_passthrough)
-            {
-                ExportUsage::Passthrough {
-                    namespace_object_may_escape: true,
-                }
-            } else {
-                match &self.export_name {
-                    Some(ModulePart::Export(export_name)) => {
-                        ExportUsage::Named(export_name.clone())
+            export: match &self.export_name {
+                // Evaluation references preserve their side-effect-only semantics even when the
+                // corresponding import forwards export usage.
+                Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
+                _ if self
+                    .extras
+                    .as_deref()
+                    .is_some_and(|extras| extras.export_usage_passthrough) =>
+                {
+                    ExportUsage::Passthrough {
+                        namespace_object_may_escape: true,
                     }
-                    Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
-                    _ => ExportUsage::All,
                 }
+                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
+                _ => ExportUsage::All,
             },
         }
     }
