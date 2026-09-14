@@ -1,5 +1,5 @@
 use auto_hash_map::AutoMap;
-use rustc_hash::{FxHashMap, FxHasher};
+use rustc_hash::{FxBuildHasher, FxHashMap};
 use smallvec::SmallVec;
 use swc_core::{
     common::pass::AstKindPath,
@@ -14,15 +14,8 @@ use crate::{
     code_gen::{AstModifier, ModifiableAst},
 };
 
-/// What to do at one node while applying code generation.
-#[derive(Default)]
-struct Target<'a> {
-    /// Modifiers to run at this node. Rarely more than one.
-    modifiers: SmallVec<[&'a dyn AstModifier; 1]>,
-    /// Children that lead to a modifier, keyed by the kind that reaches them. A kind absent
-    /// here has nothing below it, so its subtree is skipped.
-    children: AutoMap<AstParentKind, AstPathId, std::hash::BuildHasherDefault<FxHasher>, 1>,
-}
+/// The root of the walk, i.e. the program itself.
+const ROOT: u32 = 0;
 
 /// The modifiers to run, indexed for a single downward walk of the AST.
 ///
@@ -30,9 +23,18 @@ struct Target<'a> {
 /// precomputes the part the walk actually needs: for each node on the way to a modifier,
 /// the children worth descending into. Matching a node is then one lookup against the
 /// current node's children.
-#[derive(Default)]
+///
+/// Nodes are renumbered densely on the way in, so the structure is a plain indexed tree and
+/// [`AstPathId`]s do not outlive construction. Modifiers sit in a side table rather than in
+/// the nodes: only the addressed nodes carry one, while every node on the way to them is an
+/// interior node that would otherwise pay for an empty list.
 pub struct Visitors<'a> {
-    nodes: FxHashMap<AstPathId, Target<'a>>,
+    /// Indexed by [`NodeId`]
+    /// Maps kinds to indices in children and modifiers
+    children: Vec<AutoMap<AstParentKind, u32, FxBuildHasher, 1>>,
+    /// Modifiers to run at the nodes that have any. Rarely more than one per node, and only
+    /// as many entries as there are code generation visitors.
+    modifiers: AutoMap<u32, SmallVec<[&'a dyn AstModifier; 1]>, FxBuildHasher, 1>,
 }
 
 impl<'a> Visitors<'a> {
@@ -42,35 +44,82 @@ impl<'a> Visitors<'a> {
         trie: &AstPathTrie,
         visitors: impl IntoIterator<Item = (AstPathId, &'a dyn AstModifier)>,
     ) -> Self {
-        let mut nodes: FxHashMap<AstPathId, Target<'a>> = FxHashMap::default();
+        // The root always has a slot, so `ROOT` indexes in bounds even with no visitors.
+        let mut this = Self {
+            children: vec![AutoMap::default()],
+            modifiers: Default::default(),
+        };
+        // Maps the trie's numbering onto the dense one. Only needed while building.
+        let mut dense: FxHashMap<AstPathId, u32> = FxHashMap::default();
+
         for (id, visitor) in visitors {
             debug_assert!(
                 !id.is_root(),
                 "a root path should be applied as a root visitor, not matched by descent",
             );
-            nodes.entry(id).or_default().modifiers.push(visitor);
-
-            // Link this node back to the root so the walk can reach it. Everything above an
-            // already-linked node is linked too, so stop there.
-            let mut child = id;
-            while let Some((kind, parent)) = trie.split_last(child) {
-                if nodes
-                    .entry(parent)
-                    .or_default()
-                    .children
-                    .insert(kind, child)
-                    .is_some()
-                {
-                    break;
-                }
-                child = parent;
-            }
+            let node = this.intern(&mut dense, trie, id);
+            this.modifiers.entry(node).or_default().push(visitor);
         }
-        Self { nodes }
+        this
+    }
+
+    /// The dense id for `id`, linking it and any unlinked ancestors back to the root.
+    ///
+    /// Ascends to the nearest already-interned ancestor, giving each node it passes a slot.
+    /// A slot does not depend on the parent's, so each step carries the node it just made
+    /// and writes the edge into it as soon as the step above yields the parent. Paths can be
+    /// very long, so this is iterative.
+    fn intern(
+        &mut self,
+        dense: &mut FxHashMap<AstPathId, u32>,
+        trie: &AstPathTrie,
+        id: AstPathId,
+    ) -> u32 {
+        if let Some(&node) = dense.get(&id) {
+            return node;
+        }
+        fn new_node(
+            this: &mut Visitors<'_>,
+            dense: &mut FxHashMap<AstPathId, u32>,
+            id: AstPathId,
+        ) -> u32 {
+            let node = u32::try_from(this.children.len()).expect("too many visitor nodes");
+            this.children.push(AutoMap::default());
+            dense.insert(id, node);
+            node
+        }
+
+        let interned = new_node(self, dense, id);
+        // The node whose incoming edge has not been written yet, and where it sits.
+        let mut child = interned;
+        let mut current = id;
+
+        loop {
+            let (kind, parent) = trie
+                .split_last(current)
+                .expect("the root is interned up front and never reaches here");
+
+            // Stop at the root or at an ancestor that is already linked; either way it is
+            // `child`'s parent and nothing above it needs touching.
+            let parent = if parent.is_root() {
+                ROOT
+            } else if let Some(&existing) = dense.get(&parent) {
+                existing
+            } else {
+                let node = new_node(self, dense, parent);
+                self.children[node as usize].insert(kind, child);
+                child = node;
+                current = parent;
+                continue;
+            };
+
+            self.children[parent as usize].insert(kind, child);
+            return interned;
+        }
     }
 
     pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
+        self.modifiers.is_empty()
     }
 }
 
@@ -80,7 +129,7 @@ impl<'a> Visitors<'a> {
 /// for the kind the walk reports and recurses with it.
 pub struct ApplyVisitors<'a, 'b> {
     visitors: &'b Visitors<'a>,
-    current: AstPathId,
+    current: u32,
     /// How far along `ast_path` `current` accounts for.
     index: usize,
 }
@@ -89,7 +138,7 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
     pub fn new(visitors: &'b Visitors<'a>) -> Self {
         Self {
             visitors,
-            current: AstPathId::ROOT,
+            current: ROOT,
             index: 0,
         }
     }
@@ -103,21 +152,16 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
         // several elements since the last call. Step down each of them.
         let mut current = self.current;
         for index in self.index..ast_path.len() {
-            let Some(target) = self.visitors.nodes.get(&current) else {
-                return;
-            };
-            let Some(&child) = target.children.get(&ast_path[index]) else {
+            let Some(&child) = self.visitors.children[current as usize].get(&ast_path[index])
+            else {
                 // Nothing below here is addressed, so skip the whole subtree.
                 return;
             };
             current = child;
         }
 
-        let Some(target) = self.visitors.nodes.get(&current) else {
-            return;
-        };
-
-        if !target.children.is_empty() {
+        let children = &self.visitors.children[current as usize];
+        if !children.is_empty() {
             n.visit_mut_children_with_ast_path(
                 &mut ApplyVisitors {
                     visitors: self.visitors,
@@ -130,8 +174,10 @@ impl<'a, 'b> ApplyVisitors<'a, 'b> {
 
         // Modifiers run after descending, so a modifier that rewrites this node cannot
         // invalidate the paths of the nodes below it.
-        for visitor in &target.modifiers {
-            n.modify(*visitor);
+        if let Some(modifiers) = self.visitors.modifiers.get(&current) {
+            for visitor in modifiers {
+                n.modify(*visitor);
+            }
         }
     }
 }
@@ -350,5 +396,89 @@ mod tests {
             Ok(())
         })
         .unwrap();
+    }
+
+    /// With nothing to apply the walk still starts at the root, which must be addressable.
+    #[test]
+    fn empty_visitors_walk_cleanly() {
+        run_test(false, |cm, _handler| {
+            let fm = cm.new_source_file(FileName::Anon.into(), "('foo', 'bar', ['baz']);");
+            let m = parse(&fm);
+
+            let trie = AstPathTrieBuilder::new().build();
+            let visitors = Visitors::new(&trie, []);
+            assert!(visitors.is_empty());
+
+            let mut m = m.clone();
+            m.visit_mut_with_ast_path(&mut ApplyVisitors::new(&visitors), &mut Default::default());
+
+            assert_eq!(to_js(&m, &cm), r#"("foo","bar",["baz"]);"#);
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    /// Two targets under a shared prefix: the common ancestors are interned once and both
+    /// leaves stay reachable through them.
+    #[test]
+    fn applies_at_two_targets_sharing_a_prefix() {
+        run_test(false, |cm, _handler| {
+            let fm = cm.new_source_file(FileName::Anon.into(), "('foo', 'bar', 'baz');");
+            let m = parse(&fm);
+
+            // Same path, differing only in which element of the sequence it addresses.
+            let path_to = |i: usize| {
+                let mut path = seq_path();
+                let n = path.len();
+                path[n - 3] = AstParentKind::SeqExpr(SeqExprField::Exprs(i));
+                path
+            };
+
+            let mut builder = AstPathTrieBuilder::new();
+            let first = builder.intern(path_to(0));
+            let second = builder.intern(path_to(2));
+            let trie = builder.build();
+
+            let foo = replacer("foo", "FOO");
+            let baz = replacer("baz", "BAZ");
+            let visitors = Visitors::new(&trie, [(first, &*foo), (second, &*baz)]);
+
+            let mut m = m.clone();
+            m.visit_mut_with_ast_path(&mut ApplyVisitors::new(&visitors), &mut Default::default());
+
+            // Both applied; the untouched middle element proves the edges are distinct.
+            assert_eq!(to_js(&m, &cm), r#"("FOO","bar","BAZ");"#);
+            Ok(())
+        })
+        .unwrap();
+    }
+
+    /// The motivating case for interning iteratively: a left-leaning `a + b + c + ...`
+    /// chain nests one level per term, so paths get very long. Recursing per element
+    /// overflows the stack well before this depth.
+    #[test]
+    fn interns_a_very_deep_path() {
+        const DEPTH: usize = 100_000;
+
+        let mut builder = AstPathTrieBuilder::new();
+        let mut path = vec![AstParentKind::Module(ModuleField::Body(0))];
+        path.extend(
+            std::iter::repeat_n(
+                [
+                    AstParentKind::Expr(ExprField::Bin),
+                    AstParentKind::BinExpr(BinExprField::Left),
+                ],
+                DEPTH,
+            )
+            .flatten(),
+        );
+        let id = builder.intern(path.iter().copied());
+        let trie = builder.build();
+
+        let modifier = replacer("unused", "unused");
+        let visitors = Visitors::new(&trie, [(id, &*modifier)]);
+        assert!(!visitors.is_empty());
+        // Every element of the path got a node, plus the root.
+        assert_eq!(visitors.children.len(), path.len() + 1);
     }
 }
