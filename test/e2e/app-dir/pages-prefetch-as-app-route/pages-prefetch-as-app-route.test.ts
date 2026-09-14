@@ -104,20 +104,30 @@ describe('pages router - prefetch with `as` pointing at an app route', () => {
       )
     })
 
-    it('should not render the marker on a hash-only change when the current route was flagged by the prefetch', async () => {
+    it('should keep the hash-only change client side when the prefetch flagged the current route', async () => {
       // loaded through the config rewrite: the route is `/modal`, the URL is
       // `/pretty`, so the filter does not skip `/modal` as the current path
       const browser = await next.browser('/pretty')
-      // the prefetch replaces the cache entry of the current route
-      await hoverLink(browser, 'canonical-link', '/modal')
+      await browser.eval('window.beforeNav = 1')
+
+      // the filter matches `/modal`, but the cache entry of the current
+      // route must survive the prefetch
+      await browser.elementById('prefetch-canonical').click()
+      await retry(async () => {
+        expect(await browser.elementById('prefetch-state').text()).toBe('done')
+      })
 
       // a hash-only change does not call `getRouteInfo()`; it renders the
-      // cache entry of the current route directly
+      // cache entry of the current route directly and stays client side
       await browser.elementById('hash-link').click()
       await retry(async () => {
         expect(await browser.eval('location.hash')).toBe('#section')
+        expect(await browser.eval('window.next.router.asPath')).toBe(
+          '/pretty#section'
+        )
       })
 
+      expect(await browser.eval('window.beforeNav')).toBe(1)
       // the props from getServerSideProps must still be rendered
       expect(await browser.elementById('modal-page').text()).toBe(
         'hello from pages/modal'
