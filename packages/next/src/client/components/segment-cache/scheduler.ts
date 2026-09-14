@@ -1253,12 +1253,14 @@ function isShellEntryEligibleForStaticAttempt(
   fetchStrategy: FetchStrategy.PPR | FetchStrategy.StaticShell
 ): boolean {
   if (
-    (entry.fetchStrategy !== FetchStrategy.StaticShell &&
-      entry.fetchStrategy !== FetchStrategy.RuntimeShell) ||
-    (tree.prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) === 0 ||
-    // A StaticShell walk's static attempt is the shell tier itself, so it
-    // only applies when the walk's static strategy outranks the entry.
-    !canNewFetchStrategyProvideMoreContent(entry.fetchStrategy, fetchStrategy)
+    !(
+      (entry.fetchStrategy === FetchStrategy.StaticShell ||
+        entry.fetchStrategy === FetchStrategy.RuntimeShell) &&
+      (tree.prefetchHints & PrefetchHint.ShouldAttemptStaticPrefetch) !== 0 &&
+      // A StaticShell walk's static attempt is the shell tier itself, so it
+      // only applies when the walk's static strategy outranks the entry.
+      canNewFetchStrategyProvideMoreContent(entry.fetchStrategy, fetchStrategy)
+    )
   ) {
     return false
   }
