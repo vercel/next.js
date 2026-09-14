@@ -1,0 +1,98 @@
+---
+title: Turbopack
+description: Turbopack is an incremental bundler optimized for JavaScript and TypeScript, written in Rust, and built into Next.js.
+related:
+  title: Next Steps
+  description: Learn what Turbopack supports and how to move an application over from webpack.
+  links:
+    - turbopack/supported-features
+    - turbopack/migrating-from-webpack
+    - turbopack/configuration
+    - app/guides/package-bundling
+---
+
+Turbopack is an **incremental bundler** optimized for JavaScript and TypeScript, written in Rust, and built into **Next.js**. You can use Turbopack with both the Pages and App Router for a **much faster** local development experience.
+
+## Why Turbopack?
+
+We built Turbopack to push the performance of Next.js, including:
+
+- **Unified Graph:** Next.js supports multiple output environments (e.g., client and server). Managing multiple compilers and stitching bundles together can be tedious. Turbopack uses a **single, unified graph** for all environments.
+- **Bundling vs Native ESM:** Some tools skip bundling in development and rely on the browser's native ESM. This works well for small apps but can slow down large apps due to excessive network requests. Turbopack **bundles** in dev, but in an optimized way to keep large apps fast.
+- **Incremental Computation:** Turbopack parallelizes work across cores and **caches** results down to the function level. Once a piece of work is done, Turbopack won’t repeat it. Results persist to disk between runs.
+- **Lazy Bundling:** Turbopack only bundles what is actually requested by the dev server. This lazy approach can reduce initial compile times and memory usage.
+
+## Supported platforms
+
+Turbopack requires platform-specific native bindings. The following platforms are currently supported:
+
+| Platform       | Architecture |
+| -------------- | ------------ |
+| macOS (Darwin) | x64, ARM64   |
+| Windows        | x64, ARM64   |
+| Linux (glibc)  | x64, ARM64   |
+| Linux (musl)   | x64, ARM64   |
+
+On platforms without native bindings (e.g. FreeBSD, OpenBSD), Next.js falls back to WebAssembly (WASM) bindings. WASM bindings support core SWC features like compilation and minification, but **do not support Turbopack**. On these platforms, use the `--webpack` flag:
+
+```bash
+next dev --webpack
+next build --webpack
+```
+
+## Getting started
+
+Turbopack is now the **default bundler** in Next.js. No configuration is needed to use Turbopack:
+
+```json filename="package.json" highlight={3}
+{
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start"
+  }
+}
+```
+
+### Using webpack instead
+
+If you need to use webpack instead of Turbopack, you can opt-in with the `--webpack` flag:
+
+```json filename="package.json"
+{
+  "scripts": {
+    "dev": "next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start"
+  }
+}
+```
+
+See [webpack](/docs/webpack) for what changes when you do.
+
+## Configuration
+
+Most applications need no Turbopack configuration. When you do, the `turbopack` key in `next.config.js` controls module rules, aliases, and resolution, and a set of experimental options control minification, tree shaking, chunking, and source maps.
+
+See [`turbopack`](/docs/turbopack/configuration) for the full reference, including [experimental options](/docs/turbopack/configuration#experimental-options) and their defaults in dev and build.
+
+Caching is configured separately. Turbopack persists compiler artifacts to disk between runs, controlled by [`turbopackFileSystemCache`](/docs/turbopack/configuration/turbopackFileSystemCache), with in-memory retention controlled by [`turbopackMemoryEviction`](/docs/turbopack/configuration/turbopackMemoryEviction).
+
+## Generating trace files for performance debugging
+
+If you encounter performance or memory issues and want to help the Next.js team diagnose them, you can generate a trace file by adding the `--internal-trace` flag to your dev command:
+
+```bash
+next dev --internal-trace
+```
+
+This will produce a `.next-profiles/trace-turbopack.bin` file. Include that file when creating a GitHub issue on the [Next.js repo](https://github.com/vercel/next.js) to help us investigate.
+
+## Version Changes
+
+| Version   | Changes                                                                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------ |
+| `v16.0.0` | Turbopack becomes the default bundler for Next.js. Automatic support for Babel when a configuration file is found. |
+| `v15.5.0` | Turbopack support for `build` beta                                                                                 |
+| `v15.3.0` | Experimental support for `build`                                                                                   |
+| `v15.0.0` | Turbopack for `dev` stable                                                                                         |
