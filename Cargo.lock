@@ -10781,6 +10781,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "turbopack-napi"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "turbo-rcstr",
+ "turbo-tasks",
+ "turbo-tasks-backend",
+ "turbo-tasks-malloc",
+ "turbopack-core",
+ "vergen-gitcl",
+]
+
+[[package]]
 name = "turbopack-nft"
 version = "0.1.0"
 dependencies = [

@@ -1,0 +1,44 @@
+{
+  "name": "turbopack",
+  "version": "0.0.0",
+  "description": "Standalone Turbopack bundler CLI -- for benchmarking",
+  "license": "MIT",
+  "private": true,
+  "bin": {
+    "turbopack": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist/",
+    "native/"
+  ],
+  "scripts": {
+    "build": "pnpm build-native && pnpm build-ts",
+    "build-ts": "tsc -p tsconfig.json",
+    "build-native": "napi build --platform -p turbopack-napi --manifest-path ../../Cargo.toml --no-js -o native",
+    "build-native-release": "napi build --platform -p turbopack-napi --manifest-path ../../Cargo.toml --release --no-js -o native",
+    "typescript": "tsc --noEmit -p tsconfig.json",
+    "clean": "node ../../scripts/rm.mjs native dist"
+  },
+  "napi": {
+    "binaryName": "turbopack",
+    "targets": [
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-musl",
+      "x86_64-pc-windows-msvc",
+      "aarch64-pc-windows-msvc"
+    ]
+  },
+  "dependencies": {
+    "zod": "^4.6.0"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "3.7.2",
+    "typescript": "6.0.2"
+  }
+}
