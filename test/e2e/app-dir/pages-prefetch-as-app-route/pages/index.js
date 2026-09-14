@@ -18,6 +18,22 @@ export default function Page() {
       <Link id="app-link" href="/?modal=1" as="/dashboard" shallow>
         to app route
       </Link>
+      {/*
+        `/modal` is a pages route and also the static prefix of the app route
+        `app/modal/[id]`, so the dynamic client router filter flags it.
+      */}
+      <Link id="modal-link" href="/modal">
+        to modal
+      </Link>
+      <button
+        id="push-pretty"
+        onClick={() => {
+          // href is the flagged pages route, `as` is an unrelated pretty URL
+          router.push('/modal', '/pretty')
+        }}
+      >
+        push /modal as /pretty
+      </button>
     </>
   )
 }

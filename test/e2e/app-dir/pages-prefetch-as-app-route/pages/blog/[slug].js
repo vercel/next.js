@@ -10,6 +10,8 @@ export default function Page({ slug }) {
   return (
     <>
       <p id="pages-page">hello from pages/blog/[slug]</p>
+      {/* server-provided prop: it must survive a shallow navigation */}
+      <p id="slug">{slug}</p>
       {/* read from the router: a shallow navigation does not re-run getServerSideProps */}
       <p id="tab">{router.query.tab || 'a'}</p>
       <Link id="tab-b" href={`/blog/${slug}?tab=b`} shallow>

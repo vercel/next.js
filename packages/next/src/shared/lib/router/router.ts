@@ -164,22 +164,41 @@ function prepareUrlAs(router: NextRouter, url: Url, as?: Url) {
  * otherwise mark the pages route behind `href` as an App Router path and
  * break every later navigation to that route.
  *
+ * `as` is expected without the `basePath`, which is what both call sites
+ * hold: `prefetch()` receives it that way from `next/link` and `change()`
+ * strips it before computing `cleanedAs`. Stripping it again here would turn
+ * a route that merely starts with the `basePath` (for example the app route
+ * `/docs` with `basePath: '/docs'`) into `/` and poison the index page.
+ *
+ * The key also carries the effective locale, mirroring how `_bfl` evaluates
+ * `addLocale(as, locale)` against the filter. A match for a French-only
+ * redirect at `/fr/legacy` must not mark the English `/legacy` page.
+ *
  * Returns `null` when `as` is not a local URL (for example `mailto:` or a
  * different origin). Such an `as` can never be an App Router path, and
  * `change()` reports it as an invalid `href`/`as` pair further down.
  */
-function getAppRouterMarkerKey(router: Router, as: string): string | null {
+function getAppRouterMarkerKey(
+  router: Router,
+  as: string,
+  locale: string | false | undefined
+): string | null {
   if (!isLocalURL(as)) {
     return null
   }
 
-  let { pathname } = parseRelativeUrl(hasBasePath(as) ? removeBasePath(as) : as)
+  let { pathname } = parseRelativeUrl(as)
+  let effectiveLocale = locale || router.locale
 
   if (process.env.__NEXT_I18N_SUPPORT) {
-    pathname = normalizeLocalePath(pathname, router.locales).pathname
+    const localePathResult = normalizeLocalePath(pathname, router.locales)
+    pathname = localePathResult.pathname
+    effectiveLocale = localePathResult.detectedLocale || effectiveLocale
   }
 
-  return removeTrailingSlash(pathname)
+  return removeTrailingSlash(
+    addLocale(removeTrailingSlash(pathname), effectiveLocale)
+  )
 }
 
 function resolveDynamicRoute(pathname: string, pages: string[]) {
@@ -1477,11 +1496,19 @@ export default class Router implements BaseRouter {
     const parsedAsPathname = as.startsWith('/') && parseRelativeUrl(as).pathname
 
     // if we detected the `as` path as app route during prefetching
-    // trigger hard navigation
-    const appRouterMarkerKey = getAppRouterMarkerKey(this, cleanedAs)
+    // trigger hard navigation. The marker is keyed by the `as` path, but a
+    // marker can also sit under the href route when both paths share a
+    // pages route (`pages/modal.js` next to `app/modal/[id]/page.js`).
+    // Check both so `getRouteInfo()` never reads a marker as component data.
+    const appRouterMarkerKey = getAppRouterMarkerKey(
+      this,
+      cleanedAs,
+      nextState.locale
+    )
     if (
-      appRouterMarkerKey !== null &&
-      (this.components[appRouterMarkerKey] as any)?.__appRouter
+      (appRouterMarkerKey !== null &&
+        (this.components[appRouterMarkerKey] as any)?.__appRouter) ||
+      (this.components[route] as any)?.__appRouter
     ) {
       handleHardNavigation({ url: as, router: this })
       return new Promise(() => {})
@@ -2587,7 +2614,11 @@ export default class Router implements BaseRouter {
     const route = removeTrailingSlash(pathname)
 
     if (await this._bfl(asPath, resolvedAs, options.locale, true)) {
-      const appRouterMarkerKey = getAppRouterMarkerKey(this, asPath)
+      const appRouterMarkerKey = getAppRouterMarkerKey(
+        this,
+        asPath,
+        options.locale
+      )
       if (appRouterMarkerKey !== null) {
         this.components[appRouterMarkerKey] = { __appRouter: true } as any
       }
