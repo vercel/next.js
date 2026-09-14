@@ -127,7 +127,11 @@ export function createInitialRouterState({
       initialRouteTree,
       metadataVaryPath,
       initialCouldBeIntercepted,
-      canonicalUrl,
+      // Store a hashless canonical URL: the entry is shared across hashes, and
+      // a later same-route hash nav appends `url.hash` to it. Must match the
+      // navigation call site — seeding with location.hash poisons later
+      // replace/push that intentionally clear the hash (e.g. closing a #modal).
+      createHrefFromUrl(location, false),
       initialSupportsPerSegmentPrefetching,
       false // hasDynamicRewrite
     )
