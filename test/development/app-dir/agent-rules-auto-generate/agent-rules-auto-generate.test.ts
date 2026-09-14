@@ -227,8 +227,8 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     expect(content).toContain(
       'node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/agentFeedback.md'
     )
-    expect(content).toContain('at most one report per task')
-    expect(content).toContain('It does not need to block the task')
+    expect(content).toContain('at most one report at a natural stopping point')
+    expect(content).toContain('Skip routine debugging')
     expect(content).not.toContain('"schemaVersion":3')
   })
 
