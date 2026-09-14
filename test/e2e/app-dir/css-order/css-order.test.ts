@@ -642,6 +642,8 @@ describe.each(
   }
 })
 
+// PR #70087's webpack assertions depend on its unmerged loader fix for
+// webpack/webpack#7094. This migration validates current Turbopack behavior only.
 if (process.env.IS_TURBOPACK_TEST) {
   describe.each(TURBO_MODES)(
     'css-order sideEffects %s',
