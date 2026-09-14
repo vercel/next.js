@@ -14,6 +14,7 @@
     "build-all": "turbo run build build-native-auto --remote-cache-timeout 60 --summarize true",
     "lerna": "lerna",
     "dev": "turbo run dev --parallel --filter=\"!@next/bundle-analyzer-ui\"",
+    "bench:deopt": "node bench/deopt/run.mjs",
     "bench:render-pipeline": "tsx bench/render-pipeline/benchmark.ts",
     "bench:render-pipeline:analyze": "tsx bench/render-pipeline/analyze-profiles.ts",
     "bench:render-pipeline:client": "tsx bench/render-pipeline/client-trace.ts",
