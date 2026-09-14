@@ -14,12 +14,17 @@ import { HMR_MESSAGE_SENT_TO_BROWSER } from '../server/dev/hot-reloader-types'
 import { RuntimeErrorHandler } from './dev/runtime-error-handler'
 import { REACT_REFRESH_FULL_RELOAD_FROM_ERROR } from './dev/hot-reloader/shared'
 import { performFullReload } from './dev/hot-reloader/pages/hot-reloader-pages'
+import { reportCurrentRuntimeErrorState } from './dev/hot-reloader/runtime-error-state'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
 
 export function pageBootstrap(assetPrefix: string) {
-  connectHMR({ assetPrefix, path: '/_next/hmr' })
+  connectHMR({
+    assetPrefix,
+    path: '/_next/hmr',
+  })
 
   return hydrate({ beforeRender: displayContent }).then(() => {
+    router.events.on('routeChangeComplete', reportCurrentRuntimeErrorState)
     initOnDemandEntries()
 
     let reloading = false
@@ -123,6 +128,7 @@ export function pageBootstrap(assetPrefix: string) {
         case HMR_MESSAGE_SENT_TO_BROWSER.DEVTOOLS_CONFIG:
         case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK:
         case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE:
+        case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS:
         case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_PAGE_METADATA:
         case HMR_MESSAGE_SENT_TO_BROWSER.CACHE_INDICATOR:
         case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE:

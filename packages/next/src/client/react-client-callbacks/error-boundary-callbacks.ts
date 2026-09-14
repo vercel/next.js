@@ -13,6 +13,7 @@ const devToolErrorMod: typeof import('../../next-devtools/userspace/app/errors')
     : {
         decorateDevError: (error: unknown) => error as Error,
         handleClientError: () => {},
+        markErrorAsFatal: () => {},
         originConsoleError: console.error.bind(console),
       }
 
@@ -101,6 +102,7 @@ export function onUncaughtError(thrownValue: unknown) {
 
   if (process.env.NODE_ENV !== 'production') {
     const error = devToolErrorMod.decorateDevError(thrownValue)
+    devToolErrorMod.markErrorAsFatal(error)
 
     // TODO: Add an adendum to the overlay telling people about custom error boundaries.
     reportGlobalError(error)

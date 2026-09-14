@@ -5,6 +5,7 @@ import {
 } from '../../../../server/dev/hot-reloader-types'
 import { getSocketUrl } from '../get-socket-url'
 import { WEB_SOCKET_MAX_RECONNECTIONS } from '../../../../lib/constants'
+import { createRuntimeErrorStateReporter } from '../runtime-error-state'
 
 let source: WebSocket
 
@@ -27,12 +28,14 @@ let serverSessionId: number | null = null
 
 export function connectHMR(options: { path: string; assetPrefix: string }) {
   let timer: ReturnType<typeof setTimeout>
+  const runtimeErrorStateReporter = createRuntimeErrorStateReporter(sendMessage)
 
   function init() {
     if (source) source.close()
 
     function handleOnline() {
       logQueue.onSocketReady(source)
+      runtimeErrorStateReporter.reportCurrent()
       reconnections = 0
       window.console.log('[HMR] connected')
     }

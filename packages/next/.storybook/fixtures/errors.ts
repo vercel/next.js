@@ -135,18 +135,21 @@ export const errors: SupportedErrorEvent[] = [
       },
     ],
     type: 'runtime',
+    isFatal: false,
   },
   {
     id: 2,
     error: new Error('Second error message'),
     frames: [],
     type: 'runtime',
+    isFatal: false,
   },
   {
     id: 3,
     error: new Error('Third error message'),
     frames: [],
     type: 'runtime',
+    isFatal: false,
   },
 ]
 
