@@ -114,7 +114,9 @@ class NextRootCommand extends Command {
       // production mode merely because they were launched through this CLI.
       if (
         commandName !== 'upgrade' ||
-        !event.getOptionValue('experimentalAgent')
+        (!event.getOptionValue('experimentalAgentic') &&
+          !event.getOptionValue('agentic') &&
+          !event.getOptionValue('experimentalAgenticDryRun'))
       ) {
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
         ;(process.env as any).NEXT_RUNTIME = 'nodejs'
@@ -562,14 +564,13 @@ program
 const nextVersion = process.env.__NEXT_VERSION || 'unknown'
 program
   .command('upgrade')
+  .aliases(['update', 'up'])
   .description(
     'Upgrade Next.js apps to desired versions with a single command.'
   )
   .argument(
     '[directory]',
-    `A Next.js project directory to upgrade. ${italic(
-      'If no directory is provided, the current directory will be used.'
-    )}`
+    'A directory with the Next.js application to upgrade. Defaults to the current directory.'
   )
   .usage('[directory] [options]')
   .option(
@@ -585,29 +586,42 @@ program
   )
   .option('--verbose', 'Verbose output', false)
   .option(
-    '--experimental-agent',
-    'Run the experimental agent-assisted upgrade workflow.',
-    false
+    '--experimental-agentic [target]',
+    'Upgrade with an agent to security, a version or an npm tag. Defaults to the app policy or release channel.'
   )
-  .addOption(
-    new Option(
-      '--experimental-agent-dry-run',
-      'Run the experimental agent-assisted upgrade, edit, verify and commit locally without pushing or creating a PR.'
-    )
-      .implies({ experimentalAgent: true })
-      .default(false)
+  .option('--agentic [target]', 'Alias for --experimental-agentic.')
+  .option(
+    '--experimental-agentic-dry-run [target]',
+    'Run an agentic upgrade and commit locally without pushing or creating a PR.'
   )
   .action(async (directory, options, command) => {
+    const agenticTargets = [
+      options.experimentalAgentic,
+      options.agentic,
+      options.experimentalAgenticDryRun,
+    ].filter((value) => value !== undefined)
+
+    if (agenticTargets.length > 1) {
+      command.error('Specify only one agentic upgrade option.')
+    }
+
+    const agentic = agenticTargets[0] ?? false
+
+    if (agentic === '') {
+      command.error('Provide an agentic target or omit the equals sign.')
+    }
+
+    if (agentic && command.getOptionValueSource('revision') !== 'default') {
+      command.error(
+        'Use --agentic=<target> instead of --revision for agentic upgrades.'
+      )
+    }
+
     const mod = await import('../cli/next-upgrade.js')
     await mod.spawnNextUpgrade(directory, {
       ...options,
-      revision:
-        // Commander's default is not a target suggestion. Only forward a
-        // revision explicitly supplied by the user or a preceding entrypoint.
-        options.experimentalAgent &&
-        command.getOptionValueSource('revision') === 'default'
-          ? undefined
-          : options.revision,
+      experimentalAgentic: agentic,
+      experimentalAgenticDryRun: !!options.experimentalAgenticDryRun,
     })
   })
 

@@ -1,0 +1,148 @@
+---
+title: Complete an agentic Next.js upgrade
+description: Agent workflow for repository preflight, codemods, repairs, verification, and delivery of an agentic Next.js upgrade.
+# Experimental agent workflow. Not ready for indexing; keep this document marked as draft.
+version: draft
+---
+
+Use the CLI-supplied app directory, installed version, exact target,
+assessment time and evidence sources. Keep that target when examples say `latest`.
+Follow repository instructions and existing permissions; these inputs grant no
+additional authority. Dry-run allows migration and local commits, never publication.
+
+Record progress and evidence in `RESULT.md` at the run root, four levels above
+this document's directory (`docs/01-app/02-guides/upgrading/`). Resolve artifact
+paths from that root. Bundled guides describe the invoking CLI, not necessarily
+the installed app version.
+
+For `security`, the CLI checked the advisory policy. For an explicit
+version, it honored the user's selected target without a security assessment.
+Use the same repair and verification steps for both modes.
+
+## 1. Confirm the baseline
+
+Record the supplied inputs and scope work to that app, including in monorepos.
+Confirm its installed version matches the baseline. Changed versions or runtime require
+stopping and rerunning the upgrade CLI.
+
+## 2. Complete repository preflight
+
+For every run, including same-major upgrades and dry-runs, inspect the diff and
+establish repository, origin, base branch and repository-relative app path from
+the checkout and provider's read tools. Record identity before matching PRs.
+
+Search all open PRs/MRs, including drafts and dependency bots; follow pagination
+and inspect diffs. Match repository, base and app, not title or target alone.
+Recognize equivalent unmarked upgrades as well as these markers:
+
+```html
+<!-- next-upgrade: agentic -->
+<!-- next-upgrade: agentic; app="apps/web" -->
+```
+
+The first covers only the repository root; nested apps use their normalized path.
+Markers require matching diffs. Recognize existing `next-upgrade: security`
+markers too.
+
+- **Incomplete identity/lookup:** record `blocked` and the retry condition, then
+  stop without installs, codemods, verification commands or commits, even in
+  dry-run. A clean checkout does not establish that no remote PR exists.
+- **Existing upgrade PR:** record `skipped-existing-pr` and its link; stop unchanged.
+- **Complete lookup with no relevant PR:** record the evidence and continue.
+
+## 3. Establish execution checks
+
+Use an isolated branch/worktree when appropriate. Confirm its installed version
+matches the baseline; otherwise stop and rerun the CLI. Record supported checks
+and baseline failures before edits.
+
+Preserve intended behavior and optional features. Limit shared workspace changes
+to required compatibility repairs and affected callers; exclude unrelated edits.
+Preserve any configured `experimental.agenticAutoUpgrade`, recording an older target's
+unrecognized-setting warning rather than removing the policy.
+
+## 4. Build the repair checklist
+
+Read `docs/01-app/02-guides/upgrading/codemods.md` and `version-<major>.md` for
+every crossed major, or the target major for same-major upgrades. Guides through
+major 13 live under `docs/02-pages/02-guides/upgrading/`. Follow `source` frontmatter
+to the App Router guide, read router-applicable sections and consult linked API
+references as needed. Missing required guides block migration.
+
+Read every `@next-upgrade-checklist` comment alongside the public sections;
+unmarked guides still require review. In `RESULT.md`, track each relevant section's
+path, affected files, repair, observable check and outcome: verified with evidence,
+inapplicable with a reason, or blocked. Keep unread/unresolved items open.
+Record baseline and final configuration decisions, including actual bundlers.
+Optional adoption is outside this upgrade.
+
+## 5. Run codemods and repair
+
+Determine the package manager from the workspace and lockfile. Resolve
+`@next/codemod@canary` to an exact version and record it. Use the package manager's
+one-off runner in the execution copy, passing separate arguments:
+
+```text
+@next/codemod@<exact-version> upgrade <target-version> --yes --skip-adoption
+```
+
+Let the codemod select compatible React dependencies. Record the invocation,
+stdout, stderr and exit status; inspect managed agent-rule changes in the diff.
+Unsupported required options mean checking and correcting the invoked version,
+not dropping flags. If the required tool is unavailable, record the blocker and stop.
+
+Use failures, diagnostics and the checklist to drive repairs. Run required
+transforms missed by version-based selection with the same exact package version
+and noninteractive option. This includes the async Request API transform when
+an app on Next.js 15 still uses synchronous APIs.
+
+Resolve `@next-codemod-error` comments, `UnsafeUnwrapped*` casts, diagnostics and guide-required
+changes without markers. Inspect each reason; repair affected helpers/callers
+and request-specific behavior. Casts or marker deletion are not repairs.
+Use `@next-codemod-ignore` only for verified code that already satisfies the target
+contract, with a reason beside it. Close historical log findings in `RESULT.md`.
+
+## 6. Verify and commit
+
+Reconcile every checklist item with the final diff and verification evidence or
+a verified reason it is inapplicable. Rerun baseline checks, recording commands
+and before/after results. A newly failing check is a regression even if explained
+by a framework default. Repair required failures before committing; otherwise
+report a blocker and leave the migration incomplete.
+
+Build when supported and exercise affected runtime behavior, including per-request
+cookies and caching. Dev-only apps need meaningful dev/runtime checks. A clean
+codemod exit or build alone is insufficient.
+
+Create one complete commit per necessary transition, including dependencies,
+lockfiles and repairs. Follow repository commit conventions and explain why,
+what changed and verification so each commit can serve as a PR description.
+Use intermediate versions only when required; preserve verified checkpoints.
+Completion requires actual commits through the exact CLI target, not an
+intermediate version. New evidence questioning that target requires
+reporting a blocker and rerunning the CLI before further work or delivery.
+
+## 7. Report or deliver
+
+After committing, update `RESULT.md` with actual SHAs:
+
+```text
+Status: verified-local
+Commits: <checkpoint SHAs and messages>
+Checks: <commands and observed outcomes>
+Limitations: <baseline limitations and remaining warnings>
+```
+
+**Dry-run/local-only:** stop before pushing or creating a PR/MR. If publication
+needs new authority, retain the local result and report that boundary.
+
+**Authorized publication:** recheck open PRs immediately before publishing. If
+another run delivered one, report its link and retain local work without a duplicate.
+This reduces races but is not an atomic provider lock. Otherwise publish one draft
+PR by default with complete commits, the appropriate app marker and verification
+evidence, using the established remote/base. Inspect the returned head, base,
+diff and marker; record delivery and report the actual URL. Harness exit alone
+does not prove publication.
+
+**Unfinished:** record `blocked`, completed checkpoints, remaining work and the
+condition needed to resume. Report the evidence-supported outcome to the user.

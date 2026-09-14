@@ -1,99 +1,72 @@
 import { access, stat } from 'fs/promises'
 import { constants } from 'fs'
-import { delimiter, join } from 'path'
+import { delimiter, resolve } from 'path'
 import { constants as osConstants } from 'os'
 import cliSelect from 'next/dist/compiled/cli-select'
 import spawn from 'next/dist/compiled/cross-spawn'
 import { getAgentName } from '../../telemetry/agent-name'
+import * as Log from '../../build/output/log'
 import { bold, cyan, dim } from '../picocolors'
-import { UPGRADE_MODELS } from './models'
 
-type UpgradeHarness = 'codex' | 'claude'
-type HarnessChoice =
-  | { kind: 'handoff' }
-  | { kind: 'choose'; harnesses: UpgradeHarness[] }
-  | { kind: 'fallback'; reason: string }
+// Model defaults for newly launched sessions; existing agents keep their model.
+const UPGRADE_MODELS = {
+  codex: 'gpt-5.6-luna',
+  claude: 'claude-haiku-4-5',
+} as const
 
-function selectHarness(
-  active: string | null,
-  installed: UpgradeHarness[],
-  tty: boolean
-): HarnessChoice {
-  // Existing agents consume guidance directly; only new sessions need a launcher.
-  if (active) {
-    return { kind: 'handoff' }
-  }
-
-  if (installed.length > 0 && tty) {
-    return { kind: 'choose', harnesses: installed }
-  }
-
-  return {
-    kind: 'fallback',
-    reason: installed.length
-      ? 'Choose Codex or Claude Code in an interactive terminal.'
-      : 'No supported agent found. Paste the upgrade prompt into your coding agent.',
-  }
+type UpgradeHarness = {
+  name: keyof typeof UPGRADE_MODELS
+  path: string
 }
 
 async function findHarnesses(): Promise<UpgradeHarness[]> {
-  const names: UpgradeHarness[] = ['codex', 'claude']
+  const names: UpgradeHarness['name'][] = ['codex', 'claude']
   const directories = (process.env.PATH ?? '').split(delimiter).filter(Boolean)
   const extensions =
     process.platform === 'win32'
-      ? (process.env.PATHEXT ?? '.EXE;.CMD;.BAT;.COM').split(';')
+      ? (process.env.PATHEXT || '.EXE;.CMD;.BAT;.COM').split(';').filter(Boolean)
       : ['']
-  const installed: UpgradeHarness[] = []
 
-  for (const name of names) {
-    let found = false
+  // Probe agents independently, preserving menu order and each detected path.
+  const installed = await Promise.all(
+    names.map(async (name): Promise<UpgradeHarness | null> => {
+      for (const directory of directories) {
+        for (const extension of extensions) {
+          const file = resolve(directory, `${name}${extension}`)
 
-    for (const directory of directories) {
-      for (const extension of extensions) {
-        const file = join(directory, `${name}${extension}`)
+          try {
+            await access(
+              file,
+              process.platform === 'win32' ? constants.F_OK : constants.X_OK
+            )
 
-        try {
-          await access(
-            file,
-            process.platform === 'win32' ? constants.F_OK : constants.X_OK
-          )
-
-          if ((await stat(file)).isFile()) {
-            found = true
-          }
-        } catch {}
-
-        if (found) {
-          break
+            if ((await stat(file)).isFile()) {
+              return { name, path: file }
+            }
+          } catch {}
         }
       }
 
-      if (found) {
-        break
-      }
-    }
+      return null
+    })
+  )
 
-    if (found) {
-      installed.push(name)
-    }
-  }
-
-  return installed
+  return installed.filter((harness): harness is UpgradeHarness => harness !== null)
 }
 
 async function chooseHarness(
   harnesses: UpgradeHarness[]
 ): Promise<UpgradeHarness | 'copy' | undefined> {
-  console.log('  How would you like to continue?')
-  console.log(`  ${dim('Use ↑/↓ to choose, then press Enter.')}\n`)
+  Log.bootstrap('  How would you like to continue?')
+  Log.bootstrap(`  ${dim('Use ↑/↓ to choose, then press Enter.')}\n`)
 
   try {
     const { id } = await cliSelect({
       values: {
         ...Object.fromEntries(
-          harnesses.map((name) => [
+          harnesses.map(({ name }) => [
             name,
-            name === 'codex' ? 'Open Codex' : 'Open Claude Code',
+            name === 'codex' ? 'Continue with Codex' : 'Continue with Claude Code',
           ])
         ),
         copy: 'Copy upgrade prompt',
@@ -107,7 +80,7 @@ async function chooseHarness(
       valueRenderer: (value: string, selected: boolean) =>
         selected ? cyan(bold(value)) : value,
     })
-    return id === 'copy' ? 'copy' : harnesses.find((name) => name === id)
+    return id === 'copy' ? 'copy' : harnesses.find(({ name }) => name === id)
   } catch (error) {
     // cli-select rejects without an error when Escape or Ctrl+C cancels the menu.
     if (error) {
@@ -140,13 +113,13 @@ function copyUpgradePrompt(prompt: string): void {
     })
 
     if (!result.error && result.status === 0) {
-      console.log('Upgrade prompt copied. Paste it into your coding agent.')
+      Log.info('Upgrade prompt copied. Paste it into your coding agent.')
       return
     }
   }
 
-  console.log('Could not access the clipboard. Copy this upgrade prompt:')
-  console.log(prompt)
+  Log.info('Could not access the clipboard. Copy this upgrade prompt:')
+  Log.bootstrap(prompt)
 }
 
 function launchHarness(
@@ -154,16 +127,17 @@ function launchHarness(
   prompt: string,
   directory: string
 ): Promise<number> {
-  // Windows .cmd shims cannot carry literal line breaks in an argument.
-  if (process.platform === 'win32') {
+  // Windows shell shims cannot carry literal line breaks in an argument.
+  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(harness.path)) {
     prompt = prompt.replace(/[\r\n]+/g, ' ')
   }
 
   return new Promise((resolve, reject) => {
-    const child = spawn(harness, ['--model', UPGRADE_MODELS[harness], prompt], {
-      cwd: directory,
-      stdio: 'inherit',
-    })
+    const child = spawn(
+      harness.path,
+      ['--model', UPGRADE_MODELS[harness.name], prompt],
+      { cwd: directory, stdio: 'inherit' }
+    )
     const onInterrupt = () => child.kill('SIGINT')
     const onTerminate = () => child.kill('SIGTERM')
     process.on('SIGINT', onInterrupt)
@@ -190,30 +164,29 @@ export async function handoffUpgrade(
   prompt: string,
   directory: string
 ): Promise<void> {
-  const active = await getAgentName()
-  const choice = selectHarness(
-    active,
-    active ? [] : await findHarnesses(),
-    Boolean(process.stdin.isTTY && process.stdout.isTTY)
-  )
-
-  // When an agent invoked the CLI, return instructions to that session instead
-  // of starting another agent with separate permissions and conversation state.
-  if (choice.kind === 'handoff') {
-    console.log(prompt)
+  // Existing agents keep their session, model and permissions.
+  if (await getAgentName()) {
+    Log.bootstrap(prompt)
     return
   }
 
-  if (choice.kind === 'fallback') {
-    console.log(choice.reason)
+  if (!process.stdin.isTTY || !process.stdout.isTTY) {
+    Log.error('Interactive agent launch is unavailable without a terminal.')
+    Log.bootstrap(prompt)
+    return
+  }
 
+  Log.info('Looking for installed coding agents…')
+  const installed = await findHarnesses()
+
+  if (installed.length === 0) {
+    Log.info('No supported agent found. Paste the prompt into your coding agent.')
     copyUpgradePrompt(prompt)
-
     return
   }
 
   // Let the selected agent take over the terminal with its existing permissions.
-  const harness = await chooseHarness(choice.harnesses)
+  const harness = await chooseHarness(installed)
 
   if (harness === 'copy') {
     copyUpgradePrompt(prompt)
@@ -221,13 +194,23 @@ export async function handoffUpgrade(
   }
 
   if (!harness) {
-    console.log(`  ${dim('Upgrade cancelled.')}\n`)
+    Log.bootstrap(`  ${dim('Upgrade cancelled.')}\n`)
     process.exitCode = 1
     return
   }
 
-  console.log(
-    `  Opening ${cyan(bold(harness === 'codex' ? 'Codex' : 'Claude Code'))}…\n`
+  Log.bootstrap(
+    `  Continuing with ${cyan(bold(harness.name === 'codex' ? 'Codex' : 'Claude Code'))}…\n`
   )
-  process.exitCode = await launchHarness(harness, prompt, directory)
+  try {
+    process.exitCode = await launchHarness(harness, prompt, directory)
+  } catch (error) {
+    Log.error(
+      `Could not launch ${harness.name}:`,
+      error instanceof Error ? error.message : error
+    )
+    // Keep the prepared task usable if the detected executable cannot start.
+    copyUpgradePrompt(prompt)
+    process.exitCode = 1
+  }
 }
