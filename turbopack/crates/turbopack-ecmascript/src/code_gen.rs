@@ -260,23 +260,10 @@ impl CodeGen {
 ///
 /// The trie is shared by every code generation here, so it is stored once alongside them
 /// rather than being cloned into each one.
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub struct CodeGens {
     pub code_gens: Vec<CodeGen>,
     pub ast_paths: AstPathTrie,
-}
-
-impl CodeGens {
-    pub fn new(code_gens: Vec<CodeGen>, ast_paths: AstPathTrie) -> Self {
-        CodeGens {
-            code_gens,
-            ast_paths,
-        }
-    }
-
-    pub fn into_cell(self) -> Vc<Self> {
-        self.cell()
-    }
 }
 
 #[turbo_tasks::value_impl]

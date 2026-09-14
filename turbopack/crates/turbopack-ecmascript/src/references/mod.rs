@@ -286,9 +286,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     /// Takes `&self` so it composes with the `add_*` methods, which take `&mut self`: the
     /// common shape is `analysis.add_code_gen(X::new(analysis.intern_path(..)))`.
     pub fn intern_path(&self, path: &[AstParentKind]) -> AstPathId {
-        self.ast_paths
-            .borrow_mut()
-            .intern(path.iter().copied())
+        self.ast_paths.borrow_mut().intern(path.iter().copied())
     }
 
     /// Adds an asset reference to the analysis result.
@@ -492,13 +490,15 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 esm_reexport_references: ResolvedVc::cell(
                     esm_reexport_references.unwrap_or_default(),
                 ),
-                code_generation: CodeGens::new(
-                    code_generation,
-                    self.ast_paths.into_inner().build(),
-                )
-                .into_cell()
-                .to_resolved()
-                .await?,
+                code_generation: if code_generation.is_empty() {
+                    CodeGens::empty().to_resolved().await?
+                } else {
+                    CodeGens {
+                        code_gens: code_generation,
+                        ast_paths: self.ast_paths.into_inner().build(),
+                    }
+                    .resolved_cell()
+                },
                 async_module: self.async_module,
                 successful: self.successful,
                 source_map: self.source_map,
