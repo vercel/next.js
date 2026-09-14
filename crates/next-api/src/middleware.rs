@@ -85,8 +85,8 @@ impl MiddlewareEndpoint {
             )
             .module();
 
-        let userland_path = userland_module.ident().path().await?;
-        let is_proxy = convention_file_base_name(userland_path.file_name()) == "proxy";
+        let is_proxy =
+            convention_file_base_name(userland_module.ident().await?.path.file_name()) == "proxy";
 
         let module = get_middleware_module(
             *self.asset_context,
