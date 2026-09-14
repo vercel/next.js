@@ -140,7 +140,7 @@ async function exportPageImpl(
   let updatedPath = exportPath._ssgPath || path
   let locale = exportPath._locale || commonRenderOpts.locale
 
-  if (commonRenderOpts.locale) {
+  if (!isAppDir && commonRenderOpts.locale) {
     const localePathResult = normalizeLocalePath(path, commonRenderOpts.locales)
 
     if (localePathResult.detectedLocale) {
@@ -154,10 +154,10 @@ async function exportPageImpl(
   const hasOrigQueryValues = Object.keys(originalQuery).length > 0
 
   // Check if the page is a specified dynamic route
-  const { pathname: nonLocalizedPath } = normalizeLocalePath(
-    path,
-    commonRenderOpts.locales
-  )
+  const { pathname: nonLocalizedPath } =
+    !isAppDir && commonRenderOpts.locales
+      ? normalizeLocalePath(path, commonRenderOpts.locales)
+      : { pathname: path }
 
   let params: Params | undefined
 
