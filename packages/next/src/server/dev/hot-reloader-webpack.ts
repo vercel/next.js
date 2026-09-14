@@ -52,6 +52,8 @@ import {
   EntryTypes,
   getInvalidator,
   onDemandEntryHandler,
+  getActiveEntryBundlePaths,
+  childEntryHasActiveParent,
 } from './on-demand-entry-handler'
 import { denormalizePagePath } from '../../shared/lib/page-path/denormalize-page-path'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
@@ -911,6 +913,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         const entries = getEntries(outputPath)
         // @ts-ignore entry is always a function
         const entrypoints = await defaultEntry(...args)
+        // Computed after the awaited entry resolution: a child entry whose
+        // parent was revived may still carry a stale disposal flag, so
+        // deletion must consult live parent state rather than the flag alone.
+        const activeEntryBundlePaths = getActiveEntryBundlePaths(entries)
         const isClientCompilation = config.name === COMPILER_NAMES.client
         const isNodeServerCompilation = config.name === COMPILER_NAMES.server
         const isEdgeServerCompilation =
@@ -949,8 +955,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             // For child entries, if it has an entry file and it's gone, remove it
             if (isChildEntry) {
               if (entryData.absoluteEntryFilePath) {
+                // A child entry scheduled for disposal is only removed when
+                // none of its parents is active anymore. A parent revived
+                // after the disposal pass must not lose its child entry.
+                const hasActiveParent = childEntryHasActiveParent(
+                  entryData,
+                  activeEntryBundlePaths
+                )
                 const pageExists =
-                  !dispose && existsSync(entryData.absoluteEntryFilePath)
+                  (!dispose || hasActiveParent) &&
+                  existsSync(entryData.absoluteEntryFilePath)
                 if (!pageExists) {
                   delete entries[entryKey]
                   return
