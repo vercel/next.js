@@ -1,18 +1,21 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use swc_core::{
-    common::DUMMY_SP,
+    common::{DUMMY_SP, SyntaxContext, source_map::PURE_SP},
     ecma::{
-        ast::{Expr, Ident, KeyValueProp, Prop, PropName, SimpleAssignTarget},
+        ast::{
+            ComputedPropName, Decl, Expr, Ident, KeyValuePatProp, KeyValueProp, Lit, MemberExpr,
+            MemberProp, ObjectPat, ObjectPatProp, Pat, Prop, PropName, SimpleAssignTarget, Stmt,
+            Str, VarDecl, VarDeclKind, VarDeclarator,
+        },
         visit::{
             AstParentKind,
             fields::{CalleeField, PropField, TaggedTplField},
         },
     },
-    quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, ResolvedVc, Vc, trace::TraceRawVcs};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use turbopack_core::chunk::ChunkingContext;
 
@@ -100,20 +103,20 @@ impl EsmBinding {
         }
 
         let mut visitors = vec![];
-        let mut hoisted_stmts = vec![];
+        let mut captures = vec![];
         let imported_module = self.reference.get_referenced_asset().await?;
         self.generate(
             chunking_context,
             scope_hoisting_context,
             &imported_module,
             &mut visitors,
-            &mut hoisted_stmts,
+            &mut captures,
         )
         .await?;
 
         Ok(CodeGeneration::new(
             visitors,
-            hoisted_stmts,
+            value_binding_stmts(captures, supports_destructuring(chunking_context).await?),
             vec![],
             vec![],
             vec![],
@@ -127,7 +130,7 @@ impl EsmBinding {
         scope_hoisting_context: ScopeHoistingContext<'_>,
         imported_module: &ReferencedAsset,
         visitors: &mut Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
-        hoisted_stmts: &mut Vec<CodeGenerationHoistedStmt>,
+        captures: &mut Vec<ValueBindingCapture>,
     ) -> Result<()> {
         let export = self.export.clone();
 
@@ -183,18 +186,12 @@ impl EsmBinding {
                             // the module whose syntax context the namespace accessor carries.
                             Default::default(),
                         );
-                        let value = imported_ident
-                            .as_expr_individual(DUMMY_SP)
-                            .map_either(Expr::from, Expr::from)
-                            .into_inner();
-                        hoisted_stmts.push(CodeGenerationHoistedStmt::new(
-                            format!("value binding {} {:?}", binding_ident.sym, ctxt).into(),
-                            quote!(
-                                "var $binding = $value;" as Stmt,
-                                binding = binding_ident.clone(),
-                                value: Expr = value,
-                            ),
-                        ));
+                        captures.push(ValueBindingCapture {
+                            namespace_ident: namespace_ident.as_str().into(),
+                            ctxt: *ctxt,
+                            export: export.clone(),
+                            binding: binding_ident.clone(),
+                        });
                         Some(binding_ident)
                     } else {
                         None
@@ -356,7 +353,7 @@ impl EsmBindings {
         }
 
         let mut visitors = vec![];
-        let mut hoisted_stmts = vec![];
+        let mut captures = vec![];
         // Resolved once for the whole group rather than once per use site.
         let imported_module = self.reference.get_referenced_asset().await?;
 
@@ -367,14 +364,14 @@ impl EsmBindings {
                     scope_hoisting_context,
                     &imported_module,
                     &mut visitors,
-                    &mut hoisted_stmts,
+                    &mut captures,
                 )
                 .await?;
         }
 
         Ok(CodeGeneration::new(
             visitors,
-            hoisted_stmts,
+            value_binding_stmts(captures, supports_destructuring(chunking_context).await?),
             vec![],
             vec![],
             vec![],
@@ -386,6 +383,137 @@ impl From<EsmBindings> for CodeGen {
     fn from(val: EsmBindings) -> Self {
         CodeGen::EsmBindings(val)
     }
+}
+
+/// Hoist-key prefix for the declarations that capture imported bindings. All declarations reading
+/// one namespace share a key so they can be merged into a single declaration.
+pub const VALUE_BINDINGS_KEY_PREFIX: &str = "value bindings ";
+
+/// The bindings captured from one namespace, as `(export name, local binding)` pairs.
+type NamespaceBindings = Vec<(RcStr, Ident)>;
+
+/// A named export captured into a local value binding by one or more use sites.
+struct ValueBindingCapture {
+    namespace_ident: RcStr,
+    ctxt: Option<SyntaxContext>,
+    export: RcStr,
+    binding: Ident,
+}
+
+async fn supports_destructuring(chunking_context: Vc<Box<dyn ChunkingContext>>) -> Result<bool> {
+    Ok(*chunking_context
+        .environment()
+        .runtime_versions()
+        .supports_destructuring()
+        .await?)
+}
+
+/// Builds the hoisted declarations for the value bindings captured from one import.
+///
+/// All captures that read the same namespace share a single declaration, so an import whose
+/// bindings are each used once costs one declaration rather than one per binding.
+fn value_binding_stmts(
+    captures: Vec<ValueBindingCapture>,
+    supports_destructuring: bool,
+) -> Vec<CodeGenerationHoistedStmt> {
+    let mut buckets: FxIndexMap<(RcStr, Option<SyntaxContext>), NamespaceBindings> =
+        FxIndexMap::default();
+    for capture in captures {
+        let members = buckets
+            .entry((capture.namespace_ident, capture.ctxt))
+            .or_default();
+        // Several use sites of one binding capture it under the same name; declare it once.
+        if !members
+            .iter()
+            .any(|(_, binding)| binding.sym == capture.binding.sym)
+        {
+            members.push((capture.export, capture.binding));
+        }
+    }
+
+    buckets
+        .into_iter()
+        .map(|((namespace_ident, ctxt), members)| {
+            let namespace = Ident::new(
+                namespace_ident.as_str().into(),
+                DUMMY_SP,
+                ctxt.unwrap_or_default(),
+            );
+            // A single binding is smaller and faster read directly; destructuring only pays off
+            // once several bindings share the declaration.
+            let decl = if supports_destructuring && members.len() > 1 {
+                // Keys are written as strings because mangled export names are not always valid
+                // identifiers.
+                VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    declare: false,
+                    ctxt: Default::default(),
+                    decls: vec![VarDeclarator {
+                        span: DUMMY_SP,
+                        name: Pat::Object(ObjectPat {
+                            span: DUMMY_SP,
+                            optional: false,
+                            type_ann: None,
+                            props: members
+                                .into_iter()
+                                .map(|(export, binding)| {
+                                    ObjectPatProp::KeyValue(KeyValuePatProp {
+                                        key: PropName::Str(Str {
+                                            span: DUMMY_SP,
+                                            value: export.as_str().into(),
+                                            raw: None,
+                                        }),
+                                        value: Box::new(Pat::Ident(binding.into())),
+                                    })
+                                })
+                                .collect(),
+                        }),
+                        init: Some(Box::new(Expr::Ident(namespace))),
+                        definite: false,
+                    }],
+                }
+            } else {
+                VarDecl {
+                    span: DUMMY_SP,
+                    kind: VarDeclKind::Var,
+                    declare: false,
+                    ctxt: Default::default(),
+                    decls: members
+                        .into_iter()
+                        .map(|(export, binding)| VarDeclarator {
+                            span: DUMMY_SP,
+                            name: Pat::Ident(binding.into()),
+                            init: Some(Box::new(Expr::Member(MemberExpr {
+                                // Marked pure so the declaration can be dropped when the binding
+                                // is unused.
+                                span: PURE_SP,
+                                obj: Box::new(Expr::Ident(namespace.clone())),
+                                prop: MemberProp::Computed(ComputedPropName {
+                                    span: DUMMY_SP,
+                                    expr: Box::new(Expr::Lit(Lit::Str(Str {
+                                        span: DUMMY_SP,
+                                        value: export.as_str().into(),
+                                        raw: None,
+                                    }))),
+                                }),
+                            }))),
+                            definite: false,
+                        })
+                        .collect(),
+                }
+            };
+
+            // Every declaration reading this namespace shares one key so they merge into a
+            // single statement, including those from sibling groups: one source import can be
+            // split into a separate reference per named export. The key deliberately does not
+            // depend on the members, so the merge is by namespace rather than by group.
+            CodeGenerationHoistedStmt::new(
+                format!("{VALUE_BINDINGS_KEY_PREFIX}{namespace_ident} {ctxt:?}").into(),
+                Stmt::Decl(Decl::Var(Box::new(decl))),
+            )
+        })
+        .collect()
 }
 
 fn is_assignment_target(ast_path: &AstPath) -> bool {

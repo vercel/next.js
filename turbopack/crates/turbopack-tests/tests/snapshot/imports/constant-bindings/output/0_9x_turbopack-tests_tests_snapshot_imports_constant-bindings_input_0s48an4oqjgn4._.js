@@ -3,10 +3,7 @@
 "use strict";
 
 var __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__ = __turbopack_context__.i("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/constant-bindings/input/reexport.js [test] (ecmascript)");
-var constant = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["v"];
-var aliasedConstant = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["v"];
-var constantDefault = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["U"];
-var setLive = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["W"];
+var { "v": constant, "v": aliasedConstant } = __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__, constantDefault = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["U"], setLive = /*#__PURE__*/ __TURBOPACK__imported__module__$5b$project$5d2f$turbopack$2f$crates$2f$turbopack$2d$tests$2f$tests$2f$snapshot$2f$imports$2f$constant$2d$bindings$2f$input$2f$reexport$2e$js__$5b$test$5d$__$28$ecmascript$29$__["W"];
 ;
 console.log(constant, constant, aliasedConstant, {
     constant: constant

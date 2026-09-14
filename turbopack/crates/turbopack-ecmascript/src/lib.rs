@@ -71,8 +71,8 @@ use swc_core::{
     },
     ecma::{
         ast::{
-            self, CallExpr, Callee, Decl, EmptyStmt, Expr, ExprStmt, Id, Ident, ModuleItem,
-            Program, Script, SourceMapperExt, Stmt,
+            self, CallExpr, Callee, Decl, EmptyStmt, Expr, ExprStmt, Id, Ident, ModuleItem, Pat,
+            Program, Script, SourceMapperExt, Stmt, VarDeclarator,
         },
         codegen::{Emitter, text_writer::JsWriter},
         utils::StmtLikeInjector,
@@ -121,7 +121,10 @@ use crate::{
     references::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
-        esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
+        esm::{
+            UrlRewriteBehavior, base::EsmAssetReferences, binding::VALUE_BINDINGS_KEY_PREFIX,
+            export,
+        },
         exports::compute_ecmascript_module_exports,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
@@ -2370,6 +2373,63 @@ async fn emit_content(
 
 /// Applies the code generations, returning the number of early hoisted statements it prepended.
 #[instrument(level = Level::TRACE, skip_all, name = "apply code generation")]
+/// Merges `incoming` into `existing` when both are `var` declarations, so declarations that share
+/// a hoist key accumulate their declarators rather than the later ones being dropped.
+///
+/// Declarators that destructure the same initializer are combined into one pattern, so several
+/// bindings read from one namespace become `var { a: x, b: y } = ns` rather than a chain of
+/// separate destructurings.
+///
+/// Returns whether the merge happened.
+fn merge_var_decls(existing: &mut Stmt, incoming: &Stmt) -> bool {
+    let (Stmt::Decl(Decl::Var(existing)), Stmt::Decl(Decl::Var(incoming))) = (existing, incoming)
+    else {
+        return false;
+    };
+    if existing.kind != incoming.kind {
+        return false;
+    }
+
+    for incoming_decl in incoming.decls.iter().cloned() {
+        // Find an existing object pattern initialized from the same identifier and fold the new
+        // properties into it.
+        let merged = match (&incoming_decl.name, init_ident(&incoming_decl)) {
+            (Pat::Object(incoming_pat), Some(incoming_init)) => existing
+                .decls
+                .iter_mut()
+                .find(|decl| {
+                    matches!(decl.name, Pat::Object(_))
+                        && init_ident(decl).is_some_and(|existing_init| {
+                            existing_init.sym == incoming_init.sym
+                                && existing_init.ctxt == incoming_init.ctxt
+                        })
+                })
+                .map(|decl| {
+                    let Pat::Object(existing_pat) = &mut decl.name else {
+                        unreachable!("filtered to object patterns above")
+                    };
+                    existing_pat
+                        .props
+                        .extend(incoming_pat.props.iter().cloned());
+                })
+                .is_some(),
+            _ => false,
+        };
+        if !merged {
+            existing.decls.push(incoming_decl);
+        }
+    }
+    true
+}
+
+/// The identifier a declarator is initialized from, if it is initialized from a bare identifier.
+fn init_ident(decl: &VarDeclarator) -> Option<&Ident> {
+    match decl.init.as_deref() {
+        Some(Expr::Ident(ident)) => Some(ident),
+        _ => None,
+    }
+}
+
 fn process_content_with_code_gens(
     program: &mut Program,
     globals: &Globals,
@@ -2383,7 +2443,20 @@ fn process_content_with_code_gens(
     let mut late_stmts = FxIndexMap::default();
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
-            hoisted_stmts.entry(key).or_insert(stmt);
+            match hoisted_stmts.entry(key) {
+                indexmap::map::Entry::Vacant(entry) => {
+                    entry.insert(stmt);
+                }
+                indexmap::map::Entry::Occupied(mut entry) => {
+                    // A single source import can be split into one reference per named export, so
+                    // several code gens contribute declarations that read the same namespace.
+                    // Those are merged into one declaration; everything else keeps the first
+                    // statement, as duplicate keys are how identical statements are deduplicated.
+                    if entry.key().starts_with(VALUE_BINDINGS_KEY_PREFIX) {
+                        merge_var_decls(entry.get_mut(), &stmt);
+                    }
+                }
+            }
         }
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
             early_hoisted_stmts.insert(key.clone(), stmt);
