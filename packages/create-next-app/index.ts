@@ -822,6 +822,7 @@ async function notifyUpdate(): Promise<void> {
         yarn: 'yarn global add',
         pnpm: 'pnpm add -g',
         bun: 'bun add -g',
+        nub: 'nub add -g',
       }
       const distTag = getDistTag(packageJson.version)
       const pkgTag = distTag === 'latest' ? '' : `@${distTag}`
