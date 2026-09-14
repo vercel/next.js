@@ -2,7 +2,7 @@ import { symlink } from 'fs/promises'
 import { join } from 'path'
 import execa from 'execa'
 import type { ChildProcess } from 'child_process'
-import { nextTestSetup } from 'e2e-utils'
+import { isNextDeploy, nextTestSetup } from 'e2e-utils'
 import {
   fetchViaHTTP,
   findPort,
@@ -12,7 +12,12 @@ import {
   retry,
 } from 'next-test-utils'
 
-describe('turbopack module federation between Next.js apps', () => {
+const isTurbopack = !process.env.IS_WEBPACK_TEST && !process.env.NEXT_RSPACK
+// This test launches a second local Next.js server, which deployed fixtures cannot reach.
+const describeTurbopack =
+  isTurbopack && !isNextDeploy ? describe : describe.skip
+
+describeTurbopack('turbopack module federation between Next.js apps', () => {
   const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
