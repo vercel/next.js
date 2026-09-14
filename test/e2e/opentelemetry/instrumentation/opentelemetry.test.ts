@@ -137,6 +137,16 @@ describe.each(
     await expectAppRouteTrace('/api/app/param/data')
   })
 
+  it('closes collector connections after each export', async () => {
+    const response = await fetch(`http://localhost:${COLLECTOR_PORT}`, {
+      method: 'POST',
+      body: '[]',
+    })
+
+    expect(response.status).toBe(202)
+    expect(response.headers.get('connection')).toBe('close')
+  })
+
   // Edge runtime is currently not implemented in custom-entrypoint-server.ts
   const itEdge = useDirectEntrypointHandler ? it.skip : it
 
