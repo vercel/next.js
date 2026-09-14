@@ -247,11 +247,6 @@ impl Module for EcmascriptClientReferenceModule {
     }
 
     #[turbo_tasks::function]
-    fn is_export_usage_passthrough(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(true)
-    }
-
-    #[turbo_tasks::function]
     fn side_effects(self: Vc<Self>) -> Vc<ModuleSideEffects> {
         // These just re-export some specially tagged functions. The module itself doesn't have any
         // side effects, and the functions it re-exports will be marked as having side effects on

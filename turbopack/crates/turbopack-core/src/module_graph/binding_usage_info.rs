@@ -2,6 +2,7 @@ use std::collections::hash_map::Entry;
 
 use anyhow::{Context, Result, bail};
 use auto_hash_map::AutoSet;
+use petgraph::Direction;
 use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -265,22 +266,54 @@ pub async fn compute_binding_usage_info(
                     }
                 }
 
-                if matches!(
-                    &ref_data.binding_usage.export,
-                    ExportUsage::Passthrough {
-                        namespace_object_may_escape: true
+                // A passthrough reference forwards the exports that are used from the referencing
+                // module itself, so resolve them from its incoming references. The referencing
+                // module may be a chunk group entry (seeded with `All`), which would otherwise
+                // discard the precise usage the proxy exists to carry.
+                let passthrough_usage = if let ExportUsage::Passthrough {
+                    namespace_object_may_escape,
+                } = &ref_data.binding_usage.export
+                {
+                    if *namespace_object_may_escape {
+                        // The forwarded names may still be read off a namespace object, so the
+                        // target has to keep its original export names.
+                        partial_namespace_modules.insert(target);
                     }
-                ) {
-                    partial_namespace_modules.insert(target);
-                }
-                let parent_usage = used_exports
-                    .get(&parent)
-                    .context("parent module must have usage info")?;
-                let passthrough_usage = resolve_passthrough_usage(
-                    &ref_data.binding_usage.export,
-                    ref_data.target_export_usage_passthrough,
-                    parent_usage,
-                );
+
+                    let parent_node = graph_ref.get_entry(parent)?;
+                    let mut usage = ModuleExportUsageInfo::Evaluation;
+                    let mut has_incoming_module = false;
+                    for (_, source) in
+                        graph_ref.iter_graphs_neighbors_rev(parent_node, Direction::Incoming, false)
+                    {
+                        has_incoming_module = true;
+                        let source = graph_ref.get_node(source)?.module();
+                        // An unvisited source, or one that is only evaluated, tells us nothing
+                        // about which exports are read, so stay conservative.
+                        let Some(source_usage) = used_exports.get(&source) else {
+                            usage = ModuleExportUsageInfo::All;
+                            break;
+                        };
+                        if matches!(source_usage, ModuleExportUsageInfo::Evaluation) {
+                            usage = ModuleExportUsageInfo::All;
+                            break;
+                        }
+                        usage.add_usage_info(source_usage);
+                        if matches!(usage, ModuleExportUsageInfo::All) {
+                            break;
+                        }
+                    }
+
+                    // Without an incoming reference the referencing module is reached some other
+                    // way (e.g. as an entry), so all of its exports have to be assumed used.
+                    Some(if has_incoming_module {
+                        usage
+                    } else {
+                        ModuleExportUsageInfo::All
+                    })
+                } else {
+                    None
+                };
 
                 let entry = used_exports.entry(target);
                 let is_first_visit = matches!(entry, Entry::Vacant(_));
@@ -395,21 +428,6 @@ pub async fn compute_binding_usage_info(
     .await
 }
 
-fn resolve_passthrough_usage(
-    export_usage: &ExportUsage,
-    target_is_passthrough: bool,
-    parent_usage: &ModuleExportUsageInfo,
-) -> Option<ModuleExportUsageInfo> {
-    let should_passthrough = matches!(export_usage, ExportUsage::Passthrough { .. })
-        || target_is_passthrough && matches!(export_usage, ExportUsage::All);
-    should_passthrough.then(|| match parent_usage {
-        // Evaluation means the proxy is executed without a statically known export read. Preserve
-        // the previous conservative behavior instead of dropping potentially observed exports.
-        ModuleExportUsageInfo::Evaluation => ModuleExportUsageInfo::All,
-        usage => usage.clone(),
-    })
-}
-
 #[turbo_tasks::value]
 #[derive(Default, Clone, Debug)]
 pub enum ModuleExportUsageInfo {
@@ -502,58 +520,17 @@ impl ModuleExportUsageInfo {
 mod tests {
     use turbo_rcstr::rcstr;
 
-    use super::{ModuleExportUsageInfo, resolve_passthrough_usage};
+    use super::ModuleExportUsageInfo;
     use crate::resolve::ExportUsage;
 
     #[test]
-    fn transparent_target_forwards_parent_exports() {
-        let parent_usage = ModuleExportUsageInfo::Exports([rcstr!("used")].into_iter().collect());
+    fn resolved_usage_merges_exports() {
+        let mut usage = ModuleExportUsageInfo::Exports([rcstr!("first")].into_iter().collect());
+        let additional = ModuleExportUsageInfo::Exports([rcstr!("second")].into_iter().collect());
 
-        let result = resolve_passthrough_usage(&ExportUsage::All, true, &parent_usage)
-            .expect("transparent target should forward usage");
-
-        assert!(result.is_export_used(&rcstr!("used")));
-        assert!(!result.is_export_used(&rcstr!("unused")));
-    }
-
-    #[test]
-    fn ordinary_all_usage_is_not_forwarded() {
-        assert!(
-            resolve_passthrough_usage(
-                &ExportUsage::All,
-                false,
-                &ModuleExportUsageInfo::Evaluation,
-            )
-            .is_none()
-        );
-    }
-
-    #[test]
-    fn explicit_passthrough_forwards_all_parent_usage() {
-        let result = resolve_passthrough_usage(
-            &ExportUsage::Passthrough {
-                namespace_object_may_escape: true,
-            },
-            false,
-            &ModuleExportUsageInfo::All,
-        )
-        .expect("explicit passthrough should forward usage");
-
-        assert!(matches!(result, ModuleExportUsageInfo::All));
-    }
-
-    #[test]
-    fn evaluation_passthrough_is_conservatively_all() {
-        let result = resolve_passthrough_usage(
-            &ExportUsage::Passthrough {
-                namespace_object_may_escape: false,
-            },
-            false,
-            &ModuleExportUsageInfo::Evaluation,
-        )
-        .expect("explicit passthrough should forward usage");
-
-        assert!(matches!(result, ModuleExportUsageInfo::All));
+        assert!(usage.add_usage_info(&additional));
+        assert!(usage.is_export_used(&rcstr!("first")));
+        assert!(usage.is_export_used(&rcstr!("second")));
     }
 
     #[test]

@@ -331,7 +331,6 @@ pub struct RefData {
     pub chunking_type: ChunkingType,
     pub binding_usage: BindingUsage,
     pub reference: ResolvedVc<Box<dyn ModuleReference>>,
-    pub target_export_usage_passthrough: bool,
 }
 
 impl SingleModuleGraph {
@@ -1889,8 +1888,6 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                     ) || is_traced
                 })
                 .map(async |(reference, ty, binding_usage, target)| {
-                    let target_export_usage_passthrough =
-                        *target.is_export_usage_passthrough().await?;
                     let to = if let Some(idx) = visited_modules.get(&target) {
                         SingleModuleGraphBuilderNode::new_visited_module(target, *idx)
                     } else {
@@ -1907,7 +1904,6 @@ impl Visit<SingleModuleGraphBuilderNode, RefData> for SingleModuleGraphBuilder<'
                             chunking_type: ty,
                             binding_usage,
                             reference,
-                            target_export_usage_passthrough,
                         },
                     ))
                 })
