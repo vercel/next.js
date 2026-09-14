@@ -1,13 +1,6 @@
 use quote::ToTokens;
 use syn::{GenericArgument, Ident, Path, PathArguments, Type, TypeParamBound, spanned::Spanned};
 
-pub fn get_cast_to_fat_pointer_ident(trait_ident: &Ident, struct_ident: &Ident) -> Ident {
-    Ident::new(
-        &format!("_cast_to_fat_pointer_{struct_ident}_{trait_ident}"),
-        trait_ident.span(),
-    )
-}
-
 pub fn get_native_function_ident(ident: &Ident) -> Ident {
     Ident::new(
         &format!("{}_FUNCTION", ident.to_string().to_uppercase()),
@@ -20,6 +13,12 @@ pub fn get_trait_type_ident(ident: &Ident) -> Ident {
         &format!("{}_TRAIT_TYPE", ident.to_string().to_uppercase()),
         ident.span(),
     )
+}
+
+/// Name of the per-trait `VTableRegistry` static, populated during `register_all_trait_methods`
+/// from the link-time `TRAIT_IMPLS_SLICE`.
+pub fn get_trait_vtable_registry_ident(ident: &Ident) -> Ident {
+    Ident::new(&format!("__TurboTasksVTableRegistry_{ident}"), ident.span())
 }
 
 pub fn get_inherent_impl_function_ident(ty_ident: &Ident, fn_ident: &Ident) -> Ident {

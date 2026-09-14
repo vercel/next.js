@@ -31,10 +31,10 @@ pub struct ClientReferenceData(FxHashMap<ResolvedVc<Box<dyn Module>>, ClientMani
 pub async fn map_client_references(
     graph: ResolvedVc<ModuleGraphLayer>,
 ) -> Result<Vc<ClientReferenceData>> {
-    let graph = graph.await?;
     let manifest = graph
-        .iter_nodes()
-        .map(|module| async move {
+        .await?
+        .iter_reachable_modules()?
+        .map(async |module| {
             if let Some(client_reference_module) =
                 ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
             {

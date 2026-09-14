@@ -12,6 +12,9 @@ describe('non-root-project-monorepo', () => {
     files: {
       apps: new FileRef(path.resolve(__dirname, 'apps')),
       packages: new FileRef(path.resolve(__dirname, 'packages')),
+      // Deliberately shadows apps/web/content, to pin down which one a
+      // `/`-rooted import resolves from.
+      content: new FileRef(path.resolve(__dirname, 'content')),
       'pnpm-workspace.yaml': `packages:
       - 'apps/*'
       - 'packages/*'
@@ -27,6 +30,15 @@ describe('non-root-project-monorepo', () => {
   if (skipped) {
     return
   }
+
+  describe('server relative import', () => {
+    it('should resolve a `/`-rooted import from the project directory, not the workspace root', async () => {
+      // `/content/where` exists both in apps/web (the project directory) and at
+      // the workspace root, so the value says which root was used.
+      const $ = await next.render$('/server-relative-import')
+      expect($('#where').text()).toBe('FROM-PROJECT-DIR')
+    })
+  })
 
   describe('monorepo-package', () => {
     it('should work during RSC', async () => {
@@ -77,6 +89,40 @@ describe('non-root-project-monorepo', () => {
         )
       }
       await browser.close()
+    })
+
+    // Verifies that non-URL-safe characters in file paths (here: a literal
+    // space) are correctly percent-encoded in the resulting `file://` URI.
+    describe('non-url-safe characters', () => {
+      it('should encode special chars during RSC', async () => {
+        const $ = await next.render$('/import-meta-url-encoded-rsc')
+        expect($('p').text()).toMatch(
+          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-rsc\/with%20space.ts$/
+        )
+      })
+
+      it('should encode special chars during SSR', async () => {
+        const $ = await next.render$('/import-meta-url-encoded-ssr')
+        expect($('p').text()).toMatch(
+          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-ssr\/with%20space.ts$/
+        )
+      })
+
+      it('should encode special chars on client-side', async () => {
+        const browser = await next.browser('/import-meta-url-encoded-ssr')
+        await waitForNoRedbox(browser)
+        if (isTurbopack) {
+          // Turbopack intentionally doesn't expose the full path to the browser bundles
+          expect(await browser.elementByCss('p').text()).toBe(
+            'file:///ROOT/apps/web/app/import-meta-url-encoded-ssr/with%20space.ts'
+          )
+        } else {
+          expect(await browser.elementByCss('p').text()).toMatch(
+            /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-encoded-ssr\/with%20space.ts$/
+          )
+        }
+        await browser.close()
+      })
     })
   })
 

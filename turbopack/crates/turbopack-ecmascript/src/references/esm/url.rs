@@ -5,11 +5,10 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{
-    NonLocalValue, ResolvedVc, TaskInput, ValueToString, Vc, debug::ValueDebugFormat,
-    trace::TraceRawVcs,
+    NonLocalValue, ResolvedVc, ValueToString, Vc, debug::ValueDebugFormat, trace::TraceRawVcs,
 };
 use turbopack_core::{
-    chunk::{ChunkingContext, ChunkingType, ChunkingTypeOption, ModuleChunkItemIdExt},
+    chunk::{ChunkingContext, ChunkingType, ModuleChunkItemIdExt},
     environment::Rendering,
     issue::IssueSource,
     reference::ModuleReference,
@@ -33,9 +32,8 @@ use crate::{
 /// Determines how to treat `new URL(...)` rewrites.
 /// This allows to construct url depends on the different building context,
 /// e.g. SSR, CSR, or Node.js.
-#[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, TaskInput, NonLocalValue, Encode, Decode,
-)]
+#[turbo_tasks::task_input]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum UrlRewriteBehavior {
     /// Omits base, resulting in a relative URL.
     Relative,
@@ -81,7 +79,9 @@ impl UrlAssetReference {
         }
     }
 
-    pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
+    pub(crate) fn get_referenced_asset(
+        self: Vc<Self>,
+    ) -> impl Future<Output = Result<ReferencedAsset>> {
         ReferencedAsset::from_resolve_result(self.resolve_reference())
     }
 }
@@ -99,16 +99,23 @@ impl ModuleReference for UrlAssetReference {
         )
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        Some(self.issue_source)
     }
 }
 
 impl IntoCodeGenReference for UrlAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         path: AstPath,
@@ -165,7 +172,7 @@ impl UrlAssetReferenceCodeGen {
                 // pseudo url object `__turbopack_relative_url__`
                 // which is injected by turbopack's runtime to resolve into the relative path
                 // omitting the base.
-                match &*referenced_asset {
+                match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the chunk
                         // item, which exports the static asset path to the linked file.
@@ -213,7 +220,9 @@ impl UrlAssetReferenceCodeGen {
                             request
                         )
                     }
-                    ReferencedAsset::None | ReferencedAsset::Unresolvable => {}
+                    ReferencedAsset::NonPlaceable(_)
+                    | ReferencedAsset::None
+                    | ReferencedAsset::Unresolvable => {}
                 }
             }
             UrlRewriteBehavior::Full => {
@@ -230,7 +239,7 @@ impl UrlAssetReferenceCodeGen {
                     Rendering::None | Rendering::Server => None,
                 };
 
-                match &*referenced_asset {
+                match &referenced_asset {
                     ReferencedAsset::Some(asset) => {
                         // We rewrite the first `new URL()` arguments to be a require() of the
                         // chunk item, which returns the asset path as its exports.
@@ -266,21 +275,17 @@ impl UrlAssetReferenceCodeGen {
                                     args: Some(args), ..
                                 }) = new_expr
                                 {
-                                    if let Some(ExprOrSpread {
-                                        box expr,
-                                        spread: None,
-                                    }) = args.get_mut(0)
+                                    if let Some(ExprOrSpread { expr, spread: None }) =
+                                        args.get_mut(0)
                                     {
-                                        *expr = url_segment_resolver.clone();
+                                        **expr = url_segment_resolver.clone();
                                     }
 
-                                    if let Some(ExprOrSpread {
-                                        box expr,
-                                        spread: None,
-                                    }) = args.get_mut(1)
+                                    if let Some(ExprOrSpread { expr, spread: None }) =
+                                        args.get_mut(1)
                                     {
                                         if let Some(rewrite) = &rewrite_url_base {
-                                            *expr = rewrite.clone();
+                                            **expr = rewrite.clone();
                                         } else {
                                             // If rewrite for the base doesn't exists, means
                                             // __turbopack_resolve_module_id_path__
@@ -303,21 +308,17 @@ impl UrlAssetReferenceCodeGen {
                                     args: Some(args), ..
                                 }) = new_expr
                                 {
-                                    if let Some(ExprOrSpread {
-                                        box expr,
-                                        spread: None,
-                                    }) = args.get_mut(0)
+                                    if let Some(ExprOrSpread { expr, spread: None }) =
+                                        args.get_mut(0)
                                     {
                                         *expr = request.as_str().into()
                                     }
 
                                     if let Some(rewrite) = &rewrite_url_base
-                                        && let Some(ExprOrSpread {
-                                            box expr,
-                                            spread: None,
-                                        }) = args.get_mut(1)
+                                        && let Some(ExprOrSpread { expr, spread: None }) =
+                                            args.get_mut(1)
                                     {
-                                        *expr = rewrite.clone();
+                                        **expr = rewrite.clone();
                                     }
                                 }
                             }
@@ -330,7 +331,9 @@ impl UrlAssetReferenceCodeGen {
                             request
                         )
                     }
-                    ReferencedAsset::None | ReferencedAsset::Unresolvable => {}
+                    ReferencedAsset::NonPlaceable(_)
+                    | ReferencedAsset::None
+                    | ReferencedAsset::Unresolvable => {}
                 }
             }
             UrlRewriteBehavior::None => {

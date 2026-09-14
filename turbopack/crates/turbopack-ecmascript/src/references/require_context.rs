@@ -22,8 +22,8 @@ use turbo_tasks::{
 use turbo_tasks_fs::{DirectoryContent, DirectoryEntry, FileSystemPath};
 use turbopack_core::{
     chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, ChunkingTypeOption,
-        MinifyType, ModuleChunkItemIdExt,
+        AsyncModuleInfo, ChunkableModule, ChunkingContext, ChunkingType, MinifyType,
+        ModuleChunkItemIdExt,
     },
     ident::AssetIdent,
     issue::IssueSource,
@@ -69,7 +69,7 @@ impl DirList {
     }
 
     #[turbo_tasks::function]
-    pub(crate) async fn read_internal(
+    async fn read_internal(
         root: FileSystemPath,
         dir: FileSystemPath,
         recursive: bool,
@@ -90,7 +90,8 @@ impl DirList {
         for (_, entry) in entries.iter().flat_map(|m| m.iter()) {
             match entry {
                 DirectoryEntry::File(path) => {
-                    if let Some(relative_path) = root_val.get_relative_path_to(path)
+                    // Webpack always checks the RegExp against a path prefixed with `./`
+                    if let Some(relative_path) = root_val.get_relative_request_to(path)
                         && regex.is_match(&relative_path)
                     {
                         list.insert(relative_path, DirListEntry::File(path.clone()));
@@ -186,14 +187,14 @@ impl RequireContextMap {
         issue_source: Option<IssueSource>,
         error_mode: ResolveErrorMode,
     ) -> Result<Vc<Self>> {
-        let origin_path = origin.origin_path().await?.parent();
+        let origin_path = origin.into_trait_ref().await?.origin_path().parent();
 
         let list = &*FlatDirList::read(dir, recursive, filter).await?;
 
         let mut map = FxIndexMap::default();
 
         for (context_relative, path) in list {
-            let Some(origin_relative) = origin_path.get_relative_path_to(path) else {
+            let Some(origin_relative) = origin_path.get_relative_request_to(path) else {
                 bail!("invariant error: this was already checked in `list_dir`");
             };
 
@@ -260,7 +261,12 @@ impl RequireContextAssetReference {
     ) -> Result<Self> {
         let map = RequireContextMap::generate(
             *origin,
-            origin.origin_path().await?.parent().join(&dir)?,
+            origin
+                .into_trait_ref()
+                .await?
+                .origin_path()
+                .parent()
+                .join(&dir)?,
             include_subdirs,
             filter,
             issue_source,
@@ -295,16 +301,23 @@ impl ModuleReference for RequireContextAssetReference {
         *ModuleResolveResult::module(ResolvedVc::upcast(self.inner))
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
+    }
+
+    fn source(&self) -> Option<IssueSource> {
+        self.issue_source
     }
 }
 
 impl IntoCodeGenReference for RequireContextAssetReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         path: AstPath,
@@ -373,12 +386,11 @@ impl ModuleReference for ResolvedModuleReference {
         *self.0
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Parallel {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Parallel {
             inherit_async: false,
             hoisted: false,
-        }))
+        })
     }
 }
 
@@ -405,10 +417,14 @@ fn modifier(dir: &RcStr, include_subdirs: bool) -> RcStr {
 #[turbo_tasks::value_impl]
 impl Module for RequireContextAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.source
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .source
             .ident()
+            .owned()
+            .await?
             .with_modifier(modifier(&self.dir, self.include_subdirs))
+            .into_vc())
     }
 
     #[turbo_tasks::function]
@@ -477,6 +493,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
                 chunking_context,
                 *entry.result,
                 ResolveType::ChunkItem,
+                None,
             )
             .await?;
 

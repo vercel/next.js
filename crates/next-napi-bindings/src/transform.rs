@@ -31,13 +31,13 @@ use std::{
     fs::read_to_string,
     panic::{AssertUnwindSafe, catch_unwind},
     rc::Rc,
+    sync::LazyLock,
 };
 
 use anyhow::{Context as _, anyhow, bail};
 use napi::bindgen_prelude::*;
 use napi_derive::napi;
 use next_custom_transforms::chain_transforms::{TransformOptions, custom_before_pass};
-use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     atoms::Atom,
@@ -46,7 +46,47 @@ use swc_core::{
     ecma::ast::noop_pass,
 };
 
-use crate::{complete_output, get_compiler, util::MapErr};
+use crate::{get_compiler, util::MapErr};
+
+/// The JS-facing result of a SWC transform.
+///
+/// Optional fields are omitted from the resulting object when `None`.
+#[napi(object)]
+pub struct TransformOutputResult {
+    pub code: String,
+    pub map: Option<String>,
+    pub eliminated_packages: Option<String>,
+    pub use_cache_telemetry_tracker: Option<String>,
+}
+
+fn complete_output(
+    output: TransformOutput,
+    eliminated_packages: FxHashSet<Atom>,
+    use_cache_telemetry_tracker: FxHashMap<String, usize>,
+) -> napi::Result<TransformOutputResult> {
+    let eliminated_packages = if eliminated_packages.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(&eliminated_packages)?)
+    };
+    let use_cache_telemetry_tracker = if use_cache_telemetry_tracker.is_empty() {
+        None
+    } else {
+        Some(serde_json::to_string(
+            &use_cache_telemetry_tracker
+                .iter()
+                .map(|(k, v)| (k.clone(), *v))
+                .collect::<Vec<_>>(),
+        )?)
+    };
+
+    Ok(TransformOutputResult {
+        code: output.code,
+        map: output.map,
+        eliminated_packages,
+        use_cache_telemetry_tracker,
+    })
+}
 
 /// Input to transform
 #[derive(Debug)]
@@ -74,7 +114,7 @@ fn skip_filename() -> bool {
         !v.is_empty() && v != "0"
     }
 
-    static SKIP_FILENAME: Lazy<bool> = Lazy::new(|| {
+    static SKIP_FILENAME: LazyLock<bool> = LazyLock::new(|| {
         check("NEXT_TEST_MODE") || check("__NEXT_TEST_MODE") || check("NEXT_TEST_JOB")
     });
 
@@ -83,7 +123,7 @@ fn skip_filename() -> bool {
 
 impl Task for TransformTask {
     type Output = (TransformOutput, FxHashSet<Atom>, FxHashMap<String, usize>);
-    type JsValue = Object;
+    type JsValue = TransformOutputResult;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
@@ -128,6 +168,20 @@ impl Task for TransformTask {
                             let unresolved_mark = Mark::new();
                             let mut options = options.patch(&fm);
                             options.swc.unresolved_mark = Some(unresolved_mark);
+                            // The wasmtime plugin backend cannot run inside wasm; SWC skips
+                            // plugin transforms on wasm32 for the same reason.
+                            // See https://github.com/swc-project/swc/issues/3934.
+                            #[cfg(not(target_arch = "wasm32"))]
+                            {
+                                use std::sync::Arc;
+
+                                use swc_core::base::config::RuntimeOptions;
+
+                                options.swc.runtime_options = RuntimeOptions::default()
+                                    .plugin_runtime(Arc::new(
+                                        swc_plugin_backend_wasmtime::WasmtimeRuntime,
+                                    ));
+                            }
 
                             let cm = self.c.cm.clone();
                             let file = fm.clone();
@@ -187,15 +241,10 @@ impl Task for TransformTask {
 
     fn resolve(
         &mut self,
-        env: Env,
+        _env: Env,
         (output, eliminated_packages, use_cache_telemetry_tracker): Self::Output,
     ) -> napi::Result<Self::JsValue> {
-        complete_output(
-            &env,
-            output,
-            eliminated_packages,
-            use_cache_telemetry_tracker,
-        )
+        complete_output(output, eliminated_packages, use_cache_telemetry_tracker)
     }
 }
 
@@ -226,7 +275,7 @@ pub fn transform_sync(
     src: Either3<String, Buffer, Undefined>,
     _is_module: bool,
     options: Buffer,
-) -> napi::Result<Object> {
+) -> napi::Result<TransformOutputResult> {
     let c = get_compiler();
 
     let input = match src {

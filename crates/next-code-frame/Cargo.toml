@@ -1,0 +1,34 @@
+[package]
+name = "next-code-frame"
+version = "0.0.1"
+description = "Fast, scalable code frame rendering for Next.js error reporting"
+license = "MIT"
+edition = "2024"
+
+[lib]
+bench = false
+
+[[bin]]
+name = "code_frame"
+path = "src/bin/code_frame.rs"
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true }
+memchr = { workspace = true }
+phf = { version = "0.11", features = ["macros"] }
+regex = { workspace = true }
+regex-automata = "0.4"
+serde = { workspace = true }
+unicode-width = "0.2"
+
+[dev-dependencies]
+criterion = { workspace = true }
+insta = { version = "1.43.1", features = ["yaml"] }
+
+[[bench]]
+name = "code_frame_bench"
+harness = false

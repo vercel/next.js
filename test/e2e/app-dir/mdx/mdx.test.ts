@@ -5,7 +5,7 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
     const { next } = nextTestSetup({
       files: __dirname,
       dependencies: {
-        '@next/mdx': 'canary',
+        '@next/mdx': 'workspace:*',
         '@mdx-js/loader': '^2.2.1',
         '@mdx-js/react': '^2.2.1',
         'recma-export-filepath': '1.2.0',
@@ -61,7 +61,7 @@ for (const type of ['with-mdx-rs', 'without-mdx-rs']) {
       it('should work with next/image', async () => {
         const $ = await next.render$('/image')
         expect($('img').attr('src')).toBe(
-          '/_next/image?url=%2Ftest.jpg&w=384&q=75'
+          `/_next/image?url=%2Ftest.jpg&w=384&q=75${next.getDeploymentIdQuery(true)}`
         )
       })
 

@@ -33,7 +33,7 @@ describe('SCSS Support loader handling', () => {
           .elementByCss('.red-text')
           .getComputedCss('background-image')
         expect(background).toMatch(
-          /url\(".*\/_next\/static\/media\/darka\..*\.svg(?:\?.*)?"\), url\(".*\/_next\/static\/media\/darkb\..*\.svg(?:\?.*)?"\)/
+          /url\(".*\/_next\/static\/(immutable\/)?media\/darka\..*\.svg(?:\?.*)?"\), url\(".*\/_next\/static\/(immutable\/)?media\/darkb\..*\.svg(?:\?.*)?"\)/
         )
 
         const urls = getUrlFromBackgroundImage(background)

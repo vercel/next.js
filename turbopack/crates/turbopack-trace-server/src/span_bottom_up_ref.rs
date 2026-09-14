@@ -4,6 +4,8 @@ use std::{
     sync::Arc,
 };
 
+use turbo_rcstr::RcStr;
+
 use crate::{
     FxIndexMap,
     span::{SpanBottomUp, SpanGraphEvent},
@@ -54,11 +56,11 @@ impl<'a> SpanBottomUpRef<'a> {
         self.bottom_up.self_spans.len()
     }
 
-    pub fn group_name(&self) -> (&'a str, &'a str) {
+    pub fn group_name(&self) -> (&'a RcStr, &'a RcStr) {
         self.first_span().group_name()
     }
 
-    pub fn nice_name(&self) -> (&'a str, &'a str) {
+    pub fn nice_name(&self) -> (&'a RcStr, &'a RcStr) {
         if self.count() == 1 {
             self.example_span().nice_name()
         } else {

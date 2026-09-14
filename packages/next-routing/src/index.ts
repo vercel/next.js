@@ -6,6 +6,9 @@ export type {
   MiddlewareResult,
   ResolveRoutesParams,
   ResolveRoutesResult,
+  ResolveRoutesQuery,
+  ResolveRoutesQueryValue,
+  RouteInvocationTarget,
 } from './types'
 export type { I18nConfig, I18nDomain } from './i18n'
 export {

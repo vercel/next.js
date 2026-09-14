@@ -2,11 +2,11 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::dynamic::{NextDynamicMode, next_dynamic};
 use swc_core::{atoms::atom, common::FileName, ecma::ast::Program};
-use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbo_tasks::Vc;
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use super::module_rule_match_js_no_url;
+use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 use crate::mode::NextMode;
 
 /// Returns a rule which applies the Next.js dynamic transform.
@@ -18,20 +18,29 @@ pub async fn get_next_dynamic_transform_rule(
     enable_mdx_rs: bool,
 ) -> Result<ModuleRule> {
     let dynamic_transform =
-        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextJsDynamic {
-            is_server_compiler,
-            is_react_server_layer,
-            is_app_dir,
-            mode: *mode.await?,
-        }) as _));
-    Ok(ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![dynamic_transform]),
-        }],
+        next_dynamic_transform_plugin(is_server_compiler, is_react_server_layer, is_app_dir, mode)
+            .to_resolved()
+            .await?;
+    Ok(get_ecma_transform_rule(
+        dynamic_transform,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Postprocess,
     ))
+}
+
+#[turbo_tasks::function]
+async fn next_dynamic_transform_plugin(
+    is_server_compiler: bool,
+    is_react_server_layer: bool,
+    is_app_dir: bool,
+    mode: Vc<NextMode>,
+) -> Result<Vc<TransformPlugin>> {
+    Ok(Vc::cell(Box::new(NextJsDynamic {
+        is_server_compiler,
+        is_react_server_layer,
+        is_app_dir,
+        mode: *mode.await?,
+    }) as Box<dyn CustomTransformer + Send + Sync>))
 }
 
 #[derive(Debug)]
@@ -58,7 +67,6 @@ impl CustomTransformer for NextJsDynamic {
             FileName::Real(ctx.file_path_str.into()).into(),
             None,
         ));
-
         Ok(())
     }
 }

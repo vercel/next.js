@@ -5,7 +5,7 @@ export function CopyErrorButton({
   generateErrorInfo,
 }: {
   error: Error
-  generateErrorInfo: () => string
+  generateErrorInfo: () => Promise<string>
 }) {
   return (
     <CopyButton

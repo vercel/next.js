@@ -1,6 +1,6 @@
 use swc_core::ecma::{
     ast::Pass,
-    visit::{visit_pass, Visit},
+    visit::{Visit, visit_pass},
 };
 
 pub fn linter<V>(visitor: V) -> impl Pass

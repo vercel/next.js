@@ -1,25 +1,23 @@
-import { nextTestSetup } from 'e2e-utils'
 import {
+  nextTestSetupActionTreeShaking,
   getActionsRoutesStateByRuntime,
-  markLayoutAsEdge,
 } from '../_testing/utils'
 
 describe('actions-tree-shaking - use-effect-actions', () => {
-  const { next } = nextTestSetup({
+  const { next } = nextTestSetupActionTreeShaking({
     files: __dirname,
   })
 
-  if (process.env.TEST_EDGE) {
-    markLayoutAsEdge(next)
-  }
-
   it('should not tree shake the used action under useEffect', async () => {
     const actionsRoutesState = await getActionsRoutesStateByRuntime(next)
-
-    expect(actionsRoutesState).toMatchObject({
-      'app/mixed/page': {
-        'action-browser': 3,
-      },
-    })
+    expect(actionsRoutesState).toMatchInlineSnapshot(`
+     {
+       "app/mixed/page": [
+         "app/mixed/actions.ts#action1",
+         "app/mixed/actions.ts#action2",
+         "app/mixed/actions.ts#action3",
+       ],
+     }
+    `)
   })
 })

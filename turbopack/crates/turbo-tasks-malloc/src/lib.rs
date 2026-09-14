@@ -1,4 +1,5 @@
 mod counter;
+mod memory_pressure;
 
 use std::{
     alloc::{GlobalAlloc, Layout},
@@ -6,7 +7,7 @@ use std::{
     ops::{Add, AddAssign},
 };
 
-use self::counter::{add, flush, get, remove, update};
+use self::counter::{add, flush, remove, update};
 
 #[derive(Default, Clone, Debug)]
 pub struct AllocationInfo {
@@ -84,13 +85,68 @@ impl AllocationCounters {
 pub struct TurboMalloc;
 
 impl TurboMalloc {
-    // Returns the current amount of memory
+    /// Returns the bytes mimalloc currently has committed from the OS. This measures what the
+    /// allocator holds rather than the process's total footprint, and it does not track frees in
+    /// lock step, since mimalloc reuses and purges pages on its own schedule.
+    ///
+    /// See `current_commit` in [`mi_process_info`], which documents each figure mimalloc reports.
+    ///
+    /// [`mi_process_info`]: https://docs.rs/libmimalloc-sys/latest/libmimalloc_sys/fn.mi_process_info.html
+    ///
+    /// Without the `custom_allocator` feature this is a process-wide live-bytes counter instead,
+    /// which is approximate because threads buffer their updates.
     pub fn memory_usage() -> usize {
-        get()
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        {
+            // `current_commit` is a relaxed atomic load, but `mi_process_info` also calls
+            // `_mi_prim_process_info`, which is a `getrusage` (plus a `task_info` on macOS). All
+            // eight out-params are optional, so ask only for the one we use.
+            let mut current_commit = 0usize;
+            // Safety: every out-param is either null or a valid `usize` we own.
+            unsafe {
+                libmimalloc_sys::mi_process_info(
+                    /* elapsed_msecs */ std::ptr::null_mut(),
+                    /* user_msecs */ std::ptr::null_mut(),
+                    /* system_msecs */ std::ptr::null_mut(),
+                    /* current_rss */ std::ptr::null_mut(),
+                    /* peak_rss */ std::ptr::null_mut(),
+                    &mut current_commit,
+                    /* peak_commit */ std::ptr::null_mut(),
+                    /* page_faults */ std::ptr::null_mut(),
+                );
+            }
+            current_commit
+        }
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        {
+            self::counter::get()
+        }
     }
 
+    /// Clears the calling thread's allocation counters. Call this when a thread is about to stop,
+    /// so a thread that reuses its slot does not inherit the previous totals.
     pub fn thread_stop() {
         flush();
+    }
+
+    pub fn thread_park() {
+        Self::collect(false);
+    }
+
+    /// When using mimalloc triggers some cleanup
+    /// force=false: process threadlocal free lists and other threadlocal deferred work
+    ///    only operates on thread local data and should be fast
+    /// force=true: do all the work of `process=false` and then process global shared structures and
+    /// return memory to the OS if possible, this is much slower and should only be done rarely.
+    pub fn collect(force: bool) {
+        #[cfg(all(feature = "custom_allocator", not(target_family = "wasm")))]
+        unsafe {
+            libmimalloc_sys::mi_collect(force);
+        }
+        #[cfg(not(all(feature = "custom_allocator", not(target_family = "wasm"))))]
+        {
+            let _ = force;
+        }
     }
 
     pub fn allocation_counters() -> AllocationCounters {
@@ -99,6 +155,23 @@ impl TurboMalloc {
 
     pub fn reset_allocation_counters(start: AllocationCounters) {
         self::counter::reset_allocation_counters(start);
+    }
+
+    /// Returns a memory pressure value in the range `0..=100`, or `None` when
+    /// the current platform does not expose a memory pressure signal or a
+    /// query for it failed.
+    ///
+    /// `0` means no memory pressure, `100` means maximum pressure.
+    ///
+    /// - On Linux this is derived from `/proc/pressure/memory` (the `some` `avg10` stall
+    ///   percentage), falling back to `(MemTotal - MemAvailable) / MemTotal` from `/proc/meminfo`
+    ///   when PSI is not available (older kernels, no `CONFIG_PSI`, or containers without access).
+    /// - On macOS this is derived from the `kern.memorystatus_level` sysctl (`100 -
+    ///   free_memory_percentage`).
+    /// - On Windows this is `MEMORYSTATUSEX::dwMemoryLoad` (percentage of physical memory in use).
+    /// - On other platforms this returns `None`.
+    pub fn memory_pressure() -> Option<u8> {
+        memory_pressure::memory_pressure()
     }
 }
 
@@ -155,5 +228,68 @@ unsafe impl GlobalAlloc for TurboMalloc {
             update(old_size, new_size);
         }
         ret
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::TurboMalloc;
+
+    // `memory_usage` reports what *this* allocator has committed, so the test binary has to
+    // actually route its allocations through it. Without this the `vec!` below goes to the
+    // system allocator and mimalloc's counter never moves.
+    #[global_allocator]
+    static ALLOC: TurboMalloc = TurboMalloc;
+
+    /// Guards against the counter silently becoming unavailable.
+    #[test]
+    fn memory_usage_is_reported_and_tracks_a_large_allocation() {
+        let before = TurboMalloc::memory_usage();
+        assert!(before > 0, "a running process has live memory");
+
+        // Large enough to dwarf whatever else the test process does concurrently, and written to
+        // so the pages are actually committed.
+        const SIZE: usize = 256 * 1024 * 1024;
+        let mut buffer = vec![0u8; SIZE];
+        for chunk in buffer.chunks_mut(4096) {
+            chunk[0] = 1;
+        }
+        std::hint::black_box(&buffer);
+
+        let after = TurboMalloc::memory_usage();
+        assert!(
+            after >= before + SIZE / 2,
+            "expected a rise of at least {} bytes, got {before} -> {after}",
+            SIZE / 2
+        );
+        drop(buffer);
+    }
+
+    #[test]
+    fn memory_pressure_is_in_range() {
+        let value = TurboMalloc::memory_pressure();
+
+        // On all supported platforms the value must be reported.
+        #[cfg(any(
+            all(target_os = "linux", not(target_family = "wasm")),
+            target_os = "macos",
+            windows,
+        ))]
+        let value = value.expect("memory_pressure() should return Some on this platform");
+
+        // On unsupported platforms we expect None and have nothing further to assert.
+        #[cfg(not(any(
+            all(target_os = "linux", not(target_family = "wasm")),
+            target_os = "macos",
+            windows,
+        )))]
+        let Some(value) = value else {
+            return;
+        };
+
+        assert!(
+            value <= 100,
+            "memory_pressure() returned {value}, expected a value in 0..=100"
+        );
     }
 }

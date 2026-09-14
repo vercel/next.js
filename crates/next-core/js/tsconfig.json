@@ -15,7 +15,6 @@
     "lib": ["ESNext", "DOM"],
     "target": "esnext",
     // modules
-    "baseUrl": ".",
     "module": "node16",
     "moduleResolution": "node16",
     "resolveJsonModule": true,

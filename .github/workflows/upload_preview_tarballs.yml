@@ -1,0 +1,51 @@
+# This workflow uploads preview tarballs to Vercel Blob after build-and-deploy
+# completes. It uses workflow_run so it always executes the DEFAULT BRANCH
+# version of this file, and the upload script is checked out from canary to
+# match -- an attacker who modifies either on a feature branch cannot change
+# the code that exchanges the OIDC token for a scoped upload URL.
+name: upload-preview-tarballs
+
+on:
+  workflow_run:
+    workflows: ['build-and-deploy']
+    types: [completed]
+
+permissions:
+  actions: read
+  contents: read
+  # Minting GitHub OIDC tokens to authorize uploads at vercel-packages.
+  id-token: write
+
+jobs:
+  upload:
+    name: Upload preview tarballs to Blob
+    runs-on: ubuntu-latest
+    if: github.event.workflow_run.conclusion == 'success'
+    steps:
+      # Checkout from the default branch (canary) -- workflow_run always uses
+      # the default branch's version of the workflow file and this checkout
+      # matches that, ensuring the upload script is trusted. The script only
+      # uses built-in modules, so no node_modules or setup-node is required.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: canary
+          fetch-depth: 1
+          persist-credentials: false
+          sparse-checkout: |
+            scripts/upload-preview-tarballs.js
+          sparse-checkout-cone-mode: false
+
+      - name: Download preview-tarballs artifact
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: preview-tarballs
+          path: ${{ runner.temp }}/preview-tarballs
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          run-id: ${{ github.event.workflow_run.id }}
+
+      - name: Upload tarballs to Vercel Blob
+        run: node scripts/upload-preview-tarballs.js "${{
+          github.event.workflow_run.head_sha }}" "${{ runner.temp
+          }}/preview-tarballs"
+        env:
+          PREVIEW_BUILDS_BASE_URL: ${{ vars.PREVIEW_BUILDS_BASE_URL }}

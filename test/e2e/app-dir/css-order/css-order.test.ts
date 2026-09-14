@@ -30,6 +30,7 @@ const PAGES: Record<
     brokenLoadingDev?: boolean
     requests?: number
     requestsLoose?: number
+    requestsGraph?: number
   }
 > = {
   first: {
@@ -132,6 +133,44 @@ const PAGES: Record<
     color: 'rgb(255, 55, 255)',
     background: 'rgba(0, 0, 0, 0)',
     requests: 4,
+  },
+  // Two pages where shared CSS modules sandwich a unique stylesheet:
+  //   /sandwich/a: shared1 → uniqueA (module) → shared2
+  //   /sandwich/b: shared1 → uniqueB (GLOBAL) → shared2
+  // The chunker must not merge shared1 and shared2 into a single chunk because they sit on
+  // either side of the unique stylesheet. uniqueB is a global stylesheet specifically so the
+  // algorithm can't collapse everything into one big shared chunk: a global stylesheet must
+  // never be loaded by chunk groups that don't import it (i.e. `/sandwich/a`), so uniqueB has
+  // to stay isolated.
+  'sandwich-a': {
+    group: 'sandwich',
+    url: '/sandwich/a',
+    selector: '#hellosba',
+    color: 'rgb(0, 0, 255)',
+    // 2 requests = `shared1 + uniqueA` fused into one chunk + `shared2` separate (still shared
+    // with /sandwich/b). 3 requests is a valid alternative (no overshipping; better cache reuse
+    // of shared1 across pages), but strict & graph here both prefer overshipping uniqueA.
+    requests: 2,
+    requestsLoose: 1,
+    // Same as `requests`, but spelled out so `requestsLoose` doesn't shadow it via the fallback
+    // chain in `expectedRequests`.
+    requestsGraph: 2,
+  },
+  'sandwich-b': {
+    group: 'sandwich',
+    url: '/sandwich/b',
+    selector: '#hellosbb',
+    color: 'rgb(0, 0, 255)',
+    // 3 requests is forced: uniqueB is a global stylesheet so it can't fuse with the CSS
+    // modules on either side. shared1 and shared2 each stay in their own chunk so they can be
+    // shared with /sandwich/a.
+    requests: 3,
+    // TODO loose merges shared1 and shared2 into a single chunk despite uniqueB sitting
+    // between them on the page; the correct value is 3 (matching `requests`).
+    requestsLoose: 2,
+    // Same as `requests`, but spelled out so `requestsLoose` doesn't shadow it via the fallback
+    // chain in `expectedRequests`.
+    requestsGraph: 3,
   },
   'pages-first': {
     group: 'pages-basic',
@@ -238,45 +277,253 @@ const PAGES: Record<
   },
 }
 
+type SideEffectsPage = {
+  name: string
+  url: string
+  selector: string
+  color: string
+  background: string
+  turbopackOnly?: boolean
+}
+
+const SIDE_EFFECTS_PAGES: SideEffectsPage[] = [
+  {
+    name: 'app router, CSS array',
+    url: '/vendor/a',
+    selector: '#vendor-side-effects-array',
+    color: 'rgb(254, 0, 0)',
+    background: 'rgb(0, 254, 0)',
+  },
+  {
+    name: 'app router, sideEffects true',
+    url: '/vendor/b',
+    selector: '#vendor-side-effects-true',
+    color: 'rgb(253, 0, 0)',
+    background: 'rgb(0, 253, 0)',
+  },
+  {
+    name: 'app router, sideEffects false',
+    url: '/vendor/c',
+    selector: '#vendor-side-effects-false',
+    color: 'rgb(252, 0, 0)',
+    background: 'rgb(0, 252, 0)',
+  },
+  {
+    name: 'app router, global CSS array',
+    url: '/vendor/d',
+    selector: '#vendor-side-effects-global-array',
+    color: 'rgb(250, 0, 0)',
+    background: 'rgb(0, 250, 0)',
+  },
+  {
+    name: 'app router client component, CSS array',
+    url: '/vendor/e',
+    selector: '#vendor-side-effects-array-client',
+    color: 'rgb(254, 254, 0)',
+    background: 'rgb(254, 254, 0)',
+  },
+  {
+    name: 'app router server component with client child, CSS array',
+    url: '/vendor/f',
+    selector: '#vendor-side-effects-array-server-client-subcomponent',
+    color: 'rgb(254, 0, 0)',
+    background: 'rgb(0, 254, 0)',
+    turbopackOnly: true,
+  },
+  {
+    name: 'app router client component, sideEffects true',
+    url: '/vendor/g',
+    selector: '#vendor-side-effects-true-client',
+    color: 'rgb(253, 253, 0)',
+    background: 'rgb(253, 253, 0)',
+  },
+  {
+    name: 'app router server component with client child, sideEffects true',
+    url: '/vendor/h',
+    selector: '#vendor-side-effects-true-server-client-subcomponent',
+    color: 'rgb(253, 0, 0)',
+    background: 'rgb(0, 253, 0)',
+    turbopackOnly: true,
+  },
+  {
+    name: 'app router client component, sideEffects false',
+    url: '/vendor/i',
+    selector: '#vendor-side-effects-false-client',
+    color: 'rgb(252, 252, 0)',
+    background: 'rgb(252, 252, 0)',
+  },
+  {
+    name: 'app router server component with client child, sideEffects false',
+    url: '/vendor/j',
+    selector: '#vendor-side-effects-false-server-client-subcomponent',
+    color: 'rgb(252, 0, 0)',
+    background: 'rgb(0, 252, 0)',
+    turbopackOnly: true,
+  },
+  {
+    name: 'app router client component, global CSS array',
+    url: '/vendor/k',
+    selector: '#vendor-side-effects-global-array-client',
+    color: 'rgb(250, 250, 0)',
+    background: 'rgb(250, 250, 0)',
+  },
+  {
+    name: 'app router server component with client child, global CSS array',
+    url: '/vendor/l',
+    selector: '#vendor-side-effects-global-array-server-client',
+    color: 'rgb(250, 0, 0)',
+    background: 'rgb(0, 250, 0)',
+    turbopackOnly: true,
+  },
+  {
+    name: 'pages router, CSS array',
+    url: '/pages/vendor/a',
+    selector: '#vendor-side-effects-array',
+    color: 'rgb(254, 0, 0)',
+    background: 'rgb(0, 254, 0)',
+  },
+  {
+    name: 'pages router, sideEffects true',
+    url: '/pages/vendor/b',
+    selector: '#vendor-side-effects-true',
+    color: 'rgb(253, 0, 0)',
+    background: 'rgb(0, 253, 0)',
+  },
+  {
+    name: 'pages router, sideEffects false',
+    url: '/pages/vendor/c',
+    selector: '#vendor-side-effects-false',
+    color: 'rgb(252, 0, 0)',
+    background: 'rgb(0, 252, 0)',
+  },
+  {
+    name: 'pages router, global CSS array',
+    url: '/pages/vendor/d',
+    selector: '#vendor-side-effects-global-array',
+    color: 'rgb(250, 0, 0)',
+    background: 'rgb(0, 250, 0)',
+  },
+]
+
 const allPairs = getPairs(Object.keys(PAGES))
 
-const options = (mode: string) => ({
+// Each entry is `[label, value]`, where `label` is shown in test names and `value` is what gets
+// written into `experimental.cssChunking` (or `undefined` to leave it unset, which is the
+// existing Turbopack default).
+type GraphCssChunkingObject = {
+  type: 'graph'
+  requestCost?: number
+  weightDistribution?: number
+}
+type CssChunkingValue =
+  | boolean
+  | 'strict'
+  | 'loose'
+  | 'graph'
+  | GraphCssChunkingObject
+  | undefined
+
+type Mode = readonly [string, CssChunkingValue]
+
+const TURBO_MODES: readonly Mode[] = [
+  ['turbo', undefined],
+  ['graph', 'graph'],
+  // Verifies the object form is accepted. We pass the algorithm's defaults so the chunk shape
+  // matches the plain `'graph'` row, letting us reuse the same `requestsGraph` expectations.
+  [
+    'graph-object',
+    { type: 'graph', requestCost: 100_000, weightDistribution: 0.1 },
+  ],
+]
+const WEBPACK_MODES_TRUE: readonly Mode[] = [
+  ['strict', 'strict'],
+  ['true', true],
+]
+const WEBPACK_MODES_LOOSE: readonly Mode[] = [
+  ['strict', 'strict'],
+  ['loose', 'loose'],
+]
+
+function isGraphMode(value: CssChunkingValue): boolean {
+  return (
+    value === 'graph' ||
+    (typeof value === 'object' && value !== null && value.type === 'graph')
+  )
+}
+
+function isStrictMode(value: CssChunkingValue): boolean {
+  return value === 'strict'
+}
+
+const SIDE_EFFECTS_PACKAGES = [
+  'side-effects-array-dep',
+  'side-effects-array-global-only-dep',
+  'side-effects-dep',
+  'side-effects-false-dep',
+]
+
+const options = (value: CssChunkingValue) => ({
   files: {
     app: new FileRef(path.join(__dirname, 'app')),
     pages: new FileRef(path.join(__dirname, 'pages')),
-    'next.config.js': process.env.IS_TURBOPACK_TEST
-      ? `
-            module.exports = {}`
-      : `
-            module.exports = {
-              experimental: {
-                cssChunking: ${JSON.stringify(mode)}
-              }
-            }`,
+    'next.config.js': `module.exports = ${JSON.stringify({
+      transpilePackages: SIDE_EFFECTS_PACKAGES,
+      ...(value === undefined ? {} : { experimental: { cssChunking: value } }),
+    })}`,
   },
   dependencies: {
     sass: 'latest',
   },
   skipDeployment: true,
 })
-describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', true])(
+
+/**
+ * Number of CSS request expected for a page in the given mode. Falls back from the most-specific
+ * to the most-generic per-page expectation.
+ */
+function expectedRequests(
+  value: CssChunkingValue,
+  pageInfo: {
+    requests?: number
+    requestsLoose?: number
+    requestsGraph?: number
+  }
+): number | undefined {
+  if (isGraphMode(value)) {
+    return pageInfo.requestsGraph ?? pageInfo.requestsLoose ?? pageInfo.requests
+  }
+  if (isStrictMode(value)) {
+    return pageInfo.requests
+  }
+  // `undefined` (Turbopack default), `true`, or `'loose'` all map to loose.
+  return pageInfo.requestsLoose ?? pageInfo.requests
+}
+
+/**
+ * Whether a given ordering should be skipped because at least one page in the ordering has a
+ * conflict that the active chunking mode can't preserve. `'strict'` preserves ordering for
+ * conflict scenarios; everything else does not.
+ */
+function shouldSkipConflict(ordering: readonly string[]): boolean {
+  return ordering
+    .map((page) => PAGES[page])
+    .some((page) =>
+      process.env.IS_TURBOPACK_TEST
+        ? page.conflictTurbo || page.conflict
+        : page.conflict
+    )
+}
+
+describe.each(process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_TRUE)(
   'css-order %s',
-  (mode: string) => {
-    const { next, isNextDev, skipped } = nextTestSetup(options(mode))
+  (_label: string, value: CssChunkingValue) => {
+    const { next, isNextDev, skipped } = nextTestSetup(options(value))
     if (skipped) return
     for (const ordering of allPairs) {
       const name = `should load correct styles navigating back again ${ordering.join(
         ' -> '
       )} -> ${ordering.join(' -> ')}`
-      if (
-        ordering
-          .map((page) => PAGES[page])
-          .some((page) =>
-            mode === 'turbo'
-              ? page.conflictTurbo || page.conflict
-              : page.conflict
-          )
-      ) {
+      if (shouldSkipConflict(ordering)) {
         // Conflict scenarios won't support that case
         continue
       }
@@ -321,94 +568,109 @@ describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', true])(
     }
   }
 )
-describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
-  'css-order %s',
-  (mode: string) => {
-    const { next, isNextDev } = nextTestSetup(options(mode))
-    for (const ordering of allPairs) {
-      const name = `should load correct styles navigating ${ordering.join(
-        ' -> '
-      )}`
-      if (
-        ordering
-          .map((page) => PAGES[page])
-          .some((page) =>
-            mode === 'turbo'
-              ? page.conflictTurbo || page.conflict
-              : page.conflict
-          )
-      ) {
-        // Conflict scenarios won't support that case
-        continue
-      }
-      // TODO fix this case
-      let broken = ordering.some(
-        (page) =>
-          PAGES[page].brokenLoading ||
-          (isNextDev && PAGES[page].brokenLoadingDev)
-      )
-      if (broken) {
-        it.todo(name)
-        continue
-      }
-      it(name, async () => {
-        const start = PAGES[ordering[0]]
-        const browser = await next.browser(start.url)
-        const check = async (pageInfo) => {
-          expect(
-            await browser
-              .waitForElementByCss(pageInfo.selector)
-              .getComputedCss('color')
-          ).toBe(pageInfo.color)
-        }
-        const navigate = async (page) => {
-          await browser.waitForElementByCss('#' + page).click()
-        }
-        await check(start)
-        for (const page of ordering.slice(1)) {
-          await navigate(page)
-          await check(PAGES[page])
-        }
-        await browser.close()
-      })
+describe.each(
+  process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
+)('css-order %s', (_label: string, value: CssChunkingValue) => {
+  const { next, isNextDev } = nextTestSetup(options(value))
+  for (const ordering of allPairs) {
+    const name = `should load correct styles navigating ${ordering.join(
+      ' -> '
+    )}`
+    if (shouldSkipConflict(ordering)) {
+      // Conflict scenarios won't support that case
+      continue
     }
-  }
-)
-describe.each(process.env.IS_TURBOPACK_TEST ? ['turbo'] : ['strict', 'loose'])(
-  'css-order %s',
-  (mode: string) => {
-    const { next, isNextDev } = nextTestSetup(options(mode))
-    for (const [page, pageInfo] of Object.entries(PAGES)) {
-      const name = `should load correct styles on ${page}`
-      if (
-        (mode !== 'strict' && pageInfo.conflict) ||
-        (mode === 'turbo' && pageInfo.conflictTurbo)
-      ) {
-        // Conflict scenarios won't support that case
-        continue
-      }
-      it(name, async () => {
-        const browser = await next.browser(pageInfo.url)
+    // TODO fix this case
+    let broken = ordering.some(
+      (page) =>
+        PAGES[page].brokenLoading || (isNextDev && PAGES[page].brokenLoadingDev)
+    )
+    if (broken) {
+      it.todo(name)
+      continue
+    }
+    it(name, async () => {
+      const start = PAGES[ordering[0]]
+      const browser = await next.browser(start.url)
+      const check = async (pageInfo) => {
         expect(
           await browser
             .waitForElementByCss(pageInfo.selector)
             .getComputedCss('color')
         ).toBe(pageInfo.color)
-        if (!isNextDev) {
-          const stylesheets = await browser.elementsByCss(
-            "link[rel='stylesheet']"
-          )
-          const files = await Promise.all(
-            Array.from(stylesheets).map((e) => e.getAttribute('href'))
-          )
-          expect(files).toHaveLength(
-            mode === 'turbo' || mode === 'loose'
-              ? pageInfo.requestsLoose || pageInfo.requests
-              : pageInfo.requests
-          )
-        }
-        await browser.close()
-      })
-    }
+      }
+      const navigate = async (page) => {
+        await browser.waitForElementByCss('#' + page).click()
+      }
+      await check(start)
+      for (const page of ordering.slice(1)) {
+        await navigate(page)
+        await check(PAGES[page])
+      }
+      await browser.close()
+    })
   }
-)
+})
+describe.each(
+  process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
+)('css-order %s', (_label: string, value: CssChunkingValue) => {
+  const { next, isNextDev } = nextTestSetup(options(value))
+  for (const [page, pageInfo] of Object.entries(PAGES)) {
+    const name = `should load correct styles on ${page}`
+    if (
+      // `strict` preserves ordering for conflict scenarios; loose/turbo/graph do not.
+      // `conflictTurbo` applies to any Turbopack mode.
+      (!isStrictMode(value) && pageInfo.conflict) ||
+      (process.env.IS_TURBOPACK_TEST && pageInfo.conflictTurbo)
+    ) {
+      // Conflict scenarios won't support that case
+      continue
+    }
+    it(name, async () => {
+      const browser = await next.browser(pageInfo.url)
+      expect(
+        await browser
+          .waitForElementByCss(pageInfo.selector)
+          .getComputedCss('color')
+      ).toBe(pageInfo.color)
+      if (!isNextDev) {
+        const stylesheets = await browser.elementsByCss(
+          "link[rel='stylesheet']"
+        )
+        const files = await Promise.all(
+          Array.from(stylesheets).map((e) => e.getAttribute('href'))
+        )
+        expect(files).toHaveLength(expectedRequests(value, pageInfo))
+      }
+      await browser.close()
+    })
+  }
+})
+
+// Webpack currently applies the client child's CSS module after the parent module in
+// App Router server-component-with-client-child cases. Gate only those known divergences;
+// the other package sideEffects scenarios share expectations across both bundlers.
+describe.each(
+  process.env.IS_TURBOPACK_TEST ? TURBO_MODES : WEBPACK_MODES_LOOSE
+)('css-order sideEffects %s', (_label: string, value: CssChunkingValue) => {
+  const { next } = nextTestSetup(options(value))
+  const testPage = (page: SideEffectsPage) => async () => {
+    const browser = await next.browser(page.url)
+    const element = browser.waitForElementByCss(page.selector)
+
+    expect(await element.getComputedCss('color')).toBe(page.color)
+    expect(await element.getComputedCss('background-color')).toBe(
+      page.background
+    )
+    await browser.close()
+  }
+
+  for (const page of SIDE_EFFECTS_PAGES.filter((page) => !page.turbopackOnly)) {
+    it(`should load correct styles for ${page.name}`, testPage(page))
+  }
+
+  for (const page of SIDE_EFFECTS_PAGES.filter((page) => page.turbopackOnly)) {
+    // @gate turbopack
+    it(`should load correct styles for ${page.name}`, testPage(page))
+  }
+})

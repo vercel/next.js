@@ -1,24 +1,25 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{IntoTraitRef, PrettyPrintError, ResolvedVc, Vc};
+use turbo_tasks::{PrettyPrintError, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     issue::{
-        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, OptionIssueSource,
-        OptionStyledString, StyledString, resolve::ResolvingIssue,
+        Issue, IssueExt, IssueSeverity, IssueSource, IssueStage, StyledString,
+        resolve::ResolvingIssue,
     },
     reference_type::ReferenceType,
     resolve::{
         ModuleResolveResult, ResolveErrorMode, ResolveResult, options::ResolveOptions,
-        origin::ResolveOrigin, parse::Request,
+        parse::Request,
     },
 };
 
 pub async fn handle_resolve_error(
     result: Vc<ModuleResolveResult>,
     reference_type: ReferenceType,
-    origin: Vc<Box<dyn ResolveOrigin>>,
+    origin_path: FileSystemPath,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     error_mode: ResolveErrorMode,
@@ -27,10 +28,10 @@ pub async fn handle_resolve_error(
 ) -> Result<Vc<ModuleResolveResult>> {
     Ok(match result.await {
         Ok(result_ref) => {
-            if result_ref.is_unresolvable_ref() {
+            if result_ref.is_unresolvable() {
                 emit_unresolvable_issue(
                     error_mode,
-                    origin,
+                    &origin_path,
                     reference_type,
                     request,
                     resolve_options,
@@ -39,14 +40,14 @@ pub async fn handle_resolve_error(
                 .await?;
             }
 
-            handle_item_issues(result_ref.errors(), origin, source).await?;
+            handle_item_issues(result_ref.errors(), &origin_path, source).await?;
 
             result
         }
         Err(err) => {
             emit_resolve_error_issue(
                 error_mode,
-                origin,
+                &origin_path,
                 reference_type,
                 request,
                 resolve_options,
@@ -62,7 +63,7 @@ pub async fn handle_resolve_error(
 pub async fn handle_resolve_source_error(
     result: Vc<ResolveResult>,
     reference_type: ReferenceType,
-    origin: Vc<Box<dyn ResolveOrigin>>,
+    origin_path: FileSystemPath,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     error_mode: ResolveErrorMode,
@@ -70,10 +71,10 @@ pub async fn handle_resolve_source_error(
 ) -> Result<Vc<ResolveResult>> {
     Ok(match result.await {
         Ok(result_ref) => {
-            if result_ref.is_unresolvable_ref() {
+            if result_ref.is_unresolvable() {
                 emit_unresolvable_issue(
                     error_mode,
-                    origin,
+                    &origin_path,
                     reference_type,
                     request,
                     resolve_options,
@@ -82,14 +83,14 @@ pub async fn handle_resolve_source_error(
                 .await?;
             }
 
-            handle_item_issues(result_ref.errors(), origin, source).await?;
+            handle_item_issues(result_ref.errors(), &origin_path, source).await?;
 
             result
         }
         Err(err) => {
             emit_resolve_error_issue(
                 error_mode,
-                origin,
+                &origin_path,
                 reference_type,
                 request,
                 resolve_options,
@@ -104,17 +105,19 @@ pub async fn handle_resolve_source_error(
 
 async fn handle_item_issues(
     items: impl Iterator<Item = ResolvedVc<Box<dyn Issue>>>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
+    origin_path: &FileSystemPath,
     source: Option<IssueSource>,
 ) -> Result<()> {
     let mut items = items.peekable();
     if items.peek().is_some() {
-        let file_path = origin.origin_path().owned().await?;
         for item in items {
+            let trait_ref = item.into_trait_ref().await?;
             ResolvingIssueWithLocation {
                 inner: item,
-                severity: item.into_trait_ref().await?.severity(),
-                file_path: file_path.clone(),
+                severity: trait_ref.severity(),
+                stage: trait_ref.stage(),
+                documentation_link: trait_ref.documentation_link(),
+                file_path: origin_path.clone(),
                 source,
             }
             .resolved_cell()
@@ -126,7 +129,7 @@ async fn handle_item_issues(
 
 async fn emit_resolve_error_issue(
     error_mode: ResolveErrorMode,
-    origin: Vc<Box<dyn ResolveOrigin>>,
+    origin_path: &FileSystemPath,
     reference_type: ReferenceType,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
@@ -143,7 +146,7 @@ async fn emit_resolve_error_issue(
     };
     ResolvingIssue {
         severity,
-        file_path: origin.origin_path().owned().await?,
+        file_path: origin_path.clone(),
         request_type: format!("{reference_type} request"),
         request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,
@@ -157,8 +160,7 @@ async fn emit_resolve_error_issue(
 
 async fn emit_unresolvable_issue(
     error_mode: ResolveErrorMode,
-
-    origin: Vc<Box<dyn ResolveOrigin>>,
+    origin_path: &FileSystemPath,
     reference_type: ReferenceType,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
@@ -174,7 +176,7 @@ async fn emit_unresolvable_issue(
     };
     ResolvingIssue {
         severity,
-        file_path: origin.origin_path().owned().await?,
+        file_path: origin_path.clone(),
         request_type: format!("{reference_type} request"),
         request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,
@@ -199,48 +201,44 @@ pub async fn resolve_error_severity(resolve_options: Vc<ResolveOptions>) -> Resu
 pub struct ResolvingIssueWithLocation {
     pub inner: ResolvedVc<Box<dyn Issue>>,
     pub severity: IssueSeverity,
+    pub stage: IssueStage,
+    pub documentation_link: RcStr,
     pub file_path: FileSystemPath,
     pub source: Option<IssueSource>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ResolvingIssueWithLocation {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path.clone().cell()
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.file_path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        self.inner.stage()
+    fn stage(&self) -> IssueStage {
+        self.stage.clone()
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        self.inner.title()
+    async fn title(&self) -> Result<StyledString> {
+        self.inner.into_trait_ref().await?.title().await
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        self.inner.description()
+    async fn description(&self) -> Result<Option<StyledString>> {
+        self.inner.into_trait_ref().await?.description().await
     }
 
-    #[turbo_tasks::function]
-    fn detail(&self) -> Vc<OptionStyledString> {
-        self.inner.detail()
+    async fn detail(&self) -> Result<Option<StyledString>> {
+        self.inner.into_trait_ref().await?.detail().await
     }
 
-    #[turbo_tasks::function]
-    fn documentation_link(&self) -> Vc<RcStr> {
-        self.inner.documentation_link()
+    fn documentation_link(&self) -> RcStr {
+        self.documentation_link.clone()
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source)
+    fn source(&self) -> Option<IssueSource> {
+        self.source
     }
 }

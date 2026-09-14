@@ -2,16 +2,14 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForRedbox } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('use-cache-segment-configs', () => {
-  const { next, skipped, isNextDev, isTurbopack, isRspack } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it("it should error when using segment configs that aren't supported by useCache", async () => {
     if (isNextDev) {
@@ -22,11 +20,11 @@ describe('use-cache-segment-configs', () => {
       if (isTurbopack) {
         await expect(browser).toDisplayRedbox(`
          {
-           "description": "Ecmascript file had an error",
+           "description": "Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.",
            "environmentLabel": null,
            "label": "Build Error",
            "source": "./app/runtime/page.tsx (1:14)
-         Ecmascript file had an error
+         Error: Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
          > 1 | export const runtime = 'edge'
              |              ^^^^^^^",
            "stack": [],
@@ -78,19 +76,19 @@ describe('use-cache-segment-configs', () => {
 
       if (isTurbopack) {
         expect(buildOutput).toMatchInlineSnapshot(`
-         "Error: Turbopack build failed with 1 errors:
+         "Error: Turbopack build failed with 1 error:
          ./app/runtime/page.tsx:1:14
-         Ecmascript file had an error
+         Error: Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
          > 1 | export const runtime = 'edge'
              |              ^^^^^^^
            2 |
            3 | export default function Page() {
            4 |   return <div>This page uses \`export const runtime\`.</div>
 
-         Route segment config "runtime" is not compatible with \`nextConfig.experimental.useCache\`. Please remove it.
+         Ecmascript file had an error
 
 
-             at <unknown> (./app/runtime/page.tsx:1:14)
+             at ignore-listed frames
          "
         `)
       } else if (isRspack) {

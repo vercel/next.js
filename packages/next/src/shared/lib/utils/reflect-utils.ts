@@ -46,4 +46,7 @@ export const wellKnownProperties = new Set([
   'toJSON',
   '$$typeof',
   '__esModule',
+
+  // Tested by flight when checking for iterables
+  '@@iterator',
 ])

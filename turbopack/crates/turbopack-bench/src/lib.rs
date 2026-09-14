@@ -3,7 +3,7 @@ use std::{
     panic::AssertUnwindSafe,
     path::Path,
     sync::{
-        Arc,
+        Arc, LazyLock,
         atomic::{AtomicUsize, Ordering},
     },
     time::Duration,
@@ -14,7 +14,6 @@ use criterion::{
     BenchmarkGroup, BenchmarkId, Criterion,
     measurement::{Measurement, WallTime},
 };
-use once_cell::sync::Lazy;
 use tokio::{
     runtime::Runtime,
     time::{sleep, timeout},
@@ -54,7 +53,7 @@ fn bench_startup_internal(
     bundlers: &[Box<dyn Bundler>],
 ) {
     let runtime = Runtime::new().unwrap();
-    let browser = Lazy::new(|| runtime.block_on(create_browser()));
+    let browser = LazyLock::new(|| runtime.block_on(create_browser()));
 
     for bundler in bundlers {
         let wait_for_hydration = match bundler.render_type() {
@@ -80,7 +79,7 @@ fn bench_startup_internal(
             }
         };
         for module_count in get_module_counts() {
-            let test_app = Lazy::new(|| build_test(module_count, bundler.as_ref()));
+            let test_app = LazyLock::new(|| build_test(module_count, bundler.as_ref()));
             let input = (bundler.as_ref(), &test_app);
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
@@ -89,7 +88,7 @@ fn bench_startup_internal(
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
                         let browser = &*browser;
-                        b.to_async(&runtime).try_iter_custom(|iters, m| async move {
+                        b.to_async(&runtime).try_iter_custom(async |iters, m| {
                             let mut value = m.zero();
 
                             for _ in 0..iters {
@@ -149,7 +148,7 @@ fn bench_hmr_internal(
     g.warm_up_time(Duration::from_millis(1));
 
     let runtime = Runtime::new().unwrap();
-    let browser = Lazy::new(|| runtime.block_on(create_browser()));
+    let browser = LazyLock::new(|| runtime.block_on(create_browser()));
     let hmr_warmup = read_env("TURBOPACK_BENCH_HMR_WARMUP", 10).unwrap();
 
     for bundler in bundlers {
@@ -164,10 +163,10 @@ fn bench_hmr_internal(
             continue;
         }
         for module_count in get_module_counts() {
-            let test_app = Lazy::new(|| build_test(module_count, bundler.as_ref()));
+            let test_app = LazyLock::new(|| build_test(module_count, bundler.as_ref()));
             let input = (bundler.as_ref(), &test_app);
             let module_picker =
-                Lazy::new(|| Arc::new(ModulePicker::new(test_app.modules().to_vec())));
+                LazyLock::new(|| Arc::new(ModulePicker::new(test_app.modules().to_vec())));
 
             resume_on_error(AssertUnwindSafe(|| {
                 g.bench_with_input(
@@ -184,7 +183,7 @@ fn bench_hmr_internal(
 
                         b.to_async(&runtime).try_iter_async(
                             &runtime,
-                            || async {
+                            async || {
                                 let mut app = PreparedApp::new_without_copy(
                                     bundler,
                                     test_app.path().to_path_buf(),
@@ -319,7 +318,7 @@ fn bench_hmr_internal(
                                     Ok((guard, value))
                                 }
                             },
-                            |guard| async move {
+                            async |guard| {
                                 let hmr_is_happening = guard
                                     .page()
                                     .evaluate_expression("globalThis.HMR_IS_HAPPENING")
@@ -449,7 +448,7 @@ fn bench_startup_cached_internal(
     }
 
     let runtime = Runtime::new().unwrap();
-    let browser = Lazy::new(|| runtime.block_on(create_browser()));
+    let browser = LazyLock::new(|| runtime.block_on(create_browser()));
 
     for bundler in bundlers {
         let wait_for_hydration = match bundler.render_type() {
@@ -475,7 +474,7 @@ fn bench_startup_cached_internal(
             }
         };
         for module_count in get_module_counts() {
-            let test_app = Lazy::new(|| build_test(module_count, bundler.as_ref()));
+            let test_app = LazyLock::new(|| build_test(module_count, bundler.as_ref()));
             let input = (bundler.as_ref(), &test_app);
 
             resume_on_error(AssertUnwindSafe(|| {
@@ -485,7 +484,7 @@ fn bench_startup_cached_internal(
                     |b, &(bundler, test_app)| {
                         let test_app = &**test_app;
                         let browser = &*browser;
-                        b.to_async(&runtime).try_iter_custom(|iters, m| async move {
+                        b.to_async(&runtime).try_iter_custom(async |iters, m| {
                             // Run a complete build, shut down, and test running it again
                             let mut app =
                                 PreparedApp::new(bundler, test_app.path().to_path_buf()).await?;

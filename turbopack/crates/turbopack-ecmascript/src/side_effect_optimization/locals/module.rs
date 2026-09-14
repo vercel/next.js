@@ -1,6 +1,5 @@
-use std::collections::BTreeMap;
-
 use anyhow::{Result, bail};
+use turbo_frozenmap::FrozenMap;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     chunk::{
@@ -12,25 +11,29 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
+    source::OptionSource,
 };
 
 use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleAsset, EcmascriptModuleContent, EcmascriptModuleContentOptions,
-    MergedEcmascriptModule,
+    EcmascriptParsable, EnvVarInfo, MergedEcmascriptModule,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
     },
+    parse::ParseResult,
     references::{
         async_module::OptionAsyncModule,
         esm::{EsmExport, EsmExports},
     },
 };
 
-/// A module derived from an original ecmascript module that only contains the
-/// local declarations, but excludes all reexports. These reexports are exposed
-/// from [EcmascriptModuleFacadeModule] instead.
+/// A module derived from an original ecmascript module that only contains the local declarations,
+/// but excludes all reexports. These reexports are exposed from [`EcmascriptModuleFacadeModule`]
+/// instead.
+///
+/// [`EcmascriptModuleFacadeModule`]: crate::side_effect_optimization::facade::module::EcmascriptModuleFacadeModule
 #[turbo_tasks::value]
 pub struct EcmascriptModuleLocalsModule {
     pub module: ResolvedVc<EcmascriptModuleAsset>,
@@ -47,13 +50,19 @@ impl EcmascriptModuleLocalsModule {
 #[turbo_tasks::value_impl]
 impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        self.module.ident().with_part(ModulePart::locals())
+    async fn ident(&self) -> Result<Vc<AssetIdent>> {
+        Ok(self
+            .module
+            .ident()
+            .owned()
+            .await?
+            .with_part(ModulePart::locals())
+            .into_vc())
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<turbopack_core::source::OptionSource> {
-        Vc::cell(None)
+    fn source(&self) -> Vc<OptionSource> {
+        ResolvedVc::upcast::<Box<dyn Module>>(self.module).source()
     }
 
     #[turbo_tasks::function]
@@ -80,10 +89,23 @@ impl Module for EcmascriptModuleLocalsModule {
 }
 
 #[turbo_tasks::value_impl]
+impl EcmascriptParsable for EcmascriptModuleLocalsModule {
+    #[turbo_tasks::function]
+    fn failsafe_parse(&self) -> Vc<ParseResult> {
+        self.module.failsafe_parse()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn analyze(&self) -> Vc<AnalyzeEcmascriptModuleResult> {
         self.module.analyze()
+    }
+
+    #[turbo_tasks::function]
+    fn env_var_info(&self) -> Vc<EnvVarInfo> {
+        self.module.env_var_info()
     }
 
     #[turbo_tasks::function]
@@ -140,7 +162,7 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
             bail!("EcmascriptModuleLocalsModule must only be used on modules with EsmExports");
         };
         let esm_exports = exports.await?;
-        let mut exports = BTreeMap::new();
+        let mut exports = Vec::new();
 
         for (name, export) in &esm_exports.exports {
             match export {
@@ -148,20 +170,21 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
                     // not included in locals module
                 }
                 EsmExport::LocalBinding(local_name, liveness) => {
-                    exports.insert(
+                    exports.push((
                         name.clone(),
                         EsmExport::LocalBinding(local_name.clone(), *liveness),
-                    );
+                    ));
                 }
                 EsmExport::Error => {
-                    exports.insert(name.clone(), EsmExport::Error);
+                    exports.push((name.clone(), EsmExport::Error));
                 }
             }
         }
 
         let exports = EsmExports {
-            exports,
+            exports: FrozenMap::from_unique_sorted_box(exports.into_boxed_slice()),
             star_exports: vec![],
+            mangle_export_names: esm_exports.mangle_export_names,
         }
         .resolved_cell();
         Ok(EcmascriptExports::EsmExports(exports).cell())

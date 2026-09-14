@@ -7,6 +7,8 @@ description: >
   Covers the supported spec fields, description writing, naming conventions,
   and the relationship between always-loaded AGENTS.md and on-demand skills.
 user-invocable: false
+metadata:
+  internal: true
 ---
 
 # Authoring Skills

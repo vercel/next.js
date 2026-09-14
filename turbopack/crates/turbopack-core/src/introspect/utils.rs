@@ -41,6 +41,18 @@ fn traced_reference_ty() -> RcStr {
     rcstr!("traced reference")
 }
 
+fn per_entry_reference_ty() -> RcStr {
+    rcstr!("per entry reference")
+}
+
+fn emitted_reference_ty() -> RcStr {
+    rcstr!("emitted reference")
+}
+
+fn collected_reference_ty() -> RcStr {
+    rcstr!("collected reference")
+}
+
 #[turbo_tasks::function]
 pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> {
     Ok(match &*content.await? {
@@ -54,9 +66,7 @@ pub async fn content_to_details(content: Vc<AssetContent>) -> Result<Vc<RcStr>> 
             }
             FileContent::NotFound => Vc::cell(rcstr!("not found")),
         },
-        AssetContent::Redirect { target, link_type } => {
-            Vc::cell(format!("redirect to {target} with type {link_type:?}").into())
-        }
+        AssetContent::Redirect(content) => Vc::cell(format!("redirect to {content:?}").into()),
     })
 }
 
@@ -68,7 +78,8 @@ pub async fn children_from_module_references(
     let mut children = FxIndexSet::default();
     let references = references.await?;
     for &reference in &*references {
-        let key = match &*reference.chunking_type().await? {
+        let trait_ref = reference.into_trait_ref().await?;
+        let key = match &trait_ref.chunking_type() {
             None => key.clone(),
             Some(ChunkingType::Parallel { inherit_async, .. }) => {
                 if *inherit_async {
@@ -80,12 +91,14 @@ pub async fn children_from_module_references(
             Some(ChunkingType::Async) => async_reference_ty(),
             Some(ChunkingType::Isolated { .. }) => isolated_reference_ty(),
             Some(ChunkingType::Shared { .. }) => shared_reference_ty(),
-            Some(ChunkingType::Traced) => traced_reference_ty(),
+            Some(ChunkingType::Traced { .. }) => traced_reference_ty(),
+            Some(ChunkingType::Emitted { .. }) => emitted_reference_ty(),
+            Some(ChunkingType::Collected { .. }) => collected_reference_ty(),
+            Some(ChunkingType::PerEntry) => per_entry_reference_ty(),
         };
 
         for &module in reference
             .resolve_reference()
-            .resolve()
             .await?
             .primary_modules()
             .await?
@@ -94,19 +107,6 @@ pub async fn children_from_module_references(
             children.insert((
                 key.clone(),
                 IntrospectableModule::new(*module).to_resolved().await?,
-            ));
-        }
-        for &output_asset in reference
-            .resolve_reference()
-            .primary_output_assets()
-            .await?
-            .iter()
-        {
-            children.insert((
-                key.clone(),
-                IntrospectableOutputAsset::new(*output_asset)
-                    .to_resolved()
-                    .await?,
             ));
         }
     }

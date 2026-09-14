@@ -35,6 +35,7 @@ export const NEXT_CACHE_TAG_MAX_ITEMS = 128
 export const NEXT_CACHE_TAG_MAX_LENGTH = 256
 export const NEXT_CACHE_SOFT_TAG_MAX_LENGTH = 1024
 export const NEXT_CACHE_IMPLICIT_TAG_ID = '_N_T_'
+export const NEXT_CACHE_ROOT_PARAM_TAG_ID = '_N_RP_'
 
 // in seconds
 export const CACHE_ONE_YEAR_SECONDS = 31536000

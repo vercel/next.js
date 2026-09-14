@@ -1,17 +1,23 @@
 use std::{
-    fs::File,
     io::{self, BufWriter, Write},
     path::Path,
 };
 
 use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
+use fs_err::File;
 use qfilter::Filter;
+use zerocopy::IntoBytes;
 
-use crate::static_sorted_file_builder::StaticSortedFileBuilderMeta;
+use crate::{
+    Compression,
+    meta_file::{EntryHeader, META_FILE_MAGIC},
+    static_sorted_file_builder::StaticSortedFileBuilderMeta,
+};
 
 pub struct MetaFileBuilder<'a> {
     family: u32,
+    compression: Compression,
     /// Entries in the meta file, tuples of (sequence_number, StaticSortedFileBuilderMetaResult)
     entries: Vec<(u32, StaticSortedFileBuilderMeta<'a>)>,
     /// Obsolete SST files, represented by their sequence numbers
@@ -21,9 +27,10 @@ pub struct MetaFileBuilder<'a> {
 }
 
 impl<'a> MetaFileBuilder<'a> {
-    pub fn new(family: u32) -> Self {
+    pub fn new(family: u32, compression: Compression) -> Self {
         Self {
             family,
+            compression,
             entries: Vec::new(),
             obsolete_sst_files: Vec::new(),
             used_key_hashes_amqf: None,
@@ -43,16 +50,19 @@ impl<'a> MetaFileBuilder<'a> {
     }
 
     #[tracing::instrument(level = "trace", skip_all)]
-    pub fn write(self, db_path: &Path, seq: u32) -> Result<File> {
+    pub fn write(self, db_path: &Path, seq: u32) -> Result<(File, u64)> {
         let file = db_path.join(format!("{seq:08}.meta"));
         self.write_internal(&file)
             .with_context(|| format!("Unable to write meta file {seq:08}.meta"))
     }
 
-    fn write_internal(mut self, file: &Path) -> io::Result<File> {
-        let mut file = BufWriter::new(File::create(file)?);
-        file.write_u32::<BE>(0xFE4ADA4A)?; // Magic number
+    fn write_internal(mut self, file: &Path) -> io::Result<(File, u64)> {
+        // Wrap the writer to count the bytes written, so callers can accumulate written-byte totals
+        // without stat'ing the file afterwards.
+        let mut file = CountingWriter::new(BufWriter::new(File::create(file)?));
+        file.write_u32::<BE>(META_FILE_MAGIC)?; // Magic number
         file.write_u32::<BE>(self.family)?;
+        file.write_u8(self.compression as u8)?;
 
         self.obsolete_sst_files.sort();
         file.write_u32::<BE>(self.obsolete_sst_files.len() as u32)?;
@@ -64,20 +74,22 @@ impl<'a> MetaFileBuilder<'a> {
 
         let mut amqf_offset = 0;
         for (sequence_number, sst) in &self.entries {
-            file.write_u32::<BE>(*sequence_number)?;
-            file.write_u16::<BE>(sst.key_compression_dictionary_length)?;
-            file.write_u16::<BE>(sst.block_count)?;
-            file.write_u64::<BE>(sst.min_hash)?;
-            file.write_u64::<BE>(sst.max_hash)?;
-            file.write_u64::<BE>(sst.size)?;
-            file.write_u32::<BE>(sst.flags.0)?;
             amqf_offset += sst.amqf.len();
-            file.write_u32::<BE>(amqf_offset as u32)?;
+            let header = EntryHeader::new(
+                *sequence_number,
+                sst.block_count,
+                sst.min_hash,
+                sst.max_hash,
+                sst.size,
+                sst.flags,
+                amqf_offset as u32,
+            );
+            file.write_all(header.as_bytes())?;
         }
         let serialized_used_key_hashes = self
             .used_key_hashes_amqf
             .as_ref()
-            .map(|f| pot::to_vec(f).expect("AMQF serialization failed"));
+            .map(|f| postcard::to_allocvec(f).expect("AMQF serialization failed"));
         amqf_offset += serialized_used_key_hashes
             .as_ref()
             .map(|bytes| bytes.len())
@@ -90,6 +102,44 @@ impl<'a> MetaFileBuilder<'a> {
         if let Some(bytes) = &serialized_used_key_hashes {
             file.write_all(bytes)?;
         }
-        Ok(file.into_inner()?)
+        let bytes_written = file.bytes_written();
+        let file = file.into_inner().into_inner()?;
+        Ok((file, bytes_written))
+    }
+}
+
+/// A [`Write`] adapter that counts the total number of bytes written through it, so writers can
+/// report their on-disk size without an extra `stat`/`stream_position` syscall.
+struct CountingWriter<W> {
+    inner: W,
+    bytes_written: u64,
+}
+
+impl<W> CountingWriter<W> {
+    fn new(inner: W) -> Self {
+        Self {
+            inner,
+            bytes_written: 0,
+        }
+    }
+
+    fn bytes_written(&self) -> u64 {
+        self.bytes_written
+    }
+
+    fn into_inner(self) -> W {
+        self.inner
+    }
+}
+
+impl<W: Write> Write for CountingWriter<W> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let n = self.inner.write(buf)?;
+        self.bytes_written += n as u64;
+        Ok(n)
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        self.inner.flush()
     }
 }

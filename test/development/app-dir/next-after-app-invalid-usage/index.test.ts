@@ -27,7 +27,7 @@ describe('after() - invalid usages', () => {
 
     await waitForRedbox(session)
     expect(await getRedboxSource(session)).toMatch(
-      /You're importing a component that needs "?after"?\. That only works in a Server Component but one of its parents is marked with "use client", so it's a Client Component\./
+      /You're importing a module that depends on "?after"? into a React Client Component module\. This API is only available in Server Components but one of its parents is marked with "use client", so this module is also a Client Component\./
     )
     expect(getAfterLogs()).toHaveLength(0)
   })

@@ -9,10 +9,10 @@ use turbopack_core::{
     environment::Environment, reference_type::ReferenceType, source::Source,
     source_transform::SourceTransforms,
 };
-use turbopack_css::CssModuleAssetType;
+use turbopack_css::CssModuleType;
 use turbopack_ecmascript::{
     EcmascriptInputTransforms, EcmascriptOptions, bytes_source_transform::BytesSourceTransform,
-    json_source_transform::JsonSourceTransform,
+    json_source_transform::JsonSourceTransform, text_source_transform::TextSourceTransform,
 };
 use turbopack_wasm::source::WebAssemblySourceType;
 
@@ -140,8 +140,10 @@ pub enum ModuleType {
     NodeAddon,
     CssModule,
     Css {
-        ty: CssModuleAssetType,
+        ty: CssModuleType,
         environment: Option<ResolvedVc<Environment>>,
+        lightningcss_features: turbopack_css::LightningCssFeatureFlags,
+        module_css_debuggable_idents: bool,
     },
     StaticUrlJs {
         /// The tag that is passed to ChunkingContext::asset_url
@@ -192,11 +194,17 @@ pub enum ConfiguredModuleType {
     /// Implemented as a source transform, not a ModuleType.
     Json,
     Wasm,
+    /// An alias of [`ConfiguredModuleType::Text`].
     Raw,
     Node,
     /// Converts any file to an ES module exporting its contents as a Uint8Array.
     /// Implemented as a source transform, not a ModuleType.
     Bytes,
+    /// Converts any file to an ES module exporting its contents as a string.
+    /// Implemented as a source transform, not a ModuleType.
+    ///
+    /// `Raw` is an alias of this.
+    Text,
 }
 
 impl ConfiguredModuleType {
@@ -213,9 +221,10 @@ impl ConfiguredModuleType {
             "raw" => ConfiguredModuleType::Raw,
             "node" => ConfiguredModuleType::Node,
             "bytes" => ConfiguredModuleType::Bytes,
+            "text" => ConfiguredModuleType::Text,
             _ => bail!(
                 "Unknown module type: {type_str:?}. Valid types are: asset, ecmascript, \
-                 typescript, css, css-module, json, wasm, raw, node, bytes"
+                 typescript, css, css-module, json, wasm, raw, node, bytes, text"
             ),
         })
     }
@@ -231,6 +240,7 @@ impl ConfiguredModuleType {
         postprocess: ResolvedVc<EcmascriptInputTransforms>,
         options: ResolvedVc<EcmascriptOptions>,
         environment: Option<ResolvedVc<Environment>>,
+        lightningcss_features: turbopack_css::LightningCssFeatureFlags,
     ) -> Result<ModuleRuleEffect> {
         Ok(match self {
             ConfiguredModuleType::Bytes => {
@@ -238,6 +248,15 @@ impl ConfiguredModuleType {
                 // which gets picked up by the standard Ecmascript rules
                 ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
                     BytesSourceTransform::new().to_resolved().await?,
+                )]))
+            }
+            // `raw` has always been documented as returning the contents as a string, so it
+            // is an alias of `text` rather than a way to get an opaque module.
+            ConfiguredModuleType::Text | ConfiguredModuleType::Raw => {
+                // Same as `Bytes`: a source transform that produces .mjs, which is then
+                // picked up by the standard Ecmascript rules.
+                ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![ResolvedVc::upcast(
+                    TextSourceTransform::new().to_resolved().await?,
                 )]))
             }
             ConfiguredModuleType::Asset => {
@@ -262,8 +281,11 @@ impl ConfiguredModuleType {
                 })
             }
             ConfiguredModuleType::Css => ModuleRuleEffect::ModuleType(ModuleType::Css {
-                ty: CssModuleAssetType::Default,
+                ty: CssModuleType::Default,
                 environment,
+                lightningcss_features,
+                // This is global CSS, so the CSS Module naming pattern is unused.
+                module_css_debuggable_idents: false,
             }),
             ConfiguredModuleType::CssModule => ModuleRuleEffect::ModuleType(ModuleType::CssModule),
             ConfiguredModuleType::Json => {
@@ -275,7 +297,6 @@ impl ConfiguredModuleType {
             ConfiguredModuleType::Wasm => ModuleRuleEffect::ModuleType(ModuleType::WebAssembly {
                 source_ty: WebAssemblySourceType::Binary,
             }),
-            ConfiguredModuleType::Raw => ModuleRuleEffect::ModuleType(ModuleType::Raw),
             ConfiguredModuleType::Node => ModuleRuleEffect::ModuleType(ModuleType::NodeAddon),
         })
     }

@@ -4,12 +4,12 @@ A production-ready example demonstrating how to Dockerize Next.js applications u
 
 ## Features
 
-- ✅ Multi-stage Docker build for optimal image size
-- ✅ Next.js standalone mode for minimal production builds
-- ✅ Security best practices (non-root user)
-- ✅ Slim Linux base image for optimal compatibility and smaller size
-- ✅ BuildKit cache mounts for faster builds
-- ✅ Production-ready configuration
+- Multi-stage Docker build for optimal image size
+- Next.js standalone mode for minimal production builds
+- Security best practices (non-root user)
+- Slim Linux base image for optimal compatibility and smaller size
+- BuildKit cache mounts for faster builds
+- Production-ready configuration
 
 ## Prerequisites
 
@@ -127,10 +127,11 @@ Learn more about [Next.js standalone output](https://nextjs.org/docs/pages/api-r
 
 - **Multi-stage build**: Separates dependency installation (`dependencies`), build (`builder`), and runtime (`runner`) stages
 - **Slim Linux**: Uses `slim` image tag for optimal compatibility and smaller image size
-- **BuildKit cache mounts**: Speeds up builds by caching package manager stores (`/root/.npm`, `/usr/local/share/.cache/yarn`, `/root/.local/share/pnpm/store`) and Next.js build cache (`/app/.next/cache`)
+- **BuildKit cache mounts**: Speeds up builds by caching package manager stores (`/root/.npm`, `/usr/local/share/.cache/yarn`, `/root/.local/share/pnpm/store`). See the Dockerfile for an optional `.next/cache` mount to speed up rebuilds.
 - **Non-root user**: Runs as `node` user for security
 - **Optimized layers**: Leverages Docker layer caching effectively
 - **Standalone output**: Copies only the necessary files from `.next/standalone` and `.next/static`
+- **Writable `.next` directory**: The `.next` directory is created and owned by the `node` user so the server can write prerender cache and optimized images at runtime
 - **Node.js version maintenance**: Uses Node.js 24.13.0-slim (latest LTS at time of writing). Update the `NODE_VERSION` ARG to the latest LTS version for security updates.
 
 ### Dockerfile.bun Highlights (Bun)
@@ -139,7 +140,7 @@ Learn more about [Next.js standalone output](https://nextjs.org/docs/pages/api-r
 - **Official Bun image**: Uses `oven/bun:1` for optimal Bun performance
 - **Non-root user**: Runs as built-in `bun` user for security
 - **Frozen lockfile**: Uses `bun.lock` for reproducible builds
-- **Standalone output**: Same optimized output as the Node.js version
+- **Standalone output**: Same optimized output as the Node.js version, with writable `.next` directory for runtime cache
 
 **Why Node.js slim image tag?**: The slim variant provides optimal compatibility with npm packages and native dependencies while maintaining a smaller image size (~226MB). Slim uses glibc (standard Linux), ensuring better compatibility than Alpine's musl libc, which can cause issues with some npm packages. This makes it ideal for public examples where reliability and compatibility are priorities.
 
@@ -152,7 +153,69 @@ Learn more about [Next.js standalone output](https://nextjs.org/docs/pages/api-r
 
 To switch to Alpine, simply change the `NODE_VERSION` ARG in the Dockerfile to `24.11.1-alpine`.
 
-**⚠️ Important - Node.js Version Maintenance**: This Dockerfile uses Node.js 24.13.0-slim, which was the latest LTS version at the time of writing. To ensure security and stay up-to-date, regularly check and update the `NODE_VERSION` ARG in the Dockerfile to the latest Node.js LTS version. Check the latest version at [Nodejs official website](https://nodejs.org/) and browse available Node.js images on [Docker Hub](https://hub.docker.com/_/node).
+> [!IMPORTANT]
+> **Node.js Version Maintenance**: This Dockerfile uses Node.js 24.13.0-slim, which was the latest LTS version at the time of writing. To ensure security and stay up-to-date, regularly check and update the `NODE_VERSION` ARG in the Dockerfile to the latest Node.js LTS version. Check the latest version at [Nodejs official website](https://nodejs.org/) and browse available Node.js images on [Docker Hub](https://hub.docker.com/_/node).
+
+## Environment Variables
+
+The [`.dockerignore`](./.dockerignore) in this example **excludes `.env`**, so a local development file — which usually holds real credentials — is never copied into the build context or the final image.
+
+The consequence is worth knowing up front: a value you rely on from `.env` is `undefined` inside the container, even though the same code works with `next build && next start` locally. Use one of the following instead.
+
+### Secrets and server-only values: pass them at run time
+
+Values read on the server at request time (Route Handlers, dynamically rendered Server Components, Server Actions) are read from the environment when the request happens, so they need nothing at build time:
+
+```bash
+docker run -p 3000:3000 -e MY_SECRET=value nextjs-standalone-image
+```
+
+or in [`compose.yml`](./compose.yml):
+
+```yaml
+services:
+  nextjs-standalone:
+    environment:
+      MY_SECRET: value
+    # or, to read a file that is not committed:
+    # env_file:
+    #   - .env.production.local
+```
+
+Prefer this wherever it works: it keeps one image promotable across environments instead of baking values into a per-environment build.
+
+### Non-secret build-time configuration: use `.env.production`
+
+`.env.production` is intentionally **not** ignored, so it is available to `next build` and loaded by the server at run time. Use it only for values that are safe to publish:
+
+```bash
+# .env.production
+NEXT_PUBLIC_SITE_URL=https://example.com
+```
+
+### Public values needed in the client bundle: use a build argument
+
+`NEXT_PUBLIC_*` values referenced from Client Components are inlined into the JavaScript sent to the browser, so they have to be present while `next build` runs. Add them to the builder stage:
+
+```dockerfile
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+# ... before the build step
+```
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_SITE_URL=https://example.com \
+  -t nextjs-standalone-image .
+```
+
+> [!IMPORTANT]
+> Never pass secrets as build arguments. They are recoverable from the image history, and `NEXT_PUBLIC_*` values are sent to the browser by definition.
+
+> [!IMPORTANT]
+> Any env file that **is** present in the build context is also copied into `.next/standalone` by `output: "standalone"`, and this Dockerfile copies that directory wholesale into the runner stage. The file therefore ships inside the image and is readable by anyone who can pull it. Keep credentials out of committed env files and pass them at run time.
+
+To build a separate image per environment instead, see [`with-docker-multi-env`](../with-docker-multi-env).
 
 ## Deployment
 
@@ -175,9 +238,11 @@ This example can be deployed to any container-based platform:
    ```
    This will also enable Cloud Build for your project.
 5. Deploy to Cloud Run:
+
    ```bash
    gcloud run deploy --image gcr.io/PROJECT-ID/nextjs-docker --project PROJECT-ID --platform managed --allow-unauthenticated
    ```
+
    - You will be prompted for the service name: press Enter to accept the default name, `nextjs-docker`.
    - You will be prompted for [region](https://cloud.google.com/run/docs/quickstarts/build-and-deploy#follow-cloud-run): select the region of your choice, for example `us-central1`.
 

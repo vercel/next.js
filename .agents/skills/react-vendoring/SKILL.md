@@ -8,6 +8,8 @@ description: >
   React channels, type declarations, Turbopack remap to
   react-server-dom-turbopack, ComponentMod access patterns, and ESLint
   suppression for guarded requires.
+metadata:
+  internal: true
 ---
 
 # React Vendoring

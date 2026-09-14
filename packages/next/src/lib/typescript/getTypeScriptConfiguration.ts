@@ -2,7 +2,6 @@ import { bold, cyan } from '../picocolors'
 import os from 'os'
 import path from 'path'
 
-import { FatalError } from '../fatal-error'
 import isError from '../is-error'
 
 export async function getTypeScriptConfiguration(
@@ -22,9 +21,7 @@ export async function getTypeScriptConfiguration(
       typescript.sys.readFile
     )
     if (error) {
-      throw new FatalError(
-        typescript.formatDiagnostic(error, formatDiagnosticsHost)
-      )
+      throw new Error(typescript.formatDiagnostic(error, formatDiagnosticsHost))
     }
 
     let configToParse: any = config
@@ -53,7 +50,8 @@ export async function getTypeScriptConfiguration(
     }
 
     if (result.errors?.length) {
-      throw new FatalError(
+      // TODO: Throw AggregateError for all diagnostics.
+      throw new Error(
         typescript.formatDiagnostic(result.errors[0], formatDiagnosticsHost)
       )
     }
@@ -62,7 +60,7 @@ export async function getTypeScriptConfiguration(
   } catch (err) {
     if (isError(err) && err.name === 'SyntaxError') {
       const reason = '\n' + (err.message ?? '')
-      throw new FatalError(
+      throw new Error(
         bold(
           'Could not parse' +
             cyan('tsconfig.json') +

@@ -1,7 +1,8 @@
+use async_trait::async_trait;
 use turbo_rcstr::rcstr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
-use turbopack_core::issue::{Issue, IssueStage, OptionStyledString, StyledString};
+use turbopack_core::issue::{Issue, IssueStage, StyledString};
 
 /// An issue that occurred while resolving the parsing or evaluating the .env.
 #[turbo_tasks::value(shared)]
@@ -10,25 +11,22 @@ pub struct ProcessEnvIssue {
     pub description: ResolvedVc<StyledString>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for ProcessEnvIssue {
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        StyledString::Text(rcstr!("Error loading dotenv file")).cell()
+    async fn title(&self) -> anyhow::Result<StyledString> {
+        Ok(StyledString::Text(rcstr!("Error loading dotenv file")))
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::Load.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::Load
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
+    async fn file_path(&self) -> anyhow::Result<FileSystemPath> {
+        Ok(self.path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.description))
+    async fn description(&self) -> anyhow::Result<Option<StyledString>> {
+        Ok(Some((*self.description.await?).clone()))
     }
 }

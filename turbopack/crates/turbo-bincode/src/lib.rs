@@ -11,8 +11,16 @@ use bincode::{
     enc::{Encoder, EncoderImpl, write::Writer},
     error::{DecodeError, EncodeError},
 };
+use turbo_tasks_hash::DeterministicHasher;
 
 pub const TURBO_BINCODE_CONFIG: bincode::config::Configuration = bincode::config::standard();
+/// Same as standard config, but since we aren't encoding we don't benefit from varint
+/// optimizations.
+pub const TURBO_BINCODE_HASH_CONFIG: bincode::config::Configuration<
+    bincode::config::LittleEndian,
+    bincode::config::Fixint,
+    bincode::config::NoLimit,
+> = TURBO_BINCODE_CONFIG.with_fixed_int_encoding();
 pub type TurboBincodeBuffer = SmallVec<[u8; 16]>;
 pub type TurboBincodeEncoder<'a> =
     EncoderImpl<TurboBincodeWriter<'a>, bincode::config::Configuration>;
@@ -119,6 +127,44 @@ impl Reader for TurboBincodeReader<'_> {
     fn consume(&mut self, n: usize) {
         self.buffer = &self.buffer[n..];
     }
+}
+
+/// A [`Writer`] that sinks bytes directly into a [`DeterministicHasher`] instead of a buffer.
+///
+/// This allows encoding values directly to a hash without intermediate buffer allocation.
+pub struct HashWriter<'a, H: DeterministicHasher + ?Sized> {
+    hasher: &'a mut H,
+}
+
+impl<'a, H: DeterministicHasher + ?Sized> HashWriter<'a, H> {
+    /// Creates a new `HashWriter` that writes to the given hasher.
+    pub fn new(hasher: &'a mut H) -> Self {
+        Self { hasher }
+    }
+}
+
+impl<H: DeterministicHasher + ?Sized> Writer for HashWriter<'_, H> {
+    fn write(&mut self, bytes: &[u8]) -> Result<(), EncodeError> {
+        self.hasher.write_bytes(bytes);
+        Ok(())
+    }
+}
+
+/// An encoder that writes directly to a [`DeterministicHasher`].
+pub type HashEncoder<'a, H> = EncoderImpl<
+    HashWriter<'a, H>,
+    bincode::config::Configuration<
+        bincode::config::LittleEndian,
+        bincode::config::Fixint,
+        bincode::config::NoLimit,
+    >,
+>;
+
+/// Creates a new [`HashEncoder`] that encodes directly to the given hasher.
+///
+/// This is useful for computing hashes of encoded values without allocating a buffer.
+pub fn new_hash_encoder<H: DeterministicHasher + ?Sized>(hasher: &mut H) -> HashEncoder<'_, H> {
+    EncoderImpl::new(HashWriter::new(hasher), TURBO_BINCODE_HASH_CONFIG)
 }
 
 /// Represents a type that can only be encoded with a [`TurboBincodeEncoder`].

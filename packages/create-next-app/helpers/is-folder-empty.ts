@@ -4,7 +4,9 @@ import { join } from 'node:path'
 import { green, blue } from 'picocolors'
 
 export function isFolderEmpty(root: string, name: string): boolean {
-  const validFiles = [
+  const validFilesOrFolders = [
+    '.claude',
+    '.cursor',
     '.DS_Store',
     '.git',
     '.gitattributes',
@@ -16,6 +18,8 @@ export function isFolderEmpty(root: string, name: string): boolean {
     '.idea',
     '.npmignore',
     '.travis.yml',
+    '.vscode',
+    '.zed',
     'LICENSE',
     'Thumbs.db',
     'docs',
@@ -28,10 +32,10 @@ export function isFolderEmpty(root: string, name: string): boolean {
   ]
 
   const conflicts = readdirSync(root).filter(
-    (file) =>
-      !validFiles.includes(file) &&
+    (fileOrFolder) =>
+      !validFilesOrFolders.includes(fileOrFolder) &&
       // Support IntelliJ IDEA-based editors
-      !/\.iml$/.test(file)
+      !/\.iml$/.test(fileOrFolder)
   )
 
   if (conflicts.length > 0) {

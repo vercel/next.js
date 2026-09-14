@@ -164,7 +164,7 @@ impl<A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'_, '_, A> {
         let log_progress = read_env_bool("TURBOPACK_BENCH_PROGRESS");
 
         let routine = &routine;
-        self.iter_custom(|iters| async move {
+        self.iter_custom(async |iters| {
             let measurement = WallTime;
             let value = routine(iters, measurement).await.expect("routine failed");
             if log_progress {
@@ -208,7 +208,7 @@ impl<A: AsyncExecutor> AsyncBencherExtension<A> for AsyncBencher<'_, '_, A> {
             input
         }))));
 
-        self.iter_custom(|iters| async move {
+        self.iter_custom(async |iters| {
             let measurement = WallTime;
 
             let input = input_mutex

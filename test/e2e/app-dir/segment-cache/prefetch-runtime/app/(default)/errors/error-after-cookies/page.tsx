@@ -3,10 +3,13 @@ import { Suspense } from 'react'
 import { cachedDelay, DebugRenderKind } from '../../../shared'
 import { ErrorBoundary } from '../../../../components/error-boundary'
 
-export const unstable_instant = {
-  prefetch: 'runtime',
-  samples: [{ cookies: [] }],
+export const instant = {
+  // We're intentionally testing error behavior at runtime.
+  // Build-time validation catches it and prevents that.
+  unstable_disableValidation: true,
+  unstable_samples: [{ cookies: [{ name: 'user-agent', value: null }] }],
 }
+export const prefetch = 'partial'
 
 export default async function Page() {
   return (

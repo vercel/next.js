@@ -1,7 +1,6 @@
 use anyhow::Result;
-use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, Vc};
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
 use crate::{
@@ -10,12 +9,17 @@ use crate::{
 };
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
-#[turbo_tasks::value(shared)]
+///
+/// The glob is read at construction time and stored as a `ReadRef`, so `matches` is a pure
+/// sync function. `serialization = "skip"` because serializing a `ReadRef` is wasteful and
+/// recomputing this is very cheap.
+#[turbo_tasks::value(serialization = "skip")]
 pub enum AfterResolvePluginCondition {
     Glob {
         root: FileSystemPath,
-        glob: ResolvedVc<Glob>,
+        glob: ReadRef<Glob>,
     },
+    // these variants are used by utoo
     Always,
     Never,
 }
@@ -23,38 +27,31 @@ pub enum AfterResolvePluginCondition {
 #[turbo_tasks::value_impl]
 impl AfterResolvePluginCondition {
     #[turbo_tasks::function]
-    pub fn new_with_glob(root: FileSystemPath, glob: ResolvedVc<Glob>) -> Vc<Self> {
-        AfterResolvePluginCondition::Glob { root, glob }.cell()
+    pub async fn new_with_glob(root: FileSystemPath, glob: ResolvedVc<Glob>) -> Result<Vc<Self>> {
+        let glob = glob.await?;
+        Ok(AfterResolvePluginCondition::Glob { root, glob }.cell())
     }
 }
 
-#[turbo_tasks::value_impl]
 impl AfterResolvePluginCondition {
-    #[turbo_tasks::function]
-    pub async fn matches(&self, fs_path: FileSystemPath) -> Result<Vc<bool>> {
+    /// Test whether `fs_path` matches this condition.
+    pub fn matches(&self, fs_path: &FileSystemPath) -> bool {
         match self {
             AfterResolvePluginCondition::Glob { root, glob } => {
-                let path = fs_path;
-
-                if let Some(path) = root.get_path_to(&path)
-                    && glob.await?.matches(path)
-                {
-                    return Ok(Vc::cell(true));
-                }
-
-                Ok(Vc::cell(false))
+                root.get_path_to(fs_path).is_some_and(|p| glob.matches(p))
             }
-            AfterResolvePluginCondition::Always => Ok(Vc::cell(true)),
-            AfterResolvePluginCondition::Never => Ok(Vc::cell(false)),
+            AfterResolvePluginCondition::Always => true,
+            AfterResolvePluginCondition::Never => false,
         }
     }
 }
 
 /// A condition which determines if the hooks of a resolve plugin gets called.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, serialization = "skip")]
 pub enum BeforeResolvePluginCondition {
-    Request(ResolvedVc<Glob>),
-    Modules(FxHashSet<RcStr>),
+    Request(ReadRef<Glob>),
+    Modules(ReadRef<Vec<RcStr>>),
+    // These are used by utoo
     Always,
     Never,
 }
@@ -63,26 +60,25 @@ pub enum BeforeResolvePluginCondition {
 impl BeforeResolvePluginCondition {
     #[turbo_tasks::function]
     pub async fn from_modules(modules: ResolvedVc<Vec<RcStr>>) -> Result<Vc<Self>> {
-        Ok(BeforeResolvePluginCondition::Modules(modules.await?.iter().cloned().collect()).cell())
+        Ok(BeforeResolvePluginCondition::Modules(modules.await?).cell())
     }
 
     #[turbo_tasks::function]
-    pub fn from_request_glob(glob: ResolvedVc<Glob>) -> Vc<Self> {
-        BeforeResolvePluginCondition::Request(glob).cell()
+    pub async fn from_request_glob(glob: ResolvedVc<Glob>) -> Result<Vc<Self>> {
+        Ok(BeforeResolvePluginCondition::Request(glob.await?).cell())
     }
 }
 
-#[turbo_tasks::value_impl]
 impl BeforeResolvePluginCondition {
-    #[turbo_tasks::function]
-    pub async fn matches(&self, request: Vc<Request>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(match self {
-            BeforeResolvePluginCondition::Request(glob) => match request.await?.request() {
-                Some(request) => glob.await?.matches(request.as_str()),
+    /// Test whether `request` matches this condition.
+    pub fn matches(&self, request: &Request) -> bool {
+        match self {
+            BeforeResolvePluginCondition::Request(glob) => match request.request() {
+                Some(request) => glob.matches(request.as_str()),
                 None => false,
             },
             BeforeResolvePluginCondition::Modules(modules) => {
-                if let Request::Module { module, .. } = &*request.await? {
+                if let Request::Module { module, .. } = request {
                     modules.iter().any(|m| module.is_match(m))
                 } else {
                     false
@@ -90,14 +86,13 @@ impl BeforeResolvePluginCondition {
             }
             BeforeResolvePluginCondition::Always => true,
             BeforeResolvePluginCondition::Never => false,
-        }))
+        }
     }
 }
 
 #[turbo_tasks::value_trait]
 pub trait BeforeResolvePlugin {
-    #[turbo_tasks::function]
-    fn before_resolve_condition(self: Vc<Self>) -> Vc<BeforeResolvePluginCondition>;
+    fn before_resolve_condition(&self) -> Vc<BeforeResolvePluginCondition>;
 
     #[turbo_tasks::function]
     fn before_resolve(
@@ -111,8 +106,7 @@ pub trait BeforeResolvePlugin {
 #[turbo_tasks::value_trait]
 pub trait AfterResolvePlugin {
     /// A condition which determines if the hooks gets called.
-    #[turbo_tasks::function]
-    fn after_resolve_condition(self: Vc<Self>) -> Vc<AfterResolvePluginCondition>;
+    fn after_resolve_condition(&self) -> Vc<AfterResolvePluginCondition>;
 
     /// This hook gets called when a full filepath has been resolved and the
     /// condition matches. If a value is returned it replaces the resolve

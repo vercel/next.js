@@ -77,15 +77,15 @@ describe('app-dir - missing required html tags', () => {
 
     await retry(() =>
       expect(browser).toDisplayRedbox(`
-     {
-       "description": "Missing <html> tags in the root layout.
-     Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
-       "environmentLabel": null,
-       "label": "Runtime Error",
-       "source": null,
-       "stack": [],
-     }
-    `)
+       {
+         "description": "Missing <html> tags in the root layout.
+       Read more at https://nextjs.org/docs/messages/missing-root-layout-tags",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": null,
+         "stack": [],
+       }
+      `)
     )
 
     reloaded = false

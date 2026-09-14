@@ -15,9 +15,9 @@ import {
 } from 'next/dist/compiled/next-devtools'
 import { ReplaySsrOnlyErrors } from '../../../../next-devtools/userspace/app/errors/replay-ssr-only-errors'
 import { AppDevOverlayErrorBoundary } from '../../../../next-devtools/userspace/app/app-dev-overlay-error-boundary'
-import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../runtime-error-handler'
 import { useWebSocketPing } from './web-socket'
+import { useErrorHandler } from '../../../../next-devtools/userspace/app/errors/use-error-handler'
 import {
   HMR_MESSAGE_SENT_TO_BROWSER,
   HMR_MESSAGE_SENT_TO_SERVER,
@@ -31,12 +31,12 @@ import type { McpPageMetadataResponse } from '../../../../shared/lib/mcp-page-me
 import { useUntrackedPathname } from '../../../components/navigation-untracked'
 import reportHmrLatency from '../../report-hmr-latency'
 import { TurbopackHmr } from '../turbopack-hot-reloader-common'
-import { NEXT_HMR_REFRESH_HASH_COOKIE } from '../../../components/app-router-headers'
 import {
   publicAppRouterInstance,
   type GlobalErrorState,
 } from '../../../components/app-router-instance'
 import { InvariantError } from '../../../../shared/lib/invariant-error'
+import { markErrorAsAlreadyLoggedOnServer } from '../../../../next-devtools/shared/forward-logs-shared'
 import { getOrCreateDebugChannelReadableWriterPair } from '../../debug-channel'
 // TODO: Explicitly import from client.browser (doesn't work with Webpack).
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -52,7 +52,14 @@ const createFromReadableStream =
   createFromReadableStreamBrowser as (typeof import('react-server-dom-webpack/client.browser'))['createFromReadableStream']
 
 let mostRecentCompilationHash: any = null
-let __nextDevClientId = Math.round(Math.random() * 100 + Date.now())
+// The dev client id is only read by the browser-side HMR websocket connection.
+// Compute it only in the browser: there is no client during SSR, and calling
+// `Math.random()`/`Date.now()` at module scope would be tracked as sync IO by
+// Cache Components and advance the render stage.
+let __nextDevClientId =
+  typeof window !== 'undefined'
+    ? Math.round(Math.random() * 100 + Date.now())
+    : 0
 let reloading = false
 let webpackStartMsSinceEpoch: number | null = null
 const turbopackHmr: TurbopackHmr | null = process.env.TURBOPACK
@@ -258,6 +265,13 @@ export function processMessage(
         )
       }
       dispatcher.onBuildOk()
+
+      // A successful build can be a no-op after recovering from an error, so
+      // there may be no server component change to resolve the test callback.
+      if (process.env.__NEXT_TEST_MODE && self.__NEXT_HMR_CB) {
+        self.__NEXT_HMR_CB()
+        self.__NEXT_HMR_CB = null
+      }
     } else {
       tryApplyUpdatesWebpack(sendMessage)
     }
@@ -314,6 +328,8 @@ export function processMessage(
         dispatcher.onDevIndicator(message.devIndicator)
       if ('devToolsConfig' in message)
         dispatcher.onDevToolsConfig(message.devToolsConfig)
+      if ('requestInsights' in message && message.requestInsights)
+        dispatcher.onRequestInsightsSnapshot(message.requestInsights)
 
       const hasErrors = Boolean(errors && errors.length)
       // Compilation with errors (e.g. syntax error or missing modules).
@@ -377,6 +393,7 @@ export function processMessage(
         type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_CONNECTED,
         data: {
           sessionId: message.data.sessionId,
+          hmrVersion: message.data.hmrVersion,
         },
       })
       break
@@ -387,6 +404,7 @@ export function processMessage(
       processTurbopackMessage({
         type: HMR_MESSAGE_SENT_TO_BROWSER.TURBOPACK_MESSAGE,
         data: message.data,
+        hmrVersion: message.hmrVersion,
       })
       if (RuntimeErrorHandler.hadRuntimeError) {
         console.warn(REACT_REFRESH_FULL_RELOAD_FROM_ERROR)
@@ -397,18 +415,17 @@ export function processMessage(
     }
     // TODO-APP: make server component change more granular
     case HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES: {
+      processTurbopackMessage({
+        type: HMR_MESSAGE_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+        hmrVersion: message.hmrVersion,
+      })
       turbopackHmr?.onServerComponentChanges()
       sendMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
           clientId: __nextDevClientId,
-          hash: message.hash,
         })
       )
-
-      // Store the latest hash in a session cookie so that it's sent back to the
-      // server with any subsequent requests.
-      document.cookie = `${NEXT_HMR_REFRESH_HASH_COOKIE}=${message.hash};path=/`
 
       if (
         RuntimeErrorHandler.hadRuntimeError ||
@@ -430,6 +447,27 @@ export function processMessage(
           self.__NEXT_HMR_CB = null
         }
       }
+
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.STATIC_PARAMS_CHANGED: {
+      // Re-fetch the current router tree so the render picks up the new set of
+      // statically-known params (and thus the fresh `stagedFallbackParams`).
+      // Unlike `SERVER_COMPONENT_CHANGES` this does not store an HMR refresh
+      // hash, so it doesn't invalidate `"use cache"` entries.
+      if (
+        RuntimeErrorHandler.hadRuntimeError ||
+        document.documentElement.id === '__next_error__'
+      ) {
+        if (reloading) return
+        reloading = true
+        return window.location.reload()
+      }
+
+      startTransition(() => {
+        publicAppRouterInstance.hmrRefresh()
+        dispatcher.onRefresh()
+      })
 
       return
     }
@@ -468,6 +506,10 @@ export function processMessage(
       dispatcher.onDevToolsConfig(message.data)
       return
     }
+    case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_INSIGHTS_UPDATE: {
+      dispatcher.onRequestInsightsUpdate(message.insight)
+      return
+    }
     case HMR_MESSAGE_SENT_TO_BROWSER.REACT_DEBUG_CHUNK: {
       const { requestId, chunk } = message
       const { writer } = getOrCreateDebugChannelReadableWriterPair(requestId)
@@ -483,6 +525,10 @@ export function processMessage(
         writer.ready.then(() => writer.close()).catch(console.error)
       }
 
+      return
+    }
+    case HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS: {
+      // Runtime error state is consumed by external HMR observers.
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.REQUEST_CURRENT_ERROR_STATE: {
@@ -512,7 +558,9 @@ export function processMessage(
       return
     }
     case HMR_MESSAGE_SENT_TO_BROWSER.ERRORS_TO_SHOW_IN_BROWSER: {
-      createFromReadableStream<Error[]>(
+      createFromReadableStream<{
+        errors: Error[]
+      }>(
         new ReadableStream({
           start(controller) {
             controller.enqueue(message.serializedErrors)
@@ -521,8 +569,12 @@ export function processMessage(
         }),
         { findSourceMapURL }
       ).then(
-        (errors) => {
+        ({ errors }) => {
           for (const error of errors) {
+            // These errors originated on the server and were already logged
+            // there. Mark them so the browser-to-terminal log forwarding
+            // doesn't replay them back to the CLI as duplicates.
+            markErrorAsAlreadyLoggedOnServer(error)
             console.error(error)
           }
         },
@@ -556,12 +608,28 @@ export default function HotReload({
   webSocket: WebSocket | undefined
   staticIndicatorState: StaticIndicatorState | undefined
 }) {
-  useErrorHandler(dispatcher.onUnhandledError, dispatcher.onUnhandledRejection)
   useWebSocketPing(webSocket)
 
   // We don't want access of the pathname for the dev tools to trigger a dynamic
   // access (as the dev overlay will never be present in production).
   const pathname = useUntrackedPathname()
+
+  if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+    // Republish after navigation commits so HMR observers receive the current
+    // pathname even when the captured errors haven't changed.
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useEffect(() => {
+      const { reportCurrentRuntimeErrorState } =
+        require('../runtime-error-state') as typeof import('../runtime-error-state')
+      reportCurrentRuntimeErrorState()
+    }, [pathname])
+  } else {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useErrorHandler(
+      dispatcher.onUnhandledError,
+      dispatcher.onUnhandledRejection
+    )
+  }
 
   if (process.env.__NEXT_DEV_INDICATOR) {
     // this conditional is only for dead-code elimination which

@@ -80,6 +80,29 @@ export default function Home() {
         </li>
       </ul>
 
+      <h2>Static Route with Catch-All Sibling</h2>
+      <p>
+        Tests that navigating to a sub-route of a static path does not
+        incorrectly match the catch-all sibling at the parent level.
+      </p>
+      <ul>
+        <li>
+          <LinkAccordion href="/dashboard/settings">
+            Dashboard Settings (static route, learns pattern)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/dashboard/settings/profile" prefetch={false}>
+            Profile Settings (sub-route of static, prefetch disabled)
+          </LinkAccordion>
+        </li>
+        <li>
+          <LinkAccordion href="/dashboard/anything/here">
+            Dashboard Catch-All (learns catch-all pattern)
+          </LinkAccordion>
+        </li>
+      </ul>
+
       <h2>Static Sibling Detection</h2>
       <ul>
         <li>
@@ -104,6 +127,22 @@ export default function Home() {
         <li>
           <LinkAccordion href="/rewritten/second" prefetch={false}>
             Rewritten Second (should not use cached pattern)
+          </LinkAccordion>
+        </li>
+      </ul>
+
+      <h2>Rewrite Detection (Prefetch Misprediction)</h2>
+      <p>
+        /products/promo/[id] is rewritten to /products/sale/[id]. The rewrite
+        preserves the /products/[category]/[id] shape, so a pattern learned from
+        a non-rewritten product URL will match and mispredict category as
+        &quot;promo&quot;. The prefetch response must detect the mismatch and
+        mark the pattern instead of rendering the wrong params.
+      </p>
+      <ul>
+        <li>
+          <LinkAccordion href="/products/promo/gadget" prefetch={true}>
+            Promo Gadget (rewritten to sale/gadget)
           </LinkAccordion>
         </li>
       </ul>

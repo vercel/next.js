@@ -2,12 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { waitForNoErrorToast } from 'next-test-utils'
 import { join } from 'node:path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('instant validation - opting out of static shells', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'fixtures', 'valid'),
-    skipDeployment: true,
   })
-  if (skipped) return
 
   // NOTE: if something's wrong in build, we'll fail before any tests run.
   // Visiting the pages is mostly just a sanity check.
@@ -30,13 +31,14 @@ describe('instant validation - opting out of static shells', () => {
 })
 
 describe('instant validation', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('requires a static shell if a below a static layout page is configured as blocking', () => {
-    const { next, skipped, isNextDev } = nextTestSetup({
+    const { next, isNextDev } = nextTestSetup({
       files: join(__dirname, 'fixtures', 'invalid-blocking-page-below-static'),
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     if (isNextDev) {
       beforeAll(() => next.start())
@@ -45,19 +47,7 @@ describe('instant validation', () => {
         await browser.elementByCss('main')
         await expect(browser).toDisplayCollapsedRedbox(`
          {
-           "description": "Data that blocks navigation was accessed outside of <Suspense>
-
-         This delays the entire page from rendering, resulting in a slow user experience. Next.js uses this error to ensure your app loads instantly on every navigation. Uncached data such as fetch(...), cached data with a low expire time, or connection() are all examples of data that only resolve on navigation.
-
-         To fix this, you can either:
-
-         Provide a fallback UI using <Suspense> around this component. This allows Next.js to stream its contents to the user as soon as it's ready, without blocking the rest of the app.
-
-         or
-
-         Move the asynchronous await into a Cache Component ("use cache"). This allows Next.js to statically prerender the component as part of the HTML document, so it's instantly visible to the user.
-
-         Learn more: https://nextjs.org/docs/messages/blocking-route",
+           "description": "Next.js encountered uncached data during prerendering.",
            "environmentLabel": "Server",
            "label": "Blocking Route",
            "source": "app/blocking-page-below-static/page.tsx (6:19) @ Page
@@ -80,9 +70,7 @@ describe('instant validation', () => {
       })
       it('errors during build', () => {
         expect(didBuildError).toBe(true)
-        expect(next.cliOutput).toContain(
-          'Uncached data was accessed outside of <Suspense>'
-        )
+        expect(next.cliOutput).toContain('during prerendering')
       })
     }
   })

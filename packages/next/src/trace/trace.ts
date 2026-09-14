@@ -133,6 +133,9 @@ export class Span {
   traceFn<T>(fn: (span: Span) => T): T {
     try {
       return fn(this)
+    } catch (e) {
+      this.attrs['failed'] = true
+      throw e
     } finally {
       this.stop()
     }
@@ -141,6 +144,9 @@ export class Span {
   async traceAsyncFn<T>(fn: (span: Span) => T | Promise<T>): Promise<T> {
     try {
       return await fn(this)
+    } catch (e) {
+      this.attrs['failed'] = true
+      throw e
     } finally {
       this.stop()
     }
@@ -155,8 +161,13 @@ export const trace = (
   return new Span({ name, parentId, attrs })
 }
 
-export const flushAllTraces = (opts?: { end: boolean }) =>
-  reporter.flushAll(opts)
+export const flushAllTraces = () => reporter.flushAll()
+
+/**
+ * Flush and release the trace file handle. Intended for tests that need to
+ * delete the directory holding the trace afterwards.
+ */
+export const closeAllTraces = () => reporter.close()
 
 // This code supports workers by serializing the state of tracers when the
 // worker is initialized, and serializing the trace events from the worker back

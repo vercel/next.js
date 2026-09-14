@@ -1,11 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('ppr-missing-root-params (single)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/single'),
     skipStart: true,
-    skipDeployment: true,
   })
 
   beforeAll(async () => {
@@ -25,11 +27,13 @@ describe('ppr-missing-root-params (single)', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('ppr-missing-root-params (multiple)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/multiple'),
     skipStart: true,
-    skipDeployment: true,
   })
 
   beforeAll(async () => {
@@ -49,11 +53,13 @@ describe('ppr-missing-root-params (multiple)', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('ppr-missing-root-params (nested)', () => {
   const { next, isNextDev } = nextTestSetup({
     files: path.join(__dirname, 'fixtures/nested'),
     skipStart: true,
-    skipDeployment: true,
   })
 
   beforeAll(async () => {

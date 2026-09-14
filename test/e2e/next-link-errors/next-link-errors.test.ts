@@ -1,5 +1,4 @@
 import { nextTestSetup } from 'e2e-utils'
-import webdriver from 'next-webdriver'
 
 describe('next-link', () => {
   const { skipped, next, isNextDev } = nextTestSetup({
@@ -10,7 +9,7 @@ describe('next-link', () => {
   if (skipped) return
 
   it('errors on invalid href', async () => {
-    const browser = await webdriver(next.appPort, '/invalid-href')
+    const browser = await next.browser('/invalid-href')
 
     if (isNextDev) {
       await expect(browser).toDisplayRedbox(`
@@ -28,14 +27,14 @@ describe('next-link', () => {
        }
       `)
     }
-    // Client errors show "This page crashed"
+    // Client errors show "This page couldn\u2019t load"
     expect(await browser.elementByCss('body').text()).toContain(
-      'This page crashed'
+      'This page couldn\u2019t load'
     )
   })
 
   it('invalid `prefetch` causes runtime error (dev-only)', async () => {
-    const browser = await webdriver(next.appPort, '/invalid-prefetch')
+    const browser = await next.browser('/invalid-prefetch')
 
     if (isNextDev) {
       await expect(browser).toDisplayRedbox(`
@@ -52,9 +51,9 @@ describe('next-link', () => {
          ],
        }
       `)
-      // Client errors show "This page crashed"
+      // Client errors show "This page couldn\u2019t load"
       expect(await browser.elementByCss('body').text()).toContain(
-        'This page crashed'
+        'This page couldn\u2019t load'
       )
     } else {
       expect(await browser.elementByCss('body').text()).toMatchInlineSnapshot(

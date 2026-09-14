@@ -9,6 +9,8 @@ A 404 page may be accessed very often. Server-rendering an error page for every 
 
 To avoid the above pitfalls, Next.js provides a static 404 page by default without having to add any additional files.
 
+> **Good to know**: The default 404 and 500 pages follow the operating system's color scheme via `prefers-color-scheme` and do not read an app-level theme. Because `pages/404.js` and `pages/500.js` render inside your custom `App`, providing your own files lets your global styles and theme apply.
+
 ### Customizing The 404 Page
 
 To create a custom 404 page you can create a `pages/404.js` file. This file is statically generated at build time.

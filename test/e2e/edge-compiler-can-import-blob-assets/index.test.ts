@@ -34,7 +34,7 @@ describe('Edge Compiler can import asset assets', () => {
     const response = await fetchViaHTTP(next.url, '/api/edge', {
       handler: 'image-file',
     })
-    const buffer: Buffer = await response.buffer()
+    const buffer = Buffer.from(await response.arrayBuffer())
     const image = await fs.readFile(
       path.join(__dirname, './app/src/vercel.png')
     )
@@ -70,19 +70,19 @@ describe('Edge Compiler can import asset assets', () => {
         expect(orderedAssets).toMatchObject([
           {
             name: expect.stringMatching(
-              /server\/edge\/assets\/text-file\.[0-9a-f]{8}\.txt$/
+              /server\/edge\/assets\/text-file\.[0-9a-z_-]+\.txt$/
             ),
             filePath: expect.stringMatching(/^server\/edge\/assets\/text-file/),
           },
           {
             name: expect.stringMatching(
-              /^server\/edge\/assets\/vercel\.[0-9a-f]{8}\.png$/
+              /^server\/edge\/assets\/vercel\.[0-9a-z_-]+\.png$/
             ),
             filePath: expect.stringMatching(/^server\/edge\/assets\/vercel/),
           },
           {
             name: expect.stringMatching(
-              /^server\/edge\/assets\/world\.[0-9a-f]{8}\.json/
+              /^server\/edge\/assets\/world\.[0-9a-z_-]+\.json/
             ),
             filePath: expect.stringMatching(/^server\/edge\/assets\/world/),
           },

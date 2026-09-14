@@ -17,7 +17,7 @@ static REGISTRATION: Registration = register!();
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached() -> anyhow::Result<()> {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         println!("test_spawns_detached");
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`, just
         // disable GC for the test so this can't cause any problems.
@@ -68,7 +68,7 @@ impl<T: TraceRawVcs> TraceRawVcs for WatchSenderTaskInput<T> {
     }
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn spawns_detached(
     notify: TransientInstance<NotifyTaskInput>,
     sender: TransientInstance<WatchSenderTaskInput<Option<Vc<u32>>>>,
@@ -86,7 +86,7 @@ async fn spawns_detached(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_spawns_detached_changing() -> anyhow::Result<()> {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         // HACK: The watch channel we use has an incorrect implementation of `TraceRawVcs`
         prevent_gc();
         // timeout: prevent the test from hanging, and fail instead if this is broken
@@ -137,7 +137,7 @@ struct ChangingInput {
     state: State<u32>,
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 async fn spawns_detached_changing(
     sender: TransientInstance<WatchSenderTaskInput<Option<Vc<u32>>>>,
     changing_input_detached: Vc<ChangingInput>,

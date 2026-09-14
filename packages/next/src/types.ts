@@ -43,6 +43,12 @@ export type {
 export type { Instant } from './build/segment-config/app/app-segment-config'
 
 export type { Instrumentation } from './server/instrumentation/types'
+export type {
+  RouterTransitionType,
+  RouterTransitionPrefetchIntent,
+  RouterTransitionEvent,
+  RouterTransitionStartEvent,
+} from './client/router-transition-types'
 
 /**
  * Stub route type for typedRoutes before `next dev` or `next build` is run

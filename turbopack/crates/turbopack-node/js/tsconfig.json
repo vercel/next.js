@@ -18,9 +18,8 @@
     "target": "esnext",
 
     // modules
-    "baseUrl": ".",
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
 
     // emit
     "noEmit": true,

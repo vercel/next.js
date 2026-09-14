@@ -237,6 +237,7 @@
             ),
         ],
         span: 115..124,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -360,6 +361,7 @@
             ),
         ],
         span: 158..167,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -483,6 +485,7 @@
             ),
         ],
         span: 202..211,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -606,6 +609,7 @@
             ),
         ],
         span: 246..255,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -729,6 +733,7 @@
             ),
         ],
         span: 291..300,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "global",
@@ -1021,6 +1026,7 @@
             ),
         ],
         span: 458..465,
+        in_truthiness_context: false,
     },
     Member {
         obj: Member(
@@ -1028,12 +1034,13 @@
             Module(
                 ModuleValue {
                     module: "path",
-                    annotations: ImportAnnotations {
-                        map: {},
-                        turbopack_loader: None,
-                        turbopack_rename_as: None,
-                        turbopack_module_type: None,
-                    },
+                    annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -1082,6 +1089,7 @@
             ),
         ],
         span: 486..493,
+        in_truthiness_context: false,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -1127,7 +1135,7 @@
         span: 486..488,
     },
     ImportedBinding {
-        esm_reference_index: 2,
+        esm_reference_index: 3,
         export: Some(
             "join",
         ),
@@ -1162,6 +1170,34 @@
             ),
         ],
         span: 514..519,
+    },
+    DestructuredMember {
+        obj: Awaited(
+            4,
+            Call(
+                3,
+                FreeVar(
+                    "import",
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "path",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        span: 529..533,
     },
     DynamicImport {
         args: [

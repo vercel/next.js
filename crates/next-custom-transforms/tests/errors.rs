@@ -2,12 +2,12 @@ use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
-    dynamic::{next_dynamic, NextDynamicMode},
-    fonts::{next_font_loaders, Config as FontLoaderConfig},
+    dynamic::{NextDynamicMode, next_dynamic},
+    fonts::{Config as FontLoaderConfig, next_font_loaders},
     next_ssg::next_ssg,
     react_server_components::server_components,
-    server_actions::{self, server_actions, ServerActionsMode},
-    strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
+    server_actions::{self, ServerActionsMode, server_actions},
+    strip_page_exports::{ExportFilter, next_transform_strip_page_exports},
 };
 use rustc_hash::FxHashSet;
 use swc_core::{
@@ -17,7 +17,7 @@ use swc_core::{
         parser::{EsSyntax, Syntax},
         transforms::{
             base::resolver,
-            testing::{test_fixture, FixtureTestConfig},
+            testing::{FixtureTestConfig, test_fixture},
         },
     },
 };
@@ -92,6 +92,7 @@ fn next_ssg_errors(input: PathBuf) {
 #[fixture("tests/errors/react-server-components/**/input.js")]
 #[fixture("tests/errors/react-server-components/**/page.js")]
 #[fixture("tests/errors/react-server-components/**/route.js")]
+#[fixture("tests/errors/react-server-components/**/sitemap.js")]
 fn react_server_components_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
@@ -99,6 +100,10 @@ fn react_server_components_errors(input: PathBuf) {
     let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
     let taint_enabled = input.iter().any(|s| s.to_str() == Some("taint-enabled"));
 
+    // A path segment named `app-dir` marks the fixture as an App Router file.
+    // Everything up to and including that segment becomes `appDir`. A fixture
+    // without the segment compiles as a Pages Router file, so the checks that
+    // only apply inside `appDir` do not run for it.
     let app_dir = input
         .iter()
         .position(|s| s.to_str() == Some("app-dir"))
@@ -115,6 +120,7 @@ fn react_server_components_errors(input: PathBuf) {
                     cache_components_enabled,
                     use_cache_enabled,
                     taint_enabled,
+                    page_extensions: vec![],
                 }),
                 tr.comments.as_ref().clone(),
                 app_dir.clone(),
@@ -174,6 +180,7 @@ fn react_server_actions_errors(input: PathBuf) {
                         cache_components_enabled: true,
                         use_cache_enabled: true,
                         taint_enabled: true,
+                        page_extensions: vec![],
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -243,6 +250,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         cache_components_enabled: false,
                         use_cache_enabled: false,
                         taint_enabled: true,
+                        page_extensions: vec![],
                     }),
                     tr.comments.as_ref().clone(),
                     None,

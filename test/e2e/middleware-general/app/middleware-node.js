@@ -1,5 +1,7 @@
 /* global globalThis */
 import { NextRequest, NextResponse } from 'next/server'
+import * as fs from 'node:fs'
+import * as path from 'node:path'
 import { getSomeData } from './lib/some-data'
 import magicValue from 'shared-package'
 
@@ -34,14 +36,28 @@ export async function middleware(request) {
 
   const url = request.nextUrl
 
-  if (process.env.NEXT_RUNTIME === 'nodejs') {
-    if (url.pathname.startsWith('/test-node-fs')) {
-      const fs = await import('fs')
-      const path = await import('path')
-      const pkgPath = path.join(process.cwd(), 'package.json')
-      const pkgData = JSON.parse(await fs.promises.readFile(pkgPath, 'utf8'))
-      return NextResponse.json(pkgData)
-    }
+  if (url.pathname.startsWith('/test-node-fs')) {
+    const pkgPath = path.join(process.cwd(), 'package.json')
+    // @vercel/nft's static analysis only recognizes the callback `fs.readFile`
+    // (and `readFileSync` etc.), not `fs.promises.readFile`. Using the
+    // callback form lets NFT resolve the path argument and include
+    // `package.json` in the middleware NFT trace, which Vercel relies on to
+    // ship files into the deployed function bundle. Turbopack's analysis
+    // handles `fs.promises.*` natively, so this only matters for webpack.
+    // TODO: Drop this workaround once @vercel/nft adds static-analysis support
+    // for `fs.promises.*`.
+    const pkgData = JSON.parse(
+      await new Promise((resolve, reject) => {
+        fs.readFile(pkgPath, 'utf8', (err, data) => {
+          if (err) {
+            reject(err)
+          } else {
+            resolve(data)
+          }
+        })
+      })
+    )
+    return NextResponse.json(pkgData)
   }
 
   if (request.headers.get('x-prerender-revalidate')) {

@@ -37,5 +37,13 @@ export class ConstAfterEvalClass {
   }
 }
 
-
-
+let getter_not_const_after_eval = 1
+let setter_not_const_after_eval = 1
+let foo_const_after_eval = {
+  get x() {
+    getter_not_const_after_eval = 2
+  },
+  set x(v) {
+    setter_not_const_after_eval = 2
+  },
+}

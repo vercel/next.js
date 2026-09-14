@@ -1,37 +1,33 @@
-import { nextTestSetup } from 'e2e-utils'
 import {
+  nextTestSetupActionTreeShaking,
   getActionsRoutesStateByRuntime,
-  markLayoutAsEdge,
 } from '../_testing/utils'
 
 // TODO: revisit when we have a better side-effect free transform approach for server action
 ;(process.env.IS_TURBOPACK_TEST ? describe : describe.skip)(
   'actions-tree-shaking - basic',
   () => {
-    const { next } = nextTestSetup({
+    const { next } = nextTestSetupActionTreeShaking({
       files: __dirname,
     })
 
-    if (process.env.TEST_EDGE) {
-      markLayoutAsEdge(next)
-    }
-
     it('should not have the unused action in the manifest', async () => {
       const actionsRoutesState = await getActionsRoutesStateByRuntime(next)
-
-      expect(actionsRoutesState).toMatchObject({
-        // only one server layer action
-        'app/server/page': {
-          rsc: 3,
-        },
-        // only one browser layer action
-        'app/client/page': {
-          'action-browser': 1,
-        },
-        'app/inline/page': {
-          rsc: 1,
-        },
-      })
+      expect(actionsRoutesState).toMatchInlineSnapshot(`
+       {
+         "app/client/page": [
+           "app/actions.js#clientComponentAction",
+         ],
+         "app/inline/page": [
+           "app/inline/page.js#$$RSC_SERVER_ACTION_0",
+         ],
+         "app/server/page": [
+           "app/actions.js#clientComponentAction",
+           "app/actions.js#serverComponentAction",
+           "app/actions.js#unusedExportedAction",
+         ],
+       }
+      `)
     })
   }
 )

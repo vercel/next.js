@@ -11,6 +11,7 @@ use turbo_tasks_fs::{
 };
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    chunk::{ChunkingType, TracedMode},
     file_source::FileSource,
     raw_module::RawModule,
     reference::ModuleReference,
@@ -71,6 +72,12 @@ impl ModuleReference for NodePreGypConfigReference {
         )
         .await
     }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
+    }
 }
 
 async fn resolve_node_pre_gyp_files(
@@ -95,14 +102,14 @@ async fn resolve_node_pre_gyp_files(
         collect_affecting_sources,
         true,
     )
-    .first_source()
     .await?;
     let compile_target = compile_target.await?;
-    if let Some(config_asset) = *config
+    if let Some(config_asset) = config.first_source()
         && let AssetContent::File(file) = &*config_asset.content().await?
         && let FileContent::Content(config_file) = &*file.await?
     {
-        let config_file_path = config_asset.ident().path().owned().await?;
+        let config_asset_ident = config_asset.ident().await?;
+        let config_file_path = &config_asset_ident.path;
         let mut affecting_paths = vec![config_file_path.clone()];
         let config_file_dir = config_file_path.parent();
         let node_pre_gyp_config: NodePreGypConfigJson =
@@ -184,7 +191,7 @@ async fn resolve_node_pre_gyp_files(
                             format!("deps/lib/{key}").into(),
                             Vc::upcast(FileSource::new(match &realpath_with_links.path_result {
                                 Ok(path) => path.clone(),
-                                Err(e) => bail!(e.as_error_message(dylib, &realpath_with_links)),
+                                Err(error) => bail!(error.clone()),
                             })),
                         );
                     }
@@ -195,7 +202,7 @@ async fn resolve_node_pre_gyp_files(
         return Ok(*ModuleResolveResult::modules_with_affecting_sources(
             sources
                 .into_iter()
-                .map(|(key, source)| async move {
+                .map(async |(key, source)| {
                     Ok((
                         RequestKey::new(key),
                         ResolvedVc::upcast(RawModule::new(source).to_resolved().await?),
@@ -205,9 +212,7 @@ async fn resolve_node_pre_gyp_files(
                 .await?,
             affecting_paths
                 .into_iter()
-                .map(|p| async move {
-                    anyhow::Ok(ResolvedVc::upcast(FileSource::new(p).to_resolved().await?))
-                })
+                .map(async |p| Ok(ResolvedVc::upcast(FileSource::new(p).to_resolved().await?)))
                 .try_join()
                 .await?,
         ));
@@ -251,6 +256,12 @@ impl ModuleReference for NodeGypBuildReference {
         )
         .await
     }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
+    }
 }
 
 async fn resolve_node_gyp_build_files(
@@ -270,9 +281,11 @@ async fn resolve_node_gyp_build_files(
         collect_affecting_sources,
         true,
     );
-    if let [binding_gyp] = &gyp_file.primary_sources().await?[..] {
+    let gyp_file = gyp_file.await?;
+    let mut primary_sources = gyp_file.primary_sources();
+    if let (Some(binding_gyp), None) = (primary_sources.next(), primary_sources.next()) {
         let mut merged_affecting_sources = if collect_affecting_sources {
-            gyp_file.await?.get_affecting_sources().collect::<Vec<_>>()
+            gyp_file.get_affecting_sources().collect::<Vec<_>>()
         } else {
             Vec::new()
         };
@@ -306,15 +319,14 @@ async fn resolve_node_gyp_build_files(
                 return Ok(*ModuleResolveResult::modules_with_affecting_sources(
                     resolved
                         .into_iter()
-                        .map(|(key, source)| async move {
+                        .map(async |(key, source)| {
                             Ok((
                                 RequestKey::new(key),
                                 ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
                             ))
                         })
                         .try_join()
-                        .await?
-                        .into_iter(),
+                        .await?,
                     merged_affecting_sources,
                 ));
             }
@@ -373,6 +385,12 @@ impl ModuleReference for NodeBindingsReference {
         )
         .await
     }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
+    }
 }
 
 async fn resolve_node_bindings_files(
@@ -397,9 +415,8 @@ async fn resolve_node_bindings_files(
             collect_affecting_sources,
             true,
         )
-        .first_source()
         .await?;
-        if let Some(asset) = *resolved
+        if let Some(asset) = resolved.first_source()
             && let AssetContent::File(file) = &*asset.content().await?
             && let FileContent::Content(_) = &*file.await?
         {
@@ -413,7 +430,7 @@ async fn resolve_node_bindings_files(
         root_context_dir = parent;
     }
 
-    let try_path = |sub_path: RcStr| async move {
+    let try_path = async |sub_path: RcStr| {
         let path = root_context_dir.join(&sub_path)?;
         Ok(
             if matches!(*path.get_type().await?, FileSystemEntryType::File) {
@@ -433,7 +450,7 @@ async fn resolve_node_bindings_files(
 
     let modules = BINDINGS_TRY
         .iter()
-        .map(|try_dir| try_path.clone()(format!("{}/{}", try_dir, &file_name).into()))
+        .map(|try_dir| try_path(format!("{}/{}", try_dir, file_name).into()))
         .try_flat_join()
         .await?;
     Ok(*ModuleResolveResult::modules(modules))

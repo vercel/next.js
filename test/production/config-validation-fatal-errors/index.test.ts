@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('config validation - fatal errors', () => {
   const { next } = nextTestSetup({
     skipStart: true,
-    skipDeployment: true,
     files: __dirname,
   })
 

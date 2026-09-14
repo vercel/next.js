@@ -1,0 +1,21 @@
+error - [resolve] /turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/create-require/input/index.js:11:32  Module not found: Can't resolve './sub/'
+  
+       7 | })
+       8 | 
+       9 | it('createRequire with URL works', () => {
+      10 |   // Currently (incorrectly) emits an error about `Module not found: Can't resolve './sub/'`
+         +                                 v--------------------------------v
+      11 +   const require = createRequire(new URL('./sub/', import.meta.url))
+         +                                 ^--------------------------------^
+      12 |   const foo = require('./foo.js')
+      13 |   expect(foo).toBe('foo')
+      14 | })
+      15 | 
+  
+  
+  
+  | It was not possible to find the requested file.
+  | Parsed request as written in source code: relative './sub/'
+  | Path where resolving has started: [project]/turbopack/crates/turbopack-tests/tests/execution/turbopack/resolving/create-require/input/index.js
+  | Type of request: url request
+  |

@@ -1,6 +1,5 @@
 import cheerio from 'cheerio'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 
@@ -11,22 +10,17 @@ const mockedGoogleFontResponses = require.resolve(
 const isDev = (global as any).isNextDev
 
 describe('next/font/google with-font-declarations-file', () => {
-  let next: NextInstance
-
   if ((global as any).isNextDeploy) {
     it('should skip next deploy for now', () => {})
     return
   }
 
-  beforeAll(async () => {
-    next = await createNext({
-      files: join(__dirname, 'with-font-declarations-file'),
-      env: {
-        NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
-      },
-    })
+  const { next } = nextTestSetup({
+    files: join(__dirname, 'with-font-declarations-file'),
+    env: {
+      NEXT_FONT_GOOGLE_MOCKED_RESPONSES: mockedGoogleFontResponses,
+    },
   })
-  afterAll(() => next.destroy())
 
   test('preload correct files at /inter', async () => {
     const html = await renderViaHTTP(next.url, '/inter')
@@ -49,7 +43,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
@@ -60,7 +54,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
@@ -90,7 +84,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
@@ -101,7 +95,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
@@ -131,7 +125,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',
@@ -142,7 +136,7 @@ describe('next/font/google with-font-declarations-file', () => {
         as: 'font',
         crossorigin: 'anonymous',
         href: expect.stringMatching(
-          /\/_next\/static\/media\/.*-s\.p(\..*)?\.woff2/
+          /\/_next\/static\/(immutable\/)?media\/.*-s\.p(\..*)?\.woff2/
         ),
         rel: 'preload',
         type: 'font/woff2',

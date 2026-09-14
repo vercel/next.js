@@ -4,9 +4,9 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
-use turbo_tasks_hash::{HashAlgorithm, encode_hex};
+use turbo_tasks_hash::HashAlgorithm;
 use turbopack_core::{
-    asset::Asset,
+    asset::{Asset, no_hash_salt},
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
 };
@@ -39,12 +39,16 @@ async fn asset_path(
             let hash = if let Some(algorithm) = should_content_hash {
                 asset
                     .content()
-                    .content_hash(algorithm)
+                    .content_hash(no_hash_salt(), algorithm)
                     .owned()
                     .await?
                     .context("asset content not found")?
             } else {
-                encode_hex(*asset.content().hash().await?).into()
+                asset
+                    .content()
+                    .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
+                    .owned()
+                    .await?
             };
             Some(AssetPath {
                 path: RcStr::from(path),
@@ -92,7 +96,7 @@ pub async fn all_paths_in_root(
     assets: Vc<OutputAssets>,
     root: FileSystemPath,
 ) -> Result<Vc<Vec<RcStr>>> {
-    let all_assets = &*all_assets_from_entries(assets).await?;
+    let all_assets = all_assets_from_entries(assets).await?;
 
     Ok(Vc::cell(
         get_paths_from_root(&root, all_assets, |_| true).await?,
@@ -101,12 +105,12 @@ pub async fn all_paths_in_root(
 
 pub(crate) async fn get_paths_from_root(
     root: &FileSystemPath,
-    output_assets: impl IntoIterator<Item = &ResolvedVc<Box<dyn OutputAsset>>>,
+    output_assets: impl IntoIterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
     filter: impl FnOnce(&str) -> bool + Copy,
 ) -> Result<Vec<RcStr>> {
     output_assets
         .into_iter()
-        .map(move |&file| async move {
+        .map(move |file| async move {
             let path = &*file.path().await?;
             let Some(relative) = root.get_path_to(path) else {
                 return Ok(None);
@@ -124,18 +128,18 @@ pub(crate) async fn get_paths_from_root(
 
 pub(crate) async fn get_js_paths_from_root(
     root: &FileSystemPath,
-    output_assets: impl IntoIterator<Item = &ResolvedVc<Box<dyn OutputAsset>>>,
+    output_assets: impl IntoIterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| path.ends_with(".js")).await
 }
 
 pub(crate) async fn get_wasm_paths_from_root(
     root: &FileSystemPath,
-    output_assets: impl IntoIterator<Item = &ResolvedVc<Box<dyn OutputAsset>>>,
+    output_assets: impl IntoIterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<(RcStr, ResolvedVc<Box<dyn OutputAsset>>)>> {
     output_assets
         .into_iter()
-        .map(move |&file| async move {
+        .map(move |file| async move {
             let path = &*file.path().await?;
             let Some(relative) = root.get_path_to(path) else {
                 return Ok(None);
@@ -153,7 +157,7 @@ pub(crate) async fn get_wasm_paths_from_root(
 
 pub(crate) async fn get_asset_paths_from_root(
     root: &FileSystemPath,
-    output_assets: impl IntoIterator<Item = &ResolvedVc<Box<dyn OutputAsset>>>,
+    output_assets: impl IntoIterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| {
         !path.ends_with(".js") && !path.ends_with(".map") && !path.ends_with(".wasm")
@@ -163,7 +167,7 @@ pub(crate) async fn get_asset_paths_from_root(
 
 pub(crate) async fn get_font_paths_from_root(
     root: &FileSystemPath,
-    output_assets: impl IntoIterator<Item = &ResolvedVc<Box<dyn OutputAsset>>>,
+    output_assets: impl IntoIterator<Item = ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<Vec<RcStr>> {
     get_paths_from_root(root, output_assets, |path| {
         path.ends_with(".woff")

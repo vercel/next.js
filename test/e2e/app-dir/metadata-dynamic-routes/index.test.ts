@@ -319,8 +319,12 @@ describe('app dir - metadata dynamic routes', () => {
       const smallOgUrl = new URL(
         small$('meta[property="og:image"]').attr('content')
       )
-      const bufferBig = await (await next.fetch(bigOgUrl.pathname)).buffer()
-      const bufferSmall = await (await next.fetch(smallOgUrl.pathname)).buffer()
+      const bufferBig = Buffer.from(
+        await (await next.fetch(bigOgUrl.pathname)).arrayBuffer()
+      )
+      const bufferSmall = Buffer.from(
+        await (await next.fetch(smallOgUrl.pathname)).arrayBuffer()
+      )
 
       const sizeBig = imageSize(bufferBig)
       const sizeSmall = imageSize(bufferSmall)
@@ -438,8 +442,8 @@ describe('app dir - metadata dynamic routes', () => {
     let twitterImageUrlPattern
     if (isNextDeploy) {
       // absolute urls
-      ogImageUrlPattern = /https:\/\/[\w-]+.vercel.app\/opengraph-image\?/
-      twitterImageUrlPattern = /https:\/\/[\w-]+.vercel.app\/twitter-image\?/
+      ogImageUrlPattern = /https:\/\/[^/]+\/opengraph-image\?/
+      twitterImageUrlPattern = /https:\/\/[^/]+\/twitter-image\?/
     } else if (isNextStart) {
       // configured metadataBase for next start
       ogImageUrlPattern = /https:\/\/mydomain.com\/opengraph-image\?/
@@ -465,21 +469,20 @@ describe('app dir - metadata dynamic routes', () => {
     const $ = await next.render$('/metadata-base/unset')
     const twitterImage = $('meta[name="twitter:image"]').attr('content')
     const ogImages = $('meta[property="og:image"]')
+    const hostPattern = isNextDeploy
+      ? /https?:\/\/[^/]+/
+      : /http:\/\/localhost:\d+/
 
     expect(ogImages.length).toBe(2)
     ogImages.each((_, ogImage) => {
       const ogImageUrl = $(ogImage).attr('content')
-      expect(ogImageUrl).toMatch(
-        isNextDeploy ? /https:\/\/[\w-]+.vercel.app/ : /http:\/\/localhost:\d+/
-      )
+      expect(ogImageUrl).toMatch(hostPattern)
       expect(ogImageUrl).toMatch(
         /\/metadata-base\/unset\/opengraph-image2\/10\d/
       )
     })
 
-    expect(twitterImage).toMatch(
-      isNextDeploy ? /https:\/\/[\w-]+.vercel.app/ : /http:\/\/localhost:\d+/
-    )
+    expect(twitterImage).toMatch(hostPattern)
     expect(twitterImage).toMatch(/\/metadata-base\/unset\/twitter-image\.png/)
   })
 
@@ -504,7 +507,7 @@ describe('app dir - metadata dynamic routes', () => {
 
       // @vercel/og default font should be traced
       const isTraced = fileTrace.files.some((filePath) =>
-        filePath.includes('/noto-sans-v27-latin-regular.ttf')
+        filePath.includes('/Geist-Regular.ttf')
       )
       expect(isTraced).toBe(true)
     })

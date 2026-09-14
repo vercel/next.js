@@ -386,6 +386,7 @@ impl<'a> Parser<'a> {
         }
     }
     fn error(&self, kind: ErrorKind) -> Error {
+        // ast-grep-ignore: no-context-format
         Error::msg(kind.description(self.char_pos))
             .context(format!("Parsing glob pattern: {}", self.glob))
     }
@@ -584,7 +585,7 @@ impl<'a> Parser<'a> {
                     if in_range {
                         // invariant: in_range is only set when there is
                         // already at least one character seen.
-                        if let Some(kind) = add_to_last_range(ranges.last_mut().unwrap(), '-') {
+                        if let Some(kind) = add_to_last_range(ranges.last_mut().unwrap(), c) {
                             return Err(self.error(kind));
                         }
                     } else {
@@ -652,6 +653,7 @@ mod tests {
         "(?:a|b|c(?:/)?)(?:/h(?:/.*)?)?"
     )]
     #[case::classes("[abc]/d/**", "[abc]/d/.*", "[abc](?:/d(?:/.*)?)?")]
+    #[case::ranges("[a-z]/d/**", "[a-z]/d/.*", "[a-z](?:/d(?:/.*)?)?")]
     fn glob_regex_mapping(
         #[case] glob: &str,
         #[case] glob_regex: &str,

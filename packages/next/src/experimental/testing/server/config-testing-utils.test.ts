@@ -248,6 +248,45 @@ describe('config-testing-utils', () => {
     })
   })
 
+  describe('function config', () => {
+    it('resolves async function configs before matching routes', async () => {
+      // Plugins like withSentry, withWorkflow, etc. wrap the config in an
+      // async (phase, ctx) => config function. This should be resolved
+      // transparently.
+      const fnConfig = async (
+        _phase: string,
+        _ctx: { defaultConfig: object }
+      ) => ({
+        async rewrites() {
+          return [{ source: '/old', destination: '/new' }]
+        },
+        async redirects() {
+          return [
+            { source: '/legacy', destination: '/modern', permanent: true },
+          ]
+        },
+      })
+
+      const rewriteResponse = await unstable_getResponseFromNextConfig({
+        url: 'https://example.com/old',
+        nextConfig: fnConfig,
+      })
+      expect(isRewrite(rewriteResponse)).toEqual(true)
+      expect(getRewrittenUrl(rewriteResponse)).toEqual(
+        'https://example.com/new'
+      )
+
+      const redirectResponse = await unstable_getResponseFromNextConfig({
+        url: 'https://example.com/legacy',
+        nextConfig: fnConfig,
+      })
+      expect(redirectResponse.status).toEqual(308)
+      expect(redirectResponse.headers.get('location')).toEqual(
+        'https://example.com/modern'
+      )
+    })
+  })
+
   it('basePath', async () => {
     const response = await unstable_getResponseFromNextConfig({
       url: 'https://nextjs.org/test',

@@ -2,29 +2,31 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::optimize_server_react::{Config, optimize_server_react};
 use swc_core::ecma::ast::*;
-use turbo_tasks::ResolvedVc;
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbo_tasks::Vc;
+use turbopack::module_options::ModuleRule;
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
-use super::module_rule_match_js_no_url;
+use super::{EcmascriptTransformStage, get_ecma_transform_rule};
 
 #[allow(dead_code)]
-pub fn get_next_optimize_server_react_rule(
+pub async fn get_next_optimize_server_react_rule(
     enable_mdx_rs: bool,
     optimize_use_state: bool,
-) -> ModuleRule {
-    let transformer =
-        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextOptimizeServerReact {
-            optimize_use_state,
-        }) as _));
-    ModuleRule::new(
-        module_rule_match_js_no_url(enable_mdx_rs),
-        vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            preprocess: ResolvedVc::cell(vec![]),
-            main: ResolvedVc::cell(vec![]),
-            postprocess: ResolvedVc::cell(vec![transformer]),
-        }],
-    )
+) -> Result<ModuleRule> {
+    let transformer = next_optimize_server_react_transform_plugin(optimize_use_state)
+        .to_resolved()
+        .await?;
+    Ok(get_ecma_transform_rule(
+        transformer,
+        enable_mdx_rs,
+        EcmascriptTransformStage::Postprocess,
+    ))
+}
+
+#[turbo_tasks::function]
+fn next_optimize_server_react_transform_plugin(optimize_use_state: bool) -> Vc<TransformPlugin> {
+    Vc::cell(Box::new(NextOptimizeServerReact { optimize_use_state })
+        as Box<dyn CustomTransformer + Send + Sync>)
 }
 
 #[derive(Debug)]

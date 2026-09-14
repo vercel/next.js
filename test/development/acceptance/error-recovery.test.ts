@@ -1,11 +1,9 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
-import { FileRef, nextTestSetup } from 'e2e-utils'
+import { FileRef, isReact18, nextTestSetup } from 'e2e-utils'
 import { check, retry } from 'next-test-utils'
 import { outdent } from 'outdent'
 import path from 'path'
-
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('pages/ error recovery', () => {
   const { next, isTurbopack, isRspack } = nextTestSetup({
@@ -45,11 +43,11 @@ describe('pages/ error recovery', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '>', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (1:27)
-       Parsing ecmascript source code failed
+       Error: Expected '>', got '<eof>'
        > 1 | export default () => <div/
            |                           ^",
          "stack": [],
@@ -313,20 +311,6 @@ describe('pages/ error recovery', () => {
            ],
          }
         `)
-      } else if (isTurbopack) {
-        await expect(browser).toDisplayRedbox(`
-         {
-           "description": "oops",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "child.js (3:9) @ Child
-         > 3 |   throw new Error('oops')
-             |         ^",
-           "stack": [
-             "Child child.js (3:9)",
-           ],
-         }
-        `)
       } else {
         await expect(browser).toDisplayRedbox(`
          {
@@ -403,11 +387,11 @@ describe('pages/ error recovery', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '{', got 'return'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (5:5)
-       Parsing ecmascript source code failed
+       Error: Expected '{', got 'return'
        > 5 |     return <h1>Default Export</h1>;
            |     ^^^^^^",
          "stack": [],
@@ -487,11 +471,11 @@ describe('pages/ error recovery', () => {
     if (isTurbopack) {
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '{', got 'throw'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (5:5)
-       Parsing ecmascript source code failed
+       Error: Expected '{', got 'throw'
        > 5 |     throw new Error('nooo');
            |     ^^^^^",
          "stack": [],
@@ -755,6 +739,7 @@ describe('pages/ error recovery', () => {
       `
     )
     // TODO: this acts weird without above step
+    // Leave enough time to snapshot the first error before the interval repeats.
     await session.patch(
       'index.js',
       outdent`
@@ -763,13 +748,12 @@ describe('pages/ error recovery', () => {
         setInterval(() => {
           i++
           throw Error('no ' + i)
-        }, 1000)
+        }, 3000)
         export default function FunctionNamed() {
           return <div />
         }
       `
     )
-    await new Promise((resolve) => setTimeout(resolve, 1000))
 
     if (isRspack) {
       await expect(browser).toDisplayRedbox(`
@@ -810,7 +794,7 @@ describe('pages/ error recovery', () => {
         setInterval(() => {
           i++
           throw Error('no ' + i)
-        }, 1000)
+        }, 3000)
         export default function FunctionNamed() {`
     )
 
@@ -821,11 +805,11 @@ describe('pages/ error recovery', () => {
 
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (7:42)
-       Parsing ecmascript source code failed
+       Error: Expected '}', got '<eof>'
        > 7 | export default function FunctionNamed() {
            |                                          ^",
          "stack": [],
@@ -842,7 +826,7 @@ describe('pages/ error recovery', () => {
                │    ,-[7:1]
                │  4 |   i++
                │  5 |   throw Error('no ' + i)
-               │  6 | }, 1000)
+               │  6 | }, 3000)
                │  7 | export default function FunctionNamed() {
                │    \`----
                │
@@ -866,7 +850,7 @@ describe('pages/ error recovery', () => {
           ,-[7:1]
         4 |   i++
         5 |   throw Error('no ' + i)
-        6 | }, 1000)
+        6 | }, 3000)
         7 | export default function FunctionNamed() {
           \`----
        Caused by:
@@ -880,17 +864,17 @@ describe('pages/ error recovery', () => {
     }
 
     // Test that runtime error does not take over:
-    await new Promise((resolve) => setTimeout(resolve, 2000))
+    await new Promise((resolve) => setTimeout(resolve, 3500))
 
     if (isTurbopack) {
       // TODO: Remove this branching once import traces are implemented in Turbopack
       await expect(browser).toDisplayRedbox(`
        {
-         "description": "Parsing ecmascript source code failed",
+         "description": "Expected '}', got '<eof>'",
          "environmentLabel": null,
          "label": "Build Error",
          "source": "./index.js (7:42)
-       Parsing ecmascript source code failed
+       Error: Expected '}', got '<eof>'
        > 7 | export default function FunctionNamed() {
            |                                          ^",
          "stack": [],
@@ -907,7 +891,7 @@ describe('pages/ error recovery', () => {
                │    ,-[7:1]
                │  4 |   i++
                │  5 |   throw Error('no ' + i)
-               │  6 | }, 1000)
+               │  6 | }, 3000)
                │  7 | export default function FunctionNamed() {
                │    \`----
                │
@@ -931,7 +915,7 @@ describe('pages/ error recovery', () => {
           ,-[7:1]
         4 |   i++
         5 |   throw Error('no ' + i)
-        6 | }, 1000)
+        6 | }, 3000)
         7 | export default function FunctionNamed() {
           \`----
        Caused by:

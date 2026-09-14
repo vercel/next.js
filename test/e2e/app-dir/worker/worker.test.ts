@@ -1,27 +1,40 @@
-import { nextTestSetup } from 'e2e-utils'
+import { FileRef, isNextDeploy, isNextStart, nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
+import { join } from 'path'
 import { Page } from 'playwright'
 
 describe('app dir - workers', () => {
-  const { next, skipped, isTurbopack } = nextTestSetup({
-    files: __dirname,
-    skipDeployment: true,
+  const { next, isTurbopack } = nextTestSetup({
+    files: {
+      app: new FileRef(join(__dirname, 'app')),
+      public: new FileRef(join(__dirname, 'public')),
+      'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
+      'public/wasms/resvg.wasm': new FileRef(
+        require.resolve('next/dist/compiled/@vercel/og/resvg.wasm')
+      ),
+    },
+    dependencies: {
+      '@resvg/resvg-wasm': '2.4.0',
+    },
+    env: {
+      NEXT_DEPLOYMENT_ID: isNextStart ? 'test-deployment-id' : undefined,
+    },
+    disableAutoSkewProtection: true,
   })
 
-  if (skipped) {
-    return
-  }
-
   function beforePageLoad(page: Page) {
-    page.on('request', (request) => {
-      const url = request.url()
-      // TODO fix deployment id for webpack
-      if (isTurbopack) {
-        if (url.includes('/_next/') && !url.includes('wasm')) {
-          expect(url).toMatch(/^[^?]+\?(v=\d+&)?dpl=test-deployment-id$/)
+    // TODO Webpack doesn't pass the ?dpl query param for the worker chunk request.
+    if (isTurbopack && (isNextDeploy || isNextStart)) {
+      page.on('request', (request) => {
+        const url = request.url()
+        if (url.includes('/_next/')) {
+          let parsed = new URL(url, next.url)
+          expect(parsed.searchParams.get('dpl') ?? undefined).toBe(
+            next.assetToken
+          )
         }
-      }
-    })
+      })
+    }
   }
 
   it('should support web workers with dynamic imports', async () => {
@@ -69,33 +82,35 @@ describe('app dir - workers', () => {
     )
   })
 
-  it('should have access to NEXT_DEPLOYMENT_ID in web worker', async () => {
-    const browser = await next.browser('/deployment-id', {
-      beforePageLoad,
-    })
+  if (isNextDeploy || isNextStart) {
+    it('should have access to NEXT_DEPLOYMENT_ID in web worker', async () => {
+      const browser = await next.browser('/deployment-id', {
+        beforePageLoad,
+      })
 
-    // Verify main thread has deployment ID and it's not empty
-    const mainDeploymentId = await browser
-      .elementByCss('#main-deployment-id')
-      .text()
-    expect(mainDeploymentId).toBe('test-deployment-id')
-
-    // Initial worker state should be default
-    expect(await browser.elementByCss('#worker-deployment-id').text()).toBe(
-      'default'
-    )
-
-    // Trigger worker to get deployment ID
-    await browser.elementByCss('button').click()
-
-    // Wait for worker to respond and verify it matches main thread
-    await retry(async () => {
-      const workerDeploymentId = await browser
-        .elementByCss('#worker-deployment-id')
+      // Verify main thread has deployment ID and it's not empty
+      const mainDeploymentId = await browser
+        .elementByCss('#main-deployment-id')
         .text()
-      expect(workerDeploymentId).toBe('test-deployment-id')
+      expect(mainDeploymentId).toBe(next.deploymentId)
+
+      // Initial worker state should be default
+      expect(await browser.elementByCss('#worker-deployment-id').text()).toBe(
+        'default'
+      )
+
+      // Trigger worker to get deployment ID
+      await browser.elementByCss('button').click()
+
+      // Wait for worker to respond and verify it matches main thread
+      await retry(async () => {
+        const workerDeploymentId = await browser
+          .elementByCss('#worker-deployment-id')
+          .text()
+        expect(workerDeploymentId).toBe(next.deploymentId)
+      })
     })
-  })
+  }
 
   it('should support loading WASM files in workers', async () => {
     const browser = await next.browser('/wasm', {
@@ -111,6 +126,24 @@ describe('app dir - workers', () => {
         'result:42'
       )
     )
+  })
+
+  it('should support rendering an SVG with a WASM package in a worker', async () => {
+    const browser = await next.browser('/resvg', {
+      beforePageLoad,
+    })
+    expect(await browser.elementByCss('#worker-state').text()).toBe('default')
+
+    await browser.elementByCss('button').click()
+
+    await retry(async () => {
+      expect(await browser.elementByCss('#worker-state').text()).toBe('success')
+      expect(await browser.elementByCss('#png-type').text()).toBe('image/png')
+      expect(await browser.elementByCss('#png-dimensions').text()).toBe('16x8')
+      expect(
+        Number(await browser.elementByCss('#png-size').text())
+      ).toBeGreaterThan(0)
+    })
   })
 
   it('should support shared workers', async () => {

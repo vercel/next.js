@@ -50,7 +50,7 @@ Next.js now uses the Rust-based compiler [SWC](https://swc.rs/) to compile JavaS
 
 Next.js provides full backward compatibility with applications that have [custom Babel configuration](/docs/pages/guides/babel). All transformations that Next.js handles by default like styled-jsx and tree-shaking of `getStaticProps` / `getStaticPaths` / `getServerSideProps` have been ported to Rust.
 
-When an application has a custom Babel configuration, Next.js will automatically opt-out of using SWC for compiling JavaScript/Typescript and will fall back to using Babel in the same way that it was used in Next.js 11.
+When an application has a custom Babel configuration, Next.js will automatically opt-out of using SWC for compiling JavaScript/TypeScript and will fall back to using Babel in the same way that it was used in Next.js 11.
 
 Many of the integrations with external libraries that currently require custom Babel transformations will be ported to Rust-based SWC transforms in the near future. These include but are not limited to:
 
@@ -133,6 +133,8 @@ app.all('/_next/webpack-hmr', (req, res) => {
   nextjsRequestHandler(req, res)
 })
 ```
+
+> **Note:** In Next.js 16, the HMR WebSocket path was renamed from `/_next/webpack-hmr` to `/_next/hmr`.
 
 #### Webpack 4 support has been removed
 

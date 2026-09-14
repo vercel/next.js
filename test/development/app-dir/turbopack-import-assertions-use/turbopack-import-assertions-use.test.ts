@@ -3,8 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('turbopack-import-assertions-use', () => {
   const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
-    // This test is Turbopack-only; turbopackUse is not supported in webpack
-    skipDeployment: true,
   })
 
   if (!isTurbopack) {
@@ -30,5 +28,10 @@ describe('turbopack-import-assertions-use', () => {
   it('should apply identity loader with turbopackModuleType json', async () => {
     const $ = await next.render$('/')
     expect($('#json-type').text()).toBe('Hello from JSON module type')
+  })
+
+  it('should apply identity with loader rules', async () => {
+    const $ = await next.render$('/')
+    expect($('#json-type-2').text()).toBe('Hello from JSON module type 2')
   })
 })

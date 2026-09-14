@@ -8,6 +8,9 @@ import * as module from 'VAR_USERLAND'
 import { toNodeOutgoingHttpHeaders } from '../../server/web/utils'
 
 // injected by the loader afterwards.
+declare const incrementalCacheHandler: any
+// OPTIONAL_IMPORT:incrementalCacheHandler
+// INJECT_RAW:cacheHandlerImports
 
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
@@ -24,10 +27,15 @@ if (rscManifest && rscServerManifest) {
 
 export const ComponentMod = module
 
+const edgeCacheHandlers: any = {}
+// INJECT_RAW:edgeCacheHandlersRegistration
+
 const internalHandler: EdgeHandler = EdgeRouteModuleWrapper.wrap(
   module.routeModule,
   {
     page: 'VAR_PAGE',
+    cacheHandlers: edgeCacheHandlers,
+    incrementalCacheHandler,
   }
 )
 

@@ -8,6 +8,7 @@ import type { ParsedUrlQuery } from 'node:querystring'
 import type { UrlWithParsedQuery } from 'node:url'
 import type {
   PrerenderManifest,
+  PreviewPropsManifest,
   RequiredServerFilesManifest,
 } from '../../build'
 import type { DevRoutesManifest } from '../lib/router-utils/setup-dev-bundler'
@@ -19,7 +20,9 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
   NEXT_FONT_MANIFEST,
+  PREFETCH_HINTS,
   PRERENDER_MANIFEST,
+  PREVIEW_PROPS_MANIFEST,
   REACT_LOADABLE_MANIFEST,
   ROUTES_MANIFEST,
   SERVER_FILES_MANIFEST,
@@ -36,7 +39,7 @@ import { removePathPrefix } from '../../shared/lib/router/utils/remove-path-pref
 import { getServerUtils } from '../server-utils'
 import { detectDomainLocale } from '../../shared/lib/i18n/detect-domain-locale'
 import { getHostname } from '../../shared/lib/get-hostname'
-import { checkIsOnDemandRevalidate } from '../api-utils'
+import { checkIsOnDemandRevalidate, type __ApiPreviewProps } from '../api-utils'
 import type { PreviewData } from '../../types'
 import type { BuildManifest } from '../get-page-files'
 import type { ReactLoadableManifest } from '../load-components'
@@ -48,6 +51,7 @@ import {
   getRequestMeta,
   type NextIncomingMessage,
 } from '../request-meta'
+import { patchSetHeaderWithCookieSupport } from '../lib/patch-set-header'
 import { normalizePagePath } from '../../shared/lib/page-path/normalize-page-path'
 import { isStaticMetadataRoute } from '../../lib/metadata/is-metadata-route'
 import { IncrementalCache } from '../lib/incremental-cache'
@@ -65,7 +69,9 @@ import {
 } from '../lib/router-utils/router-server-context'
 import { decodePathParams } from '../lib/router-utils/decode-path-params'
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
-import { isInterceptionRouteRewrite } from '../../lib/generate-interception-routes-rewrites'
+import { isInterceptionRouteRewrite } from '../../lib/is-interception-route-rewrite'
+import { getTracer } from '../lib/trace/tracer'
+import { RouteModuleSpan } from '../lib/trace/constants'
 
 /**
  * RouteModuleOptions is the options that are passed to the route module, other
@@ -108,10 +114,13 @@ export abstract class RouteModule<
 > {
   /**
    * The userland module. This is the module that is exported from the user's
-   * code. This is marked as readonly to ensure that the module is not mutated
-   * because the module (when compiled) only provides getters.
+   * code. Exposed as a getter so subclasses can override with lazy loading.
    */
-  public readonly userland: Readonly<U>
+  protected _userland: Readonly<U>
+
+  get userland(): Readonly<U> {
+    return this._userland
+  }
 
   /**
    * The definition of the route.
@@ -135,11 +144,30 @@ export abstract class RouteModule<
     distDir,
     relativeProjectDir,
   }: RouteModuleOptions<D, U>) {
-    this.userland = userland
+    this._userland = userland
     this.definition = definition
     this.isDev = !!process.env.__NEXT_DEV_SERVER
     this.distDir = distDir
     this.relativeProjectDir = relativeProjectDir
+  }
+
+  private getRouterServerContext(
+    req: NextIncomingMessage
+  ): RouterServerContext[string] | undefined {
+    const hostname = getRequestMeta(req, 'hostname')
+    const revalidate = getRequestMeta(req, 'revalidate')
+    const render404 = getRequestMeta(req, 'render404')
+    const relativeProjectDir =
+      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
+    const routerServerContext =
+      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+
+    return {
+      ...routerServerContext,
+      ...(hostname !== undefined ? { hostname } : {}),
+      ...(revalidate !== undefined ? { revalidate } : {}),
+      ...(render404 !== undefined ? { render404 } : {}),
+    }
   }
 
   public normalizeUrl(
@@ -194,7 +222,9 @@ export abstract class RouteModule<
     clientReferenceManifest: any
     serverActionsManifest: any
     dynamicCssManifest: any
+    prefetchHintsManifest: Record<string, any> | undefined
     interceptionRoutePatterns: RegExp[]
+    previewProps: __ApiPreviewProps
   } {
     let result
     if (process.env.NEXT_RUNTIME === 'edge') {
@@ -217,6 +247,7 @@ export abstract class RouteModule<
           version: 4,
           preview: getEdgePreviewProps(),
         } as const,
+        previewProps: getEdgePreviewProps(),
         routesManifest: {
           version: 4,
           caseSensitive: Boolean(process.env.__NEXT_CASE_SENSITIVE_ROUTES),
@@ -242,6 +273,9 @@ export abstract class RouteModule<
           self.__SUBRESOURCE_INTEGRITY_MANIFEST
         ),
         dynamicCssManifest: maybeJSONParse(self.__DYNAMIC_CSS_MANIFEST),
+        // Edge pages are always dynamic so prefetch inlining hints
+        // don't apply. The runtime handles missing hints gracefully.
+        prefetchHintsManifest: undefined,
         interceptionRoutePatterns: (
           maybeJSONParse(self.__INTERCEPTION_ROUTE_REWRITE_MANIFEST) ?? []
         ).map((rewrite: any) => new RegExp(rewrite.regex)),
@@ -250,7 +284,7 @@ export abstract class RouteModule<
       if (!projectDir) {
         throw new Error('Invariant: projectDir is required for node runtime')
       }
-      const { loadManifestFromRelativePath } =
+      const { loadManifestFromRelativePath, evalManifestFromRelativePath } =
         require('../load-manifest.external') as typeof import('../load-manifest.external')
       const normalizedPagePath = normalizePagePath(srcPage)
 
@@ -263,6 +297,7 @@ export abstract class RouteModule<
       const [
         routesManifest,
         prerenderManifest,
+        previewProps,
         buildManifest,
         fallbackBuildManifest,
         reactLoadableManifest,
@@ -273,6 +308,7 @@ export abstract class RouteModule<
         serverFilesManifest,
         buildId,
         dynamicCssManifest,
+        prefetchHintsManifest,
       ] = [
         loadManifestFromRelativePath<DevRoutesManifest>({
           projectDir,
@@ -286,6 +322,12 @@ export abstract class RouteModule<
           manifest: PRERENDER_MANIFEST,
           shouldCache: !this.isDev,
         }),
+        loadManifestFromRelativePath<PreviewPropsManifest>({
+          projectDir,
+          distDir: this.distDir,
+          manifest: `server/${PREVIEW_PROPS_MANIFEST}`,
+          shouldCache: !this.isDev,
+        }),
         loadManifestFromRelativePath<BuildManifest>({
           projectDir,
           distDir: this.distDir,
@@ -293,14 +335,16 @@ export abstract class RouteModule<
           shouldCache: !this.isDev,
         }),
         srcPage === '/_error'
-          ? loadManifestFromRelativePath<BuildManifest>({
+          ? (loadManifestFromRelativePath<BuildManifest>({
               projectDir,
               distDir: this.distDir,
               manifest: `fallback-${BUILD_MANIFEST}`,
               shouldCache: !this.isDev,
               handleMissing: true,
-            })
-          : ({} as BuildManifest),
+              // TODO this cast is unsafe
+            }) ?? ({} as BuildManifest))
+          : // TODO this cast is unsafe
+            ({} as BuildManifest),
         loadManifestFromRelativePath<ReactLoadableManifest>({
           projectDir,
           distDir: this.distDir,
@@ -309,7 +353,7 @@ export abstract class RouteModule<
             : REACT_LOADABLE_MANIFEST,
           handleMissing: true,
           shouldCache: !this.isDev,
-        }),
+        }) ?? ({} satisfies ReactLoadableManifest),
         loadManifestFromRelativePath<NextFontManifest>({
           projectDir,
           distDir: this.distDir,
@@ -317,10 +361,9 @@ export abstract class RouteModule<
           shouldCache: !this.isDev,
         }),
         router === 'app' && !isStaticMetadataRoute(srcPage)
-          ? loadManifestFromRelativePath({
+          ? evalManifestFromRelativePath({
               distDir: this.distDir,
               projectDir,
-              useEval: true,
               handleMissing: true,
               manifest: `server/app${srcPage.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST}.js`,
               shouldCache: !this.isDev,
@@ -366,6 +409,15 @@ export abstract class RouteModule<
           shouldCache: !this.isDev,
           handleMissing: true,
         }),
+        router === 'app'
+          ? loadManifestFromRelativePath<Record<string, any>>({
+              projectDir,
+              distDir: this.distDir,
+              manifest: `server/${PREFETCH_HINTS}`,
+              shouldCache: !this.isDev,
+              handleMissing: true,
+            })
+          : undefined,
       ]
 
       result = {
@@ -375,6 +427,7 @@ export abstract class RouteModule<
         routesManifest,
         nextFontManifest,
         prerenderManifest,
+        previewProps,
         serverFilesManifest,
         reactLoadableManifest,
         clientReferenceManifest: (clientReferenceManifest as any)
@@ -382,6 +435,7 @@ export abstract class RouteModule<
         serverActionsManifest,
         subresourceIntegrityManifest,
         dynamicCssManifest,
+        prefetchHintsManifest,
         interceptionRoutePatterns: routesManifest.rewrites.beforeFiles
           .filter(isInterceptionRouteRewrite)
           .map((rewrite) => new RegExp(rewrite.regex)),
@@ -434,6 +488,7 @@ export abstract class RouteModule<
   public async getIncrementalCache(
     req: IncomingMessage | BaseNextRequest,
     nextConfig: NextConfigRuntime,
+    previewProps: DeepReadonly<__ApiPreviewProps>,
     prerenderManifest: DeepReadonly<PrerenderManifest>,
     isMinimalMode: boolean
   ): Promise<IncrementalCache> {
@@ -478,7 +533,8 @@ export abstract class RouteModule<
         fetchCacheKeyPrefix: nextConfig.experimental.fetchCacheKeyPrefix,
         maxMemoryCacheSize: nextConfig.cacheMaxMemorySize,
         flushToDisk: !isMinimalMode && nextConfig.experimental.isrFlushToDisk,
-        getPrerenderManifest: () => prerenderManifest,
+        previewProps,
+        prerenderManifest,
         CurCacheHandler: CacheHandler,
       })
 
@@ -529,10 +585,7 @@ export abstract class RouteModule<
     let serverFilesManifest = self.__SERVER_FILES_MANIFEST as any as
       | RequiredServerFilesManifest
       | undefined
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const routerServerContext = this.getRouterServerContext(req)
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest?.config
 
@@ -555,7 +608,22 @@ export abstract class RouteModule<
     return { nextConfig, deploymentId }
   }
 
-  public async prepare(
+  public prepare(
+    req: IncomingMessage | BaseNextRequest,
+    res: ServerResponse | null,
+    options: {
+      srcPage: string
+      multiZoneDraftMode?: boolean
+    }
+  ) {
+    return getTracer().trace(
+      RouteModuleSpan.prepare,
+      { spanName: 'prepare route module' },
+      () => this.prepareImpl(req, res, options)
+    )
+  }
+
+  private async prepareImpl(
     req: IncomingMessage | BaseNextRequest,
     res: ServerResponse | null,
     {
@@ -569,6 +637,7 @@ export abstract class RouteModule<
     | {
         buildId: string
         deploymentId: string
+        clientAssetToken: string
         locale?: string
         locales?: readonly string[]
         defaultLocale?: string
@@ -597,12 +666,14 @@ export abstract class RouteModule<
         clientReferenceManifest?: any
         serverActionsManifest?: any
         dynamicCssManifest?: any
+        prefetchHintsManifest?: Record<string, any>
         subresourceIntegrityManifest?: DeepReadonly<Record<string, string>>
         isOnDemandRevalidate: boolean
         revalidateOnlyGenerated: boolean
         nextConfig: NextConfigRuntime
         routerServerContext?: RouterServerContext[string]
         interceptionRoutePatterns?: any
+        previewProps: __ApiPreviewProps
       }
     | undefined
   > {
@@ -610,6 +681,10 @@ export abstract class RouteModule<
 
     // edge runtime handles loading instrumentation at the edge adapter level
     if (process.env.NEXT_RUNTIME !== 'edge') {
+      if (res) {
+        patchSetHeaderWithCookieSupport(req, res)
+      }
+
       const { join, relative } =
         require('node:path') as typeof import('node:path')
 
@@ -628,18 +703,22 @@ export abstract class RouteModule<
         '../lib/router-utils/instrumentation-globals.external.js'
       )
       // ensure instrumentation is registered and pass
-      // onRequestError below
-      ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
+      // onRequestError below. Awaited so any caller of `RouteModule.prepare`
+      // that bypasses `BaseServer.handleRequest` (where this is also awaited
+      // via `prepareImpl`) still observes the instrumentation hook completing
+      // before the userland route handler runs.
+      await ensureInstrumentationRegistered(absoluteProjectDir, this.distDir)
     }
-    const manifests = this.loadManifests(srcPage, absoluteProjectDir)
-    const { routesManifest, prerenderManifest, serverFilesManifest } = manifests
+    const manifests = getTracer().trace(
+      RouteModuleSpan.loadManifests,
+      { spanName: 'load route manifests' },
+      () => this.loadManifests(srcPage, absoluteProjectDir)
+    )
+    const { routesManifest, previewProps, serverFilesManifest } = manifests
 
     const { basePath, i18n, rewrites } = routesManifest
-    const relativeProjectDir =
-      getRequestMeta(req, 'relativeProjectDir') || this.relativeProjectDir
 
-    const routerServerContext =
-      routerServerGlobal[RouterServerContextSymbol]?.[relativeProjectDir]
+    const routerServerContext = this.getRouterServerContext(req)
     const nextConfig =
       routerServerContext?.nextConfig || serverFilesManifest?.config
 
@@ -828,7 +907,13 @@ export abstract class RouteModule<
     }
 
     serverUtils.normalizeCdnUrl(req, combinedParamKeys)
-    serverUtils.normalizeQueryParams(query, routeParamKeys)
+    // When Next is not hosted in a single process, upstream proxies will add query values for route params that were used to match the route.
+    // Outside of that environment, there is no reason to do any normalization to honor those query values.
+    if (!routerServerContext?.isWrappedByNextServer) {
+      serverUtils.normalizeQueryParams(query, routeParamKeys)
+    } else {
+      serverUtils.filterInternalQuery(query, [])
+    }
     serverUtils.filterInternalQuery(originalQuery, combinedParamKeys)
 
     if (pageIsDynamic) {
@@ -902,6 +987,26 @@ export abstract class RouteModule<
           }
         }
       }
+
+      // When partial nxtP* params are provided (e.g. background
+      // revalidation for intermediate PPR shells), both
+      // normalizeDynamicRouteParams calls above fail because not all
+      // route params are present. Merge the normalized query params
+      // (from nxtP*) into the current params to override placeholders
+      // with concrete values.
+      if (
+        params &&
+        routeParamKeys.size > 0 &&
+        !paramsResult.hasValidParams &&
+        !queryResult.hasValidParams
+      ) {
+        for (const key of routeParamKeys) {
+          if (query[key] !== undefined) {
+            params[key] = query[key]
+          }
+        }
+        addRequestMeta(req, 'resolvedRouteParamKeys', routeParamKeys)
+      }
     }
 
     // Remove any normalized params from the query if they
@@ -923,7 +1028,7 @@ export abstract class RouteModule<
     }
 
     const { isOnDemandRevalidate, revalidateOnlyGenerated } =
-      checkIsOnDemandRevalidate(req, prerenderManifest.preview)
+      checkIsOnDemandRevalidate(req.headers, previewProps)
 
     let isDraftMode = false
     let previewData: PreviewData
@@ -936,7 +1041,7 @@ export abstract class RouteModule<
       previewData = tryGetPreviewData(
         req,
         res,
-        prerenderManifest.preview,
+        previewProps,
         Boolean(multiZoneDraftMode)
       )
       isDraftMode = previewData !== false
@@ -1026,6 +1131,7 @@ export abstract class RouteModule<
         nextConfig satisfies DeepReadonly<NextConfigRuntime> as NextConfigRuntime,
       routerServerContext,
       deploymentId,
+      clientAssetToken: nextConfig.supportsImmutableAssets ? '' : deploymentId,
     }
   }
 
@@ -1043,6 +1149,7 @@ export abstract class RouteModule<
     cacheKey,
     routeKind,
     isFallback,
+    previewProps,
     prerenderManifest,
     isRoutePPREnabled,
     isOnDemandRevalidate,
@@ -1056,6 +1163,7 @@ export abstract class RouteModule<
     cacheKey: string | null
     routeKind: RouteKind
     isFallback?: boolean
+    previewProps: DeepReadonly<__ApiPreviewProps>
     prerenderManifest: DeepReadonly<PrerenderManifest>
     isRoutePPREnabled?: boolean
     isOnDemandRevalidate?: boolean
@@ -1070,13 +1178,22 @@ export abstract class RouteModule<
       isFallback,
       isRoutePPREnabled,
       isOnDemandRevalidate,
-      isPrefetch: req.headers.purpose === 'prefetch',
+      // A Next.js Segment Cache prefetch uses the `Next-Router-Prefetch`
+      // header (surfaced as the `isPrefetchRSCRequest` request meta), not the
+      // standard browser `purpose: prefetch` header. Recognize both so the
+      // response cache treats segment prefetches as prefetches — most
+      // importantly, so a prefetch that misses serves a fallback shell rather
+      // than joining an in-flight background (concrete) revalidation.
+      isPrefetch:
+        req.headers.purpose === 'prefetch' ||
+        getRequestMeta(req, 'isPrefetchRSCRequest') === true,
       // Use x-invocation-id header to scope the in-memory cache to a single
       // revalidation request in minimal mode.
       invocationID: req.headers['x-invocation-id'] as string | undefined,
       incrementalCache: await this.getIncrementalCache(
         req,
         nextConfig,
+        previewProps,
         prerenderManifest,
         isMinimalMode
       ),

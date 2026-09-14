@@ -1,5 +1,3 @@
-import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
-
 // eslint-disable-next-line import/no-extraneous-dependencies
 export {
   createTemporaryReferenceSet,
@@ -12,6 +10,34 @@ export {
 // eslint-disable-next-line import/no-extraneous-dependencies
 export { prerender } from 'react-server-dom-webpack/static'
 
+// Node.js-specific Flight APIs, needed by stream-ops.node.ts via ComponentMod.
+// These must be exported from entry-base (react-server layer) because direct
+// imports from react-server-dom-webpack/* fail outside this layer.
+type FlightRenderToPipeableStream = (...args: any[]) => {
+  pipe<Writable extends NodeJS.WritableStream>(destination: Writable): Writable
+  abort: (reason?: unknown) => void
+}
+
+type FlightPrerenderToNodeStream = (...args: any[]) => Promise<{
+  prelude: import('node:stream').Readable
+}>
+
+/* eslint-disable import/no-extraneous-dependencies */
+export let renderToPipeableStream: FlightRenderToPipeableStream | undefined
+export let prerenderToNodeStream: FlightPrerenderToNodeStream | undefined
+if (process.env.__NEXT_USE_NODE_STREAMS) {
+  renderToPipeableStream = (
+    require('react-server-dom-webpack/server.node') as typeof import('react-server-dom-webpack/server.node')
+  ).renderToPipeableStream
+  prerenderToNodeStream = (
+    require('react-server-dom-webpack/static') as typeof import('react-server-dom-webpack/static')
+  ).prerenderToNodeStream
+} else {
+  renderToPipeableStream = undefined
+  prerenderToNodeStream = undefined
+}
+/* eslint-enable import/no-extraneous-dependencies */
+
 // TODO: Just re-export `* as ReactServer`
 export { captureOwnerStack, createElement, Fragment } from 'react'
 
@@ -20,10 +46,6 @@ export {
   LoadingBoundaryProvider,
 } from '../../client/components/layout-router'
 export { default as RenderFromTemplateContext } from '../../client/components/render-from-template-context'
-export { workAsyncStorage } from '../app-render/work-async-storage.external'
-export { workUnitAsyncStorage } from './work-unit-async-storage.external'
-export { actionAsyncStorage } from '../app-render/action-async-storage.external'
-
 export { ClientPageRoot } from '../../client/components/client-page'
 export { ClientSegmentRoot } from '../../client/components/client-segment'
 export {
@@ -36,19 +58,29 @@ export {
 } from '../request/params'
 export * as serverHooks from '../../client/components/hooks-server-context'
 export { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
-export { createMetadataComponents } from '../../lib/metadata/metadata'
+export { createMetadataComponents } from '../../lib/metadata'
 export { RootLayoutBoundary } from '../../lib/framework/boundary-components'
 
 export { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
-export { Postpone } from './rsc/postpone'
+export { isEmptyHTMLPrelude } from './postponed-state'
 export { taintObjectReference } from './rsc/taint'
-export { collectSegmentData } from './collect-segment-data'
+export {
+  collectSegmentData,
+  collectPrefetchHints,
+} from './collect-segment-data'
 
-export const InstantValidation =
-  process.env.NODE_ENV === 'development' && process.env.NEXT_RUNTIME !== 'edge'
-    ? (require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation'))
-    : undefined
+export const InstantValidation = () => {
+  if (
+    process.env.NEXT_RUNTIME !== 'edge' &&
+    process.env.__NEXT_CACHE_COMPONENTS
+  ) {
+    return require('./instant-validation/instant-validation') as typeof import('./instant-validation/instant-validation')
+  } else {
+    return undefined
+  }
+}
 
+import type { NodeJsPartialHmrUpdate } from '../../build/swc/types'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { patchFetch as _patchFetch } from '../lib/patch-fetch'
@@ -69,7 +101,7 @@ declare global {
   var __next__clear_chunk_cache__: (() => void) | null | undefined
   var __turbopack_clear_chunk_cache__: () => void | null | undefined
   var __turbopack_server_hmr_apply__:
-    | ((update: NodeJsPartialHmrUpdate) => boolean)
+    | ((update: NodeJsPartialHmrUpdate) => void)
     | undefined
 }
 
@@ -82,8 +114,6 @@ if (process.env.TURBOPACK) {
   globalThis.__next__clear_chunk_cache__ = null
 }
 
-// patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
-// in the experimental channel of React, so export it from here so that it comes from the bundled runtime
 export function patchFetch() {
   return _patchFetch({
     workAsyncStorage,

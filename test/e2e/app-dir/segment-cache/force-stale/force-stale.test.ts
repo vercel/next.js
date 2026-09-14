@@ -82,18 +82,15 @@ describe('force stale', () => {
       await browser.back()
 
       // Now reveal a link with prefetch={true} to the same page. Because we've
-      // already navigated to this page, the data should be in the bfcache.
-      // The prefetch should reuse the bfcache data instead of making a new
-      // request to the server.
-      await act(
-        async () => {
-          const toggleLinkVisibility = await browser.elementByCss(
-            'input[data-link-accordion="/dynamic"]'
-          )
-          await toggleLinkVisibility.click()
-        },
-        { includes: 'Dynamic page content', block: 'reject' }
-      )
+      // already navigated to this page, the route entry and segment data
+      // should already be in the cache. The prefetch should reuse the cached
+      // data instead of making a new request to the server.
+      await act(async () => {
+        const toggleLinkVisibility = await browser.elementByCss(
+          'input[data-link-accordion="/dynamic"]'
+        )
+        await toggleLinkVisibility.click()
+      }, 'no-requests')
     }
   )
 })

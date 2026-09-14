@@ -66,6 +66,31 @@ export type ServerLogEntry =
 
 export const UNDEFINED_MARKER = '__next_tagged_undefined'
 
+const alreadyLoggedOnServerSymbol = Symbol('nextAlreadyLoggedOnServer')
+
+/**
+ * Marks an error that originated on the server and was already logged there.
+ * Such errors are also sent to the browser, where they get logged to the
+ * browser console and shown in the dev overlay. This marker lets the
+ * browser-to-terminal log forwarding skip them, so they aren't replayed back to
+ * the CLI as duplicates.
+ */
+export function markErrorAsAlreadyLoggedOnServer(error: object): void {
+  Object.defineProperty(error, alreadyLoggedOnServerSymbol, {
+    value: true,
+    enumerable: false,
+    configurable: true,
+  })
+}
+
+export function wasErrorAlreadyLoggedOnServer(value: unknown): boolean {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    (value as Record<symbol, unknown>)[alreadyLoggedOnServerSymbol] === true
+  )
+}
+
 // Based on https://github.com/facebook/react/blob/28dc0776be2e1370fe217549d32aee2519f0cf05/packages/react-server/src/ReactFlightServer.js#L248
 export function patchConsoleMethod<T extends keyof Console>(
   methodName: T,

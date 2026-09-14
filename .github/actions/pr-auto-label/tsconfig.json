@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "preserve",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "rootDir": "./src",
+    "strict": true,
+    "skipLibCheck": false
+  },
+  "files": ["./src/index.ts"]
+}

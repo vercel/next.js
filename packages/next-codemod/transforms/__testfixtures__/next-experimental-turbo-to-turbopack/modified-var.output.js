@@ -1,8 +1,7 @@
 // CommonJS configuration with variable declaration and modification
 const config = {
   experimental: {
-    typedRoutes: true,
-    turbopackMemoryLimit: 4096,
+    typedRoutes: true
   },
 
   turbopack: {

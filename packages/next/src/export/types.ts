@@ -16,6 +16,7 @@ import type { FetchMetrics } from '../server/base-http'
 import type { RouteMetadata } from './routes/types'
 import type { RenderResumeDataCache } from '../server/resume-data-cache/resume-data-cache'
 import type { StaticWorker } from '../build'
+import type { Bundler } from '../lib/bundler'
 
 export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
   path: string
@@ -24,6 +25,7 @@ export type ExportPathEntry = ExportPathMap[keyof ExportPathMap] & {
 export interface ExportPagesInput {
   buildId: string
   deploymentId: string
+  clientAssetToken: string
   exportPaths: ExportPathEntry[]
   parentSpanId: number
   dir: string
@@ -43,6 +45,7 @@ export interface ExportPagesInput {
 export interface ExportPageInput {
   buildId: string
   deploymentId: string
+  clientAssetToken: string
   exportPath: ExportPathEntry
   distDir: string
   outDir: string
@@ -69,6 +72,8 @@ export type ExportRouteResult =
       ssgNotFound?: boolean
       hasEmptyStaticShell?: boolean
       hasPostponed?: boolean
+      hasPendingUi?: boolean
+      htmlSize?: number
       hasStaticRsc?: boolean
       fetchMetrics?: FetchMetrics
       renderResumeDataCache?: string
@@ -110,6 +115,7 @@ export interface ExportAppOptions {
   hasOutdirFromCli?: boolean
   numWorkers: number
   appDirOnly: boolean
+  bundler: Bundler
 }
 
 export type ExportPageMetadata = {
@@ -146,6 +152,14 @@ export type ExportAppResult = {
        * If the page has postponed when using PPR.
        */
       hasPostponed?: boolean
+      /**
+       * If the prerender has UI that will resolve after the initial HTML.
+       */
+      hasPendingUi?: boolean
+      /**
+       * The byte size of the HTML returned by the prerender.
+       */
+      htmlSize?: number
       /**
        * If the page emitted a static RSC payload.
        */

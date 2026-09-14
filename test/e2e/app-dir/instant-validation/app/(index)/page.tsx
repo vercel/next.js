@@ -11,6 +11,9 @@ export default function IndexPage() {
         <li>
           <Link href="/suspense-in-root">Suspense in Root</Link>
         </li>
+        <li>
+          <Link href="/shells">App Shells</Link>
+        </li>
       </ul>
     </main>
   )

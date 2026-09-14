@@ -52,6 +52,7 @@ if (!(globalThis as any).isNextStart) {
           /- Local:/,
           {
             ...process.env,
+            ...next.env,
             PORT: appPort.toString(),
           },
           undefined,

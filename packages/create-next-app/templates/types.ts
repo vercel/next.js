@@ -33,6 +33,7 @@ export interface InstallTemplateArgs {
   skipInstall: boolean;
   bundler: Bundler;
   reactCompiler: boolean;
+  cacheComponents: boolean;
 }
 
 export enum Bundler {

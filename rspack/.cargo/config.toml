@@ -1,0 +1,11 @@
+# Keep this override scoped to the Rspack workspace. The repository root
+# config uses rust-lld for macOS, which Turbopack also depends on, so avoid
+# changing the root linker behavior for a Rspack-only release build issue.
+#
+# Rspack 0.100.4 pulls in build scripts that still emit a standalone `-Wl`
+# cdylib link arg on macOS. That flag is meant for clang/cc drivers and is not
+# accepted by direct rust-lld. Point Rspack macOS builds at a tiny rust-lld
+# wrapper that drops only that unsupported forwarding marker while preserving
+# the root config's rust-lld/ICF behavior.
+[target.'cfg(target_os = "macos")']
+linker = "scripts/rust-lld"

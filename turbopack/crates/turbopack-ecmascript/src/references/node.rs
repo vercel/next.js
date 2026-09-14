@@ -2,7 +2,10 @@ use anyhow::Result;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    file_source::FileSource, raw_module::RawModule, reference::ModuleReference,
+    chunk::{ChunkingType, TracedMode},
+    file_source::FileSource,
+    raw_module::RawModule,
+    reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
 
@@ -30,5 +33,11 @@ impl ModuleReference for PackageJsonReference {
                 .to_resolved()
                 .await?,
         )))
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }

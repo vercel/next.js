@@ -119,12 +119,15 @@ export class Worker {
       delete nodeOptions['max_old_space_size']
     }
 
+    const { nodeOptions: formattedNodeOptions, execArgv } =
+      formatNodeOptions(nodeOptions)
+
     const createWorker = () => {
       const workerEnv: NodeJS.ProcessEnv = {
         ...process.env,
         ...((farmOptions.forkOptions?.env || {}) as any),
         IS_NEXT_WORKER: 'true',
-        NODE_OPTIONS: formatNodeOptions(nodeOptions),
+        NODE_OPTIONS: formattedNodeOptions,
       }
 
       if (workerEnv.FORCE_COLOR === undefined) {
@@ -148,6 +151,7 @@ export class Worker {
         ...farmOptions,
         forkOptions: {
           ...farmOptions.forkOptions,
+          execArgv: [...execArgv, ...(farmOptions.forkOptions?.execArgv || [])],
           env: workerEnv,
         },
         maxRetries: 0,
@@ -245,29 +249,39 @@ export class Worker {
       hangingTimer = activeTasks > 0 && setTimeout(onHanging, timeout)
     }
 
+    // TODO: Remove this once callers stop passing non-serializable values
+    // (e.g. functions) in worker method arguments. The structured clone
+    // algorithm used by worker_threads rejects functions, unlike
+    // child_process which silently drops them via JSON serialization.
+    const sanitizeArgs = farmOptions.enableWorkerThreads
+      ? (args: any[]) => JSON.parse(JSON.stringify(args))
+      : (args: any[]) => args
+
     for (const method of farmOptions.exposedMethods) {
       if (method.startsWith('_')) continue
       ;(this as any)[method] = timeout
         ? // eslint-disable-next-line no-loop-func
           async (...args: any[]) => {
             activeTasks++
+            const sanitizedArgs = sanitizeArgs(args)
             try {
               let attempts = 0
               for (;;) {
                 onActivityImpl()
                 const result = await Promise.race([
-                  (this._worker as any)[method](...args),
+                  (this._worker as any)[method](...sanitizedArgs),
                   restartPromise,
                 ])
                 if (result !== RESTARTED) return result
-                if (onRestart) onRestart(method, args, ++attempts)
+                if (onRestart) onRestart(method, sanitizedArgs, ++attempts)
               }
             } finally {
               activeTasks--
               onActivityImpl()
             }
           }
-        : (this._worker as any)[method].bind(this._worker)
+        : (...args: any[]) =>
+            (this._worker as any)[method](...sanitizeArgs(args))
     }
   }
 

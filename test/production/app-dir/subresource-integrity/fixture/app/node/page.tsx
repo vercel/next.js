@@ -1,5 +1,12 @@
 export const dynamic = 'force-dynamic'
 
+import { Client } from '../client'
+
 export default function Page() {
-  return <p>hello world</p>
+  return (
+    <div>
+      <p>hello world</p>
+      <Client />
+    </div>
+  )
 }

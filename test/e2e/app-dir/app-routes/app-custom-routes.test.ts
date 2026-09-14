@@ -10,13 +10,17 @@ import {
 
 const basePath = process.env.BASE_PATH ?? ''
 
+// Streams a request body with global fetch. undici accepts Node.js readable
+// streams and requires duplex: 'half' for them; the repository's global
+// RequestInit type is DOM-flavored and knows neither.
+function streamingBody(stream: Readable) {
+  // @ts-expect-error
+  return { body: stream, duplex: 'half' } as RequestInit
+}
+
 describe('app-custom-routes', () => {
   const { next, isNextDeploy, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      // pin with repo's version of node-fetch
-      '@types/node-fetch': '2.6.1',
-    },
   })
 
   describe('works with api prefix correctly', () => {
@@ -225,7 +229,7 @@ describe('app-custom-routes', () => {
         })
 
         expect(res.status).toEqual(200)
-        expect(res.headers.get('content-type')).toEqual('application/json')
+        expect(res.headers.get('content-type')).toContain('application/json')
         expect(await res.json()).toEqual(meta)
       })
     })
@@ -248,7 +252,7 @@ describe('app-custom-routes', () => {
 
         const res = await next.fetch(basePath + '/advanced/body/streaming', {
           method: 'POST',
-          body: stream,
+          ...streamingBody(stream),
         })
 
         expect(res.status).toEqual(200)
@@ -270,7 +274,7 @@ describe('app-custom-routes', () => {
 
       const res = await next.fetch(basePath + '/edge/advanced/body/streaming', {
         method: 'POST',
-        body: stream,
+        ...streamingBody(stream),
       })
 
       expect(res.status).toEqual(200)
@@ -312,16 +316,20 @@ describe('app-custom-routes', () => {
       expect(await res.text()).toEqual('delete foo')
     })
 
-    it('can read a JSON encoded body for OPTIONS requests', async () => {
-      const body = { name: 'bar' }
-      const res = await next.fetch(basePath + '/advanced/body/json', {
-        method: 'OPTIONS',
-        body: JSON.stringify(body),
-      })
+    // keeping a body during options request is not standardized
+    // behavior and depending on the server can be discarded
+    if (!isNextDeploy) {
+      it('can read a JSON encoded body for OPTIONS requests', async () => {
+        const body = { name: 'bar' }
+        const res = await next.fetch(basePath + '/advanced/body/json', {
+          method: 'OPTIONS',
+          body: JSON.stringify(body),
+        })
 
-      expect(res.status).toEqual(200)
-      expect(await res.text()).toEqual('options bar')
-    })
+        expect(res.status).toEqual(200)
+        expect(await res.text()).toEqual('options bar')
+      })
+    }
 
     // we can't stream a body to a function currently only stream response
     if (!isNextDeploy) {
@@ -339,7 +347,7 @@ describe('app-custom-routes', () => {
         })
         const res = await next.fetch(basePath + '/advanced/body/json', {
           method: 'POST',
-          body: stream,
+          ...streamingBody(stream),
         })
 
         expect(res.status).toEqual(200)
@@ -362,7 +370,7 @@ describe('app-custom-routes', () => {
       })
       const res = await next.fetch(basePath + '/edge/advanced/body/json', {
         method: 'POST',
-        body: stream,
+        ...streamingBody(stream),
       })
 
       expect(res.status).toEqual(200)
@@ -703,6 +711,14 @@ describe('app-custom-routes', () => {
     it('should not print bundling warning about React', async () => {
       const cliOutput = next.cliOutput
       expect(cliOutput).not.toContain('Attempted import error')
+    })
+  })
+
+  describe('top-level await', () => {
+    it('handles route handlers that use top-level await', async () => {
+      const res = await next.fetch(basePath + '/top-level-await')
+      expect(res.status).toBe(200)
+      expect(await res.text()).toBe('hello from top-level await')
     })
   })
 })

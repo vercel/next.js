@@ -1,6 +1,9 @@
 import { yellow } from 'picocolors'
 import isGitClean from 'is-git-clean'
 
+export const NEXT_CODEMOD_ERROR_PREFIX = '@next-codemod-error'
+export const NEXT_CODEMOD_IGNORE_ERROR_PREFIX = '@next-codemod-ignore'
+
 export function checkGitStatus(force) {
   let clean = false
   let errorMessage = 'Unable to determine if git directory is clean'
@@ -142,5 +145,19 @@ export const TRANSFORMER_INQUIRER_CHOICES = [
       'Remove `experimental_ppr` Route Segment Config from App Router pages and layouts',
     value: 'remove-experimental-ppr',
     version: '16.0.0-canary.11',
+  },
+  {
+    title:
+      'Add `export const instant = false` to App Router pages and layouts to ease Cache Components adoption',
+    value: 'cache-components-instant-false',
+    version: '16.3.0',
+    adoption: true,
+  },
+  {
+    title:
+      "Remove `export const prefetch = 'partial'` Route Segment Config from App Router pages and layouts after enabling `partialPrefetching` globally",
+    value: 'remove-partial-prefetch',
+    version: '16.3.0',
+    adoption: true,
   },
 ]

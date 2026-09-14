@@ -2,18 +2,15 @@
 // https://github.com/webpack/webpack/blob/2738eebc7880835d88c727d364ad37f3ec557593/lib/RuntimeGlobals.js#L204
 
 import './register-deployment-id-global'
-import {
-  getDeploymentId,
-  getDeploymentIdQueryOrEmptyString,
-} from '../shared/lib/deployment-id'
+import { getAssetToken, getAssetTokenQuery } from '../shared/lib/deployment-id'
 import { encodeURIPath } from '../shared/lib/encode-uri-path'
 
 declare const __webpack_require__: any
 
 // If we have a deployment ID, we need to append it to the webpack chunk names
 // I am keeping the process check explicit so this can be statically optimized
-if (getDeploymentId()) {
-  const suffix = getDeploymentIdQueryOrEmptyString()
+if (getAssetToken()) {
+  const suffix = getAssetTokenQuery()
   const getChunkScriptFilename = __webpack_require__.u
   __webpack_require__.u = (...args: any[]) =>
     // We encode the chunk filename because our static server matches against and encoded

@@ -11,7 +11,6 @@
     "target": "esnext",
 
     // modules
-    "baseUrl": ".",
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "types": [],

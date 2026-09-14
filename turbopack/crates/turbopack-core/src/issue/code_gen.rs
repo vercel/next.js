@@ -1,10 +1,9 @@
-use turbo_tasks::{ResolvedVc, Vc};
+use anyhow::Result;
+use async_trait::async_trait;
+use turbo_tasks::ResolvedVc;
 use turbo_tasks_fs::FileSystemPath;
 
-use super::{
-    Issue, IssueSeverity, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-    StyledString,
-};
+use super::{Issue, IssueSeverity, IssueSource, IssueStage, StyledString};
 
 #[turbo_tasks::value(shared)]
 pub struct CodeGenerationIssue {
@@ -16,34 +15,30 @@ pub struct CodeGenerationIssue {
     pub source: Option<IssueSource>,
 }
 
+#[async_trait]
 #[turbo_tasks::value_impl]
 impl Issue for CodeGenerationIssue {
     fn severity(&self) -> IssueSeverity {
         self.severity
     }
 
-    #[turbo_tasks::function]
-    fn title(&self) -> Vc<StyledString> {
-        *self.title
+    async fn file_path(&self) -> Result<FileSystemPath> {
+        Ok(self.path.clone())
     }
 
-    #[turbo_tasks::function]
-    fn stage(&self) -> Vc<IssueStage> {
-        IssueStage::CodeGen.cell()
+    fn stage(&self) -> IssueStage {
+        IssueStage::CodeGen
     }
 
-    #[turbo_tasks::function]
-    fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path.clone().cell()
+    async fn title(&self) -> Result<StyledString> {
+        Ok((*self.title.await?).clone())
     }
 
-    #[turbo_tasks::function]
-    fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(self.message))
+    async fn description(&self) -> Result<Option<StyledString>> {
+        Ok(Some((*self.message.await?).clone()))
     }
 
-    #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source)
+    fn source(&self) -> Option<IssueSource> {
+        self.source
     }
 }

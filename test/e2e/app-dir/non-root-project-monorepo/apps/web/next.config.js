@@ -1,6 +1,12 @@
 /**
  * @type {import('next').NextConfig}
  */
-const nextConfig = {}
+const nextConfig = {
+  experimental: {
+    instantInsights: {
+      validationLevel: 'manual-warning',
+    },
+  },
+}
 
 module.exports = nextConfig

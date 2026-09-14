@@ -8,6 +8,7 @@ import {
 } from 'fs'
 import { inspect, promisify } from 'util'
 import http from 'http'
+import https from 'https'
 import path from 'path'
 
 import type cheerio from 'cheerio'
@@ -15,7 +16,6 @@ import spawn from 'cross-spawn'
 import { writeFile } from 'fs-extra'
 import getPort from 'get-port'
 import { getRandomPort } from 'get-port-please'
-import fetch from 'node-fetch'
 import { nanoid } from 'nanoid'
 import qs from 'querystring'
 import treeKill from 'tree-kill'
@@ -25,9 +25,9 @@ import server from 'next/dist/server/next'
 import _pkg from 'next/package.json'
 
 import type { SpawnOptions, ChildProcess } from 'child_process'
-import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
-import { Playwright } from 'next-webdriver'
+import type { Playwright } from './browsers/playwright'
+import { recursiveReadDir } from 'next/dist/lib/recursive-readdir'
 
 import { shouldUseTurbopack } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -38,8 +38,12 @@ import escapeRegex from 'escape-string-regexp'
 import './add-redbox-matchers'
 import { NextInstance } from 'e2e-utils'
 import { ClientReferenceManifest } from 'next/dist/build/webpack/plugins/flight-manifest-plugin'
+import { RequiredServerFilesManifest } from 'next/dist/build'
 
 export { shouldUseTurbopack }
+
+// The runtime counterpart of the `// @gate` pragma. See test/lib/gate/README.md.
+export { gate } from './gate/runtime'
 
 export const nextServer = server
 export const pkg = _pkg
@@ -142,11 +146,16 @@ export function getFullUrl(
 
   if (typeof appPortOrUrl === 'string' && url) {
     const parsedUrl = new URL(fullUrl)
-    const parsedPathQuery = new URL(url, fullUrl)
 
-    parsedUrl.hash = parsedPathQuery.hash
-    parsedUrl.search = parsedPathQuery.search
-    parsedUrl.pathname = parsedPathQuery.pathname
+    // Handle '//' as a special case since it's not a valid relative URL for URL constructor
+    if (url === '//') {
+      parsedUrl.pathname = '//'
+    } else {
+      const parsedPathQuery = new URL(url, fullUrl)
+      parsedUrl.hash = parsedPathQuery.hash
+      parsedUrl.search = parsedPathQuery.search
+      parsedUrl.pathname = parsedPathQuery.pathname
+    }
 
     if (hostname && parsedUrl.hostname === 'localhost') {
       parsedUrl.hostname = hostname
@@ -198,6 +207,92 @@ export function fetchViaHTTP(
 ): Promise<Response> {
   const url = query ? withQuery(pathname, query) : pathname
   return fetch(getFullUrl(appPort, url), opts)
+}
+
+/**
+ * Sends a request without any URL parsing or normalization and with full
+ * control over the Host header. Global fetch cannot be used for this: its
+ * WHATWG URL parser normalizes backslashes, dot-segments, and repeated
+ * slashes, and it derives the Host header from the URL authority. The
+ * response is returned verbatim, including a raw relative Location header.
+ */
+export function fetchViaRawHttp(
+  appPortOrUrl: string | number,
+  rawPath: string,
+  opts?: {
+    method?: string
+    headers?: Record<string, string>
+    /** Accepted for drop-in compatibility; raw requests never follow redirects. */
+    redirect?: 'manual'
+    /** Passed to the TLS connection for https URLs (e.g. self-signed servers). */
+    rejectUnauthorized?: boolean
+  }
+): Promise<Response> {
+  const baseUrl =
+    typeof appPortOrUrl === 'string' && appPortOrUrl.startsWith('http')
+      ? new URL(appPortOrUrl)
+      : null
+  return new Promise((resolve, reject) => {
+    const req = (baseUrl?.protocol === 'https:' ? https : http).request(
+      {
+        hostname: baseUrl ? baseUrl.hostname : '127.0.0.1',
+        port: baseUrl ? baseUrl.port : appPortOrUrl,
+        path: rawPath,
+        method: opts?.method ?? 'GET',
+        headers: opts?.headers,
+        rejectUnauthorized: opts?.rejectUnauthorized,
+      },
+      (res) => {
+        const chunks: Buffer[] = []
+        res.on('data', (chunk) => chunks.push(chunk))
+        res.on('end', () => {
+          const status = res.statusCode ?? 200
+          const headers = new Headers()
+          for (const [key, value] of Object.entries(res.headers)) {
+            for (const item of Array.isArray(value) ? value : [value]) {
+              if (item !== undefined) {
+                headers.append(key, item)
+              }
+            }
+          }
+          const body = Buffer.concat(chunks)
+          resolve(
+            new Response(status === 204 || status === 304 ? null : body, {
+              status,
+              statusText: res.statusMessage,
+              headers,
+            })
+          )
+        })
+      }
+    )
+    req.on('error', reject)
+    req.end()
+  })
+}
+
+export function renderViaRawHTTP(
+  appPortOrUrl: string | number,
+  rawPath: string,
+  opts?: Parameters<typeof fetchViaRawHttp>[2]
+) {
+  return fetchViaRawHttp(appPortOrUrl, rawPath, opts).then((res) => res.text())
+}
+
+export function expectVaryHeaderToContain(
+  varyHeader: string | null,
+  expectedFields: string[]
+) {
+  const varyFields = new Set(
+    (varyHeader ?? '')
+      .split(',')
+      .map((field) => field.trim().toLowerCase())
+      .filter(Boolean)
+  )
+
+  for (const expectedField of expectedFields) {
+    expect(varyFields.has(expectedField.toLowerCase())).toBe(true)
+  }
 }
 
 /**
@@ -265,6 +360,7 @@ export interface NextOptions {
   stderr?: true | 'log'
   stdout?: true | 'log'
   ignoreFail?: boolean
+  disableAutoSkewProtection?: boolean
 
   onStdout?: (data: any) => void
   onStderr?: (data: any) => void
@@ -283,7 +379,7 @@ export function runNextCommand(
   const nextBin = path.join(nextDir, 'dist/bin/next')
   const cwd = options.cwd || nextDir
   // Let Next.js decide the environment
-  const env = {
+  const env: NodeJS.ProcessEnv = {
     ...process.env,
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
@@ -390,6 +486,7 @@ export interface NextDevOptions {
   bootupMarker?: RegExp
   nextStart?: boolean
   turbo?: boolean
+  disableAutoSkewProtection?: boolean
 
   stderr?: false
   stdout?: false
@@ -517,6 +614,12 @@ export function nextBuild(
   args: string[] = [],
   opts: NextOptions = {}
 ) {
+  if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
+    opts.env ??= {}
+    opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
+  }
+
   return runNextCommand(['build', dir, ...args], opts)
 }
 
@@ -539,6 +642,12 @@ export function nextStart(
   port: string | number,
   opts: NextDevOptions = {}
 ) {
+  if (!opts.disableAutoSkewProtection && shouldUseTurbopack() && !opts.env) {
+    opts.env ??= {}
+    opts.env.NEXT_DEPLOYMENT_ID = 'test-dpl-id-1234'
+    opts.env.__NEXT_SUPPORTS_IMMUTABLE_ASSETS = '1'
+  }
+
   return runNextCommandDev(
     ['start', '-p', port as string, '--hostname', '::', dir],
     undefined,
@@ -820,21 +929,22 @@ export async function retry<T>(
   interval: number = 500,
   description: string = fn.name
 ): Promise<T> {
-  if (duration % interval !== 0) {
-    throw new Error(
-      `invalid duration ${duration} and interval ${interval} mix, duration must be evenly divisible by interval`
-    )
+  if (duration < 0) {
+    throw new Error('Duration cannot be less than 0.')
   }
 
-  for (let i = duration; i >= 0; i -= interval) {
+  const started = performance.now()
+
+  while (true) {
     try {
       return await fn()
     } catch (err) {
-      if (i === 0) {
+      const waited = performance.now() - started
+      if (waited + interval > duration) {
         console.error(
           `Failed to retry${
             description ? ` ${description}` : ''
-          } within ${duration}ms`
+          } within ${duration}ms (waited ${Math.round(waited)}ms)`
         )
         throw err
       }
@@ -844,8 +954,6 @@ export async function retry<T>(
       await waitFor(interval)
     }
   }
-
-  throw new Error('Duration cannot be less than 0.')
 }
 
 export async function waitForRedbox(browser: Playwright) {
@@ -1146,7 +1254,7 @@ export function getRedboxTitle(browser: Playwright): Promise<string | null> {
     const root = portal.shadowRoot
     return (
       root.querySelector(
-        '[data-nextjs-dialog-header] .nextjs__container_errors__error_title'
+        '[data-nextjs-dialog-header] [data-nextjs-error-label-group]'
       )?.innerText ?? null
     )
   })
@@ -1489,13 +1597,12 @@ const nextjsClientComponentNames = [
   'HTTPAccessFallbackBoundary',
   'HTTPAccessFallbackErrorBoundary',
   'InnerLayoutRouter',
-  'InnerScrollAndFocusHandlerOld',
-  'InnerScrollHandlerNew',
+  'InnerScrollHandler',
   'RedirectBoundary',
   'RedirectErrorBoundary',
   'RenderFromTemplateContext',
   'Root',
-  'ScrollAndMaybeFocusHandler',
+  'ScrollHandler',
   'SegmentViewNode',
   'SegmentTrieNode',
   // These are added due to user actions e.g. loading.js -> LoadingBoundary
@@ -1603,6 +1710,49 @@ export async function getRedboxCause(
   })
 }
 
+export async function getRedboxAggregateErrors(
+  browser: Playwright
+): Promise<RedboxCauseEntry[] | null> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-header]'))
+    const root = portal?.shadowRoot
+    const aggregateElements = root?.querySelectorAll(
+      '[data-nextjs-error-aggregate-error]'
+    )
+    if (!aggregateElements || aggregateElements.length === 0) return null
+
+    const entries: {
+      label: string | null
+      message: string | null
+      source: string | null
+      stack: string[]
+    }[] = []
+    for (const el of aggregateElements) {
+      const stackFrameElements = el.querySelectorAll(
+        ':scope > [data-nextjs-call-stack-container] > [data-nextjs-call-stack-frame]'
+      )
+      const stack: string[] = []
+      for (const frameEl of stackFrameElements) {
+        stack.push(frameEl.innerText.replace(/\n+/g, ' '))
+      }
+
+      entries.push({
+        label:
+          el.querySelector('.error-aggregate-error-label')?.innerText ?? null,
+        message:
+          el.querySelector('.error-aggregate-error-message')?.innerText ?? null,
+        source:
+          el.querySelector(':scope > [data-nextjs-codeframe]')?.innerText ??
+          null,
+        stack,
+      })
+    }
+    return entries
+  })
+}
+
 export async function getRedboxCallStack(
   browser: Playwright
 ): Promise<string[] | null> {
@@ -1619,8 +1769,11 @@ export async function getRedboxCallStack(
     if (frameElements !== undefined) {
       let foundInternalFrame = false
       for (const frameElement of frameElements) {
-        // Skip frames that belong to an Error.cause section
-        if (frameElement.closest('[data-nextjs-error-cause]')) {
+        // Skip frames that belong to an Error.cause or AggregateError section
+        if (
+          frameElement.closest('[data-nextjs-error-cause]') ||
+          frameElement.closest('[data-nextjs-error-aggregate-error]')
+        ) {
           continue
         }
         // `innerText` will be "${methodName}\n${location}".
@@ -1858,33 +2011,6 @@ export const checkLink = (
   content: string | string[]
 ) => checkMeta(browser, rel, content, 'rel', 'link', 'href')
 
-export async function getStackFramesContent(browser) {
-  const stackFrameElements = await browser.elementsByCss(
-    '[data-nextjs-call-stack-frame]'
-  )
-  const stackFramesContent = (
-    await Promise.all(
-      stackFrameElements.map(async (frame) => {
-        const functionNameEl = await frame.$('.call-stack-frame-method-name')
-        const fileEl = await frame.$('[data-has-original-code-frame="true"]')
-        const functionName = functionNameEl
-          ? await functionNameEl.innerText()
-          : ''
-        const file = fileEl ? await fileEl.innerText() : ''
-
-        if (!functionName) {
-          return ''
-        }
-        return `at ${functionName} (${file})`
-      })
-    )
-  )
-    .filter(Boolean)
-    .join('\n')
-
-  return stackFramesContent
-}
-
 export async function toggleCollapseCallStackFrames(browser: Playwright) {
   const button = await browser.elementByCss(
     '[data-nextjs-call-stack-ignored-list-toggle-button]'
@@ -2051,3 +2177,46 @@ export function getClientReferenceManifest(
 export const getCacheHeader = (curRes: Response) =>
   // favor generic header
   curRes.headers.get('x-nextjs-cache') || curRes.headers.get('x-vercel-cache')
+
+export function getDeploymentId(appDir: string, isDev: boolean) {
+  let requiredServerFiles: RequiredServerFilesManifest | undefined
+  if (!isDev) {
+    // File isn't written in dev, but it might still exist because it was created by a prior
+    // production build.
+    try {
+      requiredServerFiles = JSON.parse(
+        readFileSync(
+          path.join(appDir, getDistDir(), 'required-server-files.json'),
+          'utf8'
+        )
+      )
+    } catch {}
+  }
+
+  const deploymentId: string | undefined =
+    requiredServerFiles?.config?.deploymentId
+
+  const assetToken: string | undefined = requiredServerFiles?.config
+    ?.supportsImmutableAssets
+    ? undefined
+    : deploymentId
+
+  return {
+    deploymentId,
+    getDeploymentIdQuery(ampersand = false) {
+      return deploymentId ? `${ampersand ? '&' : '?'}dpl=${deploymentId}` : ''
+    },
+    assetToken,
+    getAssetQuery(ampersand = false) {
+      return assetToken ? `${ampersand ? '&' : '?'}dpl=${assetToken}` : ''
+    },
+  }
+}
+
+export async function listClientChunks(distDir: string) {
+  return (
+    await recursiveReadDir(path.join(distDir, 'static'), {
+      relativePathnames: false,
+    })
+  ).map((f) => path.relative(distDir, f))
+}

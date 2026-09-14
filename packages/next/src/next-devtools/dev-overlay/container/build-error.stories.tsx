@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { BuildError } from './build-error'
-import { withShadowPortal } from '../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../.storybook/decorators/with-shadow-portal'
 
 const meta: Meta<typeof BuildError> = {
   component: BuildError,
@@ -38,5 +38,24 @@ export const Turbopack: Story = {
   args: {
     ...Default.args,
     isTurbopack: true,
+  },
+}
+
+export const ParseError: Story = {
+  args: {
+    message: `./app/page.tsx:3:27
+Syntax Error
+  1 | export default function Page() {
+  2 |   return <div>Hello</div
+> 3 | }
+    |                           ^
+  4 |
+
+Expected '>', got '}'
+`,
+    versionInfo: {
+      installed: '15.0.0',
+      staleness: 'fresh',
+    },
   },
 }

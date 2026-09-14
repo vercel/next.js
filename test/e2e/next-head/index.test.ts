@@ -1,25 +1,18 @@
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import { renderViaHTTP } from 'next-test-utils'
 import cheerio from 'cheerio'
-import webdriver from 'next-webdriver'
-import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 
 describe('next/head', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(__dirname, 'app/pages')),
-        components: new FileRef(join(__dirname, 'app/components')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      components: new FileRef(join(__dirname, 'app/components')),
+    },
   })
-  afterAll(() => next.destroy())
 
   it(`should place charset element at the top of <head>`, async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
 
     const html = await browser.eval(() => {
       const head = document.querySelector('head')
@@ -48,7 +41,7 @@ describe('next/head', () => {
   })
 
   it('should have correct head tags after hydration', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
 
     for (let i = 1; i < 5; i++) {
       expect(
@@ -65,6 +58,33 @@ describe('next/head', () => {
 
     expect($(`meta[name="test-head-initial-props"]`).attr()['content']).toBe(
       'hello'
+    )
+  })
+})
+
+describe('next/head dev route discovery', () => {
+  if (!(global as any).isNextDev) {
+    return
+  }
+
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(__dirname, 'app/pages')),
+      components: new FileRef(join(__dirname, 'app/components')),
+      'inject-readdir-delay.cjs': new FileRef(
+        join(__dirname, 'app/inject-readdir-delay.cjs')
+      ),
+    },
+    env: { NODE_OPTIONS: '--require ./inject-readdir-delay.cjs' },
+  })
+
+  it('waits for the initial route scan before serving pages', async () => {
+    const response = await next.fetch('/')
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toContain('index page')
+    expect(next.cliOutput).toContain(
+      '[next-head] delaying initial Watchpack pages scan'
     )
   })
 })

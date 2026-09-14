@@ -1,13 +1,17 @@
 import findUp from 'next/dist/compiled/find-up'
 import fsPromise from 'fs/promises'
-import child_process from 'child_process'
 import assert from 'assert'
 import os from 'os'
 import { createInterface } from 'readline'
 import { createReadStream } from 'fs'
 import path from 'path'
+import { getGitBranch, getGitCommit } from '../lib/helpers/git'
 
-const COMMON_ALLOWED_EVENTS = ['memory-usage']
+const COMMON_ALLOWED_EVENTS = [
+  'memory-usage',
+  'turbopack-persistence',
+  'turbopack-compaction',
+]
 
 // Predefined set of the event names to be included in the trace.
 // If the trace span's name matches to one of the event names in the set,
@@ -99,8 +103,10 @@ interface TraceEvent {
 interface TraceMetadata {
   anonymousId: string
   arch: string
+  branch: string
   commit: string
   cpus: number
+  isVercelEnvironment: boolean
   isTurboSession: boolean
   mode: string
   nextVersion: string
@@ -126,14 +132,11 @@ interface TraceMetadata {
   )
   const pkgName = projectPkgJson.name
 
-  const commit = child_process
-    .spawnSync(
-      os.platform() === 'win32' ? 'git.exe' : 'git',
-      ['rev-parse', 'HEAD'],
-      { shell: true }
-    )
-    .stdout.toString()
-    .trimEnd()
+  const isVercelEnvironment = !!process.env.VERCEL
+
+  const commit = getGitCommit(projectDir) ?? ''
+
+  const branch = getGitBranch(projectDir) ?? ''
 
   const readLineInterface = createInterface({
     input: createReadStream(path.join(projectDir, distDir, 'trace')),
@@ -207,8 +210,10 @@ interface TraceMetadata {
     metadata: {
       anonymousId,
       arch: os.arch(),
+      branch,
       commit,
       cpus: os.cpus().length,
+      isVercelEnvironment,
       isTurboSession,
       mode,
       nextVersion,

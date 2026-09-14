@@ -1,13 +1,12 @@
 'use client'
 import { useParams, useRouter } from 'next/navigation'
-import { useState } from 'react'
-import { useEffect } from 'react'
+import { useInsertionEffect, useState } from 'react'
 
 export default function Page() {
   const params = useParams()
   const router = useRouter()
   const [count, setCount] = useState(0)
-  useEffect(() => {
+  useInsertionEffect(() => {
     console.log('params changed')
   }, [params])
   return (

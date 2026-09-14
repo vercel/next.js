@@ -1,5 +1,10 @@
 export { unstable_cache } from 'next/dist/server/web/spec-extension/unstable-cache'
 
+export type {
+  CacheHandler,
+  CacheEntry,
+} from './dist/server/lib/cache-handlers/types'
+
 export {
   revalidatePath,
   revalidateTag,
@@ -9,9 +14,13 @@ export {
 
 export { unstable_noStore } from 'next/dist/server/web/spec-extension/unstable-no-store'
 
+export { io } from 'next/dist/server/request/io'
+
 import { cacheTag } from 'next/dist/server/use-cache/cache-tag'
 
 export { cacheTag }
+
+export interface CacheLifeProfiles {}
 
 /**
  * Cache this `"use cache"` for a timespan defined by the `"default"` profile.
@@ -121,7 +130,9 @@ export function cacheLife(profile: 'max'): void
  *
  * You can define custom profiles in `next.config.ts`.
  */
-export function cacheLife(profile: string): void
+export function cacheLife(
+  profile: keyof CacheLifeProfiles extends never ? string : never
+): void
 
 /**
  * Cache this `"use cache"` using a custom timespan.
@@ -152,3 +163,6 @@ export function cacheLife(profile: {
 
 export const unstable_cacheLife: typeof cacheLife
 export const unstable_cacheTag: typeof cacheTag
+
+export { unstable_navigation } from 'next/dist/server/request/cache-stages'
+export { unstable_prefetch } from 'next/dist/server/request/cache-stages'

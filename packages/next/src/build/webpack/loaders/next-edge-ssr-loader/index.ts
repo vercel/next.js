@@ -62,6 +62,45 @@ function getRouteModuleOptions(page: string) {
   return options
 }
 
+function getCacheHandlersSetup(
+  cacheHandlersStringified: string | undefined,
+  contextifyImportPath: (path: string) => string
+): {
+  cacheHandlerImports: string
+  cacheHandlerRegistration: string
+} {
+  const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}') as Record<
+    string,
+    string | undefined
+  >
+  const definedCacheHandlers = Object.entries(cacheHandlers).filter(
+    (entry): entry is [string, string] => Boolean(entry[1])
+  )
+
+  const cacheHandlerImports: string[] = []
+  const cacheHandlerRegistration: string[] = []
+
+  for (const [index, [kind, handlerPath]] of definedCacheHandlers.entries()) {
+    const cacheHandlerVarName = `edgeCacheHandler_${index}`
+    const cacheHandlerImportPath = contextifyImportPath(handlerPath)
+    cacheHandlerImports.push(
+      `import ${cacheHandlerVarName} from ${JSON.stringify(
+        cacheHandlerImportPath
+      )}`
+    )
+    cacheHandlerRegistration.push(
+      `  cacheHandlers.setCacheHandler(${JSON.stringify(
+        kind
+      )}, ${cacheHandlerVarName})`
+    )
+  }
+
+  return {
+    cacheHandlerImports: cacheHandlerImports.join('\n') || '\n',
+    cacheHandlerRegistration: cacheHandlerRegistration.join('\n') || '\n',
+  }
+}
+
 const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
   async function edgeSSRLoader(this) {
     const {
@@ -80,13 +119,14 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       middlewareConfig: middlewareConfigBase64,
     } = this.getOptions()
 
-    const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
-
-    if (!cacheHandlers.default) {
-      cacheHandlers.default = require.resolve(
-        '../../../../server/lib/cache-handlers/default.external'
-      )
-    }
+    const cacheHandlersSetup = getCacheHandlersSetup(
+      cacheHandlersStringified,
+      (handlerPath) =>
+        this.utils.contextify(this.context || this.rootContext, handlerPath)
+    )
+    const incrementalCacheHandler = cacheHandler
+      ? this.utils.contextify(this.context || this.rootContext, cacheHandler)
+      : null
 
     const middlewareConfig: ProxyConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
@@ -154,9 +194,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           VAR_USERLAND: pageModPath,
           VAR_PAGE: page,
         },
-        {},
+        cacheHandlersSetup,
         {
-          incrementalCacheHandler: cacheHandler ?? null,
+          incrementalCacheHandler,
         }
       )
     } else {
@@ -177,10 +217,11 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
           user500RouteModuleOptions: JSON.stringify(
             getRouteModuleOptions('/500')
           ),
+          ...(cacheHandlersSetup ?? {}),
         },
         {
           userland500Page: userland500Path,
-          incrementalCacheHandler: cacheHandler ?? null,
+          incrementalCacheHandler,
         }
       )
     }

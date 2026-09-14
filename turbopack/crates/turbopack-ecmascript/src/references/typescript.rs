@@ -3,6 +3,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::{ChunkingType, TracedMode},
     context::AssetContext,
     file_source::FileSource,
     reference::ModuleReference,
@@ -42,6 +43,12 @@ impl ModuleReference for TsConfigReference {
             .await?,
         )))
     }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
+    }
 }
 
 #[turbo_tasks::value]
@@ -64,16 +71,10 @@ impl TsReferencePathAssetReference {
 impl ModuleReference for TsReferencePathAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
+        let origin = self.origin.into_trait_ref().await?;
         Ok(
-            if let Some(path) = self
-                .origin
-                .origin_path()
-                .await?
-                .parent()
-                .try_join(&self.path)
-            {
-                let module = self
-                    .origin
+            if let Some(path) = origin.origin_path().parent().try_join(&self.path) {
+                let module = origin
                     .asset_context()
                     .process(
                         Vc::upcast(FileSource::new(path.clone())),
@@ -87,6 +88,12 @@ impl ModuleReference for TsReferencePathAssetReference {
                 *ModuleResolveResult::unresolvable()
             },
         )
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }
 
@@ -119,5 +126,11 @@ impl ModuleReference for TsReferenceTypeAssetReference {
                 RcStr::default(),
             ),
         )
+    }
+
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Traced {
+            mode: TracedMode::Transitive,
+        })
     }
 }

@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
     FxIndexSet, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
-    debug::ValueDebugFormat, trace::TraceRawVcs,
+    debug::ValueDebugFormat, trace::TraceRawVcs, turbofmt,
 };
 use turbo_tasks_fs::{FileSystemPath, glob::Glob};
 
@@ -19,10 +19,6 @@ use crate::{
         plugin::{AfterResolvePlugin, BeforeResolvePlugin},
     },
 };
-
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
-pub struct LockedVersions {}
 
 #[turbo_tasks::value(transparent)]
 #[derive(Debug)]
@@ -43,9 +39,12 @@ pub enum ResolveModules {
     },
 }
 
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode)]
+#[derive(
+    TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, NonLocalValue, Encode, Decode, Default,
+)]
 pub enum ConditionValue {
     Set,
+    #[default]
     Unset,
     Unknown,
 }
@@ -514,16 +513,11 @@ impl ValueToString for ImportMapResult {
             ImportMapResult::AliasExternal { .. } => Ok(Vc::cell(rcstr!("TODO external"))),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
-                    let path = path.value_to_string().await?;
-                    format!(
-                        "aliased to {} inside of {}",
-                        request.to_string().await?,
-                        path
-                    )
+                    turbofmt!("aliased to {} inside of {path}", *request).await?
                 } else {
-                    format!("aliased to {}", request.to_string().await?)
+                    turbofmt!("aliased to {}", *request).await?
                 };
-                Ok(Vc::cell(s.into()))
+                Ok(Vc::cell(s))
             }
             ImportMapResult::Alternatives(alternatives) => {
                 // The .cell() calls happen synchronously during iteration, before try_join()
@@ -542,7 +536,16 @@ impl ValueToString for ImportMapResult {
             }
             ImportMapResult::NoEntry => Ok(Vc::cell(rcstr!("No import map entry"))),
             ImportMapResult::Error(issue) => Ok(Vc::cell(
-                format!("error: {}", issue.title().await?.to_unstyled_string()).into(),
+                format!(
+                    "error: {}",
+                    issue
+                        .into_trait_ref()
+                        .await?
+                        .title()
+                        .await?
+                        .to_unstyled_string()
+                )
+                .into(),
             )),
         }
     }
@@ -585,8 +588,8 @@ impl ImportMap {
 
         let results = lookup_rel
             .into_iter()
-            .chain(lookup_rel_parent.into_iter())
-            .chain(lookup.into_iter())
+            .chain(lookup_rel_parent)
+            .chain(lookup)
             .map(async |result| {
                 import_mapping_to_result(*result?.output.await?, lookup_path.clone(), request).await
             })
@@ -661,14 +664,23 @@ pub struct ResolveOptions {
     pub collect_affecting_sources: bool,
     /// Whether to parse data URIs into modules (as opposed to keeping them as externals)
     pub parse_data_uris: bool,
+    /// The directory that a request starting with `/` (a [`Request::ServerRelative`]) resolves
+    /// from, e.g. `/dir/file.js`. A request that doesn't exist below this directory is not
+    /// resolved, so `/` can't reach outside of it.
+    ///
+    /// When unset, there is nothing to resolve such a request from, so it isn't supported: it
+    /// reports an issue saying so and doesn't resolve.
+    ///
+    /// [`Request::ServerRelative`]: crate::resolve::parse::Request::ServerRelative
+    pub server_relative_root: Option<FileSystemPath>,
 
     pub placeholder_for_future_extensions: (),
 }
 
 #[turbo_tasks::value_impl]
 impl ResolveOptions {
-    /// Returns a new [Vc<ResolveOptions>] with its import map extended to
-    /// include the given import map.
+    /// Returns a new `Vc<ResolveOptions>` with its import map extended to include the given import
+    /// map.
     #[turbo_tasks::function]
     pub async fn with_extended_import_map(
         self: Vc<Self>,
@@ -686,8 +698,8 @@ impl ResolveOptions {
         Ok(resolve_options.cell())
     }
 
-    /// Returns a new [Vc<ResolveOptions>] with its fallback import map extended
-    /// to include the given import map.
+    /// Returns a new `Vc<ResolveOptions>` with its fallback import map extended to include the
+    /// given import map.
     #[turbo_tasks::function]
     pub async fn with_extended_fallback_import_map(
         self: Vc<Self>,

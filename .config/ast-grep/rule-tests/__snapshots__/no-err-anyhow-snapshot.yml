@@ -1,0 +1,26 @@
+id: no-err-anyhow
+snapshots:
+  Err(anyhow!("error message")):
+    labels:
+    - source: Err(anyhow!("error message"))
+      style: primary
+      start: 0
+      end: 29
+  'Err(anyhow!("error: {}", msg))':
+    labels:
+    - source: 'Err(anyhow!("error: {}", msg))'
+      style: primary
+      start: 0
+      end: 30
+  Err(anyhow::anyhow!("error message")):
+    labels:
+    - source: Err(anyhow::anyhow!("error message"))
+      style: primary
+      start: 0
+      end: 37
+  'Err(anyhow::anyhow!("error: {}", msg))':
+    labels:
+    - source: 'Err(anyhow::anyhow!("error: {}", msg))'
+      style: primary
+      start: 0
+      end: 38

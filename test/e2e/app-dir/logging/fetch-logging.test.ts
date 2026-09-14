@@ -80,10 +80,11 @@ describe('app-dir - fetch logging', () => {
 })
 
 describe('app-dir - logging', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, skipped } = nextTestSetup({
     skipDeployment: true,
     files: __dirname,
   })
+  if (skipped) return
   function runTests({
     withFetchesLogging,
     withFullUrlFetches = false,

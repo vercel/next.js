@@ -202,12 +202,17 @@ export class Lockfile {
             )
           }
           console.error()
+          console.error(
+            `You can access the existing server at ${cyan(serverInfo.appUrl)},`
+          )
           // Use platform-appropriate kill command
           const killCommand =
             process.platform === 'win32'
               ? `taskkill /PID ${serverInfo.pid} /F`
               : `kill ${serverInfo.pid}`
-          console.error(`Run ${cyan(killCommand)} to stop it.`)
+          console.error(
+            `or run ${cyan(killCommand)} to stop it and start a new one.`
+          )
         } else {
           // Fallback when we can't read server info from the lockfile
           Log.error(

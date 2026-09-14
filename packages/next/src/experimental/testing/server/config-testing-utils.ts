@@ -1,13 +1,14 @@
 import type { IncomingHttpHeaders } from 'node:http'
-import { parse, type UrlWithParsedQuery } from 'node:url'
+import type { ParsedUrlQuery } from 'querystring'
 import { match } from 'next/dist/compiled/path-to-regexp'
 import {
   matchHas,
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
+import { PHASE_PRODUCTION_BUILD } from '../../../shared/lib/constants'
 import { buildCustomRoute } from '../../../lib/build-custom-route'
 import loadCustomRoutes from '../../../lib/load-custom-routes'
-import type { NextConfig } from '../../../server/config-shared'
+import { normalizeConfig, type NextConfig } from '../../../server/config-shared'
 import { NextResponse } from '../../../server/web/exports'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import type {
@@ -19,6 +20,7 @@ import type { BaseNextRequest } from '../../../server/base-http'
 import type { Params } from '../../../server/request/params'
 import { constructRequest } from './utils'
 import { parsedUrlQueryToParams } from '../../../server/route-modules/app-route/helpers/parsed-url-query-to-params'
+import { searchParamsToUrlQuery } from '../../../shared/lib/router/utils/querystring'
 
 /**
  * Tries to match the current request against the provided route. If there is
@@ -28,13 +30,10 @@ import { parsedUrlQueryToParams } from '../../../server/route-modules/app-route/
 function matchRoute(
   route: ManifestHeaderRoute | ManifestRedirectRoute | ManifestRewriteRoute,
   request: BaseNextRequest,
-  parsedUrl: UrlWithParsedQuery
+  pathname: string,
+  query: ParsedUrlQuery
 ): Params | undefined {
-  const pathname = parsedUrl.pathname
-  if (!pathname) {
-    return
-  }
-  const regexMatches = pathname?.match(route.regex)
+  const regexMatches = pathname.match(route.regex)
 
   if (regexMatches) {
     const pathMatch = match<Params>(route.source)(pathname)
@@ -44,7 +43,7 @@ function matchRoute(
       )
     }
     if (route.has || route.missing) {
-      if (!matchHas(request, parsedUrl.query, route.has, route.missing)) {
+      if (!matchHas(request, query, route.has, route.missing)) {
         return
       }
     }
@@ -81,13 +80,21 @@ export async function unstable_getResponseFromNextConfig({
   cookies = {},
 }: {
   url: string
-  nextConfig: NextConfig
+  nextConfig:
+    | NextConfig
+    | ((...args: any[]) => NextConfig | Promise<NextConfig>)
   headers?: IncomingHttpHeaders
   cookies?: Record<string, string>
 }): Promise<NextResponse> {
-  const parsedUrl = parse(url, true)
+  const parsed = new URL(url, 'https://example.com')
+  const pathname = parsed.pathname
+  const query = searchParamsToUrlQuery(parsed.searchParams)
   const request = constructRequest({ url, headers, cookies })
-  const routes = await loadCustomRoutes(nextConfig)
+  const resolvedConfig = await normalizeConfig(
+    PHASE_PRODUCTION_BUILD,
+    nextConfig
+  )
+  const routes = await loadCustomRoutes(resolvedConfig)
 
   const headerRoutes = routes.headers.map((route) =>
     buildCustomRoute('header', route)
@@ -103,7 +110,7 @@ export async function unstable_getResponseFromNextConfig({
 
   const respHeaders: Record<string, string> = {}
   for (const route of headerRoutes) {
-    const matched = matchRoute(route, request, parsedUrl)
+    const matched = matchRoute(route, request, pathname, query)
     if (matched) {
       for (const header of route.headers) {
         respHeaders[header.key] = header.value
@@ -113,7 +120,7 @@ export async function unstable_getResponseFromNextConfig({
   function matchRouteAndGetDestination(
     route: ManifestRedirectRoute | ManifestRewriteRoute
   ): URL | undefined {
-    const params = matchRoute(route, request, parsedUrl)
+    const params = matchRoute(route, request, pathname, query)
     if (!params) {
       return
     }
@@ -121,7 +128,7 @@ export async function unstable_getResponseFromNextConfig({
       appendParamsToQuery: false,
       destination: route.destination,
       params,
-      query: parsedUrl.query,
+      query,
     })
     const searchParams = new URLSearchParams(
       parsedUrlQueryToParams(parsedDestination.query) as Record<string, string>
@@ -130,9 +137,7 @@ export async function unstable_getResponseFromNextConfig({
       searchParams.size > 0 ? `${newUrl}?${searchParams.toString()}` : newUrl,
       parsedDestination.hostname
         ? `${parsedDestination.protocol}//${parsedDestination.hostname}`
-        : parsedUrl.host
-          ? `${parsedUrl.protocol}//${parsedUrl.host}`
-          : 'https://example.com'
+        : parsed.origin
     )
   }
   for (const route of redirectRoutes) {

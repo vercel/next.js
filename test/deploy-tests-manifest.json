@@ -86,12 +86,6 @@
     },
     "test/e2e/middleware-rewrites/test/index.test.ts": {
       "failed": ["Middleware Rewrite should handle catch-all rewrite correctly"]
-    },
-    "test/e2e/app-dir/resume-data-cache/resume-data-cache.test.ts": {
-      "failed": [
-        "resume-data-cache should have consistent data between static and dynamic renders with fetch cache",
-        "resume-data-cache should have consistent data between static and dynamic renders with use cache"
-      ]
     }
   },
   "rules": {
@@ -108,9 +102,7 @@
       "test/e2e/app-dir/app-routes/app-custom-route-base-path.test.ts",
       "test/e2e/app-dir/mdx/mdx.test.ts",
       "test/e2e/app-dir/modularizeimports/modularizeimports.test.ts",
-      "test/e2e/app-dir/third-parties/basic.test.ts",
       "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts",
-      "test/e2e/app-dir/options-request/options-request.test.ts",
       "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts",
       "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts",
       "test/e2e/new-link-behavior/stitches.test.ts",
@@ -123,8 +115,7 @@
       "test/e2e/postcss-config-cjs/index.test.ts",
       "test/e2e/socket-io/index.test.ts",
       "test/e2e/middleware-matcher/index.test.ts",
-      "test/e2e/next-script/index.test.ts",
-      "test/production/standalone-mode/**/*"
+      "test/e2e/next-script/index.test.ts"
     ]
   }
 }

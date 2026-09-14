@@ -10,7 +10,11 @@ import { hoist } from './helpers'
 
 // Import the userland code.
 import * as userland from 'VAR_USERLAND'
-import { getTracer, SpanKind } from '../../server/lib/trace/tracer'
+import {
+  getTracer,
+  SpanKind,
+  SpanStatusCode,
+} from '../../server/lib/trace/tracer'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import type { InstrumentationOnRequestError } from '../../server/instrumentation/types'
 import {
@@ -72,8 +76,7 @@ export async function handler(
     return
   }
 
-  const { query, params, prerenderManifest, routerServerContext } =
-    prepareResult
+  const { query, params, previewProps, routerServerContext } = prepareResult
 
   try {
     const method = req.method || 'GET'
@@ -86,6 +89,7 @@ export async function handler(
     const onRequestError =
       routeModule.instrumentationOnRequestError.bind(routeModule)
 
+    let parentSpan: Span | undefined
     const invokeRouteModule = async (span?: Span) =>
       routeModule
         .render(req, res, {
@@ -101,7 +105,7 @@ export async function handler(
             .__NEXT_TRUST_HOST_HEADER as any as boolean,
           // TODO: get this from from runtime env so manifest
           // doesn't need to load
-          previewProps: prerenderManifest.preview,
+          previewProps,
           propagateError: false,
           dev: routeModule.isDev,
           page: 'VAR_DEFINITION_PAGE',
@@ -118,6 +122,16 @@ export async function handler(
             'http.status_code': res.statusCode,
             'next.rsc': false,
           })
+
+          if (res.statusCode && res.statusCode >= 500) {
+            // For 5xx status codes: SHOULD be set to 'Error' span status.
+            // x-ref: https://opentelemetry.io/docs/specs/semconv/http/http-spans/#status
+            span.setStatus({
+              code: SpanStatusCode.ERROR,
+            })
+            // For span status 'Error', SHOULD set 'error.type' attribute.
+            span.setAttribute('error.type', res.statusCode.toString())
+          }
 
           const rootSpanAttributes = tracer.getRootSpanAttributes()
           // We were unable to get attributes, probably OTEL is not enabled
@@ -137,18 +151,21 @@ export async function handler(
             return
           }
 
-          const route = rootSpanAttributes.get('next.route')
-          if (route) {
-            const name = `${method} ${route}`
+          const route = rootSpanAttributes.get('next.route') || srcPage
+          const name = `${method} ${route}`
 
-            span.setAttributes({
-              'next.route': route,
-              'http.route': route,
-              'next.span_name': name,
-            })
-            span.updateName(name)
-          } else {
-            span.updateName(`${method} ${srcPage}`)
+          span.setAttributes({
+            'next.route': route,
+            'http.route': route,
+            'next.span_name': name,
+          })
+          span.updateName(name)
+
+          // Propagate http.route to the parent span if one exists (e.g.
+          // a platform-created HTTP span in adapter deployments).
+          if (parentSpan && parentSpan !== span) {
+            parentSpan.setAttribute('http.route', route)
+            parentSpan.updateName(name)
           }
         })
 
@@ -157,6 +174,7 @@ export async function handler(
     if (isWrappedByNextServer && activeSpan) {
       await invokeRouteModule(activeSpan)
     } else {
+      parentSpan = tracer.getActiveScopeSpan()
       await tracer.withPropagatedContext(
         req.headers,
         () =>

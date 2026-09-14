@@ -22,33 +22,24 @@ export class NextJsRequireCacheHotReloader implements WebpackPluginInstance {
     compiler.hooks.assetEmitted.tap(PLUGIN_NAME, (_file, { targetPath }) => {
       // Clear module context in this process
       clearModuleContext(targetPath)
-      deleteCache(targetPath)
+      deleteCache([targetPath])
     })
 
     compiler.hooks.afterEmit.tapPromise(PLUGIN_NAME, async (compilation) => {
-      for (const name of RUNTIME_NAMES) {
-        const runtimeChunkPath = path.join(
-          compilation.outputOptions.path!,
-          `${name}.js`
-        )
-        deleteCache(runtimeChunkPath)
-      }
-
       // we need to make sure to clear all server entries from cache
       // since they can have a stale webpack-runtime cache
       // which needs to always be in-sync
-      const entries = [...compilation.entrypoints.keys()].filter((entry) => {
-        const isAppPath = entry.toString().startsWith('app/')
-        return entry.toString().startsWith('pages/') || isAppPath
-      })
-
-      for (const page of entries) {
-        const outputPath = path.join(
-          compilation.outputOptions.path!,
-          page + '.js'
-        )
-        deleteCache(outputPath)
+      const outputPath = compilation.outputOptions.path!
+      const allPaths = RUNTIME_NAMES.map((name) =>
+        path.join(outputPath, `${name}.js`)
+      )
+      for (const entry of compilation.entrypoints.keys()) {
+        if (entry.startsWith('pages/') || entry.startsWith('app/')) {
+          allPaths.push(path.join(outputPath, `${entry}.js`))
+        }
       }
+
+      deleteCache(allPaths)
     })
   }
 }

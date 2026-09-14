@@ -1,0 +1,7 @@
+/* Global CSS used by `/sandwich/b` only. Its purpose is to prevent the chunking algorithm from
+   collapsing all sandwich styles into one shared chunk: a global stylesheet must not be loaded by
+   chunk groups that don't import it (`/sandwich/a`), so the algorithm has to keep `uniqueB`
+   isolated. */
+.sandwich-b-marker {
+  outline: 1px solid rgb(255, 128, 0);
+}

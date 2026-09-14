@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('parallel-routes-and-interception', () => {
   const { next, skipped } = nextTestSetup({
@@ -21,9 +22,17 @@ describe('parallel-routes-and-interception', () => {
 
     // we also check that the #children-slot id is not present
     expect(await browser.hasElementByCssSelector('#children-slot')).toBe(false)
-    const $ = await next.render$('/')
-    expect($('title').length).toBe(1)
-    expect($('title').text()).toBe('layout title')
+    await retry(async () => {
+      const title = await browser.eval(() => {
+        return document.title
+      })
+
+      // TODO: the fact that the title on the client (in hydration data) disagrees with the title SSRd
+      // when cache components is off is a sign we don't have coherent handling of notFound titles
+      // This test now asserts the prod client title in next start that would actually be observed
+      // by site visitors post hydration.
+      expect(title).toBe('404: This page could not be found.')
+    })
   })
 
   it('should render the title once for the non-existed route', async () => {

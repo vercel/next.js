@@ -44,6 +44,7 @@ import origDebug from 'next/dist/compiled/debug'
 import { Telemetry } from '../../telemetry/storage'
 import { durationToString, hrtimeToSeconds } from '../duration-to-string'
 import { installBindings } from '../swc/install-bindings'
+import { Bundler } from '../../lib/bundler'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -109,6 +110,7 @@ export async function webpackBuildImpl(
         appDir: NextBuildContext.appDir!,
         pages: NextBuildContext.mappedPages!,
         appPaths: NextBuildContext.mappedAppPages!,
+        appDefaultPaths: NextBuildContext.mappedAppDefaults,
         previewMode: NextBuildContext.previewProps!,
         rootPaths: NextBuildContext.mappedRootPaths!,
         hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
@@ -132,6 +134,7 @@ export async function webpackBuildImpl(
             appDir: NextBuildContext.appDir!,
             pages: NextBuildContext.mappedPages!,
             appPaths: NextBuildContext.mappedAppPages!,
+            appDefaultPaths: NextBuildContext.mappedAppDefaults,
             previewMode: NextBuildContext.previewProps!,
             rootPaths: NextBuildContext.mappedRootPaths!,
             hasInstrumentationHook: NextBuildContext.hasInstrumentationHook!,
@@ -151,7 +154,6 @@ export async function webpackBuildImpl(
     rewrites: NextBuildContext.rewrites!,
     originalRewrites: NextBuildContext.originalRewrites,
     originalRedirects: NextBuildContext.originalRedirects,
-    reactProductionProfiling: NextBuildContext.reactProductionProfiling!,
     noMangling: NextBuildContext.noMangling!,
     clientRouterFilters: NextBuildContext.clientRouterFilters!,
     previewProps: NextBuildContext.previewProps!,
@@ -175,6 +177,8 @@ export async function webpackBuildImpl(
           compilerType: COMPILER_NAMES.client,
           entrypoints: entrypoints.client,
           deferredEntrypoints: deferredEntrypoints?.client,
+          deferredEntrySourceDirectories:
+            deferredEntrypoints?.entrySourceDirectories,
           ...info,
         }),
         getBaseWebpackConfig(dir, {
@@ -184,6 +188,8 @@ export async function webpackBuildImpl(
           compilerType: COMPILER_NAMES.server,
           entrypoints: entrypoints.server,
           deferredEntrypoints: deferredEntrypoints?.server,
+          deferredEntrySourceDirectories:
+            deferredEntrypoints?.entrySourceDirectories,
           ...info,
         }),
         getBaseWebpackConfig(dir, {
@@ -193,6 +199,8 @@ export async function webpackBuildImpl(
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
           deferredEntrypoints: deferredEntrypoints?.edgeServer,
+          deferredEntrySourceDirectories:
+            deferredEntrypoints?.entrySourceDirectories,
           ...info,
         }),
       ])
@@ -426,6 +434,7 @@ export async function workerMain(workerData: {
     {
       debugPrerender: NextBuildContext.debugPrerender,
       reactProductionProfiling: NextBuildContext.reactProductionProfiling,
+      bundler: process.env.NEXT_RSPACK ? Bundler.Rspack : Bundler.Webpack,
     }
   ))
   await installBindings(config.experimental?.useWasmBinary)

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use next_core::next_manifests::NextFontManifest;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Vc, turbofmt};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -59,7 +59,7 @@ impl Asset for FontManifest {
         // `_next` gets added again later, so we "strip" it here via
         // `get_font_paths_from_root`.
         let font_paths: Vec<String> =
-            get_font_paths_from_root(client_root, &all_client_output_assets)
+            get_font_paths_from_root(client_root, all_client_output_assets)
                 .await?
                 .iter()
                 .filter_map(|p| p.split("_next/").last().map(|f| f.to_string()))
@@ -77,8 +77,7 @@ impl Asset for FontManifest {
         let next_font_manifest = if !has_fonts {
             Default::default()
         } else if *app_dir {
-            let dir_str = dir.value_to_string().await?;
-            let page_path = format!("{dir_str}{original_name}").into();
+            let page_path = turbofmt!("{dir}{original_name}").await?;
 
             NextFontManifest {
                 app: [(page_path, font_paths)].into_iter().collect(),

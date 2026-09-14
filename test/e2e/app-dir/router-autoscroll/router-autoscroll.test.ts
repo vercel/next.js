@@ -1,9 +1,5 @@
-import type { Playwright } from 'next-webdriver'
-import { nextTestSetup } from 'e2e-utils'
+import { nextTestSetup, type Playwright } from 'e2e-utils'
 import { check, assertNoConsoleErrors, retry } from 'next-test-utils'
-
-const enableNewScrollHandler =
-  process.env.__NEXT_EXPERIMENTAL_APP_NEW_SCROLL_HANDLER === 'true'
 
 describe('router autoscrolling on navigation', () => {
   const { next, isNextDev } = nextTestSetup({
@@ -34,6 +30,21 @@ describe('router autoscrolling on navigation', () => {
   ) => {
     await browser.eval(`window.scrollTo(${options.x}, ${options.y})`)
     await waitForScrollToComplete(browser, options)
+  }
+
+  const setScrollPaddingTop = async (
+    browser: Playwright,
+    scrollPaddingTop: string
+  ) => {
+    const rule = `html { scroll-padding-top: ${scrollPaddingTop}; }`
+
+    // Avoid mutating the root style attribute, which React owns and validates
+    // during client navigations.
+    await browser.eval(`
+      const sheet = new CSSStyleSheet()
+      sheet.replaceSync(${JSON.stringify(rule)})
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet]
+    `)
   }
 
   describe('vertical scroll', () => {
@@ -80,6 +91,29 @@ describe('router autoscrolling on navigation', () => {
 
       await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
       await waitForScrollToComplete(browser, { x: 0, y: 50 })
+    })
+
+    it.each(['100px', '50%'])(
+      'should scroll when the page top is obscured by scroll padding (%s)',
+      async (scrollPaddingTop) => {
+        const browser = await next.browser('/10/100/100/1000/page1')
+
+        await setScrollPaddingTop(browser, scrollPaddingTop)
+        await scrollTo(browser, { x: 0, y: 50 })
+
+        await browser.eval(`window.router.push("/10/100/100/1000/page2")`)
+        await waitForScrollToComplete(browser, { x: 0, y: 0 })
+      }
+    )
+
+    it('should maintain scroll when the page top is below the scroll padding boundary', async () => {
+      const browser = await next.browser('/10/1000/100/1000/page1')
+
+      await setScrollPaddingTop(browser, '100px')
+      await scrollTo(browser, { x: 0, y: 800 })
+
+      await browser.eval(`window.router.push("/10/1000/100/1000/page2")`)
+      await waitForScrollToComplete(browser, { x: 0, y: 800 })
     })
 
     it('should scroll to top of document if possible while giving focus to page', async () => {
@@ -173,6 +207,33 @@ describe('router autoscrolling on navigation', () => {
     )
   })
 
+  describe('server action refresh', () => {
+    it('should not scroll when refresh() is called from a server action', async () => {
+      const browser = await next.browser('/server-action-refresh')
+
+      const initialTimestamp = await browser
+        .elementByCss('#server-timestamp')
+        .text()
+
+      // Scroll down past the first spacer div
+      await scrollTo(browser, { x: 0, y: 1000 })
+
+      // Click the refresh button which calls refresh() via a server action
+      await browser.elementByCss('#refresh-button').click()
+
+      // Wait for the action to complete by checking the server timestamp
+      await retry(async () => {
+        const newTimestamp = await browser
+          .elementByCss('#server-timestamp')
+          .text()
+        expect(newTimestamp).not.toBe(initialTimestamp)
+      })
+
+      // Scroll position should be preserved
+      await waitForScrollToComplete(browser, { x: 0, y: 1000 })
+    })
+  })
+
   describe('bugs', () => {
     it('Should scroll to the top of the layout when the first child is display none', async () => {
       const browser = await next.browser('/')
@@ -255,12 +316,6 @@ describe('router autoscrolling on navigation', () => {
     expect(
       await browser.eval('document.documentElement.scrollHeight')
     ).toBeGreaterThan(0)
-    if (enableNewScrollHandler) {
-      await waitForScrollToComplete(browser, { x: 0, y: 0 })
-    } else {
-      await expect(
-        waitForScrollToComplete(browser, { x: 0, y: 0 })
-      ).rejects.toThrow()
-    }
+    await waitForScrollToComplete(browser, { x: 0, y: 0 })
   })
 })

@@ -4,12 +4,7 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
 };
 
-use crate::{
-    asset::Asset,
-    module::Module,
-    output::{ExpandOutputAssetsInput, OutputAsset, expand_output_assets},
-    reference::primary_referenced_modules,
-};
+use crate::{asset::Asset, module::Module, reference::primary_referenced_modules};
 
 pub async fn get_referenced_modules(
     parent: ResolvedVc<Box<dyn Module>>,
@@ -35,24 +30,6 @@ pub async fn any_source_content_changed_of_module(
         .map(|v| v.to_resolved())
         .try_join()
         .await?;
-
-    Ok(Vc::<Completions>::cell(completions).completed())
-}
-
-/// Returns a completion that changes when any content of any asset in the whole
-/// asset graph changes.
-#[turbo_tasks::function]
-pub async fn any_content_changed_of_output_asset(
-    root: ResolvedVc<Box<dyn OutputAsset>>,
-) -> Result<Vc<Completion>> {
-    let completions =
-        expand_output_assets(std::iter::once(ExpandOutputAssetsInput::Asset(root)), true)
-            .await?
-            .into_iter()
-            .map(|m| content_changed(*ResolvedVc::upcast(m)))
-            .map(|v| v.to_resolved())
-            .try_join()
-            .await?;
 
     Ok(Vc::<Completions>::cell(completions).completed())
 }

@@ -3,10 +3,8 @@
 // These tests are defined here and used in `app-dir.test.ts` and
 // `pages-dir.test.ts` so that both test suites can be run in parallel.
 
-import type { Playwright } from 'next-webdriver'
-
 import cheerio from 'cheerio'
-import type { NextInstance } from 'e2e-utils'
+import type { NextInstance, Playwright } from 'e2e-utils'
 
 export function testShouldRedirect(
   next: NextInstance,
@@ -17,7 +15,7 @@ export function testShouldRedirect(
     async (route, expectedLocation) => {
       const res = await next.fetch(route, { redirect: 'manual' })
       expect(res.status).toBe(308)
-      const { pathname } = new URL(res.headers.get('location'))
+      const { pathname } = new URL(res.headers.get('location'), res.url)
       expect(pathname).toBe(expectedLocation)
     }
   )

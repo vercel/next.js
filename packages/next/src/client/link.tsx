@@ -18,7 +18,6 @@ import { useIntersection } from './use-intersection'
 import { getDomainLocale } from './get-domain-locale'
 import { addBasePath } from './add-base-path'
 import { useMergedRef } from './use-merged-ref'
-import { errorOnce } from '../shared/lib/utils/error-once'
 
 type Url = string | UrlObject
 type RequiredKeys<T> = {
@@ -113,6 +112,20 @@ type InternalLinkProps = {
    * Optional event handler for when the `<Link>` is navigated.
    */
   onNavigate?: OnNavigateEventHandler
+
+  /**
+   * Transition types to apply when navigating. These types are passed to
+   * [`React.addTransitionType`](https://react.dev/reference/react/addTransitionType)
+   * inside the navigation transition, enabling
+   * [`<ViewTransition>`](https://react.dev/reference/react/ViewTransition) components
+   * to apply different animations based on the type of navigation.
+   *
+   * @example
+   * ```tsx
+   * <Link href="/about" transitionTypes={['slide-in']}>About</Link>
+   * ```
+   */
+  transitionTypes?: string[]
 }
 
 // TODO-APP: Include the full set of Anchor props
@@ -133,9 +146,9 @@ const prefetched = new Set<string>()
 type PrefetchOptions = RouterPrefetchOptions & {
   /**
    * bypassPrefetchedCheck will bypass the check to see if the `href` has
-   * already been fetched.
+   * already been fetched i.e. unconditionally prefetch the `href`.
    */
-  bypassPrefetchedCheck?: boolean
+  bypassPrefetchedCheck: boolean
 }
 
 function prefetch(
@@ -311,6 +324,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
       legacyBehavior = false,
+      transitionTypes,
       ...restProps
     } = props
 
@@ -381,6 +395,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onTouchStart: true,
         legacyBehavior: true,
         onNavigate: true,
+        transitionTypes: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -440,6 +455,14 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
             throw createPropError({
               key,
               expected: '`boolean | "auto"`',
+              actual: valType,
+            })
+          }
+        } else if (key === 'transitionTypes') {
+          if (props[key] != null && !Array.isArray(props[key])) {
+            throw createPropError({
+              key,
+              expected: '`string[]`',
               actual: valType,
             })
           }
@@ -552,7 +575,11 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       }
 
       // Prefetch the URL.
-      prefetch(router, href, as, { locale })
+      prefetch(router, href, as, {
+        // dedupe across appear/disappear of the Link.
+        bypassPrefetchedCheck: false,
+        locale,
+      })
     }, [as, href, isVisible, locale, prefetchEnabled, router?.locale, router])
 
     const childProps: {
@@ -679,6 +706,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
 
     if (legacyBehavior) {
       if (process.env.NODE_ENV === 'development') {
+        const { errorOnce } =
+          require('../shared/lib/utils/error-once') as typeof import('../shared/lib/utils/error-once')
         errorOnce(
           '`legacyBehavior` is deprecated and will be removed in a future ' +
             'release. A codemod is available to upgrade your components:\n\n' +

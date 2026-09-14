@@ -1,6 +1,6 @@
 # turbopack-tests
 
-An extracted create to perform snapshot tests on turbopack.
+An extracted crate to perform snapshot tests on turbopack.
 
 ## Testing
 

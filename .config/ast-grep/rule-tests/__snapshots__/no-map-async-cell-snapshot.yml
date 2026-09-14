@@ -6,36 +6,36 @@ snapshots:
         .try_join()
         .await
   : labels:
-      - source: item.process().await?.cell()
-        style: primary
-        start: 43
-        end: 71
-      - source: |-
-          items.into_iter()
-              .map(async |item| Ok(item.process().await?.cell()))
-        style: secondary
-        start: 0
-        end: 73
-      - source: async |item| Ok(item.process().await?.cell())
-        style: secondary
-        start: 27
-        end: 72
+    - source: item.process().await?.cell()
+      style: primary
+      start: 43
+      end: 71
+    - source: |-
+        items.into_iter()
+            .map(async |item| Ok(item.process().await?.cell()))
+      style: secondary
+      start: 0
+      end: 73
+    - source: async |item| Ok(item.process().await?.cell())
+      style: secondary
+      start: 27
+      end: 72
   ? |
     items.into_iter()
         .map(async |item| item.process().await.cell())
         .try_join()
         .await
   : labels:
-      - source: |-
-          items.into_iter()
-              .map(async |item| item.process().await.cell())
-        style: primary
-        start: 0
-        end: 68
-      - source: item.process().await.cell()
-        style: secondary
-        start: 40
-        end: 67
+    - source: |-
+        items.into_iter()
+            .map(async |item| item.process().await.cell())
+      style: primary
+      start: 0
+      end: 68
+    - source: item.process().await.cell()
+      style: secondary
+      start: 40
+      end: 67
   ? |
     items.into_iter()
         .map(async |item| {
@@ -44,25 +44,25 @@ snapshots:
         .try_join()
         .await
   : labels:
-      - source: item.process().await?.cell()
-        style: primary
-        start: 53
-        end: 81
-      - source: |-
-          items.into_iter()
-              .map(async |item| {
-                  Ok(item.process().await?.cell())
-              })
-        style: secondary
-        start: 0
-        end: 89
-      - source: |-
-          async |item| {
-                  Ok(item.process().await?.cell())
-              }
-        style: secondary
-        start: 27
-        end: 88
+    - source: item.process().await?.cell()
+      style: primary
+      start: 53
+      end: 81
+    - source: |-
+        items.into_iter()
+            .map(async |item| {
+                Ok(item.process().await?.cell())
+            })
+      style: secondary
+      start: 0
+      end: 89
+    - source: |-
+        async |item| {
+                Ok(item.process().await?.cell())
+            }
+      style: secondary
+      start: 27
+      end: 88
   ? |
     items.into_iter()
         .map(async |item| {
@@ -71,18 +71,18 @@ snapshots:
         .try_join()
         .await
   : labels:
-      - source: |-
-          items.into_iter()
-              .map(async |item| {
-                  item.process().await.cell()
-              })
-        style: primary
-        start: 0
-        end: 84
-      - source: item.process().await.cell()
-        style: secondary
-        start: 50
-        end: 77
+    - source: |-
+        items.into_iter()
+            .map(async |item| {
+                item.process().await.cell()
+            })
+      style: primary
+      start: 0
+      end: 84
+    - source: item.process().await.cell()
+      style: secondary
+      start: 50
+      end: 77
   ? |
     items.into_iter()
         .map(|item| async move {
@@ -91,25 +91,25 @@ snapshots:
         .try_join()
         .await
   : labels:
-      - source: item.process().await?.cell()
-        style: primary
-        start: 58
-        end: 86
-      - source: |-
-          items.into_iter()
-              .map(|item| async move {
-                  Ok(item.process().await?.cell())
-              })
-        style: secondary
-        start: 0
-        end: 94
-      - source: |-
-          |item| async move {
-                  Ok(item.process().await?.cell())
-              }
-        style: secondary
-        start: 27
-        end: 93
+    - source: item.process().await?.cell()
+      style: primary
+      start: 58
+      end: 86
+    - source: |-
+        items.into_iter()
+            .map(|item| async move {
+                Ok(item.process().await?.cell())
+            })
+      style: secondary
+      start: 0
+      end: 94
+    - source: |-
+        |item| async move {
+                Ok(item.process().await?.cell())
+            }
+      style: secondary
+      start: 27
+      end: 93
   ? |
     items.into_iter()
         .map(|item| async {
@@ -118,25 +118,25 @@ snapshots:
         .try_join()
         .await
   : labels:
-      - source: item.process().await?.cell()
-        style: primary
-        start: 53
-        end: 81
-      - source: |-
-          items.into_iter()
-              .map(|item| async {
-                  Ok(item.process().await?.cell())
-              })
-        style: secondary
-        start: 0
-        end: 89
-      - source: |-
-          |item| async {
-                  Ok(item.process().await?.cell())
-              }
-        style: secondary
-        start: 27
-        end: 88
+    - source: item.process().await?.cell()
+      style: primary
+      start: 53
+      end: 81
+    - source: |-
+        items.into_iter()
+            .map(|item| async {
+                Ok(item.process().await?.cell())
+            })
+      style: secondary
+      start: 0
+      end: 89
+    - source: |-
+        |item| async {
+                Ok(item.process().await?.cell())
+            }
+      style: secondary
+      start: 27
+      end: 88
   ? |
     map.into_iter()
         .map(|(ty, items)| {
@@ -151,29 +151,29 @@ snapshots:
         .map(async |(ty, batch_group)| Ok((ty, batch_group.resolved_cell())))
         .try_join()
   : labels:
-      - source: batch_group.resolved_cell()
-        style: primary
-        start: 256
-        end: 283
-      - source: |-
-          map.into_iter()
-              .map(|(ty, items)| {
-                  (
-                      ty,
-                      ChunkItemBatchGroup {
-                          items,
-                          chunk_groups: this.chunk_groups.clone(),
-                      },
-                  )
-              })
-              .map(async |(ty, batch_group)| Ok((ty, batch_group.resolved_cell())))
-        style: secondary
-        start: 0
-        end: 286
-      - source: async |(ty, batch_group)| Ok((ty, batch_group.resolved_cell()))
-        style: secondary
-        start: 222
-        end: 285
+    - source: batch_group.resolved_cell()
+      style: primary
+      start: 256
+      end: 283
+    - source: |-
+        map.into_iter()
+            .map(|(ty, items)| {
+                (
+                    ty,
+                    ChunkItemBatchGroup {
+                        items,
+                        chunk_groups: this.chunk_groups.clone(),
+                    },
+                )
+            })
+            .map(async |(ty, batch_group)| Ok((ty, batch_group.resolved_cell())))
+      style: secondary
+      start: 0
+      end: 286
+    - source: async |(ty, batch_group)| Ok((ty, batch_group.resolved_cell()))
+      style: secondary
+      start: 222
+      end: 285
   ? |
     modules
         .map(async |module| {
@@ -181,27 +181,27 @@ snapshots:
             result.into_value().cell()
         })
   : labels:
-      - source: result.into_value().cell()
-        style: primary
-        start: 88
-        end: 114
-      - source: |-
-          modules
-              .map(async |module| {
-                  let result = module.compute().await?;
-                  result.into_value().cell()
-              })
-        style: secondary
-        start: 0
-        end: 121
-      - source: |-
-          async |module| {
-                  let result = module.compute().await?;
-                  result.into_value().cell()
-              }
-        style: secondary
-        start: 17
-        end: 120
+    - source: result.into_value().cell()
+      style: primary
+      start: 88
+      end: 114
+    - source: |-
+        modules
+            .map(async |module| {
+                let result = module.compute().await?;
+                result.into_value().cell()
+            })
+      style: secondary
+      start: 0
+      end: 121
+    - source: |-
+        async |module| {
+                let result = module.compute().await?;
+                result.into_value().cell()
+            }
+      style: secondary
+      start: 17
+      end: 120
   ? |
     modules
         .map(async |module| {
@@ -210,19 +210,19 @@ snapshots:
         })
         .try_join()
   : labels:
-      - source: |-
-          modules
-              .map(async |module| {
-                  let result = module.compute().await?;
-                  result.into_value().cell()
-              })
-        style: primary
-        start: 0
-        end: 121
-      - source: result.into_value().cell()
-        style: secondary
-        start: 88
-        end: 114
+    - source: |-
+        modules
+            .map(async |module| {
+                let result = module.compute().await?;
+                result.into_value().cell()
+            })
+      style: primary
+      start: 0
+      end: 121
+    - source: result.into_value().cell()
+      style: secondary
+      start: 88
+      end: 114
   ? |
     paths.map(async |(path, asset)| {
         AssetBinding {
@@ -230,22 +230,22 @@ snapshots:
         }.cell()
     })
   : labels:
-      - source: |-
-          paths.map(async |(path, asset)| {
-              AssetBinding {
-                  name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
-              }.cell()
-          })
-        style: primary
-        start: 0
-        end: 137
-      - source: |-
-          AssetBinding {
-                  name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
-              }.cell()
-        style: secondary
-        start: 38
-        end: 134
+    - source: |-
+        paths.map(async |(path, asset)| {
+            AssetBinding {
+                name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
+            }.cell()
+        })
+      style: primary
+      start: 0
+      end: 137
+    - source: |-
+        AssetBinding {
+                name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
+            }.cell()
+      style: secondary
+      start: 38
+      end: 134
   ? |
     paths.map(async |(path, asset)| {
         Ok(AssetBinding {
@@ -255,28 +255,28 @@ snapshots:
     .try_join()
     .await
   : labels:
-      - source: |-
-          AssetBinding {
-                  name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
-              }.cell()
-        style: primary
-        start: 41
-        end: 137
-      - source: |-
-          paths.map(async |(path, asset)| {
-              Ok(AssetBinding {
-                  name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
-              }.cell())
-          })
-        style: secondary
-        start: 0
-        end: 141
-      - source: |-
-          async |(path, asset)| {
-              Ok(AssetBinding {
-                  name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
-              }.cell())
-          }
-        style: secondary
-        start: 10
-        end: 140
+    - source: |-
+        AssetBinding {
+                name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
+            }.cell()
+      style: primary
+      start: 41
+      end: 137
+    - source: |-
+        paths.map(async |(path, asset)| {
+            Ok(AssetBinding {
+                name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
+            }.cell())
+        })
+      style: secondary
+      start: 0
+      end: 141
+    - source: |-
+        async |(path, asset)| {
+            Ok(AssetBinding {
+                name: wasm_edge_var_name(Vc::upcast(*asset)).owned().await?,
+            }.cell())
+        }
+      style: secondary
+      start: 10
+      end: 140

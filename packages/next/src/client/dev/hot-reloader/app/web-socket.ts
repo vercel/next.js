@@ -39,6 +39,16 @@ export function createWebSocket(
       webSocket.send(data)
     }
   }
+  let runtimeErrorStateReporter: ReturnType<
+    typeof import('../runtime-error-state').createRuntimeErrorStateReporter
+  > | null
+  if (process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR) {
+    const { createRuntimeErrorStateReporter } =
+      require('../runtime-error-state') as typeof import('../runtime-error-state')
+    runtimeErrorStateReporter = createRuntimeErrorStateReporter(sendMessage)
+  } else {
+    runtimeErrorStateReporter = null
+  }
 
   const processTurbopackMessage = createProcessTurbopackMessage(sendMessage)
 
@@ -48,13 +58,14 @@ export function createWebSocket(
     }
 
     const newWebSocket = new window.WebSocket(
-      `${getSocketUrl(assetPrefix)}/_next/webpack-hmr?id=${self.__next_r}`
+      `${getSocketUrl(assetPrefix)}/_next/hmr?id=${self.__next_r}`
     )
 
     newWebSocket.binaryType = 'arraybuffer'
 
     function handleOnline() {
       logQueue.onSocketReady(newWebSocket)
+      runtimeErrorStateReporter?.reportCurrent()
 
       reconnections = 0
       window.console.log('[HMR] connected')
@@ -121,7 +132,7 @@ export function createWebSocket(
       newWebSocket.close()
       reconnections++
 
-      // After 25 reconnects we'll want to reload the page as it indicates the dev server is no longer running.
+      // After WEB_SOCKET_MAX_RECONNECTIONS reconnects we'll want to reload the page as it indicates the dev server is no longer running.
       if (reconnections > WEB_SOCKET_MAX_RECONNECTIONS) {
         reloading = true
         window.location.reload()
@@ -141,6 +152,28 @@ export function createWebSocket(
     webSocket = newWebSocket
     return newWebSocket
   }
+
+  function handleVisibilityChange() {
+    if (
+      document.visibilityState === 'visible' &&
+      webSocket.readyState !== WebSocket.OPEN
+    ) {
+      reconnections = 0
+      clearTimeout(timer)
+      init()
+    }
+  }
+
+  function handleOnlineEvent() {
+    if (webSocket.readyState !== WebSocket.OPEN) {
+      reconnections = 0
+      clearTimeout(timer)
+      init()
+    }
+  }
+
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('online', handleOnlineEvent)
 
   return init()
 }
@@ -179,6 +212,8 @@ export function createProcessTurbopackMessage(
       },
       sendMessage,
       onUpdateError: (err: unknown) => performFullReload(err, sendMessage),
+      chunkUpdateListenersGlobal:
+        process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL!,
     })
   })
 

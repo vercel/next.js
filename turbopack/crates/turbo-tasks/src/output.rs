@@ -1,6 +1,6 @@
 use std::fmt::{self, Display};
 
-use anyhow::anyhow;
+use anyhow::bail;
 
 use crate::{RawVc, backend::TurboTasksExecutionError};
 
@@ -14,7 +14,7 @@ pub enum OutputContent {
 impl OutputContent {
     pub fn as_read_result(&self) -> anyhow::Result<RawVc> {
         match &self {
-            Self::Error(err) => Err(anyhow!(err.clone())),
+            Self::Error(err) => bail!(err.clone()),
             Self::Link(raw_vc) => Ok(*raw_vc),
         }
     }

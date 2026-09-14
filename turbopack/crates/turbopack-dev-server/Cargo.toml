@@ -17,6 +17,7 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait = { workspace = true }
 auto-hash-map = { workspace = true }
 bincode = { workspace = true }
 flate2 = { workspace = true }

@@ -11,6 +11,7 @@ import {
 } from 'react'
 import { useLayoutEffect } from 'react'
 import { dispatcher } from 'next/dist/compiled/next-devtools'
+import { GlobalLayoutRouterContext } from '../../../shared/lib/app-router-context.shared-runtime'
 import { notFound } from '../../../client/components/not-found'
 
 export type SegmentBoundaryType =
@@ -73,12 +74,13 @@ function LoadingSegmentNode(): React.ReactNode {
 }
 
 export function SegmentViewStateNode({ page }: { page: string }) {
+  const { tree } = useContext(GlobalLayoutRouterContext)
   useLayoutEffect(() => {
-    dispatcher.segmentExplorerUpdateRouteState(page)
+    dispatcher.segmentExplorerUpdateRouteState(page, tree)
     return () => {
-      dispatcher.segmentExplorerUpdateRouteState('')
+      dispatcher.segmentExplorerUpdateRouteState('', null)
     }
-  }, [page])
+  }, [page, tree])
   return null
 }
 

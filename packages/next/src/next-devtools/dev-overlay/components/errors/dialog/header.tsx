@@ -18,6 +18,9 @@ export const DIALOG_HEADER_STYLES = `
   .nextjs-container-errors-header {
     position: relative;
   }
+  [data-nextjs-dialog-content] > .nextjs-container-errors-header {
+    margin-bottom: 0;
+  }
   .nextjs-container-errors-header > h1 {
     font-size: var(--size-20);
     line-height: var(--size-24);
@@ -38,8 +41,7 @@ export const DIALOG_HEADER_STYLES = `
     margin-top: 4px;
   }
   .nextjs-container-errors-header > p > a {
-    color: inherit;
-    font-weight: bold;
+    font-weight: 600;
   }
   .nextjs-container-errors-header
     > .nextjs-container-build-error-version-status {

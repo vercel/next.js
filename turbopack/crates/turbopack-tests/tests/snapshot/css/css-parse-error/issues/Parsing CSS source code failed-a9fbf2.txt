@@ -1,0 +1,19 @@
+error - [parse] /turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css:7:0  Parsing CSS source code failed
+       3 | }
+       4 | 
+       5 | .invalid {
+       6 |   color
+         + v
+       7 + }
+         + ^
+       8 | 
+       9 | .after {
+      10 |   color: green;
+      11 | }
+  
+  Unexpected end of input
+  
+  Import trace:
+    test:
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/style.css
+      ./turbopack/crates/turbopack-tests/tests/snapshot/css/css-parse-error/input/index.js

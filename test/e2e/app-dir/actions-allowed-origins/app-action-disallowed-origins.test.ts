@@ -25,7 +25,7 @@ describe('app-dir action disallowed origins', () => {
       const t = await browser.elementByCss('#res').text()
       return t.includes('Invalid Server Actions request.') ||
         // In prod the message is hidden
-        t.includes('An error occurred in the Server Components render.')
+        t.includes('https://react.dev/errors/441')
         ? 'yes'
         : 'no'
     }, 'yes')

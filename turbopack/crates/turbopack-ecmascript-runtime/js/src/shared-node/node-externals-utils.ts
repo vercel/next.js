@@ -31,3 +31,15 @@ function resolveAbsolutePath(modulePath?: string): string {
   return ABSOLUTE_ROOT
 }
 Context.prototype.P = resolveAbsolutePath
+
+/**
+ * Returns an absolute `file://` URL for the given module path.
+ *
+ * Uses `url.pathToFileURL` so that the resulting URL is a valid file URI on
+ * all platforms (forward slashes on Windows, drive letters handled
+ * correctly, path segments URL-encoded).
+ */
+function resolveFileUrl(modulePath?: string): string {
+  return require('url').pathToFileURL(resolveAbsolutePath(modulePath)).href
+}
+Context.prototype.F = resolveFileUrl

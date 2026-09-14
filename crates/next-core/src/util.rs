@@ -1,11 +1,11 @@
 use std::{fmt::Display, str::FromStr};
 
-use anyhow::{Result, anyhow, bail};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use next_taskless::{expand_next_js_template, expand_next_js_template_no_imports};
 use serde::{Deserialize, de::DeserializeOwned};
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, NonLocalValue, TaskInput, Vc, fxindexset, trace::TraceRawVcs};
+use turbo_tasks::{FxIndexMap, NonLocalValue, Vc, fxindexset, trace::TraceRawVcs, turbobail};
 use turbo_tasks_fs::{File, FileContent, FileJsonContent, FileSystem, FileSystemPath, rope::Rope};
 use turbopack::module_options::RuleCondition;
 use turbopack_core::{
@@ -203,7 +203,8 @@ pub fn free_var_references_with_vercel_system_env_warnings(
     FreeVarReferences(entries)
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TaskInput, TraceRawVcs, Encode, Decode)]
+#[turbo_tasks::task_input]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 pub enum PathType {
     PagesPage,
     PagesApi,
@@ -221,11 +222,7 @@ pub async fn pathname_for_path(
     let path = if let Some(path) = server_root.get_path_to(&server_path_value) {
         path
     } else {
-        bail!(
-            "server_path ({}) is not in server_root ({})",
-            server_path.value_to_string().await?,
-            server_root.value_to_string().await?
-        )
+        turbobail!("server_path ({server_path}) is not in server_root ({server_root})");
     };
     let path = match (path_ty, path) {
         // "/" is special-cased to "/index" for data routes.
@@ -319,6 +316,13 @@ pub async fn internal_assets_conditions() -> Result<ContextCondition> {
                 .await?,
         ),
         ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root().owned().await?),
+        ContextCondition::InPath(
+            turbopack_ecmascript::embed_js::embed_fs()
+                .root()
+                .owned()
+                .await?,
+        ),
+        ContextCondition::InPath(turbopack_wasm::embed::embed_fs().root().owned().await?),
     ]))
 }
 
@@ -329,6 +333,7 @@ pub fn pages_function_name(page: impl Display) -> String {
     format!("pages{page}")
 }
 
+#[turbo_tasks::task_input]
 #[derive(
     Default,
     PartialEq,
@@ -341,8 +346,6 @@ pub fn pages_function_name(page: impl Display) -> String {
     Hash,
     PartialOrd,
     Ord,
-    TaskInput,
-    NonLocalValue,
     Encode,
     Decode,
 )]
@@ -482,11 +485,8 @@ pub async fn load_next_js_json_file<T: DeserializeOwned>(
     let content = &*file_path.read().await?;
 
     match content.parse_json_ref() {
-        FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
-        FileJsonContent::NotFound => Err(anyhow!(
-            "File not found: {:?}",
-            file_path.value_to_string().await?
-        )),
+        FileJsonContent::Unparsable(e) => bail!("File is not valid JSON: {e}"),
+        FileJsonContent::NotFound => turbobail!("File not found: {file_path:?}",),
         FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
     }
 }
@@ -502,11 +502,8 @@ pub async fn load_next_js_jsonc_file<T: DeserializeOwned>(
     let content = &*file_path.read().await?;
 
     match content.parse_json_with_comments_ref() {
-        FileJsonContent::Unparsable(e) => Err(anyhow!("File is not valid JSON: {}", e)),
-        FileJsonContent::NotFound => Err(anyhow!(
-            "File not found: {:?}",
-            file_path.value_to_string().await?
-        )),
+        FileJsonContent::Unparsable(e) => turbobail!("File is not valid JSON: {e}"),
+        FileJsonContent::NotFound => turbobail!("File not found: {file_path}",),
         FileJsonContent::Content(value) => Ok(serde_json::from_value(value)?),
     }
 }
@@ -564,4 +561,18 @@ pub fn worker_forwarded_globals() -> Vec<RcStr> {
         rcstr!("NEXT_DEPLOYMENT_ID"),
         rcstr!("NEXT_CLIENT_ASSET_SUFFIX"),
     ]
+}
+
+/// The globs defined in the next.config.mjs are relative to the project root.
+/// The glob walker in turbopack is somewhat naive so we handle relative path directives first so
+/// traversal doesn't need to consider them and can just traverse 'down' the tree.
+/// The main alternative is to merge glob evaluation with directory traversal which is what the npm
+/// `glob` package does, but this would be a substantial rewrite.
+pub fn relativize_glob<'a>(
+    glob: &'a str,
+    relative_to: &FileSystemPath,
+) -> Result<(&'a str, FileSystemPath)> {
+    turbo_tasks_fs::glob::relativize_glob(glob, relative_to).with_context(|| {
+        format!("glob '{glob}' is invalid, it has a prefix that navigates out of the project root")
+    })
 }

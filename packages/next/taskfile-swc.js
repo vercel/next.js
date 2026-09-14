@@ -25,12 +25,6 @@ module.exports = function (task) {
       )
         return
 
-      const plugins = [
-        ...(file.base.includes('.test.') || file.base.includes('.stories.')
-          ? []
-          : [[path.join(__dirname, 'next_error_code_swc_plugin.wasm'), {}]]),
-      ]
-
       const isClient = serverOrClient === 'client'
       /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
@@ -57,7 +51,6 @@ module.exports = function (task) {
           },
           experimental: {
             keepImportAttributes: esm,
-            plugins,
           },
           transform: {
             react: {
@@ -86,7 +79,7 @@ module.exports = function (task) {
           targets: {
             // Ideally, should be same version defined in packages/next/package.json#engines
             // Currently a few minors behind due to babel class transpiling
-            // which fails "test/integration/mixed-ssg-serverprops-error/test/index.test.js"
+            // which fails "test/production/mixed-ssg-serverprops-error/test/index.test.js"
             node: '16.8.0',
           },
         },
@@ -103,7 +96,6 @@ module.exports = function (task) {
           },
           experimental: {
             keepImportAttributes: esm,
-            plugins,
           },
           transform: {
             react: {

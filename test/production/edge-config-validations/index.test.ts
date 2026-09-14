@@ -3,7 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('Edge config validations', () => {
   const { next } = nextTestSetup({
     skipStart: true,
-    skipDeployment: true,
     files: {
       'pages/index.js': `
           export default function Page() { 

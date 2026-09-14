@@ -6,8 +6,12 @@ import type {
 import './globals'
 
 import { adapter, type NextRequestHint, type EdgeHandler } from './adapter'
-import { IncrementalCache } from '../lib/incremental-cache'
-import { RouteMatcher } from '../route-matchers/route-matcher'
+import {
+  IncrementalCache,
+  type CacheHandler as IncrementalCacheHandler,
+} from '../lib/incremental-cache'
+import type { CacheHandler } from '../lib/cache-handlers/types'
+import { initializeCacheHandlers, setCacheHandler } from '../use-cache/handlers'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
 import { internal_getCurrentFunctionWaitUntil } from './internal-edge-wait-until'
 import { getServerUtils } from '../server-utils'
@@ -15,9 +19,12 @@ import { searchParamsToUrlQuery } from '../../shared/lib/router/utils/querystrin
 import { CloseController, trackStreamConsumed } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
 import { WebNextRequest } from '../../server/base-http/web'
+import { isDynamicRoute } from '../../shared/lib/router/utils'
 
 export interface WrapOptions {
   page: string
+  cacheHandlers?: Record<string, CacheHandler>
+  incrementalCacheHandler?: typeof IncrementalCacheHandler
 }
 
 /**
@@ -26,7 +33,7 @@ export interface WrapOptions {
  * Note that this class should only be used in the edge runtime.
  */
 export class EdgeRouteModuleWrapper {
-  private readonly matcher: RouteMatcher
+  private readonly pageIsDynamic: boolean
 
   /**
    * The constructor is wrapped with private to ensure that it can only be
@@ -34,9 +41,11 @@ export class EdgeRouteModuleWrapper {
    *
    * @param routeModule the route module to wrap
    */
-  private constructor(private readonly routeModule: AppRouteRouteModule) {
-    // TODO: (wyattjoh) possibly allow the module to define it's own matcher
-    this.matcher = new RouteMatcher(routeModule.definition)
+  private constructor(
+    private readonly routeModule: AppRouteRouteModule,
+    private readonly cacheHandlers: Record<string, CacheHandler>
+  ) {
+    this.pageIsDynamic = isDynamicRoute(routeModule.definition.pathname)
   }
 
   /**
@@ -53,13 +62,17 @@ export class EdgeRouteModuleWrapper {
     options: WrapOptions
   ): EdgeHandler {
     // Create the module wrapper.
-    const wrapper = new EdgeRouteModuleWrapper(routeModule)
+    const wrapper = new EdgeRouteModuleWrapper(
+      routeModule,
+      options.cacheHandlers ?? {}
+    )
 
     // Return the wrapping function.
     return (opts) => {
       return adapter({
         ...opts,
         IncrementalCache,
+        incrementalCacheHandler: options.incrementalCacheHandler,
         // Bind the handler method to the wrapper so it still has context.
         handler: wrapper.handler.bind(wrapper),
         page: options.page,
@@ -72,8 +85,8 @@ export class EdgeRouteModuleWrapper {
     evt: NextFetchEvent
   ): Promise<Response> {
     const utils = getServerUtils({
-      pageIsDynamic: this.matcher.isDynamic,
-      page: this.matcher.definition.pathname,
+      pageIsDynamic: this.pageIsDynamic,
+      page: this.routeModule.definition.pathname,
       basePath: request.nextUrl.basePath,
       // We don't need the `handleRewrite` util, so can just pass an empty object
       rewrites: {},
@@ -84,6 +97,10 @@ export class EdgeRouteModuleWrapper {
     const { nextConfig } = this.routeModule.getNextConfigEdge(
       new WebNextRequest(request)
     )
+    initializeCacheHandlers(nextConfig.cacheMaxMemorySize)
+    for (const [kind, cacheHandler] of Object.entries(this.cacheHandlers)) {
+      setCacheHandler(kind, cacheHandler)
+    }
 
     const { params } = utils.normalizeDynamicRouteParams(
       searchParamsToUrlQuery(request.nextUrl.searchParams),
@@ -101,18 +118,31 @@ export class EdgeRouteModuleWrapper {
       params,
       previewProps,
       renderOpts: {
-        supportsDynamicResponse: true,
         waitUntil,
         onClose: closeController.onClose.bind(closeController),
         onAfterTaskError: undefined,
         cacheComponents: !!process.env.__NEXT_CACHE_COMPONENTS,
+        // Edge runtime doesn't run instant validation; the level value is
+        // irrelevant here.
+        // TODO: Remove validationLevel and other global config from renderOpts
+        validationLevel: 'warning',
         experimental: {
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
+          // Edge runtime doesn't support Cache Components, so this value is
+          // never read. 0 is a sentinel: if something ever reads it, the cache
+          // fill will time out immediately and surface the bug.
+          useCacheTimeout: 0,
+          durableUseCacheEntries: false,
         },
         cacheLifeProfiles: nextConfig.cacheLife,
+        // Edge runtime doesn't do static generation, so this value does not
+        // apply here. 0 is a sentinel: if something ever reads it, it'll
+        // surface loudly instead of silently using a misleading default.
+        staticPageGenerationTimeout: 0,
       },
       sharedContext: {
         buildId: '', // TODO: Populate this properly.
+        deploymentId: '', // TODO: Populate this properly.
       },
     }
 

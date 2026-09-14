@@ -1,8 +1,8 @@
 use swc_core::{
-    common::{comments::Comments, errors::HANDLER, util::take::Take, Span, Spanned, DUMMY_SP},
+    common::{DUMMY_SP, Span, Spanned, comments::Comments, errors::HANDLER, util::take::Take},
     ecma::{
         ast::{CallExpr, Callee, EmptyStmt, Expr, Module, ModuleDecl, ModuleItem, Stmt},
-        visit::{noop_visit_mut_type, VisitMut, VisitMutWith},
+        visit::{VisitMut, VisitMutWith, noop_visit_mut_type},
     },
 };
 
@@ -74,11 +74,11 @@ where
     }
 
     fn visit_mut_module_item(&mut self, m: &mut ModuleItem) {
-        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = m {
-            if import.src.value == MODULE {
-                *m = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
-                return;
-            }
+        if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = m
+            && import.src.value == MODULE
+        {
+            *m = ModuleItem::Stmt(Stmt::Empty(EmptyStmt { span: DUMMY_SP }));
+            return;
         }
 
         m.visit_mut_children_with(self);

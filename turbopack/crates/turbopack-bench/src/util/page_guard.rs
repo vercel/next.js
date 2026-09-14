@@ -1,6 +1,6 @@
 use std::{sync::Arc, time::Duration};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{Context, Result, bail};
 use chromiumoxide::{
     Page,
     cdp::js_protocol::runtime::{EventBindingCalled, EventExceptionThrown},
@@ -75,7 +75,7 @@ impl<'a> PageGuard<'a> {
             }
         }
 
-        Err(anyhow!("event stream ended before binding was called"))
+        bail!("event stream ended before binding was called")
     }
 
     /// Waits until the page and the page JavaScript is hydrated.

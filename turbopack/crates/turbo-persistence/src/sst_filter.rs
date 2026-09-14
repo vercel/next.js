@@ -1,6 +1,6 @@
 use std::collections::hash_map::Entry;
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::meta_file::MetaFile;
 
@@ -47,6 +47,42 @@ impl SstFilter {
         }
     }
 
+    /// Like [`apply_filter`](Self::apply_filter) but only updates the filter state without
+    /// modifying the MetaFile. Returns the set of SST sequence numbers that should be removed
+    /// from this meta file's entries (they are superseded by a newer meta). Call
+    /// `meta.retain_entries(|seq| !obsolete.contains(&seq))` later to apply.
+    pub fn apply_filter_collect(&mut self, meta: &MetaFile) -> FxHashSet<u32> {
+        let mut to_remove = FxHashSet::default();
+        // Already obsolete entries need to be considered for usage computation
+        for seq in meta.obsolete_entries() {
+            if let Some(state) = self.0.get_mut(seq)
+                && matches!(state, SstState::UnusedObsolete)
+            {
+                // the obsolete state is used now
+                *state = SstState::Obsolete;
+            }
+        }
+        for entry in meta.entries() {
+            let seq = entry.sequence_number();
+            match self.0.entry(seq) {
+                Entry::Occupied(mut e) => {
+                    let state = e.get_mut();
+                    if matches!(state, SstState::UnusedObsolete) {
+                        *state = SstState::Obsolete;
+                    }
+                    to_remove.insert(seq);
+                }
+                Entry::Vacant(e) => {
+                    e.insert(SstState::Active);
+                }
+            }
+        }
+        for seq in meta.obsolete_sst_files() {
+            self.0.entry(*seq).or_insert(SstState::UnusedObsolete);
+        }
+        to_remove
+    }
+
     /// Phase 2: Check if the meta file can be removed based on the filter state after phase 1.
     /// Updates the filter state for the next meta file. Returns true if the meta file can be
     /// removed.
@@ -65,5 +101,11 @@ impl SstFilter {
         }
 
         !used && !meta.has_active_entries()
+    }
+}
+
+impl Default for SstFilter {
+    fn default() -> Self {
+        Self::new()
     }
 }

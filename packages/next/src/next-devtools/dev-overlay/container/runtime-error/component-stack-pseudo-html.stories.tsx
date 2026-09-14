@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { PseudoHtmlDiff } from './component-stack-pseudo-html'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../../../.storybook/decorators/with-shadow-portal'
 
 const meta: Meta<typeof PseudoHtmlDiff> = {
   component: PseudoHtmlDiff,

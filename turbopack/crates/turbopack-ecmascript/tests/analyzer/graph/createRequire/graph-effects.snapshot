@@ -95,12 +95,13 @@
         obj: Module(
             ModuleValue {
                 module: "node:module",
-                annotations: ImportAnnotations {
-                    map: {},
-                    turbopack_loader: None,
-                    turbopack_rename_as: None,
-                    turbopack_module_type: None,
-                },
+                annotations: None,
+                analyze_for_constants: false,
+                reference: Some(
+                    ModuleReferenceIndex(
+                        2,
+                    ),
+                ),
             },
         ),
         prop: Constant(
@@ -150,6 +151,7 @@
             ),
         ],
         span: 99..122,
+        in_truthiness_context: false,
     },
     ImportedBinding {
         esm_reference_index: 1,
@@ -253,6 +255,7 @@
             ),
         ],
         span: 123..138,
+        in_truthiness_context: false,
     },
     ImportMeta {
         ast_path: [
@@ -308,12 +311,13 @@
         obj: Module(
             ModuleValue {
                 module: "node:module",
-                annotations: ImportAnnotations {
-                    map: {},
-                    turbopack_loader: None,
-                    turbopack_rename_as: None,
-                    turbopack_module_type: None,
-                },
+                annotations: None,
+                analyze_for_constants: false,
+                reference: Some(
+                    ModuleReferenceIndex(
+                        2,
+                    ),
+                ),
             },
         ),
         prop: Constant(
@@ -472,6 +476,7 @@
             ),
         ],
         span: 176..203,
+        in_truthiness_context: false,
     },
     Member {
         obj: WellKnownObject(
@@ -526,6 +531,7 @@
             ),
         ],
         span: 204..219,
+        in_truthiness_context: false,
     },
     ImportMeta {
         ast_path: [
@@ -740,6 +746,7 @@
             ),
         ],
         span: 257..284,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "__filename",
@@ -939,6 +946,7 @@
             ),
         ],
         span: 335..362,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -993,6 +1001,7 @@
             ),
         ],
         span: 363..377,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "globalThis",

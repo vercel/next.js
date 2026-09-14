@@ -8,6 +8,7 @@ related:
     - app/api-reference/config/next-config-js/cacheComponents
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/revalidateTag
+    - app/api-reference/functions/updateTag
     - app/api-reference/functions/cacheLife
 ---
 
@@ -32,7 +33,7 @@ const nextConfig = {
   cacheComponents: true,
 }
 
-export default nextConfig
+module.exports = nextConfig
 ```
 
 The `cacheTag` function takes one or more string values.
@@ -43,7 +44,8 @@ import { cacheTag } from 'next/cache'
 export async function getData() {
   'use cache'
   cacheTag('my-data')
-  const data = await fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
   return data
 }
 ```
@@ -54,32 +56,38 @@ import { cacheTag } from 'next/cache'
 export async function getData() {
   'use cache'
   cacheTag('my-data')
-  const data = await fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
   return data
 }
 ```
 
-You can then purge the cache on-demand using [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) API in another function, for example, a [route handler](/docs/app/api-reference/file-conventions/route) or [Server Action](/docs/app/getting-started/updating-data):
+You can then purge the cache on-demand from a [Server Function](/docs/app/getting-started/mutating-data) or [Route Handler](/docs/app/api-reference/file-conventions/route):
+
+- Use [`updateTag`](/docs/app/api-reference/functions/updateTag) for read-your-own-writes scenarios, such as forms and other user-triggered mutations, where a user makes a change and the next read should fetch fresh data immediately. `updateTag` is only available inside Server Functions.
+- Use [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) when it is acceptable to serve stale data while revalidation happens in the background, or when revalidating from a [Route Handler](/docs/app/api-reference/file-conventions/route) or other context.
+
+For example, this Server Function adds a post and then purges every cache entry tagged `'my-data'` so the next read reflects the change:
 
 ```tsx filename="app/action.ts" switcher
 'use server'
 
-import { revalidateTag } from 'next/cache'
+import { updateTag } from 'next/cache'
 
 export default async function submit() {
   await addPost()
-  revalidateTag('my-data')
+  updateTag('my-data')
 }
 ```
 
 ```jsx filename="app/action.js" switcher
 'use server'
 
-import { revalidateTag } from 'next/cache'
+import { updateTag } from 'next/cache'
 
 export default async function submit() {
   await addPost()
-  revalidateTag('my-data')
+  updateTag('my-data')
 }
 ```
 
@@ -92,7 +100,7 @@ export default async function submit() {
 cacheTag('tag-one', 'tag-two')
 ```
 
-- **Limits**: The max length for a custom tag is 256 characters and the max tag items is 128.
+- **Limits**: A single `cacheTag()` call accepts up to 128 tags, each with a maximum length of 256 characters. Tags longer than 256 characters are skipped, and any tags past the 128th in one call are dropped. Both cases log a console warning.
 
 ## Examples
 
@@ -112,7 +120,10 @@ export async function Bookings({ type = 'haircut' }: BookingsProps) {
   cacheTag('bookings-data')
 
   async function getBookingsData() {
-    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    const response = await fetch(
+      `https://api.example.com/bookings?type=${encodeURIComponent(type)}`
+    )
+    const data = await response.json()
     return data
   }
 
@@ -128,7 +139,10 @@ export async function Bookings({ type = 'haircut' }) {
   cacheTag('bookings-data')
 
   async function getBookingsData() {
-    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    const response = await fetch(
+      `https://api.example.com/bookings?type=${encodeURIComponent(type)}`
+    )
+    const data = await response.json()
     return data
   }
 
@@ -150,7 +164,10 @@ interface BookingsProps {
 export async function Bookings({ type = 'haircut' }: BookingsProps) {
   async function getBookingsData() {
     'use cache'
-    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    const response = await fetch(
+      `https://api.example.com/bookings?type=${encodeURIComponent(type)}`
+    )
+    const data = await response.json()
     cacheTag('bookings-data', data.id)
     return data
   }
@@ -164,7 +181,10 @@ import { cacheTag } from 'next/cache'
 export async function Bookings({ type = 'haircut' }) {
   async function getBookingsData() {
     'use cache'
-    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    const response = await fetch(
+      `https://api.example.com/bookings?type=${encodeURIComponent(type)}`
+    )
+    const data = await response.json()
     cacheTag('bookings-data', data.id)
     return data
   }
@@ -183,7 +203,7 @@ import { revalidateTag } from 'next/cache'
 
 export async function updateBookings() {
   await updateBookingData()
-  revalidateTag('bookings-data')
+  revalidateTag('bookings-data', 'max')
 }
 ```
 
@@ -194,6 +214,6 @@ import { revalidateTag } from 'next/cache'
 
 export async function updateBookings() {
   await updateBookingData()
-  revalidateTag('bookings-data')
+  revalidateTag('bookings-data', 'max')
 }
 ```

@@ -1,11 +1,12 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
+
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{ChunkingType, ChunkingTypeOption},
+    chunk::ChunkingType,
     module::Module,
     reference::ModuleReference,
-    resolve::ModuleResolveResult,
+    resolve::{BindingUsage, ExportUsage, ImportUsage, ModuleResolveResult},
 };
 
 #[turbo_tasks::value]
@@ -23,7 +24,8 @@ impl NextServerUtilityModuleReference {
     }
 }
 
-pub static NEXT_SERVER_UTILITY_MERGE_TAG: Lazy<RcStr> = Lazy::new(|| rcstr!("next-server-utility"));
+pub static NEXT_SERVER_UTILITY_MERGE_TAG: LazyLock<RcStr> =
+    LazyLock::new(|| rcstr!("next-server-utility"));
 
 #[turbo_tasks::value_impl]
 impl ModuleReference for NextServerUtilityModuleReference {
@@ -32,11 +34,19 @@ impl ModuleReference for NextServerUtilityModuleReference {
         *ModuleResolveResult::module(self.asset)
     }
 
-    #[turbo_tasks::function]
-    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
-        Vc::cell(Some(ChunkingType::Shared {
+    fn chunking_type(&self) -> Option<ChunkingType> {
+        Some(ChunkingType::Shared {
             inherit_async: true,
             merge_tag: Some(NEXT_SERVER_UTILITY_MERGE_TAG.clone()),
-        }))
+        })
+    }
+
+    fn binding_usage(&self) -> BindingUsage {
+        BindingUsage {
+            import: ImportUsage::TopLevel,
+            export: ExportUsage::Passthrough {
+                namespace_object_may_escape: true,
+            },
+        }
     }
 }

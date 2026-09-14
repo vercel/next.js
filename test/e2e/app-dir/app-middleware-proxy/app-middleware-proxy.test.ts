@@ -2,7 +2,6 @@
 import cheerio from 'cheerio'
 import { check, retry, withQuery } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
-import type { Response } from 'node-fetch'
 
 describe('app-dir with proxy', () => {
   const { next, isNextDev, isNextDeploy } = nextTestSetup({
@@ -13,7 +12,7 @@ describe('app-dir with proxy', () => {
     it('should log compilation time', async () => {
       await next.browser('/')
       expect(next.cliOutput).toMatch(
-        /GET \/ 200 in .* \(compile:.*, proxy.ts:.*, render:.*\)/
+        /GET \/ 200 in .* \(next\.js:.*, proxy\.ts:.*, application-code:.*\)/
       )
     })
   }

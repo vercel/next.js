@@ -1,3 +1,4 @@
+import { configure } from 'next/dist/compiled/safe-stable-stringify'
 import { cyan, dim, red, yellow } from '../../../lib/picocolors'
 import type { Project } from '../../../build/swc/types'
 import util from 'util'
@@ -13,7 +14,6 @@ import {
   type ConsoleEntry,
   UNDEFINED_MARKER,
 } from '../../../next-devtools/shared/forward-logs-shared'
-import { formatConsoleArgs } from '../../../client/lib/console'
 import { getFileLogger } from './file-logger'
 
 export function restoreUndefined(x: any): any {
@@ -25,23 +25,6 @@ export function restoreUndefined(x: any): any {
     }
   }
   return x
-}
-
-function cleanConsoleArgsForFileLogging(args: any[]): string {
-  /**
-   * Use formatConsoleArgs to strip out background and color format specifiers
-   * and keep only the original string content for file logging
-   */
-  try {
-    return formatConsoleArgs(args)
-  } catch {
-    // Fallback to simple string conversion if formatting fails
-    return args
-      .map((arg) =>
-        typeof arg === 'string' ? arg : util.inspect(arg, { depth: 2 })
-      )
-      .join(' ')
-  }
 }
 
 const methods: Array<LogMethod> = [
@@ -89,7 +72,7 @@ const forwardConsole: typeof console = {
   ),
 }
 
-async function deserializeArgData(arg: any) {
+function deserializeArgData(arg: any) {
   try {
     // we want undefined to be represented as it would be in the browser from the user's perspective (otherwise it would be stripped away/shown as null)
     if (arg === UNDEFINED_MARKER) {
@@ -222,13 +205,18 @@ export function stripFormatSpecifiers(args: any[]): any[] {
   return result
 }
 
-async function prepareFormattedErrorArgs(
-  entry: Extract<ServerLogEntry, { kind: 'formatted-error' }>,
-  ctx: MappingContext,
-  distDir: string
-) {
-  const mapped = await getSourceMappedStackFrames(entry.stack, ctx, distDir)
-  return [colorError(mapped, { prefix: entry.prefix })]
+const safeStringify = configure({ maximumDepth: 5, maximumBreadth: 100 })
+
+function formatFileLogValue(arg: any): string {
+  if (typeof arg === 'string') return arg
+  if (typeof arg === 'number' || typeof arg === 'boolean') return String(arg)
+  if (arg === null) return 'null'
+  if (arg === undefined) return 'undefined'
+  return safeStringify(arg) ?? String(arg)
+}
+
+function formatConsoleArgsForFileLogging(args: any[]): string {
+  return stripFormatSpecifiers(args).map(formatFileLogValue).join(' ')
 }
 
 async function prepareConsoleArgs(
@@ -239,7 +227,7 @@ async function prepareConsoleArgs(
   const deserialized = await Promise.all(
     entry.args.map(async (arg) => {
       if (arg.kind === 'arg') {
-        const data = await deserializeArgData(arg.data)
+        const data = deserializeArgData(arg.data)
         if (entry.method === 'warn' && typeof data === 'string') {
           return yellow(data)
         }
@@ -247,7 +235,7 @@ async function prepareConsoleArgs(
       }
       if (!arg.stack) return red(arg.prefix)
       const mapped = await getSourceMappedStackFrames(arg.stack, ctx, distDir)
-      return colorError(mapped, { prefix: arg.prefix, applyColor: false })
+      return colorError(mapped, { prefix: arg.prefix })
     })
   )
 
@@ -258,16 +246,24 @@ async function prepareConsoleErrorArgs(
   entry: Extract<ServerLogEntry, { kind: 'any-logged-error' }>,
   ctx: MappingContext,
   distDir: string
-) {
-  const deserialized = await Promise.all(
+): Promise<{ terminal: any[]; fileLog: any[] }> {
+  const pairs = await Promise.all(
     entry.args.map(async (arg) => {
       if (arg.kind === 'arg') {
-        if (arg.isRejectionMessage) return red(arg.data)
-        return deserializeArgData(arg.data)
+        const data = deserializeArgData(arg.data)
+        return {
+          terminal: arg.isRejectionMessage ? red(arg.data) : data,
+          fileLog: data,
+        }
       }
-      if (!arg.stack) return red(arg.prefix)
+      if (!arg.stack) {
+        return { terminal: red(arg.prefix), fileLog: arg.prefix }
+      }
       const mapped = await getSourceMappedStackFrames(arg.stack, ctx, distDir)
-      return colorError(mapped, { prefix: arg.prefix })
+      return {
+        terminal: colorError(mapped, { prefix: arg.prefix }),
+        fileLog: colorError(mapped, { prefix: arg.prefix, applyColor: false }),
+      }
     })
   )
 
@@ -283,21 +279,32 @@ async function prepareConsoleErrorArgs(
    * - the user already knows where the console.error is at because we append the location
    */
   const location = getConsoleLocation(mappedStack)
-  if (entry.args.some((a) => a.kind === 'formatted-error-arg')) {
-    const result = stripFormatSpecifiers(deserialized)
+  const hasFormattedErrorArg = entry.args.some(
+    (a) => a.kind === 'formatted-error-arg'
+  )
+
+  if (hasFormattedErrorArg) {
+    const terminal = stripFormatSpecifiers(pairs.map((p) => p.terminal))
+    const fileLog = stripFormatSpecifiers(pairs.map((p) => p.fileLog))
     if (location) {
-      result.push(dim(`(${location})`))
+      terminal.push(dim(`(${location})`))
+      fileLog.push(`(${location})`)
     }
-    return result
+    return { terminal, fileLog }
   }
-  const result = [
-    ...processConsoleFormatStrings(deserialized),
+  const terminal = [
+    ...processConsoleFormatStrings(pairs.map((p) => p.terminal)),
     colorError(mappedStack),
   ]
+  const fileLog = [
+    ...processConsoleFormatStrings(pairs.map((p) => p.fileLog)),
+    colorError(mappedStack, { applyColor: false }),
+  ]
   if (location) {
-    result.push(dim(`(${location})`))
+    terminal.push(dim(`(${location})`))
+    fileLog.push(`(${location})`)
   }
-  return result
+  return { terminal, fileLog }
 }
 
 async function handleTable(
@@ -416,8 +423,7 @@ async function handleDefaultConsole(
   browserPrefix: string,
   ctx: MappingContext,
   distDir: string,
-  config: BrowserLogConfig,
-  isServerLog: boolean
+  config: BrowserLogConfig
 ) {
   const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
   const withStackEntry = await withLocation(
@@ -431,18 +437,6 @@ async function handleDefaultConsole(
   )
   const consoleMethod = forwardConsole[entry.method] || forwardConsole.log
   ;(consoleMethod as (...args: any[]) => void)(browserPrefix, ...withStackEntry)
-
-  // Process enqueued logs and write to file
-  // Log to file with correct source based on context
-  const fileLogger = getFileLogger()
-
-  // Use cleaned console args to strip out background and color format specifiers
-  const message = cleanConsoleArgsForFileLogging(consoleArgs)
-  if (isServerLog) {
-    fileLogger.logServer(entry.method.toUpperCase(), message)
-  } else {
-    fileLogger.logBrowser(entry.method.toUpperCase(), message)
-  }
 }
 
 type LogLevel = 'error' | 'warn' | 'verbose'
@@ -501,6 +495,14 @@ function shouldShowEntry(
   return false
 }
 
+function deserializeForFileLog(a: any): any {
+  if (a.kind === 'arg') {
+    return deserializeArgData(a.data)
+  }
+  // formatted-error-arg
+  return a.prefix ?? ''
+}
+
 export async function handleLog(
   entries: ServerLogEntry[],
   ctx: MappingContext,
@@ -511,12 +513,33 @@ export async function handleLog(
   const isServerLog = ctx.isServer || ctx.isEdgeServer
   const browserPrefix = isServerLog ? cyan('[server]') : cyan('[browser]')
   const fileLogger = getFileLogger()
+  const shouldWriteFileLogs = fileLogger.isEnabled()
 
   for (const entry of entries) {
-    // Filter entries based on config mode
-    if (!shouldShowEntry(entry, config)) {
+    const shouldShow = shouldShowEntry(entry, config)
+
+    if (!shouldWriteFileLogs && !shouldShow) {
       continue
     }
+
+    // Console entries: write file log from raw args (no source mapping needed)
+    if (shouldWriteFileLogs && entry.kind === 'console') {
+      try {
+        const message = formatConsoleArgsForFileLogging(
+          entry.args.map(deserializeForFileLog)
+        )
+        if (isServerLog) {
+          fileLogger.logServer(entry.method.toUpperCase(), message)
+        } else {
+          fileLogger.logBrowser(entry.method.toUpperCase(), message)
+        }
+      } catch {
+        // noop
+      }
+    }
+
+    if (!shouldShow && entry.kind === 'console') continue
+
     try {
       switch (entry.kind) {
         case 'console': {
@@ -559,8 +582,7 @@ export async function handleLog(
                 browserPrefix,
                 ctx,
                 distDir,
-                config,
-                isServerLog
+                config
               )
               break
             }
@@ -572,74 +594,102 @@ export async function handleLog(
         }
         // any logged errors are anything that are logged as "red" in the browser but aren't only an Error (console.error, Promise.reject(100))
         case 'any-logged-error': {
-          const consoleArgs = await prepareConsoleErrorArgs(entry, ctx, distDir)
-          forwardConsole.error(browserPrefix, ...consoleArgs)
-
-          // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(consoleArgs)
-          )
-          break
-        }
-        // formatted error is an explicit error event (rejections, uncaught errors)
-        case 'formatted-error': {
-          const formattedArgs = await prepareFormattedErrorArgs(
+          const { terminal, fileLog } = await prepareConsoleErrorArgs(
             entry,
             ctx,
             distDir
           )
-          forwardConsole.error(browserPrefix, ...formattedArgs)
-
-          // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(formattedArgs)
+          if (shouldWriteFileLogs) {
+            const message = formatConsoleArgsForFileLogging(fileLog)
+            if (isServerLog) {
+              fileLogger.logServer('ERROR', message)
+            } else {
+              fileLogger.logBrowser('ERROR', message)
+            }
+          }
+          if (shouldShow) {
+            forwardConsole.error(browserPrefix, ...terminal)
+          }
+          break
+        }
+        // formatted error is an explicit error event (rejections, uncaught errors)
+        case 'formatted-error': {
+          const mapped = await getSourceMappedStackFrames(
+            entry.stack,
+            ctx,
+            distDir
           )
+          if (shouldWriteFileLogs) {
+            const message =
+              colorError(mapped, { prefix: entry.prefix, applyColor: false }) ||
+              ''
+            if (isServerLog) {
+              fileLogger.logServer('ERROR', message)
+            } else {
+              fileLogger.logBrowser('ERROR', message)
+            }
+          }
+          if (shouldShow) {
+            forwardConsole.error(
+              browserPrefix,
+              colorError(mapped, { prefix: entry.prefix })
+            )
+          }
           break
         }
         default: {
         }
       }
     } catch {
-      switch (entry.kind) {
-        case 'any-logged-error': {
-          const consoleArgs = await prepareConsoleErrorArgs(entry, ctx, distDir)
-          forwardConsole.error(browserPrefix, ...consoleArgs)
-          // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(consoleArgs)
-          )
-          break
+      // Source mapping failed — write best-effort message-only file log for errors
+      if (shouldWriteFileLogs && entry.kind !== 'console') {
+        try {
+          const message =
+            entry.kind === 'formatted-error'
+              ? entry.prefix
+              : formatConsoleArgsForFileLogging(
+                  entry.args.map(deserializeForFileLog)
+                )
+          if (isServerLog) {
+            fileLogger.logServer('ERROR', message)
+          } else {
+            fileLogger.logBrowser('ERROR', message)
+          }
+        } catch {
+          // noop
         }
-        case 'console': {
-          const consoleMethod =
-            forwardConsole[entry.method] || forwardConsole.log
-          const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
-          ;(consoleMethod as (...args: any[]) => void)(
-            browserPrefix,
-            ...consoleArgs
-          )
-
-          // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging(consoleArgs)
-          )
-          break
-        }
-        case 'formatted-error': {
-          forwardConsole.error(browserPrefix, `${entry.prefix}\n`, entry.stack)
-
-          // Process enqueued logs and write to file
-          fileLogger.logBrowser(
-            'ERROR',
-            cleanConsoleArgsForFileLogging([`${entry.prefix}\n${entry.stack}`])
-          )
-          break
-        }
-        default: {
+      }
+      if (shouldShow) {
+        switch (entry.kind) {
+          case 'any-logged-error': {
+            const { terminal } = await prepareConsoleErrorArgs(
+              entry,
+              ctx,
+              distDir
+            )
+            forwardConsole.error(browserPrefix, ...terminal)
+            break
+          }
+          case 'console': {
+            const consoleMethod =
+              forwardConsole[entry.method] || forwardConsole.log
+            const consoleArgs = await prepareConsoleArgs(entry, ctx, distDir)
+            ;(consoleMethod as (...args: any[]) => void)(
+              browserPrefix,
+              ...consoleArgs
+            )
+            break
+          }
+          case 'formatted-error': {
+            forwardConsole.error(
+              browserPrefix,
+              `${entry.prefix}\n`,
+              entry.stack
+            )
+            break
+          }
+          default: {
+          }
         }
       }
     }
@@ -712,15 +762,4 @@ export async function receiveBrowserLogsTurbopack(opts: {
   }
 
   await handleLog(entries, ctx, distDir, opts.config)
-}
-
-// Handle client file logs (always logged regardless of terminal flag)
-export async function handleClientFileLogs(
-  logs: Array<{ timestamp: string; level: string; message: string }>
-): Promise<void> {
-  const fileLogger = getFileLogger()
-
-  for (const log of logs) {
-    fileLogger.logBrowser(log.level, log.message)
-  }
 }

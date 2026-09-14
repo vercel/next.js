@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import { createNext, FileRef } from 'e2e-utils'
+import { FileRef, nextTestSetup } from 'e2e-utils'
 import escapeRegex from 'escape-string-regexp'
 import {
   check,
@@ -15,13 +15,10 @@ import {
   waitForRedbox,
 } from 'next-test-utils'
 import { join } from 'path'
-import webdriver from 'next-webdriver'
-import { NextInstance } from 'e2e-utils'
 
 const appDir = join(__dirname, '../app')
 
 let buildId
-let next: NextInstance
 
 const expectedManifestRoutes = () => [
   {
@@ -203,7 +200,7 @@ const expectedManifestRoutes = () => [
   },
 ]
 
-const navigateTest = () => {
+const navigateTest = (next: ReturnType<typeof nextTestSetup>['next']) => {
   it('should navigate between pages successfully', async () => {
     const toBuild = [
       '/',
@@ -216,7 +213,7 @@ const navigateTest = () => {
 
     await Promise.all(toBuild.map((pg) => renderViaHTTP(next.url, pg)))
 
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 
@@ -289,8 +286,12 @@ const navigateTest = () => {
   })
 }
 
-const runTests = (isDev = false, isDeploy = false) => {
-  navigateTest()
+const runTests = (
+  next: ReturnType<typeof nextTestSetup>['next'],
+  isDev = false,
+  isDeploy = false
+) => {
+  navigateTest(next)
 
   it('should work with early request ending', async () => {
     const res = await fetchViaHTTP(next.url, '/early-request-end')
@@ -316,11 +317,11 @@ const runTests = (isDev = false, isDeploy = false) => {
     const res = await fetchViaHTTP(next.url, '/not-found', { hiding: true })
 
     expect(res.status).toBe(404)
-    expect(await res.text()).toContain('This page could not be found')
+    expect(await res.text()).toContain('Custom 404 page')
   })
 
   it('should render 404 correctly when notFound is returned client-transition (non-dynamic)', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval(`(function() {
       window.beforeNav = 1
       window.next.router.push('/not-found?hiding=true')
@@ -328,7 +329,7 @@ const runTests = (isDev = false, isDeploy = false) => {
 
     await browser.waitForElementByCss('h1')
     expect(await browser.elementByCss('html').text()).toContain(
-      'This page could not be found'
+      'Custom 404 page'
     )
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -345,11 +346,11 @@ const runTests = (isDev = false, isDeploy = false) => {
     })
 
     expect(res.status).toBe(404)
-    expect(await res.text()).toContain('This page could not be found')
+    expect(await res.text()).toContain('Custom 404 page')
   })
 
   it('should render 404 correctly when notFound is returned client-transition (dynamic)', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval(`(function() {
       window.beforeNav = 1
       window.next.router.push('/not-found/first?hiding=true')
@@ -357,7 +358,7 @@ const runTests = (isDev = false, isDeploy = false) => {
 
     await browser.waitForElementByCss('h1')
     expect(await browser.elementByCss('html').text()).toContain(
-      'This page could not be found'
+      'Custom 404 page'
     )
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -381,7 +382,7 @@ const runTests = (isDev = false, isDeploy = false) => {
     } else {
       expect(res.status).toBe(500)
       expect(html).toContain('custom pages/500')
-      expect(html).not.toContain('This page could not be found')
+      expect(html).not.toContain('Custom 404 page')
     }
   })
 
@@ -586,7 +587,7 @@ const runTests = (isDev = false, isDeploy = false) => {
   })
 
   it('should navigate to a normal page and back', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     let text = await browser.elementByCss('p').text()
     expect(text).toMatch(/hello.*?world/)
 
@@ -597,7 +598,7 @@ const runTests = (isDev = false, isDeploy = false) => {
   })
 
   it('should load a fast refresh page', async () => {
-    const browser = await webdriver(next.url, '/refresh')
+    const browser = await next.browser('/refresh')
     await retry(async () => {
       expect(await browser.elementByCss('p').text()).toMatch(/client loaded/)
     })
@@ -614,7 +615,7 @@ const runTests = (isDev = false, isDeploy = false) => {
   })
 
   it('should parse query values on mount correctly', async () => {
-    const browser = await webdriver(next.url, '/blog/post-1?another=value')
+    const browser = await next.browser('/blog/post-1?another=value')
     await waitFor(2000)
     const text = await browser.elementByCss('#query').text()
     expect(text).toMatch(/another.*?value/)
@@ -622,7 +623,7 @@ const runTests = (isDev = false, isDeploy = false) => {
   })
 
   it('should pass query for data request on navigation', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await browser.eval('window.beforeNav = true')
     await browser.elementByCss('#something-query').click()
     await browser.waitForElementByCss('#initial-query')
@@ -634,7 +635,7 @@ const runTests = (isDev = false, isDeploy = false) => {
   })
 
   it('should reload page on failed data request', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await waitFor(500)
     await browser.eval('window.beforeClick = "abc"')
     await browser.elementByCss('#broken-post').click()
@@ -660,7 +661,7 @@ const runTests = (isDev = false, isDeploy = false) => {
   })
 
   it('should not re-call getServerSideProps when updating query', async () => {
-    const browser = await webdriver(next.url, '/something?hello=world')
+    const browser = await next.browser('/something?hello=world')
     await waitFor(2000)
 
     const query = await browser.elementByCss('#query').text()
@@ -677,7 +678,7 @@ const runTests = (isDev = false, isDeploy = false) => {
   })
 
   it('should not trigger an error when a data request is cancelled due to another navigation', async () => {
-    const browser = await webdriver(next.url, ' /')
+    const browser = await next.browser(' /')
 
     await browser.elementByCss("[href='/redirect-page']").click()
 
@@ -692,7 +693,7 @@ const runTests = (isDev = false, isDeploy = false) => {
   })
 
   it('should dedupe server data requests', async () => {
-    const browser = await webdriver(next.url, '/')
+    const browser = await next.browser('/')
     await waitFor(2000)
 
     // Keep clicking on the link
@@ -761,7 +762,7 @@ const runTests = (isDev = false, isDeploy = false) => {
     })
 
     it('should show error for invalid JSON returned from getStaticProps on CST', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#non-json').click()
 
       await waitForRedbox(browser)
@@ -798,7 +799,7 @@ const runTests = (isDev = false, isDeploy = false) => {
     })
   } else {
     it('should not fetch data on mount', async () => {
-      const browser = await webdriver(next.url, '/blog/post-100')
+      const browser = await next.browser('/blog/post-100')
       await browser.eval('window.thisShouldStay = true')
       await waitFor(2 * 1000)
       const val = await browser.eval('window.thisShouldStay')
@@ -851,7 +852,7 @@ const runTests = (isDev = false, isDeploy = false) => {
     })
 
     it('should not show error for invalid JSON returned from getStaticProps on CST', async () => {
-      const browser = await webdriver(next.url, '/')
+      const browser = await next.browser('/')
       await browser.elementByCss('#non-json').click()
       await check(() => getBrowserBodyText(browser), /hello /)
     })
@@ -869,19 +870,18 @@ const runTests = (isDev = false, isDeploy = false) => {
 }
 
 describe('getServerSideProps', () => {
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        pages: new FileRef(join(appDir, 'pages')),
-        public: new FileRef(join(appDir, 'public')),
-        'world.txt': new FileRef(join(appDir, 'world.txt')),
-        'next.config.js': new FileRef(join(appDir, 'next.config.js')),
-      },
-      patchFileDelay: 500,
-    })
+  const { next } = nextTestSetup({
+    files: {
+      pages: new FileRef(join(appDir, 'pages')),
+      public: new FileRef(join(appDir, 'public')),
+      'world.txt': new FileRef(join(appDir, 'world.txt')),
+      'next.config.js': new FileRef(join(appDir, 'next.config.js')),
+    },
+    patchFileDelay: 500,
+  })
+  beforeAll(() => {
     buildId = next.buildId
   })
-  afterAll(() => next.destroy())
 
-  runTests((global as any).isNextDev, (global as any).isNextDeploy)
+  runTests(next, (global as any).isNextDev, (global as any).isNextDeploy)
 })

@@ -1,20 +1,15 @@
-use std::{fmt::Debug, future::Future, marker::PhantomData};
-
-use anyhow::Result;
+use std::{fmt::Debug, marker::PhantomData};
 
 use crate::{
-    Vc, VcValueTrait,
-    registry::get_value_type,
-    task::shared_reference::TypedSharedReference,
-    vc::{ReadVcFuture, VcValueTraitCast, cast::VcCast},
+    Vc, VcValueTrait, registry::get_value_type, task::shared_reference::TypedSharedReference,
+    vc::UpcastStrict,
 };
 
-/// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait
-/// object instead.
+/// Similar to a [`ReadRef<T>`][crate::ReadRef], but contains a value trait object instead.
 ///
-/// The only way to interact with a `TraitRef<T>` is by passing
-/// it around or turning it back into a value trait vc by calling
-/// [`ReadRef::cell`][crate::ReadRef::cell].
+/// Non-turbo-task methods with a `&self` receiver can be called on this reference.
+///
+/// A `TraitRef<T>` can be turned back into a value trait vc by calling [`TraitRef::cell`].
 ///
 /// Internally it stores a reference counted reference to a value on the heap.
 pub struct TraitRef<T>
@@ -66,7 +61,7 @@ where
     fn deref(&self) -> &Self::Target {
         // This lookup will fail if the value type stored does not actually implement the trait,
         // which implies a bug in either the registry code or the macro code.
-        let downcast_ptr = <Box<U> as VcValueTrait>::get_impl_vtables().cast(
+        let downcast_ptr = <Box<U> as VcValueTrait>::IMPL_VTABLES.cast(
             self.shared_reference.type_id,
             self.shared_reference.reference.0.as_ptr() as *const (),
         );
@@ -117,32 +112,18 @@ where
         let value_type = get_value_type(shared_reference.type_id);
         (value_type.raw_cell)(shared_reference).into()
     }
-}
 
-/// A trait that allows a value trait vc to be converted into a trait reference.
-///
-/// The signature is similar to `IntoFuture`, but we don't want trait vcs to
-/// have the same future-like semantics as value vcs when it comes to producing
-/// refs. This behavior is rarely needed, so in most cases, `.await`ing a trait
-/// vc is a mistake.
-pub trait IntoTraitRef {
-    type ValueTrait: VcValueTrait + ?Sized;
-    type Future: Future<Output = Result<<VcValueTraitCast<Self::ValueTrait> as VcCast>::Output>>;
-
-    fn into_trait_ref(self) -> Self::Future;
-}
-
-impl<T> IntoTraitRef for Vc<T>
-where
-    T: VcValueTrait + ?Sized,
-{
-    type ValueTrait = T;
-
-    type Future = ReadVcFuture<T, VcValueTraitCast<T>>;
-
-    fn into_trait_ref(self) -> Self::Future {
-        self.node
-            .into_read_with_unknown_is_serializable_cell_content()
-            .into()
+    /// Attempts to downcast this trait reference to a sub-trait `K`, where `K`
+    /// is of the form `Box<dyn L>` and `L: T` is a value trait.
+    ///
+    /// [`ResolvedVc::try_downcast`]: crate::ResolvedVc::try_downcast
+    /// [`ResolvedVc`]: crate::ResolvedVc
+    pub fn try_downcast<K>(this: TraitRef<T>) -> Option<TraitRef<K>>
+    where
+        K: UpcastStrict<T> + VcValueTrait + ?Sized,
+    {
+        get_value_type(this.shared_reference.type_id)
+            .has_trait(&<K as VcValueTrait>::get_trait_type_id())
+            .then(|| TraitRef::new(this.shared_reference))
     }
 }

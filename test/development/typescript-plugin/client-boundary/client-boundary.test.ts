@@ -2,7 +2,7 @@ import type { PluginLanguageService } from '../test-utils'
 
 import ts from 'typescript'
 import { relative, resolve } from 'node:path'
-import { getPluginLanguageService } from '../test-utils'
+import { getPluginLanguageService, NEXT_TS_ERRORS } from '../test-utils'
 
 type PartialDiagnostic = Pick<
   ts.Diagnostic,
@@ -86,6 +86,7 @@ describe('typescript-plugin - client-boundary', () => {
         length: diagnostic.length,
       }))
 
+    // TODO: Should flag _arrowFunctionConditional in TypeScript 6.x.
     expect(totalDiagnostics).toMatchInlineSnapshot(`
      {
        "app/non-serializable-props.tsx": [
@@ -103,12 +104,6 @@ describe('typescript-plugin - client-boundary', () => {
          },
          {
            "code": 71007,
-           "length": 19,
-           "messageText": "Props must be serializable for components in the "use client" entry file. "_arrowFunctionConditional" is a function that's not a Server Action. Rename "_arrowFunctionConditional" either to "action" or have its name end with "Action" e.g. "_arrowFunctionConditionalAction" to indicate it is a Server Action.",
-           "start": 249,
-         },
-         {
-           "code": 71007,
            "length": 5,
            "messageText": "Props must be serializable for components in the "use client" entry file, "_class" is invalid.",
            "start": 279,
@@ -122,5 +117,47 @@ describe('typescript-plugin - client-boundary', () => {
        ],
      }
     `)
+  })
+
+  it('should not flag framework-injected function props in error files', () => {
+    const tsFile = resolve(__dirname, 'app/error.tsx')
+
+    const flaggedProps = languageService
+      .getSemanticDiagnostics(tsFile)
+      .filter(
+        (diagnostic) =>
+          diagnostic.code === NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP
+      )
+      .map((diagnostic) => String(diagnostic.messageText))
+
+    // `reset` and `retry` are injected by Next.js into error
+    // boundaries, so they must not be flagged as non-serializable props.
+    expect(flaggedProps.some((m) => m.includes('"reset"'))).toBe(false)
+    expect(flaggedProps.some((m) => m.includes('"retry"'))).toBe(false)
+    // The exemption stays scoped to known error-boundary props: an ordinary
+    // function prop in an error file is still flagged.
+    expect(flaggedProps.some((m) => m.includes('"_notExempt"'))).toBe(true)
+    expect(flaggedProps).toHaveLength(1)
+  })
+
+  it('should not flag framework-injected function props in global-error files', () => {
+    const tsFile = resolve(__dirname, 'app/global-error.tsx')
+
+    const flaggedProps = languageService
+      .getSemanticDiagnostics(tsFile)
+      .filter(
+        (diagnostic) =>
+          diagnostic.code === NEXT_TS_ERRORS.INVALID_CLIENT_ENTRY_PROP
+      )
+      .map((diagnostic) => String(diagnostic.messageText))
+
+    // `reset` and `retry` are injected by Next.js into global-error
+    // boundaries, so they must not be flagged as non-serializable props.
+    expect(flaggedProps.some((m) => m.includes('"reset"'))).toBe(false)
+    expect(flaggedProps.some((m) => m.includes('"retry"'))).toBe(false)
+    // The exemption stays scoped to known error-boundary props: an ordinary
+    // function prop in a global-error file is still flagged.
+    expect(flaggedProps.some((m) => m.includes('"_notExempt"'))).toBe(true)
+    expect(flaggedProps).toHaveLength(1)
   })
 })

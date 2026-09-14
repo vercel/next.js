@@ -31,29 +31,25 @@ describe('app dir - default error page UI', () => {
 
     // In production mode, verify the client error page UI elements
 
-    // Check that the SVG icon is present (40x40 size)
+    // Check that the SVG icon is present (32x32 size)
     const svgIcon = await browser.elementByCss('svg')
-    expect(await svgIcon.getAttribute('width')).toBe('40')
-    expect(await svgIcon.getAttribute('height')).toBe('40')
+    expect(await svgIcon.getAttribute('width')).toBe('32')
+    expect(await svgIcon.getAttribute('height')).toBe('32')
 
-    // Check the error title - client errors show "This page crashed"
+    // Check the error title
     const title = await browser.elementByCss('h1')
-    expect(await title.text()).toBe('This page crashed')
+    expect(await title.text()).toBe('This page couldn\u2019t load')
 
-    // Check the error message - client errors show "An error occurred while running this page."
+    // Check the error message - client errors show "Reload to try again, or go back."
     const message = await browser.elementByCss('p')
-    expect(await message.text()).toContain('An error occurred while running')
+    expect(await message.text()).toContain('Reload to try again, or go back')
 
-    // Check the "Reload page" button exists
+    // Check the "Reload" button exists
     const buttons = await browser.elementsByCss('button')
-    expect(await buttons[0].innerText()).toBe('Reload page')
+    expect(await buttons[0].innerText()).toBe('Reload')
 
-    // Check "Go back" button exists for client errors
-    expect(await buttons[1].innerText()).toBe('Go back')
-
-    // Check the hint text about reloading
-    const html = await browser.eval('document.documentElement.innerHTML')
-    expect(html).toContain('Reloading usually fixes this')
+    // Check "Back" button exists for client errors
+    expect(await buttons[1].innerText()).toBe('Back')
   })
 
   it('should reload the page when Reload page button is clicked', async () => {
@@ -102,11 +98,11 @@ describe('app dir - default error page UI', () => {
     // In light mode: #171717 = rgb(23, 23, 23)
     expect(titleColor).toContain('23')
 
-    // Check that the button has neutral styling (white background with border)
+    // Check that the primary button has dark background
     const button = await browser.elementByCss('button')
     const buttonBg = await button.getComputedCss('background-color')
-    // White = rgb(255, 255, 255)
-    expect(buttonBg).toContain('255')
+    // Dark = rgb(23, 23, 23) (#171717)
+    expect(buttonBg).toContain('23')
   })
 
   it('should display server error page with Error reference', async () => {
@@ -133,14 +129,14 @@ describe('app dir - default error page UI', () => {
     // In production mode, verify the server error page
     const html = await browser.eval('document.documentElement.innerHTML')
 
-    // Server errors show "This page failed to load"
-    expect(html).toContain('This page failed to load')
+    // Server errors show "This page couldn\u2019t load"
+    expect(html).toContain('This page couldn\u2019t load')
 
-    // Server errors show "Error reference:" with digest
-    expect(html).toContain('Error reference:')
+    // Server errors show "A server error occurred"
+    expect(html).toContain('A server error occurred')
 
-    // Server errors show hint about server issue
-    expect(html).toContain('it may be a server issue')
+    // Server errors show "ERROR" with digest
+    expect(html).toMatch(/ERROR \w+/)
   })
 
   it('should have left-aligned text in error page', async () => {

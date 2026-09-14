@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     cmp::{Ordering, min},
     fmt,
+    hash::{Hash, Hasher},
     io::{BufRead, Read, Result as IoResult, Write},
     mem,
     ops::{AddAssign, Deref},
@@ -22,7 +23,7 @@ use bytes::Bytes;
 use futures::Stream;
 use tokio::io::{AsyncRead, ReadBuf};
 use triomphe::Arc;
-use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
+use turbo_tasks_hash::{DeterministicHash, DeterministicHasher, hash_xxh3_hash64};
 
 static EMPTY_BUF: &[u8] = &[];
 
@@ -159,8 +160,8 @@ impl<T: Into<Bytes>> From<T> for Rope {
 impl RopeBuilder {
     /// Push owned bytes into the Rope.
     ///
-    /// If possible use [push_static_bytes] or `+=` operation instead, as they
-    /// will create a reference to shared memory instead of cloning the bytes.
+    /// If possible, use [`RopeBuilder::push_static_bytes`] or `+=` operation instead. That will
+    /// create a reference to shared memory instead of cloning the bytes.
     pub fn push_bytes(&mut self, bytes: &[u8]) {
         if bytes.is_empty() {
             return;
@@ -414,7 +415,7 @@ impl DeterministicHash for RopeBytesOnlyHash<'_> {
 /// [`Rope::to_bytes`] instead would be easier, but would require copying to an intermediate buffer.
 ///
 /// This len + bytes format is similar to how bincode would normally encode a `&[u8]`:
-/// https://docs.rs/bincode/latest/bincode/spec/index.html#collections
+/// <https://docs.rs/bincode/latest/bincode/spec/index.html#collections>
 impl Encode for Rope {
     fn encode<E: Encoder>(&self, encoder: &mut E) -> Result<(), EncodeError> {
         self.length.encode(encoder)?;
@@ -490,6 +491,12 @@ impl PartialEq for Rope {
 }
 
 impl Eq for Rope {}
+
+impl Hash for Rope {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        hash_xxh3_hash64(self.content_hash()).hash(state);
+    }
+}
 
 impl Ord for Rope {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -882,7 +889,7 @@ impl BufRead for RopeReader<'_> {
 }
 
 impl<'a> Stream for RopeReader<'a> {
-    /// This is efficiently streamable into a [`Hyper::Body`] if each item is cloned into an owned
+    /// This is efficiently streamable into a `Hyper::Body` if each item is cloned into an owned
     /// `Bytes` instance.
     type Item = Result<&'a Bytes>;
 
@@ -1122,6 +1129,24 @@ mod test {
         hasher.write_bytes(string.as_bytes());
 
         assert_eq!(hash_xxh3_hash64(rope.content_hash()), hasher.finish());
+    }
+
+    #[test]
+    fn standard_hash_uses_content() {
+        use std::{
+            collections::hash_map::DefaultHasher,
+            hash::{Hash, Hasher},
+        };
+
+        let original = Rope::from("same content");
+        let copied = Rope::from(original.to_bytes().into_owned());
+        let mut original_hasher = DefaultHasher::new();
+        let mut copied_hasher = DefaultHasher::new();
+        original.hash(&mut original_hasher);
+        copied.hash(&mut copied_hasher);
+
+        assert_eq!(original, copied);
+        assert_eq!(original_hasher.finish(), copied_hasher.finish());
     }
 
     #[test]

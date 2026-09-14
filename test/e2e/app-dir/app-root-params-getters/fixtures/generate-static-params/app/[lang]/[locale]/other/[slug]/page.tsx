@@ -1,6 +1,11 @@
 import { lang, locale } from 'next/root-params'
 import { Suspense } from 'react'
 
+export async function generateStaticParams() {
+  const l = await lang()
+  return [{ slug: `${l}-post` }]
+}
+
 export default async function Page({ params }) {
   return (
     <main>

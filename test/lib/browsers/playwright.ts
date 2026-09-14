@@ -1,9 +1,6 @@
 import fs from 'fs-extra'
 import { debugPrint } from 'next-test-utils'
 import {
-  chromium,
-  webkit,
-  firefox,
   Browser,
   BrowserContext,
   Page,
@@ -12,17 +9,22 @@ import {
   Locator,
   Request as PlaywrightRequest,
   Response as PlaywrightResponse,
+  BrowserContextOptions,
 } from 'playwright'
 import path from 'path'
+import { getBrowserLaunch, PROXY_HOST_MAP_ENV_KEY } from './launch'
 
 type EventType = 'request' | 'response'
 
 type PageLog = { source: string; message: string; args: unknown[] }
 
+export type Permissions = BrowserContextOptions['permissions']
+
 let page: Page
 let browser: Browser | undefined
 let context: BrowserContext | undefined
 let contextHasJSEnabled: boolean = true
+let contextPermissions: Permissions = undefined
 let pageLogs: Array<Promise<PageLog> | PageLog> = []
 let websocketFrames: Array<{ payload: string | Buffer }> = []
 
@@ -166,8 +168,8 @@ export class Playwright<TCurrent = undefined> {
     locale: string,
     javaScriptEnabled: boolean,
     ignoreHTTPSErrors: boolean,
-    headless: boolean,
-    userAgent: string | undefined
+    userAgent: string | undefined,
+    permissions: Permissions
   ) {
     let device
 
@@ -182,7 +184,13 @@ export class Playwright<TCurrent = undefined> {
     }
 
     if (browser) {
-      if (contextHasJSEnabled !== javaScriptEnabled) {
+      if (
+        contextHasJSEnabled !== javaScriptEnabled ||
+        // Even triggers on same set of permissions, but we don't want to deal
+        // with the complexity of diffing them, so we just always recreate the
+        // context when permissions are set.
+        contextPermissions !== permissions
+      ) {
         // If we have switched from having JS enable/disabled we need to recreate the context.
         await teardown(this.teardownTracing.bind(this))
         await context?.close()
@@ -192,19 +200,22 @@ export class Playwright<TCurrent = undefined> {
           ignoreHTTPSErrors,
           ...(userAgent ? { userAgent } : {}),
           ...device,
+          permissions,
         })
         contextHasJSEnabled = javaScriptEnabled
+        contextPermissions = permissions
       }
       return
     }
 
-    browser = await this.launchBrowser(browserName, { headless })
+    browser = await this.launchBrowser(browserName)
     context = await browser.newContext({
       locale,
       javaScriptEnabled,
       ignoreHTTPSErrors,
       ...(userAgent ? { userAgent } : {}),
       ...device,
+      permissions,
     })
     contextHasJSEnabled = javaScriptEnabled
   }
@@ -214,29 +225,52 @@ export class Playwright<TCurrent = undefined> {
     await page?.close()
   }
 
-  async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
-    if (browserName === 'safari') {
-      return await webkit.launch(launchOptions)
-    } else if (browserName === 'firefox') {
-      return await firefox.launch({
-        ...launchOptions,
-        firefoxUserPrefs: {
-          ...launchOptions.firefoxUserPrefs,
-          // The "fission.webContentIsolationStrategy" pref must be
-          // set to 1 on Firefox due to the bug where a new history
-          // state is pushed on a page reload.
-          // See https://github.com/microsoft/playwright/issues/22640
-          // See https://bugzilla.mozilla.org/show_bug.cgi?id=1832341
-          'fission.webContentIsolationStrategy': 1,
-        },
-      })
-    } else {
-      return await chromium.launch({
-        devtools: !launchOptions.headless,
-        ...launchOptions,
-        ignoreDefaultArgs: ['--disable-back-forward-cache'],
-      })
+  async launchBrowser(browserName: string) {
+    // Headless mode is controlled exclusively by the HEADLESS env var. It
+    // can't be a per-test option because the browser is shared: either
+    // launched once per process, or via the shared browser server below.
+    const headless = !!process.env.HEADLESS
+    const { browserType, launchOptions } = getBrowserLaunch(browserName, {
+      headless,
+    })
+
+    // A deploy test can redirect the deployment host to a proxy address inside
+    // this process (`NEXT_TEST_PROXY_IN_PROCESS`). The patched `dns.lookup`
+    // reaches only this process, so the browser needs the same mapping through
+    // a launch argument.
+    const [mappedHostname, mappedAddress] =
+      process.env[PROXY_HOST_MAP_ENV_KEY]?.split('=') ?? []
+    const hostRule =
+      mappedHostname && mappedAddress
+        ? `--host-rules=MAP ${mappedHostname} ${mappedAddress}`
+        : undefined
+
+    if (hostRule) {
+      if (browserType.name() !== 'chromium') {
+        throw new Error(
+          `NEXT_TEST_PROXY_IN_PROCESS redirects the browser with a Chromium launch argument, so it does not support BROWSER_NAME=${browserName}. Use the /etc/hosts mode instead.`
+        )
+      }
+
+      launchOptions.args = [...(launchOptions.args ?? []), hostRule]
     }
+
+    // `run-tests.js` launches a browser server that's shared across all test
+    // suites. Connect to it if it's available, otherwise (e.g. when running a
+    // test directly via the jest CLI) launch a browser owned by this process.
+    // The shared server is always headless (`run-tests.js` sets HEADLESS=true
+    // for all test suites), so only connect when we're headless too.
+    //
+    // A host mapping forces a browser owned by this process. The shared server
+    // starts before any mapping exists, and `connect` cannot add a launch
+    // argument, so its requests reach the deployment through the production
+    // CDN. The deployment is the same either way, which is why this is easy to
+    // miss: the test passes, and it exercises none of the proxy under test.
+    const wsEndpoint = process.env.NEXT_TEST_BROWSER_WS_ENDPOINT
+    if (wsEndpoint && headless && !hostRule) {
+      return await browserType.connect(wsEndpoint)
+    }
+    return await browserType.launch(launchOptions)
   }
 
   async get(url: string): Promise<void> {
@@ -249,6 +283,13 @@ export class Playwright<TCurrent = undefined> {
       disableCache?: boolean
       cpuThrottleRate?: number
       pushErrorAsConsoleLog?: boolean
+      /**
+       * Suppress the harness from echoing the browser's console output to the
+       * test's terminal (the `Browser Log:` lines). Browser logs are still
+       * collected and available via `browser.log()`. Useful when a test
+       * captures and asserts on terminal output, where the echo would be noise.
+       */
+      disableBrowserLog?: boolean
       beforePageLoad?: (page: Page) => void | Promise<void>
       /**
        * @see {@link https://playwright.dev/docs/api/class-page#page-set-extra-http-headers Playwright.Page.setExtraHTTPHeaders}
@@ -278,7 +319,9 @@ export class Playwright<TCurrent = undefined> {
     websocketFrames = []
 
     page.on('console', (msg) => {
-      debugPrint('Browser Log:', msg)
+      if (!opts?.disableBrowserLog) {
+        debugPrint('Browser Log:', msg)
+      }
 
       pageLogs.push(
         Promise.all(
@@ -318,23 +361,29 @@ export class Playwright<TCurrent = undefined> {
     }
 
     page.on('websocket', (ws) => {
+      const decoder = tracePlaywright ? new TextDecoder() : null
       if (tracePlaywright) {
-        page
-          .evaluate(`console.log('connected to ws at ${ws.url()}')`)
-          .catch(() => {})
+        // We're just evaluating a string here so that it appears in Playwright
+        // traces.
+        // console.log spams CI logs. If you already have a browser open, you can
+        // see WebSocket messages in the network tab of dev tools.
+        // TODO: Revisit once https://github.com/microsoft/playwright/issues/10996 is resolved.
+        page.evaluate(`'connected to ws at ${ws.url()}'`).catch(() => {})
 
         ws.on('close', () =>
-          page
-            .evaluate(`console.log('closed websocket ${ws.url()}')`)
-            .catch(() => {})
+          page.evaluate(`'closed websocket ${ws.url()}'`).catch(() => {})
         )
       }
       ws.on('framereceived', (frame) => {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
+          const { payload } = frame
           page
-            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            // Note that passing the payload as a an argument is 2 orders of magnitude more expensive in Playwright.
+            .evaluate(
+              `'received ws message ${JSON.stringify(typeof payload === 'string' ? payload : decoder!.decode(payload))}'`
+            )
             .catch(() => {})
         }
       })
@@ -357,10 +406,25 @@ export class Playwright<TCurrent = undefined> {
       await page.goForward(options)
     })
   }
-  refresh() {
+  refresh(opts?: { waitUntil?: PlaywrightNavigationWaitUntil }) {
     // do not preserve the previous chained value, it's likely to be invalid after a reload.
     return this.startChain(async () => {
-      await page.reload()
+      await page.reload({ waitUntil: opts?.waitUntil ?? 'load' })
+    })
+  }
+  /**
+   * Evict the browser HTTP cache via CDP (`Network.clearBrowserCache`). This is
+   * only supported in Chromium; gate the calling test on `global.browserName
+   * === 'chrome'` (Playwright's Firefox and WebKit don't expose CDP).
+   */
+  clearBrowserCache() {
+    return this.startChain(async () => {
+      const session = await context!.newCDPSession(page)
+      try {
+        await session.send('Network.clearBrowserCache')
+      } finally {
+        await session.detach()
+      }
     })
   }
   setDimensions({ width, height }: { height: number; width: number }) {

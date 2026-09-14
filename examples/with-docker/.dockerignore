@@ -31,15 +31,12 @@ cypress/videos/
 playwright-report/
 test-results/
 .vitest/
-*.test.ts
-*.test.tsx
-*.test.js
-*.test.jsx
-*.spec.ts
-*.spec.tsx
-*.spec.js
-*.spec.jsx
-
+vitest.config.*
+jest.config.*
+cypress.config.*
+playwright.config.*
+*.test.*
+*.spec.*
 
 # Local development and editor files
 .git/
@@ -52,7 +49,12 @@ test-results/
 *~
 *.log
 
-# Environment variables (only commit template files)
+# Environment variables - keep credentials out of the build context.
+# Anything left in the context is loaded by `next build` and copied into
+# `.next/standalone`, so it ships inside the runner image. `.env.production` is
+# deliberately not listed: use it for non-secret build-time config, and pass
+# real secrets at run time with `docker run -e`. See the "Environment Variables"
+# section of README.md.
 .env
 .env*.local
 .env.development
@@ -62,6 +64,9 @@ test-results/
 # Docker configuration files (not needed inside build context)
 Dockerfile*
 .dockerignore
+compose.yaml
+compose.yml
+docker-compose*.yaml
 docker-compose*.yml
 
 # Documentation
@@ -80,20 +85,23 @@ Jenkinsfile
 .parcel-cache/
 .eslintcache
 .stylelintcache
+.swc/
 .turbo/
 .tmp/
 .temp/
 
 # TypeScript build metadata
 *.tsbuildinfo
-.tsbuildinfo
 
 # Sensitive or unnecessary configuration files
 *.pem
 .editorconfig
 .prettierrc*
+prettier.config.*
 .eslintrc*
+eslint.config.*
 .stylelintrc*
+stylelint.config.*
 .babelrc*
 *.iml
 *.ipr
@@ -118,6 +126,8 @@ Desktop.ini
 .anthropic/
 .kiro
 .claude
+AGENTS.md
+.agents/
 
 # AI-generated temp files
 *.aider*
