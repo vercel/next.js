@@ -100,6 +100,23 @@ describe('MutableRequestCookiesAdapter', () => {
       expect.stringContaining('bar=;'),
     ])
   })
+
+  it('should set SameSite=Strict when sameSite is true', () => {
+    const headers = new Headers({})
+    const underlyingCookies = new RequestCookies(headers)
+
+    const onUpdateCookies = jest.fn<void, [string[]]>()
+    const wrappedCookies = MutableRequestCookiesAdapter.wrap(
+      underlyingCookies,
+      onUpdateCookies
+    )
+
+    wrappedCookies.set('foo', 'bar', { sameSite: true })
+
+    expect(onUpdateCookies).toHaveBeenCalledWith([
+      expect.stringContaining('SameSite=Strict'),
+    ])
+  })
 })
 
 describe('wrapWithMutableAccessCheck', () => {
