@@ -376,3 +376,7 @@ virtue = { git = "https://github.com/bgw/virtue.git", branch = "bgw/fix-generic-
 mdxjs = { git = "https://github.com/vercel-labs/mdxjs-rs-turbopack.git", branch = "turbopack" }
 # Doesn't compile on recent nightly versions because of https://github.com/Michael-F-Bryan/include_dir/pull/117
 include_dir = { git = "https://github.com/vercel-labs/include_dir", branch = "turbopack" }
+# Patch lightningcss to fix @container named query parsing with error_recovery
+# This allows @container scroll-content { ... } to be parsed without erroring
+# when error_recovery is enabled (Turbopack uses error_recovery: true).
+lightningcss = { git = "https://github.com/Larslllllll/lightningcss.git", branch = "fix/container-error-recovery", tag = "v1.0.0-alpha.72.fix" }
