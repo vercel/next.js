@@ -273,6 +273,7 @@ export interface NapiEntrypoints {
   routes: Array<NapiRoute>
   middleware?: NapiMiddleware
   instrumentation?: NapiInstrumentation
+  moduleFederation?: ExternalObject<ExternalEndpoint>
   pagesDocumentEndpoint: ExternalObject<ExternalEndpoint>
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
