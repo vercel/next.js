@@ -190,6 +190,13 @@ impl AstPathTrie {
         self.get_parent(id).unwrap_or(AstPathId::ROOT)
     }
 
+    /// The last element of the path together with the path below it, or `None` for the
+    /// root. One node read where [`AstPathTrie::get`] plus [`AstPathTrie::get_parent`]
+    /// would be two.
+    pub fn split_last(&self, id: AstPathId) -> Option<(AstParentKind, AstPathId)> {
+        self.node(id).map(|n| (n.kind, n.parent))
+    }
+
     /// Walks from `id` towards the root, yielding each element in reverse order.
     pub fn iter_rev(&self, id: AstPathId) -> impl Iterator<Item = AstParentKind> + '_ {
         let mut current = id;

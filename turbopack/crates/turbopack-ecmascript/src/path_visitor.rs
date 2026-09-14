@@ -53,8 +53,7 @@ impl<'a> Visitors<'a> {
             // Link this node back to the root so the walk can reach it. Everything above an
             // already-linked node is linked too, so stop there.
             let mut child = id;
-            while let Some(kind) = trie.get(child) {
-                let parent = trie.parent_or_root(child);
+            while let Some((kind, parent)) = trie.split_last(child) {
                 if nodes
                     .entry(parent)
                     .or_default()
