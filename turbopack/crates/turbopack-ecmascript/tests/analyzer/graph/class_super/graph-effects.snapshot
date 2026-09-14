@@ -26,6 +26,9 @@
                             export: Some(
                                 "named",
                             ),
+                            local: Some(
+                                "named",
+                            ),
                             ast_path: [
                                 Program(
                                     Module,

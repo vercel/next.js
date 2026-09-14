@@ -890,6 +890,9 @@
                         export: Some(
                             "x",
                         ),
+                        local: Some(
+                            "x",
+                        ),
                         ast_path: [
                             Program(
                                 Module,
@@ -956,6 +959,9 @@
                     ImportedBinding {
                         esm_reference_index: 3,
                         export: Some(
+                            "y",
+                        ),
+                        local: Some(
                             "y",
                         ),
                         ast_path: [
@@ -1272,6 +1278,9 @@
     ImportedBinding {
         esm_reference_index: 5,
         export: Some(
+            "z",
+        ),
+        local: Some(
             "z",
         ),
         ast_path: [

@@ -4,6 +4,9 @@
         export: Some(
             "default",
         ),
+        local: Some(
+            "x",
+        ),
         ast_path: [
             Program(
                 Module,
@@ -41,6 +44,9 @@
         export: Some(
             "a",
         ),
+        local: Some(
+            "a",
+        ),
         ast_path: [
             Program(
                 Module,
@@ -76,6 +82,9 @@
     ImportedBinding {
         esm_reference_index: 6,
         export: None,
+        local: Some(
+            "y",
+        ),
         ast_path: [
             Program(
                 Module,

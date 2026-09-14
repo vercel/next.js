@@ -4,6 +4,9 @@
         export: Some(
             "useMemo",
         ),
+        local: Some(
+            "useMemo",
+        ),
         ast_path: [
             Program(
                 Module,
@@ -318,6 +321,9 @@
         esm_reference_index: 1,
         export: Some(
             "jsx",
+        ),
+        local: Some(
+            "_jsx",
         ),
         ast_path: [
             Program(
@@ -850,6 +856,9 @@
                         ImportedBinding {
                             esm_reference_index: 5,
                             export: Some(
+                                "fooBar",
+                            ),
+                            local: Some(
                                 "fooBar",
                             ),
                             ast_path: [

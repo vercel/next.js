@@ -1096,6 +1096,9 @@
         export: Some(
             "default",
         ),
+        local: Some(
+            "p2",
+        ),
         ast_path: [
             Program(
                 Module,
@@ -1138,6 +1141,9 @@
         esm_reference_index: 3,
         export: Some(
             "join",
+        ),
+        local: Some(
+            "pjoin",
         ),
         ast_path: [
             Program(

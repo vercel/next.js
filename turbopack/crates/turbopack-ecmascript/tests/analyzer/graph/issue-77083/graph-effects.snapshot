@@ -13,6 +13,9 @@
                         export: Some(
                             "assert",
                         ),
+                        local: Some(
+                            "assert",
+                        ),
                         ast_path: [
                             Program(
                                 Module,
@@ -307,6 +310,9 @@
         export: Some(
             "assert",
         ),
+        local: Some(
+            "assert",
+        ),
         ast_path: [
             Program(
                 Module,
@@ -462,6 +468,9 @@
     ImportedBinding {
         esm_reference_index: 1,
         export: Some(
+            "assert",
+        ),
+        local: Some(
             "assert",
         ),
         ast_path: [

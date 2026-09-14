@@ -2,6 +2,7 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
+use rustc_hash::FxHashSet;
 use strsim::jaro;
 use swc_core::{
     common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
@@ -88,6 +89,9 @@ pub enum ReferencedAssetIdent {
         namespace_ident: String,
         ctxt: Option<SyntaxContext>,
         export: Option<RcStr>,
+        /// Whether the named export can be captured once instead of read through the namespace at
+        /// every use. This is false for namespace imports, live bindings, and circuit breakers.
+        can_value_bind: bool,
         /// Describes what to import to populate the variable that `namespace_ident` names.
         ///
         /// When the ident was resolved through a re-export chain (e.g. `export * as X from
@@ -151,6 +155,7 @@ impl ReferencedAssetIdent {
                 namespace_ident,
                 ctxt,
                 export,
+                can_value_bind: _,
                 import_source: _,
             } => {
                 if let Some(export) = export {
@@ -287,11 +292,13 @@ impl ReferencedAsset {
                                         // but in the module containing the reexport
                                         ctxt: None,
                                         export,
+                                        can_value_bind,
                                         import_source,
                                     }) => Some(ReferencedAssetIdent::Module {
                                         namespace_ident,
                                         ctxt: Some(ctxt),
                                         export,
+                                        can_value_bind,
                                         import_source,
                                     }),
                                     ident => ident,
@@ -306,6 +313,11 @@ impl ReferencedAsset {
                 }
 
                 let import_source = ImportSource::Module { asset: *asset };
+                let can_value_bind = if let Some(export) = &export {
+                    *can_capture_export_value(**asset, export.clone(), chunking_context).await?
+                } else {
+                    false
+                };
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
@@ -319,6 +331,7 @@ impl ReferencedAsset {
                         }
                         None => None,
                     },
+                    can_value_bind,
                     import_source,
                 })
             }
@@ -331,6 +344,7 @@ impl ReferencedAsset {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
                     export,
+                    can_value_bind: false,
                     import_source,
                 })
             }
@@ -375,6 +389,59 @@ impl ReferencedAsset {
         // See `packages/next/src/shared/lib/magic-identifier.ts`
         Ok(magic_identifier::mangle(&format!("imported module {id}")))
     }
+}
+
+/// Returns whether an imported export can be safely captured in a local value binding.
+///
+/// Follows statically-known reexports to find the original local binding's liveness. Import code
+/// generation still loads the directly referenced module so intermediate side effects and namespace
+/// identity are preserved; this only supplies metadata for choosing an accessor.
+///
+/// This is a turbo task because every use of the same imported binding asks this question during
+/// code generation. Cache the re-export walk and circuit-breaker lookup once per export and
+/// chunking context instead of repeating those reads for every use.
+#[turbo_tasks::function]
+async fn can_capture_export_value(
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    export: RcStr,
+    chunking_context: Vc<Box<dyn ChunkingContext>>,
+) -> Result<Vc<bool>> {
+    let imported_module = module;
+    let mut module = module;
+    let mut export = export;
+    let mut visited = FxHashSet::default();
+    let is_constant = loop {
+        if !visited.insert((module, export.clone())) {
+            break false;
+        }
+        let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
+            break false;
+        };
+        let expanded = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
+        match expanded.exports.get(&export) {
+            Some(EsmExport::LocalBinding(_, liveness)) => {
+                break *liveness == Liveness::Constant;
+            }
+            Some(EsmExport::ImportedBinding(reference, name, _)) => {
+                let ReferencedAsset::Some(reexported_module) =
+                    ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
+                else {
+                    break false;
+                };
+                module = reexported_module;
+                export = name.clone();
+            }
+            Some(EsmExport::ImportedNamespace(_) | EsmExport::Error) | None => break false,
+        }
+    };
+    if !is_constant {
+        return Ok(Vc::cell(false));
+    }
+
+    let export_usage = chunking_context
+        .module_export_usage(*ResolvedVc::upcast(imported_module))
+        .await?;
+    Ok(Vc::cell(!export_usage.is_circuit_breaker))
 }
 
 impl ReferencedAsset {
@@ -846,6 +913,7 @@ impl EsmAssetReference {
                                 namespace_ident,
                                 ctxt,
                                 export: _,
+                                can_value_bind: _,
                                 import_source,
                             }) => {
                                 let span = this
