@@ -114,6 +114,7 @@ export interface RestoreAction {
 export type AppHistoryState = {
   tree: FlightRouterState
   renderedSearch: string
+  historyId?: number
 }
 
 /**
@@ -249,6 +250,7 @@ export type AppRouterState = {
   previousNextUrl: string | null
 
   debugInfo: Array<unknown> | null
+  activeHistoryId?: number
 }
 
 export type ReadonlyReducerState = Readonly<AppRouterState>

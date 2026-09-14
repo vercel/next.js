@@ -32,13 +32,16 @@ export function restoreReducer(
   // In this case, we'll continue to use the existing tree so the router doesn't get into an invalid state.
   let treeToRestore: FlightRouterState | undefined
   let renderedSearch: string | undefined
+  let historyIdToRestore: number | undefined
   const historyState = action.historyState
   if (historyState) {
     treeToRestore = historyState.tree
     renderedSearch = historyState.renderedSearch
+    historyIdToRestore = historyState.historyId
   } else {
     treeToRestore = state.tree
     renderedSearch = state.renderedSearch
+    historyIdToRestore = state.activeHistoryId
   }
 
   const currentUrl = new URL(state.canonicalUrl, location.origin)
@@ -120,6 +123,7 @@ export function restoreReducer(
     renderedSearch,
     task.node,
     task.route,
-    restoredNextUrl
+    restoredNextUrl,
+    historyIdToRestore
   )
 }
