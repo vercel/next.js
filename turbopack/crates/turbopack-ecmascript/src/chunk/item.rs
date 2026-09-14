@@ -6,7 +6,8 @@ use bincode::{Decode, Encode};
 use smallvec::SmallVec;
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{
-    NonLocalValue, PrettyPrintError, ResolvedVc, Upcast, ValueToString, Vc, trace::TraceRawVcs,
+    NonLocalValue, PrettyPrintError, ReadRef, ResolvedVc, Upcast, ValueToString, Vc,
+    trace::TraceRawVcs,
 };
 use turbo_tasks_fs::{FileSystemPath, rope::Rope};
 use turbopack_core::{
@@ -14,7 +15,7 @@ use turbopack_core::{
         AsyncModuleInfo, ChunkItem, ChunkItemWithAsyncModuleInfo, ChunkType, ChunkingContext,
         ChunkingContextExt, ModuleId, SourceMapSourceType,
     },
-    code_builder::{Code, CodeBuilder, PersistedCode},
+    code_builder::{CodeBuilder, PersistedCode},
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity, StyledString, code_gen::CodeGenerationIssue},
     module::Module,
@@ -28,10 +29,7 @@ use turbopack_core::{
 
 use crate::{
     EcmascriptModuleContent,
-    chunk::{
-        chunk_type::EcmascriptChunkType, factory_group::STRICT_MODE_DIRECTIVE,
-        placeable::EcmascriptChunkPlaceable,
-    },
+    chunk::{chunk_type::EcmascriptChunkType, placeable::EcmascriptChunkPlaceable},
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     runtime_functions::TURBOPACK_ASYNC_MODULE,
     utils::StringifyJs,
@@ -127,7 +125,7 @@ impl EcmascriptChunkItemContent {
 }
 
 impl EcmascriptChunkItemContent {
-    async fn module_factory(&self, omit_use_strict: bool) -> Result<ResolvedVc<PersistedCode>> {
+    async fn module_factory(&self) -> Result<ResolvedVc<PersistedCode>> {
         let mut code = CodeBuilder::default();
         for additional_id in self.additional_ids.iter() {
             writeln!(code, "{}, ", StringifyJs(&additional_id))?;
@@ -149,8 +147,8 @@ impl EcmascriptChunkItemContent {
             code += "){\n";
         }
 
-        if self.options.strict && !omit_use_strict {
-            code += STRICT_MODE_DIRECTIVE;
+        if self.options.strict {
+            code += "\"use strict\";\n\n";
         } else {
             code += "\n";
         }
@@ -224,18 +222,6 @@ pub struct EcmascriptChunkItemWithAsyncInfo {
 }
 
 impl EcmascriptChunkItemWithAsyncInfo {
-    pub async fn is_strict(&self) -> Result<bool> {
-        Ok(self
-            .chunk_item
-            .into_trait_ref()
-            .await?
-            .content_with_async_module_info(self.async_info.map(|info| *info), false)
-            .await?
-            .await?
-            .options
-            .strict)
-    }
-
     pub fn from_chunk_item(
         chunk_item: &ChunkItemWithAsyncModuleInfo,
     ) -> Result<EcmascriptChunkItemWithAsyncInfo> {
@@ -271,16 +257,18 @@ pub trait EcmascriptChunkItem: ChunkItem + OutputAssetsReference {
     ) -> Result<Vc<EcmascriptChunkItemContent>>;
 }
 
-pub trait EcmascriptChunkItemExt {
-    /// Generates the module factory for this chunk item.
-    fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code>;
+#[turbo_tasks::value]
+pub struct EcmascriptChunkItemCode {
+    pub code: ResolvedVc<PersistedCode>,
+    pub strict: bool,
+}
 
-    /// Generates a module factory without its strict-mode directive. The caller must create the
-    /// factory in a strict context when the chunk item is strict.
-    fn code_without_use_strict(
+pub trait EcmascriptChunkItemExt {
+    /// Generates the module factory and returns whether it must run in strict mode.
+    fn code(
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<Code>;
+    ) -> Vc<EcmascriptChunkItemCode>;
 }
 
 impl<T> EcmascriptChunkItemExt for T
@@ -288,25 +276,11 @@ where
     T: Upcast<Box<dyn EcmascriptChunkItem>>,
 {
     /// Generates the module factory for this chunk item.
-    fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code> {
-        module_factory_with_code_generation_issue(
-            Vc::upcast_non_strict(self),
-            async_module_info,
-            false,
-        )
-        .to_code()
-    }
-
-    fn code_without_use_strict(
+    fn code(
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<Code> {
-        module_factory_with_code_generation_issue(
-            Vc::upcast_non_strict(self),
-            async_module_info,
-            true,
-        )
-        .to_code()
+    ) -> Vc<EcmascriptChunkItemCode> {
+        module_factory_with_code_generation_issue(Vc::upcast_non_strict(self), async_module_info)
     }
 }
 
@@ -314,23 +288,25 @@ where
 async fn module_factory_with_code_generation_issue(
     chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
     async_module_info: Option<Vc<AsyncModuleInfo>>,
-    omit_use_strict: bool,
-) -> Result<Vc<PersistedCode>> {
+) -> Result<Vc<EcmascriptChunkItemCode>> {
     async fn get_content(
         chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
-        omit_use_strict: bool,
-    ) -> Result<ResolvedVc<PersistedCode>> {
-        let chunk_item_ref = chunk_item.into_trait_ref().await?;
-        let content = chunk_item_ref
+    ) -> Result<ReadRef<EcmascriptChunkItemContent>> {
+        chunk_item
+            .into_trait_ref()
+            .await?
             .content_with_async_module_info(async_module_info, false)
             .await?
-            .await?;
-        content.module_factory(omit_use_strict).await
+            .await
     }
-    let content = get_content(chunk_item, async_module_info, omit_use_strict).await;
-    Ok(match content {
-        Ok(factory) => *factory,
+
+    let (code, strict) = match get_content(chunk_item, async_module_info).await {
+        Ok(content) => (content.module_factory().await, content.options.strict),
+        Err(error) => (Err(error), false),
+    };
+    let code = match code {
+        Ok(factory) => factory,
         Err(error) => {
             let id = chunk_item.asset_ident().to_string().await;
             let id = id.as_ref().map_or_else(|_| "unknown", |id| &**id);
@@ -355,9 +331,10 @@ async fn module_factory_with_code_generation_issue(
             code += "(() => {{\n\n";
             writeln!(code, "throw new Error({error});", error = js_error_message)?;
             code += "\n}})";
-            *code.build().cell_persisted()
+            code.build().cell_persisted()
         }
-    })
+    };
+    Ok(EcmascriptChunkItemCode { code, strict }.cell())
 }
 
 /// Generic chunk item that wraps any EcmascriptChunkPlaceable module.

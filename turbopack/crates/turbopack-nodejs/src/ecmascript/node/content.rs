@@ -11,7 +11,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     chunk::{
-        EcmascriptChunkContent, EcmascriptChunkContentEntries, sort_chunk_items_by_path,
+        EcmascriptChunkContent, EcmascriptChunkContentEntries, strict_chunk_wrapper,
         strict_factory_mode, write_module_factories,
     },
     hmr::{
@@ -69,14 +69,12 @@ impl EcmascriptNodeChunkContent {
             .supports_arrow_functions()
             .await?;
         let content = self.content.await?;
-        let mut chunk_items = content.chunk_item_code_module_ids_and_paths(false).await?;
+        let chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
         let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
-        if strict_factory_mode.omits_use_strict() {
-            chunk_items = content.chunk_item_code_module_ids_and_paths(true).await?;
-        }
-        sort_chunk_items_by_path(&mut chunk_items);
 
-        if let Some(prefix) = strict_factory_mode.chunk_prefix(supports_arrow_functions) {
+        let strict_chunk_wrapper =
+            strict_chunk_wrapper(strict_factory_mode, supports_arrow_functions);
+        if let Some((prefix, _)) = strict_chunk_wrapper {
             code += prefix;
         }
         write!(code, "module.exports = [")?;
@@ -87,7 +85,7 @@ impl EcmascriptNodeChunkContent {
             supports_arrow_functions,
         )?;
         write!(code, "\n];")?;
-        if let Some(suffix) = strict_factory_mode.chunk_suffix() {
+        if let Some((_, suffix)) = strict_chunk_wrapper {
             code += suffix;
         }
 
