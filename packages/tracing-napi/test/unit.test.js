@@ -80,10 +80,7 @@ for (const testName of passingCases) {
     const result = await nodeFileTrace([path.join(caseDirectory, 'input.js')], {
       base: fixtureRoot,
       processCwd: caseDirectory,
-      ts: true,
       log: false,
-      analysis: true,
-      mixedModules: true,
       ignore: (file) => file.endsWith('/actual.js'),
     })
 
