@@ -1085,12 +1085,13 @@ export function onDemandEntryHandler({
       htmlRequestId: string | null
     ) {
       let bufferedHmrServerError: Error | null = null
-      const runtimeErrorStateHandler = nextConfig.experimental
-        .exposeRuntimeErrorsToHMR
-        ? createRuntimeErrorStateHandler((message) =>
-            hotReloader.send({ ...message, htmlRequestId })
-          )
-        : undefined
+      const runtimeErrorStateHandler =
+        nextConfig.experimental.exposeRuntimeErrorsToHMR ||
+        Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
+          ? createRuntimeErrorStateHandler((message) =>
+              hotReloader.send({ ...message, htmlRequestId })
+            )
+          : undefined
 
       client.addEventListener('close', () => {
         bufferedHmrServerError = null

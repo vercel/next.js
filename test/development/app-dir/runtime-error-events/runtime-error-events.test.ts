@@ -570,10 +570,9 @@ describe('runtime-error-events', () => {
   })
 })
 
-describe.each([undefined, false])('runtime-error-events flag %s', (enabled) => {
+describe('runtime-error-events disabled by default', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    nextConfig: { experimental: { exposeRuntimeErrorsToHMR: enabled } },
   })
 
   it('preserves overlay deduplication and MCP output without reporting runtime events', async () => {
@@ -642,6 +641,25 @@ describe.each([undefined, false])('runtime-error-events flag %s', (enabled) => {
       } finally {
         lateObserver.close()
       }
+    } finally {
+      observer.close()
+    }
+  })
+})
+
+describe('runtime-error-events private env', () => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    env: { __NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR: 'enabled' },
+    nextConfig: { experimental: { exposeRuntimeErrorsToHMR: false } },
+  })
+
+  it('enables reporting when the experimental config is false', async () => {
+    const observer = await observe(next.url)
+    try {
+      const browser = await next.browser('/events')
+      await browser.elementByCss('#event').click()
+      await waitForError(observer, '/events', 'event failed', undefined)
     } finally {
       observer.close()
     }

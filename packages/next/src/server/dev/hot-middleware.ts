@@ -80,9 +80,11 @@ function getStatsForSyncEvent(
 export class WebpackHotMiddleware {
   private clientsWithoutHtmlRequestId = new Set<ws>()
   private clientsByHtmlRequestId: Map<string, ws> = new Map()
-  private runtimeErrorStates = this.config.experimental.exposeRuntimeErrorsToHMR
-    ? new Map<string, RuntimeErrorStateMessage>()
-    : null
+  private runtimeErrorStates =
+    this.config.experimental.exposeRuntimeErrorsToHMR ||
+    Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
+      ? new Map<string, RuntimeErrorStateMessage>()
+      : null
   private closed = false
   private clientLatestStats: { ts: number; stats: webpack.Stats } | null = null
   private middlewareLatestStats: { ts: number; stats: webpack.Stats } | null =

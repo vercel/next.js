@@ -864,9 +864,11 @@ export async function createHotReloaderTurbopack(
 
   const clientsWithoutHtmlRequestId = new Set<ws>()
   const clientsByHtmlRequestId = new Map<string, ws>()
-  const runtimeErrorStates = nextConfig.experimental.exposeRuntimeErrorsToHMR
-    ? new Map<string, RuntimeErrorStateMessage>()
-    : null
+  const runtimeErrorStates =
+    nextConfig.experimental.exposeRuntimeErrorsToHMR ||
+    Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
+      ? new Map<string, RuntimeErrorStateMessage>()
+      : null
   const cacheStatusesByHtmlRequestId = new Map<string, ServerCacheStatus>()
   const clientStates = new WeakMap<ws, ClientState>()
 
@@ -1550,12 +1552,13 @@ export async function createHotReloaderTurbopack(
           }
         }
 
-        const runtimeErrorStateHandler = nextConfig.experimental
-          .exposeRuntimeErrorsToHMR
-          ? createRuntimeErrorStateHandler((message) =>
-              hotReloader.send({ ...message, htmlRequestId })
-            )
-          : undefined
+        const runtimeErrorStateHandler =
+          nextConfig.experimental.exposeRuntimeErrorsToHMR ||
+          Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
+            ? createRuntimeErrorStateHandler((message) =>
+                hotReloader.send({ ...message, htmlRequestId })
+              )
+            : undefined
 
         client.on('close', () => {
           runtimeErrorStateHandler?.dispose()
