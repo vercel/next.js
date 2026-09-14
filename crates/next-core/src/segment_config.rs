@@ -102,6 +102,21 @@ pub enum NextRevalidate {
     },
 }
 
+#[derive(PartialEq, Eq, Clone, Debug, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub enum NextSegmentRegion {
+    Single(RcStr),
+    Multiple(Vec<RcStr>),
+}
+
+impl NextSegmentRegion {
+    pub fn to_vec(&self) -> Vec<RcStr> {
+        match self {
+            Self::Single(region) => vec![region.clone()],
+            Self::Multiple(regions) => regions.clone(),
+        }
+    }
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Default, Clone)]
 pub struct NextSegmentConfig {
@@ -111,7 +126,7 @@ pub struct NextSegmentConfig {
     pub max_duration: Option<u32>,
     pub fetch_cache: Option<NextSegmentFetchCache>,
     pub runtime: Option<NextRuntime>,
-    pub preferred_region: Option<Vec<RcStr>>,
+    pub preferred_region: Option<NextSegmentRegion>,
     pub middleware_matcher: Option<Vec<MiddlewareMatcherKind>>,
     pub unstable_allow_dynamic: Option<Vec<RcStr>>,
 
@@ -799,7 +814,7 @@ async fn parse_config_value(
                         .await?;
                     }
                     "regions" => {
-                        config.preferred_region = parse_static_string_or_array_from_js_value(
+                        config.preferred_region = parse_preferred_region_from_js_value(
                             source, span, "config", "regions", value,
                         )
                         .await?;
@@ -1053,17 +1068,14 @@ async fn parse_config_value(
                 return Ok(());
             }
 
-            if let Some(preferred_region) = parse_static_string_or_array_from_js_value(
+            config.preferred_region = parse_preferred_region_from_js_value(
                 source,
                 span,
                 "preferredRegion",
                 "preferredRegion",
                 &value,
             )
-            .await?
-            {
-                config.preferred_region = Some(preferred_region);
-            }
+            .await?;
         }
         "generateImageMetadata" => {
             config.generate_image_metadata = true;
@@ -1084,6 +1096,27 @@ async fn parse_config_value(
     }
 
     Ok(())
+}
+
+async fn parse_preferred_region_from_js_value(
+    source: ResolvedVc<Box<dyn Source>>,
+    span: Span,
+    key: &str,
+    sub_key: &str,
+    value: &JsValue<'_>,
+) -> Result<Option<NextSegmentRegion>> {
+    let is_array = matches!(value, JsValue::Array { .. });
+    Ok(
+        parse_static_string_or_array_from_js_value(source, span, key, sub_key, value)
+            .await?
+            .and_then(|regions| {
+                if is_array {
+                    Some(NextSegmentRegion::Multiple(regions))
+                } else {
+                    regions.into_iter().next().map(NextSegmentRegion::Single)
+                }
+            }),
+    )
 }
 
 async fn parse_static_string_or_array_from_js_value(
