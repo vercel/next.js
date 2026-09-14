@@ -18,19 +18,11 @@ use crate::{
 const ROOT: u32 = 0;
 
 /// The modifiers to run, indexed for a single downward walk of the AST.
-///
-/// The trie records every interned path, most of which no modifier is attached to, so this
-/// precomputes the part the walk actually needs: for each node on the way to a modifier,
-/// the children worth descending into. Matching a node is then one lookup against the
-/// current node's children.
-///
-/// Nodes are renumbered densely on the way in, so the structure is a plain indexed tree and
-/// [`AstPathId`]s do not outlive construction. Modifiers sit in a side table rather than in
-/// the nodes: only the addressed nodes carry one, while every node on the way to them is an
-/// interior node that would otherwise pay for an empty list.
 pub struct Visitors<'a> {
     /// Indexed by [`NodeId`]
     /// Maps kinds to indices in children and modifiers
+    /// Traversal starts from `[ROOT]`
+    /// This structure is a little memory intensive but the visitors are short lived.
     children: Vec<AutoMap<AstParentKind, u32, FxBuildHasher, 1>>,
     /// Modifiers to run at the nodes that have any. Rarely more than one per node, and only
     /// as many entries as there are code generation visitors.
