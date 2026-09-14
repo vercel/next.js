@@ -159,27 +159,16 @@ describe('latest nudge release selection', () => {
 })
 
 describe('latest upgrade nudge', () => {
-  const originalNextVersion = process.env.__NEXT_VERSION
-
   beforeEach(() => {
     jest.resetAllMocks()
-    process.env.__NEXT_VERSION = '15.0.0'
     jest.mocked(getAgentName).mockResolvedValue('codex')
     jest.mocked(getLatestUpgradeVersion).mockResolvedValue(null)
-  })
-
-  afterEach(() => {
-    if (originalNextVersion === undefined) {
-      delete process.env.__NEXT_VERSION
-    } else {
-      process.env.__NEXT_VERSION = originalNextVersion
-    }
   })
 
   it('shows an informational reminder with the app policy and upgrade command', async () => {
     jest.mocked(getLatestUpgradeVersion).mockResolvedValue('16.0.0')
 
-    await nudgeIfLatestUpgradeNeeded('/workspace/my app')
+    await nudgeIfLatestUpgradeNeeded('/workspace/my app', '15.0.0')
 
     expect(getLatestUpgradeVersion).toHaveBeenCalledWith('15.0.0')
     expect(warn).not.toHaveBeenCalled()
@@ -198,7 +187,7 @@ describe('latest upgrade nudge', () => {
   })
 
   it('stays silent when there is no newer stable release', async () => {
-    await nudgeIfLatestUpgradeNeeded('/app')
+    await nudgeIfLatestUpgradeNeeded('/app', '15.0.0')
 
     expect(getLatestUpgradeVersion).toHaveBeenCalledWith('15.0.0')
     expect(info).not.toHaveBeenCalled()
@@ -208,7 +197,7 @@ describe('latest upgrade nudge', () => {
   it('does not look up releases or log outside an agent', async () => {
     jest.mocked(getAgentName).mockResolvedValue(null)
 
-    await nudgeIfLatestUpgradeNeeded('/app')
+    await nudgeIfLatestUpgradeNeeded('/app', '15.0.0')
 
     expect(getLatestUpgradeVersion).not.toHaveBeenCalled()
     expect(info).not.toHaveBeenCalled()
@@ -216,11 +205,13 @@ describe('latest upgrade nudge', () => {
   })
 
   it('stays silent without rejecting when release lookup fails', async () => {
-    jest.mocked(getLatestUpgradeVersion).mockRejectedValue(
-      new Error('Registry unavailable')
-    )
+    jest
+      .mocked(getLatestUpgradeVersion)
+      .mockRejectedValue(new Error('Registry unavailable'))
 
-    await expect(nudgeIfLatestUpgradeNeeded('/app')).resolves.toBeUndefined()
+    await expect(
+      nudgeIfLatestUpgradeNeeded('/app', '15.0.0')
+    ).resolves.toBeUndefined()
 
     expect(info).not.toHaveBeenCalled()
     expect(warn).not.toHaveBeenCalled()

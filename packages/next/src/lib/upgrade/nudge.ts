@@ -3,7 +3,8 @@ import { getAgentName } from '../../telemetry/agent-name'
 import { bold } from '../picocolors'
 
 export async function nudgeIfLatestUpgradeNeeded(
-  directory: string
+  directory: string,
+  installedVersion: string = process.env.__NEXT_VERSION || 'unknown'
 ): Promise<void> {
   try {
     if (!(await getAgentName())) {
@@ -12,7 +13,6 @@ export async function nudgeIfLatestUpgradeNeeded(
 
     const { getLatestUpgradeVersion } =
       require('./prepare-upgrade') as typeof import('./prepare-upgrade')
-    const installedVersion = process.env.__NEXT_VERSION || 'unknown'
     const latestVersion = await getLatestUpgradeVersion(installedVersion)
 
     if (!latestVersion) {
