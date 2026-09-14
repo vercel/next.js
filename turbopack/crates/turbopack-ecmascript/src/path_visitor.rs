@@ -1,4 +1,5 @@
-use rustc_hash::FxHashMap;
+use auto_hash_map::AutoMap;
+use rustc_hash::{FxHashMap, FxHasher};
 use smallvec::SmallVec;
 use swc_core::{
     common::pass::AstKindPath,
@@ -20,7 +21,7 @@ struct Target<'a> {
     modifiers: SmallVec<[&'a dyn AstModifier; 1]>,
     /// Children that lead to a modifier, keyed by the kind that reaches them. A kind absent
     /// here has nothing below it, so its subtree is skipped.
-    children: FxHashMap<AstParentKind, AstPathId>,
+    children: AutoMap<AstParentKind, AstPathId, std::hash::BuildHasherDefault<FxHasher>, 1>,
 }
 
 /// The modifiers to run, indexed for a single downward walk of the AST.
