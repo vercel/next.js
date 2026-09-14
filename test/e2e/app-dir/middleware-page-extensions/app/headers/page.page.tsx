@@ -1,5 +1,7 @@
 import { headers } from 'next/headers'
 
+export const instant = false
+
 export default async function HeadersPage() {
   const hdrs = await headers()
   return (
