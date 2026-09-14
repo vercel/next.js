@@ -1,6 +1,50 @@
 import type { MetadataRoute } from '../../../../lib/metadata/types/metadata-interface'
 import { resolveArray } from '../../../../lib/metadata/generate/utils'
 
+type RobotsContentSignal = NonNullable<
+  MetadataRoute.Robots['rules'] extends infer Rules
+    ? Rules extends Array<infer Rule>
+      ? Rule extends { contentSignal?: infer ContentSignal }
+        ? ContentSignal
+        : never
+      : Rules extends { contentSignal?: infer ContentSignal }
+        ? ContentSignal
+        : never
+    : never
+>
+
+function resolveContentSignal(
+  contentSignal: RobotsContentSignal | undefined
+): string {
+  if (!contentSignal) return ''
+
+  let content = ''
+  const signals = Array.isArray(contentSignal) ? contentSignal : [contentSignal]
+
+  for (const signal of signals) {
+    const values = [
+      typeof signal.aiTrain === 'boolean'
+        ? `ai-train=${signal.aiTrain ? 'yes' : 'no'}`
+        : null,
+      typeof signal.search === 'boolean'
+        ? `search=${signal.search ? 'yes' : 'no'}`
+        : null,
+      typeof signal.aiInput === 'boolean'
+        ? `ai-input=${signal.aiInput ? 'yes' : 'no'}`
+        : null,
+    ].filter(Boolean)
+
+    if (values.length === 0) continue
+
+    const paths = signal.path ? resolveArray(signal.path) : [null]
+    for (const path of paths) {
+      content += `Content-Signal: ${path ? `${path} ` : ''}${values.join(', ')}\n`
+    }
+  }
+
+  return content
+}
+
 // convert robots data to txt string
 export function resolveRobots(data: MetadataRoute.Robots): string {
   let content = ''
@@ -25,6 +69,7 @@ export function resolveRobots(data: MetadataRoute.Robots): string {
     if (rule.crawlDelay) {
       content += `Crawl-delay: ${rule.crawlDelay}\n`
     }
+    content += resolveContentSignal(rule.contentSignal)
     if (rule.other) {
       for (const key of Object.keys(rule.other)) {
         const value = rule.other[key]
