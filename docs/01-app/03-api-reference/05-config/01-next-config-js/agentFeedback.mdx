@@ -32,7 +32,9 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-The instructions ask the agent to prepare feedback only for significant, generalizable Next.js friction. The agent opens a review form with a concise, de-identified report containing the setup, reproduction steps, observed behavior, and expected behavior. You can edit the report, remove individual details, and choose whether to submit it. The agent never submits feedback on your behalf.
+The instructions ask the agent to prepare at most one report per task when Next.js-specific friction causes unexpected framework behavior, a documentation mismatch, a misleading error, repeated failed approaches, or a non-obvious workaround. The friction does not need to block the task, but it should require a meaningful detour or be likely to recur.
+
+At a natural stopping point, the agent opens a review form with a concise, de-identified report containing the setup, reproduction steps, observed behavior, and expected behavior. You can edit the report, remove individual details, and choose whether to submit it. The agent never submits feedback on your behalf.
 
 ## Preparing a report
 

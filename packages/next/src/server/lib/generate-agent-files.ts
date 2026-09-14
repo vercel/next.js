@@ -39,11 +39,13 @@ ${AGENT_RULES_END_MARKER}`
 function buildAgentFeedbackBlock(): string {
   return `${AGENT_FEEDBACK_START_MARKER}
 
-# Report significant Next.js feedback
+# Report Next.js feedback
 
-Only prepare a report for major, generalizable Next.js friction that materially blocks progress, requires substantial investigation, or needs a non-obvious workaround. Do not report routine debugging, minor confusion, agent-caused problems, or anything resolved quickly. When in doubt, do not report.
+Prepare at most one report per task when Next.js-specific friction causes unexpected framework behavior, a documentation mismatch, a misleading error, repeated failed approaches, or a non-obvious workaround. It does not need to block the task, but it should require a meaningful detour or be likely to recur.
 
-When an issue meets this threshold, read and follow \`node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/agentFeedback.md\`.
+Do not report routine first-pass debugging, vague task scope, problems caused by your own unverified changes, or issues resolved immediately by following existing guidance. If several issues qualify, choose the most actionable one.
+
+At a natural stopping point, read and follow \`node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/agentFeedback.md\`.
 
 ${AGENT_FEEDBACK_END_MARKER}`
 }
