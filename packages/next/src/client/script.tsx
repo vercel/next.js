@@ -26,7 +26,10 @@ export interface ScriptProps extends ScriptHTMLAttributes<HTMLScriptElement> {
  */
 export type Props = ScriptProps
 
-const insertStylesheets = (stylesheets: string[]) => {
+const insertStylesheets = (
+  stylesheets: string[],
+  precedence: 'reset' | 'low' | 'medium' | 'high' = 'medium'
+) => {
   // Case 1: Styles for afterInteractive/lazyOnload with appDir injected via handleClientScriptLoad
   //
   // Using ReactDOM.preinit to feature detect appDir and inject styles
@@ -35,7 +38,7 @@ const insertStylesheets = (stylesheets: string[]) => {
   // ReactDOM.preinit handles dedup and ensures the styles are loaded only once
   if (ReactDOM.preinit) {
     stylesheets.forEach((stylesheet: string) => {
-      ReactDOM.preinit(stylesheet, { as: 'style' })
+      ReactDOM.preinit(stylesheet, { as: 'style', precedence: precedence })
     })
 
     return
@@ -308,7 +311,7 @@ function Script(props: ScriptProps): JSX.Element | null {
     // Case 4: Styles for afterInteractive/lazyOnload with pages dir - handled in insertStylesheets function
     if (stylesheets) {
       stylesheets.forEach((styleSrc) => {
-        ReactDOM.preinit(styleSrc, { as: 'style' })
+        ReactDOM.preinit(styleSrc, { as: 'style', precedence: 'medium' })
       })
     }
 
