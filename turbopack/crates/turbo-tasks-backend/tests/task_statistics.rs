@@ -25,19 +25,19 @@ async fn test_simple_task() -> Result<()> {
             for i in 0..5 {
                 double(i).await.unwrap();
             }
-            assert_eq!(
-                stats_json(),
-                json!({
-                    "task_statistics::double": {
-                        "cache_miss": 10,
-                        "cache_hit": 15,
-                    },
-                })
-            );
             Ok(Vc::cell(()))
         }
 
         operation().read_strongly_consistent().await?;
+        assert_eq!(
+            stats_json(),
+            json!({
+                "task_statistics::double": {
+                    "cache_miss": 10,
+                    "cache_hit": 15,
+                },
+            })
+        );
         Ok(())
     })
     .await
@@ -53,19 +53,19 @@ async fn test_await_same_vc_multiple_times() -> Result<()> {
             // this is awaited multiple times, but only resolved once
             tokio::try_join!(dvc.into_future(), dvc.into_future()).unwrap();
             dvc.await.unwrap();
-            assert_eq!(
-                stats_json(),
-                json!({
-                    "task_statistics::double": {
-                        "cache_miss": 1,
-                        "cache_hit": 0,
-                    },
-                })
-            );
             Ok(Vc::cell(()))
         }
 
         operation().read_strongly_consistent().await?;
+        assert_eq!(
+            stats_json(),
+            json!({
+                "task_statistics::double": {
+                    "cache_miss": 1,
+                    "cache_hit": 0,
+                },
+            })
+        );
         Ok(())
     })
     .await
@@ -87,23 +87,23 @@ async fn test_vc_receiving_task() -> Result<()> {
                 let dvc = double(i);
                 double_vc(dvc).await.unwrap();
             }
-            assert_eq!(
-                stats_json(),
-                json!({
-                    "task_statistics::double": {
-                        "cache_miss": 10,
-                        "cache_hit": 5,
-                    },
-                    "task_statistics::double_vc": {
-                        "cache_miss": 10,
-                        "cache_hit": 15,
-                    },
-                })
-            );
             Ok(Vc::cell(()))
         }
 
         operation().read_strongly_consistent().await?;
+        assert_eq!(
+            stats_json(),
+            json!({
+                "task_statistics::double": {
+                    "cache_miss": 10,
+                    "cache_hit": 5,
+                },
+                "task_statistics::double_vc": {
+                    "cache_miss": 10,
+                    "cache_hit": 15,
+                },
+            })
+        );
         Ok(())
     })
     .await
@@ -127,27 +127,27 @@ async fn test_trait_methods() -> Result<()> {
                 wvc.double().await.unwrap();
                 wvc.double_vc().await.unwrap();
             }
-            assert_eq!(
-                stats_json(),
-                json!({
-                    "task_statistics::wrap": {
-                        "cache_miss": 10,
-                        "cache_hit": 5,
-                    },
-                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
-                        "cache_miss": 10,
-                        "cache_hit": 15,
-                    },
-                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
-                        "cache_miss": 10,
-                        "cache_hit": 15,
-                    },
-                })
-            );
             Ok(Vc::cell(()))
         }
 
         operation().read_strongly_consistent().await?;
+        assert_eq!(
+            stats_json(),
+            json!({
+                "task_statistics::wrap": {
+                    "cache_miss": 10,
+                    "cache_hit": 5,
+                },
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
+                    "cache_miss": 10,
+                    "cache_hit": 15,
+                },
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
+                    "cache_miss": 10,
+                    "cache_hit": 15,
+                },
+            })
+        );
         Ok(())
     })
     .await
@@ -179,27 +179,27 @@ async fn test_dyn_trait_methods() -> Result<()> {
                 let _ = wvc.double().await.unwrap();
                 let _ = wvc.double_vc().await.unwrap();
             }
-            assert_eq!(
-                stats_json(),
-                json!({
-                    "task_statistics::wrap": {
-                        "cache_miss": 10,
-                        "cache_hit": 7,
-                    },
-                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
-                        "cache_miss": 10,
-                        "cache_hit": 17,
-                    },
-                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
-                        "cache_miss": 10,
-                        "cache_hit": 17,
-                    },
-                })
-            );
             Ok(Vc::cell(()))
         }
 
         operation().read_strongly_consistent().await?;
+        assert_eq!(
+            stats_json(),
+            json!({
+                "task_statistics::wrap": {
+                    "cache_miss": 10,
+                    "cache_hit": 7,
+                },
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
+                    "cache_miss": 10,
+                    "cache_hit": 17,
+                },
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc": {
+                    "cache_miss": 10,
+                    "cache_hit": 17,
+                },
+            })
+        );
         Ok(())
     })
     .await
@@ -217,35 +217,35 @@ async fn test_no_execution() -> Result<()> {
                 .double_vc()
                 .as_side_effect()
                 .await?;
-            assert_eq!(
-                stats_json(),
-                json!({
-                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
-                        "cache_hit": 0,
-                        "cache_miss": 1
-                    },
-                    "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc":  {
-                        "cache_hit": 0,
-                        "cache_miss": 1
-                    },
-                    "task_statistics::double":  {
-                        "cache_hit": 0,
-                        "cache_miss": 1
-                    },
-                    "task_statistics::double_vc":  {
-                        "cache_hit": 0,
-                        "cache_miss": 1
-                    },
-                    "task_statistics::wrap_vc": {
-                        "cache_hit": 0,
-                        "cache_miss": 1
-                    },
-                })
-            );
             Ok(Vc::cell(()))
         }
 
         operation().read_strongly_consistent().await?;
+        assert_eq!(
+            stats_json(),
+            json!({
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "<task_statistics::WrappedU64 as dyn task_statistics::Doublable>::double_vc":  {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::double":  {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::double_vc":  {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+                "task_statistics::wrap_vc": {
+                    "cache_hit": 0,
+                    "cache_miss": 1
+                },
+            })
+        );
         Ok(())
     })
     .await
@@ -256,8 +256,12 @@ async fn test_inline_definitions() -> Result<()> {
     run_without_cache_check(&REGISTRATION, async move {
         #[turbo_tasks::function(operation, root)]
         async fn operation() -> Result<Vc<()>> {
-        enable_stats();
-        inline_definitions().await?;
+            enable_stats();
+            inline_definitions().await?;
+            Ok(Vc::cell(()))
+        }
+
+        operation().read_strongly_consistent().await?;
         assert_eq!(
             stats_json(),
             json!({
@@ -283,10 +287,6 @@ async fn test_inline_definitions() -> Result<()> {
                 }
             }),
         );
-            Ok(Vc::cell(()))
-        }
-
-        operation().read_strongly_consistent().await?;
         Ok(())
     })
     .await
