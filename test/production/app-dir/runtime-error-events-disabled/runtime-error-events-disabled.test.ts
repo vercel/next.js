@@ -5,7 +5,7 @@ describe('runtime-error-events-disabled', () => {
     files: __dirname,
   })
 
-  it('does not expose the runtime-error transport in production', async () => {
+  it('does not open an HMR socket in production even when reporting is enabled', async () => {
     const sockets: string[] = []
     const browser = await next.browser('/', {
       beforePageLoad(page) {

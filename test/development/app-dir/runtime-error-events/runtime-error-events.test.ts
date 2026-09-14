@@ -56,6 +56,7 @@ async function waitForError(
 describe('runtime-error-events', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    nextConfig: { experimental: { exposeRuntimeErrorsToHMR: true } },
   })
 
   it('pushes an initial render failure and resends it after reconnecting', async () => {
@@ -563,6 +564,84 @@ describe('runtime-error-events', () => {
       expect(
         state.errors.filter((error) => error.message === 'promoted error')
       ).toHaveLength(1)
+    } finally {
+      observer.close()
+    }
+  })
+})
+
+describe.each([undefined, false])('runtime-error-events flag %s', (enabled) => {
+  const { next } = nextTestSetup({
+    files: __dirname,
+    nextConfig: { experimental: { exposeRuntimeErrorsToHMR: enabled } },
+  })
+
+  it('preserves overlay deduplication and MCP output without reporting runtime events', async () => {
+    const observer = await observe(next.url)
+    try {
+      const browser = await next.browser('/reused')
+      await browser.elementByCss('#log').click()
+      await browser.elementByCss('#throw').click()
+      expect(await browser.elementByCss('#fallback').text()).toBe('Caught')
+
+      observer.socket.send(
+        JSON.stringify({
+          event: 'runtimeErrors',
+          pathname: '/injected',
+          errorState: {
+            routerType: 'app',
+            errors: [
+              {
+                id: 1,
+                type: 'runtime',
+                fatal: true,
+                error: {
+                  name: 'Error',
+                  message: 'must not publish',
+                  source: null,
+                },
+                frames: [],
+              },
+            ],
+          },
+        })
+      )
+      await new Promise<void>((resolve) => {
+        observer.socket.once('pong', () => resolve())
+        observer.socket.ping()
+      })
+
+      await retry(async () => {
+        const response = await fetch(`${next.url}/_next/mcp`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json, text/event-stream',
+          },
+          body: JSON.stringify({
+            jsonrpc: '2.0',
+            id: 'flag-off',
+            method: 'tools/call',
+            params: { name: 'get_errors', arguments: {} },
+          }),
+        })
+        const match = (await response.text()).match(/data: ({.*})/s)
+        const errors = JSON.parse(JSON.parse(match![1]).result.content[0].text)
+        const session = errors.sessionErrors.find(
+          (entry: { url: string }) => entry.url === '/reused'
+        )
+        expect(session.runtimeErrors).toHaveLength(1)
+        expect(session.runtimeErrors[0].message).toBe('reused error')
+        expect(session.runtimeErrors[0]).not.toHaveProperty('fatal')
+        expect(session.runtimeErrors[0]).not.toHaveProperty('boundary')
+      })
+      expect(observer.messages).toEqual([])
+      const lateObserver = await observe(next.url)
+      try {
+        expect(lateObserver.messages).toEqual([])
+      } finally {
+        lateObserver.close()
+      }
     } finally {
       observer.close()
     }

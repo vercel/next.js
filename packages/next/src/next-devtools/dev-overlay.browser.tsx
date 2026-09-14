@@ -321,6 +321,7 @@ export const dispatcher: Dispatcher = {
 
 function DevOverlayRoot({
   enableCacheIndicator,
+  enableRuntimeErrorReporting,
   getOwnerStack,
   getSquashedHydrationErrorDetails,
   isRecoverableError,
@@ -328,6 +329,7 @@ function DevOverlayRoot({
   shadowRoot,
 }: {
   enableCacheIndicator: boolean
+  enableRuntimeErrorReporting: boolean
   getOwnerStack: (error: Error) => string | null | undefined
   getSquashedHydrationErrorDetails: (error: Error) => HydrationErrorState | null
   isRecoverableError: (error: Error) => boolean
@@ -338,7 +340,8 @@ function DevOverlayRoot({
     routerType,
     getOwnerStack,
     isRecoverableError,
-    enableCacheIndicator
+    enableCacheIndicator,
+    enableRuntimeErrorReporting
   )
 
   useEffect(() => {
@@ -373,8 +376,9 @@ function DevOverlayRoot({
     }
   }, [])
 
-  const runtimeErrorPublisher =
-    routerType === 'app' ? <RuntimeErrorStatePublisher state={state} /> : null
+  const runtimeErrorPublisher = enableRuntimeErrorReporting ? (
+    <RuntimeErrorStatePublisher state={state} />
+  ) : null
 
   if (process.env.__NEXT_DISABLE_DEV_OVERLAY_UX) {
     return runtimeErrorPublisher
@@ -438,7 +442,8 @@ function getSquashedHydrationErrorDetailsApp() {
 export function renderAppDevOverlay(
   getOwnerStack: (error: Error) => string | null | undefined,
   isRecoverableError: (error: Error) => boolean,
-  enableCacheIndicator: boolean
+  enableCacheIndicator: boolean,
+  enableRuntimeErrorReporting: boolean
 ): void {
   if (isPagesMounted) {
     // Switching between App and Pages Router is always a hard navigation
@@ -484,6 +489,7 @@ export function renderAppDevOverlay(
       root.render(
         <DevOverlayRoot
           enableCacheIndicator={enableCacheIndicator}
+          enableRuntimeErrorReporting={enableRuntimeErrorReporting}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetailsApp}
           isRecoverableError={isRecoverableError}
@@ -554,6 +560,7 @@ export function renderPagesDevOverlay(
         <DevOverlayRoot
           // Pages Router does not support Cache Components
           enableCacheIndicator={false}
+          enableRuntimeErrorReporting={false}
           getOwnerStack={getOwnerStack}
           getSquashedHydrationErrorDetails={getSquashedHydrationErrorDetails}
           isRecoverableError={isRecoverableError}
