@@ -32,7 +32,6 @@ declare const SUPPORT_COMPONENT_CHUNKS: boolean
 
 interface TurbopackBrowserBaseContext<M> extends TurbopackBaseContext<M> {
   R: ResolvePathFromModule
-  o: (url: string) => Promise<void>
 }
 
 const browserContextPrototype =
@@ -84,7 +83,11 @@ interface RuntimeBackend {
   /**
    * Returns the same Promise for the same chunk URL.
    */
-  loadChunkCached: (sourceType: SourceType, chunkUrl: ChunkUrl) => Promise<void>
+  loadChunkCached: (
+    sourceType: SourceType,
+    chunkUrl: ChunkUrl,
+    resolveOnLoad?: boolean
+  ) => Promise<void>
 }
 
 interface DevRuntimeBackend {
@@ -279,41 +282,24 @@ const instrumentedBackendLoadChunks = new WeakMap<
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrl(
   this: TurbopackBrowserBaseContext<Module>,
-  chunkEntry: ChunkUrlOrMerged
+  chunkEntry: ChunkUrlOrMerged,
+  resolveOnLoad = false
 ) {
+  if (resolveOnLoad) {
+    if (typeof chunkEntry !== 'string') {
+      return Promise.reject(
+        new Error('External scripts cannot use merged chunk metadata')
+      )
+    }
+    return BACKEND.loadChunkCached(
+      SourceType.Parent,
+      chunkEntry as ChunkUrl,
+      true
+    )
+  }
   return loadChunkByUrlInternal(SourceType.Parent, this.m.id, chunkEntry)
 }
 browserContextPrototype.L = loadChunkByUrl
-
-const externalScriptCache = new Map<string, Promise<void>>()
-function loadScriptByUrl(url: string): Promise<void> {
-  let promise = externalScriptCache.get(url)
-  if (promise !== undefined) return promise
-
-  promise = new Promise<void>((resolve, reject) => {
-    if (typeof document === 'undefined') {
-      reject(new Error(`Cannot load external script ${url} without a document`))
-      return
-    }
-    const script = document.createElement('script')
-    if (CROSS_ORIGIN != null) script.crossOrigin = CROSS_ORIGIN
-    script.src = url
-    script.onload = () => resolve()
-    script.onerror = () => {
-      script.remove()
-      reject(new Error(`Failed to load external script ${url}`))
-    }
-    document.head.appendChild(script)
-  })
-  externalScriptCache.set(url, promise)
-  void promise.catch(() => {
-    if (externalScriptCache.get(url) === promise) {
-      externalScriptCache.delete(url)
-    }
-  })
-  return promise
-}
-browserContextPrototype.o = loadScriptByUrl
 
 // Do not make this async. React relies on referential equality of the returned Promise.
 function loadChunkByUrlInternal(

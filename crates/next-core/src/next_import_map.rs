@@ -12,7 +12,7 @@ use turbo_tasks_fs::{
     glob::{Glob, GlobOptions},
     to_sys_path,
 };
-use turbopack::module_federation::{ModuleFederationConfig, apply_module_federation_import_map};
+use turbopack::module_federation::apply_module_federation_import_map;
 use turbopack_core::{
     asset::AssetContent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, StyledString},
@@ -58,11 +58,8 @@ async fn insert_module_federation_aliases(
     project_path: &FileSystemPath,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    if let Some(config) = &*next_config.turbopack_module_federation_json().await? {
-        let config = ModuleFederationConfig::from_json(config)
-            .context("Invalid experimental.turbopackModuleFederation configuration")?;
-        apply_module_federation_import_map(import_map, project_path.clone(), &config);
-    }
+    let config = next_config.turbopack_module_federation().await?;
+    apply_module_federation_import_map(import_map, project_path.clone(), &config);
     Ok(())
 }
 
