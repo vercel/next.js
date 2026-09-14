@@ -233,6 +233,14 @@ impl ExportUsage {
     pub fn named(name: RcStr) -> Vc<Self> {
         Self::Named(name).cell()
     }
+
+    #[turbo_tasks::function]
+    pub fn passthrough(namespace_object_may_escape: bool) -> Vc<Self> {
+        Self::Passthrough {
+            namespace_object_may_escape,
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value(shared)]
