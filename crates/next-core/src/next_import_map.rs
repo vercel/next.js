@@ -59,7 +59,7 @@ async fn insert_module_federation_aliases(
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
     let config = next_config.turbopack_module_federation().await?;
-    apply_module_federation_import_map(import_map, project_path.clone(), &config);
+    apply_module_federation_import_map(import_map, project_path.clone(), &config).await?;
     Ok(())
 }
 
