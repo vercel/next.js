@@ -102,8 +102,14 @@ export async function spawnNextUpgrade(
         const { default: loadConfig } = await import('../server/config')
         const { PHASE_INFO } = await import('../shared/lib/constants')
         const config = await loadConfig(PHASE_INFO, baseDir)
-        targetRequest =
-          config.experimental.agenticAutoUpgrade ?? options.revision ?? 'latest'
+
+        if (!config.experimental.agenticAutoUpgrade) {
+          throw new Error(
+            'Set experimental.agenticAutoUpgrade in next.config or provide a target, for example --agentic=security.'
+          )
+        }
+
+        targetRequest = config.experimental.agenticAutoUpgrade
       }
 
       // Resolve the requested target before preparing an agent session.

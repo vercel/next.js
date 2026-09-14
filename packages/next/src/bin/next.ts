@@ -587,7 +587,7 @@ program
   .option('--verbose', 'Verbose output', false)
   .option(
     '--experimental-agentic [target]',
-    'Upgrade with an agent to security, a version or an npm tag. Defaults to the app policy or release channel.'
+    'Upgrade with an agent to security, a version or an npm tag. Requires a target or an app policy.'
   )
   .option('--agentic [target]', 'Alias for --experimental-agentic.')
   .option(

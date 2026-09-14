@@ -238,8 +238,8 @@ next upgrade --experimental-agentic-dry-run=16.0.0
 The positional directory selects the app in both modes, defaulting to the current
 directory. Pass `--agentic=<target>` to select `security`, an exact version or an
 npm tag. Bare `--agentic` reads `experimental.agenticAutoUpgrade` from the app's
-configuration, falling back to the CLI's release-channel default when no policy
-is configured. `--experimental-agentic-dry-run` accepts the same optional target.
+configuration. Without a configured policy, provide an explicit target to proceed.
+`--experimental-agentic-dry-run` accepts the same optional target.
 Use only one agentic option; `--revision` is reserved for traditional upgrades.
 
 Explicit agentic targets do not require `experimental.agenticAutoUpgrade`.
