@@ -23,8 +23,8 @@ use turbo_tasks::{
 use turbopack_core::issue::{IssueFilter, PlainIssue};
 
 use crate::next_api::utils::{
-    DetachedVc, NapiIssue, RootTask, TurbopackResult, strongly_consistent_catch_collectables,
-    subscribe,
+    DetachedVc, NapiIssue, SubscriptionTask, TurbopackResult,
+    strongly_consistent_catch_collectables, subscribe,
 };
 
 #[napi(object)]
@@ -191,11 +191,9 @@ pub fn endpoint_server_changed_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
     issues: bool,
-    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult) => void")] func: FunctionRef<
-        TurbopackResult<()>,
-        (),
-    >,
-) -> napi::Result<External<RootTask>> {
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<undefined>) => void")]
+    func: FunctionRef<TurbopackResult<()>, ()>,
+) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint = ****endpoint;
     subscribe(
@@ -278,11 +276,9 @@ async fn subscribe_issues_and_diags_operation(
 pub fn endpoint_client_changed_subscribe(
     env: Env,
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: &External<ExternalEndpoint>,
-    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult) => void")] func: FunctionRef<
-        TurbopackResult<()>,
-        (),
-    >,
-) -> napi::Result<External<RootTask>> {
+    #[napi(ts_arg_type = "(err: Error, value: TurbopackResult<undefined>) => void")]
+    func: FunctionRef<TurbopackResult<()>, ()>,
+) -> napi::Result<External<SubscriptionTask>> {
     let turbopack_ctx = endpoint.turbopack_ctx().clone();
     let endpoint_op = ****endpoint;
     subscribe(

@@ -101,7 +101,7 @@ async function main() {
   // PR number endpoint (which resolves the PR to a SHA on every request).
   const nextTestVersion =
     testMode === 'deploy'
-      ? previewTarballUrl(previewBuildsBaseUrl, commitSha)
+      ? previewTarballUrl(previewBuildsBaseUrl, commitSha, 'next')
       : undefined
 
   if (nextTestVersion) {

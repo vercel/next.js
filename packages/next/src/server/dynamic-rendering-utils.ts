@@ -187,31 +187,18 @@ export function makeFallbackParamsHangingPromise<T>(
 
 /**
  * Constructs a promise that never resolves, standing in for data that is only
- * accessible in a later *stage* of rendering than this render reaches — e.g.
- * a prefetchable short-stale cache entry that's excluded from shells when the
- * render ends at the shell stage, or params during a runtime-prefetch render
- * that stops before the stage where params resolve.
- *
- * A render that runs through the later stage would include the data; in
- * particular a runtime prefetch renders through its later stages, so on a
- * static prerender store awaiting this promise records `runtimeDataAccessed`,
- * same as `makeRuntimeHangingPromise`.
+ * accessible in the prefetch, but not in the shell, e.g. `unstable_prefetch()`.
+ * This usage does *not* indicate that a runtime request is needed,
+ * only that the data is not available in a shell.
  *
  * @internal
  */
-export function makeStageHangingPromise<T>(
+export function makePrefetchHangingPromise<T>(
   signal: AbortSignal,
   route: string,
-  expression: string,
-  workUnitStore: WorkUnitStore
+  expression: string
 ): Promise<T> {
-  return trackPromiseUsed(
-    makeHangingPromiseWithError<T>(
-      signal,
-      new HangingPromiseRejectionError(route, expression)
-    ),
-    trackRuntimeDataAccessed.bind(null, workUnitStore, expression)
-  )
+  return makeUntrackedHangingPromise(signal, route, expression)
 }
 
 /**
@@ -318,7 +305,39 @@ function trackRuntimeDataAccessedImpl(
   }
 }
 
-export function trackIncompatibleShellContent(workUnitStore: RequestStore) {
+/**
+ * Signals that we cannot recover both a runtime shell and a static (PPR) shell
+ * from the same render. Use this whenever the stage of a promise varies on
+ * `RequestStore.needsAppShell`.
+ * */
+export function trackIncompatibleShellContent(
+  workUnitStore: RequestStore,
+  reason: string
+) {
+  const { stagedRendering } = workUnitStore
+  if (!stagedRendering) {
+    return
+  }
+
+  // TODO(app-shells): optimize this to only consider stages that are relevant for validation.
+  // We should only track incompatible content when it can affect them.
+  // For now, we simply exclude everything that happens in the dynamic stage.
+  // (Note that we also need to account for cache misses that move things to a
+  // different stage -- those should also preemptively set `hasIncompatibleShellContent`
+  // because there's a chance that a render with warm caches would set it)
+  const { currentStage } = stagedRendering
+  if (
+    currentStage === RenderStage.Dynamic ||
+    currentStage === RenderStage.Abandoned
+  ) {
+    return
+  }
+  if (process.env.NEXT_PRIVATE_DEBUG_VALIDATION) {
+    const workStore = workAsyncStorage.getStore()!
+    console.log(
+      `Route ${workStore.route}: Incompatible shell content: ${reason}`
+    )
+  }
   workUnitStore.hasIncompatibleShellContent = true
 }
 

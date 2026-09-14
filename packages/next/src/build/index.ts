@@ -125,6 +125,7 @@ import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
+import { writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
 import {
   detectConflictingPaths,
@@ -335,6 +336,11 @@ export interface DynamicPrerenderManifestRoute
    * `generateStaticParams`.
    */
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
+
+  /**
+   * Whether this candidate must produce a nonempty static shell.
+   */
+  throwOnEmptyStaticShell?: boolean
 
   /**
    * When defined, it describes the revalidation configuration for the fallback
@@ -1280,7 +1286,7 @@ export default async function build(
           .traceAsyncFn(() =>
             recursiveDeleteSyncWithAsyncRetries(
               distDir,
-              new Set(['cache', 'dev', 'lock', 'trace'])
+              new Set(['cache', 'dev', 'diagnostics', 'lock', 'trace'])
             )
           )
       }
@@ -3887,6 +3893,8 @@ export default async function build(
                   experimentalPPR: isRoutePPREnabled,
                   remainingPrerenderableParams:
                     route.remainingPrerenderableParams,
+                  throwOnEmptyStaticShell:
+                    prerenderCandidate?.throwOnEmptyStaticShell,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
                       ? RenderingMode.PARTIALLY_STATIC
@@ -4652,27 +4660,33 @@ export default async function build(
       await shutdownPromise
 
       if (NextBuildContext.analyze) {
-        await cp(
-          path.join(__dirname, '../bundle-analyzer'),
-          path.join(dir, '.next/diagnostics/analyze'),
-          { recursive: true }
-        )
+        const analyzeDir = path.join(distDir, 'diagnostics/analyze')
+        await cp(path.join(__dirname, '../bundle-analyzer'), analyzeDir, {
+          recursive: true,
+        })
 
-        await mkdir(path.join(dir, '.next/diagnostics/analyze/data'), {
+        await mkdir(path.join(analyzeDir, 'data'), {
           recursive: true,
         })
 
         // Write an index of routes for the route picker
+        const routes = routesManifest.dynamicRoutes
+          .map((r) => r.page)
+          .concat(routesManifest.staticRoutes.map((r) => r.page))
         await writeFile(
-          path.join(dir, '.next/diagnostics/analyze/data/routes.json'),
-          JSON.stringify(
-            routesManifest.dynamicRoutes
-              .map((r) => r.page)
-              .concat(routesManifest.staticRoutes.map((r) => r.page)),
-            null,
-            2
-          )
+          path.join(analyzeDir, 'data/routes.json'),
+          JSON.stringify(routes, null, 2)
         )
+
+        // Capture this build alongside any prior builds so the analyzer UI
+        // can offer it as a comparison baseline in the future.
+        await writeAnalyzeSnapshot({
+          projectDir: dir,
+          analyzeDir,
+          routes,
+          appDirOnly,
+          noMangling: NextBuildContext.noMangling ?? false,
+        })
       }
     })
   } catch (e) {

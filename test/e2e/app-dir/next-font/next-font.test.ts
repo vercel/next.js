@@ -31,7 +31,7 @@ describe('app dir - next/font', () => {
         'next.config.js': new FileRef(join(__dirname, 'next.config.js')),
       },
       dependencies: {
-        '@next/font': 'canary',
+        '@next/font': 'workspace:*',
       },
       skipDeployment: true,
     })

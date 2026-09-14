@@ -26989,7 +26989,7 @@
       if (documentPosition & Node.DOCUMENT_POSITION_CONTAINS) {
         if (null === otherFiber)
           return (
-            (otherFiber = otherNode.ownerDocument),
+            (otherFiber = getOwnerDocumentFromRootContainer(otherNode)),
             otherNode === otherFiber ||
               otherNode === otherFiber.documentElement ||
               otherNode === otherFiber.body
@@ -33520,11 +33520,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.3.0-experimental-f4e439e1-20260902" !== isomorphicReactPackageVersion)
+      if ("19.3.0-experimental-019019be-20260911" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.3.0-experimental-f4e439e1-20260902\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.3.0-experimental-019019be-20260911\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -33561,10 +33561,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.3.0-experimental-f4e439e1-20260902",
+          version: "19.3.0-experimental-019019be-20260911",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.3.0-experimental-f4e439e1-20260902"
+          reconcilerVersion: "19.3.0-experimental-019019be-20260911"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -34054,7 +34054,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.3.0-experimental-f4e439e1-20260902";
+    exports.version = "19.3.0-experimental-019019be-20260911";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

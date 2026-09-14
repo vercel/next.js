@@ -106,6 +106,28 @@ export default function Page() {
             Dynamic param two
           </LinkAccordion>
         </li>
+        <li>
+          Excluded caches
+          <ul>
+            <li>
+              <LinkAccordion href="/excluded-caches/uses-non-shell-cache">
+                Uses a cache that is excluded from the shell due to short stale
+              </LinkAccordion>
+            </li>
+            <li>
+              <LinkAccordion href="/excluded-caches/uses-non-prefetchable-cache">
+                Uses a cache that is excluded from all prerenders due to short
+                stale
+              </LinkAccordion>
+            </li>
+            <li>
+              <LinkAccordion href="/excluded-caches/uses-non-prerenderable-cache">
+                Uses a cache that is excluded from static prerenders due to
+                short expire
+              </LinkAccordion>
+            </li>
+          </ul>
+        </li>
         {/* The speculative-* routes are partial (non-eager), so their
             links use prefetch={true} to opt into the Speculative phase —
             otherwise only their App Shell would be prefetched. */}

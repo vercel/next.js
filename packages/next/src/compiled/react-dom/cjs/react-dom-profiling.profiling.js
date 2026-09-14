@@ -18339,7 +18339,7 @@ function validateDocumentPositionWithFiberTree(
   if (documentPosition & Node.DOCUMENT_POSITION_CONTAINS) {
     if (null === otherFiber)
       return (
-        (otherFiber = otherNode.ownerDocument),
+        (otherFiber = getOwnerDocumentFromRootContainer(otherNode)),
         otherNode === otherFiber ||
           otherNode === otherFiber.documentElement ||
           otherNode === otherFiber.body
@@ -20461,14 +20461,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_2347 = React.version;
 if (
-  "19.3.0-canary-f4e439e1-20260902" !==
+  "19.3.0-canary-019019be-20260911" !==
   isomorphicReactPackageVersion$jscomp$inline_2347
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_2347,
-      "19.3.0-canary-f4e439e1-20260902"
+      "19.3.0-canary-019019be-20260911"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -20490,10 +20490,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2903 = {
   bundleType: 0,
-  version: "19.3.0-canary-f4e439e1-20260902",
+  version: "19.3.0-canary-019019be-20260911",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.3.0-canary-f4e439e1-20260902"
+  reconcilerVersion: "19.3.0-canary-019019be-20260911"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2904 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -20764,7 +20764,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.3.0-canary-f4e439e1-20260902";
+exports.version = "19.3.0-canary-019019be-20260911";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

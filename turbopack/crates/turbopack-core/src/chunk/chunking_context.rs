@@ -293,6 +293,21 @@ pub struct ChunkingConfig {
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
+/// turbopack-browser needs to know the original
+/// source of the hmr chunk list to properly map to a
+/// EcmascriptDevChunkListSource and provide the correct
+/// updates. This maps one to one with that.
+/// We could consider lifting EcmascriptDevChunkListSource to
+/// core instead if this grows. Or using this type in browser instead.
+#[turbo_tasks::task_input]
+#[derive(
+    Eq, PartialEq, Debug, Clone, Copy, Hash, TraceRawVcs, Serialize, Deserialize, Encode, Decode,
+)]
+pub enum HmrChunkListSource {
+    Entry,
+    Dynamic,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Copy, Hash, Default, Deserialize)]
 pub enum SourceMapSourceType {
@@ -463,6 +478,14 @@ pub trait ChunkingContext {
     fn async_loader_chunk_item_ident(&self, module: Vc<Box<dyn ChunkableModule>>)
     -> Vc<AssetIdent>;
 
+    /// Places a synthesized chunk item into a standalone output chunk without module graph
+    /// traversal.
+    #[turbo_tasks::function]
+    fn standalone_chunk(
+        self: Vc<Self>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    ) -> Vc<Box<dyn OutputAsset>>;
+
     #[turbo_tasks::function]
     fn chunk_group(
         self: Vc<Self>,
@@ -500,6 +523,7 @@ pub trait ChunkingContext {
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
         _chunks: Vc<OutputAssets>,
+        _source: HmrChunkListSource,
     ) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }

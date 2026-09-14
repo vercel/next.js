@@ -14,6 +14,7 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
+use parking_lot::RwLockReadGuard;
 use tracing::info_span;
 #[cfg(feature = "trace_prepare_tasks")]
 use tracing::trace_span;
@@ -231,6 +232,9 @@ pub struct ExecuteContextImpl<'e> {
     backend: &'e TurboTasksBackend,
     turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
     phase: ExecutePhase<'e>,
+    /// Held by contexts built through `TurboTasksBackend::try_execute_context`, so that storage
+    /// teardown in `stop()` waits for this context to be dropped.
+    _shutdown_guard: Option<RwLockReadGuard<'e, bool>>,
     task_lock_counter: TaskLockCounter,
 }
 
@@ -245,6 +249,26 @@ impl<'e> ExecuteContextImpl<'e> {
             phase: ExecutePhase::Normal {
                 _guard: backend.start_operation(),
             },
+            _shutdown_guard: None,
+            task_lock_counter: TaskLockCounter::new(),
+        }
+    }
+
+    /// Like [`ExecuteContextImpl::new`], but owns the shutdown read guard that
+    /// [`TurboTasksBackend::try_execute_context`] acquired, keeping `stop()` out until this
+    /// context is dropped.
+    pub(super) fn new_with_shutdown_guard(
+        backend: &'e TurboTasksBackend,
+        turbo_tasks: &'e TurboTasks<TurboTasksBackend>,
+        shutdown_guard: RwLockReadGuard<'e, bool>,
+    ) -> Self {
+        Self {
+            backend,
+            turbo_tasks,
+            phase: ExecutePhase::Normal {
+                _guard: backend.start_operation(),
+            },
+            _shutdown_guard: Some(shutdown_guard),
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -265,6 +289,7 @@ impl<'e> ExecuteContextImpl<'e> {
             backend,
             turbo_tasks,
             phase: ExecutePhase::Gc(gc_collectible),
+            _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
         }
     }
@@ -1243,6 +1268,9 @@ impl<'e> ChildExecuteContext<'e> for ChildExecuteContextImpl<'e> {
             backend: self.backend,
             turbo_tasks: self.turbo_tasks,
             phase: ExecutePhase::Child,
+            // A child context runs inside its parent's execution, which the foreground drain
+            // already waits for, so it needs no shutdown guard of its own.
+            _shutdown_guard: None,
             task_lock_counter: TaskLockCounter::new(),
         }
     }

@@ -60,7 +60,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
     const abortController = new AbortController()
     let body:
       | (AsyncIterable<Uint8Array> & {
-          destroy: () => void
+          cancel: () => void
         })
       | undefined
 
@@ -80,7 +80,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
       expect(res.body).not.toBeNull()
 
       body = res.body! as unknown as AsyncIterable<Uint8Array> & {
-        destroy: () => void
+        cancel: () => void
       }
       let initialHtml = ''
 
@@ -96,7 +96,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
       expect(initialHtml).not.toContain('dynamic-content')
     } finally {
       abortController.abort()
-      body?.destroy()
+      body?.cancel()
     }
   })
 
@@ -155,7 +155,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
       const abortController = new AbortController()
       let body:
         | (AsyncIterable<Uint8Array> & {
-            destroy: () => void
+            cancel: () => void
           })
         | undefined
 
@@ -174,7 +174,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
         expect(res.body).not.toBeNull()
 
         body = res.body! as unknown as AsyncIterable<Uint8Array> & {
-          destroy: () => void
+          cancel: () => void
         }
         let initialHtml = ''
 
@@ -190,7 +190,7 @@ describeCacheComponents('metadata streaming with a custom bot list', () => {
         expect(initialHtml).not.toContain('dynamic-content')
       } finally {
         abortController.abort()
-        body?.destroy()
+        body?.cancel()
       }
     })
   }

@@ -107,6 +107,7 @@
             ),
         ],
         span: 212..227,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "performance",
@@ -441,6 +442,7 @@
             ),
         ],
         span: 257..292,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -562,6 +564,7 @@
             ),
         ],
         span: 257..282,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Member(
@@ -893,6 +896,7 @@
             ),
         ],
         span: 356..371,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "performance",
@@ -1419,6 +1423,7 @@
             ),
         ],
         span: 608..621,
+        in_truthiness_context: true,
     },
     Unreachable {
         start_ast_path: [

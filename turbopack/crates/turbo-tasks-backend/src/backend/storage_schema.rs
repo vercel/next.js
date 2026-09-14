@@ -867,10 +867,6 @@ impl TaskStorage {
     /// conservatism lets the cheap Meta-only shard scan and the authoritative under-guard recheck
     /// (which opens `TaskDataCategory::All`, and is what actually gates collection) share this
     /// single predicate.
-    ///
-    /// Refusing to collect a task with dependents is what makes task-id reuse safe: a hard-deleted
-    /// id can be handed out again, so a surviving dependent edge would silently resolve to an
-    /// unrelated live task instead of tripping `MustExist`.
     pub fn gc_maybe_collectible(&self) -> bool {
         // None of the predicates below are correct without this.
         self.flags.is_restored(TaskDataCategory::Meta)
@@ -897,6 +893,31 @@ impl TaskStorage {
                     && self
                         .cell_dependents_hashed()
                         .is_none_or(|d| d.is_empty())))
+    }
+
+    /// Whether this task is a GC **root**: parent-less, but pinned for some reason
+    ///
+    /// NOTE: this is a conservative classification.  The typical reason is that there is a
+    /// [`TaskStorage::transient_ref`] live, but this will return true if there is merely an
+    /// `upper/follower`.
+    pub fn gc_is_root(&self) -> bool {
+        self.flags.is_restored(TaskDataCategory::Meta)
+            && !self.flags.deleted()
+            && self.gc_parent_count() == 0
+            && !self.gc_maybe_collectible()
+    }
+
+    /// Assert that a task classified by [`TaskStorage::gc_is_root`] is held by a pin that eviction
+    /// cannot drop.
+    pub fn gc_debug_assert_root_held_by_transient_pin(&self) {
+        debug_assert!(self.gc_is_root()); // sanity for our caller
+        debug_assert!(
+            self.gc_transient_ref_count() > 0
+                || self.get_in_progress().is_some()
+                || self.get_activeness().is_some(),
+            "GC root is held by a non-transient pin: {self:?}.\nBeing held by another kind of \
+             reference implies a bug in GC or the aggregation graph."
+        );
     }
 }
 

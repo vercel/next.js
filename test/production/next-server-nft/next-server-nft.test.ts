@@ -297,10 +297,14 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/lib/metadata/generate/icon-mark.js",
            "/node_modules/next/dist/lib/metadata/generate/utils.js",
            "/node_modules/next/dist/lib/metadata/get-metadata-route.js",
+           "/node_modules/next/dist/lib/metadata/index.js",
            "/node_modules/next/dist/lib/metadata/is-metadata-route.js",
            "/node_modules/next/dist/lib/metadata/metadata-context.js",
+           "/node_modules/next/dist/lib/metadata/metadata-elements.js",
+           "/node_modules/next/dist/lib/metadata/metadata-parallel.js",
            "/node_modules/next/dist/lib/metadata/metadata-resolution-primitives.js",
            "/node_modules/next/dist/lib/metadata/metadata.js",
+           "/node_modules/next/dist/lib/metadata/resolve-metadata-parallel.js",
            "/node_modules/next/dist/lib/metadata/resolve-metadata.js",
            "/node_modules/next/dist/lib/metadata/resolvers/resolve-basics.js",
            "/node_modules/next/dist/lib/metadata/resolvers/resolve-icons.js",
@@ -444,8 +448,8 @@ async function readNormalizedNFT(next, name) {
 
         expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
                 [
-                  "./page/react-loadable-manifest.json",
-                  "./page_client-reference-manifest.js",
+                  "page/react-loadable-manifest.json",
+                  "page_client-reference-manifest.js",
                 ]
               `)
       })
@@ -564,8 +568,8 @@ async function readNormalizedNFT(next, name) {
 
         expect(nonNodeModulesFiles).toMatchInlineSnapshot(`
          [
-           "./page/react-loadable-manifest.json",
-           "./page_client-reference-manifest.js",
+           "page/react-loadable-manifest.json",
+           "page_client-reference-manifest.js",
          ]
         `)
       })

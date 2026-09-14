@@ -169,6 +169,7 @@
             ),
         ],
         span: 2725..2739,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "__filename",
@@ -447,6 +448,7 @@
             ),
         ],
         span: 2775..2789,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "__dirname",
@@ -1184,6 +1186,7 @@
                             ),
                         ],
                         span: 3526..3536,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "__dirname",
@@ -1820,6 +1823,7 @@
             ),
         ],
         span: 3671..3682,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2208,6 +2212,7 @@
             ),
         ],
         span: 1005..1021,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "process",
@@ -2347,6 +2352,7 @@
             ),
         ],
         span: 1025..1032,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2495,6 +2501,7 @@
             ),
         ],
         span: 1038..1051,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2707,6 +2714,7 @@
                             ),
                         ],
                         span: 1112..1145,
+                        in_truthiness_context: false,
                     },
                 ],
                 range: Exact(
@@ -2899,6 +2907,7 @@
                                             ),
                                         ],
                                         span: 1239..1273,
+                                        in_truthiness_context: false,
                                     },
                                 ],
                                 range: Exact(
@@ -3643,6 +3652,7 @@
                             ),
                         ],
                         span: 1602..1617,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "require",
@@ -4040,6 +4050,7 @@
                             ),
                         ],
                         span: 1712..1725,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "fs",
@@ -4321,6 +4332,7 @@
                                             ),
                                         ],
                                         span: 1758..1773,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "require",
@@ -5038,6 +5050,7 @@
                                             ),
                                         ],
                                         span: 2299..2311,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -5129,6 +5142,7 @@
                                             ),
                                         ],
                                         span: 2312..2327,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "require",
@@ -5497,6 +5511,7 @@
                                             ),
                                         ],
                                         span: 2367..2376,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: Variable(
@@ -5599,6 +5614,7 @@
                                             ),
                                         ],
                                         span: 2422..2435,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -5919,6 +5935,7 @@
                                             ),
                                         ],
                                         span: 2463..2476,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "fs",
@@ -6189,6 +6206,7 @@
                                                             ),
                                                         ],
                                                         span: 2501..2516,
+                                                        in_truthiness_context: false,
                                                     },
                                                     FreeVar {
                                                         var: "fs",
@@ -6455,6 +6473,7 @@
                                                             ),
                                                         ],
                                                         span: 2548..2560,
+                                                        in_truthiness_context: false,
                                                     },
                                                     FreeVar {
                                                         var: "fs",
