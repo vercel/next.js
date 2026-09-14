@@ -99,7 +99,14 @@ function runQueryTraceCli(
     const proc = spawn(
       'node',
       // Deprecated APIs can be vulnerable and must be flagged.
-      ['--trace-deprecation', nextBin, 'internal', 'query-trace', ...extraArgs],
+      [
+        '--trace-deprecation',
+        '--pending-deprecation',
+        nextBin,
+        'internal',
+        'query-trace',
+        ...extraArgs,
+      ],
       { stdio: 'pipe' }
     )
     let stdout = ''
@@ -193,6 +200,7 @@ describe('turbopack-trace-server', () => {
       [
         // Deprecated APIs can be vulnerable and must be flagged.
         '--trace-deprecation',
+        '--pending-deprecation',
         nextBin,
         'internal',
         'trace',

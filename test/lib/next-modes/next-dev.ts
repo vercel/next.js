@@ -42,7 +42,7 @@ export class NextDevInstance extends NextInstance {
   }
 
   private getBuildArgs(args?: string[]) {
-    let buildArgs = ['pnpm', 'next', 'build']
+    let buildArgs = this.getNextCommandArgs('build')
 
     if (this.buildCommand) {
       buildArgs = this.buildCommand.split(' ')
@@ -118,8 +118,7 @@ export class NextDevInstance extends NextInstance {
       ((this as any).turbo || (this as any).experimentalTurbo)
 
     let startArgs = [
-      'pnpm',
-      'next',
+      ...this.getNextCommandArgs('dev'),
       useTurbo ? '--turbopack' : undefined,
     ].filter(Boolean) as string[]
 
