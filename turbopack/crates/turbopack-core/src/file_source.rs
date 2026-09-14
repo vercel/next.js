@@ -1,9 +1,9 @@
-use anyhow::{Context, Result, bail};
+use anyhow::{Result, bail};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::Vc;
 use turbo_tasks_fs::{
-    DiskFileSystem, FileContent, FileSystemEntryType, FileSystemPath, LinkContent, LinkTarget,
-    WriteLinkContent, WriteLinkTarget, WriteLinkTargetType,
+    FileContent, FileSystemEntryType, FileSystemPath, LinkContent, WriteLinkContent,
+    WriteLinkTargetType,
 };
 
 use crate::{
@@ -71,20 +71,6 @@ impl Asset for FileSource {
             FileSystemEntryType::Symlink => match &*self.path.read_link().await? {
                 LinkContent::Link { target } => {
                     let target_fs_path = target.file_system_path();
-                    let write_target = match target {
-                        LinkTarget::Relative { raw, resolved } if resolved.fs == self.path.fs => {
-                            WriteLinkTarget::Relative(raw.clone())
-                        }
-                        LinkTarget::Absolute { resolved, .. }
-                        | LinkTarget::Relative { resolved, .. } => {
-                            let root = ResolvedVc::try_downcast_type::<DiskFileSystem>(resolved.fs)
-                                .context("symlink target must be in a disk filesystem")?;
-                            WriteLinkTarget::Absolute {
-                                root,
-                                path: resolved.path.clone(),
-                            }
-                        }
-                    };
                     let write_target_type = match *target_fs_path.get_type().await? {
                         FileSystemEntryType::Directory => {
                             WriteLinkTargetType::DirectoryOrJunctionPoint
@@ -97,7 +83,7 @@ impl Asset for FileSource {
                         _ => WriteLinkTargetType::FileNonPortable,
                     };
                     Ok(AssetContent::Redirect(WriteLinkContent {
-                        target: write_target,
+                        target: target_fs_path.clone(),
                         target_type: write_target_type,
                     })
                     .cell())

@@ -8,7 +8,7 @@ use std::{
     path::Path,
 };
 
-use anyhow::{Result, bail};
+use anyhow::{Context, Result, bail};
 use bincode::{Decode, Encode};
 use jsonc_parser::{ParseOptions, parse_to_serde_value};
 use mime::Mime;
@@ -248,48 +248,6 @@ pub enum LinkContent {
     Invalid { reason: RcStr },
 }
 
-#[turbo_tasks::value_impl]
-impl LinkContent {
-    /// Hashes the link itself (its target and type), not the content of whatever the link points
-    /// at. This mirrors [`FileContent::hash`] and is the right content hash for consumers that
-    /// re-create a symlink as a symlink instead of copying the resolved file.
-    #[turbo_tasks::function]
-    pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
-        #[derive(DeterministicHash)]
-        enum SimplifiedLinkContent<'a> {
-            Absolute(&'a RcStr),
-            Relative(&'a RcStr),
-            NotFound,
-            Invalid, // the actual error message doesn't matter for this API
-        }
-        let simplified = match self {
-            LinkContent::Link { target } => match target {
-                LinkTarget::Absolute { raw, .. } => SimplifiedLinkContent::Absolute(raw),
-                LinkTarget::Relative { raw, resolved: _ } => SimplifiedLinkContent::Relative(raw),
-            },
-            LinkContent::NotFound => SimplifiedLinkContent::NotFound,
-            LinkContent::Invalid { reason: _ } => SimplifiedLinkContent::Invalid,
-        };
-        Ok(Vc::cell(RcStr::from(deterministic_hash(
-            &salt.await?,
-            simplified,
-            algorithm,
-        ))))
-    }
-}
-
-/// The target of a symbolic link to create, used by [`WriteLinkContent`].
-#[derive(Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
-pub enum WriteLinkTarget {
-    /// Normalized and relative to `root`.
-    Absolute {
-        root: ResolvedVc<DiskFileSystem>,
-        path: RcStr,
-    },
-    /// Written verbatim, relative to the *directory containing the link*.
-    Relative(RcStr),
-}
-
 /// The file type of the target of a newly written link. This value is only used on Windows.
 #[derive(
     Clone, Debug, Hash, PartialEq, Eq, TraceRawVcs, NonLocalValue, DeterministicHash, Encode, Decode,
@@ -311,42 +269,27 @@ pub enum WriteLinkTargetType {
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct WriteLinkContent {
-    pub target: WriteLinkTarget,
+    pub target: FileSystemPath,
     pub target_type: WriteLinkTargetType,
 }
 
-#[turbo_tasks::value_impl]
 impl WriteLinkContent {
-    /// Hashes the representation that will be written, not the target's contents.
-    #[turbo_tasks::function]
-    pub async fn hash(&self, salt: Vc<RcStr>, algorithm: HashAlgorithm) -> Result<Vc<RcStr>> {
-        #[derive(DeterministicHash)]
-        enum SimplifiedWriteLinkTarget {
-            Absolute { root: RcStr, path: RcStr },
-            Relative(RcStr),
-        }
+    /// Hashes the link target and target type, not the target's contents. Returns a hash that is
+    /// stable across builds.
+    pub async fn hash(&self, salt: &RcStr, algorithm: HashAlgorithm) -> Result<RcStr> {
+        // convert the fs Vc (which is not stable across cold builds therefore cannot implement
+        // DeterministicHash) to the configured name, which should be globally unique and stable
+        // across cold builds.
+        let target_fs = ResolvedVc::try_downcast_type::<DiskFileSystem>(self.target.fs)
+            .context("link target must use a disk filesystem")?
+            .await?;
+        let target_fs_name = target_fs.name();
 
-        #[derive(DeterministicHash)]
-        struct SimplifiedWriteLinkContent<'a> {
-            target: SimplifiedWriteLinkTarget,
-            target_type: &'a WriteLinkTargetType,
-        }
-
-        let target = match &self.target {
-            WriteLinkTarget::Absolute { root, path } => SimplifiedWriteLinkTarget::Absolute {
-                root: root.await?.name().clone(),
-                path: path.clone(),
-            },
-            WriteLinkTarget::Relative(path) => SimplifiedWriteLinkTarget::Relative(path.clone()),
-        };
-        Ok(Vc::cell(RcStr::from(deterministic_hash(
-            &salt.await?,
-            SimplifiedWriteLinkContent {
-                target,
-                target_type: &self.target_type,
-            },
+        Ok(RcStr::from(deterministic_hash(
+            salt,
+            (target_fs_name, &self.target.path, &self.target_type),
             algorithm,
-        ))))
+        )))
     }
 }
 
