@@ -456,7 +456,7 @@ function resolvePathFromModule(
   const exported = this.r(moduleId)
   return exported?.default ?? exported
 }
-browserContextPrototype.R = resolvePathFromModule
+browserContextPrototype.S = resolvePathFromModule
 
 /**
  * no-op for browser
