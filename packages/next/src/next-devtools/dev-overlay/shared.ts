@@ -466,9 +466,9 @@ export function useErrorOverlayReducer(
   routerType: 'pages' | 'app',
   getOwnerStack: (error: Error) => string | null | undefined,
   isRecoverableError: (error: Error) => boolean,
-  enableCacheIndicator: boolean,
-  enableRuntimeErrorReporting: boolean = false
+  enableCacheIndicator: boolean
 ) {
+  const isAppRouter = routerType === 'app'
   function pushErrorFilterDuplicates(
     events: readonly SupportedErrorEvent[],
     id: number,
@@ -482,7 +482,7 @@ export function useErrorOverlayReducer(
       error,
       frames,
       type:
-        enableRuntimeErrorReporting && metadata !== undefined
+        isAppRouter && metadata !== undefined
           ? 'runtime'
           : isRecoverableError(error)
             ? 'recoverable'
@@ -490,7 +490,7 @@ export function useErrorOverlayReducer(
               ? 'console'
               : 'runtime',
     }
-    if (enableRuntimeErrorReporting) {
+    if (isAppRouter) {
       return mergeErrorEvent(
         events as readonly RuntimeErrorEvent[],
         {

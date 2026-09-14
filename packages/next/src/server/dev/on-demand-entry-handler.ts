@@ -1085,16 +1085,13 @@ export function onDemandEntryHandler({
       htmlRequestId: string | null
     ) {
       let bufferedHmrServerError: Error | null = null
-      const runtimeErrorStateHandler = nextConfig.experimental
-        .exposeRuntimeErrorsToHMR
-        ? createRuntimeErrorStateHandler((message) =>
-            hotReloader.send({ ...message, htmlRequestId })
-          )
-        : undefined
+      const runtimeErrorStateHandler = createRuntimeErrorStateHandler(
+        (message) => hotReloader.send({ ...message, htmlRequestId })
+      )
 
       client.addEventListener('close', () => {
         bufferedHmrServerError = null
-        runtimeErrorStateHandler?.dispose()
+        runtimeErrorStateHandler.dispose()
       })
       client.addEventListener('message', ({ data }) => {
         try {
@@ -1122,7 +1119,7 @@ export function onDemandEntryHandler({
           } else if (
             parsedData.event === HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS
           ) {
-            void runtimeErrorStateHandler?.handle(parsedData).catch(() => {})
+            void runtimeErrorStateHandler.handle(parsedData).catch(() => {})
           } else if (
             parsedData.event ===
             HMR_MESSAGE_SENT_TO_SERVER.MCP_ERROR_STATE_RESPONSE
