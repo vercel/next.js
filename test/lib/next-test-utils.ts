@@ -84,10 +84,11 @@ export function initNextServerScript(
         ...((opts && opts.nodeArgs) || []),
         // Deprecated APIs may be vulnerable and must be flagged.
         '--trace-deprecation',
+        '--pending-deprecation',
         scriptPath,
       ],
       {
-        env: { HOSTNAME: '::', NODE_PENDING_DEPRECATION: '1', ...env },
+        env: { HOSTNAME: '::', ...env },
         cwd: opts && opts.cwd,
       }
     )
@@ -389,7 +390,6 @@ export function runNextCommand(
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
     __NEXT_TEST_MODE: 'true',
-    NODE_PENDING_DEPRECATION: '1',
     ...options.env,
   }
 
@@ -401,6 +401,7 @@ export function runNextCommand(
         ...(options.nodeArgs || []),
         // Deprecated APIs can be vulnerable and must be flagged.
         '--trace-deprecation',
+        '--pending-deprecation',
         nextBin,
         ...argv,
       ],
@@ -520,7 +521,6 @@ export function runNextCommandDev(
     // @ts-ignore packages/next/types/global.d.ts should allow undefined NODE_ENV
     NODE_ENV: undefined as NodeJS.ProcessEnv['NODE_ENV'],
     __NEXT_TEST_MODE: 'true',
-    NODE_PENDING_DEPRECATION: '1',
     ...opts.env,
   }
 
@@ -532,6 +532,7 @@ export function runNextCommandDev(
         ...nodeArgs,
         // Deprecated APIs can be vulnerable and must be flagged.
         '--trace-deprecation',
+        '--pending-deprecation',
         nextBin,
         ...argv,
       ],
@@ -683,7 +684,6 @@ export function buildTS(
   env = {
     ...process.env,
     NODE_ENV: undefined,
-    NODE_PENDING_DEPRECATION: '1',
     ...env,
   }
 
