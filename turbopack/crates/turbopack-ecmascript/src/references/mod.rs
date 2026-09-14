@@ -134,7 +134,7 @@ use crate::{
         dynamic_expression::DynamicExpression,
         emit_collect::{CollectReference, EmitReference},
         esm::{
-            EsmAssetReference, EsmAsyncAssetReference, EsmBinding, ImportMetaBinding,
+            EsmAssetReference, EsmAsyncAssetReference, EsmBinding, EsmBindings, ImportMetaBinding,
             ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
             module_id::EsmModuleIdAssetReference,
         },
@@ -229,6 +229,11 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     // This caches repeated access because EsmAssetReference::new is not a turbo task function.
     esm_references_rewritten: FxHashMap<usize, FxIndexMap<RcStr, ResolvedVc<EsmAssetReference>>>,
 
+    /// Uses of imported bindings, grouped by the import they come from, so that the value bindings
+    /// they capture can share one hoisted declaration. Insertion-ordered to keep the generated
+    /// declarations in source order.
+    esm_bindings: FxIndexMap<ResolvedVc<EsmAssetReference>, Vec<EsmBinding>>,
+
     code_gens: CodeGenCollection,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
@@ -250,6 +255,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             esm_local_references: Default::default(),
             esm_reexport_references: Default::default(),
             esm_references_rewritten: Default::default(),
+            esm_bindings: Default::default(),
             esm_references_free_var: Default::default(),
             code_gens: Default::default(),
             async_module: ResolvedVc::cell(None),
@@ -312,6 +318,17 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds a codegen to the analysis result.
+    /// Records one use of an imported binding. Uses are grouped by their import and emitted
+    /// together in [`Self::build`] so their value bindings can share a hoisted declaration.
+    fn add_esm_binding(&mut self, reference: ResolvedVc<EsmAssetReference>, binding: EsmBinding) {
+        if self.analyze_mode.is_code_gen() {
+            self.esm_bindings
+                .entry(reference)
+                .or_default()
+                .push(binding);
+        }
+    }
+
     pub fn add_code_gen<C>(&mut self, code_gen: C)
     where
         C: Into<CodeGen>,
@@ -439,6 +456,12 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             {
                 esm_reexport_references.push(*reference);
             }
+        }
+
+        // Emit one grouped code gen per import, so the value bindings its uses capture can share
+        // a hoisted declaration. Insertion order keeps the declarations in source order.
+        for (reference, bindings) in std::mem::take(&mut self.esm_bindings) {
+            self.add_code_gen(EsmBindings::new(reference, bindings));
         }
 
         let references: Vec<_> = self.references.into_iter().collect();
@@ -1442,22 +1465,28 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.add_code_gen(EsmBinding::new_namespace_member(
+                                analysis.add_esm_binding(
                                     named_reference,
-                                    Some(export),
-                                    ast_path.to_vec().into(),
-                                ));
+                                    EsmBinding::new_namespace_member(
+                                        named_reference,
+                                        Some(export),
+                                        ast_path.to_vec().into(),
+                                    ),
+                                );
                                 continue;
                             }
                         }
 
                         analysis.add_esm_reference(esm_reference_index);
-                        analysis.add_code_gen(EsmBinding::new(
+                        analysis.add_esm_binding(
                             *r,
-                            export,
-                            local.map(|local| local.as_str().into()),
-                            ast_path.to_vec().into(),
-                        ));
+                            EsmBinding::new(
+                                *r,
+                                export,
+                                local.map(|local| local.as_str().into()),
+                                ast_path.to_vec().into(),
+                            ),
+                        );
                     }
                 }
                 Effect::TypeOf {

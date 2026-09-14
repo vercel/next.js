@@ -4,7 +4,10 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::{Expr, Ident, KeyValueProp, Prop, PropName, SimpleAssignTarget},
-        visit::fields::{CalleeField, PropField, TaggedTplField},
+        visit::{
+            AstParentKind,
+            fields::{CalleeField, PropField, TaggedTplField},
+        },
     },
     quote,
 };
@@ -15,7 +18,7 @@ use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
     ScopeHoistingContext,
-    code_gen::{CodeGen, CodeGeneration, CodeGenerationHoistedStmt},
+    code_gen::{AstModifier, CodeGen, CodeGeneration, CodeGenerationHoistedStmt},
     create_visitor, magic_identifier,
     references::{
         AstPath,
@@ -98,9 +101,35 @@ impl EsmBinding {
 
         let mut visitors = vec![];
         let mut hoisted_stmts = vec![];
-
-        let export = self.export.clone();
         let imported_module = self.reference.get_referenced_asset().await?;
+        self.generate(
+            chunking_context,
+            scope_hoisting_context,
+            &imported_module,
+            &mut visitors,
+            &mut hoisted_stmts,
+        )
+        .await?;
+
+        Ok(CodeGeneration::new(
+            visitors,
+            hoisted_stmts,
+            vec![],
+            vec![],
+            vec![],
+        ))
+    }
+
+    /// Rewrites this one use site, appending to the shared buffers of the enclosing group.
+    async fn generate(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
+        imported_module: &ReferencedAsset,
+        visitors: &mut Vec<(Vec<AstParentKind>, Box<dyn AstModifier>)>,
+        hoisted_stmts: &mut Vec<CodeGenerationHoistedStmt>,
+    ) -> Result<()> {
+        let export = self.export.clone();
 
         enum ImportedIdent {
             Module(ReferencedAssetIdent, Option<Ident>),
@@ -108,7 +137,7 @@ impl EsmBinding {
             Unresolvable,
         }
 
-        let imported_ident = match &imported_module {
+        let imported_ident = match imported_module {
             ReferencedAsset::None => ImportedIdent::None,
             imported_module => match imported_module
                 .get_ident(chunking_context, export, scope_hoisting_context)
@@ -284,6 +313,65 @@ impl EsmBinding {
             }
         }
 
+        Ok(())
+    }
+}
+
+/// All uses of the bindings imported by one [`EsmAssetReference`].
+///
+/// Grouping the uses of an import lets the value bindings they capture share a single hoisted
+/// declaration, the same way a module's exports share one `__turbopack_esm__` call, instead of
+/// emitting one declaration per use.
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
+pub struct EsmBindings {
+    reference: ResolvedVc<EsmAssetReference>,
+    bindings: Vec<EsmBinding>,
+}
+
+impl EsmBindings {
+    pub fn new(reference: ResolvedVc<EsmAssetReference>, bindings: Vec<EsmBinding>) -> Self {
+        debug_assert!(
+            bindings
+                .iter()
+                .all(|binding| binding.reference == reference),
+            "every binding in a group must belong to the group's reference"
+        );
+        EsmBindings {
+            reference,
+            bindings,
+        }
+    }
+
+    pub async fn code_generation(
+        &self,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        scope_hoisting_context: ScopeHoistingContext<'_>,
+    ) -> Result<CodeGeneration> {
+        if chunking_context
+            .unused_references()
+            .contains_key(&ResolvedVc::upcast(self.reference))
+            .await?
+        {
+            return Ok(CodeGeneration::empty());
+        }
+
+        let mut visitors = vec![];
+        let mut hoisted_stmts = vec![];
+        // Resolved once for the whole group rather than once per use site.
+        let imported_module = self.reference.get_referenced_asset().await?;
+
+        for binding in &self.bindings {
+            binding
+                .generate(
+                    chunking_context,
+                    scope_hoisting_context,
+                    &imported_module,
+                    &mut visitors,
+                    &mut hoisted_stmts,
+                )
+                .await?;
+        }
+
         Ok(CodeGeneration::new(
             visitors,
             hoisted_stmts,
@@ -291,6 +379,12 @@ impl EsmBinding {
             vec![],
             vec![],
         ))
+    }
+}
+
+impl From<EsmBindings> for CodeGen {
+    fn from(val: EsmBindings) -> Self {
+        CodeGen::EsmBindings(val)
     }
 }
 
