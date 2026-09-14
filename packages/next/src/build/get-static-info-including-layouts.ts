@@ -90,9 +90,6 @@ export async function getStaticInfoIncludingLayouts({
     // Return type is Omit<PageStaticInfo, 'config'> anyway
     delete baseline.config
 
-    // TODO we do need this?
-    delete baseline.rsc
-
     function sort(v: Record<string, any> | undefined): any {
       return v
         ? Object.keys(v)
@@ -121,7 +118,6 @@ export async function getStaticInfoIncludingLayouts({
           }
         }
 
-        delete turbopack.rsc
         turbopack = sort(turbopack) as PageStaticInfo
 
         if (JSON.stringify(baseline) === JSON.stringify(turbopack)) {
