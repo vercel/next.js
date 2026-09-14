@@ -81,6 +81,12 @@ struct SourceMapJson {
 pub async fn resolve_source_map_sources(
     map: Option<&Rope>,
     origin: &FileSystemPath,
+    // The directory relative `sources` resolve against. `None` applies the
+    // source map spec's default (the map's location, i.e. `origin`'s
+    // directory). Webpack loaders instead emit `sources` relative to the
+    // compilation root (`rootContext`) they were handed, so the loader
+    // transform passes that root here explicitly.
+    relative_source_base: Option<&FileSystemPath>,
 ) -> Result<Option<Rope>> {
     let fs_vc = origin.fs().to_resolved().await?;
     let fs_str = &*turbofmt!("[{fs_vc}]").await?;
@@ -125,9 +131,11 @@ pub async fn resolve_source_map_sources(
             } else {
                 // assume it's a relative URL, and just remove any percent encoding from path
                 // segments. Our internal path format is POSIX-like, without percent encoding.
-                origin
-                    .parent()
-                    .try_join(&urlencoding::decode(source_url).unwrap_or(Cow::Borrowed(source_url)))
+                let decoded = urlencoding::decode(source_url).unwrap_or(Cow::Borrowed(source_url));
+                match relative_source_base {
+                    Some(base) => base.try_join(&decoded),
+                    None => origin.parent().try_join(&decoded),
+                }
             };
 
             if let Some(fs_path) = fs_path {
@@ -348,6 +356,7 @@ mod tests {
             struct SourceMapSourcesOutput {
                 resolved_sources: Vec<Option<String>>,
                 rooted_sources: Vec<Option<String>>,
+                loader_sources: Vec<Option<String>>,
             }
 
             #[turbo_tasks::function(operation, root)]
@@ -393,6 +402,7 @@ mod tests {
                         // NOTE: the percent encoding here should NOT be decoded, as this is not
                         // part of a `file://` URL
                         &fs_root_path.join("app/source%20mapped/page.js").unwrap(),
+                        None,
                     )
                     .await?
                     .unwrap()
@@ -408,6 +418,25 @@ mod tests {
                             ["page.js"],
                         )),
                         &fs_root_path.join("app/page.js").unwrap(),
+                        None,
+                    )
+                    .await?
+                    .unwrap()
+                    .to_str()?,
+                )?;
+
+                // A webpack loader emits `sources` relative to the compilation
+                // root it was handed (its `rootContext`), NOT the resource's
+                // directory. Resolving against the resource's directory would
+                // double the path ("apps/web/src/i18n/src/i18n/toggle.tsx").
+                let loader_source_map: SourceMapJson = serde_json::from_str(
+                    &resolve_source_map_sources(
+                        Some(&source_map_rope(
+                            /* source_root */ None,
+                            ["src/i18n/toggle.tsx"],
+                        )),
+                        &fs_root_path.join("apps/web/src/i18n/toggle.tsx").unwrap(),
+                        Some(&fs_root_path.join("apps/web").unwrap()),
                     )
                     .await?
                     .unwrap()
@@ -417,6 +446,7 @@ mod tests {
                 Ok(SourceMapSourcesOutput {
                     resolved_sources: resolved_source_map.sources.unwrap_or_default(),
                     rooted_sources: rooted_source_map.sources.unwrap_or_default(),
+                    loader_sources: loader_source_map.sources.unwrap_or_default(),
                 }
                 .cell())
             }
@@ -442,6 +472,11 @@ mod tests {
             assert_eq!(
                 resolved_source_maps.rooted_sources,
                 vec![Some(format!("{prefix}/source root page.js"))]
+            );
+
+            assert_eq!(
+                resolved_source_maps.loader_sources,
+                vec![Some(format!("{prefix}/apps/web/src/i18n/toggle.tsx"))]
             );
 
             anyhow::Ok(())
