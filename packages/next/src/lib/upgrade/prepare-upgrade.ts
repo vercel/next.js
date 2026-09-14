@@ -3,6 +3,7 @@ import { createRequire } from 'module'
 import { join } from 'path'
 import semver from 'next/dist/compiled/semver'
 import * as Log from '../../build/output/log'
+import { dim } from '../picocolors'
 
 type UpgradePreparation =
   | { status: 'unaffected'; reason: string }
@@ -28,7 +29,7 @@ export async function prepareUpgrade(
     throw new Error('The installed Next.js version is not valid semver.')
   }
 
-  Log.info(`Installed Next.js: ${nextVersion}`)
+  Log.info(dim(`Installed Next.js: ${nextVersion}`))
   let target: PackageRelease
   let checkedAt: string
   let evidenceReferences: string[]
@@ -42,7 +43,7 @@ export async function prepareUpgrade(
     }
 
     const snapshot = await readSecuritySnapshot()
-    Log.info('Selecting a compatible security target')
+    Log.info(dim('Selecting a compatible security target'))
     const selected = selectSecurityTarget(nextVersion, snapshot, new Date())
 
     if (!selected) {
@@ -57,7 +58,7 @@ export async function prepareUpgrade(
     evidenceReferences = snapshot.evidenceReferences
   } else {
     const url = `${NPM_REGISTRY}next/${encodeURIComponent(targetRequest)}`
-    Log.info(`Fetching Next.js ${targetRequest} release metadata`)
+    Log.info(dim(`Fetching Next.js ${targetRequest} release metadata`))
     const { value } = await fetchJSON(url)
     const release = value as {
       version: string
@@ -91,7 +92,7 @@ export async function prepareUpgrade(
     evidenceReferences = [url]
   }
 
-  Log.info(`Checking Node.js compatibility for Next.js ${target.version}`)
+  Log.info(dim(`Checking Node.js compatibility for Next.js ${target.version}`))
   if (
     !target.nodeRange ||
     !semver.satisfies(process.versions.node, target.nodeRange)
@@ -376,7 +377,7 @@ async function readSecuritySnapshot(): Promise<SecuritySnapshot> {
   let githubFailure: unknown
 
   try {
-    Log.info('Fetching GitHub security advisories')
+    Log.info(dim('Fetching GitHub security advisories'))
     github = await readGitHubAdvisories()
   } catch (error) {
     githubFailure = error
@@ -388,7 +389,7 @@ async function readSecuritySnapshot(): Promise<SecuritySnapshot> {
   let evidenceReferences: string[]
 
   try {
-    Log.info('Fetching Next.js release metadata from npm')
+    Log.info(dim('Fetching Next.js release metadata from npm'))
     const { value } = await fetchJSON(registryURL)
     releases = parseReleases(value)
 
@@ -396,7 +397,7 @@ async function readSecuritySnapshot(): Promise<SecuritySnapshot> {
       advisories = github.advisories
       evidenceReferences = github.evidenceReferences
     } else {
-      Log.info('GitHub advisory lookup failed; fetching npm advisories')
+      Log.info(dim('GitHub advisory lookup failed; fetching npm advisories'))
       // Query every published version, including prereleases: querying only the
       // installed version could miss advisories affecting a candidate target.
       const versions = Object.keys(

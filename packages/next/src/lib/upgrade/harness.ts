@@ -183,7 +183,7 @@ export async function handoffUpgrade(
     return
   }
 
-  Log.info('Looking for installed coding agents…')
+  Log.info(dim('Looking for installed coding agents…'))
   const installed = await findHarnesses()
 
   if (installed.length === 0) {

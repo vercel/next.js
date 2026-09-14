@@ -8,6 +8,7 @@ import * as Log from '../build/output/log'
 import { findDir } from '../lib/find-pages-dir'
 import { getProjectDir } from '../lib/get-project-dir'
 import { getNpxCommand } from '../lib/helpers/get-npx-command'
+import { dim } from '../lib/picocolors'
 
 type NextUpgradeOptions = {
   revision: string | undefined
@@ -31,7 +32,7 @@ export async function spawnNextUpgrade(
       delete process.env.__NEXT_UPGRADE_LOCAL
 
       if (!useLocalBuild) {
-        Log.info('Starting the latest Next.js canary upgrade CLI')
+        Log.info(dim('Starting the latest Next.js canary upgrade CLI'))
         const [command, ...runnerArgs] = getNpxCommand(baseDir).split(' ')
         const args = [
           ...runnerArgs,
