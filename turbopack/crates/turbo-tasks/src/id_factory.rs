@@ -164,6 +164,27 @@ where
         self.free_ids.pop().unwrap_or_else(|_| self.factory.get())
     }
 
+    /// Seed the free list with ids that are known to be unused.
+    ///
+    /// # Safety
+    ///
+    /// Same contract as [`IdFactoryWithReuse::reuse`], for every id: each must be a valid id in
+    /// this factory's range that nothing refers to any more.
+    pub unsafe fn seed_free_ids(&self, ids: impl IntoIterator<Item = T>) {
+        for id in ids {
+            let _ = self.free_ids.push(id);
+        }
+    }
+
+    /// The next id this factory would mint from its counter, ignoring the free list.
+    ///
+    /// A watermark, not an allocation: it is the high-water mark of the id space this factory has
+    /// consumed, which is what "are ids being reused" is measured against. Only meaningful as an
+    /// observation — a racing `get` can advance it immediately.
+    pub fn peek_next_fresh(&self) -> u64 {
+        self.factory.counter.load(Ordering::Relaxed) + self.factory.id_offset
+    }
+
     /// Add an id to the free list, allowing it to be re-used on a subsequent call to
     /// [`IdFactoryWithReuse::get`].
     ///
