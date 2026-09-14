@@ -44,7 +44,9 @@ __turbopack_context__.s([
  * which module chunks to load and which module to run as the entry point.
  *
  * The params are a JSON array of the following structure:
- * `[TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, PRELOAD_CHUNK_URLS, ...workerForwardedGlobals values]`
+ * `[PRELOAD_CHUNK_URLS, TURBOPACK_NEXT_CHUNK_URLS, ASSET_SUFFIX, WORKER_CHUNK_BASE_PATH, ...workerForwardedGlobals values]`
+ *
+ * `PRELOAD_CHUNK_URLS` comes first because it is loaded first.
  *
  * @param WorkerConstructor The Worker or SharedWorker constructor
  * @param entrypoint path to the worker entrypoint chunk
@@ -77,15 +79,15 @@ __turbopack_context__.s([
     //     deliberately excludes availability info), but carries a different chunk
     //     list per group. Loading the worker's own chunks last means its version
     //     wins, so a nested worker gets the correctly-pruned chunk list.
-    // They travel in their own params slot so the bootstrap can order them.
+    // They travel in their own params slot — first, since they load first.
     const preloadChunkPaths = (typeof /*TURBOPACK member replacement*/ __turbopack_context__.G === 'function' ? /*TURBOPACK member replacement*/ __turbopack_context__.G() : []).filter((chunkPath)=>!workerChunkSet.has(chunkPath));
     const chunkUrls = workerChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath)).reverse();
     const preloadUrls = preloadChunkPaths.map((chunkPath)=>/*TURBOPACK member replacement*/ __turbopack_context__.h(chunkPath, workerBasePath));
     const params = [
+        preloadUrls,
         chunkUrls,
         /*TURBOPACK member replacement*/ __turbopack_context__.X,
-        workerBasePath,
-        preloadUrls
+        workerBasePath
     ];
     const globals = [];
     for(let i = 0; i < globals.length; i++){
