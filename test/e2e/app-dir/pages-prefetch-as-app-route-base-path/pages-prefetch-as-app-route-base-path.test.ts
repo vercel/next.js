@@ -18,7 +18,7 @@ describe('pages router - prefetch of an app route that starts with the basePath'
       await retry(async () => {
         expect(
           await browser.eval(
-            'Object.values(window.next.router.components).some((c) => c && c.__appRouter)'
+            "window.next.router.components['/docs']?.__appRouter"
           )
         ).toBe(true)
       })

@@ -11,17 +11,18 @@ describe('pages router - prefetch with `as` pointing at an app route', () => {
   ;(isNextDev ? describe.skip : describe)('production mode', () => {
     async function hoverLink(
       browser: Awaited<ReturnType<typeof next.browser>>,
-      id: string
+      id: string,
+      markerKey: string
     ) {
       await browser.eval('window.beforeNav = 1')
       await browser.elementById(id).moveTo()
 
       // wait until the prefetch has consulted the client router filter and
-      // stored its marker
+      // stored the marker this test depends on
       await retry(async () => {
         expect(
           await browser.eval(
-            'Object.values(window.next.router.components).some((c) => c && c.__appRouter)'
+            `window.next.router.components[${JSON.stringify(markerKey)}]?.__appRouter`
           )
         ).toBe(true)
       })
@@ -29,7 +30,7 @@ describe('pages router - prefetch with `as` pointing at an app route', () => {
 
     it('should hard navigate to the app route when the link is clicked', async () => {
       const browser = await next.browser('/')
-      await hoverLink(browser, 'app-link')
+      await hoverLink(browser, 'app-link', '/dashboard')
 
       await browser.elementById('app-link').click()
       await browser.waitForElementByCss('#app-page')
@@ -40,7 +41,7 @@ describe('pages router - prefetch with `as` pointing at an app route', () => {
 
     it('should keep shallow navigation working on the static pages route after prefetching the link', async () => {
       const browser = await next.browser('/')
-      await hoverLink(browser, 'app-link')
+      await hoverLink(browser, 'app-link', '/dashboard')
 
       await browser.elementById('tab-b').click()
       await retry(async () => {
@@ -54,7 +55,7 @@ describe('pages router - prefetch with `as` pointing at an app route', () => {
 
     it('should keep shallow navigation working on the dynamic pages route after prefetching the link', async () => {
       const browser = await next.browser('/blog/first')
-      await hoverLink(browser, 'app-link')
+      await hoverLink(browser, 'app-link', '/dashboard')
 
       await browser.elementById('tab-b').click()
       await retry(async () => {
@@ -75,7 +76,7 @@ describe('pages router - prefetch with `as` pointing at an app route', () => {
     it('should hard navigate when the href route was flagged by the prefetch and `as` differs', async () => {
       const browser = await next.browser('/')
       // `/modal` is a pages route and the static prefix of `app/modal/[id]`
-      await hoverLink(browser, 'modal-link')
+      await hoverLink(browser, 'modal-link', '/modal')
 
       // href is the flagged `/modal`, `as` is `/pretty` which the filter does
       // not know. This must fall back to a hard navigation instead of reading
@@ -84,6 +85,43 @@ describe('pages router - prefetch with `as` pointing at an app route', () => {
       await browser.waitForElementByCss('#modal-page')
 
       expect(await browser.eval('window.beforeNav')).toBeUndefined()
+      expect(await browser.eval('location.pathname')).toBe('/pretty')
+    })
+
+    it('should hard navigate when a config rewrite resolves to the flagged route', async () => {
+      const browser = await next.browser('/')
+      await hoverLink(browser, 'modal-link', '/modal')
+
+      // `/pretty` holds no marker, but the config rewrite resolves it to
+      // `/modal` after the first marker guard ran.
+      await browser.elementById('push-pretty-rewrite').click()
+      await browser.waitForElementByCss('#modal-page')
+
+      expect(await browser.eval('window.beforeNav')).toBeUndefined()
+      expect(await browser.eval('location.pathname')).toBe('/pretty')
+      expect(await browser.elementById('modal-page').text()).toBe(
+        'hello from pages/modal'
+      )
+    })
+
+    it('should not render the marker on a hash-only change when the current route was flagged by the prefetch', async () => {
+      // loaded through the config rewrite: the route is `/modal`, the URL is
+      // `/pretty`, so the filter does not skip `/modal` as the current path
+      const browser = await next.browser('/pretty')
+      // the prefetch replaces the cache entry of the current route
+      await hoverLink(browser, 'canonical-link', '/modal')
+
+      // a hash-only change does not call `getRouteInfo()`; it renders the
+      // cache entry of the current route directly
+      await browser.elementById('hash-link').click()
+      await retry(async () => {
+        expect(await browser.eval('location.hash')).toBe('#section')
+      })
+
+      // the props from getServerSideProps must still be rendered
+      expect(await browser.elementById('modal-page').text()).toBe(
+        'hello from pages/modal'
+      )
       expect(await browser.eval('location.pathname')).toBe('/pretty')
     })
   })

@@ -18,7 +18,7 @@ describe('pages router - prefetch marker keeps the effective locale', () => {
       await retry(async () => {
         expect(
           await browser.eval(
-            'Object.values(window.next.router.components).some((c) => c && c.__appRouter)'
+            "window.next.router.components['/fr/legacy']?.__appRouter"
           )
         ).toBe(true)
       })

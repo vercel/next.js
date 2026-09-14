@@ -1428,7 +1428,16 @@ export default class Router implements BaseRouter {
     // If the url change is only related to a hash change
     // We should not proceed. We should only change the state.
 
-    if (!isQueryUpdating && this.onlyAHashChange(cleanedAs) && !localeChange) {
+    // A hash-only change re-renders the cached route info of the current
+    // route. When a prefetch replaced that entry with the app router marker,
+    // take the full navigation path below so the marker guard hard navigates
+    // instead of rendering the marker.
+    if (
+      !isQueryUpdating &&
+      this.onlyAHashChange(cleanedAs) &&
+      !localeChange &&
+      !(this.components[nextState.route] as any)?.__appRouter
+    ) {
       nextState.asPath = cleanedAs
       Router.events.emit('hashChangeStart', as, routeProps)
       // TODO: do we need the resolved href when only a hash change?
@@ -1624,6 +1633,15 @@ export default class Router implements BaseRouter {
     resolvedAs = removeLocale(removeBasePath(resolvedAs), nextState.locale)
 
     route = removeTrailingSlash(pathname)
+
+    // A config rewrite can resolve `href` to another pages route after the
+    // marker guard above ran. That route can hold a marker from an earlier
+    // prefetch, so check it again before `getRouteInfo()` reads the cache.
+    if ((this.components[route] as any)?.__appRouter) {
+      handleHardNavigation({ url: as, router: this })
+      return new Promise(() => {})
+    }
+
     let routeMatch: Params | false = false
 
     if (isDynamicRoute(route)) {

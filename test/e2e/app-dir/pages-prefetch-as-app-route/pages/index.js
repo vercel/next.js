@@ -34,6 +34,17 @@ export default function Page() {
       >
         push /modal as /pretty
       </button>
+      <button
+        id="push-pretty-rewrite"
+        onClick={() => {
+          // `/pretty` is rewritten to the flagged pages route `/modal` by a
+          // config rewrite. A button instead of a link so that no hover
+          // prefetch of `/pretty` itself writes a marker.
+          router.push('/pretty')
+        }}
+      >
+        push /pretty
+      </button>
     </>
   )
 }
