@@ -74,7 +74,7 @@ pub async fn node_file_trace(
     })
 }
 
-#[turbo_tasks::function(operation)]
+#[turbo_tasks::function(operation, root)]
 async fn node_file_trace_operation(
     project_root: RcStr,
     cwd: RcStr,
