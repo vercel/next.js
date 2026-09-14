@@ -131,6 +131,7 @@ impl NextSegmentConfig {
             prefetch: _,
             // Don't need merging
             middleware_matcher: _,
+            unstable_allow_dynamic: _,
             generate_image_metadata: _,
             generate_sitemaps: _,
             generate_static_params: _,
@@ -179,6 +180,7 @@ impl NextSegmentConfig {
             prefetch: _,
             // Don't need merging
             middleware_matcher: _,
+            unstable_allow_dynamic: _,
             generate_image_metadata: _,
             generate_sitemaps: _,
             generate_static_params: _,
@@ -755,6 +757,16 @@ async fn parse_config_value(
                     "matcher" => {
                         config.middleware_matcher =
                             parse_route_matcher_from_js_value(source, span, value).await?;
+                    }
+                    "unstable_allowDynamic" => {
+                        config.unstable_allow_dynamic = parse_static_string_or_array_from_js_value(
+                            source,
+                            span,
+                            "config",
+                            "unstable_allowDynamic",
+                            value,
+                        )
+                        .await?;
                     }
                     "regions" => {
                         config.preferred_region = parse_static_string_or_array_from_js_value(
