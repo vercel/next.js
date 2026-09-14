@@ -19,17 +19,9 @@ function selectHarness(
   installed: UpgradeHarness[],
   tty: boolean
 ): HarnessChoice {
-  if (active === 'codex' || active === 'claude' || active === 'claude-code') {
-    return {
-      kind: 'handoff',
-    }
-  }
-
+  // Existing agents consume guidance directly; only new sessions need a launcher.
   if (active) {
-    return {
-      kind: 'fallback',
-      reason: `The active harness (${active}) is not supported. Continue in Codex or Claude Code.`,
-    }
+    return { kind: 'handoff' }
   }
 
   if (installed.length > 0 && tty) {
@@ -40,7 +32,7 @@ function selectHarness(
     kind: 'fallback',
     reason: installed.length
       ? 'Choose Codex or Claude Code in an interactive terminal.'
-      : 'Install or open Codex or Claude Code, then follow the printed instructions.',
+      : 'No supported agent found. Paste the upgrade prompt into your coding agent.',
   }
 }
 
@@ -91,7 +83,7 @@ async function findHarnesses(): Promise<UpgradeHarness[]> {
 
 async function chooseHarness(
   harnesses: UpgradeHarness[]
-): Promise<UpgradeHarness | 'print' | undefined> {
+): Promise<UpgradeHarness | 'copy' | undefined> {
   console.log('  How would you like to continue?')
   console.log(`  ${dim('Use ↑/↓ to choose, then press Enter.')}\n`)
 
@@ -104,7 +96,7 @@ async function chooseHarness(
             name === 'codex' ? 'Open Codex' : 'Open Claude Code',
           ])
         ),
-        print: 'Print upgrade prompt',
+        copy: 'Copy upgrade prompt',
         cancel: 'Cancel',
       },
       // cli-select indexes rows numerically, even when values is an object.
@@ -115,7 +107,7 @@ async function chooseHarness(
       valueRenderer: (value: string, selected: boolean) =>
         selected ? cyan(bold(value)) : value,
     })
-    return id === 'print' ? 'print' : harnesses.find((name) => name === id)
+    return id === 'copy' ? 'copy' : harnesses.find((name) => name === id)
   } catch (error) {
     // cli-select rejects without an error when Escape or Ctrl+C cancels the menu.
     if (error) {
@@ -126,11 +118,47 @@ async function chooseHarness(
   }
 }
 
+function copyUpgradePrompt(prompt: string): void {
+  const commands =
+    process.platform === 'darwin'
+      ? [['pbcopy']]
+      : process.platform === 'win32'
+        ? [['clip.exe']]
+        : [
+            ['wl-copy'],
+            ['xclip', '-selection', 'clipboard'],
+            ['xsel', '--clipboard', '--input'],
+          ]
+
+  for (const [command, ...args] of commands) {
+    const result = spawn.sync(command, args, {
+      input:
+        process.platform === 'win32' ? Buffer.from(prompt, 'utf16le') : prompt,
+      stdio: ['pipe', 'ignore', 'ignore'],
+      timeout: 1000,
+      windowsHide: true,
+    })
+
+    if (!result.error && result.status === 0) {
+      console.log('Upgrade prompt copied. Paste it into your coding agent.')
+      return
+    }
+  }
+
+  console.log('Could not access the clipboard. Copy this upgrade prompt:')
+  console.log(prompt)
+}
+
 function launchHarness(
   harness: UpgradeHarness,
   prompt: string,
   directory: string
 ): Promise<number> {
+  // Windows .cmd shims cannot carry literal line breaks in an argument.
+  if (process.platform === 'win32') {
+    prompt = prompt.replace(/[\r\n]+/g, ' ')
+  }
+
   return new Promise((resolve, reject) => {
     const child = spawn(harness, ['--model', UPGRADE_MODELS[harness], prompt], {
       cwd: directory,
@@ -160,8 +188,7 @@ function launchHarness(
 
 export async function handoffUpgrade(
   prompt: string,
-  directory: string,
-  versions: { current: string; target: string }
+  directory: string
 ): Promise<void> {
   const active = await getAgentName()
   const choice = selectHarness(
@@ -179,20 +206,17 @@ export async function handoffUpgrade(
 
   if (choice.kind === 'fallback') {
     console.log(choice.reason)
-    console.log(prompt)
-    process.exitCode = 1
+
+    copyUpgradePrompt(prompt)
+
     return
   }
-
-  console.log(
-    `\n  ${bold('Next.js security update available!')} ${dim(versions.current)} → ${cyan(bold(versions.target))}\n`
-  )
 
   // Let the selected agent take over the terminal with its existing permissions.
   const harness = await chooseHarness(choice.harnesses)
 
-  if (harness === 'print') {
-    console.log(prompt)
+  if (harness === 'copy') {
+    copyUpgradePrompt(prompt)
     return
   }
 

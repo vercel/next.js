@@ -589,10 +589,13 @@ program
     'Run the experimental agent-assisted upgrade workflow.',
     false
   )
-  .option(
-    '--experimental-agent-dry-run',
-    'With --experimental-agent, edit, verify and commit locally without pushing or creating a PR.',
-    false
+  .addOption(
+    new Option(
+      '--experimental-agent-dry-run',
+      'Run the experimental agent-assisted upgrade, edit, verify and commit locally without pushing or creating a PR.'
+    )
+      .implies({ experimentalAgent: true })
+      .default(false)
   )
   .action(async (directory, options, command) => {
     const mod = await import('../cli/next-upgrade.js')
