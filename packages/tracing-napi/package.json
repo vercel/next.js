@@ -1,0 +1,24 @@
+{
+  "name": "@turbopack/nft",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build-native": "napi build --platform -p turbopack-nft-napi --manifest-path ../../Cargo.toml --no-js -o native",
+    "build-native-release": "napi build --platform -p turbopack-nft-napi --manifest-path ../../Cargo.toml --release --no-js -o native"
+  },
+  "napi": {
+    "binaryName": "turbopack-nft",
+    "targets": [
+      "x86_64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "aarch64-apple-darwin",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-musl"
+    ]
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "3.7.2"
+  }
+}
