@@ -245,8 +245,8 @@ completed UI renders after release. Do not change an existing data source,
 production selector, or required route variant to make the test easier. A
 required contract may not be skipped or weakened.
 
-For repeat and browser-back contracts, follow the guide's
-[return-navigation testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#test-first-visits-and-return-navigations).
+For repeat and browser-back contracts, follow the restored-navigation guidance
+in `rig-template.md`.
 
 Prefer the self-validating variant when the route has deferred content. If the
 route cannot build while blocked, or a cookie/session read stays GREEN, use the
@@ -304,6 +304,12 @@ If the optimization adds or expands a cache boundary, follow
 writer can change the cached data, populate the cache, perform the mutation,
 and verify that the next read returns the updated value. `instant()` proves
 readiness, not mutation freshness.
+
+For [`'use cache: private'`](https://nextjs.org/docs/app/api-reference/directives/use-cache-private),
+pass every application scope that changes the result, such as team or locale,
+as an explicit argument. A Route Handler cannot invalidate private output
+already delivered to other routes, tabs, or browsers, so keep data that requires
+immediate cross-client consistency outside a long-lived private cache.
 
 Do not use `export const instant = false`, weaken the contract, or ship an
 empty document shell as the optimization.

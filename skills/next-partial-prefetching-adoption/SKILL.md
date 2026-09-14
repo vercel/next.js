@@ -79,7 +79,7 @@ After the target UI is settled, inspect the existing test setup. The `instant()`
 - **No applicable production-mode suite:** set up the production-mode rig in **`rig-template.md`** using the project's package manager and test conventions. This is part of test-backed adoption and does not require a user to be present.
 - **Rig cannot run reliably:** work through **`rig-template.md`** setup and liveness checks. Fall back to manual preservation only for a concrete blocker the repository cannot resolve, such as unavailable credentials or an inaccessible production environment. Record the blocker and the deferred test coverage; do not claim test-backed verification.
 
-For repeat and browser-back contracts, follow the guide's [return-navigation testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#test-first-visits-and-return-navigations).
+For repeat and browser-back contracts, follow the restored-navigation guidance in `rig-template.md`.
 
 No user input is required to reuse an existing suite or create the rig. Ask only when the repository cannot answer an environment question or when the target UI itself is a product decision. If no user is available, use the guide's safe product default and reserve manual verification for a concrete rig blocker. Treat new prefetched UI as step 7 work; verify any deliberate removal separately after adoption.
 
@@ -115,6 +115,8 @@ Use that exact prefix so step 7 can grep them back. Do not select new target UI 
 For test-backed preservation, rerun the affected **unchanged** tests after each destination changes and treat failures as the work queue. Run the complete suite and record its passing exit status before enabling the global flag. For manual preservation, compare the adopted production navigation with the selected target and document anything not yet restored. Apply the guide's matching preservation pattern for caching and Link-prop changes, and ask the user before making an unclear freshness or caching decision. New URL-data candidates marked above wait for step 7.
 
 When restoring the target changes caching or invalidation, follow the project's existing verification approach and the [Revalidating](https://nextjs.org/docs/app/getting-started/revalidating) guide. Reuse or extend an applicable suite for the affected lifecycle. If the project doesn't test this type of behavior, do not introduce new test infrastructure during adoption; verify it manually in production and record the expected and observed results. A green `instant()` test proves readiness, not cache correctness. Ask the user only when the intended behavior is unclear.
+
+For [`'use cache: private'`](https://nextjs.org/docs/app/api-reference/directives/use-cache-private), pass every application scope that changes the result, such as team or locale, as an explicit argument. A Route Handler cannot invalidate private output already delivered to other routes, tabs, or browsers, so keep data that requires immediate cross-client consistency outside a long-lived private cache.
 
 > **If you add `use cache`, verify under `next start`, not only the build.** A `cookies()`/`headers()`/session read anywhere in the cached call tree throws at request time while `next build` passes clean. See [`use cache`](https://nextjs.org/docs/app/api-reference/directives/use-cache).
 

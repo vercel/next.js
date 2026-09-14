@@ -106,8 +106,8 @@ Keep one production browser test per source-link, destination, and trigger
 contract. Do not loop over several destinations or collect their readiness
 results in one test. Focused tests can still run serially in one browser worker.
 
-For repeat and browser-back contracts, follow the guide's
-[return-navigation testing pattern](https://nextjs.org/docs/app/guides/instant-navigation#test-first-visits-and-return-navigations).
+For repeat and browser-back contracts, follow the restored-navigation guidance
+in `rig-template.md`.
 
 First, run an unlocked scaffold that proves the link reaches the exact pathname
 and query and that the selected UI eventually renders for the test user. Do not
@@ -161,6 +161,12 @@ When a writer can change that cached data, test the complete lifecycle: populate
 the cache, perform the mutation, then read the data again and verify the updated
 value. A passing `instant()` test proves prefetched readiness, not mutation
 freshness.
+
+For [`'use cache: private'`](https://nextjs.org/docs/app/api-reference/directives/use-cache-private),
+pass every application scope that changes the result, such as team or locale,
+as an explicit argument. A Route Handler cannot invalidate private output
+already delivered to other routes, tabs, or browsers, so keep data that requires
+immediate cross-client consistency outside a long-lived private cache.
 
 ## Verify and ship
 

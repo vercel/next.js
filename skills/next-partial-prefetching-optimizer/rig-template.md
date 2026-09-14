@@ -88,12 +88,14 @@ running while the test command executes. Follow the public
 Link is visible, then enter `instant()`, click, wait for the destination URL,
 and assert the prefetched UI.
 
-Follow the guide's
-[direct-destination requirement](https://nextjs.org/docs/app/guides/optimizing-prefetching#test-prefetched-and-deferred-content).
+Use a Link whose `href` is the final destination. A redirect cannot prefetch
+the final route tree.
 
-Test fresh destinations separately from repeat and browser-back restoration.
-Follow the guide's
-[first-visit and return-navigation assertions](https://nextjs.org/docs/app/guides/instant-navigation#test-first-visits-and-return-navigations).
+Use a fresh destination to prove that content was not prefetched. On repeat or
+browser-back navigation, Next.js may keep the previous route hidden in a React
+Activity boundary. Follow the
+[preserved-state testing guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
+and assert the visible UI instead of counting matching DOM nodes.
 
 ### Test context
 
@@ -181,7 +183,3 @@ Before recording the prefetch contract:
 Fix the rig before interpreting an optimizer failure. A missing testing API,
 stale deployment, unreachable target, or wrong test state is an environment
 failure rather than evidence that the optimization changed the prefetched UI.
-
-Once the rig produces a conclusive result, continue to the next workflow gate.
-Do not repeat the same build or test to look for flakiness unless two observed
-results conflict.
