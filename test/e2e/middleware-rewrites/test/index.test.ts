@@ -121,7 +121,9 @@ describe('Middleware Rewrite', () => {
     it('should handle static dynamic rewrite from middleware correctly', async () => {
       const browser = await next.browser('/rewrite-to-static')
 
-      await check(() => browser.eval('next.router.query.slug'), 'post-1')
+      await retry(async () => {
+        expect(await browser.eval('next.router.query.slug')).toBe('post-1')
+      })
       expect(await browser.elementByCss('#page').text()).toBe(
         '/static-ssg/[slug]'
       )
