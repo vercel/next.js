@@ -124,6 +124,7 @@ import { generateBuildId } from './generate-build-id'
 import { isWriteable } from './is-writeable'
 import * as Log from './output/log'
 import createSpinner from './spinner'
+import { createBuildProgressBar } from './progress-bar'
 import { trace, flushAllTraces, setGlobal, type Span } from '../trace'
 import { writeAnalyzeSnapshot } from './analyze/snapshot'
 import { writeRouteBundleStats } from './route-bundle-stats'
@@ -1075,6 +1076,10 @@ export default async function build(
   let loadedConfig: NextConfigComplete | undefined
   let staticWorker: StaticWorker
 
+  // Drives an OSC 9;4 terminal progress bar across the build stages. No-op when
+  // not attached to a TTY, in CI, or when NEXT_DISABLE_BUILD_PROGRESS is set.
+  const buildProgress = createBuildProgressBar()
+
   // Turbopack compile warnings are deferred until after static generation.
   let deferredTurbopackWarnings: string[] | undefined
   const flushTurbopackWarnings = () => {
@@ -1109,6 +1114,8 @@ export default async function build(
         .traceChild('load-dotenv')
         .traceFn(() => loadEnvConfig(dir, false, Log))
       NextBuildContext.loadedEnvFiles = loadedEnvFiles
+
+      buildProgress.startStage('setup')
 
       // Log the version banner before loading the config just like `dev`
       logStartInfo({
@@ -1779,6 +1786,9 @@ export default async function build(
 
       // #region Compile
 
+      buildProgress.completeStage('setup')
+      buildProgress.startStage('compile')
+
       Log.info('Creating an optimized production build ...')
       traceMemoryUsage('Starting build', nextBuildSpan)
 
@@ -1949,13 +1959,17 @@ export default async function build(
 
       // #endregion
 
+      buildProgress.completeStage('compile')
+
       // For app directory, we run type checking after build.
       if (appDir && !isCompileMode && !isGenerateMode) {
+        buildProgress.startStage('type-check')
         await updateBuildDiagnostics({
           buildStage: 'type-checking',
         })
         await startTypeChecking(typeCheckingOptions)
         traceMemoryUsage('Finished type checking', nextBuildSpan)
+        buildProgress.completeStage('type-check')
       }
 
       // #region required-server-files
@@ -2161,6 +2175,17 @@ export default async function build(
       const postCompileSpinner = createSpinner(
         `Collecting page data using ${numberOfWorkers} worker${numberOfWorkers > 1 ? 's' : ''}`
       )
+
+      buildProgress.startStage('collect-page-data')
+      let collectedPageCount = 0
+      const onPageDataCollected = () => {
+        collectedPageCount++
+        buildProgress.setStageFraction(
+          'collect-page-data',
+          collectedPageCount,
+          totalPageCount
+        )
+      }
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
 
@@ -2778,6 +2803,7 @@ export default async function build(
                 })
               })
             })
+            .map((pagePromise) => pagePromise.finally(onPageDataCollected))
         )
 
         const errorPageResult = await errorPageStaticResult
@@ -2802,6 +2828,7 @@ export default async function build(
         )
         postCompileSpinner.stopAndPersist()
       }
+      buildProgress.completeStage('collect-page-data')
       traceMemoryUsage('Finished collecting page data', nextBuildSpan)
 
       if (customAppGetInitialProps) {
@@ -3237,6 +3264,7 @@ export default async function build(
           }
 
           const outdir = path.join(distDir, 'export')
+          buildProgress.startStage('static-generation')
           const exportResult = await exportApp(
             dir,
             {
@@ -3252,10 +3280,18 @@ export default async function build(
               numWorkers: numberOfWorkers,
               appDirOnly,
               bundler,
+              onProgress: (done, total) =>
+                buildProgress.setStageFraction(
+                  'static-generation',
+                  done,
+                  total
+                ),
             },
             nextBuildSpan,
             staticWorker
           )
+
+          buildProgress.completeStage('static-generation')
 
           // If there was no result, there's nothing more to do.
           if (!exportResult) return
@@ -4289,6 +4325,7 @@ export default async function build(
 
       flushTurbopackWarnings()
 
+      buildProgress.startStage('finalize')
       const finalizingPageOptimizationStart = process.hrtime()
       const postBuildSpinner = createSpinner('Finalizing page optimization')
       let buildTracesSpinner
@@ -4623,6 +4660,9 @@ export default async function build(
         )
         postBuildSpinner.stopAndPersist()
       }
+
+      buildProgress.finish()
+
       console.log()
 
       if (debugOutput) {
@@ -4690,6 +4730,7 @@ export default async function build(
       }
     })
   } catch (e) {
+    buildProgress.fail()
     const telemetry: Telemetry | undefined = traceGlobals.get('telemetry')
     if (telemetry) {
       telemetry.record(
