@@ -470,6 +470,8 @@ struct EsmReferenceExtras {
     module_type: Option<RcStr>,
     /// The chunking-type annotation (drives `chunking_type`).
     chunking_type: Option<SpecifiedChunkingType>,
+    /// Whether the importing module's used exports should be forwarded to the target.
+    export_usage_passthrough: bool,
     /// A module to resolve to directly, bypassing resolution (from a matched inner asset).
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
@@ -489,6 +491,7 @@ impl EsmReferenceExtras {
                 .and_then(|a| a.module_type())
                 .map(|m| RcStr::from(&*m.to_string_lossy())),
             chunking_type: annotations.and_then(|a| a.chunking_type()),
+            export_usage_passthrough: annotations.is_some_and(|a| a.export_usage_passthrough()),
             resolve_override,
         };
         (extras != EsmReferenceExtras::default()).then(|| Box::new(extras))
@@ -738,10 +741,22 @@ impl ModuleReference for EsmAssetReference {
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
             import: self.import_usage.clone(),
-            export: match &self.export_name {
-                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
-                Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
-                _ => ExportUsage::All,
+            export: if self
+                .extras
+                .as_deref()
+                .is_some_and(|extras| extras.export_usage_passthrough)
+            {
+                ExportUsage::Passthrough {
+                    namespace_object_may_escape: true,
+                }
+            } else {
+                match &self.export_name {
+                    Some(ModulePart::Export(export_name)) => {
+                        ExportUsage::Named(export_name.clone())
+                    }
+                    Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
+                    _ => ExportUsage::All,
+                }
             },
         }
     }
