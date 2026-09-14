@@ -502,12 +502,16 @@ export async function handler(
       // If this is during static generation, throw the error again.
       if (isIsr) throw err
 
-      // Otherwise, send a 500 response.
-      await sendResponse(
-        nodeNextReq,
-        nodeNextRes,
-        new Response(null, { status: 500 })
-      )
+      // Otherwise, send a 500 response unless the original response has
+      // already committed. In that case, preserve its status code for
+      // telemetry instead of mutating it to a status that was never sent.
+      if (!res.headersSent) {
+        await sendResponse(
+          nodeNextReq,
+          nodeNextRes,
+          new Response(null, { status: 500 })
+        )
+      }
       return
     } finally {
       ;(() => {

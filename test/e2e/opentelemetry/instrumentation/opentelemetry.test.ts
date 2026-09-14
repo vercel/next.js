@@ -616,6 +616,78 @@ describe.each(
             ])
           })
 
+          it('should preserve the committed status when a route response stream errors', async () => {
+            const response = await next.fetch(
+              '/api/app/param/stream-error',
+              env.fetchInit
+            )
+
+            expect(response.status).toBe(200)
+            await expect(response.text()).rejects.toThrow()
+
+            await retry(() => {
+              expect(next.cliOutput).toContain(
+                '[instrumentation] observed app route stream error'
+              )
+            })
+
+            await expectTrace(getCollector(), [
+              {
+                name: 'GET /api/app/[param]/stream-error',
+                attributes: {
+                  'http.method': 'GET',
+                  'http.route': '/api/app/[param]/stream-error',
+                  'http.status_code': 200,
+                  'http.target': '/api/app/param/stream-error',
+                  'next.route': '/api/app/[param]/stream-error',
+                  'next.span_name': 'GET /api/app/[param]/stream-error',
+                  'next.span_type': 'BaseServer.handleRequest',
+                },
+                kind: 1,
+                status: { code: 0 },
+                traceId: env.span.traceId,
+                parentId: env.span.rootParentId,
+                spans: [
+                  {
+                    name: 'executing api route (app) /api/app/[param]/stream-error',
+                    attributes: {
+                      'next.route': '/api/app/[param]/stream-error',
+                      'next.span_name':
+                        'executing api route (app) /api/app/[param]/stream-error',
+                      'next.span_type': 'AppRouteRouteHandlers.runHandler',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                  ...(useDirectEntrypointHandler
+                    ? []
+                    : [
+                        {
+                          name: 'resolve page components',
+                          attributes: {
+                            'next.route': '/api/app/[param]/stream-error',
+                            'next.span_name': 'resolve page components',
+                            'next.span_type':
+                              'NextNodeServer.findPageComponents',
+                          },
+                          kind: 0,
+                          status: { code: 0 },
+                        },
+                      ]),
+                  {
+                    name: 'start response',
+                    attributes: {
+                      'next.span_name': 'start response',
+                      'next.span_type': 'NextNodeServer.startResponse',
+                    },
+                    kind: 0,
+                    status: { code: 0 },
+                  },
+                ],
+              },
+            ])
+          })
+
           it('should record accurate status code for non-200 route handler responses', async () => {
             await next.fetch('/api/app/param/status', env.fetchInit)
 
