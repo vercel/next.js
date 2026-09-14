@@ -113,6 +113,7 @@ pub struct NextSegmentConfig {
     pub runtime: Option<NextRuntime>,
     pub preferred_region: Option<Vec<RcStr>>,
     pub middleware_matcher: Option<Vec<MiddlewareMatcherKind>>,
+    pub unstable_allow_dynamic: Option<Vec<RcStr>>,
 
     /// Whether these exports are defined in the source file.
     pub generate_image_metadata: bool,
