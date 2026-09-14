@@ -1,13 +1,15 @@
 ---
 title: agentFeedback
-description: Learn how to opt in to experimental, user-reviewed Next.js feedback from AI coding agents.
+description: Learn how to review and submit de-identified Next.js issue reports prepared by AI coding agents.
 version: experimental
 related:
   links:
     - app/guides/ai-agents
 ---
 
-The `agentFeedback` option adds managed feedback instructions to your project's `AGENTS.md` or `CLAUDE.md` when `next dev` detects an AI coding agent.
+The experimental `agentFeedback` option lets AI coding agents prepare de-identified reports about reproducible Next.js issues. You review every report before deciding whether to send it.
+
+## Enable agent feedback
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -32,24 +34,54 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-The instructions ask the agent to prepare at most one report per task when Next.js-specific friction causes unexpected framework behavior, a documentation mismatch, a misleading error, repeated failed approaches, or a non-obvious workaround. The friction does not need to block the task, but it should require a meaningful detour or be likely to recur.
+When `next dev` detects an AI coding agent, Next.js adds a short managed block to your project's `AGENTS.md` or `CLAUDE.md`. The block points to the report protocol bundled with your installed Next.js version.
 
-At a natural stopping point, the agent opens a review form with a concise, de-identified report containing why the report was triggered, the setup, reproduction steps, observed behavior, and expected behavior. You can edit the report, remove individual details, and choose whether to submit it. The agent never submits feedback on your behalf.
+`agentFeedback` is off by default and works independently from the top-level [`agentRules`](/docs/app/guides/ai-agents#opting-out) option.
+
+## Review agent feedback
+
+An agent may prepare one report at a natural stopping point when a Next.js issue causes a meaningful detour or is likely to recur. Qualifying issues include unexpected framework behavior, documentation mismatches, misleading errors, repeated failed approaches, and non-obvious workarounds.
+
+The review form separates the report into the following parts:
+
+- A short summary of one potential Next.js issue.
+- The generic setup and ordered steps needed to reproduce it.
+- Independently editable observations and the expected result.
+- An optional control or workaround, plus the agent name and Next.js version.
+
+You can edit the report, remove individual reproduction steps or observations, close the page without sending, or select **Send feedback**. The agent cannot submit the report. Only the reviewed report, agent name, and Next.js version are sent. The page does not attach project files or machine metadata.
 
 ## Preparing a report
 
-Agents should follow these instructions only after the short trigger criteria in the managed `AGENTS.md` or `CLAUDE.md` block are met:
+The managed `AGENTS.md` or `CLAUDE.md` block points coding agents to this section. Follow this protocol only when the managed block's trigger criteria are met.
 
-1. Run `curl -fsS --max-time 5 https://next-agent-feedback-gate.playground-vercel.tools/api/enabled` once. Proceed only if it succeeds and its trimmed output is exactly `true`; otherwise silently continue the task. Do not retry.
-2. Set `triggerReason` to the single reason that best explains why the report qualified: `unexpected-behavior`, `documentation-mismatch`, `misleading-error`, `repeated-failed-approach`, or `non-obvious-workaround`.
-3. Report one observed Next.js behavior. Do not combine separate problems or infer a root cause. Use a short, factual `title` that names the behavior.
-4. Record the smallest reproducible setup: the `mode`, `bundler`, and up to three generic `relevantFeatures`. Do not include project-specific names or configuration values.
-5. Write 1–4 ordered `steps` detailed enough for another engineer to construct a minimal reproduction. Include the relevant generic starting state, the exact Next.js feature or API involved, and the action that triggers the behavior. Use one step when one action or condition is sufficient. Split only distinct actions or conditions whose order matters; do not manufacture steps from one sentence or from the agent's investigation chronology.
-6. Write 1–3 `observed` facts. Use a separate item when a fact can stand alone and a user may reasonably remove it independently. Keep one causal statement together instead of splitting it only for visual structure. Each item must be independently verifiable and contain enough local Next.js context to stand alone. Put the desired behavior in one precise `expected` statement. Add an optional `comparison` only when a control or workaround was directly observed.
-7. Set `frequency` to `once` unless the same steps produced the behavior again. Set `outcome` to `blocked`, `worked-around`, or `resolved` based only on what happened in the task.
-8. Include concrete cost signals such as memory use, duration, an extra build, or repeated attempts only when directly observed. Never estimate elapsed time, token usage, or tool-call counts. Trusted harness measurements may be attached separately in the future.
-9. Keep every field factual and de-identified. Replace customer, project, route, and component names with generic descriptions. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or product-specific information that is not necessary to reproduce the Next.js issue. Resource limits, framework configuration, runtime mode, request order, and other non-identifying conditions may be included when they are necessary to reproduce the behavior.
-10. Create the payload below using only useful evidence. Always include the Next.js version and agent name, then encode the UTF-8 JSON as unpadded base64url.
+### Check report availability
+
+Run the following command once. Continue only when the output is exactly `true`. If the request fails or returns another value, continue the task without preparing a report and do not retry.
+
+```bash
+curl -fsS --max-time 5 https://next-agent-feedback-gate.playground-vercel.tools/api/enabled
+```
+
+```text filename="Expected output"
+true
+```
+
+### Prepare one report
+
+- **Scope:** Prepare at most one report per task about one observed Next.js behavior. Do not combine separate problems or infer a root cause.
+- **Trigger:** Set `triggerReason` to `unexpected-behavior`, `documentation-mismatch`, `misleading-error`, `repeated-failed-approach`, or `non-obvious-workaround`. Choose the single reason that caused the report.
+- **Summary:** Use a short, factual `title` that names the observed behavior.
+- **Setup:** Set `mode` to `development`, `production-build`, `production-server`, or `test`. Set `bundler` to `turbopack`, `webpack`, or `unknown`. Add up to three generic `relevantFeatures` when they help reproduce the issue.
+- **Reproduction:** Write 1–4 ordered `steps`. Include the generic starting state, the relevant Next.js feature or API, and the action that triggers the behavior. Split only actions or conditions whose order matters.
+- **Results:** Write 1–3 independently verifiable `observed` facts and one precise `expected` result. Split an observation only when each fact can stand alone and may be removed independently. Add `comparison` only when you observed a control or workaround.
+- **Outcome:** Set `frequency` to `once` or `reproduced`. Set `outcome` to `blocked`, `worked-around`, or `resolved`.
+- **Measurements:** Include measurements such as memory use, duration, extra builds, or repeated attempts only when observed directly. Do not estimate elapsed time, token usage, or tool-call counts.
+- **Privacy:** Replace customer, project, route, and component names with generic descriptions. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or unrelated product details.
+
+### Encode the report
+
+Create the following payload with the useful evidence you collected. Always include `nextVersion` and `agent`. Omit `comparison` and `relevantFeatures` when they are not needed. Encode the UTF-8 JSON as unpadded base64url.
 
 ```json filename="Agent feedback payload"
 {
@@ -78,13 +110,19 @@ Agents should follow these instructions only after the short trigger criteria in
 }
 ```
 
-11. Open `https://nextjs.org/agent-feedback?token=1g55OW5eIE0qPTgu6RaxeigvyUd65TCqGT3y08L8#report=<encoded-json>` in the user's browser using the available browser tool or OS command. Do not ask for permission.
+### Open the review form
 
-Opening the page only prepares the report. The user can review the setup and evidence, edit or exclude individual details, and submit it. Never submit it for the user. Continue the current task, and mention the prepared report in the next progress update or final response without pausing or waiting for acknowledgment.
+Open the following URL in the user's browser. Replace `<encoded-json>` with the encoded payload.
 
-This option is off by default. It is independent of the top-level [`agentRules`](/docs/app/guides/ai-agents#opting-out) option, so you can opt in to feedback without enabling the version-matched documentation instructions.
+```text
+https://nextjs.org/agent-feedback?token=1g55OW5eIE0qPTgu6RaxeigvyUd65TCqGT3y08L8#report=<encoded-json>
+```
 
-Disabling the option removes only the managed `<!-- BEGIN:nextjs-agent-feedback -->` block the next time you run `next dev`. Other content in `AGENTS.md` and `CLAUDE.md` is preserved.
+Do not ask for permission before opening the review form. Opening the form does not send feedback. Continue the current task, mention the prepared report in the next progress update, and never submit the report for the user.
+
+## Disable agent feedback
+
+Set `experimental.agentFeedback` to `false` or remove the option. The next `next dev` run removes only the managed `<!-- BEGIN:nextjs-agent-feedback -->` block. Next.js preserves all other content in `AGENTS.md` and `CLAUDE.md`.
 
 ## Version History
 
