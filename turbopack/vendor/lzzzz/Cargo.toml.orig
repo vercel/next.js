@@ -1,0 +1,36 @@
+[package]
+name = "lzzzz"
+version = "2.0.0"
+authors = ["picoHz <picoHz@outlook.com>"]
+edition = "2021"
+description = "Full-featured liblz4 binding for Rust."
+keywords = ["lz4", "lz4f", "lz4-hc", "compression", "decompression"]
+categories = ["compression", "api-bindings"]
+repository = "https://github.com/picoHz/lzzzz"
+homepage = "https://github.com/picoHz/lzzzz"
+documentation = "https://docs.rs/lzzzz"
+license = "MIT"
+readme = "README.md"
+include = ["src/**/*", "build.rs", "vendor/liblz4/*", "Cargo.toml", "LICENSE"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dev-dependencies]
+assert_fs = "1.0.6"
+base64 = "0.22.1"
+bytes = "1.1.0"
+lazy_static = "1.4.0"
+rand = { version = "0.8.4", features = ["small_rng"] }
+rayon = "1.5.1"
+static_assertions = "1.1.0"
+criterion = "0.5.1"
+
+[build-dependencies]
+cc = { version = "1.0.72", features = ["parallel"] }
+
+[[bench]]
+name = "lzzzz"
+harness = false
+path = "benches/lzzzz.rs"

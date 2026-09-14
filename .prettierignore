@@ -60,6 +60,9 @@ test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.j
 test/development/mcp-server/fixtures/default-template/app/build-error/page.tsx
 test/development/mcp-server/fixtures/compilation-errors-app/app/syntax-error/page.tsx
 
+# vendored third-party crate, kept byte-identical to the published source.
+/turbopack/vendor/lzzzz
+
 # turbopack crates, disable for some tests and precompiled dependencies.
 /turbopack/crates/*/js/src/compiled
 /turbopack/crates/turbopack/bench.json

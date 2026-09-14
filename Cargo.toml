@@ -18,7 +18,8 @@ members = [
 ]
 
 exclude = [
-  "rspack/crates/binding"
+  "rspack/crates/binding",
+  "turbopack/vendor/lzzzz",
 ]
 
 [workspace.lints.clippy]
@@ -370,6 +371,9 @@ vergen-gitcl = { version = "1.0.8", features = ["cargo"] }
 webbrowser = "1.0.6"
 
 [patch.crates-io]
+# lzzzz 2.0.0 declares LZ4F_freeCompressionContext with the wrong return type. Keep the vendored
+# patch until https://github.com/picoHz/lzzzz includes the matching LZ4F_errorCode_t signature.
+lzzzz = { path = "turbopack/vendor/lzzzz" }
 bincode = { git = "https://github.com/bgw/bincode.git", branch = "bgw/patches" }
 virtue = { git = "https://github.com/bgw/virtue.git", branch = "bgw/fix-generic-default-parsing" }
 # We have to very frequently bump the swc major version of mdxjs-rs
