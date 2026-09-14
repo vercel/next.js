@@ -37,6 +37,7 @@ use crate::{
     },
     project::Project,
     route::{Endpoint, EndpointOutput, EndpointOutputPaths, ModuleGraphs},
+    static_info_manifest::StaticInfoManifestAsset,
 };
 
 #[turbo_tasks::value]
@@ -169,6 +170,16 @@ impl MiddlewareEndpoint {
                 }]
             });
 
+        let static_info_manifest = StaticInfoManifestAsset::new_middleware(
+            this.project
+                .node_root()
+                .await?
+                .join("server/middleware/static-info.json")?,
+            *this.config,
+            next_config,
+        )
+        .to_resolved()
+        .await?;
         if matches!(this.runtime, NextRuntime::NodeJs) {
             let chunk = self.node_chunk().to_resolved().await?;
             let mut output_assets = vec![chunk];
@@ -199,6 +210,7 @@ impl MiddlewareEndpoint {
             .await?;
             output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
+            output_assets.push(ResolvedVc::upcast(static_info_manifest));
             Ok(Vc::cell(output_assets))
         } else {
             let edge_chunk_group = self.edge_chunk_group();
@@ -265,6 +277,7 @@ impl MiddlewareEndpoint {
             .await?;
             output_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
 
+            output_assets.push(ResolvedVc::upcast(static_info_manifest));
             Ok(Vc::cell(output_assets))
         }
     }

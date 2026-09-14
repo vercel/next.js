@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, future::Future};
 
 use anyhow::{Result, bail};
 use async_trait::async_trait;
@@ -1526,7 +1526,16 @@ pub async fn parse_segment_config_from_loader_tree(
 async fn parse_segment_config_from_loader_tree_internal(
     loader_tree: &AppPageLoaderTree,
 ) -> Result<NextSegmentConfig> {
-    let mut config = NextSegmentConfig::default();
+    let modules = &loader_tree.modules;
+
+    let mut config = if let Some(module) = &modules.page {
+        let source = Vc::upcast(FileSource::new(module.clone()));
+        parse_segment_config_from_source(source, ParseSegmentMode::App)
+            .owned()
+            .await?
+    } else {
+        NextSegmentConfig::default()
+    };
 
     let parallel_configs = loader_tree
         .parallel_routes
@@ -1539,19 +1548,14 @@ async fn parse_segment_config_from_loader_tree_internal(
         config.apply_parallel_config(&tree)?;
     }
 
-    let modules = &loader_tree.modules;
-    for path in [
-        modules.page.clone(),
-        modules.default.clone(),
-        modules.layout.clone(),
-    ]
-    .into_iter()
-    .flatten()
+    for path in [modules.default.clone(), modules.layout.clone()]
+        .into_iter()
+        .flatten()
     {
         let source = Vc::upcast(FileSource::new(path.clone()));
-        config.apply_parent_config(
-            &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?,
-        );
+        let parent_config =
+            &*parse_segment_config_from_source(source, ParseSegmentMode::App).await?;
+        config.apply_parent_config(parent_config);
     }
 
     Ok(config)

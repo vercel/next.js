@@ -48,6 +48,7 @@ import { PAGE_TYPES } from '../../lib/page-types'
 import { getNextFlightSegmentPath } from '../../client/flight-data-helpers'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
+import { Bundler } from '../../lib/bundler'
 
 const debug = createDebug('next:on-demand-entry-handler')
 
@@ -917,6 +918,7 @@ export function onDemandEntryHandler({
       }
 
       const staticInfo = await getStaticInfoIncludingLayouts({
+        dir: rootDir,
         page,
         pageFilePath: route.filename,
         isInsideAppDir,
@@ -924,6 +926,7 @@ export function onDemandEntryHandler({
         isDev: true,
         config: nextConfig,
         appDir,
+        bundler: process.env.NEXT_RSPACK ? Bundler.Rspack : Bundler.Webpack,
       })
 
       const added = new Map<CompilerNameValues, ReturnType<typeof addEntry>>()
