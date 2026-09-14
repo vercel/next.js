@@ -63,6 +63,46 @@ describe('build trace with extra entries', () => {
         )
       ).toBe(false)
 
+      if (isTurbopack) {
+        // A symlink matched by outputFileTracingIncludes is traced as the symlink itself, even
+        // when it points at a directory. Files reached through it are traced at their resolved
+        // paths so deployment includes both the link and its target contents.
+        // The webpack tracer globs with `nodir: true`, which drops directory symlinks, so this
+        // only applies to Turbopack.
+        const tracedFiles = [
+          ...appTrace.files,
+          ...indexTrace.files,
+          ...anotherTrace.files,
+          ...imageTrace.files,
+        ]
+        expect(
+          tracedFiles.some(
+            (file: string) => file === '../../../include-me/link-to-dir'
+          )
+        ).toBe(true)
+        expect(
+          tracedFiles.some(
+            (file: string) => file === '../../../content/hello.json'
+          )
+        ).toBe(true)
+        expect(
+          tracedFiles.some(
+            (file: string) =>
+              file === '../../../include-me/link-to-dir/hello.json'
+          )
+        ).toBe(false)
+        expect(
+          appDirRoute1Trace.files.some(
+            (file: string) => file === '../../../../include-me/link-to-dir'
+          )
+        ).toBe(true)
+        expect(
+          appDirRoute1Trace.files.some(
+            (file: string) => file === '../../../../content/hello.json'
+          )
+        ).toBe(true)
+      }
+
       expect(
         indexTrace.files.filter(
           (file: string) => file.includes('chunks') && file.endsWith('.js')
