@@ -526,7 +526,7 @@
           "<anonymous>" === name
             ? (name = "")
             : name.startsWith("async ") &&
-              ((name = name.slice(5)), (isAsync = !0));
+              ((name = name.slice(6)), (isAsync = !0));
           var filename = parsed[2] || parsed[5] || "";
           "<anonymous>" === filename && (filename = "");
           existing.push([
