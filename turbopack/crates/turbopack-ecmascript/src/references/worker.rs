@@ -34,7 +34,6 @@ use crate::{
         AstPath,
         pattern_mapping::{PatternMapping, ResolveType},
     },
-    worker_chunk::entry_module::WorkerEntryModule,
 };
 
 /// A unified reference to a Worker (web or Node.js) that creates an isolated chunk group
@@ -168,17 +167,15 @@ impl ModuleReference for WorkerAssetReference {
             }
         };
 
-        // When tracing only (no code generation), return the resolved modules directly
-        // without wrapping them in WorkerEntryModule
+        // Validate the resolved modules, but resolve straight to them: the
+        // `WorkerLoaderModule` is created later, during chunking, so it can be given the
+        // enclosing chunk group's availability info (see
+        // `ChunkingContext::worker_loader_chunk_item`). The `ChunkingType::Worker` edge is what
+        // tells the chunking traversal to do that.
         if self.tracing_only {
             return Ok(result);
         }
 
-        // Wrap each resolved module in a WorkerEntryModule. This is a graph-level
-        // marker carrying the worker type and asset context; the actual
-        // `WorkerLoaderModule` is created later, during chunking, so it can be given
-        // the enclosing chunk group's availability info (see
-        // `ChunkingContext::worker_loader_chunk_item`).
         let result_ref = result.await?;
         let mut primary = Vec::with_capacity(result_ref.primary.len());
 
@@ -239,15 +236,7 @@ impl ModuleReference for WorkerAssetReference {
                         continue;
                     }
 
-                    let entry_module =
-                        WorkerEntryModule::new(*chunkable, self.worker_type, *asset_context)
-                            .to_resolved()
-                            .await?;
-
-                    primary.push((
-                        request_key.clone(),
-                        ModuleResolveResultItem::Module(ResolvedVc::upcast(entry_module)),
-                    ));
+                    primary.push((request_key.clone(), resolve_item.clone()));
                 }
                 // Pass through other result types (External, Ignore, etc.)
                 _ => {
@@ -265,11 +254,9 @@ impl ModuleReference for WorkerAssetReference {
 
     fn chunking_type(&self) -> Option<ChunkingType> {
         if self.tracing_only {
-            // Tracing-only references resolve to the raw worker module rather than a
-            // `WorkerEntryModule`, so they must not take the worker chunking path
-            // (which creates a `WorkerLoaderModule` from that marker during
-            // chunking). Keep following them as plain parallel references so the
-            // traced subgraph still lists the worker's files.
+            // Tracing-only references must not take the worker chunking path (which creates a
+            // `WorkerLoaderModule` during chunking). Keep following them as plain parallel
+            // references so the traced subgraph still lists the worker's files.
             return Some(ChunkingType::Parallel {
                 inherit_async: false,
                 hoisted: false,
@@ -367,7 +354,7 @@ impl WorkerAssetReferenceCodeGen {
             *reference.origin,
             chunking_context,
             self.reference.resolve_reference(),
-            ResolveType::WorkerLoader,
+            ResolveType::WorkerLoader(reference.worker_type),
             None,
         )
         .await?;

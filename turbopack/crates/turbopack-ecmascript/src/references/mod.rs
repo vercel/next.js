@@ -73,6 +73,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
+    chunk::worker_type::WorkerType,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefinableNameSegment,
         DefinableNameSegmentRef, FreeVarReference, FreeVarReferences, FreeVarReferencesMembers,
@@ -81,7 +82,7 @@ use turbopack_core::{
     environment::Rendering,
     issue::{IssueExt, IssueSeverity, IssueSource, StyledString, analyze::AnalyzeIssue},
     module::Module,
-    reference::{ModuleReference, ModuleReferences},
+    reference::{ModuleReference, ModuleReferences, SingleChunkableModuleReference},
     reference_type::{CommonJsReferenceSubType, InnerAssets},
     resolve::{
         ExportUsage, FindContextFileResult, ImportUsage, ModulePart, ResolveErrorMode,
@@ -157,6 +158,7 @@ use crate::{
     },
     source_map::parse_source_map_comment,
     utils::{AstPathRange, js_value_to_pattern, module_value_to_well_known_object},
+    worker_chunk::module::create_worker_module,
 };
 
 #[turbo_tasks::value(shared)]
@@ -2100,6 +2102,18 @@ where
                             ast_path.to_vec().into(),
                             link_context,
                         );
+                        if !tracing_only {
+                            add_create_worker_reference(
+                                analysis,
+                                origin,
+                                if is_shared {
+                                    WorkerType::SharedWebWorker
+                                } else {
+                                    WorkerType::WebWorker
+                                },
+                            )
+                            .await?;
+                        }
                     }
 
                     return Ok(());
@@ -2205,6 +2219,10 @@ where
                         ast_path.to_vec().into(),
                         link_context,
                     );
+                    if !tracing_only {
+                        add_create_worker_reference(analysis, origin, WorkerType::NodeWorkerThread)
+                            .await?;
+                    }
 
                     return Ok(());
                 }
@@ -3810,6 +3828,37 @@ async fn handle_free_var_reference(
 
 fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource {
     IssueSource::from_swc_offsets(source, span.lo.to_u32(), span.hi.to_u32())
+}
+
+/// Declares a reference to the `createWorker` runtime helper for `worker_type`.
+///
+/// The `WorkerLoaderModule` whose generated code `require()`s this helper is created during
+/// chunking, after the module graph is built, so its own `references()` are never traversed and
+/// it cannot put the helper into the graph itself. Declaring it here — on the module that
+/// contains the `new Worker(...)` call, right next to the `WorkerAssetReference` — makes the
+/// helper reachable during graph construction (so it gets a module id) and chunks it into the
+/// same chunk group that ends up holding the loader.
+///
+/// It resolves through `origin.asset_context()`, which is the same context the worker reference
+/// itself resolved with; the loader recovers that context from its inner module via
+/// [`ResolveOrigin`], so both reach the identical memoized `Vc` and therefore the identical
+/// chunk item id.
+async fn add_create_worker_reference(
+    analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    worker_type: WorkerType,
+) -> Result<()> {
+    let asset_context = origin.into_trait_ref().await?.asset_context();
+    analysis.add_reference(
+        SingleChunkableModuleReference::new(
+            create_worker_module(*asset_context, worker_type),
+            rcstr!("createWorker"),
+            ExportUsage::named(rcstr!("default")),
+        )
+        .to_resolved()
+        .await?,
+    );
+    Ok(())
 }
 
 async fn analyze_amd_define(
