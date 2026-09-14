@@ -2,11 +2,14 @@ use std::future::IntoFuture;
 
 use anyhow::Result;
 use either::Either;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
-use turbopack_core::chunk::{ChunkItem, ChunkItems, batch_info};
+use turbopack_core::{
+    chunk::{ChunkItem, ChunkItems, ModuleId, batch_info},
+    code_builder::Code,
+};
 
 use crate::chunk::{
-    CodeModuleIdsAndPaths,
     batch::{EcmascriptChunkItemBatchGroup, EcmascriptChunkItemOrBatchWithAsyncInfo},
     batch_group_code_module_ids_and_paths, item_code_module_ids_and_paths,
 };
@@ -51,13 +54,22 @@ impl EcmascriptChunkContent {
 impl EcmascriptChunkContent {
     pub async fn chunk_item_code_module_ids_and_paths(
         &self,
-    ) -> Result<Vec<ReadRef<CodeModuleIdsAndPaths>>> {
-        batch_info(
+    ) -> Result<Vec<(ModuleId, ReadRef<Code>, RcStr)>> {
+        let chunk_item_groups = batch_info(
             &self.batch_groups,
             &self.chunk_items,
             |batch| batch_group_code_module_ids_and_paths(batch).into_future(),
             |item| item_code_module_ids_and_paths(item.clone()).into_future(),
         )
-        .await
+        .await?;
+        let mut chunk_items = chunk_item_groups
+            .iter()
+            .flat_map(|items| items.iter().cloned())
+            .collect::<Vec<_>>();
+        // Sort all items by their module path so that similar modules stay
+        // together and the chunks gzip better.
+        chunk_items
+            .sort_by(|(a_id, _, a_path), (b_id, _, b_path)| (a_path, a_id).cmp(&(b_path, b_id)));
+        Ok(chunk_items)
     }
 }
