@@ -48,7 +48,8 @@ type FallbackPrerenderedRoute = {
   remainingPrerenderableParams?: readonly FallbackRouteParam[]
 
   /**
-   * False when this candidate is rendered only to validate its static shell.
+   * False when this candidate renders only for build-time hints or static-shell
+   * validation, without providing a fallback artifact.
    * It must not be registered as a concrete prerender cache output.
    */
   readonly isPrerenderOutput?: false

@@ -47,7 +47,6 @@ import {
   getPrerenderMatcherFallbackMode,
   validatePrerenderMatcherParams,
 } from './prerender-matcher'
-import { isPageAllowedToBlock } from '../../server/app-render/instant-validation/instant-config'
 
 /**
  * Filters out duplicate parameters from a list of parameters.
@@ -1158,10 +1157,7 @@ export async function buildAppStaticPaths({
   }
 
   const prerenderedRoutesByPathname = new Map<string, PrerenderedRoute>()
-  const blockingValidationCandidatesByPathname = new Map<
-    string,
-    PrerenderedRoute
-  >()
+  const blockingCandidatesByPathname = new Map<string, PrerenderedRoute>()
   const prerenderRouteMatchersByPathname = new Map<
     string,
     PrerenderRouteMatcher
@@ -1225,17 +1221,17 @@ export async function buildAppStaticPaths({
       throwOnEmptyStaticShell: true,
     }
 
-    // Explicit blocking policies do not produce fallback outputs. Keep their
-    // candidates separately until shell validation determines whether one is
-    // the most-specific reachable shell for a branch. Not-found candidates do
-    // not need to render at all.
+    // Explicit blocking policies do not produce fallback outputs, but may
+    // still need a render for prefetch hints and shell validation. Keep their
+    // candidates until we know whether a more specific render covers them.
+    // Not-found candidates do not need to render at all.
     if (
       prerenderMatcher &&
       fallbackRouteParams.length > 0 &&
       routeFallbackMode !== FallbackMode.PRERENDER
     ) {
       if (routeFallbackMode === FallbackMode.BLOCKING_STATIC_RENDER) {
-        blockingValidationCandidatesByPathname.set(pathname, prerenderCandidate)
+        blockingCandidatesByPathname.set(pathname, prerenderCandidate)
       }
       return
     }
@@ -1366,29 +1362,13 @@ export async function buildAppStaticPaths({
     })
   }
 
-  let blockingValidationCandidates: PrerenderedRoute[] = []
-  if (cacheComponents && blockingValidationCandidatesByPathname.size > 0) {
-    const loaderTree =
-      'loaderTree' in ComponentMod.routeModule.userland
-        ? ComponentMod.routeModule.userland.loaderTree
-        : undefined
-    const allowsBlocking =
-      loaderTree !== undefined && (await isPageAllowedToBlock(loaderTree))
-
-    if (!allowsBlocking) {
-      blockingValidationCandidates = [
-        ...blockingValidationCandidatesByPathname.values(),
-      ]
-    }
-  }
-
   let prerenderedRoutes =
     prerenderedRoutesByPathname.size > 0 ||
-    blockingValidationCandidates.length > 0 ||
+    blockingCandidatesByPathname.size > 0 ||
     lastDynamicSegmentHadGenerateStaticParams
       ? [
           ...prerenderedRoutesByPathname.values(),
-          ...blockingValidationCandidates,
+          ...blockingCandidatesByPathname.values(),
         ]
       : undefined
 
@@ -1403,9 +1383,11 @@ export async function buildAppStaticPaths({
         explicitFallbackParamName
       )
 
-      // Blocking candidates exist only to validate a branch that has no more
-      // specific build-time example. Candidates covered by a descendant are
-      // unnecessary; blocking matchers never retain a fallback artifact.
+      // Keep blocking candidates without a more specific render so the build
+      // can collect best-effort prefetch hints, even with instant=false. The
+      // renderer handles that validation opt-out; it must not skip this render.
+      // Candidates covered by a descendant are unnecessary, and blocking
+      // matchers never retain a fallback artifact.
       prerenderedRoutes = prerenderedRoutes.filter(
         (candidate) =>
           candidate.fallbackMode !== FallbackMode.BLOCKING_STATIC_RENDER ||
