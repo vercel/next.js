@@ -2,6 +2,10 @@ import path from 'node:path'
 import { nextTestSetup } from 'e2e-utils'
 import { getDevCliValidationOutput } from 'e2e-utils/instant-validation'
 import { retry } from 'next-test-utils'
+import {
+  PrefetchHint,
+  type PrefetchHints,
+} from 'next/dist/shared/lib/app-router-types'
 
 type DynamicRoute = {
   fallback: false | null | string
@@ -96,6 +100,37 @@ describe('experimental parameter matching', () => {
   })
 
   if (isNextStart) {
+    it.each([
+      '/no-example-blocking/[top]/items/[bottom]',
+      '/no-example-blocking-fallback/[top]/items/[bottom]',
+    ])(
+      'collects build-time hints without publishing a blocking fallback for %s',
+      async (pathname) => {
+        const hints = (await next.readJSON(
+          '.next/server/prefetch-hints.json'
+        )) as Record<string, PrefetchHints>
+        const manifest = (await next.readJSON(
+          '.next/prerender-manifest.json'
+        )) as {
+          routes: Record<string, unknown>
+          dynamicRoutes: Record<string, DynamicRoute>
+        }
+
+        // Neither route has generateStaticParams. The first permits an empty
+        // shell with instant=false; the second validates its non-empty shell.
+        // Both still need a build render to collect best-effort prefetch hints.
+        expect(hints[pathname]).toBeDefined()
+        const nodes = [hints[pathname]]
+        for (const node of nodes) {
+          expect(node.hints & PrefetchHint.PrefetchDisabled).toBe(0)
+          if (node.slots) nodes.push(...Object.values(node.slots))
+        }
+
+        expect(manifest.dynamicRoutes[pathname].fallback).toBeNull()
+        expect(manifest.routes[pathname]).toBeUndefined()
+      }
+    )
+
     it('only specializes unresolved prerenderable params', async () => {
       const manifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
