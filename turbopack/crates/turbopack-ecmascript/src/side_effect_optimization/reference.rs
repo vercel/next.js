@@ -136,7 +136,17 @@ impl ModuleReference for EcmascriptModulePartReference {
 
     fn binding_usage(&self) -> BindingUsage {
         BindingUsage {
-            import: ImportUsage::TopLevel,
+            // A synthesized named facade -> locals edge implements the facade export of the same
+            // name. It is only needed when that facade export is used; telling the graph this lets
+            // it propagate the facade's per-name usage into locals instead of keeping every local
+            // export alive. Normal (non-synthesized) references and structural evaluation edges
+            // are top-level dependencies.
+            import: match (&self.mode, &self.export_usage) {
+                (EcmascriptModulePartReferenceMode::Synthesize, ExportUsage::Named(export)) => {
+                    ImportUsage::Exports(std::iter::once(export.clone()).collect())
+                }
+                _ => ImportUsage::TopLevel,
+            },
             export: self.export_usage.clone(),
         }
     }
@@ -149,6 +159,21 @@ impl EcmascriptModulePartReference {
         scope_hoisting_context: ScopeHoistingContext<'_>,
     ) -> Result<CodeGeneration> {
         let this = self.await?;
+
+        // Mirrors the same check in `EsmAssetReference::code_generation`. The module graph's
+        // usage-pruning pass can decide this reference is unused (an `Evaluation` edge to a
+        // side-effect-free target — see `BindingUsageInfo::add`) and skip traversing through it,
+        // which can drop the target from the chunk entirely. Emitting the import unconditionally
+        // here would then reference a module that was never chunked, so this has to agree with
+        // that decision rather than assume the target is always present.
+        if chunking_context
+            .unused_references()
+            .contains_key(&ResolvedVc::upcast(self.to_resolved().await?))
+            .await?
+        {
+            return Ok(CodeGeneration::empty());
+        }
+
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
 
