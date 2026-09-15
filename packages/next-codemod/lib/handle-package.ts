@@ -198,6 +198,25 @@ export function runInstallation(
   }
 }
 
+export function getNpxCommand(
+  pkgManager: PackageManager,
+  cwd: string = process.cwd()
+): string {
+  let command = 'npx --yes'
+  if (pkgManager === 'pnpm') {
+    command = 'pnpm --silent dlx'
+  } else if (pkgManager === 'yarn') {
+    try {
+      execSync('yarn dlx --help', { stdio: 'ignore', cwd })
+      command = 'yarn --quiet dlx'
+    } catch {}
+  } else if (pkgManager === 'bun') {
+    command = 'bunx'
+  }
+
+  return command
+}
+
 export function addPackageDependency(
   packageJson: Record<string, any>,
   name: string,
