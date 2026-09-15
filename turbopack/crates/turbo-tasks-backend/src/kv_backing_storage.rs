@@ -589,13 +589,6 @@ mod tests {
     ///
     /// This is a lower-level test that verifies the database layer correctly handles
     /// the case where multiple task IDs are stored under the same hash key.
-    // These open a real `TurboKeyValueDatabase`, and `turbo-persistence` reads its files via
-    // `memmap2`, which ships a stub returning "platform not supported" for every target that is
-    // neither unix nor windows (`memmap2/src/stub.rs`). Nothing in the test can work around that.
-    #[cfg_attr(
-        target_family = "wasm",
-        ignore = "no mmap on WASI: memmap2 has no implementation for this target"
-    )]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_hash_collision_returns_multiple_candidates() -> Result<()> {
         let tempdir = test_temp_dir()?;
@@ -628,13 +621,6 @@ mod tests {
 
     /// Tests that multiple distinct keys written in a single batch with flush can be read back.
     /// This mirrors the actual save_snapshot pattern: write many TaskCache entries, flush, commit.
-    // These open a real `TurboKeyValueDatabase`, and `turbo-persistence` reads its files via
-    // `memmap2`, which ships a stub returning "platform not supported" for every target that is
-    // neither unix nor windows (`memmap2/src/stub.rs`). Nothing in the test can work around that.
-    #[cfg_attr(
-        target_family = "wasm",
-        ignore = "no mmap on WASI: memmap2 has no implementation for this target"
-    )]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_batch_write_with_flush_and_reopen() -> Result<()> {
         let tempdir = test_temp_dir()?;
@@ -695,13 +681,6 @@ mod tests {
     /// The colliding survivor is never read or rewritten — the key-value tombstone names the
     /// single id it deletes, so anything else in the bucket is untouched whether or not this
     /// commit knows about it.
-    // These open a real `TurboKeyValueDatabase`, and `turbo-persistence` reads its files via
-    // `memmap2`, which ships a stub returning "platform not supported" for every target that is
-    // neither unix nor windows (`memmap2/src/stub.rs`). Nothing in the test can work around that.
-    #[cfg_attr(
-        target_family = "wasm",
-        ignore = "no mmap on WASI: memmap2 has no implementation for this target"
-    )]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_save_snapshot_delete_tombstones_task() -> Result<()> {
         let tempdir = test_temp_dir()?;
