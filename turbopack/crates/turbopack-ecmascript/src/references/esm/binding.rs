@@ -34,7 +34,6 @@ use crate::{
 
 #[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, NonLocalValue, Encode, Decode)]
 pub struct EsmBinding {
-    reference: ResolvedVc<EsmAssetReference>,
     export: Option<RcStr>,
     local: Option<RcStr>,
     ast_path: AstPath,
@@ -42,14 +41,8 @@ pub struct EsmBinding {
 }
 
 impl EsmBinding {
-    pub fn new(
-        reference: ResolvedVc<EsmAssetReference>,
-        export: Option<RcStr>,
-        local: Option<RcStr>,
-        ast_path: AstPath,
-    ) -> Self {
+    pub fn new(export: Option<RcStr>, local: Option<RcStr>, ast_path: AstPath) -> Self {
         EsmBinding {
-            reference,
             export,
             local,
             ast_path,
@@ -66,11 +59,7 @@ impl EsmBinding {
     /// TODO: Track whether the imported export can observe `this` (for example, whether it is a
     /// function that references `this`). Such exports could use a local value binding even in call
     /// position instead of preserving the namespace as the receiver.
-    pub fn new_namespace_member(
-        reference: ResolvedVc<EsmAssetReference>,
-        export: Option<RcStr>,
-        ast_path: AstPath,
-    ) -> Self {
+    pub fn new_namespace_member(export: Option<RcStr>, ast_path: AstPath) -> Self {
         // The path ends at the namespace object inside the member expression
         // (`.., <enclosing>, Expr(Member), MemberExpr(Obj)`). Drop those two trailing entries so
         // the enclosing position is the last element.
@@ -81,46 +70,11 @@ impl EsmBinding {
             .map_or(&[][..], |end| &ast_path.0[..end]);
         let propagates_this = is_this_receiver_position(enclosing);
         EsmBinding {
-            reference,
             export,
             local: None,
             ast_path,
             propagates_this,
         }
-    }
-
-    pub async fn code_generation(
-        &self,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        scope_hoisting_context: ScopeHoistingContext<'_>,
-    ) -> Result<CodeGeneration> {
-        if chunking_context
-            .unused_references()
-            .contains_key(&ResolvedVc::upcast(self.reference))
-            .await?
-        {
-            return Ok(CodeGeneration::empty());
-        }
-
-        let mut visitors = vec![];
-        let mut captures = vec![];
-        let imported_module = self.reference.get_referenced_asset().await?;
-        self.generate(
-            chunking_context,
-            scope_hoisting_context,
-            &imported_module,
-            &mut visitors,
-            &mut captures,
-        )
-        .await?;
-
-        Ok(CodeGeneration::new(
-            visitors,
-            value_binding_stmts(captures, supports_destructuring(chunking_context).await?),
-            vec![],
-            vec![],
-            vec![],
-        ))
     }
 
     /// Rewrites this one use site, appending to the shared buffers of the enclosing group.
@@ -332,12 +286,6 @@ pub struct EsmBindings {
 
 impl EsmBindings {
     pub fn new(reference: ResolvedVc<EsmAssetReference>, bindings: Vec<EsmBinding>) -> Self {
-        debug_assert!(
-            bindings
-                .iter()
-                .all(|binding| binding.reference == reference),
-            "every binding in a group must belong to the group's reference"
-        );
         EsmBindings {
             reference,
             bindings,
@@ -562,10 +510,4 @@ fn is_this_receiver_position(parents: &[swc_core::ecma::visit::AstParentKind]) -
             // deliberately absent: `new ns.C()` does not pass `ns` as `this`.
             | Some(AstParentKind::TaggedTpl(TaggedTplField::Tag))
     )
-}
-
-impl From<EsmBinding> for CodeGen {
-    fn from(val: EsmBinding) -> Self {
-        CodeGen::EsmBinding(val)
-    }
 }

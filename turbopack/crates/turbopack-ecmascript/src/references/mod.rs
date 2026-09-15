@@ -1468,7 +1468,6 @@ async fn analyze_ecmascript_module_internal(
                                 analysis.add_esm_binding(
                                     named_reference,
                                     EsmBinding::new_namespace_member(
-                                        named_reference,
                                         Some(export),
                                         ast_path.to_vec().into(),
                                     ),
@@ -1481,7 +1480,6 @@ async fn analyze_ecmascript_module_internal(
                         analysis.add_esm_binding(
                             *r,
                             EsmBinding::new(
-                                *r,
                                 export,
                                 local.map(|local| local.as_str().into()),
                                 ast_path.to_vec().into(),
@@ -3789,12 +3787,10 @@ async fn handle_free_var_reference(
                 })
                 .await?;
 
-            analysis.add_code_gen(EsmBinding::new(
+            analysis.add_esm_binding(
                 esm_reference,
-                export.clone(),
-                None,
-                ast_path.to_vec().into(),
-            ));
+                EsmBinding::new(export.clone(), None, ast_path.to_vec().into()),
+            );
         }
         FreeVarReference::InputRelative(kind) => {
             let source_path = (*state.source).ident().await?.path.clone();
