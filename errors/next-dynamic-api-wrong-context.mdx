@@ -38,6 +38,8 @@ export async function GET() {
 
 Request-time APIs like `headers()`, `cookies()`, `connection()`, and `draftMode()` are not available inside `generateStaticParams` because it runs at build time to determine which pages to statically generate. There is no HTTP request in this context.
 
+Likewise, `unstable_prefetch()` and `unstable_navigation()` are not available there because no prefetch or navigation takes place while Next.js generates route parameters.
+
 Note: Root param getters (`import { lang } from 'next/root-params'`) _are_ supported inside `generateStaticParams` for nested segments, as the parent params are known at that point.
 
 ## Useful Links
@@ -45,5 +47,7 @@ Note: Root param getters (`import { lang } from 'next/root-params'`) _are_ suppo
 - [`headers()` function](/docs/app/api-reference/functions/headers)
 - [`cookies()` function](/docs/app/api-reference/functions/cookies)
 - [`draftMode()` function](/docs/app/api-reference/functions/draft-mode)
+- [`unstable_prefetch()` function](/docs/app/api-reference/functions/prefetch)
+- [`unstable_navigation()` function](/docs/app/api-reference/functions/navigation)
 - [`unstable_noStore()` function](/docs/app/api-reference/functions/unstable_noStore)
 - [`unstable_cache()` function](/docs/app/api-reference/functions/unstable_cache)
