@@ -76,11 +76,11 @@ The hook does not return a value.
 
 ## Behavior
 
-### The callback runs once per chunk of HTML
+### The callback runs once per flush
 
-Next.js produces the HTML in chunks, and your callback runs once per chunk, not once per render. A component that renders once can have its callback invoked several times, so keep the callback free of side effects.
+Next.js flushes the document in chunks as your tree suspends and resolves, and every registered callback runs on every flush, not once per render. A single component can therefore have its callback invoked several times, so keep it free of side effects.
 
-The callback runs whenever Next.js produces an HTML document, on a direct navigation and during build time prerender.
+The callback runs whenever Next.js produces an HTML document, on a direct navigation and during any prerender.
 
 Content inserted while the `<head>` is still open goes there. Everything after is included in the body.
 
@@ -92,7 +92,7 @@ import { Feed } from './feed'
 export default function Page() {
   return (
     <>
-      {/* Renders in the first chunk, so its rules go into <head>. */}
+      {/* Renders before the head closes, so its rules go into <head>. */}
       <Header />
       <Suspense fallback={<p>Loading feed</p>}>
         {/* Resolves after the head is closed, so its rules go into <body>. */}
@@ -105,7 +105,7 @@ export default function Page() {
 
 This assumes nothing above `Header` suspends. If something does, `Header` renders after the head has closed and its rules go into `<body>` as well.
 
-In the style registry pattern above, `styled-jsx` collects the CSS rules it finds as your tree renders. Each time a chunk is ready the callback returns the rules gathered so far and clears the registry, so the next chunk carries only what was found since. Return the same nodes every time instead and the document ends up with one copy of them per chunk.
+In the style registry pattern above, `styled-jsx` collects the CSS rules it finds as your tree renders. On each flush the callback returns the rules gathered so far and clears the registry, so the next one carries only what was found since. Return the same nodes every time instead and the document ends up with one copy of them per flush.
 
 Style registries work because a `<style>` tag applies to the whole document wherever it ends up.
 
