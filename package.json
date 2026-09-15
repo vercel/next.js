@@ -20,6 +20,7 @@
     "bench:dev-validation": "tsx bench/dev-validation/benchmark.ts",
     "pack-next": "tsx scripts/pack-next.ts",
     "eval": "node run-evals.js",
+    "eval:upgrade": "node evals/next-upgrade/run.js",
     "test-types": "tsc",
     "test-unit": "jest test/unit/ packages/next/ packages/font",
     "test-dev": "scripts/run-jest.sh --mode=dev --bundler=webpack --headless --",
