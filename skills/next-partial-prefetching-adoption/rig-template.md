@@ -72,7 +72,9 @@ and reporters. The suite must import `instant()` from `@next/playwright`. If
 the dependencies are absent, install `@next/playwright` on the same release
 line as the project's `next`, alongside `@playwright/test`.
 
-For a local rig, a typical sequence is:
+Prefer the project's existing Playwright
+[`webServer`](https://playwright.dev/docs/test-webserver) configuration to own
+the local server lifecycle. A typical sequence is:
 
 ```bash filename="Terminal"
 EXPOSE_TESTING_API=1 pnpm build

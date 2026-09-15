@@ -245,6 +245,11 @@ completed UI renders after release. Do not change an existing data source,
 production selector, or required route variant to make the test easier. A
 required contract may not be skipped or weakened.
 
+For repeat and browser-back contracts, follow the
+[visibility-aware selector guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
+so hidden preserved routes cannot satisfy the assertions. When the contract
+contains independently suspended regions, assert each one separately.
+
 Prefer the self-validating variant when the route has deferred content. If the
 route cannot build while blocked, or a cookie/session read stays GREEN, use the
 RED recipes in `reference/red-test-robustness.md`.
@@ -285,6 +290,9 @@ Preserve the route's existing data source, freshness, authorization, and
 completed behavior. Do not replace a mutable read with a build-time import to
 make it appear static. Cache the existing read when it can be reused. Stream it
 when it must be computed for each request.
+
+Do not treat one cached loader as proof that the rendered route is cached.
+Trace each async subtree to its own cache, Suspense, and navigation boundary.
 
 If development or a build surfaces another instant-navigation Insight during
 the refactor, follow [validation as you
