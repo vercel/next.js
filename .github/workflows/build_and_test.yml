@@ -155,8 +155,37 @@ jobs:
 
     secrets: inherit
 
+  wait-for-release-packages:
+    name: Wait for release packages
+    needs: ['changes']
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout release package metadata
+        if: ${{ needs.changes.outputs.is-release == 'true' }}
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          sparse-checkout: |
+            lerna.json
+            packages/*/package.json
+            scripts/npm-release-readiness.js
+            scripts/wait-for-release-packages.js
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
+      - name: Wait for exact package versions
+        if: ${{ needs.changes.outputs.is-release == 'true' }}
+        env:
+          # The production publish waits up to ten minutes after publishing
+          # prerequisites. This outer gate also covers the preceding release build.
+          NPM_PUBLISH_READINESS_ATTEMPTS: 240
+        run: node scripts/wait-for-release-packages.js
+
   build-next:
     name: build-next
+    needs: ['wait-for-release-packages']
     permissions:
       contents: read
       id-token: write
@@ -1191,6 +1220,7 @@ jobs:
       - optimize-ci
       - changes
       - build-native
+      - wait-for-release-packages
       - build-next
       - fetch-test-timings
       - lint
