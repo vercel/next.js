@@ -314,7 +314,7 @@ pub struct SingleModuleGraph {
     modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
     #[turbo_tasks(trace_ignore)]
-    pub entries: GraphEntries,
+    entries: GraphEntries,
 
     /// Derived from `entries` and `modules`. Both are immutable after graph construction, and node
     /// indices are stable because graph nodes are never removed.
