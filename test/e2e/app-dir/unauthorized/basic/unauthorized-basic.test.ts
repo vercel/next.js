@@ -38,4 +38,24 @@ describe('app dir - unauthorized - basic', () => {
       'Root Unauthorized'
     )
   })
+
+  it('should escalate unauthorized past a group route layout to render root unauthorized', async () => {
+    const browserDynamicId = await next.browser('/group-dynamic/123')
+    expect(await browserDynamicId.elementByCss('#page').text()).toBe(
+      'group-dynamic [id]'
+    )
+    expect(
+      await browserDynamicId.hasElementByCssSelector('#group-layout')
+    ).toBe(true)
+
+    // no unauthorized boundary in the group route, escalate to the root boundary
+    // instead of rendering it inside the group route's layout
+    const browserUnauthorized = await next.browser('/group-dynamic/401')
+    expect(await browserUnauthorized.elementByCss('h1').text()).toBe(
+      'Root Unauthorized'
+    )
+    expect(
+      await browserUnauthorized.hasElementByCssSelector('#group-layout')
+    ).toBe(false)
+  })
 })
