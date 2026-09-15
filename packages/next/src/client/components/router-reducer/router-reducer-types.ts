@@ -129,11 +129,10 @@ export interface ServerPatchAction {
   navigateType: 'push' | 'replace'
   /**
    * Freshness policy for the retry navigation. `RefreshAll` re-fetches the
-   * tree's dynamic data (genuine tree mismatch). `HistoryTraversal` reuses the
-   * data already in the tree (when only the URL needs correcting after a
-   * redirect).
+   * tree's dynamic data (genuine tree mismatch). `Default` reuses the data
+   * already in the tree (when only the URL needs correcting after a redirect).
    */
-  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.HistoryTraversal
+  freshnessPolicy: FreshnessPolicy.RefreshAll | FreshnessPolicy.Default
 }
 
 /**
