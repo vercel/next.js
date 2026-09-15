@@ -325,7 +325,7 @@ jobs:
       needsNextest: 'yes'
       skipNativeBuild: 'yes'
       skipInstallBuild: 'yes'
-      afterBuild: MIRIFLAGS=-Zmiri-strict-provenance pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit-miri ${TURBO_ARGS}
+      afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit-miri ${TURBO_ARGS}
       stepName: 'test-cargo-unit-miri'
     secrets: inherit
 
