@@ -79,7 +79,7 @@ function expandHome(p) {
 // Scope flags appended to every `vercel sandbox` call. Never widen scope
 // beyond the configured team/project: the project may be shared.
 export function sandboxScope(cfg) {
-  return ['--team', cfg.team, '--project', cfg.project]
+  return ['--scope', cfg.team, '--project', cfg.project]
 }
 
 // Repos: use the configured checkout, else clone lazily into the cache.
