@@ -6,7 +6,7 @@ use std::{
         Arc,
         atomic::{AtomicBool, AtomicUsize, Ordering},
     },
-    time::Duration,
+    time::{Duration, SystemTime},
 };
 
 use dashmap::DashMap;
@@ -334,6 +334,31 @@ impl TraceEvent {
             attributes,
         }
     }
+
+    /// Creates a `TraceEvent` that started at `wall_start` (wall clock) and ran for `duration`.
+    ///
+    /// Prefer passing a duration measured with a monotonic clock (e.g.
+    /// [`std::time::Instant::elapsed`]) over computing it from two [`SystemTime`]s, so that
+    /// wall-clock adjustments don't skew (or negate) the span's duration.
+    pub fn new_with_duration(
+        name: &'static str,
+        wall_start: SystemTime,
+        duration: Duration,
+        attributes: serde_json::Value,
+    ) -> Self {
+        let start_time_ms = wall_start
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap_or_default()
+            // as_millis_f64 is not stable yet
+            .as_secs_f64()
+            * 1000.0;
+        Self::new(
+            name,
+            start_time_ms,
+            start_time_ms + duration.as_secs_f64() * 1000.0,
+            attributes,
+        )
+    }
 }
 
 impl CompilationEvent for TraceEvent {
@@ -391,6 +416,20 @@ mod tests {
         let event = rx2.recv().await.unwrap();
         assert_eq!(event.message(), "test in 1ms");
         assert!(rx2.recv().await.is_none());
+    }
+
+    #[test]
+    fn test_trace_event_new_with_duration() {
+        let start = SystemTime::UNIX_EPOCH + Duration::from_secs(10);
+        let event = TraceEvent::new_with_duration(
+            "test",
+            start,
+            Duration::from_millis(1500),
+            serde_json::json!([]),
+        );
+        assert_eq!(event.name, "test");
+        assert_eq!(event.start_time_ms, 10_000.0);
+        assert_eq!(event.end_time_ms, 11_500.0);
     }
 
     #[test]
