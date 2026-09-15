@@ -45,6 +45,14 @@ async function main() {
   const handlers: [RegExp, string][] = [
     [/^\/api\/app\/param\/data$/, 'app/api/app/[param]/data/route.js'],
     [/^\/api\/app\/param\/error$/, 'app/api/app/[param]/error/route.js'],
+    [
+      /^\/api\/app\/param\/revalidation-error$/,
+      'app/api/app/[param]/revalidation-error/route.js',
+    ],
+    [
+      /^\/api\/app\/param\/stream-error$/,
+      'app/api/app/[param]/stream-error/route.js',
+    ],
     [/^\/api\/app\/param\/status$/, 'app/api/app/[param]/status/route.js'],
     [/^\/app\/param\/loading\/error$/, 'app/app/[param]/loading/error/page.js'],
     [/^\/app\/param\/loading\/page1$/, 'app/app/[param]/loading/page1/page.js'],
