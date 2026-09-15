@@ -69,17 +69,17 @@ export async function spawnNextUpgrade(
       const upgradeType =
         typeof options.ai === 'string' ? options.ai : 'security'
 
-      if (upgradeType !== 'security') {
+      if (upgradeType !== 'security' && upgradeType !== 'latest') {
         throw new Error(
-          `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security".`
+          `Unsupported AI upgrade type ${JSON.stringify(upgradeType)}. Expected "security" or "latest".`
         )
       }
 
       // Resolve the requested target before preparing an agent session.
       const { prepareUpgrade } =
         require('../lib/upgrade/prepare-upgrade') as typeof import('../lib/upgrade/prepare-upgrade')
-      const assessmentSpinner = createSpinner('Checking for security updates')
-      const result = await prepareUpgrade(baseDir).finally(() =>
+      const assessmentSpinner = createSpinner('Preparing upgrade')
+      const result = await prepareUpgrade(baseDir, upgradeType).finally(() =>
         assessmentSpinner?.stop()
       )
 
@@ -89,7 +89,7 @@ export async function spawnNextUpgrade(
       }
 
       Log.info(
-        `Security update: Next.js ${result.installedVersion} → ${result.targetVersion}`
+        `Upgrade: Next.js ${result.installedVersion} → ${result.targetVersion}`
       )
 
       // Use the invoking CLI's guides, even when the app runs an older Next.js.
@@ -131,17 +131,17 @@ export async function spawnNextUpgrade(
         guidesSpinner?.stop()
       }
 
-      // TODO: Once every eligible security target supports
-      // `experimental.agenticAutoUpgrade`, ask the agent to enable it after
-      // verification so future upgrade reminders can use the same policy.
-
       const references = result.references
         .map((reference) => `- ${reference}`)
         .join('\n')
+      const reason =
+        upgradeType === 'security'
+          ? 'the installed version is affected by a published security advisory'
+          : 'a newer stable Next.js release is available'
       // Pass resolved inputs directly; the agent owns repairs and verification.
       const prompt = `Read and follow every applicable instruction in ${JSON.stringify(guidePath)} before proceeding.
 
-We're upgrading the app in ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion} because the installed version is affected by a published security advisory.
+We're upgrading the app in ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion} because ${reason}.
 
 References:
 ${references}`
@@ -151,7 +151,7 @@ ${references}`
       await handoffUpgrade(prompt, baseDir)
     } catch (error) {
       Log.error(
-        'Could not prepare the security upgrade:',
+        'Could not prepare the upgrade:',
         error instanceof Error ? error.message : error
       )
       process.exitCode = 1

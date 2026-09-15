@@ -13,8 +13,15 @@ type UpgradePreparation =
     }
 
 export async function prepareUpgrade(
-  directory: string
+  directory: string,
+  targetRequest: string = 'security'
 ): Promise<UpgradePreparation> {
+  if (targetRequest !== 'security' && targetRequest !== 'latest') {
+    throw new Error(
+      `Unsupported AI upgrade type ${JSON.stringify(targetRequest)}. Expected "security" or "latest".`
+    )
+  }
+
   // Resolve from the app: the invoking canary is only the upgrade tooling.
   const requireFromApp = createRequire(join(directory, 'package.json'))
   const { version: installedVersion } = JSON.parse(
@@ -28,8 +35,53 @@ export async function prepareUpgrade(
   // TODO: Handle prereleases
   if (semver.prerelease(installedVersion)) {
     throw new Error(
-      'Security upgrades are not available for prerelease versions of Next.js yet.'
+      'AI upgrades are not available for prerelease versions of Next.js yet.'
     )
+  }
+
+  if (targetRequest === 'latest') {
+    const url = `${NPM_REGISTRY}next/latest`
+    const { value } = await fetchJSON(url)
+    const release = value as {
+      version: string
+      engines: { node: string | undefined } | undefined
+    } | null
+
+    if (
+      !release ||
+      !semver.valid(release.version) ||
+      semver.prerelease(release.version)
+    ) {
+      throw new Error('Could not determine the latest stable Next.js version.')
+    }
+
+    if (semver.eq(release.version, installedVersion)) {
+      return {
+        status: 'unaffected',
+        reason: `Next.js ${installedVersion} is already the latest stable release.`,
+      }
+    }
+
+    if (semver.lt(release.version, installedVersion)) {
+      return {
+        status: 'unaffected',
+        reason: `Next.js ${installedVersion} is newer than the latest stable release ${release.version}.`,
+      }
+    }
+
+    const nodeRange = release.engines?.node ?? null
+    if (!nodeRange || !semver.satisfies(process.versions.node, nodeRange)) {
+      throw new Error(
+        `Next.js ${release.version} requires Node.js ${nodeRange ?? '(version unavailable)'}. Update Node.js before continuing.`
+      )
+    }
+
+    return {
+      status: 'ready',
+      installedVersion,
+      targetVersion: release.version,
+      references: [url],
+    }
   }
 
   const snapshot = await readSecuritySnapshot(installedVersion)
@@ -99,7 +151,7 @@ async function fetchJSON(
 
     return { value: await response.json(), headers: response.headers }
   } catch (error) {
-    throw new Error('Could not check for security updates. Please try again.', {
+    throw new Error('Could not fetch upgrade metadata. Please try again.', {
       cause: error,
     })
   }

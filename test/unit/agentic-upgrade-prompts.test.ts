@@ -227,7 +227,7 @@ describe('agentic upgrade prompts', () => {
       ai: 'security',
     })
 
-    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app')
+    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
     const [guidePath, guide] = jest.mocked(writeFile).mock.calls[0]
     expect(String(guidePath).replace(/\\+/g, '/')).toBe(
       '/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md'
@@ -271,6 +271,35 @@ describe('agentic upgrade prompts', () => {
       ai: true,
     })
 
-    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app')
+    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
+  })
+
+  it('passes the latest target to the existing agent', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '16.2.12',
+      targetVersion: '16.3.5',
+      references: ['https://registry.npmjs.org/next/latest'],
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: 'latest',
+      verbose: false,
+      ai: 'latest',
+    })
+
+    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'latest')
+    expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
+     [
+       [
+         "Read and follow every applicable instruction in "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before proceeding.
+
+     We're upgrading the app in "/workspace/app" from Next.js 16.2.12 to 16.3.5 because a newer stable Next.js release is available.
+
+     References:
+     - https://registry.npmjs.org/next/latest",
+       ],
+     ]
+    `)
   })
 })
