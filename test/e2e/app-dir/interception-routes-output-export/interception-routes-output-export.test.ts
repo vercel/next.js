@@ -2,12 +2,13 @@ import type { ChildProcess } from 'child_process'
 import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 import { findPort, killApp, retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+// @force-gate !deploy
 describe('interception-routes-output-export', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-    skipDeployment: true,
   })
 
   it('should error when using interception routes with static export', async () => {

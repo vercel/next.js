@@ -1,18 +1,16 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('next-config-ts-type-error-esm', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
     packageJson: {
       type: 'module',
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should throw with type error on build (ESM)', async () => {
     if (isNextDev) {

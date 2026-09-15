@@ -1,12 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('webpack-loader-fs', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   it('should allow reading the input FS', async () => {
     const $ = await next.render$('/')

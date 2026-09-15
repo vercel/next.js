@@ -2,13 +2,13 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('jsconfig paths', () => {
-  const { next, isNextDeploy, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
-  if (isNextDeploy) return
 
   it('should alias components', async () => {
     const $ = await next.render$('/basic-alias')
@@ -96,13 +96,14 @@ describe('jsconfig paths', () => {
   }
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('jsconfig paths without baseurl', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let originalJsconfigContent: string
 

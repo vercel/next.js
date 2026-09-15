@@ -13,7 +13,7 @@ if (!(globalThis as any).isNextStart) {
   it('should skip for non-next start', () => {})
 } else {
   describe('output: standalone with twoslash', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       dependencies: {
         twoslash: '0.3.4',
@@ -22,10 +22,6 @@ if (!(globalThis as any).isNextStart) {
       },
       skipStart: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     let server: any
     let appPort: number

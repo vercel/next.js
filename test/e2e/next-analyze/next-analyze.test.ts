@@ -4,6 +4,9 @@ import path from 'node:path'
 import type { ChildProcess } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely inspects local build artifacts that deploy tests do not expose.
+// @force-gate !deploy
 describe('next experimental-analyze', () => {
   if (!shouldUseTurbopack()) {
     // Test suites require at least one test
@@ -11,17 +14,10 @@ describe('next experimental-analyze', () => {
     return
   }
 
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    // Test suites require at least one test
-    it('is skipped', () => {})
-    return
-  }
 
   it('runs successfully without errors', async () => {
     let serveProcess: ChildProcess | undefined

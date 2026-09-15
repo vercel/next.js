@@ -1,19 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('transpile-packages-typescript-foreign', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('without transpilePackages', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       skipStart: true,
       dependencies: {
         pkg: `file:./pkg`,
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should fail', async () => {
       try {
@@ -38,10 +36,12 @@ Module parse failed: Unexpected token`)
     })
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('with transpilePackages', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       dependencies: {
         pkg: `file:./pkg`,
       },
@@ -49,10 +49,6 @@ Module parse failed: Unexpected token`)
         transpilePackages: ['pkg'],
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     it('should work', async () => {
       const $ = await next.render$('/')
