@@ -347,8 +347,8 @@ import {
 } from '../dynamic-rendering-utils'
 import type {
   PrefetchedSegmentStage,
-  SegmentStage,
   StageEndTimes,
+  ValidationPrefetchKind,
 } from './instant-validation/instant-validation'
 
 export type GetDynamicParamFromSegment = (
@@ -1456,30 +1456,32 @@ async function generateDynamicFlightRenderResultWithStagesInDev(
     }
 
     const prefetchMode = await getPrefetchingModeForPage(renderOpts, loaderTree)
-    // We currently don't need the `requireStatic` level here, but
-    // we want to validate that it's correct.
-    await resolveRequireStaticLevel(
+    const requireStaticLevel = await resolveRequireStaticLevel(
       loaderTree,
       /* partialPrefetching */ prefetchMode === PrefetchingMode.Partial
     )
 
-    // A client navigation into a Partial Prefetching route extends the shell
-    // through the runtime-prefetchable content: it has already settled on the
-    // client (via the prefetch) by the time it navigates, so it belongs in this
-    // response's shell. Everything else uses the static shell, like an initial
-    // load: plain navigations, and HMR refreshes (a fresh render of the current
-    // page, with no settled prefetch to draw on). Dynamic content always
-    // streams in after the shell.
+    // We try to match the client router's prefetching behavior in dev
+    // by avoiding showing contents that would've been prefetched.
+    // (see stream blocking logic in `streamStagedRenderInDev` for more).
+    // Determine how much content would've been prefetched, which varies
+    // between Cache Components and PartialPrefetching.
+    // (HMR refreshes act like a full page navigation, which would use the static PPR shell)
     let prefetchStage: StreamRevealStage
-
     if (initialRequestStore.isHmrRefresh === true) {
       prefetchStage = RenderStage.Static
     } else {
       if (prefetchMode === PrefetchingMode.Partial) {
         // TODO(app-shells): if this navigation came from <Link prefetch={true} />,
-        // we should show the shell for a speculative prefetch
+        // we should show the content for a speculative prefetch
         // (which can have more data than the app shell)
-        prefetchStage = RenderStage.ShellRuntime
+        if (requireStaticLevel >= RequireStaticLevel.Shell) {
+          // TODO(require-static): this is overly conservative and may show less content
+          // than we would in practice
+          prefetchStage = RenderStage.ShellStatic
+        } else {
+          prefetchStage = RenderStage.ShellRuntime
+        }
       } else {
         prefetchStage = RenderStage.Static
       }
@@ -5124,9 +5126,19 @@ async function prepareValidationInputsInPartialPrefetching(
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
   const needsInstantValidation =
     await anySegmentNeedsInstantValidationInDev(loaderTree)
+  const requireStaticLevel = await resolveRequireStaticLevel(
+    loaderTree,
+    /* partialPrefetching */ true
+  )
+
+  // PPF uses runtime shells by default, but this can be overridden with `requireStatic`.
+  const appShellStage =
+    requireStaticLevel >= RequireStaticLevel.Shell
+      ? RenderStage.ShellStatic
+      : RenderStage.ShellRuntime
 
   // Certain APIs resolve in either static or runtime stages depending on the context.
-  // (see `needsAppShell` and callsites of `trackIncompatibleShellContent`)
+  // (see `needsRuntimeShell` and callsites of `trackIncompatibleShellContent`)
   // This includes:
   // - static `params`
   // - `unstable_navigation()` and `unstable_prefetch()`
@@ -5139,10 +5151,31 @@ async function prepareValidationInputsInPartialPrefetching(
   // have accurate tracking, especially for short-stale caches.
   // This prevents us from using the same rerender for both validations
   // if there's a chance that the cache miss might be hiding incompatible data.
-  const areStagesCompatible = !requestStore.hasIncompatibleShellContent
+  const canRecoverStaticAndRuntimeShell =
+    !requestStore.hasIncompatibleShellContent
+
+  let needsRuntimeAppShell: boolean
+  let canRecoverAppShellFromNavigation: boolean
+  switch (appShellStage) {
+    case RenderStage.ShellStatic: {
+      // `ShellStatic` can be recovered from any render, because
+      // none of the divergent APIs affect this stage.
+      needsRuntimeAppShell = false
+      canRecoverAppShellFromNavigation = true
+      break
+    }
+    case RenderStage.ShellRuntime: {
+      needsRuntimeAppShell = true
+      // `ShellRuntime` can be recovered if the render has a runtime shell
+      // or if it doesn't use APIs that cause stages to diverge.
+      canRecoverAppShellFromNavigation =
+        navigationHasRuntimeShell(navigationKind) ||
+        canRecoverStaticAndRuntimeShell
+      break
+    }
+  }
 
   const LAZY_FULL_RENDER = createLazyDevValidationInputs(async () => {
-    const shouldRenderWithAppShell = true
     const prefetchMode = PrefetchingMode.Partial
     const inputs = await renderWithWarmCachesForValidationInDev(
       ctx,
@@ -5151,7 +5184,7 @@ async function prepareValidationInputsInPartialPrefetching(
       onError,
       prerenderResumeDataCache,
       prefetchMode,
-      shouldRenderWithAppShell,
+      needsRuntimeAppShell,
       validationAbortSignal
     )
     if (forwardErrorsFromWarmRender(inputs, ctx)) {
@@ -5160,58 +5193,62 @@ async function prepareValidationInputsInPartialPrefetching(
     return inputs
   })
 
-  const LAZY_RUNTIME_PRERENDER = createLazyDevValidationInputs(async () => {
-    const inputs = await prerenderWithWarmCachesForStaticValidationInDev(
-      ctx,
-      createRequestStore,
-      getPayload,
-      onError,
-      prerenderResumeDataCache,
-      validationAbortSignal
-    )
-    if (forwardErrorsFromWarmRender(inputs, ctx)) {
-      return VALIDATION_BAILOUT
-    }
-    return inputs
-  })
+  const LAZY_RUNTIME_PRERENDER_WITH_STATIC_SHELL =
+    createLazyDevValidationInputs(async () => {
+      const inputs = await prerenderWithWarmCachesForStaticValidationInDev(
+        ctx,
+        createRequestStore,
+        getPayload,
+        onError,
+        prerenderResumeDataCache,
+        validationAbortSignal
+      )
+      if (forwardErrorsFromWarmRender(inputs, ctx)) {
+        return VALIDATION_BAILOUT
+      }
+      return inputs
+    })
 
   if (inputsFromNavigation) {
-    // We can reuse the main render for at least one of the validation passes.
-    if (areStagesCompatible) {
-      // Stages are compatible across the static shell and the app shell.
-      // We reuse the main render for both.
-      const instantInputs = needsInstantValidation ? inputsFromNavigation : null
-      const staticInputs = inputsFromNavigation
-      return { instantInputs, staticInputs }
-    }
+    // We might be able to reuse the main render for at least one of the validation passes.
 
-    // Stages are incompatible across static and instant validation.
+    // If the navigation has the kind of shell we need, re-use it for Instant Validation.
+    // Otherwise, perform a full render with the kind of shell we need.
+    const instantInputs = !needsInstantValidation
+      ? null
+      : canRecoverAppShellFromNavigation
+        ? inputsFromNavigation
+        : LAZY_FULL_RENDER
 
-    // If this navigation has an accurate app shell, we can use it for instant validation.
-    // However, static validation can't use this static stage, so we need to prerender it.
-    if (navigationHasAppShell(navigationKind)) {
-      const instantInputs = needsInstantValidation ? inputsFromNavigation : null
-      const staticInputs = LAZY_RUNTIME_PRERENDER
-      return { instantInputs, staticInputs }
-    }
+    const staticInputs =
+      // If the navigation has the correct static stage, reuse it for Static Shell Validation.
+      !navigationHasRuntimeShell(navigationKind) ||
+      canRecoverStaticAndRuntimeShell
+        ? inputsFromNavigation
+        : // If Instant Validation inputs have the correct static stage, re-use those.
+          // (this avoids two separate rerenders if the navigation had a runtime app shell
+          // but `canRecoverStaticAndRuntimeShell === false` and we're doing a full rerender)
+          instantInputs && !needsRuntimeAppShell
+          ? instantInputs
+          : // Otherwise perform a partial rerender (only up to the Runtime stage,
+            // which we need for discriminated errors)
+            LAZY_RUNTIME_PRERENDER_WITH_STATIC_SHELL
 
-    // This navigation does not have an accurate app shell, so if we need instant validation, we need to render again.
-    // However, this means that it has an accurate static shell, so we can skip prerendering it.
+    return { instantInputs, staticInputs }
+  } else {
+    // We cannot reuse the main navigation, and need to render again.
     const instantInputs = needsInstantValidation ? LAZY_FULL_RENDER : null
-    const staticInputs = inputsFromNavigation
+
+    // If stages are compatible and we'll rerender for instant validation,
+    // we can reuse the result for static validation.
+    const staticInputs =
+      instantInputs &&
+      (!needsRuntimeAppShell || canRecoverStaticAndRuntimeShell)
+        ? instantInputs
+        : LAZY_RUNTIME_PRERENDER_WITH_STATIC_SHELL
+
     return { instantInputs, staticInputs }
   }
-
-  // We cannot reuse the main navigation, and need to render again.
-  // If stages are compatible and we'll rerender for instant validation,
-  // we can reuse the result for static validation.
-  const instantInputs = needsInstantValidation ? LAZY_FULL_RENDER : null
-  const staticInputs =
-    areStagesCompatible && instantInputs !== null
-      ? instantInputs
-      : LAZY_RUNTIME_PRERENDER
-
-  return { instantInputs, staticInputs }
 }
 
 async function prepareValidationInputsInLegacyPrefetching(
@@ -5237,7 +5274,7 @@ async function prepareValidationInputsInLegacyPrefetching(
   }
 
   const LAZY_FULL_RENDER = createLazyDevValidationInputs(async () => {
-    const shouldRenderWithAppShell = false
+    const shouldRenderWithRuntimeShell = false
     const prefetchMode = PrefetchingMode.LegacySpeculative
     const inputs = await renderWithWarmCachesForValidationInDev(
       ctx,
@@ -5246,7 +5283,7 @@ async function prepareValidationInputsInLegacyPrefetching(
       onError,
       prerenderResumeDataCache,
       prefetchMode,
-      shouldRenderWithAppShell,
+      shouldRenderWithRuntimeShell,
       validationAbortSignal
     )
     if (forwardErrorsFromWarmRender(inputs, ctx)) {
@@ -5381,7 +5418,7 @@ function setUpStagedDevRender(
   navigationKind: DevNavigationKind,
   requestStore: RequestStore
 ): StagedDevRenderSetup {
-  const shouldRenderWithAppShell = navigationHasAppShell(navigationKind)
+  const shouldRenderWithRuntimeShell = navigationHasRuntimeShell(navigationKind)
 
   const cacheSignal = new CacheSignal()
   trackPendingModules(cacheSignal)
@@ -5394,7 +5431,7 @@ function setUpStagedDevRender(
   })
   requestStore.resumeDataCache = prerenderResumeDataCache
   requestStore.stagedRendering = stageController
-  requestStore.needsAppShell = shouldRenderWithAppShell
+  requestStore.needsRuntimeShell = shouldRenderWithRuntimeShell
   requestStore.hasIncompatibleShellContent = false
   requestStore.asyncApiPromises = createAsyncApiPromises(
     stageController,
@@ -5456,17 +5493,29 @@ type DevNavigationKind =
   | { type: 'prefetched-client'; prefetchStage: StreamRevealStage }
 
 type StreamRevealStage =
+  | RenderStage.ShellStatic
   | RenderStage.Static
   | RenderStage.ShellRuntime
   | RenderStage.Runtime
 
-function navigationHasAppShell(navigationKind: DevNavigationKind): boolean {
-  // TODO(app-shells): when we implement `<Link prefetch={true}>` in dev,
-  // this might need to be adjusted, because we'll use `Runtime` for the stage
-  return (
-    navigationKind.type === 'prefetched-client' &&
-    navigationKind.prefetchStage === RenderStage.ShellRuntime
-  )
+function navigationHasRuntimeShell(navigationKind: DevNavigationKind): boolean {
+  switch (navigationKind.type) {
+    case 'initial-load': {
+      return false
+    }
+    case 'prefetched-client': {
+      switch (navigationKind.prefetchStage) {
+        case RenderStage.ShellStatic:
+        case RenderStage.Static: {
+          return false
+        }
+        case RenderStage.ShellRuntime:
+        case RenderStage.Runtime: {
+          return true
+        }
+      }
+    }
+  }
 }
 
 interface StreamStagedRenderInDevOptions extends StagedDevRenderOptions {
@@ -5636,7 +5685,7 @@ async function streamStagedRenderInDev({
     stageController.advanceStage(stage)
   }
 
-  const checkReveal = (stage: AdvanceableRenderStage) => {
+  const checkReveal = (stage: StreamRevealStage) => {
     if (checkForCacheMiss() || revealAfterStage === stage) {
       revealAfter.resolve()
     }
@@ -5676,6 +5725,8 @@ async function streamStagedRenderInDev({
         ),
       })
     },
+    () => checkReveal(RenderStage.ShellStatic),
+
     () => checkCacheMissAndAdvance(RenderStage.PrefetchStatic),
     () => checkCacheMissAndAdvance(RenderStage.NavigationStatic),
     () => checkCacheMissAndAdvance(RenderStage.Static),
@@ -5760,16 +5811,12 @@ async function streamStagedRenderInDev({
 function getStageEndTimes(
   stageController: StagedRenderingController
 ): StageEndTimes {
-  return {
-    [RenderStage.Static]: stageController.getStageEndTime(RenderStage.Static),
-    [RenderStage.ShellRuntime]: stageController.getStageEndTime(
-      RenderStage.ShellRuntime
-    ),
-    [RenderStage.Runtime]: stageController.getStageEndTime(RenderStage.Runtime),
-    [RenderStage.NavigationRuntime]: stageController.getStageEndTime(
-      RenderStage.NavigationRuntime
-    ),
+  const result: Partial<Record<AdvanceableRenderStage, number>> = {}
+  for (const stage of RENDER_STAGE_ADVANCE_ORDER) {
+    if (stage === RenderStage.Dynamic) break
+    result[stage] = stageController.getStageEndTime(stage)
   }
+  return result as Record<AdvanceableRenderStage, number>
 }
 
 async function renderWithWarmCachesForValidationInDev(
@@ -5779,7 +5826,7 @@ async function renderWithWarmCachesForValidationInDev(
   onError: (error: unknown) => void,
   prerenderResumeDataCache: ReturnType<typeof createPrerenderResumeDataCache>,
   prefetchMode: PrefetchingMode,
-  shouldRenderWithAppShell: boolean,
+  shouldRenderWithRuntimeShell: boolean,
   validationAbortSignal: AbortSignal
 ): Promise<DevValidationInputs> {
   const { ComponentMod, setReactDebugChannel } = ctx.renderOpts
@@ -5797,7 +5844,7 @@ async function renderWithWarmCachesForValidationInDev(
     prerenderResumeDataCache
   )
   requestStore.stagedRendering = stageController
-  requestStore.needsAppShell = shouldRenderWithAppShell
+  requestStore.needsRuntimeShell = shouldRenderWithRuntimeShell
   requestStore.hasIncompatibleShellContent = false
   requestStore.cacheSignal = null
   requestStore.asyncApiPromises = createAsyncApiPromises(
@@ -5910,7 +5957,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
     prerenderResumeDataCache
   )
   requestStore.stagedRendering = stageController
-  requestStore.needsAppShell = false
+  requestStore.needsRuntimeShell = false
   requestStore.hasIncompatibleShellContent = false
   requestStore.cacheSignal = null
   requestStore.asyncApiPromises = createAsyncApiPromises(
@@ -5980,7 +6027,7 @@ async function prerenderWithWarmCachesForStaticValidationInDev(
     () => stageController.advanceStage(RenderStage.Static),
     () => stageController.advanceStage(RenderStage.ShellRuntime),
     () => stageController.advanceStage(RenderStage.Runtime),
-    // NOTE: We don't need `NavigationRuntime`, because we set `needsAppShell: false`
+    // NOTE: We don't need `NavigationRuntime`, because we set `needsRuntimeShell: false`
     // so `navigation()` resolves in the static stages.
     () => {
       abortInRenderContext(requestStore, finalReactController)
@@ -7401,10 +7448,24 @@ async function validateInstantConfigs(
 
   debug?.('\nStarting depth-based instant validation...')
 
-  const prefetchKind =
-    prefetchMode === PrefetchingMode.Partial
-      ? ValidationPrefetchKind.Shell
-      : ValidationPrefetchKind.LegacySpeculative
+  let prefetchKind: ValidationPrefetchKind
+  switch (prefetchMode) {
+    case PrefetchingMode.Partial: {
+      const requireStaticLevel = await resolveRequireStaticLevel(
+        ctx.componentMod.routeModule.userland.loaderTree,
+        /* partialPrefetching */ true
+      )
+      prefetchKind =
+        requireStaticLevel >= RequireStaticLevel.Shell
+          ? ValidationPrefetchKind.StaticAppShell
+          : ValidationPrefetchKind.RuntimeAppShell
+      break
+    }
+    case PrefetchingMode.LegacySpeculative: {
+      prefetchKind = ValidationPrefetchKind.LegacySpeculative
+      break
+    }
+  }
 
   const loaderTree = ctx.componentMod.routeModule.userland.loaderTree
 
@@ -7434,11 +7495,51 @@ async function validateInstantConfigs(
   type RetryStage = RenderStage.Runtime | RenderStage.NavigationRuntime
 
   type ValidationSequence = {
-    stageOrder: PrefetchedSegmentStage[]
-    holeResolution: Record<SegmentStage, DynamicHoleKind | null>
+    stageOrder: [...PrefetchedSegmentStage[], RenderStage.Dynamic]
+    holeResolution: Partial<
+      Record<
+        PrefetchedSegmentStage | RenderStage.Dynamic,
+        DynamicHoleKind | null
+      >
+    >
   }
-  const validationSequences = {
-    [ValidationPrefetchKind.Shell]: {
+
+  /**
+   * Typescript helper to ensure that all stages in `stageOrder` have an entry in `holeResolution`.
+   * This is more constrained than the actual `ValidationSequence` type.
+   * */
+  const defineValidationSequence = <
+    TStages extends [...PrefetchedSegmentStage[], RenderStage.Dynamic],
+  >(sequence: {
+    stageOrder: TStages
+    holeResolution: Record<TStages[number], DynamicHoleKind | null>
+  }): ValidationSequence => {
+    return sequence
+  }
+
+  // TODO: these sequences are effectively duplicated in `collectStagedSegmentData`
+  // in `instant-validation.tsx`. We should have one source of truth for them
+  const validationSequences: Record<
+    ValidationPrefetchKind,
+    ValidationSequence
+  > = {
+    [ValidationPrefetchKind.StaticAppShell]: defineValidationSequence({
+      stageOrder: [
+        RenderStage.ShellStatic,
+        RenderStage.Static,
+        RenderStage.NavigationStatic,
+        RenderStage.Runtime,
+        RenderStage.Dynamic,
+      ],
+      holeResolution: {
+        [RenderStage.ShellStatic]: null, // initial stage
+        [RenderStage.Static]: DynamicHoleKind.Link, // TODO(require-static): distinguish static link data
+        [RenderStage.NavigationStatic]: DynamicHoleKind.Navigation,
+        [RenderStage.Runtime]: DynamicHoleKind.Runtime, // TODO(require-static): distinguish session data
+        [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
+      },
+    }),
+    [ValidationPrefetchKind.RuntimeAppShell]: defineValidationSequence({
       stageOrder: [
         RenderStage.ShellRuntime,
         RenderStage.Runtime,
@@ -7446,14 +7547,13 @@ async function validateInstantConfigs(
         RenderStage.Dynamic,
       ],
       holeResolution: {
-        [RenderStage.Static]: null, // no holes resolve in the Static stage (URL data like static params goes in the Runtime stage)
         [RenderStage.ShellRuntime]: null, // initial stage
         [RenderStage.Runtime]: DynamicHoleKind.Link,
         [RenderStage.NavigationRuntime]: DynamicHoleKind.Navigation,
         [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
       },
-    } as ValidationSequence,
-    [ValidationPrefetchKind.LegacySpeculative]: {
+    }),
+    [ValidationPrefetchKind.LegacySpeculative]: defineValidationSequence({
       stageOrder: [
         RenderStage.Static,
         RenderStage.Runtime,
@@ -7461,12 +7561,10 @@ async function validateInstantConfigs(
       ],
       holeResolution: {
         [RenderStage.Static]: null, // initial stage
-        [RenderStage.ShellRuntime]: null, // currently unused in static prefetch validation.
         [RenderStage.Runtime]: DynamicHoleKind.Runtime,
-        [RenderStage.NavigationRuntime]: null, // static prefetches never have navigation() holes.
         [RenderStage.Dynamic]: DynamicHoleKind.Dynamic,
       },
-    } as ValidationSequence,
+    }),
   } as const
 
   const validationSequence = validationSequences[prefetchKind]
@@ -7488,7 +7586,15 @@ async function validateInstantConfigs(
     const { stageOrder, holeResolution } = validationSequence
     const nextStage = stageOrder[stageOrder.indexOf(stage) + 1]
     const holeKind = holeResolution[nextStage]
-    if (!holeKind) {
+    // NOTE: `defineValidationSequence` should prevent `undefined` here, because
+    // we asserted on the type level that each `stage` either has a `holeKind` or `null`
+    if (holeKind === undefined) {
+      throw new InvariantError(
+        `${RenderStage[stage]} segments should not be used in ${ValidationPrefetchKind[prefetchKind]} prefetches`
+      )
+    }
+    // The initial stage can have `null`. We should not see it here
+    if (holeKind === null) {
       throw new InvariantError(
         `${RenderStage[stage]} segments do not unblock new data in ${ValidationPrefetchKind[prefetchKind]} prefetches`
       )
@@ -7559,6 +7665,10 @@ async function validateInstantConfigs(
     // If we're not overriding the stage, we're in the first stage.
     const stage = overrideStageForPartialSegments ?? initialRenderStage
     const dynamicHoleKind = getDynamicHoleKindForSegmentStage(stage)
+
+    debug?.(
+      `  trying ${RenderStage[stage]} (hole: ${DynamicHoleKind[dynamicHoleKind]})`
+    )
 
     const extraChunksController = new AbortController()
     const extraChunksSignal =
@@ -7911,7 +8021,7 @@ async function renderWithRestartOnCacheMissInValidation(
 
   requestStore.resumeDataCache = prerenderResumeDataCache
   requestStore.stagedRendering = initialStageController
-  requestStore.needsAppShell = shouldRenderAppShell
+  requestStore.needsRuntimeShell = shouldRenderAppShell
   requestStore.hasIncompatibleShellContent = false
   requestStore.cacheSignal = cacheSignal
   requestStore.asyncApiPromises = createAsyncApiPromises(
@@ -8024,7 +8134,7 @@ async function renderWithRestartOnCacheMissInValidation(
     prerenderResumeDataCache
   )
   requestStore.stagedRendering = finalStageController
-  requestStore.needsAppShell = shouldRenderAppShell
+  requestStore.needsRuntimeShell = shouldRenderAppShell
   requestStore.hasIncompatibleShellContent = false
   requestStore.cacheSignal = null
   requestStore.asyncApiPromises = createAsyncApiPromises(

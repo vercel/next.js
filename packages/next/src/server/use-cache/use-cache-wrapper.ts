@@ -2623,7 +2623,6 @@ export async function cache(
                   cacheSignal.endRead()
                   cacheSignalReadEnded = true
                 }
-
                 let stage: AdvanceableRenderStage
                 if (!isPrefetchable) {
                   // An unprefetchable entry is excluded from prerenders, so it
@@ -2638,7 +2637,7 @@ export async function cache(
                     workUnitStore,
                     '"use cache" excluded from app shells due to a short staletime'
                   )
-                  stage = workUnitStore.needsAppShell
+                  stage = workUnitStore.needsRuntimeShell
                     ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
                     : RENDER_STAGES_BY_DATA_KIND.staticLinkData
                 }
@@ -3263,7 +3262,7 @@ export async function cache(
                     workUnitStore,
                     '"use cache" excluded from app shells due to a short staletime'
                   )
-                  stage = workUnitStore.needsAppShell
+                  stage = workUnitStore.needsRuntimeShell
                     ? RENDER_STAGES_BY_DATA_KIND.runtimeLinkData
                     : RENDER_STAGES_BY_DATA_KIND.staticLinkData
                 }
