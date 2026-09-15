@@ -66,6 +66,7 @@ To learn more about configuring the behavior of the built-in [Image Optimization
 - [Sirv](#sirv)
 - [Supabase](#supabase)
 - [Thumbor](#thumbor)
+- [TruoCloud](#truocloud)
 - [Imagekit](#imagekitio)
 - [Nitrogen AIO](#nitrogen-aio)
 
@@ -240,6 +241,22 @@ export default function supabaseLoader({ src, width, quality }) {
 export default function thumborLoader({ src, width, quality }) {
   const params = [`${width}x0`, `filters:quality(${quality || 75})`]
   return `https://example.com${params.join('/')}${src}`
+}
+```
+
+### TruoCloud
+
+```js
+// Docs: https://docs.truo.cloud/images
+// Parameters are set in alphabetical order on purpose: TruoCloud treats the
+// sorted form as canonical, so two orderings of the same request would be two
+// CDN cache entries for one image.
+export default function truoCloudLoader({ src, width, quality }) {
+  const params = new URLSearchParams()
+  params.set('f', 'auto')
+  if (quality) params.set('q', quality.toString())
+  params.set('w', width.toString())
+  return `https://img.truo.cloud/i/<pid>/${src.replace(/^\//, '')}?${params}`
 }
 ```
 
