@@ -10,7 +10,7 @@ describe('Image Component assetPrefix Tests', () => {
     const browser = await next.browser('/')
     const id = 'test1'
     const bgImage = await browser.eval(
-      `document.getElementById('${id}').style['background-image']`
+      `document.getElementById('${id}').style.getPropertyValue('--next-image-image')`
     )
     if (isTurbopack) {
       expect(bgImage).toContain('data:image/svg+xml;')
@@ -26,7 +26,7 @@ describe('Image Component assetPrefix Tests', () => {
     const browser = await next.browser('/')
     const id = 'test1'
     const bgImage = await browser.eval(
-      `document.getElementById('${id}').style['background-image']`
+      `document.getElementById('${id}').style.getPropertyValue('--next-image-image')`
     )
     expect(bgImage).toMatch('data:image/jpeg;base64')
   })
