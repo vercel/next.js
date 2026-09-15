@@ -454,7 +454,14 @@ export function serverActionReducer(
       const redirectUrl =
         redirectLocation !== undefined ? redirectLocation : currentUrl
       const currentFlightRouterState = state.tree
-      const scrollBehavior = ScrollBehavior.Default
+      // Only a redirect is a navigation the user should be scrolled for. An
+      // action that revalidated without redirecting re-renders the URL that is
+      // already on screen, and that must keep the scroll position — exactly
+      // like `router.refresh()` does.
+      const scrollBehavior =
+        redirectLocation !== undefined
+          ? ScrollBehavior.Default
+          : ScrollBehavior.NoScroll
 
       // If the action triggered a revalidation of the cache, we should also
       // refresh all the dynamic data.
