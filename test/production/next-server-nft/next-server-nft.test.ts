@@ -162,6 +162,7 @@ async function readNormalizedNFT(next, name) {
            "/node_modules/next/dist/build/swc/options.js",
            "/node_modules/next/dist/build/swc/types.js",
            "/node_modules/next/dist/build/utils.js",
+           "/node_modules/next/dist/build/variants/combinations.js",
            "/node_modules/next/dist/cli/next-test.js",
            "/node_modules/next/dist/client/*",
            "/node_modules/next/dist/compiled/@edge-runtime/cookies/index.js",

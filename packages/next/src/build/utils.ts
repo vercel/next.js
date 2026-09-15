@@ -68,6 +68,7 @@ import { collectSegments } from './segment-config/app/app-segments'
 import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
 import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from './static-paths/app'
+import { collectStaticVariantCombinations } from './variants/combinations'
 import { buildPagesStaticPaths } from './static-paths/pages'
 import type {
   PrerenderRouteMatcher,
@@ -878,6 +879,16 @@ export async function isPageStatic({
         }
 
         const route = parseNormalizedAppRoute(page)
+
+        // The build reads the static variant combinations of every app route
+        // here, and rejects what it cannot use. Nothing prerenders against them
+        // yet, so the result is discarded. A page with no dynamic segments
+        // builds no static paths, and can still declare combinations, so this
+        // call does not belong with the static paths below.
+        //
+        // TODO(variants): prerender each route against the combinations it
+        // declared.
+        await collectStaticVariantCombinations(segments, page)
 
         // If the page is dynamic and we're not in edge runtime, then we need to
         // build the static paths. The edge runtime doesn't support static
