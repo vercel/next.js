@@ -20,6 +20,8 @@ import { decodeStageUntilBoundary } from './fetch-server-response'
 import { discoverKnownRoute } from '../segment-cache/optimistic-routes'
 import type { NormalizedSearch } from '../segment-cache/cache-key'
 
+import { getNextHistoryId, setNextHistoryId } from './history-id'
+
 export interface InitialRouterStateParameters {
   navigatedAt: number
   initialRSCPayload: InitialRSCPayload
@@ -33,6 +35,16 @@ export function createInitialRouterState({
   initialFlightStreamForCache,
   location,
 }: InitialRouterStateParameters): AppRouterState {
+  let activeHistoryId: number | undefined
+  if (typeof window !== 'undefined') {
+    const existingState = window.history.state?.__PRIVATE_NEXTJS_INTERNALS_TREE
+    if (typeof existingState?.historyId === 'number') {
+      activeHistoryId = existingState.historyId
+      setNextHistoryId(existingState.historyId)
+    } else {
+      activeHistoryId = getNextHistoryId()
+    }
+  }
   const {
     c: initialCanonicalUrlParts,
     t: initialTransportData,
@@ -268,6 +280,7 @@ export function createInitialRouterState({
       null,
     previousNextUrl: null,
     debugInfo: null,
+    activeHistoryId,
   }
 
   return initialState
