@@ -430,11 +430,11 @@ describe('`next-js` Condition - Rendering', () => {
 
         const text = formatHtmlText($('main').html())
         // webpack's namespace emulation uses an ordinary object rather than a
-        // native Module Namespace Exotic Object. In production,
-        // `optimization.inlineExports` defines the re-exported `named` getter
-        // before appending the inlined constant `default` value, so insertion
-        // order is observable here. Keep this optimization enabled and document
-        // its accepted order separately from dev and Turbopack.
+        // native Module Namespace Exotic Object. In production without module
+        // concatenation, webpack 5.109 emits the re-exported `named` getter
+        // before the direct-value `default` export, so insertion order is
+        // observable here. Keep the optimizations enabled and document this
+        // accepted order separately from dev and Turbopack.
         if (isNextStart && !isTurbopack) {
           expect(text).toMatchInlineSnapshot(`
            "  Server
