@@ -176,6 +176,13 @@ pub enum ExportUsage {
     All,
     /// Only side effects are used.
     Evaluation,
+    /// Use the same exports that are used from the referencing module. This is used by transparent
+    /// module proxies that forward their export surface to another module.
+    Passthrough {
+        /// The forwarded exports are read through a namespace object, so their original names may
+        /// be observed even when the individual used names are known.
+        namespace_object_may_escape: bool,
+    },
 }
 
 impl Display for ExportUsage {
@@ -194,6 +201,18 @@ impl Display for ExportUsage {
             }
             ExportUsage::All => write!(f, "all"),
             ExportUsage::Evaluation => write!(f, "evaluation"),
+            ExportUsage::Passthrough {
+                namespace_object_may_escape,
+                ..
+            } => write!(
+                f,
+                "passthrough{}",
+                if *namespace_object_may_escape {
+                    " namespace"
+                } else {
+                    ""
+                }
+            ),
         }
     }
 }
@@ -213,6 +232,14 @@ impl ExportUsage {
     #[turbo_tasks::function]
     pub fn named(name: RcStr) -> Vc<Self> {
         Self::Named(name).cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn passthrough(namespace_object_may_escape: bool) -> Vc<Self> {
+        Self::Passthrough {
+            namespace_object_may_escape,
+        }
+        .cell()
     }
 }
 

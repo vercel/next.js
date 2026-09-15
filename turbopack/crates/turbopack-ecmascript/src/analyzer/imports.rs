@@ -70,6 +70,10 @@ pub struct ImportAnnotations {
 static ANNOTATION_TRANSITION: LazyLock<Wtf8Atom> =
     LazyLock::new(|| crate::annotations::ANNOTATION_TRANSITION.into());
 
+/// Changes how export usage is propagated to the referenced module
+static ANNOTATION_EXPORT_USAGE: LazyLock<Wtf8Atom> =
+    LazyLock::new(|| crate::annotations::ANNOTATION_EXPORT_USAGE.into());
+
 /// Changes the type of the resolved module (only "json" is supported currently)
 static ATTRIBUTE_MODULE_TYPE: LazyLock<Wtf8Atom> = LazyLock::new(|| atom!("type").into());
 
@@ -220,6 +224,12 @@ impl ImportAnnotations {
     pub fn transition(&self) -> Option<Cow<'_, str>> {
         self.get(&ANNOTATION_TRANSITION)
             .map(|v| v.to_string_lossy())
+    }
+
+    /// Whether this import forwards the importing module's export usage
+    pub fn export_usage_passthrough(&self) -> bool {
+        self.get(&ANNOTATION_EXPORT_USAGE)
+            .is_some_and(|value| value == "passthrough")
     }
 
     /// Returns the content on the chunking-type annotation
@@ -1701,6 +1711,15 @@ mod tests {
         })
     }
 
+    /// Helper to create a string property name
+    fn str_key(s: &str) -> PropName {
+        PropName::Str(Str {
+            span: DUMMY_SP,
+            value: Atom::from(s).into(),
+            raw: None,
+        })
+    }
+
     /// Helper to create a key-value property
     fn kv_prop(key: PropName, value: Box<Expr>) -> PropOrSpread {
         PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp { key, value })))
@@ -1755,6 +1774,20 @@ mod tests {
         let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
         assert!(!annotations.has_turbopack_loader());
         assert!(annotations.module_type().is_some());
+    }
+
+    #[test]
+    fn test_parse_export_usage_passthrough() {
+        let with = ObjectLit {
+            span: DUMMY_SP,
+            props: vec![kv_prop(
+                str_key(crate::annotations::ANNOTATION_EXPORT_USAGE),
+                str_lit("passthrough"),
+            )],
+        };
+
+        let annotations = ImportAnnotations::parse(Some(&with)).unwrap();
+        assert!(annotations.export_usage_passthrough());
     }
 
     #[test]

@@ -1,4 +1,4 @@
-(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_intermediate-tree-shake_reexport-with-locals_input_0fa40prz2spda._.js",
+(()=>{"use strict";(globalThis["TURBOPACK"] || (globalThis["TURBOPACK"] = [])).push(["output/1jsg_tests_snapshot_intermediate-tree-shake_reexport-with-locals_input_0fa40prz2spda._.js",
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/intermediate-tree-shake/reexport-with-locals/input/index.js [test] (ecmascript)", ((__turbopack_context__) => {
 "use strict";
 
@@ -49,6 +49,6 @@ __turbopack_context__.s([]);
 function unusedStar() {}
 __turbopack_context__.s([]);
 }),
-]);
+]);})()
 
 //# sourceMappingURL=1jsg_tests_snapshot_intermediate-tree-shake_reexport-with-locals_input_0fa40prz2spda._.js.map

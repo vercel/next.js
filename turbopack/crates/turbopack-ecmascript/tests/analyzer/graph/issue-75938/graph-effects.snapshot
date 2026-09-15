@@ -475,6 +475,7 @@
             ),
         ],
         span: 366..379,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(

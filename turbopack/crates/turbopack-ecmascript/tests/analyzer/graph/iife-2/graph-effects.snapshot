@@ -85,6 +85,7 @@
             ),
         ],
         span: 80..91,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "Object",
@@ -335,6 +336,7 @@
             ),
         ],
         span: 108..119,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -426,6 +428,7 @@
             ),
         ],
         span: 142..149,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -516,6 +519,7 @@
             ),
         ],
         span: 155..168,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "console",
@@ -1081,6 +1085,7 @@
             ),
         ],
         span: 208..219,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -1181,6 +1186,7 @@
             ),
         ],
         span: 224..238,
+        in_truthiness_context: false,
     },
     Conditional {
         condition: Variable(
@@ -1572,6 +1578,7 @@
             ),
         ],
         span: 271..282,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
