@@ -4,7 +4,12 @@ import {
   getRequestListEntries,
   isPageLoadRequest,
 } from './request-list'
-import { getTraceItems, getTracePosition, getTraceRange } from './trace-viewer'
+import {
+  getReactTimingGroups,
+  getTraceItems,
+  getTracePosition,
+  getTraceRange,
+} from './trace-viewer'
 
 function createRequest(
   overrides: Partial<RequestInsight> = {}
@@ -22,6 +27,191 @@ function createRequest(
 }
 
 describe('request insights trace viewer', () => {
+  it('groups React intervals by pass and environment without summing overlapping work', () => {
+    const request = createRequest({
+      spans: [
+        ...[
+          ['a', 'first', 'Server', 105, 80, 'component'],
+          ['b', 'first', 'Server', 115, 60, 'component'],
+          ['c', 'first', 'Server', 120, 40, 'await'],
+          ['d', 'second', 'Server', 110, 5, 'component'],
+          ['e', 'first', 'Prerender', 100, 4, 'component'],
+        ].map(([id, pass, environment, start, duration, kind]) => ({
+          name: `ReactServerComponents.${kind}`,
+          spanId: String(id),
+          parentSpanId: 'shared-parent',
+          startTime: Number(start),
+          durationMs: Number(duration),
+          attributes: {
+            'next.span_type': `ReactServerComponents.${kind}`,
+            'next.rsc.render_id': pass,
+            'next.rsc.environment': environment,
+          },
+        })),
+        { name: 'GET', spanId: 'request', startTime: 100, durationMs: 100 },
+      ],
+    })
+    const items = getTraceItems(request, false)
+    const original = structuredClone(items)
+    const groups = getReactTimingGroups(items)
+    expect(groups).toHaveLength(3)
+    expect(groups.map((group) => group.environment)).toEqual([
+      'Prerender',
+      'Server',
+      'Server',
+    ])
+    expect(groups[1]).toMatchObject({
+      range: { startTime: 105, durationMs: 80 },
+      components: [
+        expect.objectContaining({ spanId: 'a', depth: 0 }),
+        expect.objectContaining({ spanId: 'b', depth: 0 }),
+      ],
+      awaits: [expect.objectContaining({ spanId: 'c', depth: 0 })],
+    })
+    expect(groups[2].components.map((item) => item.spanId)).toEqual(['d'])
+    expect(items).toEqual(original)
+  })
+
+  it('shows React intervals with their recorded names and parents by default', () => {
+    const request = createRequest({
+      spans: [
+        {
+          name: 'render route',
+          spanId: 'render',
+          startTime: 100,
+          durationMs: 80,
+          attributes: { 'next.span_type': 'AppRender.getBodyResult' },
+        },
+        {
+          name: 'ReactServerComponents.component',
+          spanId: 'component',
+          parentSpanId: 'render',
+          startTime: 105,
+          durationMs: 2,
+          attributes: {
+            'next.span_type': 'ReactServerComponents.component',
+            'next.span_name': 'RecentOrdersPanel',
+            'next.rsc.kind': 'component',
+            'next.rsc.environment': 'Server',
+            'next.rsc.source.file': 'file:///project/.next/server/app.js',
+            'next.rsc.source.line': 12,
+            'next.rsc.source.column': 7,
+            'next.rsc.source.name': 'Page',
+            'next.rsc.component_path': 'Page › RecentOrdersPanel',
+          },
+        },
+        {
+          name: 'ReactServerComponents.await',
+          spanId: 'await',
+          parentSpanId: 'render',
+          startTime: 108,
+          durationMs: 60,
+          attributes: {
+            'next.span_type': 'ReactServerComponents.await',
+            'next.span_name': 'await readRecentOrders',
+            'next.rsc.kind': 'await',
+          },
+        },
+      ],
+    })
+
+    expect(getTraceItems(request, false)).toEqual([
+      expect.objectContaining({ spanId: 'render', depth: 0 }),
+      expect.objectContaining({
+        label: 'RecentOrdersPanel',
+        fullLabel: 'RecentOrdersPanel · React render interval · Server',
+        reactTiming: expect.objectContaining({
+          componentPath: 'Page › RecentOrdersPanel',
+          source: {
+            file: 'file:///project/.next/server/app.js',
+            line1: 12,
+            column1: 7,
+            methodName: 'Page',
+            arguments: [],
+          },
+        }),
+        category: 'application',
+        parentSpanId: 'render',
+        durationMs: 2,
+        depth: 1,
+      }),
+      expect.objectContaining({
+        label: 'await readRecentOrders',
+        fullLabel: 'await readRecentOrders · React await interval',
+        category: 'application',
+        parentSpanId: 'render',
+        durationMs: 60,
+        depth: 1,
+      }),
+    ])
+  })
+
+  it.each([true, false])(
+    'shows incomplete renders without making an interval, with earlier intervals: %s',
+    (includeInterval) => {
+      const request = createRequest({
+        spans: [
+          ...(includeInterval
+            ? ['Server', 'Cache'].map((environment) => ({
+                name: 'ReactServerComponents.component',
+                startTime: 100,
+                durationMs: 0,
+                attributes: {
+                  'next.span_type': 'ReactServerComponents.component',
+                  'next.rsc.render_id': 'first',
+                  'next.rsc.environment': environment,
+                },
+              }))
+            : []),
+          {
+            name: 'ReactServerComponents.incomplete',
+            startTime: 100,
+            durationMs: 0,
+            attributes: {
+              'next.span_type': 'ReactServerComponents.incomplete',
+              'next.rsc.render_id': 'first',
+              'next.rsc.incomplete_reason': 'budget',
+            },
+          },
+        ],
+      })
+      const groups = getReactTimingGroups(getTraceItems(request, false))
+      expect(groups).toHaveLength(includeInterval ? 2 : 1)
+      for (const group of groups) {
+        expect(group.incompleteReason).toBe('budget')
+        expect(group.components).toHaveLength(includeInterval ? 1 : 0)
+        expect(group.awaits).toHaveLength(0)
+      }
+    }
+  )
+
+  it('does not associate incomplete metadata with unrelated legacy renders', () => {
+    const request = createRequest({
+      spans: [
+        {
+          name: 'ReactServerComponents.component',
+          startTime: 100,
+          durationMs: 1,
+          attributes: { 'next.span_type': 'ReactServerComponents.component' },
+        },
+        {
+          name: 'ReactServerComponents.incomplete',
+          startTime: 100,
+          durationMs: 0,
+          attributes: {
+            'next.span_type': 'ReactServerComponents.incomplete',
+            'next.rsc.incomplete_reason': 'budget',
+          },
+        },
+      ],
+    })
+    const groups = getReactTimingGroups(getTraceItems(request, false))
+    expect(groups).toHaveLength(2)
+    expect(groups[0].incompleteReason).toBeUndefined()
+    expect(groups[1].incompleteReason).toBe('budget')
+    expect(groups[1].components).toEqual([])
+  })
+
   it('keeps the active request selected when newer requests arrive', () => {
     const selectedRequest = createRequest({ requestId: 'selected' })
     const newerRequest = createRequest({ requestId: 'newer' })

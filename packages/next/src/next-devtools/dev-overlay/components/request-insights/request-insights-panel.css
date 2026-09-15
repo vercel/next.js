@@ -363,6 +363,91 @@
   font-size: var(--size-13);
 }
 
+.request-insights-react-pass + .request-insights-react-pass {
+  border-top: 1px solid var(--color-gray-400);
+}
+
+.request-insights-react-source {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.request-insights-react-source:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.request-insights-react-source:focus-visible {
+  outline: 2px solid var(--color-blue-700);
+  outline-offset: 2px;
+}
+
+.request-insights-react-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 4px;
+  border: 0;
+  background: transparent;
+  color: var(--color-gray-1000);
+  font: inherit;
+  font-size: var(--size-13);
+  text-align: left;
+  cursor: pointer;
+}
+
+.request-insights-react-toggle:hover {
+  background: var(--color-gray-200);
+}
+
+.request-insights-react-toggle:focus-visible {
+  outline: 2px solid var(--color-blue-700);
+  outline-offset: -2px;
+  border-radius: 4px;
+}
+
+.request-insights-react-pass-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.request-insights-react-chevron {
+  display: inline-block;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.request-insights-react-toggle[aria-expanded='true']
+  .request-insights-react-chevron {
+  transform: rotate(90deg);
+}
+
+.request-insights-react-pass .request-insights-section {
+  padding: 8px 4px;
+  border-bottom: 0;
+}
+
+.request-insights-span-row[data-react-kind='component']
+  .request-insights-span-marker,
+.request-insights-span-row[data-react-kind='component']
+  .request-insights-span-bar {
+  background: var(--color-purple-800);
+}
+
+.request-insights-span-row[data-react-kind='await']
+  .request-insights-span-marker,
+.request-insights-span-row[data-react-kind='await'] .request-insights-span-bar {
+  background: var(--color-amber-800);
+}
+
 .request-insights-trace-viewport {
   overflow-x: auto;
 }
