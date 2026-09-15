@@ -57,6 +57,7 @@ A meta file can contain metadata about multiple SST files. The metadata is store
   - 4 bytes magic number (0xFE4ADA4A)
   - 4 bytes key family
   - 1 byte compression algorithm, which must match the configuration used to open the database
+  - 4 bytes zstd dictionary ID (zero when no dictionary is configured)
   - 4 bytes count of obsolete SST files
   - foreach obsolete SST file
     - 4 bytes sequence number of the obsolete SST file
@@ -361,6 +362,37 @@ Configuration options for compactions are:
 
 - max number of SST files that are merged at once
 - coverage when compaction is triggered (otherwise calling compact is a noop)
+
+## Training and evaluating zstd dictionaries offline
+
+`zstd_dictionary` trains and compares zstd dictionaries from logical values in existing database
+copies without modifying them or running the application that created them:
+
+```sh
+cargo run -p turbo-persistence --release --bin zstd_dictionary -- train \
+  --family <id> --output candidate.zdict \
+  path/to/database-a path/to/database-b
+
+cargo run -p turbo-persistence --release --bin zstd_dictionary -- evaluate \
+  --family <id> --dictionary candidate.zdict --json report.json \
+  path/to/database-a path/to/database-b
+```
+
+Training produces a 64 KiB dictionary from up to approximately 64 MiB of samples. It takes one
+hash-ordered logical value from each cache in turn, so one large cache cannot monopolize the sample.
+The output path is overwritten directly.
+
+LZ4 and no-dictionary zstd level 3 baselines are always included during evaluation. Source SSTs may use
+LZ4 or plain zstd without extra options. Pass `--source-dictionary <path>` when any input SST records
+a nonzero dictionary ID; it is ignored for LZ4 and plain-zstd SSTs. The tool follows `CURRENT`,
+deletion files, and meta-file supersession, and uses `StaticSortedFileIter` to read slice, medium, and
+blob values. Checksums, dictionary IDs, and decompressed lengths are verified.
+
+Evaluation groups small logical values into SST-local 8–12 KiB units, while medium values and blobs
+remain independent. The 12.5% minimum-savings rule is applied per approximated unit, so this remains
+comparative rather than exact SST-size modeling. Estimated stored bytes exclude fixed container
+headers. Timing fields are single-pass diagnostics; use byte/count fields for repeatable comparisons
+of one copied cache snapshot.
 
 ## Opening
 

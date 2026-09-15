@@ -30,10 +30,10 @@ use tracing::span::EnteredSpan;
 
 pub use crate::compaction::selector::CompactConfig;
 use crate::{
-    AccessMode, DbConfig, FamilyKind, QueryKey,
+    AccessMode, CompressionConfig, DbConfig, FamilyKind, QueryKey,
     arc_bytes::ArcBytes,
     compaction::selector::{Compactable, get_merge_segments},
-    compression::{Compression, checksum_block, decompress_into_arc},
+    compression::{checksum_block, decompress_into_arc},
     constants::{
         DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
         MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
@@ -659,7 +659,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
     /// Reads and decompresses a blob file. This is not backed by any cache.
     #[tracing::instrument(level = "info", name = "reading database blob", skip_all)]
-    fn read_blob(&self, seq: u32, compression: Compression) -> Result<ArcBytes> {
+    fn read_blob(&self, seq: u32, compression: CompressionConfig) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
         let file = File::open(&path)?;
         let data: Either<Mmap, Vec<u8>> = match self.config.access_mode {
@@ -1531,6 +1531,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                         "merge files",
                         family = self.config.family_configs[family as usize].name
                     );
+                    let compression = self.config.family_configs[family as usize].compression;
                     enum PartialMergeResult<'l> {
                         Merged {
                             new_sst_files: Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
@@ -1617,7 +1618,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                     StaticSortedFileIter::open(
                                         path,
                                         entry.sst_metadata(),
-                                        meta_file.compression(),
+                                        compression,
                                         self.config.access_mode,
                                     )
                                 })
@@ -1636,7 +1637,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 /// used set).
                                 writer: Option<(u32, StreamingSstWriter<LookupEntry>)>,
                                 flags: MetaEntryFlags,
-                                compression: Compression,
+                                compression: CompressionConfig,
                                 new_sst_files:
                                     Vec<(u32, File, StaticSortedFileBuilderMeta<'static>)>,
                                 /// Hash of the last key added. Used to ensure we only split
@@ -1644,7 +1645,10 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                                 last_hash: Option<u64>,
                             }
                             impl Collector {
-                                fn new(flags: MetaEntryFlags, compression: Compression) -> Self {
+                                fn new(
+                                    flags: MetaEntryFlags,
+                                    compression: CompressionConfig,
+                                ) -> Self {
                                     Self {
                                         writer: None,
                                         flags,

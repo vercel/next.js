@@ -16,6 +16,8 @@ mod merge_iter;
 pub mod meta_file;
 mod meta_file_builder;
 pub mod mmap_helper;
+#[doc(hidden)]
+pub mod offline;
 mod parallel_scheduler;
 mod rc_bytes;
 mod shared_bytes;
@@ -30,7 +32,7 @@ mod write_batch;
 mod tests;
 
 pub use arc_bytes::ArcBytes;
-pub use compression::{Compression, checksum_block};
+pub use compression::{Compression, CompressionConfig, checksum_block};
 pub use db::{
     CommitStats, CompactConfig, CurrentDbVersion, MetaFileEntryInfo, MetaFileInfo,
     TurboPersistence, read_current_version,
@@ -64,7 +66,7 @@ pub enum FamilyKind {
 pub struct FamilyConfig {
     pub name: &'static str,
     pub kind: FamilyKind,
-    pub compression: Compression,
+    pub compression: CompressionConfig,
 }
 
 /// Database-wide configuration with per-family storage settings.
@@ -102,7 +104,7 @@ impl<const FAMILIES: usize> DbConfig<FAMILIES> {
             family_configs: [FamilyConfig {
                 name: "unknown",
                 kind: FamilyKind::SingleValue,
-                compression: Compression::Lz4,
+                compression: CompressionConfig::Lz4,
             }; FAMILIES],
             access_mode: access_mode_env_var(),
         }
@@ -110,7 +112,7 @@ impl<const FAMILIES: usize> DbConfig<FAMILIES> {
 }
 /// The largest value that [`WriteBatch::delete_value`] can delete, since the tombstone stores
 /// a copy of the value inline.
-pub use constants::MAX_INLINE_VALUE_SIZE;
+pub use constants::{MAX_INLINE_VALUE_SIZE, MIN_SMALL_VALUE_BLOCK_SIZE};
 
 impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
     fn default() -> Self {
@@ -118,11 +120,12 @@ impl<const FAMILIES: usize> Default for DbConfig<FAMILIES> {
     }
 }
 pub use key::{KeyBase, QueryKey, StoreKey, hash_key};
+pub use lookup_entry::{IterValue, LookupEntry};
 pub use meta_file::MetaEntryFlags;
 pub use parallel_scheduler::{ParallelScheduler, SerialScheduler};
 pub use static_sorted_file::{
     BlockCache, BlockCacheLifecycle, BlockWeighter, KeyBlockLayout, SstLookupResult,
-    StaticSortedFile, StaticSortedFileMetaData,
+    StaticSortedFile, StaticSortedFileIter, StaticSortedFileMetaData,
 };
 pub use static_sorted_file_builder::{
     BLOCK_HEADER_SIZE, Entry, EntryValue, StreamingSstWriter, write_static_stored_file,
