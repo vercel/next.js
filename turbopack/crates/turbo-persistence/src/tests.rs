@@ -165,6 +165,7 @@ fn open_multi_value_db(
     open_db_with_config(path, multi_value_config_with_mmap(mmap))
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -663,6 +664,7 @@ fn persist_changes(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -750,6 +752,7 @@ fn partial_compaction(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -1371,6 +1374,7 @@ fn batch_get_after_restore(#[case] mmap: bool) -> Result<()> {
 
 /// Test that compaction works with many small values without overflowing block indices.
 /// Reproduces a CI benchmark failure with key_4/value_512/entries_1.98Mi/compacted.
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -1417,6 +1421,7 @@ fn many_small_values_compaction(#[case] mmap: bool) -> Result<()> {
 
 /// Test compaction with MAX_SMALL_VALUE_SIZE (4096-byte) values.
 /// Worst case for small value blocks: fewest entries per block.
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
@@ -1462,6 +1467,7 @@ fn many_max_small_values_compaction(#[case] mmap: bool) -> Result<()> {
 
 /// Test compaction with 4097-byte values (minimum medium size).
 /// Each medium value gets its own dedicated block, so this is the worst case for block count.
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
