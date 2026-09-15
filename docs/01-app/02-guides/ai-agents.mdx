@@ -158,6 +158,19 @@ Framework knowledge comes from the bundled docs, not from Skills. [Benchmark res
 
 You can [browse the source for these Skills](https://github.com/vercel/next.js/tree/canary/skills) in the Next.js repository and [find them on skills.sh](https://www.skills.sh/vercel/next.js).
 
+### Choose between docs and a Skill
+
+Start with the bundled docs when the task needs current API behavior or one focused implementation pattern. Add a Skill when the work has ordered phases, product decisions, or verification that the agent must preserve across several changes.
+
+| Task                                           | Start with                       |
+| ---------------------------------------------- | -------------------------------- |
+| Look up an API or apply one documented pattern | Bundled docs                     |
+| Diagnose and verify one runtime issue          | Bundled docs and runtime tooling |
+| Migrate a feature across an application        | An adoption Skill                |
+| Work toward a named, testable product outcome  | An optimizer Skill               |
+
+A Skill adds instructions and tool use, so judge it by the completed outcome rather than the number of steps it performs. Compare whether it improves full-task success, produces durable verification, and saves repeated work enough to justify its execution time and model cost. If the bundled docs reach the same result reliably, the Skill is unnecessary.
+
 The Skills serve three different workflow types:
 
 - **Runtime foundations** such as `next-dev-loop` give any coding task a repeatable inspect, edit, and verify cycle.
