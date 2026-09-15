@@ -12,12 +12,16 @@ import { store as consoleStore } from '../../build/output/store'
 import type {
   CompilationError,
   HmrMessageSentToBrowser,
+  RuntimeErrorStateMessage,
   NextJsHotReloaderInterface,
   ReloadPageMessage,
   SyncMessage,
   TurbopackConnectedMessage,
 } from './hot-reloader-types'
-import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
+import {
+  HMR_MESSAGE_SENT_TO_BROWSER,
+  HMR_MESSAGE_SENT_TO_SERVER,
+} from './hot-reloader-types'
 import { recursiveDeleteSyncWithAsyncRetries } from '../../lib/recursive-delete'
 import type {
   Update as TurbopackUpdate,
@@ -140,6 +144,7 @@ import { resolvePathToRoute } from '../mcp/tools/utils/resolve-path-to-route'
 import { handleErrorStateResponse } from '../mcp/tools/get-errors'
 import { handlePageMetadataResponse } from '../mcp/tools/get-page-metadata'
 import { setStackFrameResolver } from '../mcp/tools/utils/format-errors'
+import { createRuntimeErrorStateHandler } from './runtime-error-state'
 import { recordMcpTelemetry } from '../mcp/mcp-telemetry-tracker'
 import { getFileLogger } from './browser-logs/file-logger'
 import type { ServerCacheStatus } from '../../next-devtools/dev-overlay/cache-indicator'
@@ -564,7 +569,11 @@ export async function createHotReloaderTurbopack(
   opts.onDevServerCleanup?.(async () => {
     setBundlerFindSourceMapImplementation(() => undefined)
     setBundlerFindSourceMapURLImplementation(() => null)
-    await project.onExit()
+    if (process.env.NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN === '1') {
+      await project.shutdown()
+    } else {
+      await project.onExit()
+    }
     await lockfile?.unlock()
   })
   // Subscription detects route additions/removals; returned endpoints stay lazy.
@@ -859,6 +868,11 @@ export async function createHotReloaderTurbopack(
 
   const clientsWithoutHtmlRequestId = new Set<ws>()
   const clientsByHtmlRequestId = new Map<string, ws>()
+  const runtimeErrorStates =
+    nextConfig.experimental.exposeRuntimeErrorsToHMR ||
+    Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
+      ? new Map<string, RuntimeErrorStateMessage>()
+      : null
   const cacheStatusesByHtmlRequestId = new Map<string, ServerCacheStatus>()
   const clientStates = new WeakMap<ws, ClientState>()
 
@@ -1536,7 +1550,23 @@ export async function createHotReloaderTurbopack(
           subscriptions,
         })
 
+        if (runtimeErrorStates) {
+          for (const message of runtimeErrorStates.values()) {
+            sendToClient(client, message)
+          }
+        }
+
+        const runtimeErrorStateHandler =
+          nextConfig.experimental.exposeRuntimeErrorsToHMR ||
+          Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)
+            ? createRuntimeErrorStateHandler((message) =>
+                hotReloader.send({ ...message, htmlRequestId })
+              )
+            : undefined
+
         client.on('close', () => {
+          runtimeErrorStateHandler?.dispose()
+
           // Remove active subscriptions
           for (const subscription of subscriptions.values()) {
             subscription.return?.()
@@ -1624,6 +1654,11 @@ export async function createHotReloaderTurbopack(
             case 'ping': {
               // Handle ping events to keep WebSocket connections alive
               // No-op - just acknowledge the ping
+              break
+            }
+
+            case HMR_MESSAGE_SENT_TO_SERVER.RUNTIME_ERRORS: {
+              void runtimeErrorStateHandler?.handle(parsedData).catch(() => {})
               break
             }
 
@@ -1731,6 +1766,17 @@ export async function createHotReloaderTurbopack(
     },
 
     send(action) {
+      if (
+        runtimeErrorStates &&
+        action.type === HMR_MESSAGE_SENT_TO_BROWSER.RUNTIME_ERRORS
+      ) {
+        if (action.errors.length === 0) {
+          runtimeErrorStates.delete(action.clientId)
+        } else {
+          runtimeErrorStates.set(action.clientId, action)
+        }
+      }
+
       const payload = JSON.stringify(action)
 
       for (const client of [
@@ -2114,6 +2160,7 @@ export async function createHotReloaderTurbopack(
       }
       clientsWithoutHtmlRequestId.clear()
       clientsByHtmlRequestId.clear()
+      runtimeErrorStates?.clear()
     },
   }
 

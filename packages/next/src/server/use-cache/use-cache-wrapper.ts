@@ -2122,20 +2122,19 @@ export async function cache(
 
   const temporaryReferences = createClientTemporaryReferenceSet()
 
-  // The base serialized cache key doesn't include the cookies or headers that
-  // private caches are allowed to read. In production this is because private
-  // cache entries aren't stored in a cache handler, only in the Resume Data
-  // Cache (RDC): private caches are only used during dynamic requests and
-  // runtime prefetches; for dynamic requests the RDC is immutable and excludes
-  // private caches, and for runtime prefetches it's mutable but lives only as
-  // long as the request. In development private caches are persisted across
-  // requests, so `cacheHandlerKeyBase` (below) additionally scopes the handler
-  // key by the request's cookies and headers.
-  const cacheKeyParts: CacheKeyParts = [
-    id,
-    args,
-    await computeCacheKeyImplementationPart(workStore, workUnitStore, id),
-  ]
+  // The base serialized cache key doesn't include runtime env var state or the
+  // cookies and headers that private caches are allowed to read. Env var state
+  // only scopes the cache handler because the RDC must reuse entries across
+  // rendering phases. In production private cache entries aren't stored in a
+  // cache handler, only in the Resume Data Cache (RDC): private caches are only
+  // used during dynamic requests and runtime prefetches; for dynamic requests
+  // the RDC is immutable and excludes private caches, and for runtime prefetches
+  // it's mutable but lives only as long as the request. In development private
+  // caches are persisted across requests, so `cacheHandlerKeyBase` (below)
+  // additionally scopes the handler key by the request's cookies and headers.
+  const { implementationPart, runtimeEnvVarStateHash } =
+    await computeCacheKeyImplementationPart(workStore, workUnitStore, id)
+  const cacheKeyParts: CacheKeyParts = [id, args, implementationPart]
 
   const encodeCacheKeyParts = () =>
     encodeReply(cacheKeyParts, {
@@ -2270,19 +2269,19 @@ export async function cache(
 
   // The coarse cache-handler key. With no root params read, it locates the
   // entry directly; otherwise it locates a redirect entry from which the
-  // specific key (this key + root params, computed below) is derived. For
-  // private caches in development (persisted in the built-in in-memory handler)
-  // it's additionally scoped by the request's cookies and headers, so entries
-  // for requests with different request data don't collide; keys derived from
-  // it inherit that scoping.
+  // specific key (this key + root params, computed below) is derived. It's
+  // scoped by runtime env var state and, for private caches in development
+  // (persisted in the built-in in-memory handler), the request's cookies and
+  // headers. Keys derived from it inherit that scoping.
   const cacheHandlerKeyBase =
-    process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
-      ? serializedCacheKey +
-        computePrivateCacheKeyRequestSuffix(
+    serializedCacheKey +
+    (runtimeEnvVarStateHash ?? '') +
+    (process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
+      ? computePrivateCacheKeyRequestSuffix(
           cacheContext.outerWorkUnitStore.cookies,
           cacheContext.outerWorkUnitStore.headers
         )
-      : serializedCacheKey
+      : '')
   // If we already know which root params this function reads, include them in
   // the cache handler key for a direct hit (skipping the redirect entry).
   // rootParams is undefined when nested inside unstable_cache.
@@ -3672,8 +3671,12 @@ export async function cache(
 }
 
 /**
- * This returns a cache key that has to cover everything that can affect the result of the cached
- * function (apart from the arguments). So
+ * This returns cache key parts that cover everything that can affect the result of the cached
+ * function (apart from the arguments). The implementation part is used by both the RDC and cache
+ * handler, while the runtime env var state hash is only used by the cache handler. The RDC is
+ * per-page and must reuse entries across rendering phases even if an env var changes between them.
+ *
+ * The parts cover:
  * - codeHash: the code itself that generates the return value
  *    - Notably, this excludes the following modules.  Those are included via the Next.js version anyway:
  *    - react, react-dom, private-next-rsc-server-reference, private-next-rsc-cache-wrapper
@@ -3688,7 +3691,10 @@ async function computeCacheKeyImplementationPart(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore,
   id: string
-): Promise<unknown> {
+): Promise<{
+  implementationPart: unknown
+  runtimeEnvVarStateHash: string | undefined
+}> {
   let durability = workStore.durableUseCacheEntries
     ? getServerActionsManifest().node[id].workers?.[
         normalizeWorkerPageName(workStore.page)
@@ -3715,8 +3721,12 @@ async function computeCacheKeyImplementationPart(
       )
       .digest('hex')
 
-    // When more accurate analysis information is available, use codeHash + runtime env vars
-    return [durability.codeHash, nextVersion, runtimeEnvVarStateHash]
+    // The env var state is added to the cache handler key separately so it
+    // doesn't affect RDC lookups between rendering phases.
+    return {
+      implementationPart: [durability.codeHash, nextVersion],
+      runtimeEnvVarStateHash,
+    }
   } else {
     // Because the Action ID is not yet unique per implementation of that Action we can't
     // safely reuse the results across builds yet. In the meantime we add the buildId to the
@@ -3732,7 +3742,12 @@ async function computeCacheKeyImplementationPart(
     const hmrRefreshHash = getHmrRefreshHash(workUnitStore)
 
     // otherwise fall back to buildId and/or the HMR hash.
-    return hmrRefreshHash ? [buildId, hmrRefreshHash] : [buildId]
+    return {
+      implementationPart: hmrRefreshHash
+        ? [buildId, hmrRefreshHash]
+        : [buildId],
+      runtimeEnvVarStateHash: undefined,
+    }
   }
 }
 
