@@ -1,12 +1,13 @@
 import { nextTestSetup } from 'e2e-utils'
 import { join } from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+// @force-gate !deploy
 describe('script-loader - partytown-missing', () => {
   const { next, isNextDev } = nextTestSetup({
     files: join(__dirname, 'partytown-missing'),
     skipStart: true,
-    // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-    skipDeployment: true,
   })
 
   it('Error message is shown if Partytown is not installed locally', async () => {

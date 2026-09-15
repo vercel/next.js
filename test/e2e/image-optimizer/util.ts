@@ -10,7 +10,6 @@ import {
   getDistDir,
   listClientChunks,
   retry,
-  shouldUseTurbopack,
   waitFor,
 } from 'next-test-utils'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
@@ -1758,25 +1757,19 @@ export function runTests(ctx: RunTestsCtx) {
 }
 
 export const setupTests = (ctx: SetupTestsCtx) => {
-  const maybeSkipTurbopackProd =
-    shouldUseTurbopack() && !isNextDev ? describe.skip : describe
-
   if (!ctx.nextConfigImages) {
-    maybeSkipTurbopackProd('w/o next.config.js', () => {
+    // The suite exercises the local image pipeline, while deployments use the
+    // Vercel image CDN with different headers and cache behavior.
+    // @force-gate !deploy
+    // @force-gate dev || !turbopack
+    describe('w/o next.config.js', () => {
       const size = 384
-      const { next, isNextDeploy } = nextTestSetup({
+      const { next } = nextTestSetup({
         files: join(__dirname, 'app'),
         nextConfig: ctx.nextConfigExperimental
           ? { experimental: ctx.nextConfigExperimental }
           : undefined,
-        // The image optimizer suite asserts on the local Next.js image
-        // pipeline (custom upstream HTTP server, on-disk cache, response
-        // headers from `/_next/image`). Vercel's deploy serves images
-        // through its own image CDN with different headers, paths, and
-        // cache semantics, so these assertions don't apply.
-        skipDeployment: true,
       })
-      if (isNextDeploy) return
 
       runTests({
         next,
@@ -1787,7 +1780,11 @@ export const setupTests = (ctx: SetupTestsCtx) => {
     })
   }
 
-  maybeSkipTurbopackProd('with next.config.js', () => {
+  // The suite exercises the local image pipeline, while deployments use the
+  // Vercel image CDN with different headers and cache behavior.
+  // @force-gate !deploy
+  // @force-gate dev || !turbopack
+  describe('with next.config.js', () => {
     const w = isNextDev ? 400 : 399
     const mergedImages = {
       dangerouslyAllowLocalIP: true,
@@ -1805,7 +1802,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
       ...ctx.nextConfigImages,
     }
 
-    const { next, isNextDeploy } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: join(__dirname, 'app'),
       nextConfig: {
         images: mergedImages,
@@ -1813,14 +1810,7 @@ export const setupTests = (ctx: SetupTestsCtx) => {
           ? { experimental: ctx.nextConfigExperimental }
           : {}),
       },
-      // The image optimizer suite asserts on the local Next.js image
-      // pipeline (custom upstream HTTP server, on-disk cache, response
-      // headers from `/_next/image`). Vercel's deploy serves images
-      // through its own image CDN with different headers, paths, and
-      // cache semantics, so these assertions don't apply.
-      skipDeployment: true,
     })
-    if (isNextDeploy) return
 
     runTests({
       next,

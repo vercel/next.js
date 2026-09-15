@@ -1,17 +1,15 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('styled-jsx', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     dependencies: {
       'styled-jsx': '5.0.0', // styled-jsx on user side
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should contain styled-jsx styles during SSR', async () => {
     const html = await next.render('/')

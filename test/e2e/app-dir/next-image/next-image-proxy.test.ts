@@ -8,14 +8,13 @@ import { nextTestSetup } from 'e2e-utils'
 let proxyPort
 let proxyServer: https.Server
 
+// Deploy mode exclusion: This suite controls a local server or proxy process.
+// This test is skipped when deployed because it relies on a proxy server
+// @force-gate !deploy
 describe('next-image-proxy', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // This test is skipped when deployed because it relies on a proxy server
-    skipDeployment: true,
   })
-
-  if (skipped) return
 
   beforeAll(async () => {
     proxyPort = await findPort()

@@ -2,13 +2,18 @@ import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 import fs from 'fs-extra'
 import { join } from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('TypeScript Image Component', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next, isNextDeploy } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    skipDeployment: true,
   })
-  if (skipped) return
+
+  if (isNextDeploy) {
+    it('is excluded from deploy testing by @force-gate', () => {})
+  }
 
   if (isNextStart) {
     it('should fail to build invalid usage of the Image component', async () => {

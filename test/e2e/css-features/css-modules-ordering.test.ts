@@ -1,5 +1,5 @@
 /* eslint-disable jest/no-standalone-expect */
-/* eslint-disable jest/no-identical-title */
+
 import cheerio from 'cheerio'
 import {
   isNextDev,
@@ -12,149 +12,152 @@ import path from 'path'
 
 // https://github.com/vercel/next.js/issues/12343
 describe('Basic CSS Modules Ordering', () => {
-  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-    'useLightningcss(true)',
-    () => {
-      const { next } = nextTestSetup({
-        files: path.join(__dirname, 'fixtures', 'next-issue-12343'),
-        nextConfig: {
-          experimental: {
-            useLightningcss: true,
-          },
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
+  // @force-gate !turbopack
+  describe('useLightningcss(true)', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures', 'next-issue-12343'),
+      nextConfig: {
+        experimental: {
+          useLightningcss: true,
         },
-        skipDeployment: true,
+      },
+    })
+
+    async function checkGreenButton(browser: Playwright) {
+      await browser.elementByCss('#link-other')
+      const titleColor = await browser.eval(() => {
+        const el = document.querySelector('#link-other')
+        return el ? window.getComputedStyle(el).backgroundColor : ''
       })
-
-      async function checkGreenButton(browser: Playwright) {
-        await browser.elementByCss('#link-other')
-        const titleColor = await browser.eval(() => {
-          const el = document.querySelector('#link-other')
-          return el ? window.getComputedStyle(el).backgroundColor : ''
-        })
-        expect(titleColor).toBe('rgb(0, 255, 0)')
-      }
-
-      async function checkPinkButton(browser: Playwright) {
-        await browser.elementByCss('#link-index')
-        const titleColor = await browser.eval(() => {
-          const el = document.querySelector('#link-index')
-          return el ? window.getComputedStyle(el).backgroundColor : ''
-        })
-        expect(titleColor).toBe('rgb(255, 105, 180)')
-      }
-
-      it('should have correct color on index page (on load)', async () => {
-        const browser = await next.browser('/')
-        try {
-          await checkGreenButton(browser)
-        } finally {
-          await browser.close()
-        }
-      })
-
-      it('should have correct color on index page (on hover)', async () => {
-        const browser = await next.browser('/')
-        try {
-          await checkGreenButton(browser)
-          await browser.elementByCss('#link-other').moveTo()
-          await retry(async () => {
-            await checkGreenButton(browser)
-          })
-        } finally {
-          await browser.close()
-        }
-      })
-
-      it('should have correct color on index page (on nav)', async () => {
-        const browser = await next.browser('/')
-        try {
-          await checkGreenButton(browser)
-          await browser.elementByCss('#link-other').click()
-
-          await browser.elementByCss('#link-index')
-          await checkPinkButton(browser)
-
-          await browser.elementByCss('#link-index').click()
-          await checkGreenButton(browser)
-        } finally {
-          await browser.close()
-        }
-      })
+      expect(titleColor).toBe('rgb(0, 255, 0)')
     }
-  )
-  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-    'useLightningcss(false)',
-    () => {
-      const { next } = nextTestSetup({
-        files: path.join(__dirname, 'fixtures', 'next-issue-12343'),
-        nextConfig: {
-          experimental: {
-            useLightningcss: false,
-          },
+
+    async function checkPinkButton(browser: Playwright) {
+      await browser.elementByCss('#link-index')
+      const titleColor = await browser.eval(() => {
+        const el = document.querySelector('#link-index')
+        return el ? window.getComputedStyle(el).backgroundColor : ''
+      })
+      expect(titleColor).toBe('rgb(255, 105, 180)')
+    }
+
+    it('should have correct color on index page (on load)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkGreenButton(browser)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct color on index page (on hover)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkGreenButton(browser)
+        await browser.elementByCss('#link-other').moveTo()
+        await retry(async () => {
+          await checkGreenButton(browser)
+        })
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct color on index page (on nav)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkGreenButton(browser)
+        await browser.elementByCss('#link-other').click()
+
+        await browser.elementByCss('#link-index')
+        await checkPinkButton(browser)
+
+        await browser.elementByCss('#link-index').click()
+        await checkGreenButton(browser)
+      } finally {
+        await browser.close()
+      }
+    })
+  })
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
+  // @force-gate !turbopack
+  describe('useLightningcss(false)', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures', 'next-issue-12343'),
+      nextConfig: {
+        experimental: {
+          useLightningcss: false,
         },
-        skipDeployment: true,
+      },
+    })
+
+    async function checkGreenButton(browser: Playwright) {
+      await browser.elementByCss('#link-other')
+      const titleColor = await browser.eval(() => {
+        const el = document.querySelector('#link-other')
+        return el ? window.getComputedStyle(el).backgroundColor : ''
       })
-
-      async function checkGreenButton(browser: Playwright) {
-        await browser.elementByCss('#link-other')
-        const titleColor = await browser.eval(() => {
-          const el = document.querySelector('#link-other')
-          return el ? window.getComputedStyle(el).backgroundColor : ''
-        })
-        expect(titleColor).toBe('rgb(0, 255, 0)')
-      }
-
-      async function checkPinkButton(browser: Playwright) {
-        await browser.elementByCss('#link-index')
-        const titleColor = await browser.eval(() => {
-          const el = document.querySelector('#link-index')
-          return el ? window.getComputedStyle(el).backgroundColor : ''
-        })
-        expect(titleColor).toBe('rgb(255, 105, 180)')
-      }
-
-      it('should have correct color on index page (on load)', async () => {
-        const browser = await next.browser('/')
-        try {
-          await checkGreenButton(browser)
-        } finally {
-          await browser.close()
-        }
-      })
-
-      it('should have correct color on index page (on hover)', async () => {
-        const browser = await next.browser('/')
-        try {
-          await checkGreenButton(browser)
-          await browser.elementByCss('#link-other').moveTo()
-          await retry(async () => {
-            await checkGreenButton(browser)
-          })
-        } finally {
-          await browser.close()
-        }
-      })
-
-      it('should have correct color on index page (on nav)', async () => {
-        const browser = await next.browser('/')
-        try {
-          await checkGreenButton(browser)
-          await browser.elementByCss('#link-other').click()
-
-          await browser.elementByCss('#link-index')
-          await checkPinkButton(browser)
-
-          await browser.elementByCss('#link-index').click()
-          await checkGreenButton(browser)
-        } finally {
-          await browser.close()
-        }
-      })
+      expect(titleColor).toBe('rgb(0, 255, 0)')
     }
-  )
+
+    async function checkPinkButton(browser: Playwright) {
+      await browser.elementByCss('#link-index')
+      const titleColor = await browser.eval(() => {
+        const el = document.querySelector('#link-index')
+        return el ? window.getComputedStyle(el).backgroundColor : ''
+      })
+      expect(titleColor).toBe('rgb(255, 105, 180)')
+    }
+
+    it('should have correct color on index page (on load)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkGreenButton(browser)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct color on index page (on hover)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkGreenButton(browser)
+        await browser.elementByCss('#link-other').moveTo()
+        await retry(async () => {
+          await checkGreenButton(browser)
+        })
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct color on index page (on nav)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkGreenButton(browser)
+        await browser.elementByCss('#link-other').click()
+
+        await browser.elementByCss('#link-index')
+        await checkPinkButton(browser)
+
+        await browser.elementByCss('#link-index').click()
+        await checkGreenButton(browser)
+      } finally {
+        await browser.close()
+      }
+    })
+  })
 })
 
 describe('Ordering with Global CSS and Modules', () => {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('useLightningcss(true)', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures', 'global-and-module-ordering'),
@@ -163,7 +166,6 @@ describe('Ordering with Global CSS and Modules', () => {
           useLightningcss: true,
         },
       },
-      skipDeployment: true,
     })
 
     ;(isNextDev ? it : it.skip)(
@@ -244,6 +246,9 @@ describe('Ordering with Global CSS and Modules', () => {
     })
   })
 
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
   describe('useLightningcss(false)', () => {
     const { next } = nextTestSetup({
       files: path.join(__dirname, 'fixtures', 'global-and-module-ordering'),
@@ -252,7 +257,6 @@ describe('Ordering with Global CSS and Modules', () => {
           useLightningcss: false,
         },
       },
-      skipDeployment: true,
     })
 
     ;(isNextDev ? it : it.skip)(
@@ -337,47 +341,62 @@ describe('Ordering with Global CSS and Modules', () => {
 // https://github.com/vercel/next.js/issues/12445
 // This feature is not supported in Turbopack
 describe('CSS Modules Composes Ordering', () => {
-  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-    'useLightningcss(true)',
-    () => {
-      const { next } = nextTestSetup({
-        files: path.join(__dirname, 'fixtures', 'composes-ordering'),
-        nextConfig: {
-          experimental: {
-            useLightningcss: true,
-          },
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
+  // @force-gate !turbopack
+  describe('useLightningcss(true)', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures', 'composes-ordering'),
+      nextConfig: {
+        experimental: {
+          useLightningcss: true,
         },
-        skipDeployment: true,
+      },
+    })
+
+    async function checkBlackTitle(browser: Playwright) {
+      await browser.elementByCss('#black-title')
+      const titleColor = await browser.eval(() => {
+        const el = document.querySelector('#black-title')
+        return el ? window.getComputedStyle(el).color : ''
       })
+      expect(titleColor).toBe('rgb(17, 17, 17)')
+    }
 
-      async function checkBlackTitle(browser: Playwright) {
-        await browser.elementByCss('#black-title')
-        const titleColor = await browser.eval(() => {
-          const el = document.querySelector('#black-title')
-          return el ? window.getComputedStyle(el).color : ''
-        })
-        expect(titleColor).toBe('rgb(17, 17, 17)')
+    async function checkRedTitle(browser: Playwright) {
+      await browser.elementByCss('#red-title')
+      const titleColor = await browser.eval(() => {
+        const el = document.querySelector('#red-title')
+        return el ? window.getComputedStyle(el).color : ''
+      })
+      expect(titleColor).toBe('rgb(255, 0, 0)')
+    }
+
+    it('should have correct color on index page (on load)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkBlackTitle(browser)
+      } finally {
+        await browser.close()
       }
+    })
 
-      async function checkRedTitle(browser: Playwright) {
-        await browser.elementByCss('#red-title')
-        const titleColor = await browser.eval(() => {
-          const el = document.querySelector('#red-title')
-          return el ? window.getComputedStyle(el).color : ''
-        })
-        expect(titleColor).toBe('rgb(255, 0, 0)')
-      }
-
-      it('should have correct color on index page (on load)', async () => {
-        const browser = await next.browser('/')
-        try {
+    it('should have correct color on index page (on hover)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkBlackTitle(browser)
+        await browser.elementByCss('#link-other').moveTo()
+        await retry(async () => {
           await checkBlackTitle(browser)
-        } finally {
-          await browser.close()
-        }
-      })
-
-      it('should have correct color on index page (on hover)', async () => {
+        })
+      } finally {
+        await browser.close()
+      }
+    })
+    ;(isNextStart ? it : it.skip)(
+      'should not change color on hover',
+      async () => {
         const browser = await next.browser('/')
         try {
           await checkBlackTitle(browser)
@@ -388,156 +407,155 @@ describe('CSS Modules Composes Ordering', () => {
         } finally {
           await browser.close()
         }
-      })
-      ;(isNextStart ? it : it.skip)(
-        'should not change color on hover',
-        async () => {
-          const browser = await next.browser('/')
-          try {
-            await checkBlackTitle(browser)
-            await browser.elementByCss('#link-other').moveTo()
-            await retry(async () => {
-              await checkBlackTitle(browser)
-            })
-          } finally {
-            await browser.close()
-          }
-        }
-      )
-      ;(isNextStart ? it : it.skip)(
-        'should have correct CSS injection order',
-        async () => {
-          const browser = await next.browser('/')
-          try {
-            await checkBlackTitle(browser)
-
-            const prevSiblingHref = await browser.eval(() => {
-              const el = document.querySelector(
-                'link[rel=stylesheet][data-n-p]'
-              )?.previousSibling as Element | null
-              return el?.getAttribute('href') ?? null
-            })
-            const currentPageHref = await browser.eval(() => {
-              return document
-                .querySelector('link[rel=stylesheet][data-n-p]')
-                ?.getAttribute('href')
-            })
-            expect(prevSiblingHref).toBeDefined()
-            expect(prevSiblingHref).toBe(currentPageHref)
-
-            await browser.elementByCss('#link-other').click()
-            await checkRedTitle(browser)
-
-            const newPrevSibling = await browser.eval(() => {
-              const el = document.querySelector('style[data-n-href]')
-                ?.previousSibling as Element | null
-              return el?.getAttribute('data-n-css') ?? null
-            })
-            const newPageHref = await browser.eval(() => {
-              return document
-                .querySelector('style[data-n-href]')
-                ?.getAttribute('data-n-href')
-            })
-            expect(newPrevSibling).toBe('')
-            expect(newPageHref).toBeDefined()
-            expect(newPageHref).not.toBe(currentPageHref)
-
-            await browser.elementByCss('#link-index').click()
-            await checkBlackTitle(browser)
-
-            const newPrevSibling2 = await browser.eval(() => {
-              const el = document.querySelector('style[data-n-href]')
-                ?.previousSibling as Element | null
-              return el?.getAttribute('data-n-css') ?? null
-            })
-            const newPageHref2 = await browser.eval(() => {
-              return document
-                .querySelector('style[data-n-href]')
-                ?.getAttribute('data-n-href')
-            })
-            expect(newPrevSibling2).toBe('')
-            expect(newPageHref2).toBeDefined()
-            expect(newPageHref2).toBe(currentPageHref)
-          } finally {
-            await browser.close()
-          }
-        }
-      )
-
-      it('should have correct color on index page (on nav from index)', async () => {
+      }
+    )
+    ;(isNextStart ? it : it.skip)(
+      'should have correct CSS injection order',
+      async () => {
         const browser = await next.browser('/')
         try {
           await checkBlackTitle(browser)
-          await browser.elementByCss('#link-other').click()
 
-          await browser.elementByCss('#link-index')
-          await checkRedTitle(browser)
-
-          await browser.elementByCss('#link-index').click()
-          await checkBlackTitle(browser)
-        } finally {
-          await browser.close()
-        }
-      })
-
-      it('should have correct color on index page (on nav from other)', async () => {
-        const browser = await next.browser('/other')
-        try {
-          await checkRedTitle(browser)
-          await browser.elementByCss('#link-index').click()
-
-          await browser.elementByCss('#link-other')
-          await checkBlackTitle(browser)
+          const prevSiblingHref = await browser.eval(() => {
+            const el = document.querySelector('link[rel=stylesheet][data-n-p]')
+              ?.previousSibling as Element | null
+            return el?.getAttribute('href') ?? null
+          })
+          const currentPageHref = await browser.eval(() => {
+            return document
+              .querySelector('link[rel=stylesheet][data-n-p]')
+              ?.getAttribute('href')
+          })
+          expect(prevSiblingHref).toBeDefined()
+          expect(prevSiblingHref).toBe(currentPageHref)
 
           await browser.elementByCss('#link-other').click()
           await checkRedTitle(browser)
+
+          const newPrevSibling = await browser.eval(() => {
+            const el = document.querySelector('style[data-n-href]')
+              ?.previousSibling as Element | null
+            return el?.getAttribute('data-n-css') ?? null
+          })
+          const newPageHref = await browser.eval(() => {
+            return document
+              .querySelector('style[data-n-href]')
+              ?.getAttribute('data-n-href')
+          })
+          expect(newPrevSibling).toBe('')
+          expect(newPageHref).toBeDefined()
+          expect(newPageHref).not.toBe(currentPageHref)
+
+          await browser.elementByCss('#link-index').click()
+          await checkBlackTitle(browser)
+
+          const newPrevSibling2 = await browser.eval(() => {
+            const el = document.querySelector('style[data-n-href]')
+              ?.previousSibling as Element | null
+            return el?.getAttribute('data-n-css') ?? null
+          })
+          const newPageHref2 = await browser.eval(() => {
+            return document
+              .querySelector('style[data-n-href]')
+              ?.getAttribute('data-n-href')
+          })
+          expect(newPrevSibling2).toBe('')
+          expect(newPageHref2).toBeDefined()
+          expect(newPageHref2).toBe(currentPageHref)
         } finally {
           await browser.close()
         }
-      })
-    }
-  )
-  ;(process.env.IS_TURBOPACK_TEST ? describe.skip : describe)(
-    'useLightningcss(false)',
-    () => {
-      const { next } = nextTestSetup({
-        files: path.join(__dirname, 'fixtures', 'composes-ordering'),
-        nextConfig: {
-          experimental: {
-            useLightningcss: false,
-          },
+      }
+    )
+
+    it('should have correct color on index page (on nav from index)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkBlackTitle(browser)
+        await browser.elementByCss('#link-other').click()
+
+        await browser.elementByCss('#link-index')
+        await checkRedTitle(browser)
+
+        await browser.elementByCss('#link-index').click()
+        await checkBlackTitle(browser)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct color on index page (on nav from other)', async () => {
+      const browser = await next.browser('/other')
+      try {
+        await checkRedTitle(browser)
+        await browser.elementByCss('#link-index').click()
+
+        await browser.elementByCss('#link-other')
+        await checkBlackTitle(browser)
+
+        await browser.elementByCss('#link-other').click()
+        await checkRedTitle(browser)
+      } finally {
+        await browser.close()
+      }
+    })
+  })
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely asserts local CLI or runtime output that deploy tests do not expose.
+  // @force-gate !deploy
+  // @force-gate !turbopack
+  describe('useLightningcss(false)', () => {
+    const { next } = nextTestSetup({
+      files: path.join(__dirname, 'fixtures', 'composes-ordering'),
+      nextConfig: {
+        experimental: {
+          useLightningcss: false,
         },
-        skipDeployment: true,
+      },
+    })
+
+    async function checkBlackTitle(browser: Playwright) {
+      await browser.elementByCss('#black-title')
+      const titleColor = await browser.eval(() => {
+        const el = document.querySelector('#black-title')
+        return el ? window.getComputedStyle(el).color : ''
       })
+      expect(titleColor).toBe('rgb(17, 17, 17)')
+    }
 
-      async function checkBlackTitle(browser: Playwright) {
-        await browser.elementByCss('#black-title')
-        const titleColor = await browser.eval(() => {
-          const el = document.querySelector('#black-title')
-          return el ? window.getComputedStyle(el).color : ''
-        })
-        expect(titleColor).toBe('rgb(17, 17, 17)')
+    async function checkRedTitle(browser: Playwright) {
+      await browser.elementByCss('#red-title')
+      const titleColor = await browser.eval(() => {
+        const el = document.querySelector('#red-title')
+        return el ? window.getComputedStyle(el).color : ''
+      })
+      expect(titleColor).toBe('rgb(255, 0, 0)')
+    }
+
+    it('should have correct color on index page (on load)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkBlackTitle(browser)
+      } finally {
+        await browser.close()
       }
+    })
 
-      async function checkRedTitle(browser: Playwright) {
-        await browser.elementByCss('#red-title')
-        const titleColor = await browser.eval(() => {
-          const el = document.querySelector('#red-title')
-          return el ? window.getComputedStyle(el).color : ''
-        })
-        expect(titleColor).toBe('rgb(255, 0, 0)')
-      }
-
-      it('should have correct color on index page (on load)', async () => {
-        const browser = await next.browser('/')
-        try {
+    it('should have correct color on index page (on hover)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkBlackTitle(browser)
+        await browser.elementByCss('#link-other').moveTo()
+        await retry(async () => {
           await checkBlackTitle(browser)
-        } finally {
-          await browser.close()
-        }
-      })
-
-      it('should have correct color on index page (on hover)', async () => {
+        })
+      } finally {
+        await browser.close()
+      }
+    })
+    ;(isNextStart ? it : it.skip)(
+      'should not change color on hover',
+      async () => {
         const browser = await next.browser('/')
         try {
           await checkBlackTitle(browser)
@@ -548,113 +566,97 @@ describe('CSS Modules Composes Ordering', () => {
         } finally {
           await browser.close()
         }
-      })
-      ;(isNextStart ? it : it.skip)(
-        'should not change color on hover',
-        async () => {
-          const browser = await next.browser('/')
-          try {
-            await checkBlackTitle(browser)
-            await browser.elementByCss('#link-other').moveTo()
-            await retry(async () => {
-              await checkBlackTitle(browser)
-            })
-          } finally {
-            await browser.close()
-          }
-        }
-      )
-      ;(isNextStart ? it : it.skip)(
-        'should have correct CSS injection order',
-        async () => {
-          const browser = await next.browser('/')
-          try {
-            await checkBlackTitle(browser)
-
-            const prevSiblingHref = await browser.eval(() => {
-              const el = document.querySelector(
-                'link[rel=stylesheet][data-n-p]'
-              )?.previousSibling as Element | null
-              return el?.getAttribute('href') ?? null
-            })
-            const currentPageHref = await browser.eval(() => {
-              return document
-                .querySelector('link[rel=stylesheet][data-n-p]')
-                ?.getAttribute('href')
-            })
-            expect(prevSiblingHref).toBeDefined()
-            expect(prevSiblingHref).toBe(currentPageHref)
-
-            await browser.elementByCss('#link-other').click()
-            await checkRedTitle(browser)
-
-            const newPrevSibling = await browser.eval(() => {
-              const el = document.querySelector('style[data-n-href]')
-                ?.previousSibling as Element | null
-              return el?.getAttribute('data-n-css') ?? null
-            })
-            const newPageHref = await browser.eval(() => {
-              return document
-                .querySelector('style[data-n-href]')
-                ?.getAttribute('data-n-href')
-            })
-            expect(newPrevSibling).toBe('')
-            expect(newPageHref).toBeDefined()
-            expect(newPageHref).not.toBe(currentPageHref)
-
-            await browser.elementByCss('#link-index').click()
-            await checkBlackTitle(browser)
-
-            const newPrevSibling2 = await browser.eval(() => {
-              const el = document.querySelector('style[data-n-href]')
-                ?.previousSibling as Element | null
-              return el?.getAttribute('data-n-css') ?? null
-            })
-            const newPageHref2 = await browser.eval(() => {
-              return document
-                .querySelector('style[data-n-href]')
-                ?.getAttribute('data-n-href')
-            })
-            expect(newPrevSibling2).toBe('')
-            expect(newPageHref2).toBeDefined()
-            expect(newPageHref2).toBe(currentPageHref)
-          } finally {
-            await browser.close()
-          }
-        }
-      )
-
-      it('should have correct color on index page (on nav from index)', async () => {
+      }
+    )
+    ;(isNextStart ? it : it.skip)(
+      'should have correct CSS injection order',
+      async () => {
         const browser = await next.browser('/')
         try {
           await checkBlackTitle(browser)
-          await browser.elementByCss('#link-other').click()
 
-          await browser.elementByCss('#link-index')
-          await checkRedTitle(browser)
-
-          await browser.elementByCss('#link-index').click()
-          await checkBlackTitle(browser)
-        } finally {
-          await browser.close()
-        }
-      })
-
-      it('should have correct color on index page (on nav from other)', async () => {
-        const browser = await next.browser('/other')
-        try {
-          await checkRedTitle(browser)
-          await browser.elementByCss('#link-index').click()
-
-          await browser.elementByCss('#link-other')
-          await checkBlackTitle(browser)
+          const prevSiblingHref = await browser.eval(() => {
+            const el = document.querySelector('link[rel=stylesheet][data-n-p]')
+              ?.previousSibling as Element | null
+            return el?.getAttribute('href') ?? null
+          })
+          const currentPageHref = await browser.eval(() => {
+            return document
+              .querySelector('link[rel=stylesheet][data-n-p]')
+              ?.getAttribute('href')
+          })
+          expect(prevSiblingHref).toBeDefined()
+          expect(prevSiblingHref).toBe(currentPageHref)
 
           await browser.elementByCss('#link-other').click()
           await checkRedTitle(browser)
+
+          const newPrevSibling = await browser.eval(() => {
+            const el = document.querySelector('style[data-n-href]')
+              ?.previousSibling as Element | null
+            return el?.getAttribute('data-n-css') ?? null
+          })
+          const newPageHref = await browser.eval(() => {
+            return document
+              .querySelector('style[data-n-href]')
+              ?.getAttribute('data-n-href')
+          })
+          expect(newPrevSibling).toBe('')
+          expect(newPageHref).toBeDefined()
+          expect(newPageHref).not.toBe(currentPageHref)
+
+          await browser.elementByCss('#link-index').click()
+          await checkBlackTitle(browser)
+
+          const newPrevSibling2 = await browser.eval(() => {
+            const el = document.querySelector('style[data-n-href]')
+              ?.previousSibling as Element | null
+            return el?.getAttribute('data-n-css') ?? null
+          })
+          const newPageHref2 = await browser.eval(() => {
+            return document
+              .querySelector('style[data-n-href]')
+              ?.getAttribute('data-n-href')
+          })
+          expect(newPrevSibling2).toBe('')
+          expect(newPageHref2).toBeDefined()
+          expect(newPageHref2).toBe(currentPageHref)
         } finally {
           await browser.close()
         }
-      })
-    }
-  )
+      }
+    )
+
+    it('should have correct color on index page (on nav from index)', async () => {
+      const browser = await next.browser('/')
+      try {
+        await checkBlackTitle(browser)
+        await browser.elementByCss('#link-other').click()
+
+        await browser.elementByCss('#link-index')
+        await checkRedTitle(browser)
+
+        await browser.elementByCss('#link-index').click()
+        await checkBlackTitle(browser)
+      } finally {
+        await browser.close()
+      }
+    })
+
+    it('should have correct color on index page (on nav from other)', async () => {
+      const browser = await next.browser('/other')
+      try {
+        await checkRedTitle(browser)
+        await browser.elementByCss('#link-index').click()
+
+        await browser.elementByCss('#link-other')
+        await checkBlackTitle(browser)
+
+        await browser.elementByCss('#link-other').click()
+        await checkRedTitle(browser)
+      } finally {
+        await browser.close()
+      }
+    })
+  })
 })

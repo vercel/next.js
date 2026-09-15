@@ -11,13 +11,14 @@ import { nextTestSetup, isNextDev } from 'e2e-utils'
 import { existsSync } from 'fs'
 import { join } from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely inspects local build artifacts that deploy tests do not expose.
+// @force-gate !deploy
 describe('Image Component App Dir Tests', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     disableAutoSkewProtection: true,
   })
-  if (skipped) return
 
   let dpl: string
   let assetDpl: string

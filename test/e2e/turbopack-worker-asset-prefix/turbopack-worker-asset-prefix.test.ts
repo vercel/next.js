@@ -1,10 +1,5 @@
-import { isNextDeploy, nextTestSetup } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
-
-// `experimental.turbopackWorkerAssetPrefix` is turbopack-only.
-const isTurbopack = !process.env.IS_WEBPACK_TEST && !process.env.NEXT_RSPACK
-const describeTurbopack =
-  isTurbopack && !isNextDeploy ? describe : describe.skip
 
 // CORS so cross-origin script tags from `assetPrefix` can be fetched. Workers
 // are NOT covered by CORS — `new Worker(crossOriginUrl)` is rejected
@@ -29,7 +24,10 @@ const corsHeadersConfig = `
  * runtime helper resolved from `turbopackWorkerAssetPrefix`, so each test
  * can assert on that URL directly.
  */
-describeTurbopack('turbopack-worker-asset-prefix', () => {
+// `experimental.turbopackWorkerAssetPrefix` is turbopack-only.
+// Deploy mode exclusion: This suite models cross-origin loading with `localhost` and `127.0.0.1` on a local port.
+// @force-gate turbopack && !deploy
+describe('turbopack-worker-asset-prefix', () => {
   describe('without turbopackWorkerAssetPrefix (cross-origin assetPrefix)', () => {
     const { next } = nextTestSetup({
       files: __dirname,

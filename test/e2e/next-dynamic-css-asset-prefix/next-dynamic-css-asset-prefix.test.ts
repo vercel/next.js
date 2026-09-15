@@ -3,16 +3,17 @@ import type { Server } from 'http'
 import { findPort } from 'next-test-utils'
 import { nextTestSetup, isNextDev } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('next/dynamic with assetPrefix', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
     skipStart: true,
     dependencies: {
       sass: '1.54.0',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
 
   let cdnPort: number
   let cdn: Server
