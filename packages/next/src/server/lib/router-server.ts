@@ -1,6 +1,6 @@
 // this must come first as it includes require hooks
 import type { WorkerRequestHandler, WorkerUpgradeHandler } from './types'
-import type { DevBundler, ServerFields } from './router-utils/setup-dev-bundler'
+import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { NextUrlWithParsedQuery, RequestMeta } from '../request-meta'
 
 // This is required before other imports to ensure the require hook is setup.
@@ -115,10 +115,7 @@ function getErrorMessage(error: unknown): string {
 
 export type RenderServer = Pick<
   typeof import('./render-server'),
-  | 'initialize'
-  | 'clearModuleContext'
-  | 'propagateServerField'
-  | 'getServerField'
+  'initialize' | 'clearModuleContext' | 'updateDevServerState' | 'reloadEnv'
 >
 
 export interface LazyRenderServerInstance {
@@ -849,7 +846,7 @@ export async function initialize(opts: {
       }
 
       const appNotFound = opts.dev
-        ? development?.bundler?.serverFields.hasAppNotFound
+        ? development?.bundler?.hasAppNotFound
         : await fsChecker.getItem(UNDERSCORE_NOT_FOUND_ROUTE)
 
       res.statusCode = 404
@@ -919,12 +916,8 @@ export async function initialize(opts: {
     minimalMode: opts.minimalMode,
     dev: !!opts.dev,
     server: opts.server,
-    serverFields: {
-      ...(development?.bundler?.serverFields || {}),
-      setIsrStatus: development?.service?.setIsrStatus.bind(
-        development?.service
-      ),
-    } satisfies ServerFields,
+    devServerState: development?.bundler.devServerState,
+    routerServerHandler: requestHandlerImpl,
     experimentalTestProxy: !!config.experimental.testProxy,
     experimentalHttpsServer: !!opts.experimentalHttpsServer,
     bundlerService: development?.service,
@@ -937,8 +930,6 @@ export async function initialize(opts: {
     partialPrefetching: config.partialPrefetching,
     devMemoryThresholdRestart,
   }
-  renderServerOpts.serverFields.routerServerHandler = requestHandlerImpl
-
   // pre-initialize workers
   const handlers = await renderServer.instance.initialize(renderServerOpts)
 
