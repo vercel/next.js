@@ -4,17 +4,20 @@ import { RESTART_EXIT_CODE } from '../../server/lib/utils'
 import { middlewareResponse } from './middleware-response'
 import type { Project } from '../../build/swc/types'
 import { invalidateFileSystemCache as invalidateWebpackFileSystemCache } from '../../build/webpack/cache-invalidation'
+import { scheduleServerCleanup } from '../../server/lib/server-cleanup'
 
 const EVENT_DEV_OVERLAY_RESTART_SERVER = 'DEV_OVERLAY_RESTART_SERVER'
 
 interface RestartDevServerMiddlewareConfig {
   telemetry: Telemetry
+  restartServer?: () => Promise<void>
   turbopackProject?: Project
   webpackCacheDirectories?: Set<string>
 }
 
 export function getRestartDevServerMiddleware({
   telemetry,
+  restartServer,
   turbopackProject,
   webpackCacheDirectories,
 }: RestartDevServerMiddlewareConfig) {
@@ -63,9 +66,15 @@ export function getRestartDevServerMiddleware({
 
     // do this async to try to give the response a chance to send
     // it's not really important if it doesn't though
-    setTimeout(() => {
-      process.exit(RESTART_EXIT_CODE)
-    }, 0)
+    scheduleServerCleanup(async () => {
+      if (restartServer) {
+        // Do not await shutdown from the request listener: the HTTP request
+        // itself is part of the server lifecycle which shutdown must drain.
+        await restartServer()
+      } else {
+        process.exit(RESTART_EXIT_CODE)
+      }
+    })
 
     return middlewareResponse.noContent(res)
   }

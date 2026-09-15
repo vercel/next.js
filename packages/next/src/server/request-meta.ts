@@ -232,8 +232,14 @@ export interface RequestMeta {
   /** Framework-owned lifecycle scope for a routed WebSocket upgrade. */
   webSocketRegistryScope?: object
 
-  /** Whether no external upgrade listener has existed on this request's server. */
-  webSocketUpgradeExclusiveOwner?: boolean
+  /** How the embedding server dispatched this WebSocket upgrade. */
+  webSocketUpgradeOwnership?: import('./websocket-upgrade-listener').WebSocketUpgradeOwnership
+  /**
+   * Set by the custom-server dispatch layer when a sibling Next.js app's live
+   * HMR matcher claims this request. Lets the router defer to that sibling
+   * instead of guessing from the URL shape.
+   */
+  webSocketSiblingHMR?: boolean
 
   /**
    * Whether the request should render the fallback shell or not.
