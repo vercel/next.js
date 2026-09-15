@@ -430,9 +430,13 @@ impl StaticSortedFile {
         };
         let block_type = be::read_u8(&key_block_arc);
         match KeyBlockLayout::from_block_type(block_type) {
-            Some((layout, false)) => {
-                self.lookup_key_block::<K, FIND_ALL>(key_block_arc, key_hash, key, layout, reader)
-            }
+            Some((layout, false)) => self.lookup_variable_key_block::<K, FIND_ALL>(
+                key_block_arc,
+                key_hash,
+                key,
+                layout,
+                reader,
+            ),
             Some((layout, true)) => self.lookup_fixed_key_block::<K, FIND_ALL>(
                 key_block_arc,
                 key_hash,
@@ -472,7 +476,7 @@ impl StaticSortedFile {
     ///
     /// If `FIND_ALL` is false, returns after finding the first match.
     /// If `FIND_ALL` is true, collects all entries with the same key.
-    fn lookup_key_block<K: QueryKey, const FIND_ALL: bool>(
+    fn lookup_variable_key_block<K: QueryKey, const FIND_ALL: bool>(
         &self,
         block: ArcBytes,
         key_hash: u64,
@@ -1450,9 +1454,14 @@ fn entry_val_size(ty: u8) -> Result<usize> {
 /// `HashThenKey` entries carry the key's 8-byte hash ahead of that word — see
 /// [`KEY_BLOCK_TABLE_ENTRY_SIZE_WITH_HASH`].
 #[inline(always)]
-fn read_offset_entry(offsets: &[u8], index: usize, table_stride: usize) -> (u8, usize) {
+fn read_offset_entry(
+    offsets: &[u8],
+    index: usize,
+    table_stride: usize,
+    hash_len: u8,
+) -> (u8, usize) {
     // The offset word is last, so skip any hash that precedes it.
-    let base = index * table_stride + (table_stride - KEY_BLOCK_TABLE_ENTRY_SIZE_NO_HASH);
+    let base = index * table_stride + (hash_len as usize);
     let word = be::read_u32(&offsets[base..]);
     let ty = (word >> 24) as u8;
     let offset = (word & 0x00FF_FFFF) as usize;
@@ -1468,11 +1477,11 @@ fn get_key_entry<'l>(
     hash_len: u8,
 ) -> Result<GetKeyEntryResult<'l>> {
     let table_stride = key_block_table_stride(hash_len);
-    let (ty, start) = read_offset_entry(offsets, index, table_stride);
+    let (ty, start) = read_offset_entry(offsets, index, table_stride, hash_len);
     let end = if index == entry_count - 1 {
         entries.len()
     } else {
-        let (_, next_start) = read_offset_entry(offsets, index + 1, table_stride);
+        let (_, next_start) = read_offset_entry(offsets, index + 1, table_stride, hash_len);
         next_start
     };
     // Hoisted into the table, so the search never reaches into the payload; empty for `KeyOnly`.
@@ -1535,11 +1544,11 @@ pub struct FixedRegions {
     /// Which bytes the search region holds: the hash (`HashThenKey`) or the key (`KeyOnly`).
     layout: KeyBlockLayout,
     /// Bytes per entry in the search region.
-    search_stride: usize,
+    pub search_stride: usize,
     /// Offset of the tail region, relative to the start of the entry data.
-    tail_start: usize,
+    pub tail_start: usize,
     /// Bytes per entry in the tail region.
-    tail_stride: usize,
+    pub tail_stride: usize,
     key_size: usize,
 }
 
@@ -1568,21 +1577,6 @@ impl FixedRegions {
         }
     }
 
-    /// Bytes per entry in the search region, for sizing that region.
-    pub fn search_stride(&self) -> usize {
-        self.search_stride
-    }
-
-    /// Bytes per entry in the tail region, for sizing that region.
-    pub fn tail_stride(&self) -> usize {
-        self.tail_stride
-    }
-
-    /// Offset of the tail region, relative to the start of the entry data.
-    pub fn tail_start(&self) -> usize {
-        self.tail_start
-    }
-
     /// Bytes of a tail entry that precede its value: the key for `HashThenKey`, nothing for
     /// `KeyOnly`, which keeps its key in the search region.
     pub fn tail_key_size(&self) -> usize {
@@ -1593,7 +1587,7 @@ impl FixedRegions {
     }
 
     /// Total entry-data length implied by these regions, for bounds checking.
-    fn total_len(&self, entry_count: usize) -> usize {
+    pub fn total_len(&self, entry_count: usize) -> usize {
         self.tail_start + entry_count * self.tail_stride
     }
 }

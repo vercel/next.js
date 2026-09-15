@@ -1310,7 +1310,11 @@ impl<'l> FixedKeyBlockBuilder<'l> {
         // first, the tail takes the rest. `FixedRegions` owns that split for reader and writer
         // alike, so the geometry is derived in one place. Its `val_size` includes the per-entry
         // type byte, which the block header keeps separate from the value size.
-        let regions = FixedRegions::new(
+        let FixedRegions {
+            search_stride,
+            tail_stride,
+            ..
+        } = FixedRegions::new(
             entry_count as usize,
             layout,
             key_size as usize,
@@ -1319,11 +1323,10 @@ impl<'l> FixedKeyBlockBuilder<'l> {
         // `finish` appends the tail back into `buffer`, so reserve room for the whole block here
         // and the append never reallocates.
         buffer.reserve(
-            FIXED_KEY_BLOCK_HEADER_SIZE
-                + entry_count as usize * (regions.search_stride() + regions.tail_stride()),
+            FIXED_KEY_BLOCK_HEADER_SIZE + entry_count as usize * (search_stride + tail_stride),
         );
         tail.clear();
-        tail.reserve(entry_count as usize * regions.tail_stride());
+        tail.reserve(entry_count as usize * tail_stride);
 
         let block_type = layout.block_type(true);
         buffer.extend_from_slice(&[

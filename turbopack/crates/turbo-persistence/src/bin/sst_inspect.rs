@@ -472,10 +472,7 @@ fn iter_key_block_entry_types(
         KeyBlockHeader::FixedMixedType { regions, .. } => {
             // Entry data starts after the 7-byte mixed-type header; within the tail region the
             // type byte precedes the value, after the key for `HashThenKey` blocks.
-            block[7
-                + regions.tail_start()
-                + i as usize * regions.tail_stride()
-                + regions.tail_key_size()]
+            block[7 + regions.total_len(i as usize) + regions.tail_key_size()]
         }
     })
 }

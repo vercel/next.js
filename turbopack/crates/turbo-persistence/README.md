@@ -118,7 +118,7 @@ The hashes are sorted.
 
 - 1 byte block type (1: key block with hash, 2: key block without hash)
 - 3 bytes entry count
-- offset table, foreach entry
+- offset table: foreach entry
   - 8 bytes key hash (block type 1 only)
   - 1 byte type
   - 3 bytes position in block after header
