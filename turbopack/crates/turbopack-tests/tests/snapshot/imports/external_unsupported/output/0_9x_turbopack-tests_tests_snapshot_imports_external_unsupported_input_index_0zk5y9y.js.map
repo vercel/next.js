@@ -1,0 +1,6 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/external_unsupported/input/index.js"],"sourcesContent":["import { AsyncLocalStorage } from 'node:async_hooks'\n\nconsole.log(AsyncLocalStorage)\n"],"names":["console","log"],"mappings":";AAAA;;;;;;AAEAA,QAAQC,GAAG,CAAC,sEAAiB"}}]
+}
