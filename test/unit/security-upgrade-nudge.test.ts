@@ -43,7 +43,7 @@ describe('security upgrade nudge', () => {
 
      We **strongly recommend** you upgrade Next.js.
 
-     Run \`next upgrade "/workspace/my app" --agentic\` to automatically upgrade the application.
+     Run \`next upgrade "/workspace/my app" --ai\` to upgrade when you're ready.
 
      Reference: https://api.github.com/advisories?affects=next%4013.0.0
 
@@ -69,7 +69,7 @@ describe('security upgrade nudge', () => {
 
      We **strongly recommend** you upgrade Next.js.
 
-     Run \`next upgrade "/app" --agentic\` to automatically upgrade the application.
+     Run \`next upgrade "/app" --ai\` to upgrade when you're ready.
 
      Reference: https://registry.npmjs.org/-/npm/v1/security/advisories/bulk
 

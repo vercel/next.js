@@ -42,7 +42,7 @@ export async function nudgeIfSecurityUpgradeNeeded(
       `Your version of Next.js is affected by ${summary} published\n` +
         `security ${total === 1 ? 'advisory' : 'advisories'} and can be automatically upgraded.\n\n` +
         `We ${bold('strongly recommend')} you upgrade Next.js.\n\n` +
-        `Run \`next upgrade ${JSON.stringify(directory)} --agentic\` to automatically upgrade the application.` +
+        `Run \`next upgrade ${JSON.stringify(directory)} --ai\` to upgrade when you're ready.` +
         `\n\nReference: ${reference}\n\n` +
         "Note: This reminder is enabled by `experimental.agenticAutoUpgrade: 'security'`."
     )
