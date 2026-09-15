@@ -11,7 +11,7 @@ export function createUnrenderedSegmentError(
       `\n\n${label}:\n${missingFiles.map((p) => `  ${p}`).join('\n')}` +
       `\n\nWays to fix this:` +
       `\n  - [render] Render the dropped segment` +
-      `\n  - [ignore] Set \`export const instant = false\` to opt the dropped segment out of instant-navigation validation` +
+      `\n  - [ignore] Set \`export const instant = false\` in the dropped segment's Server Component to skip only this validation (prerendering still runs)` +
       `\n\nLearn more: https://nextjs.org/docs/messages/instant-unrendered-segment`
   }
   return new Error(message)
