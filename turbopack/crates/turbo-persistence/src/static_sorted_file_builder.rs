@@ -415,14 +415,13 @@ fn write_block_to_file(
     // Checksum is computed on the on-disk data (after compression).
     let checksum = checksum_block(data_to_write);
 
-    let result = write_raw_block_to_file(
+    write_raw_block_to_file(
         file,
         block_offsets,
         uncompressed_size,
         checksum,
         data_to_write,
-    );
-    result
+    )
 }
 
 // ---------------------------------------------------------------------------
