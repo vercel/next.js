@@ -82,6 +82,7 @@ import {
 import type { PrerenderManifest } from '../../build'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import type { PrerenderedRoute } from '../../build/static-paths/types'
+import { prerenderedRouteMatchesRequestPath } from '../../build/static-paths/utils'
 import { HMR_MESSAGE_SENT_TO_BROWSER } from './hot-reloader-types'
 import { registerLocalSpanRecorder } from '../lib/trace/local-span-recorder'
 
@@ -803,10 +804,12 @@ export default class DevServer extends Server {
             }
 
             if (
-              !prerenderedRoutes.some((item) => item.pathname === urlPathname)
+              !prerenderedRoutes.some((item) =>
+                prerenderedRouteMatchesRequestPath(item, urlPathname)
+              )
             ) {
               throw new Error(
-                `Page "${page}" is missing param "${pathname}" in "generateStaticParams()", which is required with "output: export" config.`
+                `Page "${page}" is missing param "${urlPathname}" in "generateStaticParams()", which is required with "output: export" config.`
               )
             }
           }
