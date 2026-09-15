@@ -392,6 +392,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     fn snapshot_waits_for_ops_to_drain() {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
 
@@ -420,6 +421,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     fn new_operation_blocks_during_snapshot() {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
         let phase = coord.begin_snapshot();
@@ -463,6 +465,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     fn suspend_point_lets_snapshot_proceed() {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
         let g = coord.begin_operation();
@@ -543,6 +546,7 @@ mod tests {
     /// fast-path missed-wakeup race when `OperationGuard::drop` does NOT
     /// take the state mutex.
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     fn stress_no_missed_wakeups() {
         run_with_timeout("stress_no_missed_wakeups", Duration::from_secs(60), || {
             let coord = Arc::new(SnapshotCoordinator::<Op>::new());
@@ -611,6 +615,10 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "parking_lot cannot block on wasm under this test's high contention"
+    )]
     fn many_concurrent_ops_and_snapshots() {
         // Stress test: hammer the protocol from many threads.
         // The coordinator does not serialize concurrent snapshotters (callers
@@ -659,6 +667,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     fn operations_waiting_tracks_blocked_operations() {
         let coord = Arc::new(SnapshotCoordinator::<Op>::new());
 

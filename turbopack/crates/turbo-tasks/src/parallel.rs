@@ -298,6 +298,7 @@ mod tests {
     use super::*;
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_for_each() {
         let input = vec![1, 2, 3, 4, 5];
         let sum = AtomicI32::new(0);
@@ -308,6 +309,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_try_for_each() {
         let input = vec![1, 2, 3, 4, 5];
         let result = try_for_each(&input, |&x| {
@@ -322,6 +324,9 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    // Without a working parker the scope does not wait for every chunk, so this fails with
+    // *incomplete* results rather than a panic.
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_try_for_each_mut() {
         let mut input = vec![1, 2, 3, 4, 5];
         let result = try_for_each_mut(&mut input, |x| {
@@ -338,6 +343,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_for_each_owned() {
         let input = vec![1, 2, 3, 4, 5];
         let sum = AtomicI32::new(0);
@@ -348,6 +354,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_map_collect() {
         let input = vec![1, 2, 3, 4, 5];
         let result: Vec<_> = map_collect(&input, |&x| x * 2);
@@ -355,6 +362,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_map_collect_owned() {
         let input = vec![1, 2, 3, 4, 5];
         let result: Vec<_> = map_collect_owned(input, |x| x * 2);
@@ -362,6 +370,7 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    #[cfg_attr(target_family = "wasm", ignore = "parking_lot cannot block on wasm")]
     async fn test_parallel_map_collect_owned_many() {
         let input = vec![1; 1000];
         let result: Vec<_> = map_collect_owned(input, |x| x * 2);
@@ -369,6 +378,8 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    // Relies on `catch_unwind` catching, which needs unwinding; wasm is panic = abort.
+    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
     async fn test_panic_in_scope() {
         let result = catch_unwind(AssertUnwindSafe(|| {
             let mut input = vec![1; 1000];
