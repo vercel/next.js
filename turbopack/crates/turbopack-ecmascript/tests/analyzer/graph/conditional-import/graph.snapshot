@@ -135,6 +135,7 @@
         Function(
             4,
             374,
+            true,
             Alternatives {
                 total_nodes: 3,
                 values: [
@@ -157,6 +158,7 @@
         Function(
             2,
             459,
+            true,
             Constant(
                 Undefined,
             ),

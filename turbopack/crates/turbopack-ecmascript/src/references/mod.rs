@@ -1212,7 +1212,7 @@ async fn analyze_ecmascript_module_internal(
                         *value = analysis_state
                             .link_value(take(value), ImportAttributes::empty_ref())
                             .await?;
-                        if let JsValue::Function(_, func_ident, _) = value {
+                        if let JsValue::Function(_, func_ident, _, _) = value {
                             let mut closure_arg = JsValue::alternatives(take(values));
                             if mutable {
                                 closure_arg.add_unknown_mutations(arena.get_or_default(), true);

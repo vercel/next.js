@@ -4,6 +4,7 @@
         Function(
             16,
             2666,
+            true,
             Alternatives {
                 total_nodes: 15,
                 values: [
@@ -383,6 +384,7 @@
         Function(
             5,
             1409,
+            true,
             Alternatives {
                 total_nodes: 4,
                 values: [
@@ -860,6 +862,7 @@
         Function(
             6,
             911,
+            true,
             Object {
                 total_nodes: 5,
                 parts: [

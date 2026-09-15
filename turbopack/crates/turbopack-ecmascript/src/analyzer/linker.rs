@@ -182,7 +182,13 @@ where
                 if matches!(call.callee(), JsValue::Function(..)) =>
             {
                 let (callee, args) = call.into_parts();
-                let JsValue::Function(function_nodes, func_ident, mut return_value) = callee else {
+                let JsValue::Function(
+                    function_nodes,
+                    func_ident,
+                    maybe_uses_this,
+                    mut return_value,
+                ) = callee
+                else {
                     unreachable!()
                 };
                 total_nodes -= 2; // Call + Function
@@ -203,7 +209,12 @@ where
                     done.push(JsValue::unknown(
                         JsValue::call_from_parts(
                             arena.get_or_default(),
-                            JsValue::Function(function_nodes, func_ident, return_value),
+                            JsValue::Function(
+                                function_nodes,
+                                func_ident,
+                                maybe_uses_this,
+                                return_value,
+                            ),
                             args,
                         ),
                         true,

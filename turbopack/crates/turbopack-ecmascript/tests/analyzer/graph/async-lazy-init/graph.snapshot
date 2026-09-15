@@ -4,6 +4,7 @@
         Function(
             3,
             222,
+            true,
             Promise(
                 2,
                 Constant(
@@ -21,6 +22,7 @@
         Function(
             2,
             606,
+            true,
             Variable(
                 (
                     "lasyInitAsyncProcess",
@@ -34,6 +36,7 @@
         Function(
             2,
             294,
+            true,
             Variable(
                 (
                     "lasyInitAsyncValue",
@@ -47,6 +50,7 @@
         Function(
             3,
             509,
+            true,
             Promise(
                 2,
                 Constant(

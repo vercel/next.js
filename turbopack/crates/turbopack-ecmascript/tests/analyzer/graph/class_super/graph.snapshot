@@ -4,6 +4,7 @@
         Function(
             2,
             138,
+            true,
             Constant(
                 Undefined,
             ),

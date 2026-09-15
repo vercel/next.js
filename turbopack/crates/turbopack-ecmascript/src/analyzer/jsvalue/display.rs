@@ -153,7 +153,7 @@ impl Display for JsValue<'_> {
             JsValue::Unknown { .. } => write!(f, "???"),
             JsValue::WellKnownObject(obj) => write!(f, "WellKnownObject({obj:?})"),
             JsValue::WellKnownFunction(func) => write!(f, "WellKnownFunction({func:?})"),
-            JsValue::Function(_, func_ident, return_value) => {
+            JsValue::Function(_, func_ident, _, return_value) => {
                 write!(f, "Function#{func_ident}(return = {return_value:?})")
             }
             JsValue::Argument(func_ident, index) => {

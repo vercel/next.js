@@ -79,6 +79,7 @@
         Function(
             2,
             387,
+            true,
             Variable(
                 (
                     "binPath",
@@ -241,6 +242,7 @@
         Function(
             6,
             217,
+            true,
             Object {
                 total_nodes: 5,
                 parts: [

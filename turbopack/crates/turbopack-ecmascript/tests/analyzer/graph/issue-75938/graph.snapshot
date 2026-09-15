@@ -4,6 +4,7 @@
         Function(
             3,
             276,
+            true,
             New(
                 2,
                 Variable(
@@ -21,6 +22,7 @@
         Function(
             4,
             362,
+            true,
             MemberCall(
                 3,
                 Variable(
@@ -45,6 +47,7 @@
         Function(
             2,
             471,
+            true,
             Constant(
                 Undefined,
             ),
@@ -63,6 +66,7 @@
         Function(
             11,
             227,
+            true,
             Call(
                 10,
                 Member(

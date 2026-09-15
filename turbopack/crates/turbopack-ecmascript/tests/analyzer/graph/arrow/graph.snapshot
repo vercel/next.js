@@ -4,6 +4,7 @@
         Function(
             2,
             116,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -18,6 +19,7 @@
         Function(
             2,
             339,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -32,6 +34,7 @@
         Function(
             2,
             11,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -46,6 +49,7 @@
         Function(
             2,
             214,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -60,6 +64,7 @@
         Function(
             2,
             236,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -74,6 +79,7 @@
         Function(
             2,
             259,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -88,6 +94,7 @@
         Function(
             2,
             299,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -102,6 +109,7 @@
         Function(
             2,
             30,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -116,6 +124,7 @@
         Function(
             2,
             50,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -130,6 +139,7 @@
         Function(
             2,
             83,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -189,6 +199,7 @@
         Function(
             2,
             155,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -212,6 +223,7 @@
         Function(
             2,
             186,
+            true,
             Constant(
                 Undefined,
             ),
@@ -267,6 +279,7 @@
         Function(
             2,
             385,
+            true,
             Constant(
                 Num(
                     ConstantNumber(

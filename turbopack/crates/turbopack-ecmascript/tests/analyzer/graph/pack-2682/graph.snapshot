@@ -4,6 +4,7 @@
         Function(
             16,
             24,
+            true,
             MemberCall(
                 15,
                 FreeVar(

@@ -4,6 +4,7 @@
         Function(
             2,
             19,
+            true,
             Constant(
                 False,
             ),
@@ -14,6 +15,7 @@
         Function(
             4,
             48,
+            true,
             Alternatives {
                 total_nodes: 3,
                 values: [

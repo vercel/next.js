@@ -4,6 +4,7 @@
         Function(
             2,
             105,
+            true,
             Variable(
                 (
                     "value2",
@@ -17,6 +18,7 @@
         Function(
             2,
             39,
+            true,
             Variable(
                 (
                     "value",

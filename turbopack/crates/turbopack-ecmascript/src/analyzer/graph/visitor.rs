@@ -398,6 +398,8 @@ mod analyzer_state {
                 fn_id,
                 function.is_async(),
                 function.is_generator(),
+                // Computed in a later change; assume the function may observe `this`.
+                true,
                 match return_values.len() {
                     0 => JsValue::Constant(ConstantValue::Undefined),
                     1 => return_values.into_iter().next().unwrap(),

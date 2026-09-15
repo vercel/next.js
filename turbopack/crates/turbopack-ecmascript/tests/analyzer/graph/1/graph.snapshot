@@ -4,6 +4,7 @@
         Function(
             2,
             37,
+            true,
             Constant(
                 Undefined,
             ),
@@ -14,6 +15,7 @@
         Function(
             2,
             76,
+            true,
             Constant(
                 Undefined,
             ),
@@ -24,6 +26,7 @@
         Function(
             2,
             116,
+            true,
             Constant(
                 Undefined,
             ),

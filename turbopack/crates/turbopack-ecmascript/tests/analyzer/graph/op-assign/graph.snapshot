@@ -4,6 +4,7 @@
         Function(
             4,
             173,
+            true,
             Alternatives {
                 total_nodes: 3,
                 values: [
@@ -79,6 +80,7 @@
         Function(
             2,
             415,
+            true,
             Variable(
                 (
                     "metrics",
@@ -174,6 +176,7 @@
         Function(
             4,
             95,
+            true,
             Object {
                 total_nodes: 3,
                 parts: [

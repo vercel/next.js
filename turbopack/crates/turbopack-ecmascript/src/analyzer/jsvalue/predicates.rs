@@ -53,7 +53,7 @@ impl JsValue<'_> {
             JsValue::MemberCall(_, _call) => true,
             JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
             JsValue::In(_, left, right) => left.has_side_effects() || right.has_side_effects(),
-            JsValue::Function(_, _, _) => false,
+            JsValue::Function(..) => false,
             JsValue::Url(_, _) => false,
             JsValue::Variable(_) => false,
             JsValue::Module(_) => false,

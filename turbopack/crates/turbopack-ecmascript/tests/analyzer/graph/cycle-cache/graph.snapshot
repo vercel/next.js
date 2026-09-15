@@ -4,6 +4,7 @@
         Function(
             2,
             425,
+            true,
             Variable(
                 (
                     "*arrow function 431*",
@@ -17,6 +18,7 @@
         Function(
             2,
             431,
+            true,
             Variable(
                 (
                     "*arrow function 437*",
@@ -30,6 +32,7 @@
         Function(
             2,
             437,
+            true,
             Variable(
                 (
                     "*arrow function 443*",
@@ -43,6 +46,7 @@
         Function(
             2,
             443,
+            true,
             Variable(
                 (
                     "*arrow function 449*",
@@ -56,6 +60,7 @@
         Function(
             2,
             449,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -70,6 +75,7 @@
         Function(
             2,
             468,
+            true,
             Variable(
                 (
                     "*arrow function 474*",
@@ -83,6 +89,7 @@
         Function(
             2,
             474,
+            true,
             Variable(
                 (
                     "*arrow function 480*",
@@ -96,6 +103,7 @@
         Function(
             2,
             480,
+            true,
             Variable(
                 (
                     "*arrow function 486*",
@@ -109,6 +117,7 @@
         Function(
             2,
             486,
+            true,
             Variable(
                 (
                     "*arrow function 492*",
@@ -122,6 +131,7 @@
         Function(
             2,
             492,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -136,6 +146,7 @@
         Function(
             2,
             511,
+            true,
             Variable(
                 (
                     "*arrow function 517*",
@@ -149,6 +160,7 @@
         Function(
             2,
             517,
+            true,
             Variable(
                 (
                     "*arrow function 523*",
@@ -162,6 +174,7 @@
         Function(
             2,
             523,
+            true,
             Variable(
                 (
                     "*arrow function 529*",
@@ -175,6 +188,7 @@
         Function(
             2,
             529,
+            true,
             Variable(
                 (
                     "*arrow function 535*",
@@ -188,6 +202,7 @@
         Function(
             2,
             535,
+            true,
             Constant(
                 Num(
                     ConstantNumber(
@@ -202,6 +217,7 @@
         Function(
             2,
             554,
+            true,
             Variable(
                 (
                     "*arrow function 560*",
@@ -215,6 +231,7 @@
         Function(
             2,
             560,
+            true,
             Variable(
                 (
                     "*arrow function 566*",
@@ -228,6 +245,7 @@
         Function(
             2,
             566,
+            true,
             Variable(
                 (
                     "*arrow function 572*",
@@ -241,6 +259,7 @@
         Function(
             2,
             572,
+            true,
             Variable(
                 (
                     "*arrow function 578*",
@@ -254,6 +273,7 @@
         Function(
             2,
             578,
+            true,
             Constant(
                 Num(
                     ConstantNumber(

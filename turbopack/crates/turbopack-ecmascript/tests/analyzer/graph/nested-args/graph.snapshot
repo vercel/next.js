@@ -39,6 +39,7 @@
         Function(
             4,
             219,
+            true,
             Add(
                 3,
                 [
@@ -63,6 +64,7 @@
         Function(
             4,
             197,
+            true,
             Call(
                 3,
                 Variable(
@@ -88,6 +90,7 @@
         Function(
             10,
             87,
+            true,
             Alternatives {
                 total_nodes: 9,
                 values: [
@@ -223,6 +226,7 @@
         Function(
             2,
             1,
+            true,
             Variable(
                 (
                     "y",
@@ -236,6 +240,7 @@
         Function(
             4,
             26,
+            true,
             Add(
                 3,
                 [

@@ -4,6 +4,7 @@
         Function(
             4,
             52,
+            true,
             Alternatives {
                 total_nodes: 3,
                 values: [
