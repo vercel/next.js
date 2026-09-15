@@ -110,9 +110,9 @@ interface ImportMetaEnv {
 
 interface ImportMeta {
   /**
-   * Built-in environment metadata provided by the bundler.
+   * Built-in environment metadata when using Turbopack.
    */
-  env: ImportMetaEnv
+  readonly env: ImportMetaEnv
 
   /**
    * The HMR API for ESM modules when using Turbopack.
@@ -120,6 +120,32 @@ interface ImportMeta {
    * Only available in development mode.
    */
   turbopackHot?: TurbopackHotApi
+
+  /**
+   * Import multiple modules at once using glob patterns (Turbopack only).
+   *
+   * @example
+   * // Lazy (default) — values are thunks: () => Promise<Module>
+   * const modules = import.meta.glob('./dir/*.js')
+   *
+   * // Eager — values are module objects
+   * const modules = import.meta.glob('./dir/*.js', { eager: true })
+   *
+   * // The module type can be provided
+   * const modules = import.meta.glob<{ name: string }>('./dir/*.js')
+   */
+  glob<M = unknown>(
+    pattern: string | string[],
+    options: ImportMetaGlobOptions & { eager: true }
+  ): Record<string, M>
+  glob<M = unknown>(
+    pattern: string | string[],
+    options?: ImportMetaGlobOptions & { eager?: false | undefined }
+  ): Record<string, () => Promise<M>>
+  glob<M = unknown>(
+    pattern: string | string[],
+    options?: ImportMetaGlobOptions
+  ): Record<string, M> | Record<string, () => Promise<M>>
 }
 
 interface Window {
