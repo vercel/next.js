@@ -158,18 +158,20 @@ Framework knowledge comes from the bundled docs, not from Skills. [Benchmark res
 
 You can [browse the source for these Skills](https://github.com/vercel/next.js/tree/canary/skills) in the Next.js repository and [find them on skills.sh](https://www.skills.sh/vercel/next.js).
 
-### Choose between docs and a Skill
+### Understand what a Skill adds
 
-Start with the bundled docs when the task needs current API behavior or one focused implementation pattern. Add a Skill when the work has ordered phases, product decisions, or verification that the agent must preserve across several changes.
+Bundled docs give an agent current framework knowledge. A Skill adds a repeatable workflow around that knowledge, including the order of decisions, the tools to use, and the evidence that confirms the result.
 
-| Task                                           | Start with                       |
-| ---------------------------------------------- | -------------------------------- |
-| Look up an API or apply one documented pattern | Bundled docs                     |
-| Diagnose and verify one runtime issue          | Bundled docs and runtime tooling |
-| Migrate a feature across an application        | An adoption Skill                |
-| Work toward a named, testable product outcome  | An optimizer Skill               |
+To understand the value for a specific task, compare the same task with the bundled docs alone and with the Skill:
 
-A Skill adds instructions and tool use, so judge it by the completed outcome rather than the number of steps it performs. Compare whether it improves full-task success, produces durable verification, and saves repeated work enough to justify its execution time and model cost. If the bundled docs reach the same result reliably, the Skill is unnecessary.
+| Compare                 | What it shows                                              |
+| ----------------------- | ---------------------------------------------------------- |
+| Full-task success       | Whether the agent completed the intended outcome           |
+| Reliability             | Whether the outcome holds across repeated runs and models  |
+| Durable verification    | Whether the work leaves tests or other regression coverage |
+| Execution time and cost | Whether the improvement justifies the added workflow       |
+
+A Skill adds value when it improves the completed outcome or leaves reusable verification that offsets its execution time and model cost. When the bundled docs produce the same result reliably, the Skill adds little value for that task and model.
 
 The Skills serve three different workflow types:
 
