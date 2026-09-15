@@ -226,7 +226,7 @@ pub async fn chunk_group_content(
     let available_chunk_group = chunk_group.clone();
     let chunk_group_content = chunk_group_content_operation(module_graph, chunk_group, options);
     let availability_info = availability_info
-        .with_chunk_group(available_chunk_group)
+        .with_chunk_group(module_graph, available_chunk_group)
         .await?;
 
     let availability_info = if let Some(entry_group) = entry_group {
@@ -272,26 +272,12 @@ async fn chunk_group_content_operation(
     };
 
     let chunk_group_info = module_graph.chunk_group_info().await?;
-    let available_chunk_groups = availability_info.bitmap(&chunk_group_info).await?;
+    let available_chunk_groups = match availability_info.available_chunk_groups() {
+        Some(available_chunk_groups) => Some(available_chunk_groups.await?),
+        None => None,
+    };
     let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
     let async_loader_chunk_groups = chunk_group_info.async_loader_chunk_groups.await?;
-    let available_batches: FxHashSet<ResolvedVc<ModuleBatch>> = module_batches_graph
-        .batches()
-        .map(async |batch| {
-            Ok::<_, anyhow::Error>(
-                batch
-                    .await?
-                    .chunk_groups
-                    .as_ref()
-                    .is_some_and(|groups| !groups.is_disjoint(&available_chunk_groups))
-                    .then_some(batch),
-            )
-        })
-        .try_join()
-        .await?
-        .into_iter()
-        .flatten()
-        .collect();
 
     let entries = chunk_group
         .entries()
@@ -343,13 +329,14 @@ async fn chunk_group_content_operation(
                     return Ok(GraphTraversalAction::Exclude);
                 };
 
-                let is_available = match chunkable_node {
-                    ChunkableModuleOrBatch::Module(module) => module_chunk_groups
-                        .get(&ResolvedVc::upcast(module))
-                        .is_some_and(|groups| !groups.is_disjoint(&available_chunk_groups)),
-                    ChunkableModuleOrBatch::Batch(batch) => available_batches.contains(&batch),
-                    ChunkableModuleOrBatch::None(_) => false,
-                };
+                let is_available = module_batches_graph
+                    .get_first_module(chunkable_node)
+                    .and_then(|module| module_chunk_groups.get(&module))
+                    .is_some_and(|groups| {
+                        available_chunk_groups
+                            .as_ref()
+                            .is_some_and(|available| !groups.is_disjoint(&available.0))
+                    });
 
                 let Some((_, edge)) = parent_info else {
                     // An entry from the entries list
@@ -389,7 +376,11 @@ async fn chunk_group_content_operation(
                                     .context("Module in async chunking edge is not chunkable")?;
                             let is_async_loader_available = async_loader_chunk_groups
                                 .get(&ResolvedVc::upcast(chunkable_module))
-                                .is_some_and(|groups| !groups.is_disjoint(&available_chunk_groups));
+                                .is_some_and(|groups| {
+                                    available_chunk_groups
+                                        .as_ref()
+                                        .is_some_and(|available| !groups.is_disjoint(&available.0))
+                                });
                             if !is_async_loader_available {
                                 state.async_modules.insert(chunkable_module);
                             }
