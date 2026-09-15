@@ -20,7 +20,7 @@
     "rust-check-fmt": "cd ../..; cargo fmt -- --check",
     "rust-check-napi": "cargo check -p next-napi-bindings",
     "test-cargo-unit": "cargo nextest run --workspace --exclude next-napi-bindings --exclude turbo-tasks-macros --cargo-profile release-with-assertions --no-fail-fast && cargo test --workspace --doc --profile=release-with-assertions --no-fail-fast",
-    "test-cargo-unit-miri": "MIRIFLAGS=-Zmiri-disable-isolation cargo miri nextest run --workspace --exclude 'next-*' --exclude turbopack-cli --exclude turbopack-tracing --exclude turbopack-nft --exclude turbo-tasks-macros --exclude turbo-esregex --no-fail-fast"
+    "test-cargo-unit-miri": "MIRIFLAGS='-Zmiri-disable-isolation -Zmiri-permissive-provenance' cargo miri nextest run --workspace --exclude 'next-*' --exclude turbopack-cli --exclude turbopack-tracing --exclude turbopack-nft --exclude turbo-tasks-macros --exclude turbo-esregex --no-fail-fast"
   },
   "napi": {
     "binaryName": "next-swc",
