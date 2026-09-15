@@ -29,6 +29,16 @@ export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
 export const NEXT_RESUME_HEADER = 'next-resume'
 export const NEXT_RESUME_STATE_LENGTH_HEADER = 'x-next-resume-state-length'
 
+/**
+ * Carries the variant values that a request resolved, encoded.
+ *
+ * The `x-next-internal-` prefix makes the header safe to trust on arrival. A
+ * deployment reserves that prefix for its routing layer and removes such a
+ * header from an incoming client request. `filterInternalHeaders` does the same
+ * when self-hosting. A client therefore cannot resolve its own variants.
+ */
+export const NEXT_VARIANTS_HEADER = 'x-next-internal-variants'
+
 // if these change make sure we update the related
 // documentation as well
 export const NEXT_CACHE_TAG_MAX_ITEMS = 128
