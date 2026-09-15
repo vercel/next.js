@@ -1,0 +1,5 @@
+@import './a.module.css';
+
+.title {
+  font-weight: 700;
+}
