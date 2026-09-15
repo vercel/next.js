@@ -1144,11 +1144,14 @@ export default async function build(
       loadedConfig = config
 
       // Reuse the loaded config; ordinary builds do not load upgrade tooling.
-      if (config.experimental.agenticAutoUpgrade === 'security') {
-        const { nudgeIfSecurityUpgradeNeeded } =
+      if (
+        config.experimental.agenticAutoUpgrade === 'security' ||
+        config.experimental.agenticAutoUpgrade === 'latest'
+      ) {
+        const { nudgeIfUpgradeNeeded } =
           require('../lib/upgrade/nudge') as typeof import('../lib/upgrade/nudge')
-        // Advisory requests must not delay startup. The helper handles failures.
-        void nudgeIfSecurityUpgradeNeeded(dir)
+        // Upgrade checks must not delay or interrupt the build.
+        void nudgeIfUpgradeNeeded(dir, config.experimental.agenticAutoUpgrade)
       }
 
       // Resolve selective build paths now that the page extensions are known.
