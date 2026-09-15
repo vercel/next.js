@@ -381,7 +381,7 @@ describe(`Terminal Logging (${bundlerName})`, () => {
              <InnerScrollHandler scrollRef={{scrollRef:null, ...}} cacheNode={{rsc:{...}, ...}}>
                <ErrorBoundary errorComponent={undefined} errorStyles={undefined} errorScripts={undefined}>
                  <LoadingBoundary name="hydration-..." loading={null}>
-                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined}>
+                   <HTTPAccessFallbackBoundary notFound={undefined} forbidden={undefined} unauthorized={undefined} ...>
                      <RedirectBoundary>
                        <RedirectErrorBoundary router={{...}}>
                          <InnerLayoutRouter url="/hydration..." tree={[...]} params={{}} cacheNode={{rsc:{...}, ...}} ...>
