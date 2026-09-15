@@ -183,7 +183,8 @@ impl EcmascriptModulePartReference {
                         ExportUsage::Named(export) => Some(export.clone()),
                         ExportUsage::PartialNamespaceObject(_)
                         | ExportUsage::All
-                        | ExportUsage::Evaluation => None,
+                        | ExportUsage::Evaluation
+                        | ExportUsage::Passthrough { .. } => None,
                     },
                     scope_hoisting_context,
                 )

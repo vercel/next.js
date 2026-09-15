@@ -24,6 +24,8 @@ use turbopack_resolve::ecmascript::esm_resolve;
 
 use crate::{
     analyzer::imports::ImportAnnotations,
+    async_chunk::proxy::LazyCompilationProxyModule,
+    chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::{
@@ -46,6 +48,8 @@ pub struct EsmAsyncAssetReference {
     /// callback destructuring, or webpackExports/turbopackExports comments.
     pub export_usage: ExportUsage,
     pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+    /// Whether the target is compiled only after its runtime proxy is activated.
+    pub lazy_compilation: bool,
 }
 
 impl EsmAsyncAssetReference {
@@ -59,6 +63,7 @@ impl EsmAsyncAssetReference {
         import_externals: bool,
         export_usage: ExportUsage,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        lazy_compilation: bool,
     ) -> Result<Self> {
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
@@ -79,6 +84,7 @@ impl EsmAsyncAssetReference {
             import_externals,
             export_usage,
             resolve_override,
+            lazy_compilation,
         })
     }
 }
@@ -87,14 +93,27 @@ impl EsmAsyncAssetReference {
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        if let Some(resolved) = &self.resolve_override {
-            return Ok(*ModuleResolveResult::module(*resolved));
+        if let Some(resolved) = self.resolve_override {
+            if self.lazy_compilation
+                && let Some(module) =
+                    ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(resolved)
+            {
+                let proxy = LazyCompilationProxyModule::new_direct(*module)
+                    .to_resolved()
+                    .await?;
+                return Ok(*ModuleResolveResult::module(ResolvedVc::upcast(proxy)));
+            }
+            return Ok(*ModuleResolveResult::module(resolved));
         }
 
         esm_resolve(
             *self.origin,
             *self.request,
-            EcmaScriptModulesReferenceSubType::DynamicImport,
+            if self.lazy_compilation {
+                EcmaScriptModulesReferenceSubType::LazyDynamicImport
+            } else {
+                EcmaScriptModulesReferenceSubType::DynamicImport
+            },
             self.error_mode,
             Some(self.issue_source),
         )

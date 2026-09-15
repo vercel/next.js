@@ -606,6 +606,7 @@ export interface ExperimentalConfig {
   imgOptTimeoutInSeconds?: number
   imgOptMaxInputPixels?: number
   imgOptSequentialRead?: boolean | null
+  imgOptMozjpeg?: boolean
   optimisticClientCache?: boolean
   /**
    * @deprecated use config.expireTime instead
@@ -947,6 +948,13 @@ export interface ExperimentalConfig {
    * This optimization computes all possible paths through dynamic imports in the applications to figure out the modules needed at dynamic imports for every path.
    */
   turbopackServerSideNestedAsyncChunking?: boolean
+
+  /**
+   * Compile client dynamic import targets when they are first used in development.
+   *
+   * Defaults to `false`.
+   */
+  turbopackLazyDynamicImports?: boolean
 
   /**
    * Enable filesystem cache for the turbopack dev server.
@@ -1506,6 +1514,9 @@ export interface ExperimentalConfig {
    * @default true
    */
   mcpServer?: boolean
+
+  /** Report runtime errors and their catching boundary over the development HMR socket. */
+  exposeRuntimeErrorsToHMR?: boolean
 
   /**
    * Acquires a lockfile at `<distDir>/lock` when starting `next dev` or `next
@@ -2326,6 +2337,7 @@ export const defaultConfig = Object.freeze({
     imgOptTimeoutInSeconds: 7,
     imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
     imgOptSequentialRead: null,
+    imgOptMozjpeg: true,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -2384,6 +2396,7 @@ export const defaultConfig = Object.freeze({
     proxyClientMaxBodySize: 10_485_760, // 10MB
     hideLogsAfterAbort: false,
     mcpServer: true,
+    exposeRuntimeErrorsToHMR: false,
     turbopackFileSystemCacheForDev: true,
     turbopackFileSystemCacheForBuild: true,
     turbopackStaleOutputMaxAge: 7 * 24 * 60 * 60 * 1000, // One week
@@ -2495,6 +2508,7 @@ export interface NextConfigRuntime {
     | 'imgOptMaxInputPixels'
     | 'imgOptSequentialRead'
     | 'imgOptTimeoutInSeconds'
+    | 'imgOptMozjpeg'
     | 'proxyClientMaxBodySize'
     | 'proxyTimeout'
     | 'testProxy'
@@ -2566,6 +2580,7 @@ export function getNextConfigRuntime(
     imgOptMaxInputPixels: ex.imgOptMaxInputPixels,
     imgOptSequentialRead: ex.imgOptSequentialRead,
     imgOptTimeoutInSeconds: ex.imgOptTimeoutInSeconds,
+    imgOptMozjpeg: ex.imgOptMozjpeg,
     proxyClientMaxBodySize: ex.proxyClientMaxBodySize,
     proxyTimeout: ex.proxyTimeout,
     testProxy: ex.testProxy,

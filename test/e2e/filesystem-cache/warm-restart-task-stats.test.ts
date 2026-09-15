@@ -38,12 +38,8 @@ describe('warm-restart task statistics', () => {
     // minimum-compilation-time threshold.
     'TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0',
     `NEXT_TURBOPACK_TASK_STATISTICS=${STATS_RELATIVE_PATH}`,
-    // The task-statistics file is written by an `on_exit` handler in the
-    // napi binding. In dev that handler only runs if the child process
-    // gets a chance to clean up (i.e. SIGTERM, not SIGKILL). The parent
-    // `next dev` process gives the child 100ms by default before
-    // escalating to SIGKILL — bump that so the on-exit handler can flush.
-    'NEXT_EXIT_TIMEOUT_MS=30000',
+    // Wait for turbo-tasks to persist the cache before the dev process exits.
+    'NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN=1',
   ].join(' ')
 
   const { next } = nextTestSetup({
@@ -69,10 +65,8 @@ describe('warm-restart task statistics', () => {
 
   async function stop() {
     if (isNextDev) {
-      // Persistent cache snapshot is on a 1s idle timer; give it room.
-      await waitFor(3000)
       // SIGTERM (not the harness default SIGKILL) so the dev server gets
-      // to run its cleanup, which is what flushes the task-stats file.
+      // to run its cleanup and settle the Turbopack cache.
       await next.stop('SIGTERM')
     } else {
       await next.stop()

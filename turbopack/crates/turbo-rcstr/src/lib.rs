@@ -718,6 +718,37 @@ mod tests {
 
     use super::*;
 
+    /// An `RcStr` built from an owned string takes over its buffer instead of copying it. Only a
+    /// non-inline string can show this: an inline atom stores its bytes in the tagged value, so it
+    /// has no buffer to take over.
+    #[test]
+    fn from_owned_cow_takes_over_the_buffer() {
+        let mut string = "a string far too long to be stored inline".to_string();
+        // So that `String::into_boxed_str` has no reason to reallocate.
+        string.shrink_to_fit();
+        let ptr = string.as_ptr();
+
+        let rc_str = RcStr::from(Cow::Owned(string));
+
+        assert!(
+            rc_str.tag() == DYNAMIC_TAG,
+            "the test string must not be inlineable"
+        );
+        assert_eq!(
+            rc_str.as_str().as_ptr(),
+            ptr,
+            "the owned buffer should have been taken over, not copied"
+        );
+    }
+
+    /// There is no buffer to take over here, so this only pins the contents.
+    #[test]
+    fn from_borrowed_cow_copies() {
+        let string = "a string far too long to be stored inline";
+        let rc_str = RcStr::from(Cow::Borrowed(string));
+        assert_eq!(rc_str.as_str(), string);
+    }
+
     #[test]
     fn test_refcount() {
         fn refcount(str: &RcStr) -> usize {

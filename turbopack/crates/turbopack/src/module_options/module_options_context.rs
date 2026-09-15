@@ -84,6 +84,7 @@ pub struct WebpackLoadersOptions {
     pub builtin_conditions: ResolvedVc<Box<dyn WebpackLoaderBuiltinConditionSet>>,
     pub loader_runner_package: Option<ResolvedVc<ImportMapping>>,
     pub target: ResolvedVc<RcStr>,
+    pub mode: RcStr,
 }
 
 pub enum WebpackLoaderBuiltinConditionSetMatch {
@@ -296,6 +297,8 @@ pub struct EcmascriptOptionsContext {
 
     /// Whether to enable cross-module constant inlining. Defaults to false.
     pub cross_module_constants: bool,
+    /// Whether dynamic import targets are compiled after their runtime proxy is activated.
+    pub lazy_compilation: bool,
 
     /// Additional SWC preset-env options (mode, coreJs, include, exclude, etc.).
     pub preset_env_config: Option<ResolvedVc<PresetEnvConfig>>,
