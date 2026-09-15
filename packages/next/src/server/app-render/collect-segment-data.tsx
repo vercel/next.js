@@ -413,9 +413,9 @@ export async function collectPrefetchHints(
   // page-global (the tracking that feeds it is), so it goes on every node,
   // non-propagating — the client reads it per segment, and the runtime
   // hint merging walks the manifest tree node-by-node.
-  const baseHints = shouldAttemptStaticPrefetch
-    ? PrefetchHint.ShouldAttemptStaticPrefetch
-    : 0
+  const baseHints =
+    ((rootNode.h ?? 0) & PrefetchHint.HasNotFoundParams) |
+    (shouldAttemptStaticPrefetch ? PrefetchHint.ShouldAttemptStaticPrefetch : 0)
 
   if (inlining === false) {
     // Prefetch inlining is disabled: nothing to measure, and no inlining

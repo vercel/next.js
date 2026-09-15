@@ -7,30 +7,158 @@ import {
   filterUniqueParams,
   generateRouteStaticParams,
 } from './app'
+import {
+  compilePrerenderMatcher,
+  validatePrerenderMatcherParams,
+} from './prerender-matcher'
 import type { PrerenderedRoute } from './types'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
-import type { AppSegment } from '../segment-config/app/app-segments'
+import type {
+  AppSegment,
+  AppSegmentTree,
+  PrerenderMatcher,
+} from '../segment-config/app/app-segments'
 
 function pathnameSegments(
-  ...segments: Array<string | [string, boolean]>
-): Array<{
-  paramName: string
-  hasGenerateStaticParams: boolean
-}> {
-  return segments.map((segment) =>
-    Array.isArray(segment)
-      ? {
-          paramName: segment[0],
-          hasGenerateStaticParams: segment[1],
-        }
-      : {
-          paramName: segment,
-          hasGenerateStaticParams: false,
-        }
-  )
+  ...paramNames: string[]
+): Array<{ paramName: string }> {
+  return paramNames.map((paramName) => ({ paramName }))
 }
 
 describe('assignStaticShellMetadata', () => {
+  it('keeps the most-specific shell without an explicit fallback', () => {
+    const prerenderedRoutes: PrerenderedRoute[] = [
+      {
+        params: { lang: 'en', top: 't1' },
+        pathname: '/en/t1/[bottom]',
+        encodedPathname: '/en/t1/[bottom]',
+        fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: false,
+      },
+      {
+        params: { lang: 'en', top: 't1', bottom: 'b1' },
+        pathname: '/en/t1/b1',
+        encodedPathname: '/en/t1/b1',
+        fallbackRouteParams: [],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: true,
+      },
+    ]
+
+    assignStaticShellMetadata(
+      prerenderedRoutes,
+      pathnameSegments('lang', 'top', 'bottom')
+    )
+
+    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
+    expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
+  })
+
+  it('requires an explicit fallback shell to be non-empty', () => {
+    const prerenderedRoutes: PrerenderedRoute[] = [
+      {
+        params: { lang: 'en', top: 't1' },
+        pathname: '/en/t1/[bottom]',
+        encodedPathname: '/en/t1/[bottom]',
+        fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: false,
+      },
+      {
+        params: { lang: 'en', top: 't1', bottom: 'b1' },
+        pathname: '/en/t1/b1',
+        encodedPathname: '/en/t1/b1',
+        fallbackRouteParams: [],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: true,
+      },
+    ]
+
+    assignStaticShellMetadata(
+      prerenderedRoutes,
+      pathnameSegments('lang', 'top', 'bottom'),
+      'bottom'
+    )
+
+    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(true)
+    expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false)
+  })
+
+  it('validates a generic blocking shell when no example reaches an explicit fallback', () => {
+    const prerenderedRoutes: PrerenderedRoute[] = [
+      {
+        params: {},
+        pathname: '/[top]/items/[bottom]',
+        encodedPathname: '/[top]/items/[bottom]',
+        fallbackRouteParams: [
+          { paramName: 'top', paramType: 'dynamic' },
+          { paramName: 'bottom', paramType: 'dynamic' },
+        ],
+        fallbackMode: FallbackMode.BLOCKING_STATIC_RENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: false,
+      },
+    ]
+
+    assignStaticShellMetadata(
+      prerenderedRoutes,
+      pathnameSegments('top', 'bottom'),
+      'bottom'
+    )
+
+    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(true)
+  })
+
+  it('prefers a reachable explicit fallback over a generic blocking shell', () => {
+    const prerenderedRoutes: PrerenderedRoute[] = [
+      {
+        params: {},
+        pathname: '/[top]/items/[bottom]',
+        encodedPathname: '/[top]/items/[bottom]',
+        fallbackRouteParams: [
+          { paramName: 'top', paramType: 'dynamic' },
+          { paramName: 'bottom', paramType: 'dynamic' },
+        ],
+        fallbackMode: FallbackMode.BLOCKING_STATIC_RENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: true,
+      },
+      {
+        params: { top: 't1' },
+        pathname: '/t1/items/[bottom]',
+        encodedPathname: '/t1/items/[bottom]',
+        fallbackRouteParams: [{ paramName: 'bottom', paramType: 'dynamic' }],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: false,
+      },
+      {
+        params: { top: 't1', bottom: 'b1' },
+        pathname: '/t1/items/b1',
+        encodedPathname: '/t1/items/b1',
+        fallbackRouteParams: [],
+        fallbackMode: FallbackMode.PRERENDER,
+        fallbackRootParams: [],
+        throwOnEmptyStaticShell: true,
+      },
+    ]
+
+    assignStaticShellMetadata(
+      prerenderedRoutes,
+      pathnameSegments('top', 'bottom'),
+      'bottom'
+    )
+
+    expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
+    expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
+    expect(prerenderedRoutes[2].throwOnEmptyStaticShell).toBe(false)
+  })
+
   it('should assign throwOnEmptyStaticShell true for a static route with no children', () => {
     const prerenderedRoutes: PrerenderedRoute[] = [
       {
@@ -206,25 +334,12 @@ describe('assignStaticShellMetadata', () => {
 
     assignStaticShellMetadata(
       prerenderedRoutes,
-      pathnameSegments('id', ['name', true], 'extra')
+      pathnameSegments('id', 'name', 'extra')
     )
 
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[2].throwOnEmptyStaticShell).toBe(true)
-    expect(prerenderedRoutes[0].remainingPrerenderableParams).toEqual([
-      {
-        paramName: 'name',
-        paramType: 'dynamic',
-      },
-    ])
-    expect(prerenderedRoutes[1].remainingPrerenderableParams).toEqual([
-      {
-        paramName: 'name',
-        paramType: 'dynamic',
-      },
-    ])
-    expect(prerenderedRoutes[2].remainingPrerenderableParams).toBeUndefined()
   })
 
   it('should handle empty input', () => {
@@ -447,113 +562,293 @@ describe('assignStaticShellMetadata', () => {
     expect(prerenderedRoutes[0].throwOnEmptyStaticShell).toBe(false)
     expect(prerenderedRoutes[1].throwOnEmptyStaticShell).toBe(true)
   })
+})
 
-  it('should specialize only unresolved params backed by generateStaticParams', () => {
-    const prerenderedRoutes: PrerenderedRoute[] = [
-      {
-        params: {},
-        pathname: '/[one]/[two]',
-        encodedPathname: '/[one]/[two]',
-        fallbackRouteParams: [
-          {
-            paramName: 'one',
-            paramType: 'dynamic',
-          },
-          {
-            paramName: 'two',
-            paramType: 'dynamic',
-          },
-        ],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-      {
-        params: { one: 'b' },
-        pathname: '/b/[two]',
-        encodedPathname: '/b/[two]',
-        fallbackRouteParams: [
-          {
-            paramName: 'two',
-            paramType: 'dynamic',
-          },
-        ],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-    ]
+const createMatcherSegment = ({
+  matcher,
+  generate,
+  filePath = 'app/layout.tsx',
+  children = [],
+}: {
+  matcher?: PrerenderMatcher
+  generate?: () => Promise<PrerenderMatcher>
+  filePath?: string
+  children?: AppSegmentTree[]
+}): AppSegmentTree => [
+  {
+    name: '',
+    paramName: undefined,
+    paramType: undefined,
+    filePath,
+    config: undefined,
+    prerenderMatcher: generate ?? matcher,
+    generateStaticParams: undefined,
+  },
+  children,
+]
 
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      pathnameSegments(['one', true], 'two')
+describe('compilePrerenderMatcher', () => {
+  const pathnameParams = [
+    { paramName: 'lang' },
+    { paramName: 'top' },
+    { paramName: 'bottom' },
+  ]
+
+  it('merges ancestors and lets a descendant replace individual params', async () => {
+    let calls = 0
+    const matcher = await compilePrerenderMatcher(
+      '/[lang]/catalog/[top]/items/[bottom]',
+      [
+        createMatcherSegment({
+          matcher: { lang: 'not-found' },
+          children: [
+            createMatcherSegment({
+              generate: async () => {
+                calls++
+                return { top: 'blocking' }
+              },
+              children: [
+                createMatcherSegment({
+                  matcher: { top: 'fallback', bottom: 'dynamic' },
+                  filePath: 'app/[lang]/catalog/[top]/items/[bottom]/page.tsx',
+                }),
+              ],
+            }),
+          ],
+        }),
+      ],
+      pathnameParams
     )
 
-    expect(prerenderedRoutes[0].remainingPrerenderableParams).toEqual([
-      {
-        paramName: 'one',
-        paramType: 'dynamic',
-      },
-    ])
-    expect(prerenderedRoutes[1].remainingPrerenderableParams).toBeUndefined()
+    expect(calls).toBe(1)
+    expect(matcher).toEqual({
+      lang: 'not-found',
+      top: 'fallback',
+      bottom: 'dynamic',
+    })
   })
 
-  it('should stop specializing once it reaches a purely dynamic param', () => {
-    const prerenderedRoutes: PrerenderedRoute[] = [
-      {
-        params: {},
-        pathname: '/[one]/[two]/[three]',
-        encodedPathname: '/[one]/[two]/[three]',
-        fallbackRouteParams: [
-          {
-            paramName: 'one',
-            paramType: 'dynamic',
-          },
-          {
-            paramName: 'two',
-            paramType: 'dynamic',
-          },
-          {
-            paramName: 'three',
-            paramType: 'dynamic',
-          },
-        ],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-      {
-        params: { one: 'a' },
-        pathname: '/a/[two]/[three]',
-        encodedPathname: '/a/[two]/[three]',
-        fallbackRouteParams: [
-          {
-            paramName: 'two',
-            paramType: 'dynamic',
-          },
-          {
-            paramName: 'three',
-            paramType: 'dynamic',
-          },
-        ],
-        fallbackMode: FallbackMode.NOT_FOUND,
-        fallbackRootParams: [],
-        throwOnEmptyStaticShell: true,
-      },
-    ]
+  it('starts generated matchers independently', async () => {
+    let resolveFirst: (() => void) | undefined
+    const firstGate = new Promise<void>((resolve) => {
+      resolveFirst = resolve
+    })
+    let secondStarted = false
 
-    assignStaticShellMetadata(
-      prerenderedRoutes,
-      pathnameSegments(['one', true], 'two', ['three', true])
+    const compiledMatcher = compilePrerenderMatcher(
+      '/[lang]/catalog/[top]/items/[bottom]',
+      [
+        createMatcherSegment({
+          generate: async () => {
+            await firstGate
+            return { lang: 'not-found' }
+          },
+          children: [
+            createMatcherSegment({
+              generate: async () => {
+                secondStarted = true
+                return { top: 'blocking' }
+              },
+            }),
+          ],
+        }),
+      ],
+      pathnameParams
     )
 
-    expect(prerenderedRoutes[0].remainingPrerenderableParams).toEqual([
-      {
-        paramName: 'one',
-        paramType: 'dynamic',
+    expect(secondStarted).toBe(true)
+    resolveFirst!()
+    await expect(compiledMatcher).resolves.toEqual({
+      lang: 'not-found',
+      top: 'blocking',
+    })
+  })
+
+  it('evaluates a shared module once without merging its separate children', async () => {
+    let calls = 0
+    const [sharedSegment] = createMatcherSegment({
+      generate: async () => {
+        calls++
+        return { lang: 'blocking' }
       },
-    ])
-    expect(prerenderedRoutes[1].remainingPrerenderableParams).toBeUndefined()
+    })
+
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]',
+        [
+          [
+            sharedSegment,
+            [createMatcherSegment({ matcher: { lang: 'fallback' } })],
+          ],
+          [sharedSegment, [createMatcherSegment({})]],
+        ],
+        [{ paramName: 'lang' }]
+      )
+    ).rejects.toThrow('conflicting parallel parameter matching modes')
+    expect(calls).toBe(1)
+  })
+
+  it('does not implicitly tighten inherited params', async () => {
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]/catalog/[top]/items/[bottom]',
+        [
+          createMatcherSegment({
+            matcher: { lang: 'blocking' },
+            children: [createMatcherSegment({ matcher: { top: 'not-found' } })],
+          }),
+        ],
+        pathnameParams
+      )
+    ).rejects.toThrow('Expected parameters in this order: "not-found"')
+  })
+
+  it('does not implicitly loosen inherited params', async () => {
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]/catalog/[top]/items/[bottom]',
+        [
+          createMatcherSegment({
+            matcher: { top: 'not-found' },
+            children: [createMatcherSegment({ matcher: { lang: 'blocking' } })],
+          }),
+        ],
+        pathnameParams
+      )
+    ).rejects.toThrow('Expected parameters in this order: "not-found"')
+  })
+
+  it('validates coherence after descendant overrides are merged', async () => {
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]/catalog/[top]/items/[bottom]',
+        [
+          createMatcherSegment({
+            matcher: { lang: 'fallback', top: 'blocking' },
+            children: [
+              createMatcherSegment({ matcher: { lang: 'not-found' } }),
+            ],
+          }),
+        ],
+        pathnameParams
+      )
+    ).resolves.toEqual({ lang: 'not-found', top: 'blocking' })
+  })
+
+  it('rejects incoherent definitions from incomparable branches', async () => {
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]/catalog/[top]/items/[bottom]',
+        [
+          createMatcherSegment({
+            matcher: { lang: 'fallback' },
+            filePath: 'app/@slot1/page.tsx',
+          }),
+          createMatcherSegment({
+            matcher: { top: 'blocking' },
+            filePath: 'app/@slot2/page.tsx',
+          }),
+        ],
+        pathnameParams
+      )
+    ).rejects.toThrow('Expected parameters in this order: "not-found"')
+  })
+
+  it('rejects params outside the matched route', async () => {
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]/catalog/[top]/items/[bottom]',
+        [
+          createMatcherSegment({
+            matcher: { other: 'blocking' },
+          }),
+        ],
+        pathnameParams
+      )
+    ).rejects.toThrow('may only configure dynamic parameters in this route')
+  })
+
+  it('rejects incoherent matcher phase ordering', async () => {
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]/catalog/[top]/items/[bottom]',
+        [
+          createMatcherSegment({
+            matcher: { lang: 'fallback', top: 'blocking' },
+          }),
+        ],
+        pathnameParams
+      )
+    ).rejects.toThrow('Expected parameters in this order: "not-found"')
+  })
+
+  it('rejects conflicting definitions from parallel siblings', async () => {
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]/catalog/[top]/items/[bottom]',
+        [
+          createMatcherSegment({
+            matcher: { top: 'blocking' },
+            filePath: 'app/@slot1/page.tsx',
+          }),
+          createMatcherSegment({
+            matcher: { top: 'fallback' },
+            filePath: 'app/@slot2/page.tsx',
+          }),
+        ],
+        pathnameParams
+      )
+    ).rejects.toThrow('conflicting parallel parameter matching modes')
+  })
+
+  it('allows parallel siblings to agree on a mode', async () => {
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]/catalog/[top]/items/[bottom]',
+        [
+          createMatcherSegment({
+            matcher: { top: 'blocking' },
+            filePath: 'app/@slot1/page.tsx',
+          }),
+          createMatcherSegment({
+            matcher: { top: 'blocking' },
+            filePath: 'app/@slot2/page.tsx',
+          }),
+        ],
+        pathnameParams
+      )
+    ).resolves.toEqual({ top: 'blocking' })
+  })
+
+  it('rejects the route-wide dynamicParams switch', async () => {
+    const segment = createMatcherSegment({
+      matcher: { lang: 'not-found' },
+    })
+    segment[0].config = { dynamicParams: false }
+
+    await expect(
+      compilePrerenderMatcher(
+        '/[lang]/catalog/[top]/items/[bottom]',
+        [segment],
+        pathnameParams
+      )
+    ).rejects.toThrow('cannot combine `dynamicParams`')
+  })
+
+  it('rejects prerenders at or below a dynamic parameter', () => {
+    expect(() =>
+      validatePrerenderMatcherParams(
+        '/[top]/[bottom]',
+        { top: 'dynamic', bottom: 'dynamic' },
+        new Set(['top']),
+        new Set(['bottom']),
+        [{ paramName: 'top' }, { paramName: 'bottom' }],
+        undefined
+      )
+    ).toThrow(
+      'cannot prerender parameter "top" because parameter "top" is configured as "dynamic"'
+    )
   })
 })
 
