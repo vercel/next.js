@@ -1114,9 +1114,6 @@ async function collectSegmentPathsImpl(
       if (!segmentFile.name.endsWith(RSC_SEGMENT_SUFFIX)) {
         return
       }
-      // results.push(
-      //   relative(segmentsDirectory, join(directory, segmentFile.name))
-      // )
       // Segment paths use forward slashes regardless of the host platform.
       // `path.relative` returns backslashes on Windows, so normalize the
       // separators before converting the path to a static export filename.
