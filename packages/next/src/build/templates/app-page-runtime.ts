@@ -1517,9 +1517,14 @@ export function createAppPageEntrypoint({
             }
           }
 
-          // Request-specific renders must keep concrete params rather than
-          // replacing them with prerender placeholders during segment resolution.
-          const fallbackRouteParams = isRequestSpecificRender
+          // Request-specific renders with concrete params must keep those values
+          // rather than replacing them with prerender placeholders during segment
+          // resolution. If the request itself still carries a placeholder, keep
+          // the matching fallback params so action-only fallback requests can be
+          // identified without rendering their destination page.
+          const hasConcreteRequestParams =
+            isRequestSpecificRender && !hasPlaceholderFallbackRouteParams
+          const fallbackRouteParams = hasConcreteRequestParams
             ? null
             : // In production or when debugging the static shell for a
               // non-prerendered URL, use the prerender manifest's fallback route
