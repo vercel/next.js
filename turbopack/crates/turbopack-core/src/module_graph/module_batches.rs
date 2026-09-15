@@ -136,6 +136,15 @@ impl ModuleBatchesGraph {
         Ok(*self.graph.node_weight(entry).unwrap())
     }
 
+    /// Iterates over all batches so callers can resolve metadata needed during synchronous graph
+    /// traversal.
+    pub(crate) fn batches(&self) -> impl Iterator<Item = ResolvedVc<ModuleBatch>> + '_ {
+        self.graph.node_weights().filter_map(|node| match node {
+            ModuleOrBatch::Batch(batch) => Some(*batch),
+            _ => None,
+        })
+    }
+
     // Clippy complains but there's a type error without the bound
     #[allow(clippy::implied_bounds_in_impls)]
     /// Traverses all reachable edges in dfs order. The preorder visitor can be used to
