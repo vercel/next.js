@@ -55,7 +55,7 @@ describe('metadata-soft-nav-cache-components', () => {
     })
   })
 
-  it('does not blank a complete static title when navigating to a prefetched route with a dynamic body', async () => {
+  it('does not blank a complete static title while its prefetch is in flight', async () => {
     let page: Playwright.Page = null as any
     const browser = await next.browser('/', {
       beforePageLoad(p: Playwright.Page) {
@@ -67,17 +67,30 @@ describe('metadata-soft-nav-cache-components', () => {
     expect(await browser.eval(() => document.title)).toBe('Home Default')
 
     await act(async () => {
-      await browser
-        .elementByCss('input[data-link-accordion="/static-meta"]')
-        .click()
-    })
+      // Let the route tree prefetch complete, but hold both prefetch responses
+      // that contain the head: the App Shell response and the standalone
+      // static head response. This reproduces a click that races an in-flight
+      // static prefetch.
+      await act(async () => {
+        await browser
+          .elementByCss('input[data-link-accordion="/static-meta"]')
+          .click()
+      }, [
+        { includes: 'Static Meta', kind: 'static', block: true },
+        { includes: 'Static Meta', kind: 'runtime', block: true },
+      ])
 
-    await act(
-      async () => {
-        await browser.elementByCss('a[href="/static-meta"]').click()
-      },
-      { includes: 'Static meta content' }
-    )
+      // Hold the navigation response, too, so we can inspect the optimistic
+      // state before either source of the destination head is delivered.
+      await act(
+        async () => {
+          await browser.elementByCss('a[href="/static-meta"]').click()
+        },
+        { includes: 'Static meta content', block: true }
+      )
+
+      expect(await browser.eval(() => document.title)).toBe('Home Default')
+    })
 
     await browser.waitForElementByCss('#static-meta-content')
 
