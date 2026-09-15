@@ -166,6 +166,8 @@ ${JSON.stringify(ref)},
 
       return this.callback(null, esmSource, {
         version: 3,
+        file: originalSourceURL,
+        names: [],
         sources: [originalSourceURL],
         // minimal, parseable mappings
         mappings: 'AAAA',
@@ -199,6 +201,8 @@ module.exports = createProxy(${stringifiedResourceKey})
 
       return this.callback(null, cjsSource, {
         version: 3,
+        file: originalSourceURL,
+        names: [],
         sources: [originalSourceURL],
         // minimal, parseable mappings
         mappings: 'AAAA',

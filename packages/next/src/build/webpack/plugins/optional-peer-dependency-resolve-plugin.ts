@@ -14,7 +14,12 @@ export class OptionalPeerDependencyResolverPlugin {
         }
 
         // popping the stack to prevent the recursion check
-        resolveContext.stack?.delete(Array.from(resolveContext.stack).pop()!)
+        const stack = resolveContext.stack
+        if (stack instanceof Set) {
+          stack.delete(Array.from(stack).pop()!)
+        } else if (stack) {
+          resolveContext.stack = stack.parent
+        }
 
         resolver.doResolve(
           target,
