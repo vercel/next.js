@@ -22,7 +22,10 @@ import { type HTTP_METHOD, HTTP_METHODS, isHTTPMethod } from '../../web/http'
 import { getImplicitTags, type ImplicitTags } from '../../lib/implicit-tags'
 import { patchFetch } from '../../lib/patch-fetch'
 import { getTracer } from '../../lib/trace/tracer'
-import { AppRouteRouteHandlersSpan } from '../../lib/trace/constants'
+import {
+  AppRouteRouteHandlersSpan,
+  AppRouteRouteModuleSpan,
+} from '../../lib/trace/constants'
 import * as Log from '../../../build/output/log'
 import { autoImplementMethods } from './helpers/auto-implement-methods'
 import {
@@ -61,7 +64,6 @@ import { StaticGenBailoutError } from '../../../client/components/static-generat
 import { isStaticGenEnabled } from './helpers/is-static-gen-enabled'
 import {
   abortAndThrowOnSynchronousRequestDataAccess,
-  postponeWithTracking,
   createDynamicTrackingState,
   getFirstDynamicReason,
 } from '../../app-render/dynamic-rendering'
@@ -90,6 +92,10 @@ import { trackPendingModules } from '../../app-render/module-loading/track-modul
 import { InvariantError } from '../../../shared/lib/invariant-error'
 import { LazyModule } from '../../lib/lazy-module'
 import { createPrerenderResumeDataCache } from '../../resume-data-cache/resume-data-cache'
+import {
+  createRouteHandlerRequestInUseCacheError,
+  createRouteHandlerRequestInUnstableCacheError,
+} from '../../use-cache/use-cache-messages'
 
 export class WrappedNextRouterError {
   constructor(
@@ -282,8 +288,19 @@ export class AppRouteRouteModule extends RouteModule<
     this.resolvedPagePath = resolvedPagePath
     this.nextConfigOutput = nextConfigOutput
     this._getUserland = getUserland
-    this._lazyUserland = new LazyModule(userland, (module) =>
-      this._onUserlandLoaded(module)
+    this._lazyUserland = new LazyModule(
+      () =>
+        getTracer().trace(
+          AppRouteRouteModuleSpan.loadUserland,
+          {
+            spanName: 'load app route module',
+            attributes: {
+              'next.route': this.definition.pathname,
+            },
+          },
+          userland
+        ),
+      (module) => this._onUserlandLoaded(module)
     )
 
     // output:export routes load eagerly, so that errors surface at module
@@ -1449,12 +1466,11 @@ function trackDynamic(
       case 'private-cache':
         // TODO: Should we allow reading cookies and search params from the
         // request for private caches in route handlers?
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-        )
+        throw createRouteHandlerRequestInUseCacheError(store.route, expression)
       case 'unstable-cache':
-        throw new Error(
-          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "${expression}" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        throw createRouteHandlerRequestInUnstableCacheError(
+          store.route,
+          expression
         )
       case 'prerender':
         const error = new Error(
@@ -1474,12 +1490,6 @@ function trackDynamic(
       case 'prerender-runtime':
         throw new InvariantError(
           'A runtime prerender store should not be used for a route handler.'
-        )
-      case 'prerender-ppr':
-        return postponeWithTracking(
-          store.route,
-          expression,
-          workUnitStore.dynamicTracking
         )
       case 'prerender-legacy':
         workUnitStore.revalidate = 0

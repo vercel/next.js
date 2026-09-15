@@ -5,6 +5,10 @@ use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, StyledString};
 
+// Route every `reqwest::…` path in this module to the local stand-in on wasm.
+#[cfg(target_family = "wasm")]
+use crate::wasm_reqwest as reqwest;
+
 #[derive(Debug)]
 #[turbo_tasks::value(shared)]
 pub enum FetchErrorKind {

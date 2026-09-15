@@ -20,11 +20,10 @@ concurrency:
 env:
   CI: 1
   RUST_LOG: 'off'
-  TURBO_TEAM: 'vtest314-next-adapter-e2e-tests'
+  TURBO_TEAM: ${{ vars.TURBO_TEAM }}
   # Prefer shared remote cache across runs, but keep local cache enabled so jobs
   # degrade gracefully if the remote cache or token is unavailable.
   TURBO_CACHE: 'local:rw,remote:rw'
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
 
 permissions:
   contents: read
@@ -45,10 +44,15 @@ jobs:
       - name: Install cargo-codspeed
         run: cargo binstall --locked --no-confirm cargo-codspeed@3.0.5
 
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - name: Start sccache
         uses: ./.github/actions/sccache
-        with:
-          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
@@ -82,10 +86,15 @@ jobs:
       - name: Install cargo-codspeed
         run: cargo binstall --locked --no-confirm cargo-codspeed@3.0.5
 
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - name: Start sccache
         uses: ./.github/actions/sccache
-        with:
-          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Install pnpm dependencies
         working-directory: turbopack/benchmark-apps
@@ -120,10 +129,15 @@ jobs:
       - name: Install cargo-codspeed
         run: cargo binstall --locked --no-confirm cargo-codspeed@3.0.5
 
+      - name: Set up Turborepo remote cache
+        if: ${{ vars.TURBO_TEAM != '' }}
+        continue-on-error: true
+        uses: vercel/setup-turborepo-remote-cache-action@135046f5efcadb17337d9b29b8d5b4035ae64b10 # v1.0.0
+        with:
+          team: ${{ vars.TURBO_TEAM }}
+
       - name: Start sccache
         uses: ./.github/actions/sccache
-        with:
-          turbo-token: ${{ secrets.TURBO_TOKEN }}
 
       - name: Build the benchmark target(s)
         env:

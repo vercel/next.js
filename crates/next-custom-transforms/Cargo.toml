@@ -8,7 +8,7 @@ publish = false
 workspace = true
 
 [dependencies]
-base64 = "0.21.0"
+base64 = { workspace = true }
 bytes-str = { workspace = true }
 chrono = "0.4"
 easy-error = "1.0.0"

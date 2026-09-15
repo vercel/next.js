@@ -278,8 +278,8 @@ pub async fn expand_output_assets(
     inner_output_assets: bool,
 ) -> Result<Vec<ResolvedVc<Box<dyn OutputAsset>>>> {
     let edges = AdjacencyMap::new()
-        .visit(inputs, async |input| {
-            get_referenced_assets(inner_output_assets, input).await
+        .visit(inputs, |input| {
+            get_referenced_assets(inner_output_assets, input)
         })
         .await
         .completed()?

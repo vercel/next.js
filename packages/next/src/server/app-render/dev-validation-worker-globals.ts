@@ -98,6 +98,7 @@ export interface DevValidationSnapshot {
    * rare renders that React's I/O tracking carries a reference into.
    */
   additionalClientReferenceManifestPages: string[]
+  reactBrowserBailout: boolean
   isDebugChannelEnabled: boolean
   renderOpts: {
     images: ImageConfigComplete
@@ -121,6 +122,7 @@ export interface DevValidationInstallFields {
     httpAgentOptions: NextConfigComplete['httpAgentOptions']
     cacheLifeProfiles: NextConfigComplete['cacheLife']
     useCacheTimeout: number
+    durableUseCacheEntries: boolean
     staticPageGenerationTimeout: number
   }
 }
@@ -133,7 +135,7 @@ export type DevValidationWorkerMessage = DevValidationSnapshot &
   DevValidationInstallFields
 
 /**
- * The RSC-encoded `{ errors, errorCodes }` Flight chunks for the dev overlay,
+ * The RSC-encoded `{ errors }` Flight chunks for the dev overlay,
  * or null when validation produced no errors or was aborted. The worker also
  * logs the errors to its own stderr (piped to the parent) with code frames.
  */

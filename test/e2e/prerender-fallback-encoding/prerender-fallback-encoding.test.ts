@@ -3,11 +3,12 @@ import { retry } from 'next-test-utils'
 import fs from 'fs'
 import { join } from 'path'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Assertions don't apply to deploy mode (output differs vs. local Next.js server).
+// @force-gate !deploy
 describe('Fallback path encoding', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
-    // Assertions don't apply to deploy mode (output differs vs. local Next.js server).
-    skipDeployment: true,
   })
 
   const urlPaths = [

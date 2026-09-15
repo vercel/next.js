@@ -97,17 +97,11 @@ pub async fn get_next_client_import_map(
             );
         }
         ClientContextType::App { app_dir } => {
-            // Keep in sync with file:///./../../../packages/next/src/lib/needs-experimental-react.ts
-            let blocking_ssr = *next_config.enable_blocking_ssr().await?;
-            let taint = *next_config.enable_taint().await?;
-            let transition_indicator = *next_config.enable_transition_indicator().await?;
-            let gesture_transition = *next_config.enable_gesture_transition().await?;
-            let react_channel =
-                if blocking_ssr || taint || transition_indicator || gesture_transition {
-                    "-experimental"
-                } else {
-                    ""
-                };
+            let react_channel = if *next_config.use_react_experimental().await? {
+                "-experimental"
+            } else {
+                ""
+            };
 
             import_map.insert_exact_alias(
                 rcstr!("react"),
@@ -578,6 +572,7 @@ pub async fn get_next_client_resolved_map(
     root: FileSystemPath,
     _mode: NextMode,
     expose_testing_api: bool,
+    concurrent_router_queue: bool,
 ) -> Result<Vc<ResolvedMap>> {
     // In the browser bundle, swap every module that has a `.browser` sibling (see
     // BROWSER_VARIANT_MODULES, generated from the filesystem) for that sibling. The default
@@ -613,7 +608,7 @@ pub async fn get_next_client_resolved_map(
     // alias in `create-compiler-aliases.ts`.
     if !expose_testing_api {
         glob_mappings.push((
-            fs_root,
+            fs_root.clone(),
             Glob::new(
                 rcstr!("**/next/dist/client/components/segment-cache/navigation-testing-lock.js"),
                 GlobOptions::default(),
@@ -625,6 +620,40 @@ pub async fn get_next_client_resolved_map(
                 rcstr!(
                     "next/dist/client/components/segment-cache/navigation-testing-lock.disabled"
                 ),
+            ),
+        ));
+    }
+
+    // When `experimental.concurrentRouterQueue` is enabled, resolve the
+    // router's forked entry-point modules (the navigator interface and the
+    // callServer action door) to the concurrent implementations. Neither the
+    // interface module nor the sequential implementation is bundled at all.
+    // This mirrors the webpack alias in `create-compiler-aliases.ts`.
+    if concurrent_router_queue {
+        glob_mappings.push((
+            fs_root.clone(),
+            Glob::new(
+                rcstr!("**/next/dist/client/components/navigator.js"),
+                GlobOptions::default(),
+            )
+            .to_resolved()
+            .await?,
+            request_to_import_mapping(
+                context_path.clone(),
+                rcstr!("next/dist/client/components/concurrent-router-queue"),
+            ),
+        ));
+        glob_mappings.push((
+            fs_root,
+            Glob::new(
+                rcstr!("**/next/dist/client/app-call-server.js"),
+                GlobOptions::default(),
+            )
+            .to_resolved()
+            .await?,
+            request_to_import_mapping(
+                context_path.clone(),
+                rcstr!("next/dist/client/concurrent-call-server"),
             ),
         ));
     }
@@ -848,11 +877,7 @@ async fn apply_vendored_react_aliases_server(
     runtime: NextRuntime,
     next_config: Vc<NextConfig>,
 ) -> Result<()> {
-    let blocking_ssr = *next_config.enable_blocking_ssr().await?;
-    let taint = *next_config.enable_taint().await?;
-    let transition_indicator = *next_config.enable_transition_indicator().await?;
-    let gesture_transition = *next_config.enable_gesture_transition().await?;
-    let react_channel = if blocking_ssr || taint || transition_indicator || gesture_transition {
+    let react_channel = if *next_config.use_react_experimental().await? {
         "-experimental"
     } else {
         ""

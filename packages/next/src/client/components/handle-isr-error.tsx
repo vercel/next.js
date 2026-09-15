@@ -12,7 +12,6 @@ export function handleISRError({ error }: { error: any }) {
   switch (store?.type) {
     case 'prerender':
     case 'prerender-client':
-    case 'prerender-ppr':
     case 'prerender-legacy':
       if (error) {
         console.error(error)

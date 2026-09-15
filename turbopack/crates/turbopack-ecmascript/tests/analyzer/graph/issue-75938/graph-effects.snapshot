@@ -31,7 +31,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -72,6 +72,12 @@
                 ModuleValue {
                     module: "react",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            4,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -127,7 +133,7 @@
                                 Function(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -163,7 +169,7 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
+                                ArrowFunctionBody(
                                     Expr,
                                 ),
                                 Expr(
@@ -203,7 +209,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -239,7 +245,7 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
+                            ArrowFunctionBody(
                                 Expr,
                             ),
                         ],
@@ -281,7 +287,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -340,7 +346,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -407,7 +413,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -452,7 +458,7 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
+            ArrowFunctionBody(
                 Expr,
             ),
             Expr(
@@ -469,6 +475,7 @@
             ),
         ],
         span: 366..379,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -512,7 +519,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -557,7 +564,7 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
+            ArrowFunctionBody(
                 Expr,
             ),
             Expr(
@@ -575,6 +582,12 @@
                 ModuleValue {
                     module: "https://esm.sh/preact/jsx-runtime",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -631,7 +644,7 @@
                             ),
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ),
         ],
@@ -662,7 +675,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -709,7 +722,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -777,7 +790,7 @@
                                 Function(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -805,10 +818,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -874,7 +887,7 @@
                                 Function(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -902,10 +915,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -949,6 +962,12 @@
                                     ModuleValue {
                                         module: "./external",
                                         annotations: None,
+                                        analyze_for_constants: false,
+                                        reference: Some(
+                                            ModuleReferenceIndex(
+                                                6,
+                                            ),
+                                        ),
                                     },
                                 ),
                                 Constant(
@@ -995,7 +1014,7 @@
                                 Function(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -1023,10 +1042,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -1070,6 +1089,12 @@
                                                 ModuleValue {
                                                     module: "./external",
                                                     annotations: None,
+                                                    analyze_for_constants: false,
+                                                    reference: Some(
+                                                        ModuleReferenceIndex(
+                                                            6,
+                                                        ),
+                                                    ),
                                                 },
                                             ),
                                             Constant(
@@ -1119,7 +1144,7 @@
                                 Function(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -1147,10 +1172,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -1206,7 +1231,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -1234,8 +1259,8 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
                         ],
                     ),
@@ -1277,7 +1302,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1339,7 +1364,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1394,7 +1419,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

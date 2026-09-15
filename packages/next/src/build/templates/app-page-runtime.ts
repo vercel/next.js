@@ -28,13 +28,13 @@ import {
   NodeNextRequest,
   NodeNextResponse,
 } from '../../server/base-http/node' with { 'turbopack-transition': 'next-server-utility' }
-import { checkIsAppPPREnabled } from '../../server/lib/experimental/ppr' with { 'turbopack-transition': 'next-server-utility' }
 import { isRSCRequestHeader } from '../../server/lib/is-rsc-request' with { 'turbopack-transition': 'next-server-utility' }
 import { isNonHtmlSecFetchDest } from '../../server/lib/is-non-html-sec-fetch-dest' with { 'turbopack-transition': 'next-server-utility' }
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../shared/lib/entry-constants' with { 'turbopack-transition': 'next-server-utility' }
 import {
   getFallbackRouteParams,
   getPlaceholderFallbackRouteParams,
+  getStagedFallbackParams,
   buildDynamicSegmentPlaceholder,
   createOpaqueFallbackRouteParams,
   type OpaqueFallbackRouteParams,
@@ -51,7 +51,6 @@ import {
   NEXT_IS_PRERENDER_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  NEXT_HMR_REFRESH_HEADER,
 } from '../../client/components/app-router-headers' with { 'turbopack-transition': 'next-server-utility' }
 import { getBotType } from '../../shared/lib/router/utils/is-bot' with { 'turbopack-transition': 'next-server-utility' }
 import {
@@ -90,7 +89,6 @@ import * as entryBase from '../../server/app-render/entry-base' with { 'turbopac
 import { RedirectStatusCode } from '../../client/components/redirect-status-code' with { 'turbopack-transition': 'next-server-utility' }
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
-import { isInterceptionRouteAppPath } from '../../shared/lib/router/utils/interception-routes' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
 
 type AppPageRenderOperation = 'render' | 'prerender'
@@ -260,6 +258,7 @@ export function createAppPageEntrypoint({
       interceptionRoutePatterns,
       deploymentId,
       clientAssetToken,
+      previewProps,
     } = prepareResult
 
     let { isOnDemandRevalidate } = prepareResult
@@ -267,16 +266,11 @@ export function createAppPageEntrypoint({
     // We use the resolvedPathname instead of the parsedUrl.pathname because it
     // is not rewritten as resolvedPathname is. This will ensure that the correct
     // prerender info is used instead of using the original pathname as the
-    // source. If however PPR is enabled and cacheComponents is disabled, we
-    // treat the pathname as dynamic. Currently, there's a bug in the PPR
-    // implementation that incorrectly leaves %%drp placeholders in the output of
-    // parallel routes. This is addressed with cacheComponents.
-    const prerenderMatch =
-      nextConfig.experimental.ppr &&
-      !nextConfig.cacheComponents &&
-      isInterceptionRouteAppPath(resolvedPathname)
-        ? null
-        : routeModule.match(resolvedPathname, prerenderManifest)
+    // source.
+    const prerenderMatch = routeModule.match(
+      resolvedPathname,
+      prerenderManifest
+    )
     const prerenderInfo = prerenderMatch?.route ?? null
 
     const isPrerendered = !!prerenderManifest.routes[resolvedPathname]
@@ -323,9 +317,7 @@ export function createAppPageEntrypoint({
      * If the route being rendered is an app page, and the ppr feature has been
      * enabled, then the given route _could_ support PPR.
      */
-    const couldSupportPPR: boolean = checkIsAppPPREnabled(
-      nextConfig.experimental.ppr
-    )
+    const couldSupportPPR: boolean = Boolean(nextConfig.cacheComponents)
 
     // Stash postponed state for server actions when in minimal mode.
     // We extract it here so the RDC is available for the re-render after the action completes.
@@ -554,18 +546,6 @@ export function createAppPageEntrypoint({
     const supportsRDCForNavigations =
       isRoutePPREnabled && nextConfig.cacheComponents === true
 
-    // Cached Navigations produce a reusable static stage during production
-    // HTML renders, dynamic RSC renders, and postponed resumes. All of these
-    // paths need prerender fallback params in the RequestStore even though the
-    // response itself is dynamic.
-    const needsFallbackParamsForCachedNavigationStage =
-      (isDynamicRSCRequest ||
-        hasPostponedState ||
-        (routeModule.isDev === false && !isRSCRequest)) &&
-      nextConfig.experimental.cachedNavigations === true &&
-      // Actions use separate fallback handling rather than this navigation path.
-      !isPossibleServerAction
-
     // In development, we always want to generate dynamic HTML.
     const supportsDynamicResponse: boolean =
       // If we're in development, we always support dynamic HTML, unless it's
@@ -606,6 +586,42 @@ export function createAppPageEntrypoint({
       prerenderInfo?.fallback === null &&
       (prerenderInfo.fallbackRootParams?.length ?? 0) > 0
 
+    // SSG writes and navigation RDC reads use the same completed-shell key.
+    // Completion uses the matched shell rather than the fully resolved
+    // pathname. A request for `/prefix/c/foo` can complete
+    // `/prefix/[one]/[two]` to `/prefix/c/[two]`. This avoids creating an entry
+    // for every value of `two`.
+    //
+    // The completed-shell key also applies when unresolved root params require
+    // a blocking render. A source shell cannot be shared across root branches.
+    // Completion resolves the params into the key as follows:
+    // - Root params and other prerenderable params use concrete values.
+    // - Never-prerenderable params remain placeholders.
+    // The values of those placeholder params must not partition the cache.
+    const fallbackPathname = prerenderMatch
+      ? typeof prerenderInfo?.fallback === 'string'
+        ? prerenderInfo.fallback
+        : prerenderMatch.source
+      : null
+    let completedShellCacheKey: string | null = null
+    if (
+      nextConfig.partialPrefetching &&
+      fallbackPathname &&
+      prerenderInfo?.fallbackRouteParams?.length &&
+      remainingPrerenderableParams.length > 0
+    ) {
+      const cacheKey = buildCompletedShellCacheKey(
+        fallbackPathname,
+        remainingPrerenderableParams,
+        params
+      )
+
+      // Only a more complete shell gets a separate cache entry.
+      if (cacheKey !== fallbackPathname) {
+        completedShellCacheKey = cacheKey
+      }
+    }
+
     let ssgCacheKey: string | null = null
     let usesCompletedShellCacheKey = false
     if (
@@ -616,22 +632,6 @@ export function createAppPageEntrypoint({
       !hasPostponedState &&
       !isDynamicRSCRequest
     ) {
-      // For normal SSG routes we cache by the fully resolved pathname. For
-      // partial fallbacks we instead derive the cache key from the shell
-      // that matched this request so `/prefix/[one]/[two]` can specialize into
-      // `/prefix/c/[two]` without promoting all the way to `/prefix/c/foo`.
-      // This includes entries with unresolved ROOT params: those requests are
-      // served blocking (no shell can be shared across root branches), but
-      // the entry they produce is still keyed by the completed shell — root
-      // params and any other prerenderable params resolve into the key while
-      // params that `generateStaticParams` can never provide stay as
-      // placeholders and must not partition the cache.
-      const fallbackPathname = prerenderMatch
-        ? typeof prerenderInfo?.fallback === 'string'
-          ? prerenderInfo.fallback
-          : prerenderMatch.source
-        : null
-
       if (
         // Partial fallback shells are only specialized per request when Partial
         // Prefetching is enabled, mirroring the `partialFallback` flag the
@@ -643,21 +643,8 @@ export function createAppPageEntrypoint({
         fallbackPathname &&
         prerenderInfo?.fallbackRouteParams?.length
       ) {
-        if (remainingPrerenderableParams.length > 0) {
-          const completedShellCacheKey = buildCompletedShellCacheKey(
-            fallbackPathname,
-            remainingPrerenderableParams,
-            params
-          )
-
-          // If applying the current request params doesn't make the shell any
-          // more complete, then this shell is already at its most complete
-          // form and should remain shared rather than creating a new cache entry.
-          if (completedShellCacheKey !== fallbackPathname) {
-            ssgCacheKey = completedShellCacheKey
-            usesCompletedShellCacheKey = true
-          }
-        }
+        ssgCacheKey = completedShellCacheKey
+        usesCompletedShellCacheKey = completedShellCacheKey !== null
       } else {
         ssgCacheKey = resolvedPathname
       }
@@ -826,6 +813,7 @@ export function createAppPageEntrypoint({
         (await routeModule.getIncrementalCache(
           req,
           nextConfig,
+          previewProps,
           prerenderManifest,
           isMinimalMode
         ))
@@ -912,7 +900,7 @@ export function createAppPageEntrypoint({
             crossOrigin: nextConfig.crossOrigin,
             trailingSlash: nextConfig.trailingSlash,
             images: nextConfig.images,
-            previewProps: prerenderManifest.preview,
+            previewProps,
             enableTainting: nextConfig.experimental.taint,
             reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
 
@@ -957,14 +945,23 @@ export function createAppPageEntrypoint({
               optimisticRouting: Boolean(
                 nextConfig.experimental.optimisticRouting
               ),
+              parallelRouteMetadata: Boolean(
+                nextConfig.experimental.parallelRouteMetadata
+              ),
               inlineCss: Boolean(nextConfig.experimental.inlineCss),
               prefetchInlining:
                 nextConfig.experimental.prefetchInlining ?? false,
               authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
+              reactBrowserBailout: Boolean(
+                nextConfig.experimental.reactBrowserBailout
+              ),
               serverComponentsHmrCancellation: Boolean(
                 nextConfig.experimental.serverComponentsHmrCancellation
               ),
               useCacheTimeout: nextConfig.experimental.useCacheTimeout,
+              durableUseCacheEntries: Boolean(
+                nextConfig.experimental.durableUseCacheEntries
+              ),
               cachedNavigations:
                 nextConfig.experimental.cachedNavigations ?? false,
               clientTraceMetadata:
@@ -974,6 +971,9 @@ export function createAppPageEntrypoint({
               maxPostponedStateSizeBytes: parseMaxPostponedStateSize(
                 nextConfig.experimental.maxPostponedStateSize
               ),
+              disableResumeDataCacheCompression:
+                nextConfig.experimental.disableResumeDataCacheCompression ??
+                false,
               exposeTestingApi,
             },
 
@@ -1212,43 +1212,28 @@ export function createAppPageEntrypoint({
                   fallbackRouteParams = null
                 }
               } else {
-                // In dev the prerender manifest isn't populated for ad-hoc
-                // prefetches (`fallbackMode` is undefined for not-fully-generated
-                // routes, so the on-demand manifest write is skipped, and
-                // `getPrerenderManifest` is cached regardless). So
-                // `prerenderInfo` is unavailable here. Instead base-server
-                // derives the per-URL fallback set from the dev `getStaticPaths`
-                // result and threads it via the `fallbackParams` request meta —
-                // the most-specific prerendered route matching this URL, so
-                // `generateStaticParams`-covered params resolve in the shell and
-                // only the uncovered ones are deferred, matching what a
-                // production build serves. `isDebugFallbackShell` (the explicit
-                // fallback-shell debug flow) still forces the worst case.
+                // Dev selects the source for static-shell debug renders from
+                // the per-URL `getStaticPaths` result. The dev prerender
+                // manifest does not contain these ad-hoc paths. `base-server`
+                // passes the source's fallback params in request metadata.
+                // These renders need the source set, not the completed target's
+                // potentially smaller `stagedFallbackParams`.
                 if (isDebugFallbackShell) {
                   fallbackRouteParams = getFallbackRouteParams(
                     normalizedSrcPage,
                     routeModule
                   )
                 } else if (isDebugStaticShell) {
-                  // base-server threads the per-URL fallback set via the
-                  // `fallbackParams` meta for every dev Cache Components dynamic
-                  // request, so reuse it as the fallback route params for this
-                  // shell render. It only sets the meta for routes that still
-                  // have uncovered params, so an absent meta means this URL is
-                  // fully covered by `generateStaticParams` and there is nothing
-                  // to defer (`null`).
                   fallbackRouteParams =
-                    getRequestMeta(req, 'fallbackParams') ?? null
+                    getRequestMeta(req, 'fallbackRouteParams') ?? null
                 } else {
                   fallbackRouteParams = null
                 }
               }
 
-              // When rendering a debug static shell, override the fallback
-              // params on the request so that the staged rendering correctly
-              // defers params that are not statically known.
-              if (isDebugStaticShell && fallbackRouteParams) {
-                addRequestMeta(req, 'fallbackParams', fallbackRouteParams)
+              // Debug rendering stages the params of the selected source shell.
+              if (isDebugStaticShell) {
+                addRequestMeta(req, 'stagedFallbackParams', fallbackRouteParams)
               }
 
               // We use the response cache here to handle the revalidation and
@@ -1259,6 +1244,7 @@ export function createAppPageEntrypoint({
                 nextConfig,
                 routeKind: RouteKind.APP_PAGE,
                 isFallback: true,
+                previewProps,
                 prerenderManifest,
                 isRoutePPREnabled,
                 responseGenerator: async () =>
@@ -1362,6 +1348,7 @@ export function createAppPageEntrypoint({
             !isOnDemandRevalidate && !isRevalidating && minimalPostponed
               ? minimalPostponed
               : undefined
+          let hasFullyStaticCacheEntry = false
 
           if (
             // If this is a dynamic RSC request or a server action request, we should
@@ -1384,8 +1371,10 @@ export function createAppPageEntrypoint({
             // from entering an infinite loop of revalidations.
             !forceStaticRender
           ) {
+            const incrementalCacheKey =
+              completedShellCacheKey ?? resolvedPathname
             const incrementalCacheEntry = await incrementalCache.get(
-              resolvedPathname,
+              incrementalCacheKey,
               {
                 kind: IncrementalCacheKind.APP_PAGE,
                 isRoutePPREnabled: true,
@@ -1403,6 +1392,7 @@ export function createAppPageEntrypoint({
               // CRITICAL: we're assigning the postponed data from the cache entry
               // here as we're using the RDC to resume the render.
               postponed = incrementalCacheEntry.value.postponed
+              hasFullyStaticCacheEntry = postponed === undefined
 
               // If the cache entry is stale, we should trigger a background
               // revalidation so that subsequent requests will get a fresh response.
@@ -1421,7 +1411,7 @@ export function createAppPageEntrypoint({
 
                   try {
                     await responseCache.revalidate(
-                      resolvedPathname,
+                      incrementalCacheKey,
                       incrementalCache,
                       isRoutePPREnabled,
                       false,
@@ -1547,17 +1537,20 @@ export function createAppPageEntrypoint({
                   effectiveFallbackRouteParams.length <
                     (prerenderInfo?.fallbackRouteParams?.length ?? 0)
                 ? createOpaqueFallbackRouteParams(effectiveFallbackRouteParams)
-                : // A render cached under a completed shell cache key must keep
-                  // deferring the params the key leaves as placeholders (the
-                  // ones `generateStaticParams` can never provide) so they
-                  // resume per request instead of baking into the shared entry.
-                  // This is the blocking analog of the background shell
-                  // upgrade above and is likewise self-hosted only: in minimal
-                  // mode the platform proxy owns this contract by stripping
-                  // never-prerenderable params from the request, which defers
-                  // them through the placeholder handling instead.
+                : // This render defers the params left unresolved in its key.
+                  // The render must not store their concrete values in the
+                  // shared entry. Per-request resumes resolve those params
+                  // instead. Blocking renders and RSC-triggered revalidations
+                  // both need this restriction.
+                  //
+                  // The serving modes obtain the unresolved params differently:
+                  // - `next start` defers them in this branch.
+                  // - Minimal mode uses the platform's placeholders above.
+                  // The platform strips never-prerenderable param values before
+                  // calling the origin.
                   !isMinimalMode &&
-                    usesCompletedShellCacheKey &&
+                    (usesCompletedShellCacheKey ||
+                      (forceStaticRender && completedShellCacheKey !== null)) &&
                     remainingFallbackRouteParams.length > 0
                   ? createOpaqueFallbackRouteParams(
                       remainingFallbackRouteParams
@@ -1566,30 +1559,35 @@ export function createAppPageEntrypoint({
                     ? getFallbackRouteParams(normalizedSrcPage, routeModule)
                     : null
 
-          // For staged dynamic rendering (Cached Navigations) and debug static
-          // shell rendering, pass the fallback params via request meta so the
-          // RequestStore knows which params to defer. We don't pass them as
-          // fallbackRouteParams because that would replace actual param values
-          // with opaque placeholders during segment resolution.
+          // Staging defers params without replacing their values with opaque
+          // placeholders. A resumed render reads the selected artifact's mask
+          // from its postponed state.
           if (
-            // Request-specific renders keep concrete values, but actions still
-            // need fallback metadata to skip unresolved fallback page renders,
-            // and staged navigations need it to defer params in reusable shells.
-            (!isRequestSpecificRender ||
-              isPossibleServerAction ||
-              needsFallbackParamsForCachedNavigationStage) &&
             (isProduction || isDebugStaticShell) &&
-            nextConfig.cacheComponents &&
-            !isPrerendered &&
-            prerenderInfo?.fallbackRouteParams
+            nextConfig.cacheComponents
           ) {
-            const fallbackParams = createOpaqueFallbackRouteParams(
-              fallbackRouteParamsForRender ?? prerenderInfo.fallbackRouteParams
-            )
-
-            if (fallbackParams) {
-              addRequestMeta(req, 'fallbackParams', fallbackParams)
+            let stagedFallbackParams: OpaqueFallbackRouteParams | null
+            if (hasPlaceholderFallbackRouteParams) {
+              stagedFallbackParams = createOpaqueFallbackRouteParams(
+                placeholderFallbackRouteParams
+              )
+            } else if (isDebugStaticShell) {
+              stagedFallbackParams = fallbackRouteParams
+            } else if (hasFullyStaticCacheEntry || isPrerendered) {
+              stagedFallbackParams = null
+            } else if (postponed && prerenderInfo?.fallbackRouteParams) {
+              // App-render uses this source-shell set only when the supplied
+              // state does not record its own fallback params.
+              stagedFallbackParams = createOpaqueFallbackRouteParams(
+                prerenderInfo.fallbackRouteParams
+              )
+            } else if (prerenderInfo) {
+              stagedFallbackParams = getStagedFallbackParams(prerenderInfo)
+            } else {
+              stagedFallbackParams = null
             }
+
+            addRequestMeta(req, 'stagedFallbackParams', stagedFallbackParams)
           }
 
           // Perform the render.
@@ -1638,6 +1636,7 @@ export function createAppPageEntrypoint({
           isRoutePPREnabled,
           req,
           nextConfig,
+          previewProps,
           prerenderManifest,
           waitUntil: ctx.waitUntil,
           isMinimalMode,
@@ -1650,21 +1649,14 @@ export function createAppPageEntrypoint({
           )
         }
 
-        // Dev responses use `no-cache` so the browser can restore them from the
-        // HTTP cache on back/forward instead of reloading. HMR refresh responses
-        // opt out into `no-store` because a superseded refresh's fetch is aborted
-        // mid-write: under `no-cache` the response is stored, so the abort leaves
-        // the cache entry shared with the superseding refresh (same URL)
-        // half-written; Chromium then discards it and reissues the superseding
-        // refresh on a second connection as a duplicate request. `no-store` keeps
-        // that entry from being created.
+        // Documents and RSC payloads must not be stored in development.
+        // Browsers reuse a stored response for a history navigation without
+        // revalidating it, so a back navigation would restore a page from
+        // before the latest edit. Static assets never reach this code. They
+        // keep a revalidatable `Cache-Control`, so the browser caches them
+        // between page loads.
         if (routeModule.isDev) {
-          res.setHeader(
-            'Cache-Control',
-            req.headers[NEXT_HMR_REFRESH_HEADER] === '1'
-              ? 'no-store'
-              : 'no-cache, must-revalidate'
-          )
+          res.setHeader('Cache-Control', 'no-store')
         }
 
         if (!cacheEntry) {
@@ -2116,27 +2108,14 @@ export function createAppPageEntrypoint({
         const transformer = new TransformStream<Uint8Array, Uint8Array>()
         body.push(transformer.readable)
 
-        // Plumb fallback params via request meta so the RequestStore created
-        // downstream in app-render.tsx knows which params to defer during the
-        // resume. We don't pass them as `fallbackRouteParams` because that
-        // would replace actual param values with opaque placeholders during
-        // segment resolution; the resolved values are baked into the URL and
-        // already interpolated into the postponed state.
-        if (
-          nextConfig.cacheComponents &&
-          prerenderInfo?.fallbackRouteParams &&
-          // Dynamic responses still need this metadata for action fallback
-          // handling and for deferring params in staged navigation shells.
-          (!supportsDynamicResponse ||
-            isPossibleServerAction ||
-            needsFallbackParamsForCachedNavigationStage)
-        ) {
-          const fallbackParams = createOpaqueFallbackRouteParams(
-            prerenderInfo.fallbackRouteParams
+        // This metadata supplies fallback params when the saved state does not
+        // record them. App-render uses the saved state's own set when present.
+        if (nextConfig.cacheComponents && prerenderInfo?.fallbackRouteParams) {
+          addRequestMeta(
+            req,
+            'stagedFallbackParams',
+            createOpaqueFallbackRouteParams(prerenderInfo.fallbackRouteParams)
           )
-          if (fallbackParams) {
-            addRequestMeta(req, 'fallbackParams', fallbackParams)
-          }
         }
 
         // Perform the render again, but this time, provide the postponed state.
@@ -2145,8 +2124,8 @@ export function createAppPageEntrypoint({
         doRender({
           span,
           postponed: cachedData.postponed,
-          // This is a resume render, not a fallback render. Fallback params
-          // (for cacheComponents routes) are plumbed via request meta above.
+          // The resume retains concrete param values; staging only defers
+          // access.
           fallbackRouteParams: null,
           renderOperation: 'render',
         })

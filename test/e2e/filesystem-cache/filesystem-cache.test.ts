@@ -28,6 +28,9 @@ async function getDirectorySize(dirPath: string): Promise<number> {
 }
 
 for (const cacheEnabled of [false, true]) {
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely mutates files in the isolated local fixture after setup.
+  // @force-gate !deploy
   describe(`filesystem-caching with cache ${cacheEnabled ? 'enabled' : 'disabled'}`, () => {
     beforeAll(() => {
       process.env.NEXT_PUBLIC_ENV_VAR = 'hello world'
@@ -47,9 +50,8 @@ for (const cacheEnabled of [false, true]) {
       `TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0`,
     ].join(' ')
 
-    const { skipped, next, isTurbopack } = nextTestSetup({
+    const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
       packageJson: {
         packageManager: 'npm@10.9.2',
         scripts: {
@@ -64,10 +66,6 @@ for (const cacheEnabled of [false, true]) {
       buildCommand: `npm run build`,
       startCommand: isNextDev ? 'npm run dev' : 'npm run start',
     })
-
-    if (skipped) {
-      return
-    }
 
     beforeAll(() => {
       // We can skip the dev watch delay since this is not an HMR test

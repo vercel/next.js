@@ -13,7 +13,7 @@ use std::{
 };
 
 use crate::{
-    scope::scope_and_block,
+    scope_bounded::scope_bounded,
     util::{Chunk, good_chunk_size, into_chunks},
 };
 
@@ -76,7 +76,7 @@ where
         return;
     };
     let f = &f;
-    let _results = scope_and_block(chunk_count, |scope| {
+    let _results = scope_bounded(chunk_count, |scope| {
         for chunk in items.chunks(chunk_size) {
             scope.spawn(move || {
                 for item in chunk {
@@ -102,7 +102,7 @@ where
         return;
     };
     let f = &f;
-    let _results = scope_and_block(chunk_count, |scope| {
+    let _results = scope_bounded(chunk_count, |scope| {
         for chunk in into_chunks(items, chunk_size) {
             scope.spawn(move || {
                 // SAFETY: Even when f() panics we drop all items in the chunk.
@@ -133,7 +133,7 @@ where
         return Ok(());
     };
     let f = &f;
-    scope_and_block(chunk_count, |scope| {
+    scope_bounded(chunk_count, |scope| {
         for chunk in items.chunks(chunk_size) {
             scope.spawn(move || {
                 for item in chunk {
@@ -165,7 +165,7 @@ where
         return Ok(());
     };
     let f = &f;
-    scope_and_block(chunk_count, |scope| {
+    scope_bounded(chunk_count, |scope| {
         for chunk in items.chunks_mut(chunk_size) {
             scope.spawn(move || {
                 for item in chunk {
@@ -197,7 +197,7 @@ where
         return Ok(());
     };
     let f = &f;
-    scope_and_block(chunk_count, |scope| {
+    scope_bounded(chunk_count, |scope| {
         for chunk in into_chunks(items, chunk_size) {
             scope.spawn(move || {
                 for item in chunk {
@@ -227,7 +227,7 @@ where
         return Result::from_iter(items.iter().map(f));
     };
     let f = &f;
-    scope_and_block(chunk_count, |scope| {
+    scope_bounded(chunk_count, |scope| {
         for chunk in items.chunks(chunk_size) {
             scope.spawn(move || chunk.iter().map(f).collect::<Vec<_>>())
         }
@@ -253,7 +253,7 @@ where
         return Result::from_iter(items.into_iter().map(f));
     };
     let f = &f;
-    scope_and_block(chunk_count, |scope| {
+    scope_bounded(chunk_count, |scope| {
         for chunk in into_chunks(items, chunk_size) {
             scope.spawn(move || chunk.map(f).collect::<Vec<_>>())
         }
@@ -280,7 +280,7 @@ where
         return Result::from_iter(into_chunks(items, len).map(f));
     };
     let f = &f;
-    scope_and_block(chunk_count, |scope| {
+    scope_bounded(chunk_count, |scope| {
         for chunk in into_chunks(items, chunk_size) {
             scope.spawn(move || f(chunk))
         }

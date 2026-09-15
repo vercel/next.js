@@ -30,8 +30,6 @@ const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'BaseServer.handleRequest',
   'Middleware.execute',
   'NextNodeServer.matchRoute',
-  'DevRouteMatcherManager.ensureRoute',
-  'DevRouteMatcherManager.reloadMatchers',
   'DevBundlerService.ensurePage',
   'BaseServer.render',
   'LoadComponents.loadComponents',

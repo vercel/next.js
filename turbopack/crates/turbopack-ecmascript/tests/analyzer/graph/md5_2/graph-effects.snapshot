@@ -40,7 +40,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -128,7 +128,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -217,7 +217,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -241,6 +241,7 @@
             ),
         ],
         span: 59..82,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "require",
@@ -283,7 +284,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -377,7 +378,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -451,7 +452,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -539,7 +540,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -628,7 +629,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -652,6 +653,7 @@
             ),
         ],
         span: 131..153,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "require",
@@ -694,7 +696,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -788,7 +790,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -874,7 +876,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -902,7 +904,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -924,6 +926,7 @@
             ),
         ],
         span: 252..271,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "String",
@@ -966,7 +969,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -994,7 +997,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1097,7 +1100,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -1125,7 +1128,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -1159,6 +1162,7 @@
                             ),
                         ],
                         span: 306..322,
+                        in_truthiness_context: false,
                     },
                     Conditional {
                         condition: Logical(
@@ -1256,7 +1260,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -1284,7 +1288,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -1327,6 +1331,7 @@
                                             ),
                                         ],
                                         span: 357..374,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -1391,7 +1396,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -1419,7 +1424,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -1497,7 +1502,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 0,
                                             ),
@@ -1525,7 +1530,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 0,
                                             ),
@@ -1600,7 +1605,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -1628,7 +1633,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -1671,6 +1676,7 @@
                                             ),
                                         ],
                                         span: 408..426,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -1735,7 +1741,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -1763,7 +1769,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -1841,7 +1847,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 0,
                                             ),
@@ -1869,7 +1875,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 0,
                                             ),
@@ -1929,7 +1935,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -1957,7 +1963,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -2018,7 +2024,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -2046,7 +2052,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -2118,7 +2124,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -2146,7 +2152,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -2262,7 +2268,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -2290,7 +2296,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -2333,6 +2339,7 @@
                                             ),
                                         ],
                                         span: 489..515,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: Member(
@@ -2394,7 +2401,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -2422,7 +2429,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -2471,6 +2478,7 @@
                                             ),
                                         ],
                                         span: 489..510,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -2522,7 +2530,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -2550,7 +2558,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -2605,6 +2613,7 @@
                                             ),
                                         ],
                                         span: 489..504,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "Array",
@@ -2647,7 +2656,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -2675,7 +2684,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -2826,7 +2835,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -2854,7 +2863,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -2932,7 +2941,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 0,
                                             ),
@@ -2960,7 +2969,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 0,
                                             ),
@@ -3032,7 +3041,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -3060,7 +3069,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -3103,6 +3112,7 @@
                                             ),
                                         ],
                                         span: 545..558,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "Array",
@@ -3145,7 +3155,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -3173,7 +3183,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -3283,7 +3293,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -3311,7 +3321,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -3429,7 +3439,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     0,
                                                                 ),
@@ -3457,7 +3467,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     0,
                                                                 ),
@@ -3506,6 +3516,7 @@
                                                             ),
                                                         ],
                                                         span: 579..595,
+                                                        in_truthiness_context: false,
                                                     },
                                                     MemberCall {
                                                         obj: Variable(
@@ -3561,7 +3572,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     0,
                                                                 ),
@@ -3589,7 +3600,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     0,
                                                                 ),
@@ -3673,7 +3684,7 @@
                                                         Function(
                                                             Body,
                                                         ),
-                                                        BlockStmt(
+                                                        FunctionBody(
                                                             Stmts(
                                                                 0,
                                                             ),
@@ -3701,7 +3712,7 @@
                                                         Function(
                                                             Body,
                                                         ),
-                                                        BlockStmt(
+                                                        FunctionBody(
                                                             Stmts(
                                                                 0,
                                                             ),
@@ -3767,7 +3778,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -3795,7 +3806,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     0,
                                                 ),
@@ -3862,7 +3873,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 0,
                                             ),
@@ -3890,7 +3901,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 0,
                                             ),
@@ -3950,7 +3961,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -3978,7 +3989,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -4039,7 +4050,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -4067,7 +4078,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -4121,7 +4132,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4149,7 +4160,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4216,7 +4227,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4244,7 +4255,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -4277,6 +4288,7 @@
             ),
         ],
         span: 655..673,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -4341,7 +4353,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4369,7 +4381,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -4449,7 +4461,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4477,7 +4489,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -4507,6 +4519,7 @@
             ),
         ],
         span: 696..710,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -4561,7 +4574,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4589,7 +4602,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -4611,6 +4624,7 @@
             ),
         ],
         span: 860..868,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -4664,7 +4678,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4692,7 +4706,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -4731,6 +4745,7 @@
             ),
         ],
         span: 885..889,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -4784,7 +4799,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4812,7 +4827,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -4890,6 +4905,7 @@
             ),
         ],
         span: 905..909,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -4943,7 +4959,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -4971,7 +4987,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -5049,6 +5065,7 @@
             ),
         ],
         span: 919..923,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5102,7 +5119,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5130,7 +5147,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -5208,6 +5225,7 @@
             ),
         ],
         span: 962..966,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5261,7 +5279,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5289,7 +5307,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -5367,6 +5385,7 @@
             ),
         ],
         span: 977..981,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5419,7 +5438,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5447,7 +5466,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     3,
                 ),
@@ -5472,6 +5491,7 @@
             ),
         ],
         span: 1037..1047,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5536,7 +5556,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5564,7 +5584,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     4,
                 ),
@@ -5589,6 +5609,7 @@
             ),
         ],
         span: 1073..1104,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5643,7 +5664,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5671,7 +5692,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     5,
                 ),
@@ -5695,6 +5716,7 @@
             ),
         ],
         span: 1152..1159,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5749,7 +5771,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5777,7 +5799,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     5,
                 ),
@@ -5801,6 +5823,7 @@
             ),
         ],
         span: 1174..1181,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5855,7 +5878,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5883,7 +5906,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     5,
                 ),
@@ -5907,6 +5930,7 @@
             ),
         ],
         span: 1196..1203,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -5961,7 +5985,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -5989,7 +6013,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     5,
                 ),
@@ -6013,6 +6037,7 @@
             ),
         ],
         span: 1218..1225,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -6067,7 +6092,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -6095,7 +6120,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -6117,6 +6142,7 @@
             ),
         ],
         span: 1254..1262,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -6182,7 +6208,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -6210,7 +6236,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -6257,6 +6283,7 @@
             ),
         ],
         span: 1377..1385,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -6385,7 +6412,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -6413,7 +6440,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -6516,7 +6543,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -6544,7 +6571,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -6591,6 +6618,7 @@
             ),
         ],
         span: 1430..1438,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -6719,7 +6747,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -6747,7 +6775,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -6850,7 +6878,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -6878,7 +6906,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -6925,6 +6953,7 @@
             ),
         ],
         span: 1484..1492,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -7053,7 +7082,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -7081,7 +7110,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -7184,7 +7213,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -7212,7 +7241,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -7259,6 +7288,7 @@
             ),
         ],
         span: 1537..1545,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -7387,7 +7417,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -7415,7 +7445,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -7518,7 +7548,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -7546,7 +7576,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -7593,6 +7623,7 @@
             ),
         ],
         span: 1592..1600,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -7721,7 +7752,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -7749,7 +7780,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -7852,7 +7883,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -7880,7 +7911,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -7927,6 +7958,7 @@
             ),
         ],
         span: 1645..1653,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -8055,7 +8087,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -8083,7 +8115,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -8186,7 +8218,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -8214,7 +8246,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -8261,6 +8293,7 @@
             ),
         ],
         span: 1699..1707,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -8389,7 +8422,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -8417,7 +8450,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -8520,7 +8553,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -8548,7 +8581,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -8595,6 +8628,7 @@
             ),
         ],
         span: 1754..1762,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -8723,7 +8757,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -8751,7 +8785,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -8854,7 +8888,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -8882,7 +8916,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -8929,6 +8963,7 @@
             ),
         ],
         span: 1807..1815,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -9057,7 +9092,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -9085,7 +9120,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -9188,7 +9223,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -9216,7 +9251,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -9263,6 +9298,7 @@
             ),
         ],
         span: 1860..1868,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -9391,7 +9427,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -9419,7 +9455,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -9522,7 +9558,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -9550,7 +9586,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -9597,6 +9633,7 @@
             ),
         ],
         span: 1915..1924,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -9725,7 +9762,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -9753,7 +9790,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -9856,7 +9893,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -9884,7 +9921,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -9931,6 +9968,7 @@
             ),
         ],
         span: 1966..1975,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -10059,7 +10097,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -10087,7 +10125,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -10190,7 +10228,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -10218,7 +10256,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -10265,6 +10303,7 @@
             ),
         ],
         span: 2022..2031,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -10393,7 +10432,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -10421,7 +10460,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -10524,7 +10563,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -10552,7 +10591,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -10599,6 +10638,7 @@
             ),
         ],
         span: 2076..2085,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -10727,7 +10767,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -10755,7 +10795,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -10858,7 +10898,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -10886,7 +10926,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -10933,6 +10973,7 @@
             ),
         ],
         span: 2130..2139,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -11061,7 +11102,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -11089,7 +11130,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -11192,7 +11233,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -11220,7 +11261,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -11267,6 +11308,7 @@
             ),
         ],
         span: 2186..2195,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -11395,7 +11437,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -11423,7 +11465,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -11526,7 +11568,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -11554,7 +11596,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -11601,6 +11643,7 @@
             ),
         ],
         span: 2242..2250,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -11729,7 +11772,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -11757,7 +11800,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -11860,7 +11903,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -11888,7 +11931,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -11935,6 +11978,7 @@
             ),
         ],
         span: 2295..2303,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -12063,7 +12107,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -12091,7 +12135,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -12194,7 +12238,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -12222,7 +12266,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -12269,6 +12313,7 @@
             ),
         ],
         span: 2349..2358,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -12397,7 +12442,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -12425,7 +12470,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -12528,7 +12573,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -12556,7 +12601,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -12603,6 +12648,7 @@
             ),
         ],
         span: 2403..2411,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -12731,7 +12777,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -12759,7 +12805,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -12862,7 +12908,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -12890,7 +12936,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -12937,6 +12983,7 @@
             ),
         ],
         span: 2457..2465,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -13065,7 +13112,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -13093,7 +13140,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -13196,7 +13243,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -13224,7 +13271,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -13271,6 +13318,7 @@
             ),
         ],
         span: 2510..2519,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -13399,7 +13447,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -13427,7 +13475,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -13530,7 +13578,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -13558,7 +13606,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -13605,6 +13653,7 @@
             ),
         ],
         span: 2562..2571,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -13733,7 +13782,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -13761,7 +13810,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -13864,7 +13913,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -13892,7 +13941,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -13939,6 +13988,7 @@
             ),
         ],
         span: 2617..2625,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -14067,7 +14117,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -14095,7 +14145,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -14198,7 +14248,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -14226,7 +14276,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -14273,6 +14323,7 @@
             ),
         ],
         span: 2671..2679,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -14401,7 +14452,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -14429,7 +14480,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -14532,7 +14583,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -14560,7 +14611,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -14607,6 +14658,7 @@
             ),
         ],
         span: 2723..2732,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -14735,7 +14787,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -14763,7 +14815,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -14866,7 +14918,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -14894,7 +14946,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -14941,6 +14993,7 @@
             ),
         ],
         span: 2778..2786,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -15069,7 +15122,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -15097,7 +15150,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -15200,7 +15253,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -15228,7 +15281,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -15275,6 +15328,7 @@
             ),
         ],
         span: 2832..2840,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -15403,7 +15457,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -15431,7 +15485,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -15534,7 +15588,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -15562,7 +15616,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -15609,6 +15663,7 @@
             ),
         ],
         span: 2886..2895,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -15737,7 +15792,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -15765,7 +15820,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -15868,7 +15923,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -15896,7 +15951,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -15943,6 +15998,7 @@
             ),
         ],
         span: 2941..2949,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -16071,7 +16127,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -16099,7 +16155,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -16202,7 +16258,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -16230,7 +16286,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -16277,6 +16333,7 @@
             ),
         ],
         span: 2993..3001,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -16405,7 +16462,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -16433,7 +16490,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -16536,7 +16593,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -16564,7 +16621,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -16611,6 +16668,7 @@
             ),
         ],
         span: 3047..3056,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -16739,7 +16797,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -16767,7 +16825,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -16870,7 +16928,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -16898,7 +16956,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -16945,6 +17003,7 @@
             ),
         ],
         span: 3104..3112,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -17073,7 +17132,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -17101,7 +17160,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -17204,7 +17263,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -17232,7 +17291,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -17279,6 +17338,7 @@
             ),
         ],
         span: 3154..3162,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -17407,7 +17467,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -17435,7 +17495,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -17538,7 +17598,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -17566,7 +17626,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -17613,6 +17673,7 @@
             ),
         ],
         span: 3209..3218,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -17741,7 +17802,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -17769,7 +17830,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -17872,7 +17933,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -17900,7 +17961,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -17947,6 +18008,7 @@
             ),
         ],
         span: 3264..3273,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -18075,7 +18137,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -18103,7 +18165,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -18206,7 +18268,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -18234,7 +18296,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -18281,6 +18343,7 @@
             ),
         ],
         span: 3318..3326,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -18409,7 +18472,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -18437,7 +18500,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -18540,7 +18603,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -18568,7 +18631,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -18615,6 +18678,7 @@
             ),
         ],
         span: 3372..3380,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -18743,7 +18807,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -18771,7 +18835,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -18874,7 +18938,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -18902,7 +18966,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -18949,6 +19013,7 @@
             ),
         ],
         span: 3426..3434,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -19077,7 +19142,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -19105,7 +19170,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -19208,7 +19273,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -19236,7 +19301,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -19283,6 +19348,7 @@
             ),
         ],
         span: 3480..3489,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -19411,7 +19477,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -19439,7 +19505,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -19542,7 +19608,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -19570,7 +19636,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -19617,6 +19683,7 @@
             ),
         ],
         span: 3536..3545,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -19745,7 +19812,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -19773,7 +19840,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -19876,7 +19943,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -19904,7 +19971,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -19951,6 +20018,7 @@
             ),
         ],
         span: 3589..3597,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -20079,7 +20147,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -20107,7 +20175,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -20210,7 +20278,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -20238,7 +20306,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -20285,6 +20353,7 @@
             ),
         ],
         span: 3643..3651,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -20413,7 +20482,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -20441,7 +20510,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -20544,7 +20613,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -20572,7 +20641,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -20619,6 +20688,7 @@
             ),
         ],
         span: 3697..3705,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -20747,7 +20817,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -20775,7 +20845,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -20878,7 +20948,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -20906,7 +20976,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -20953,6 +21023,7 @@
             ),
         ],
         span: 3749..3757,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -21081,7 +21152,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -21109,7 +21180,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -21212,7 +21283,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -21240,7 +21311,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -21287,6 +21358,7 @@
             ),
         ],
         span: 3802..3811,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -21415,7 +21487,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -21443,7 +21515,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -21546,7 +21618,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -21574,7 +21646,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -21621,6 +21693,7 @@
             ),
         ],
         span: 3857..3866,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -21749,7 +21822,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -21777,7 +21850,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -21880,7 +21953,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -21908,7 +21981,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -21955,6 +22028,7 @@
             ),
         ],
         span: 3911..3919,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -22083,7 +22157,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -22111,7 +22185,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -22214,7 +22288,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -22242,7 +22316,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -22289,6 +22363,7 @@
             ),
         ],
         span: 3966..3974,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -22417,7 +22492,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -22445,7 +22520,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -22548,7 +22623,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -22576,7 +22651,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -22623,6 +22698,7 @@
             ),
         ],
         span: 4019..4027,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -22751,7 +22827,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -22779,7 +22855,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -22882,7 +22958,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -22910,7 +22986,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -22957,6 +23033,7 @@
             ),
         ],
         span: 4073..4082,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -23085,7 +23162,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -23113,7 +23190,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -23216,7 +23293,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -23244,7 +23321,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -23291,6 +23368,7 @@
             ),
         ],
         span: 4129..4137,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -23419,7 +23497,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -23447,7 +23525,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -23550,7 +23628,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -23578,7 +23656,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -23625,6 +23703,7 @@
             ),
         ],
         span: 4182..4191,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -23753,7 +23832,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -23781,7 +23860,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -23884,7 +23963,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -23912,7 +23991,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -23959,6 +24038,7 @@
             ),
         ],
         span: 4236..4244,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -24087,7 +24167,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -24115,7 +24195,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -24218,7 +24298,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -24246,7 +24326,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -24293,6 +24373,7 @@
             ),
         ],
         span: 4291..4300,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -24421,7 +24502,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -24449,7 +24530,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -24552,7 +24633,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -24580,7 +24661,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -24627,6 +24708,7 @@
             ),
         ],
         span: 4344..4352,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -24755,7 +24837,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -24783,7 +24865,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -24886,7 +24968,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -24914,7 +24996,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -24961,6 +25043,7 @@
             ),
         ],
         span: 4399..4407,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -25089,7 +25172,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -25117,7 +25200,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -25220,7 +25303,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -25248,7 +25331,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -25295,6 +25378,7 @@
             ),
         ],
         span: 4452..4461,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -25423,7 +25507,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -25451,7 +25535,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -25554,7 +25638,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -25582,7 +25666,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -25629,6 +25713,7 @@
             ),
         ],
         span: 4506..4514,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -25757,7 +25842,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -25785,7 +25870,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -25888,7 +25973,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -25916,7 +26001,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -25963,6 +26048,7 @@
             ),
         ],
         span: 4561..4570,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -26091,7 +26177,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -26119,7 +26205,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -26222,7 +26308,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -26250,7 +26336,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -26297,6 +26383,7 @@
             ),
         ],
         span: 4616..4624,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -26425,7 +26512,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -26453,7 +26540,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -26556,7 +26643,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -26584,7 +26671,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -26631,6 +26718,7 @@
             ),
         ],
         span: 4669..4678,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -26759,7 +26847,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -26787,7 +26875,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -26890,7 +26978,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -26918,7 +27006,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -26965,6 +27053,7 @@
             ),
         ],
         span: 4725..4733,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -27093,7 +27182,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -27121,7 +27210,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -27224,7 +27313,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -27252,7 +27341,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -27299,6 +27388,7 @@
             ),
         ],
         span: 4778..4786,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -27427,7 +27517,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -27455,7 +27545,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -27547,7 +27637,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -27575,7 +27665,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -27600,6 +27690,7 @@
             ),
         ],
         span: 4940..4952,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -27688,7 +27779,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -27716,7 +27807,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -27775,7 +27866,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -27803,7 +27894,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -27866,7 +27957,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -27891,6 +27982,7 @@
             ),
         ],
         span: 5003..5010,
+        in_truthiness_context: false,
     },
     Unreachable {
         start_ast_path: [
@@ -27932,7 +28024,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -27958,7 +28050,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -28021,7 +28113,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -28046,6 +28138,7 @@
             ),
         ],
         span: 5153..5160,
+        in_truthiness_context: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28087,7 +28180,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -28113,7 +28206,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -28176,7 +28269,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     3,
                 ),
@@ -28201,6 +28294,7 @@
             ),
         ],
         span: 5303..5310,
+        in_truthiness_context: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28242,7 +28336,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     3,
                 ),
@@ -28268,7 +28362,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -28331,7 +28425,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     4,
                 ),
@@ -28356,6 +28450,7 @@
             ),
         ],
         span: 5444..5451,
+        in_truthiness_context: false,
     },
     Unreachable {
         start_ast_path: [
@@ -28397,7 +28492,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     4,
                 ),
@@ -28423,7 +28518,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -28486,7 +28581,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     5,
                 ),
@@ -28511,6 +28606,7 @@
             ),
         ],
         span: 5620..5634,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -28565,7 +28661,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     6,
                 ),
@@ -28590,6 +28686,7 @@
             ),
         ],
         span: 5643..5658,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -28641,7 +28738,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -28666,6 +28763,7 @@
             ),
         ],
         span: 5668..5682,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "module",
@@ -28708,7 +28806,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -28817,7 +28915,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     7,
                                 ),
@@ -28843,7 +28941,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -28937,7 +29035,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     7,
                                 ),
@@ -28963,7 +29061,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -29029,7 +29127,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 7,
                             ),
@@ -29055,7 +29153,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -29109,7 +29207,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -29135,7 +29233,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -29202,7 +29300,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -29228,7 +29326,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -29261,6 +29359,7 @@
             ),
         ],
         span: 5843..5861,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -29326,7 +29425,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -29352,7 +29451,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -29470,7 +29569,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -29496,7 +29595,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -29576,7 +29675,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -29602,7 +29701,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -29630,6 +29729,7 @@
             ),
         ],
         span: 5908..5923,
+        in_truthiness_context: true,
     },
     Conditional {
         condition: Logical(
@@ -29703,7 +29803,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 7,
                             ),
@@ -29729,7 +29829,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 2,
                             ),
@@ -29804,7 +29904,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     7,
                                 ),
@@ -29830,7 +29930,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     2,
                                 ),
@@ -29864,6 +29964,7 @@
                             ),
                         ],
                         span: 5963..5979,
+                        in_truthiness_context: true,
                     },
                     Conditional {
                         condition: Logical(
@@ -29950,7 +30051,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     7,
                                                 ),
@@ -29976,7 +30077,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     2,
                                                 ),
@@ -30013,6 +30114,7 @@
                                             ),
                                         ],
                                         span: 5988..6005,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -30077,7 +30179,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     7,
                                                 ),
@@ -30103,7 +30205,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     2,
                                                 ),
@@ -30175,7 +30277,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 7,
                                             ),
@@ -30201,7 +30303,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 2,
                                             ),
@@ -30282,7 +30384,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     7,
                                                 ),
@@ -30308,7 +30410,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     2,
                                                 ),
@@ -30345,6 +30447,7 @@
                                             ),
                                         ],
                                         span: 6027..6043,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -30409,7 +30512,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     7,
                                                 ),
@@ -30435,7 +30538,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     2,
                                                 ),
@@ -30507,7 +30610,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 7,
                                             ),
@@ -30533,7 +30636,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 2,
                                             ),
@@ -30599,7 +30702,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     7,
                                 ),
@@ -30625,7 +30728,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     2,
                                 ),
@@ -30692,7 +30795,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 7,
                             ),
@@ -30718,7 +30821,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 2,
                             ),
@@ -30778,7 +30881,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -30804,7 +30907,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -30864,7 +30967,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     7,
                 ),
@@ -30890,7 +30993,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),

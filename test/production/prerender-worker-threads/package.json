@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "single-context-addon": "file:single-context-addon",
+    "bindings": "file:bindings"
+  }
+}

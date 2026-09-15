@@ -51,6 +51,7 @@ use crate::{
         esm::{
             EsmExport,
             export::{all_known_export_names, is_export_missing},
+            mangle::generated_export_key,
         },
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
     },
@@ -308,7 +309,16 @@ impl ReferencedAsset {
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
                     ctxt: None,
-                    export,
+                    // The target module may emit its exports under shortened keys. This is the
+                    // only place a cross-module export access is materialized, and it resolves
+                    // the same map the producing module uses (see
+                    // `EsmExports::code_generation`), so the two always agree.
+                    export: match &export {
+                        Some(export) => {
+                            Some(generated_export_key(*asset, chunking_context, export).await?)
+                        }
+                        None => None,
+                    },
                     import_source,
                 })
             }
@@ -460,6 +470,8 @@ struct EsmReferenceExtras {
     module_type: Option<RcStr>,
     /// The chunking-type annotation (drives `chunking_type`).
     chunking_type: Option<SpecifiedChunkingType>,
+    /// Whether the importing module's used exports should be forwarded to the target.
+    export_usage_passthrough: bool,
     /// A module to resolve to directly, bypassing resolution (from a matched inner asset).
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
 }
@@ -479,6 +491,7 @@ impl EsmReferenceExtras {
                 .and_then(|a| a.module_type())
                 .map(|m| RcStr::from(&*m.to_string_lossy())),
             chunking_type: annotations.and_then(|a| a.chunking_type()),
+            export_usage_passthrough: annotations.is_some_and(|a| a.export_usage_passthrough()),
             resolve_override,
         };
         (extras != EsmReferenceExtras::default()).then(|| Box::new(extras))
@@ -729,8 +742,19 @@ impl ModuleReference for EsmAssetReference {
         BindingUsage {
             import: self.import_usage.clone(),
             export: match &self.export_name {
-                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
+                // Evaluation references preserve their side-effect-only semantics even when the
+                // corresponding import forwards export usage.
                 Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
+                _ if self
+                    .extras
+                    .as_deref()
+                    .is_some_and(|extras| extras.export_usage_passthrough) =>
+                {
+                    ExportUsage::Passthrough {
+                        namespace_object_may_escape: true,
+                    }
+                }
+                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
                 _ => ExportUsage::All,
             },
         }

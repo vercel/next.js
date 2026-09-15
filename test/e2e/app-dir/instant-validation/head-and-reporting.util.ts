@@ -15,6 +15,8 @@ export function registerHeadAndReportingTests(
     isNextDev,
     isClientNav,
     navigateTo,
+    warmCachesAndNavigateTo,
+    restartDevServerToEnsureColdCaches,
     expectNoDevValidationErrors,
     getCliOutputSinceMark,
     prerender,
@@ -74,7 +76,6 @@ export function registerHeadAndReportingTests(
                ],
              },
            ],
-           "code": "E1431",
            "description": "Next.js encountered URL data in generateViewport().",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -133,7 +134,6 @@ export function registerHeadAndReportingTests(
                ],
              },
            ],
-           "code": "E1438",
            "description": "Next.js encountered uncached data in generateViewport().",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -230,7 +230,6 @@ export function registerHeadAndReportingTests(
                ],
              },
            ],
-           "code": "E1438",
            "description": "Next.js encountered uncached data in generateViewport().",
            "environmentLabel": "Server",
            "label": "Blocking Route",
@@ -290,7 +289,6 @@ export function registerHeadAndReportingTests(
         )
         await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1286",
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -348,7 +346,6 @@ export function registerHeadAndReportingTests(
         )
         await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1286",
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -404,7 +401,6 @@ export function registerHeadAndReportingTests(
         )
         await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1286",
              "description": "Next.js could not validate that a segment in your UI has instant navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -548,7 +544,6 @@ export function registerHeadAndReportingTests(
                ],
              },
            ],
-           "code": "E1437",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -605,45 +600,60 @@ export function registerHeadAndReportingTests(
         }
       })
 
+      it('valid - instant = false in a "use cache" layout opts out of static shell validation', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/shells/valid-use-cache-instant-false'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/shells/(default)/valid-use-cache-instant-false'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
       it('invalid - unguarded params in a runtime-prefetchable shell', async () => {
         if (isNextDev) {
           const browser = await navigateTo('/shells/invalid-runtime-params/123')
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (3:33) @ instant
-             > 3 | export const instant: Instant = {
-                 |                                 ^",
-                   "stack": [
-                     "instant app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (3:33)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1439",
-               "description": "Next.js encountered URL data outside of Suspense.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (28:3) @ LinkData
-             > 28 |   await params
-                  |   ^",
-               "stack": [
-                 "LinkData app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (28:3)",
-                 "Page app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (22:7)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (3:33) @ instant
+           > 3 | export const instant: Instant = {
+               |                                 ^",
+                 "stack": [
+                   "instant app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (3:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "description": "Next.js encountered URL data outside of Suspense.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (28:3) @ LinkData
+           > 28 |   await params
+                |   ^",
+             "stack": [
+               "LinkData app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (28:3)",
+               "Page app/shells/(default)/invalid-runtime-params/[slug]/page.tsx (22:7)",
+             ],
+           }
+          `)
         } else {
           const result = await prerender(
             '/shells/(default)/invalid-runtime-params/[slug]'
           )
-          // TODO(app-shells): missing fallback params in build validation
-          // It seems like `workUnitStore.fallbackParams` is undefined
-          // during the validation render, which makes us treat these params as static.
-          // In partialPrefetching, static params are also delayed until the runtime stage,
-          // which ultimately makes the validation fail, but also hides the underlying issue.
+          // TODO(app-shells): Verify fallback params in build validation.
+          //
+          // This assertion can pass even if
+          // `workUnitStore.stagedFallbackParams` is missing. Without that set,
+          // validation treats these params as static. Partial Prefetching still
+          // delays them to the runtime stage, so the expected error does not
+          // detect the missing fallback params.
 
           expect(extractBuildValidationError(result.cliOutput))
             .toMatchInlineSnapshot(`
@@ -715,32 +725,31 @@ export function registerHeadAndReportingTests(
               `)
           } else {
             await expect(browser).toDisplayCollapsedRedbox(`
-               {
-                 "cause": [
-                   {
-                     "label": "Caused by: Instant Validation",
-                     "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (3:33) @ instant
-               > 3 | export const instant: Instant = {
-                   |                                 ^",
-                     "stack": [
-                       "instant app/shells/(default)/invalid-runtime-searchparams/page.tsx (3:33)",
-                       "Set.forEach <anonymous>",
-                     ],
-                   },
-                 ],
-                 "code": "E1439",
-                 "description": "Next.js encountered URL data outside of Suspense.",
-                 "environmentLabel": "Server",
-                 "label": "Instant",
-                 "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3) @ LinkData
-               > 27 |   await searchParams
-                    |   ^",
-                 "stack": [
-                   "LinkData app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3)",
-                   "Page app/shells/(default)/invalid-runtime-searchparams/page.tsx (17:7)",
-                 ],
-               }
-              `)
+             {
+               "cause": [
+                 {
+                   "label": "Caused by: Instant Validation",
+                   "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (3:33) @ instant
+             > 3 | export const instant: Instant = {
+                 |                                 ^",
+                   "stack": [
+                     "instant app/shells/(default)/invalid-runtime-searchparams/page.tsx (3:33)",
+                     "Set.forEach <anonymous>",
+                   ],
+                 },
+               ],
+               "description": "Next.js encountered URL data outside of Suspense.",
+               "environmentLabel": "Server",
+               "label": "Instant",
+               "source": "app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3) @ LinkData
+             > 27 |   await searchParams
+                  |   ^",
+               "stack": [
+                 "LinkData app/shells/(default)/invalid-runtime-searchparams/page.tsx (27:3)",
+                 "Page app/shells/(default)/invalid-runtime-searchparams/page.tsx (17:7)",
+               ],
+             }
+            `)
           }
         } else {
           const result = await prerender(
@@ -771,8 +780,6 @@ export function registerHeadAndReportingTests(
       })
 
       it('invalid - unguarded static params in metadata', async () => {
-        // TODO(app-shells): static params currently aren't excluded from the shell.
-        // This should be failing validation.
         if (isNextDev) {
           const browser = await navigateTo(
             '/shells/invalid-static-with-gsp-metadata/123'
@@ -792,7 +799,6 @@ export function registerHeadAndReportingTests(
                  ],
                },
              ],
-             "code": "E1429",
              "description": "Next.js encountered URL data in generateMetadata().",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -828,32 +834,31 @@ export function registerHeadAndReportingTests(
             '/shells/invalid-static-with-gsp/123'
           )
           await expect(browser).toDisplayCollapsedRedbox(`
-             {
-               "cause": [
-                 {
-                   "label": "Caused by: Instant Validation",
-                   "source": "app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (3:33) @ instant
-             > 3 | export const instant: Instant = {
-                 |                                 ^",
-                   "stack": [
-                     "instant app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (3:33)",
-                     "Set.forEach <anonymous>",
-                   ],
-                 },
-               ],
-               "code": "E1439",
-               "description": "Next.js encountered URL data outside of Suspense.",
-               "environmentLabel": "Server",
-               "label": "Instant",
-               "source": "app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (31:20) @ LinkData
-             > 31 |   const { slug } = await params
-                  |                    ^",
-               "stack": [
-                 "LinkData app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (31:20)",
-                 "Page app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (25:7)",
-               ],
-             }
-            `)
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (3:33) @ instant
+           > 3 | export const instant: Instant = {
+               |                                 ^",
+                 "stack": [
+                   "instant app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (3:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "description": "Next.js encountered URL data outside of Suspense.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (31:20) @ LinkData
+           > 31 |   const { slug } = await params
+                |                    ^",
+             "stack": [
+               "LinkData app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (31:20)",
+               "Page app/shells/(default)/invalid-static-with-gsp/[slug]/page.tsx (25:7)",
+             ],
+           }
+          `)
         } else {
           const result = await prerender(
             '/shells/(default)/invalid-static-with-gsp/[slug]'
@@ -879,6 +884,312 @@ export function registerHeadAndReportingTests(
              Stopping prerender due to instant validation errors."
             `)
           expect(result.exitCode).toBe(1)
+        }
+      })
+
+      describe('excluded caches', () => {
+        describe('invalid - unguarded cache with a shorter-than-shell staleTime', () => {
+          // Caches with `stale < MIN_SHELL_STALE` are not allowed in app shells
+          // (although they are allowed in runtime prefetches).
+
+          // TODO(app-shells): We're reporting caches that only resolve in a prefetch
+          // as URL data (same as `prefetch()`) which is a bit misleading.
+          // The suggested fixes might also be confusing, because they don't mention
+          // that increasing `stale` would help.
+          // We should improve this.
+
+          beforeEach(async () => {
+            await restartDevServerToEnsureColdCaches()
+          })
+
+          const routeInBrowser = '/shells/invalid-non-shell-cache'
+          const routeInBuild = '/shells/(default)/invalid-non-shell-cache'
+
+          it('with cold caches', async () => {
+            if (isNextDev) {
+              const browser = await navigateTo(routeInBrowser)
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (4:33) @ instant
+               > 4 | export const instant: Instant = {
+                   |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/invalid-non-shell-cache/page.tsx (4:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9) @ PrefetchContent
+               > 23 |   await nonShellCache()
+                    |         ^",
+                 "stack": [
+                   "PrefetchContent app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9)",
+                   "Page app/shells/(default)/invalid-non-shell-cache/page.tsx (17:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(routeInBuild)
+              expect(extractBuildValidationError(result.cliOutput))
+                .toMatchInlineSnapshot(`
+                  "Error: Route "/shells/invalid-non-shell-cache": Next.js encountered URL data during prerendering or a navigation.
+
+                  \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+                  Ways to fix this:
+                    - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                    - [block] Set \`export const instant = false\` to allow a blocking route
+
+                  Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+                      at main (<anonymous>)
+                      at body (<anonymous>)
+                      at html (<anonymous>)
+                  Build-time instant validation failed for route "/shells/invalid-non-shell-cache".
+                  To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                    - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-non-shell-cache" in your browser to investigate the error.
+                    - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+                  Stopping prerender due to instant validation errors."
+                `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+          if (isNextDev) {
+            it('with warm caches', async () => {
+              const browser = await warmCachesAndNavigateTo(routeInBrowser)
+
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (4:33) @ instant
+               > 4 | export const instant: Instant = {
+                   |                                 ^",
+                     "stack": [
+                       "instant app/shells/(default)/invalid-non-shell-cache/page.tsx (4:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered URL data outside of Suspense.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9) @ PrefetchContent
+               > 23 |   await nonShellCache()
+                    |         ^",
+                 "stack": [
+                   "PrefetchContent app/shells/(default)/invalid-non-shell-cache/page.tsx (23:9)",
+                   "Page app/shells/(default)/invalid-non-shell-cache/page.tsx (17:7)",
+                 ],
+               }
+              `)
+            })
+          }
+        })
+
+        describe('valid - cache with a shorter-than-shell staleTime with suspense', () => {
+          beforeEach(async () => {
+            await restartDevServerToEnsureColdCaches()
+          })
+
+          const routeInBrowser = '/shells/valid-non-shell-cache'
+          const routeInBuild = '/shells/(default)/valid-non-shell-cache'
+
+          it('with cold caches', async () => {
+            if (isNextDev) {
+              const browser = await navigateTo(routeInBrowser)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            } else {
+              const result = await prerender(routeInBuild)
+              expectNoBuildValidationErrors(result)
+            }
+          })
+          if (isNextDev) {
+            it('with warm caches', async () => {
+              const browser = await warmCachesAndNavigateTo(routeInBrowser)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            })
+          }
+        })
+
+        describe('valid - unguarded non-prerenderable cache', () => {
+          // Caches with `expire < MIN_PRERENDERABLE_EXPIRE` are not allowed
+          // in static prerenders, but they're allowed in runtime prerenders,
+          // so they can be used in runtime app shells.
+          beforeEach(async () => {
+            await restartDevServerToEnsureColdCaches()
+          })
+
+          const routeInBrowser = '/shells/valid-non-prerenderable-cache'
+          const routeInBuild = '/shells/(default)/valid-non-prerenderable-cache'
+
+          it('with cold caches', async () => {
+            if (isNextDev) {
+              const browser = await navigateTo(routeInBrowser)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            } else {
+              const result = await prerender(routeInBuild)
+              expectNoBuildValidationErrors(result)
+            }
+          })
+          if (isNextDev) {
+            it('with warm caches', async () => {
+              const browser = await warmCachesAndNavigateTo(routeInBrowser)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            })
+          }
+        })
+      })
+
+      it('invalid - unguarded navigation() in a shell', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/shells/invalid-navigation-without-suspense'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/shells/(default)/invalid-navigation-without-suspense/page.tsx (4:33) @ instant
+           > 4 | export const instant: Instant = {
+               |                                 ^",
+                 "stack": [
+                   "instant app/shells/(default)/invalid-navigation-without-suspense/page.tsx (4:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "description": "Next.js encountered unstable_navigation() outside of Suspense.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/shells/(default)/invalid-navigation-without-suspense/page.tsx (23:19) @ NavigationContent
+           > 23 |   await navigation()
+                |                   ^",
+             "stack": [
+               "NavigationContent app/shells/(default)/invalid-navigation-without-suspense/page.tsx (23:19)",
+               "Page app/shells/(default)/invalid-navigation-without-suspense/page.tsx (17:7)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(
+            '/shells/(default)/invalid-navigation-without-suspense'
+          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/shells/invalid-navigation-without-suspense": Next.js encountered \`unstable_navigation()\` during prerendering or a navigation.
+
+           \`unstable_navigation()\` called outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               at main (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+           Build-time instant validation failed for route "/shells/invalid-navigation-without-suspense".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-navigation-without-suspense" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('valid - navigation() with suspense in a shell', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/shells/valid-navigation-with-suspense'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/shells/(default)/valid-navigation-with-suspense'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      it('invalid - unguarded prefetch() in a shell', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/shells/invalid-prefetch-without-suspense'
+          )
+          await expect(browser).toDisplayCollapsedRedbox(`
+           {
+             "cause": [
+               {
+                 "label": "Caused by: Instant Validation",
+                 "source": "app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (4:33) @ instant
+           > 4 | export const instant: Instant = {
+               |                                 ^",
+                 "stack": [
+                   "instant app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (4:33)",
+                   "Set.forEach <anonymous>",
+                 ],
+               },
+             ],
+             "description": "Next.js encountered URL data outside of Suspense.",
+             "environmentLabel": "Server",
+             "label": "Instant",
+             "source": "app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (23:26) @ PrefetchContent
+           > 23 |   await unstable_prefetch()
+                |                          ^",
+             "stack": [
+               "PrefetchContent app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (23:26)",
+               "Page app/shells/(default)/invalid-prefetch-without-suspense/page.tsx (17:7)",
+             ],
+           }
+          `)
+        } else {
+          const result = await prerender(
+            '/shells/(default)/invalid-prefetch-without-suspense'
+          )
+          expect(extractBuildValidationError(result.cliOutput))
+            .toMatchInlineSnapshot(`
+           "Error: Route "/shells/invalid-prefetch-without-suspense": Next.js encountered URL data during prerendering or a navigation.
+
+           \`params\` or \`searchParams\` accessed outside of \`<Suspense>\` may prevent the navigation from being instant, leading to a slower user experience.
+
+           Ways to fix this:
+             - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+             - [block] Set \`export const instant = false\` to allow a blocking route
+
+           Learn more: https://nextjs.org/docs/messages/instant-shell-url-data
+               at main (<anonymous>)
+               at body (<anonymous>)
+               at html (<anonymous>)
+           Build-time instant validation failed for route "/shells/invalid-prefetch-without-suspense".
+           To get a more detailed stack trace and pinpoint the issue, try one of the following:
+             - Start the app in development mode by running \`next dev\`, then open "/shells/invalid-prefetch-without-suspense" in your browser to investigate the error.
+             - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+           Stopping prerender due to instant validation errors."
+          `)
+          expect(result.exitCode).toBe(1)
+        }
+      })
+
+      it('valid - prefetch() with suspense in a shell', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/shells/valid-prefetch-with-suspense'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/shells/(default)/valid-prefetch-with-suspense'
+          )
+          expectNoBuildValidationErrors(result)
         }
       })
 
@@ -925,6 +1236,165 @@ export function registerHeadAndReportingTests(
           expectNoBuildValidationErrors(result)
         }
       })
+      it('valid - unguarded navigation', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/non-app-shell/valid-unguarded-navigation'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/non-app-shell/valid-unguarded-navigation'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+      it('valid - unguarded prefetch', async () => {
+        if (isNextDev) {
+          const browser = await navigateTo(
+            '/suspense-in-root/non-app-shell/valid-unguarded-prefetch'
+          )
+          await expectNoDevValidationErrors(browser, await browser.url())
+        } else {
+          const result = await prerender(
+            '/suspense-in-root/non-app-shell/valid-unguarded-prefetch'
+          )
+          expectNoBuildValidationErrors(result)
+        }
+      })
+
+      describe('excluded caches', () => {
+        describe('valid - unguarded cache with a shorter-than-shell staleTime', () => {
+          // Caches with `stale < MIN_SHELL_STALE` are allowed in static prerenders.
+          // Without Partial Prefetching, we don't use shells, so shell-related properties
+          // do not matter.
+          beforeEach(async () => {
+            await restartDevServerToEnsureColdCaches()
+          })
+          const route =
+            '/suspense-in-root/non-app-shell/valid-unguarded-non-shell-cache'
+
+          it('with cold caches', async () => {
+            if (isNextDev) {
+              const browser = await navigateTo(route)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            } else {
+              const result = await prerender(route)
+              expectNoBuildValidationErrors(result)
+            }
+          })
+          if (isNextDev) {
+            it('with warm caches', async () => {
+              const browser = await warmCachesAndNavigateTo(route)
+              await expectNoDevValidationErrors(browser, await browser.url())
+            })
+          }
+        })
+
+        describe('invalid - unguarded non-prerenderable cache with short expire', () => {
+          // Caches with `expire < MIN_PRERENDERABLE_EXPIRE` are not allowed
+          // in static prerenders.
+
+          // TODO(app-shells): We currently report these caches as runtime data.
+          // The suggested fixes might be confusing, because they don't mention
+          // that increasing `expire` would help.
+
+          beforeEach(async () => {
+            await restartDevServerToEnsureColdCaches()
+          })
+
+          const route =
+            '/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache'
+
+          it('with cold caches', async () => {
+            if (isNextDev) {
+              const browser = await navigateTo(route)
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (4:33) @ instant
+               > 4 | export const instant: Instant = {
+                   |                                 ^",
+                     "stack": [
+                       "instant app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (4:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered runtime data during a navigation.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9) @ SessionContent
+               > 22 |   await nonPrerenderableCache()
+                    |         ^",
+                 "stack": [
+                   "SessionContent app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9)",
+                   "Page app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (16:7)",
+                 ],
+               }
+              `)
+            } else {
+              const result = await prerender(route)
+              expect(extractBuildValidationError(result.cliOutput))
+                .toMatchInlineSnapshot(`
+               "Error: Route "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache": Next.js encountered runtime data during prerendering or a navigation.
+
+               \`cookies()\`, \`headers()\`, \`params\`, or \`searchParams\` accessed outside of \`<Suspense>\` prevents the route from being prerendered or the navigation from being instant, leading to a slower user experience.
+
+               Ways to fix this:
+                 - [stream] Provide a placeholder with \`<Suspense fallback={...}>\` around the data access
+                 - [block] Set \`export const instant = false\` to allow a blocking route
+
+               Learn more: https://nextjs.org/docs/messages/blocking-prerender-runtime
+                   at main (<anonymous>)
+                   at body (<anonymous>)
+                   at html (<anonymous>)
+                   at a (<anonymous>)
+               Build-time instant validation failed for route "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache".
+               To get a more detailed stack trace and pinpoint the issue, try one of the following:
+                 - Start the app in development mode by running \`next dev\`, then open "/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache" in your browser to investigate the error.
+                 - Rerun the production build with \`next build --debug-prerender\` to generate better stack traces.
+               Stopping prerender due to instant validation errors."
+              `)
+              expect(result.exitCode).toBe(1)
+            }
+          })
+          if (isNextDev) {
+            it('with warm caches', async () => {
+              const browser = await warmCachesAndNavigateTo(route)
+
+              await expect(browser).toDisplayCollapsedRedbox(`
+               {
+                 "cause": [
+                   {
+                     "label": "Caused by: Instant Validation",
+                     "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (4:33) @ instant
+               > 4 | export const instant: Instant = {
+                   |                                 ^",
+                     "stack": [
+                       "instant app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (4:33)",
+                       "Set.forEach <anonymous>",
+                     ],
+                   },
+                 ],
+                 "description": "Next.js encountered runtime data during a navigation.",
+                 "environmentLabel": "Server",
+                 "label": "Instant",
+                 "source": "app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9) @ SessionContent
+               > 22 |   await nonPrerenderableCache()
+                    |         ^",
+                 "stack": [
+                   "SessionContent app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (22:9)",
+                   "Page app/suspense-in-root/non-app-shell/invalid-unguarded-non-prerenderable-cache/page.tsx (16:7)",
+                 ],
+               }
+              `)
+            })
+          }
+        })
+      })
     })
   }
 
@@ -948,7 +1418,6 @@ export function registerHeadAndReportingTests(
                ],
              },
            ],
-           "code": "E1437",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",
@@ -1010,7 +1479,6 @@ export function registerHeadAndReportingTests(
                  ],
                },
              ],
-             "code": "E1439",
              "description": "Next.js encountered URL data outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1038,7 +1506,6 @@ export function registerHeadAndReportingTests(
                  ],
                },
              ],
-             "code": "E1430",
              "description": "Next.js encountered runtime data during a navigation.",
              "environmentLabel": "Server",
              "label": "Instant",
@@ -1127,7 +1594,6 @@ export function registerHeadAndReportingTests(
                ],
              },
            ],
-           "code": "E1437",
            "description": "Next.js encountered uncached data during a navigation.",
            "environmentLabel": "Server",
            "label": "Instant",

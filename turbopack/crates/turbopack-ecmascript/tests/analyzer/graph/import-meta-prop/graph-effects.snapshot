@@ -41,6 +41,7 @@
             ),
         ],
         span: 9..25,
+        in_truthiness_context: false,
     },
     ImportMeta {
         ast_path: [

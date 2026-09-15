@@ -3,7 +3,6 @@ const glob = require('glob')
 const fs = require('fs/promises')
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
-const process = require('process')
 const recast = require('recast')
 
 export async function next__polyfill_nomodule(task, opts) {
@@ -145,6 +144,9 @@ export async function ncc_busboy(task, opts) {
 
 externals['@mswjs/interceptors/ClientRequest'] =
   'next/dist/compiled/@mswjs/interceptors/ClientRequest'
+// Otherwise NCC emits `eval('require')('next/dist/compiled/@mswjs/interceptors/ClientRequest')`
+externals['next/dist/shared/lib/promise-with-resolvers'] =
+  'next/dist/shared/lib/promise-with-resolvers'
 export async function ncc_mswjs_interceptors(task, opts) {
   await task
     // @mswjs/interceptors is ESM-only, compile to CJS through a stub entry
@@ -2723,10 +2725,7 @@ export async function diagnostics(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(
-    ['precompile', 'compile', 'check_error_codes', 'generate_types'],
-    opts
-  )
+  await task.serial(['precompile', 'compile', 'generate_types'], opts)
 }
 
 export async function generate_types(task, opts) {
@@ -2744,25 +2743,6 @@ export async function generate_types(task, opts) {
   // But taskr needs to know that it can start watching the files for the task it has to manually restart.
   if (!watchmode) {
     await typesPromise
-  }
-}
-
-export async function check_error_codes(task, opts) {
-  try {
-    await execa.command('pnpm -w run check-error-codes', {
-      stdio: 'inherit',
-    })
-  } catch (err) {
-    if (process.env.CI) {
-      await execa.command(
-        'echo check_error_codes FAILED: There are new errors introduced but no corresponding error codes are found in errors.json file, so make sure you run `pnpm build` or `pnpm update-error-codes` and then commit the change in errors.json.',
-        {
-          stdio: 'inherit',
-        }
-      )
-      process.exit(1)
-    }
-    await task.start('compile', opts)
   }
 }
 

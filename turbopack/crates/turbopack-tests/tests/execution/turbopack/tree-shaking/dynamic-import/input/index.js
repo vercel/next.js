@@ -1,3 +1,10 @@
+import { identity as staticIdentity } from './modules/identity'
+
+it('should share module identity between static and dynamic imports', async () => {
+  const { identity: dynamicIdentity } = await import('./modules/identity')
+  expect(dynamicIdentity).toBe(staticIdentity)
+})
+
 it('should mark all exports as used with non-destructured dynamic import', async () => {
   const lib = await import('./modules/all')
   expect(lib.cat).toBe('cat')

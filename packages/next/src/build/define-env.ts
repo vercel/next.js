@@ -7,7 +7,6 @@ import type { ProxyMatcher } from './analysis/get-page-static-info'
 import type { Rewrite } from '../lib/load-custom-routes'
 import path from 'node:path'
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
-import { checkIsAppPPREnabled } from '../server/lib/experimental/ppr'
 import {
   getNextConfigEnv,
   getNextPublicEnvironmentVariables,
@@ -122,7 +121,6 @@ export function getDefineEnv({
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
 
-  const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
   const isCacheComponentsEnabled = !!config.cacheComponents
   const isUseCacheEnabled = !!config.experimental.useCache
 
@@ -171,9 +169,15 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
-    'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME':
-      config.experimental.turbopackSharedRuntime !== false,
-    'process.env.__NEXT_PPR': isPPREnabled,
+    'process.env.__NEXT_PARALLEL_ROUTE_METADATA': Boolean(
+      config.experimental.parallelRouteMetadata
+    ),
+    'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME': Boolean(
+      config.experimental.turbopackSharedRuntime
+    ),
+    'process.env.__NEXT_TURBOPACK_CHUNK_UPDATE_LISTENERS_GLOBAL': `${
+      config.turbopack?.chunkLoadingGlobal ?? 'TURBOPACK'
+    }_CHUNK_UPDATE_LISTENERS`,
     'process.env.__NEXT_CACHE_COMPONENTS': isCacheComponentsEnabled,
     'process.env.__NEXT_EXPERIMENTAL_CACHED_NAVIGATIONS': Boolean(
       config.experimental.cachedNavigations
@@ -251,6 +255,9 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_DYNAMIC_ON_HOVER': Boolean(
       config.experimental.dynamicOnHover
+    ),
+    'process.env.__NEXT_EXPERIMENTAL_REACT_BROWSER_BAILOUT': Boolean(
+      config.experimental.reactBrowserBailout
     ),
     'process.env.__NEXT_USE_OFFLINE': Boolean(config.experimental.useOffline),
     'process.env.__NEXT_PREFETCH_INLINING': Boolean(
@@ -362,6 +369,10 @@ export function getDefineEnv({
       (config.logging && config.logging.browserToTerminal) || false
     ),
     'process.env.__NEXT_MCP_SERVER': !!config.experimental.mcpServer,
+    'process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR':
+      dev &&
+      (config.experimental.exposeRuntimeErrorsToHMR ||
+        Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)),
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's
@@ -386,6 +397,8 @@ export function getDefineEnv({
       config.experimental.gestureTransition ?? false,
     'process.env.__NEXT_OPTIMISTIC_ROUTING':
       config.experimental.optimisticRouting ?? false,
+    'process.env.__NEXT_CONCURRENT_ROUTER_QUEUE':
+      config.experimental.concurrentRouterQueue ?? false,
     'process.env.__NEXT_INSTRUMENTATION_CLIENT_ROUTER_TRANSITION_EVENTS':
       config.experimental.instrumentationClientRouterTransitionEvents ?? false,
     'process.env.__NEXT_VARY_PARAMS': config.experimental.varyParams ?? false,

@@ -48,7 +48,7 @@ import {
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { getParamValueFromCacheKey } from '../route-params'
 import type { Params } from '../../server/request/params'
-import { isDeferredRsc } from './router-reducer/ppr-navigations'
+import { isDeferredRsc } from './render-tree'
 
 const enum ScrollTargetState {
   NoClientRects,

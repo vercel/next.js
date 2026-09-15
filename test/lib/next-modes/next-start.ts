@@ -130,7 +130,9 @@ export class NextStartInstance extends NextInstance {
         try {
           this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
           this.handleStdio(this.childProcess)
-          this.childProcess.on('exit', (code, signal) => {
+          // Unlike `exit`, `close` fires after the stdio streams have closed.
+          // Wait for it so trailing build output is not lost before starting.
+          this.childProcess.on('close', (code, signal) => {
             this.childProcess = undefined
             if (code || signal)
               reject(
@@ -266,24 +268,6 @@ export class NextStartInstance extends NextInstance {
     return buildArgs
   }
 
-  private getSpawnOpts(
-    env?: Record<string, string>
-  ): import('child_process').SpawnOptions {
-    return {
-      cwd: this.testDir,
-      stdio: ['ignore', 'pipe', 'pipe'],
-      shell: false,
-      env: {
-        ...process.env,
-        ...this.env,
-        ...env,
-        NODE_ENV: this.env.NODE_ENV || ('' as any),
-        PORT: this.forcedPort ?? '0',
-        __NEXT_TEST_MODE: 'e2e',
-      },
-    }
-  }
-
   public async build(
     options: { env?: Record<string, string>; args?: string[] } = {}
   ) {
@@ -305,7 +289,9 @@ export class NextStartInstance extends NextInstance {
       this.childProcess = spawn(buildArgs[0], buildArgs.slice(1), spawnOpts)
       this.handleStdio(this.childProcess)
 
-      this.childProcess.on('exit', (code, signal) => {
+      // Unlike `exit`, `close` fires after the stdio streams have closed. Wait
+      // for it before snapshotting cliOutput so trailing diagnostics are not lost.
+      this.childProcess.on('close', (code, signal) => {
         this.childProcess = undefined
         resolve({
           exitCode: signal || code,

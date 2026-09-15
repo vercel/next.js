@@ -53,9 +53,8 @@ export function normalizeAppPath(route: string) {
 
 /**
  * Comparator for sorting app paths so that parallel slot paths (containing
- * `/@`) come before the children/root page path. This ensures the last item
- * is always the children page, which is what `renderPageComponent` reads via
- * `appPaths[appPaths.length - 1]`.
+ * `/@`) come before the children/root page path. This keeps the direct
+ * children/root page last so it can be selected as the canonical entry.
  *
  * Without this, route group prefixes like `(group)` (char code 0x28) sort
  * before `@` (0x40), causing the children page to sort first instead of last
@@ -67,6 +66,40 @@ export function compareAppPaths(a: string, b: string): number {
   if (aHasSlot && !bHasSlot) return -1
   if (!aHasSlot && bHasSlot) return 1
   return a.localeCompare(b)
+}
+
+function normalizeAppPageEntryPathname(appPath: string): string {
+  // Webpack app entries preserve escaped underscore segments as `%5F`, while
+  // normalized request pathnames expose the decoded `_` segment.
+  return normalizeAppPath(appPath).replace(/%5F/g, '_')
+}
+
+/**
+ * Selects the app path that owns the compiled entry for a normalized route.
+ * Catch-all normalization can add app paths from other routes, so only direct
+ * paths are candidates. Among those, compareAppPaths deterministically prefers
+ * the children/root page, or a stable slot when the route only has slots.
+ */
+export function selectAppPageEntry(
+  pathname: string,
+  appPaths: readonly string[],
+  normalizePathname: (appPath: string) => string = normalizeAppPageEntryPathname
+): string {
+  let entry: string | undefined
+
+  for (const appPath of appPaths) {
+    if (normalizePathname(appPath) !== pathname) continue
+
+    if (entry === undefined || compareAppPaths(entry, appPath) < 0) {
+      entry = appPath
+    }
+  }
+
+  if (entry === undefined) {
+    throw new Error(`Invariant: no direct app page entry found for ${pathname}`)
+  }
+
+  return entry
 }
 
 /**

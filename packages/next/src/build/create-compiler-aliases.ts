@@ -64,6 +64,8 @@ export function createWebpackAliases({
   const isInstantNavigationTestingEnabled =
     config.cacheComponents === true &&
     (dev || config.experimental.exposeTestingApiInProductionBuild === true)
+  const isConcurrentRouterQueueEnabled =
+    config.experimental.concurrentRouterQueue === true
 
   // tell webpack where to look for _app and _document
   // using aliases to allow falling back to the default
@@ -197,6 +199,24 @@ export function createWebpackAliases({
                   'client/components/segment-cache/navigation-testing-lock.js'
                 ) + '$']:
                   'next/dist/client/components/segment-cache/navigation-testing-lock.disabled',
+              }
+            : {}),
+
+          // When `experimental.concurrentRouterQueue` is enabled, resolve the
+          // router's forked entry-point modules (the navigator interface and
+          // the callServer action door) to the concurrent implementations.
+          // Neither the interface module nor the sequential implementation is
+          // bundled at all. Same resolved-path matching as the swaps above.
+          ...(isConcurrentRouterQueueEnabled
+            ? {
+                [path.join(
+                  NEXT_PROJECT_ROOT_DIST,
+                  'client/components/navigator.js'
+                ) + '$']: 'next/dist/client/components/concurrent-router-queue',
+                [path.join(
+                  NEXT_PROJECT_ROOT_DIST,
+                  'client/app-call-server.js'
+                ) + '$']: 'next/dist/client/concurrent-call-server',
               }
             : {}),
         }

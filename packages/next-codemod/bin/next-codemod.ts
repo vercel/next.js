@@ -70,6 +70,11 @@ program
     'Skip every interactive prompt and accept its default. Also auto-enabled when stdin is not a TTY (e.g. running under an agent or in CI).',
     false
   )
+  .option(
+    '--skip-adoption',
+    'Skip optional feature-adoption codemods while applying version migrations.',
+    false
+  )
   .action(async (revision, options) => {
     try {
       await runUpgrade(revision, options)

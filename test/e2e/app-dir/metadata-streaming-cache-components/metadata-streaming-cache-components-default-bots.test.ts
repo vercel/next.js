@@ -65,7 +65,7 @@ function expectOptionalCatchallParams(html: string) {
       const abortController = new AbortController()
       let body:
         | (AsyncIterable<Uint8Array> & {
-            destroy: () => void
+            cancel: () => void
           })
         | undefined
 
@@ -84,7 +84,7 @@ function expectOptionalCatchallParams(html: string) {
         expect(res.body).not.toBeNull()
 
         body = res.body! as unknown as AsyncIterable<Uint8Array> & {
-          destroy: () => void
+          cancel: () => void
         }
         let initialHtml = ''
 
@@ -100,7 +100,7 @@ function expectOptionalCatchallParams(html: string) {
         expect(initialHtml).not.toContain('dynamic-content')
       } finally {
         abortController.abort()
-        body?.destroy()
+        body?.cancel()
       }
     })
 

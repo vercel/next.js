@@ -39,11 +39,11 @@ export default function Page() {
 
 Opts the segment into [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching) without enabling the global [`partialPrefetching`](/docs/app/api-reference/config/next-config-js/partialPrefetching) flag. A `<Link>` pointing at a segment with `prefetch = 'partial'` loads the per-route [App Shell](/docs/app/glossary#app-shell) instead of the legacy full prefetch. Set this on the destination, not the link.
 
-For links that opt into a wider prefetch with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), Next.js may also prefetch the segment at runtime. The server renders a fresh response that resolves per-link runtime data (`params`, `searchParams`, and the full URL). On pages where all the content is statically renderable, Next.js serves prefetches from the static cache. If a page accesses non-static data, it's prefetched at runtime.
+For links that opt into a wider prefetch with [`<Link prefetch={true}>`](/docs/app/api-reference/components/link#prefetch), Next.js uses per-link prefetching. The server renders a fresh response that resolves URL data (`params`, `searchParams`, and the full URL). On pages where all the content is statically renderable, Next.js serves prefetches from the static cache. If a page accesses non-static data, it's prefetched at runtime.
 
 Use this for incremental adoption when you can't enable `partialPrefetching` for the entire app at once. Once every route in scope has `prefetch = 'partial'`, enable the global flag and remove the per-route exports.
 
-> **Good to know**: When Next.js runtime-prefetches a segment, all downstream segments are included in the same runtime prefetch request. Segments deeper in the tree that are configured with `'force-disabled'` will still be prefetched as part of the runtime response.
+> **Good to know**: When Next.js performs a per-link prefetch for a segment, all downstream segments are included in the same request. Segments deeper in the tree that are configured with `'force-disabled'` will still be prefetched as part of the response.
 
 ```tsx filename="page.tsx"
 export const prefetch = 'partial'
@@ -61,7 +61,7 @@ A prefetch starts with a `<Link>` that expresses intent (should this destination
 
 A destination can't know which links target it, so the segment config caps what any `<Link prefetch={true}>` pulls:
 
-- [`'partial'`](#partial): App Shell for default links; a `<Link prefetch={true}>` additionally resolves per-link runtime data (`params`, `searchParams`, the full URL).
+- [`'partial'`](#partial): App Shell for default links; a `<Link prefetch={true}>` additionally resolves URL data (`params`, `searchParams`, and the full URL) and the cached content behind it.
 - [`'force-disabled'`](#force-disabled): skip segment data entirely.
 
 `<Link prefetch={false}>` skips prefetching at the link level regardless of how the destination is configured.

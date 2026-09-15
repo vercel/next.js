@@ -6,7 +6,7 @@ use std::{
     sync::atomic::{AtomicU32, AtomicU64, Ordering},
 };
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, bail};
 use byteorder::{BE, WriteBytesExt};
 use either::Either;
 use fs_err::File;
@@ -15,11 +15,11 @@ use smallvec::SmallVec;
 use thread_local::ThreadLocal;
 
 use crate::{
-    FamilyConfig, ValueBuffer,
+    FamilyConfig, FamilyKind, ValueBuffer,
     collector::Collector,
     collector_entry::CollectorEntry,
-    compression::{checksum_block, compress_into_buffer},
-    constants::{MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
+    compression::{Compressor, checksum_block},
+    constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, THREAD_LOCAL_SIZE_SHIFT},
     db::WriteOperationGuard,
     key::StoreKey,
     meta_file::MetaEntryFlags,
@@ -79,7 +79,7 @@ pub struct WriteBatch<'db, K: StoreKey + Send, S: ParallelScheduler, const FAMIL
     parallel_scheduler: S,
     /// The database path
     db_path: PathBuf,
-    /// Per-family configuration (kind: SingleValue/MultiValue).
+    /// Per-family storage configuration.
     #[cfg_attr(not(feature = "verify_sst_content"), allow(dead_code))]
     family_configs: [FamilyConfig; FAMILIES],
     /// The current sequence number counter. Increased for every new SST file or blob file.
@@ -238,18 +238,55 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         if value.len() <= MAX_MEDIUM_VALUE_SIZE {
             collector.put(key, value);
         } else {
-            let blob = self.create_blob(&value)?;
+            let blob = self.create_blob(family, &value)?;
             collector.put_blob(key, blob.seq);
             state.new_blob_files.push(blob);
         }
         Ok(())
     }
 
-    /// Puts a delete operation into the write batch.
+    /// Puts a delete operation into the write batch. This deletes *all* values for `key`.
+    ///
+    /// Combining this with a [`WriteBatch::put`] of the same key in the same batch is **not
+    /// supported**: which one wins is undefined, and callers are expected to resolve the intent
+    /// themselves before writing.
     pub fn delete(&self, family: u32, key: K) -> Result<()> {
         let state = self.thread_local_state();
         let collector = self.thread_local_collector_mut(state, family)?;
         collector.delete(key);
+        Ok(())
+    }
+
+    /// Deletes a single key-value pair, leaving any other values for `key` intact.
+    ///
+    /// Only valid for [`FamilyKind::MultiValue`] families: in a `SingleValue` family a key has one
+    /// value and [`WriteBatch::delete`] already removes it exactly.
+    ///
+    /// Deleting a pair that is written in the same batch — by this or any other operation on the
+    /// key — is **not supported**, for the reason given on [`WriteBatch::delete`]: which one wins
+    /// is undefined, and it is the caller's job to resolve that before writing.
+    ///
+    /// Only values of at most [`MAX_INLINE_VALUE_SIZE`] bytes can be deleted this way.  This is a
+    /// simplifying limitation that could be relaxed if needed. Of course in general the storage
+    /// overhead of deleting large values by value makes it apriori inefficient.
+    pub fn delete_value(&self, family: u32, key: K, value: ValueBuffer<'_>) -> Result<()> {
+        let family_config = &self.family_configs[usize_from_u32(family)];
+        if family_config.kind != FamilyKind::MultiValue {
+            bail!(
+                "delete_value is only valid for MultiValue families, but family {} is SingleValue",
+                family_config.name
+            );
+        }
+        if value.len() > MAX_INLINE_VALUE_SIZE {
+            bail!(
+                "delete_value only supports values of at most {MAX_INLINE_VALUE_SIZE} bytes, got \
+                 {} bytes",
+                value.len()
+            );
+        }
+        let state = self.thread_local_state();
+        let collector = self.thread_local_collector_mut(state, family)?;
+        collector.delete_value(key, &value);
         Ok(())
     }
 
@@ -281,14 +318,13 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             })?;
 
         // Now we flush the global collector(s).
-        let mut collector_state = self.collectors[usize_from_u32(family)].lock();
+        let family_usize = usize_from_u32(family);
+        let mut collector_state = self.collectors[family_usize].lock();
+        let family_config = self.family_configs[family_usize];
         match &mut *collector_state {
             GlobalCollectorState::Unsharded(collector) => {
                 if !collector.is_empty() {
-                    let sst = self.create_sst_file(
-                        family,
-                        collector.sorted(self.family_configs[usize_from_u32(family)].kind),
-                    )?;
+                    let sst = self.create_sst_file(family, collector.sorted(family_config.kind))?;
                     collector.clear();
                     self.new_sst_files.lock().push(sst);
                 }
@@ -303,10 +339,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 self.parallel_scheduler
                     .try_parallel_for_each_mut(&mut shards, |collector| {
                         if !collector.is_empty() {
-                            let sst = self.create_sst_file(
-                                family,
-                                collector.sorted(self.family_configs[usize_from_u32(family)].kind),
-                            )?;
+                            let sst =
+                                self.create_sst_file(family, collector.sorted(family_config.kind))?;
                             collector.clear();
                             self.new_sst_files.lock().push(sst);
                             collector.drop_contents();
@@ -420,7 +454,10 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                 |(family, sst_files)| {
                     let family = family as u32;
                     let mut entries = 0;
-                    let mut builder = MetaFileBuilder::new(family);
+                    let mut builder = MetaFileBuilder::new(
+                        family,
+                        self.family_configs[usize_from_u32(family)].compression,
+                    );
                     for (seq, sst) in sst_files {
                         entries += sst.entries;
                         builder.add(seq, sst);
@@ -447,10 +484,12 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
 
     /// Creates a new blob file with the given value.
     #[tracing::instrument(level = "trace", skip(self, value), fields(value_len = value.len()))]
-    fn create_blob(&self, value: &[u8]) -> Result<NewFile> {
+    fn create_blob(&self, family: u32, value: &[u8]) -> Result<NewFile> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut compressed = Vec::new();
-        compress_into_buffer(value, &mut compressed)
+        let compression = self.family_configs[usize_from_u32(family)].compression;
+        Compressor::new(compression)?
+            .compress_into_buffer(value, &mut compressed)
             .context("Compression of value for blob file failed")?;
 
         let mut buffer = Vec::with_capacity(8 + compressed.len());
@@ -479,7 +518,14 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
         let path = self.db_path.join(format!("{seq:08}.sst"));
         let (meta, file) = self
             .parallel_scheduler
-            .block_in_place(|| write_static_stored_file(entries, &path, MetaEntryFlags::FRESH))
+            .block_in_place(|| {
+                write_static_stored_file(
+                    entries,
+                    &path,
+                    MetaEntryFlags::FRESH,
+                    self.family_configs[usize_from_u32(family)].compression,
+                )
+            })
             .with_context(|| format!("Unable to write SST file {seq:08}.sst"))?;
 
         #[cfg(feature = "verify_sst_content")]
@@ -487,6 +533,7 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
             use core::panic;
 
             use crate::{
+                AccessMode,
                 collector_entry::CollectorEntryValue,
                 key::hash_key,
                 lookup_entry::LookupValue,
@@ -503,6 +550,8 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                     sequence_number: seq,
                     block_count: meta.block_count,
                 },
+                self.family_configs[usize_from_u32(family)].compression,
+                AccessMode::Mmap,
             )?;
             let cache2 = BlockCache::with(
                 10,
@@ -547,10 +596,22 @@ impl<'db, K: StoreKey + Send + Sync, S: ParallelScheduler, const FAMILIES: usize
                                     "we wrote a blob but did not read it"
                                 );
                             }
-                            CollectorEntryValue::Deleted => assert!(
-                                values.first() == Some(&LookupValue::Deleted),
-                                "we wrote a deleted tombstone but it was not first in results"
+                            // Key tombstones sort last within a key group, so a same-batch
+                            // `put(K, v); delete(K)` reads back as [v, KeyDeleted].
+                            CollectorEntryValue::KeyDeleted => assert!(
+                                values.last() == Some(&LookupValue::KeyDeleted),
+                                "we wrote a key tombstone but it was not last in results"
                             ),
+                            CollectorEntryValue::KeyValueDeleted { value, len } => {
+                                let expected = &value[..*len as usize];
+                                assert!(
+                                    values.iter().any(|lv| matches!(
+                                        lv,
+                                        LookupValue::KeyValueDeleted { value } if &**value == expected
+                                    )),
+                                    "we wrote a key-value tombstone but did not read it back"
+                                )
+                            }
                             v => {
                                 assert!(
                                     values.into_iter().any(|lv| {
@@ -584,7 +645,7 @@ const fn usize_from_u32(value: u32) -> usize {
     // This should always be true, as we assume at least a 32-bit width architecture for Turbopack.
     // Since this is a const expression, we expect it to be compiled away.
     const {
-        assert!(u32::BITS < usize::BITS);
+        assert!(u32::BITS <= usize::BITS);
     };
     value as usize
 }

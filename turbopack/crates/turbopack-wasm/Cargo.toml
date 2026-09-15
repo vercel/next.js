@@ -23,6 +23,10 @@ turbo-tasks-fs = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 turbopack-core = { workspace = true }
 turbopack-ecmascript = { workspace = true }
-wasmparser = "0.235.0"
-wat = "1.0.69"
+# `wat` and `wasmparser` version in lockstep: `wat` pulls `wast`, which depends on a
+# `wasm-encoder` that in turn pins a `wasmparser`. Keeping both on the 239 family lets that
+# `wasmparser` be the same one wasmtime already links, so only one copy is built. Bumping either
+# without the other, or letting `wat` float to a newer minor, reintroduces the duplicate.
+wasmparser = "0.239.0"
+wat = "=1.239.0"
 

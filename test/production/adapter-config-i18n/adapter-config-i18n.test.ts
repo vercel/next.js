@@ -6,7 +6,11 @@ describe('adapter config with i18n routes', () => {
     files: __dirname,
   })
 
-  it('does not localize dynamic Pages API routes', async () => {
+  // Dynamic Pages API routes are localized like any other dynamic route. The
+  // Vercel adapter's i18n rules prefix the locale onto `/api/...` too, so the
+  // matcher has to expect it — if the two disagree the matcher is unreachable
+  // and requests fall through to `/{locale}/404`. See vercel/next.js#96935.
+  it('localizes dynamic Pages API routes', async () => {
     const { outputs, routing }: Parameters<NextAdapter['onBuildComplete']>[0] =
       await next.readJSON('build-complete.json')
 
@@ -22,9 +26,9 @@ describe('adapter config with i18n routes', () => {
 
     expect(apiOutput).toBeDefined()
     expect(apiRoute).toBeDefined()
-    expect(apiRoute?.sourceRegex).not.toContain('nextLocale')
+    expect(apiRoute?.sourceRegex).toContain('nextLocale')
     expect(apiRoute?.destination).toBe(
-      '/api/proxy/[[...slug]]?nxtPslug=$nxtPslug'
+      '/$nextLocale/api/proxy/[[...slug]]?nxtPslug=$nxtPslug'
     )
 
     expect(pageRoute).toBeDefined()
