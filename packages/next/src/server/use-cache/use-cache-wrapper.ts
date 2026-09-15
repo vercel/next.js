@@ -28,6 +28,7 @@ import type {
 import {
   getHmrRefreshHash,
   getResumeDataCache,
+  getVaryParamsAccumulator,
   workUnitAsyncStorage,
   getDraftModeProviderForCacheScope,
   getCacheSignal,
@@ -35,6 +36,7 @@ import {
   getServerComponentsHmrCache,
   willConsumerServerCache,
 } from '../app-render/work-unit-async-storage.external'
+import { accumulateVaryParam } from '../app-render/vary-params'
 
 import {
   applyOwnerStack,
@@ -1029,6 +1031,17 @@ function propagateCacheEntryMetadata(
         cacheContext.outerWorkUnitStore satisfies never
     }
   }
+
+  if (metadata.readRootParamNames) {
+    const varyParamsAccumulator = getVaryParamsAccumulator(
+      cacheContext.outerWorkUnitStore
+    )
+    if (varyParamsAccumulator) {
+      for (const paramName of metadata.readRootParamNames) {
+        accumulateVaryParam(varyParamsAccumulator.rootParams, paramName)
+      }
+    }
+  }
 }
 
 /**
@@ -1041,10 +1054,12 @@ function propagateCacheEntryMetadata(
  * `propagateCacheEntryMetadata` is called unconditionally (after the omission
  * checks have already filtered out short-lived entries).
  *
- * Note: Root param names are only propagated when the outer context is a
- * `cache` store (i.e. an enclosing `"use cache"` function), which is never
- * deferred. For prerender contexts, root param names are tracked separately
- * via `addKnownRootParamNames` in the resume data cache read path.
+ * Note: Root param names are only propagated to `readRootParamNames` when the
+ * outer context is a `cache` store (i.e. an enclosing `"use cache"` function),
+ * which is never deferred. For prerender contexts, root param names are
+ * tracked separately via `addKnownRootParamNames` in the resume data cache
+ * read path. They're also recorded as root vary params (if tracked), so that
+ * the client doesn't reuse the segment across different values.
  */
 function maybePropagateCacheEntryMetadata(
   cacheContext: CacheContext,
