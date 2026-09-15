@@ -20,7 +20,8 @@ use tracing::info_span;
 use tracing::trace_span;
 use turbo_tasks::{
     CellId, DynTaskInputs, FxIndexMap, RawVc, SharedReference, TaskExecutionReason, TaskId,
-    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence, backend::CachedTaskTypeArc,
+    TaskPriority, TurboTasks, TurboTasksCallApi, ValueTypePersistence,
+    backend::{CachedTaskTypeArc, TaskExecutionAbortReason},
     macro_helpers::NativeFunction,
 };
 
@@ -33,7 +34,10 @@ use crate::{
         storage::{SpecificTaskDataCategory, StorageWriteGuard, TrackOutcome},
         storage_schema::{TaskStorage, TaskStorageAccessors},
     },
-    data::{ActivenessState, CollectibleRef, Dirtyness, InProgressState, TransientTask},
+    data::{
+        AbortRequestOutcome, ActivenessState, CollectibleRef, Dirtyness, InProgressState,
+        TransientTask,
+    },
 };
 
 pub trait Operation: Encode + Decode<()> + Default + TryFrom<AnyOperation, Error = ()> {
@@ -144,6 +148,13 @@ pub trait ExecuteContext<'e>: Sized {
     ///
     /// Only effective in a gc context see [`Self::collects_gc_candidates`].
     fn note_maybe_collectible(&mut self, task: &impl TaskGuard);
+    fn track_abort_request(
+        &self,
+        task_id: TaskId,
+        native_fn: Option<&'static NativeFunction>,
+        reason: TaskExecutionAbortReason,
+        outcome: AbortRequestOutcome,
+    );
     /// Whether [`Self::note_maybe_collectible`] does anything, i.e. this is a GC context.
     ///
     /// Lets a caller skip work that only exists to feed the collector — in particular opening a
@@ -1199,10 +1210,86 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
     }
 
     fn note_maybe_collectible(&mut self, task: &impl TaskGuard) {
-        if let ExecutePhase::Gc(collector) = self.phase
-            && task.is_gc_collectible()
-        {
-            collector(task.id());
+        if let ExecutePhase::Gc(collector) = self.phase {
+            if task.is_gc_collectible() {
+                collector(task.id());
+            } else if task.is_gc_collectible_ignoring_in_progress()
+                && let Some(InProgressState::InProgress(in_progress)) = task.get_in_progress()
+            {
+                // This should be rare: activeness normally aborts disconnected work before GC
+                // reaches it. Don't enqueue collection yet; abort completion is asynchronous, so
+                // the collector's authoritative recheck would still reject the in-progress task.
+                // If the final root scan runs first, `gc_is_root` temporarily classifies the task
+                // as a root and its debug validation accepts the in-progress state as the transient
+                // pin. Once the abort settles it as dirty, a later pass drops that resident root
+                // entry and collects the task.
+                let native_fn = in_progress.native_fn;
+                let outcome = in_progress.request_abort(TaskExecutionAbortReason::Gc);
+                self.track_abort_request(
+                    task.id(),
+                    native_fn,
+                    TaskExecutionAbortReason::Gc,
+                    outcome,
+                );
+            }
+        }
+    }
+
+    fn track_abort_request(
+        &self,
+        task_id: TaskId,
+        native_fn: Option<&'static NativeFunction>,
+        reason: TaskExecutionAbortReason,
+        outcome: AbortRequestOutcome,
+    ) {
+        let Some(native_fn) = native_fn else {
+            return;
+        };
+        if !matches!(outcome, AbortRequestOutcome::Duplicate) {
+            self.backend.task_statistics.map(|stats| {
+                stats.increment_abort_requested(native_fn, reason);
+                match outcome {
+                    AbortRequestOutcome::Accepted | AbortRequestOutcome::Duplicate => {}
+                    AbortRequestOutcome::Skipped => {
+                        stats.increment_abort_skipped(native_fn, reason)
+                    }
+                    AbortRequestOutcome::RacedCompletion => {
+                        stats.increment_abort_raced_completion(native_fn, reason)
+                    }
+                }
+            });
+            tracing::event!(
+                name: "turbo_tasks::abort_requested",
+                target: "turbo_tasks::abort",
+                tracing::Level::TRACE,
+                event = "requested",
+                task_id = %task_id,
+                function = native_fn.name(),
+                trigger = reason.as_str(),
+                cancelable = native_fn.is_cancelable,
+            );
+        }
+        match outcome {
+            AbortRequestOutcome::Skipped => tracing::event!(
+                name: "turbo_tasks::abort_skipped",
+                target: "turbo_tasks::abort",
+                tracing::Level::TRACE,
+                event = "skipped",
+                task_id = %task_id,
+                function = native_fn.name(),
+                trigger = reason.as_str(),
+                reason = "non_cancelable",
+            ),
+            AbortRequestOutcome::RacedCompletion => tracing::event!(
+                name: "turbo_tasks::abort_raced_completion",
+                target: "turbo_tasks::abort",
+                tracing::Level::TRACE,
+                event = "raced_completion",
+                task_id = %task_id,
+                function = native_fn.name(),
+                trigger = reason.as_str(),
+            ),
+            AbortRequestOutcome::Accepted | AbortRequestOutcome::Duplicate => {}
         }
     }
 
@@ -1414,6 +1501,11 @@ pub trait TaskGuard: Debug + TaskStorageAccessors {
         // collected.
         self.check_access(SpecificTaskDataCategory::Meta);
         !self.id().is_transient() && self.typed().gc_maybe_collectible()
+    }
+
+    fn is_gc_collectible_ignoring_in_progress(&self) -> bool {
+        self.check_access(SpecificTaskDataCategory::Meta);
+        !self.id().is_transient() && self.typed().gc_maybe_collectible_ignoring_in_progress()
     }
 
     fn invalidate_serialization(&mut self);
@@ -1929,7 +2021,7 @@ pub use self::{
     },
     cleanup_old_edges::{OutdatedEdge, capture_all_outgoing_edges},
     connect_children::connect_children,
-    invalidate::make_task_dirty_internal,
+    invalidate::{MakeTaskDirtyOptions, make_task_dirty_internal},
     prepare_new_children::prepare_new_children,
     update_collectible::UpdateCollectibleOperation,
 };

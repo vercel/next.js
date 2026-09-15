@@ -384,7 +384,10 @@ impl WebpackLoadersProcessedAsset {
     }
 }
 
-#[turbo_tasks::function]
+// The Node.js evaluator pool may consume a loader result before this future resolves. Dropping it
+// mid-operation can lose that result and leave subsequent HMR reads stale, so this task opts out of
+// execution abortion.
+#[turbo_tasks::function(non_cancelable)]
 pub(crate) async fn evaluate_webpack_loader(
     webpack_loader_context: WebpackLoaderContext,
 ) -> Result<Vc<Option<RcStr>>> {

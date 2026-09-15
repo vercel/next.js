@@ -868,6 +868,18 @@ impl TaskStorage {
     /// (which opens `TaskDataCategory::All`, and is what actually gates collection) share this
     /// single predicate.
     pub fn gc_maybe_collectible(&self) -> bool {
+        self.gc_maybe_collectible_inner(false)
+    }
+
+    /// Whether this task would be GC-collectible if it were not currently executing.
+    ///
+    /// Used to abort work that became unreachable during a GC pass, after which the ordinary
+    /// collectibility predicate can select it on the next transition/pass.
+    pub fn gc_maybe_collectible_ignoring_in_progress(&self) -> bool {
+        self.gc_maybe_collectible_inner(true)
+    }
+
+    fn gc_maybe_collectible_inner(&self, ignore_in_progress: bool) -> bool {
         // None of the predicates below are correct without this.
         self.flags.is_restored(TaskDataCategory::Meta)
             // Already collected this session (soft-deleted, awaiting tombstone + hard-delete):
@@ -877,7 +889,7 @@ impl TaskStorage {
             && self.gc_parent_count() == 0
             && self.gc_transient_ref_count() == 0
             && self.get_activeness().is_none()
-            && self.get_in_progress().is_none()
+            && (ignore_in_progress || self.get_in_progress().is_none())
             // It is rare for upper/followers to be present when the ref counts are 0 but it can happen transiently during a concurrent GC pass as uppers are moved around during the cascade.
             && self.upper().is_empty()
             && self.followers().is_none_or(|f| f.is_empty())
@@ -1075,10 +1087,33 @@ impl<K: IsTransient + Hash + Eq, V: IsTransient, const I: usize> DropPartial for
 mod tests {
     use std::mem::size_of;
 
-    use turbo_tasks::{CellId, TaskId};
+    use turbo_tasks::{CellId, TaskExecutionReason, TaskId, event::EventDescription};
 
     use super::*;
-    use crate::data::{AggregationNumber, CellRef, Dirtyness, OutputValue};
+    use crate::data::{AggregationNumber, CellRef, Dirtyness, InProgressState, OutputValue};
+
+    #[test]
+    fn gc_collectibility_can_ignore_only_in_progress_state() {
+        let mut storage = TaskStorage::new();
+        storage.flags.set_meta_restored(true);
+        assert!(storage.gc_maybe_collectible());
+
+        storage.set_in_progress(InProgressState::new_scheduled(
+            TaskExecutionReason::Root,
+            EventDescription::new(|| || "test task".to_string()),
+        ));
+        assert!(!storage.gc_maybe_collectible());
+        assert!(storage.gc_maybe_collectible_ignoring_in_progress());
+        assert!(storage.gc_is_root());
+        storage.gc_debug_assert_root_held_by_transient_pin();
+
+        storage.take_in_progress();
+        assert!(storage.gc_maybe_collectible());
+        assert!(!storage.gc_is_root());
+
+        storage.set_parent_count(1);
+        assert!(!storage.gc_maybe_collectible_ignoring_in_progress());
+    }
 
     #[test]
     fn test_accessors() {
