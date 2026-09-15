@@ -28,6 +28,9 @@ function getDesiredCompilerOptions(
   const moduleKindPreserve = 'preserve'
   const moduleKindNodeNext = 'nodenext'
   const moduleKindNode16 = 'node16'
+  // `node18` and `node20` were introduced in TypeScript 5.8 and 5.9.
+  const moduleKindNode18 = 'node18'
+  const moduleKindNode20 = 'node20'
   const moduleKindCommonJS = 'commonjs'
   const moduleKindAMD = 'amd'
 
@@ -41,8 +44,21 @@ function getDesiredCompilerOptions(
     typeof userTsConfig?.compilerOptions?.module === 'string'
       ? userTsConfig.compilerOptions.module.toLowerCase()
       : undefined
+  // `node16`, `node18`, `node20`, and `nodenext` require a matching
+  // `node16`/`nodenext` moduleResolution. `bundler` and `node` (node10)
+  // are invalid with these module kinds.
+  // Only treat node18/node20 as node-family modules when the TS version
+  // supports them (same gating as module parsedValues).
+  const isNodeModule =
+    configuredModule === moduleKindNode16 ||
+    configuredModule === moduleKindNodeNext ||
+    (configuredModule === moduleKindNode18 &&
+      semver.gte(typescriptVersion, '5.8.0')) ||
+    (configuredModule === moduleKindNode20 &&
+      semver.gte(typescriptVersion, '5.9.0'))
   const preferBundlerResolution =
     semver.gte(typescriptVersion, '5.0.0') &&
+    !isNodeModule &&
     configuredModule !== moduleKindCommonJS &&
     configuredModule !== moduleKindAMD
 
@@ -78,6 +94,9 @@ function getDesiredCompilerOptions(
         moduleKindAMD,
         moduleKindNodeNext,
         moduleKindNode16,
+        // Only newer TypeScript versions have these module kinds.
+        semver.gte(typescriptVersion, '5.8.0') && moduleKindNode18,
+        semver.gte(typescriptVersion, '5.9.0') && moduleKindNode20,
       ],
       value: 'esnext',
       reason: 'for dynamic import() support',
@@ -98,29 +117,44 @@ function getDesiredCompilerOptions(
             reason: 'requirement for SWC / babel',
           },
           moduleResolution: {
-            parsedValue: preferBundlerResolution
-              ? moduleResolutionKindBundler
-              : moduleResolutionKindNode,
+            // For node-family modules (node16/node18/node20/nodenext), TypeScript
+            // requires moduleResolution to be node16 or nodenext. bundler and node
+            // (node10) are invalid with these module kinds.
+            parsedValue: isNodeModule
+              ? configuredModule === moduleKindNodeNext
+                ? moduleResolutionKindNodeNext
+                : moduleResolutionKindNode16
+              : preferBundlerResolution
+                ? moduleResolutionKindBundler
+                : moduleResolutionKindNode,
             // All of these values work:
-            parsedValues: preferBundlerResolution
-              ? [
-                  moduleResolutionKindNode16,
-                  moduleResolutionKindNodeNext,
-                  moduleResolutionKindBundler,
-                ]
-              : [
-                  moduleResolutionKindNode,
-                  // only older TypeScript versions have this field
-                  moduleResolutionKindNode12,
-                  moduleResolutionKindNode16,
-                  moduleResolutionKindNodeNext,
-                ],
-            value: preferBundlerResolution
-              ? moduleResolutionKindBundler
-              : moduleResolutionKindNode,
-            reason: preferBundlerResolution
-              ? 'to match modern bundler resolution'
-              : 'to match webpack resolution',
+            parsedValues: isNodeModule
+              ? [moduleResolutionKindNode16, moduleResolutionKindNodeNext]
+              : preferBundlerResolution
+                ? [
+                    moduleResolutionKindNode16,
+                    moduleResolutionKindNodeNext,
+                    moduleResolutionKindBundler,
+                  ]
+                : [
+                    moduleResolutionKindNode,
+                    // only older TypeScript versions have this field
+                    moduleResolutionKindNode12,
+                    moduleResolutionKindNode16,
+                    moduleResolutionKindNodeNext,
+                  ],
+            value: isNodeModule
+              ? configuredModule === moduleKindNodeNext
+                ? moduleResolutionKindNodeNext
+                : moduleResolutionKindNode16
+              : preferBundlerResolution
+                ? moduleResolutionKindBundler
+                : moduleResolutionKindNode,
+            reason: isNodeModule
+              ? 'to match the configured module kind'
+              : preferBundlerResolution
+                ? 'to match modern bundler resolution'
+                : 'to match webpack resolution',
           },
           resolveJsonModule: {
             value: true,
