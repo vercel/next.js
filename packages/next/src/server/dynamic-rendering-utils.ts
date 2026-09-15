@@ -1,5 +1,6 @@
 import { InvariantError } from '../shared/lib/invariant-error'
 import { createPromiseWithResolvers } from '../shared/lib/promise-with-resolvers'
+import { RequireStaticLevel } from './app-render/segment-config/require-static'
 import {
   RenderStage,
   type StagedRenderingController,
@@ -385,6 +386,9 @@ function trackRuntimeDataAccessed(
         return
       }
 
+      const requireStaticLevel =
+        workUnitStore.requireStaticLevel ?? RequireStaticLevel.None
+
       // NOTE: In general, we keep hints in sync with `needsRuntimeRequest`, but they
       // don't have to always match. The client re-uses hints for the entire route,
       // while `needsRuntimeRequest` can vary across individual prerendered param values
@@ -405,13 +409,21 @@ function trackRuntimeDataAccessed(
             | RenderStage.PrefetchStatic
             | null = null
 
-          if (currentStage <= RenderStage.ShellStatic) {
+          if (
+            currentStage <= RenderStage.ShellStatic &&
+            // Only track if we're not forcing the shell to be static.
+            requireStaticLevel < RequireStaticLevel.Shell
+          ) {
             prerenderDataTracking.shouldAttemptStaticShell = false
             logRuntimeDeopt?.(expression, 'shell')
             firstAffectedStage ??= RenderStage.ShellStatic
           }
 
-          if (currentStage <= RenderStage.PrefetchStatic) {
+          if (
+            currentStage <= RenderStage.PrefetchStatic &&
+            // Only track if we're not forcing the prefetch to be static.
+            requireStaticLevel < RequireStaticLevel.Prefetch
+          ) {
             prerenderDataTracking.shouldAttemptStaticPrefetch = false
             logRuntimeDeopt?.(expression, 'prefetch')
             // NOTE: if the shell is affected, don't override it.
@@ -434,17 +446,20 @@ function trackRuntimeDataAccessed(
             // static prefetch would hit) so it does not indicate the need for a runtime
             // request and thus does not affect the static hints.
             //
-            // We still set `runtimeDataAccessed` (while keeping the hints static) so that,
+            // If runtime prefetches are not disallowed by `requireStatic`, then we still
+            // set `runtimeDataAccessed` (while keeping the hints static). This means that
             // if the concrete prerender isn't ready yet and we served the fallback, then
             // the client knows it can use a *runtime* prefetch for speculative links --
             // a runtime prefetch can provide the same content (or more) as the concrete
             // prerender would.
-            markRuntimeDataAccessWhenStageReached(
-              prerenderDataTracking,
-              stagedRendering,
-              // `params` are URL data, so they only affect the prefetch
-              RenderStage.PrefetchStatic
-            )
+            if (requireStaticLevel < RequireStaticLevel.Prefetch) {
+              markRuntimeDataAccessWhenStageReached(
+                prerenderDataTracking,
+                stagedRendering,
+                // `params` are URL data, so they only affect the prefetch
+                RenderStage.PrefetchStatic
+              )
+            }
             break
           }
           // not an upgradeable fallback param access, so we treat it as URL data.
@@ -452,7 +467,10 @@ function trackRuntimeDataAccessed(
         }
         case PrerenderDataKind.UrlData: {
           // Only deopt the prefetch, not the shell, which cannot access URL data anyway.
-          if (currentStage <= RenderStage.PrefetchStatic) {
+          if (
+            currentStage <= RenderStage.PrefetchStatic &&
+            requireStaticLevel < RequireStaticLevel.Prefetch
+          ) {
             prerenderDataTracking.shouldAttemptStaticPrefetch = false
             logRuntimeDeopt?.(expression, 'prefetch')
 
@@ -462,7 +480,6 @@ function trackRuntimeDataAccessed(
               RenderStage.PrefetchStatic
             )
           }
-
           break
         }
       }
