@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import { Menu } from '@base-ui-components/react/menu'
 import {
   getRequestInsightKey,
@@ -19,11 +19,16 @@ import {
   isPageLoadRequest,
 } from './request-list'
 import {
+  getReactTimingGroups,
   getTraceItems,
   getTracePosition,
   getTraceRange,
   type TraceItem,
+  type TraceRange,
+  type ReactTimingGroup,
 } from './trace-viewer'
+import { getOriginalStackFrames } from '../../../shared/stack-frame'
+import { openInEditor } from '../../utils/use-open-in-editor'
 import './request-insights-panel.css'
 
 const TRACE_TICK_COUNT = 5
@@ -278,9 +283,14 @@ function RequestDetails({
   request: RequestInsight
   verbose: boolean
 }) {
-  const traceItems = useMemo(
+  const allTraceItems = useMemo(
     () => getTraceItems(request, verbose),
     [request, verbose]
+  )
+  const traceItems = allTraceItems.filter((item) => !item.reactTiming)
+  const reactGroups = useMemo(
+    () => getReactTimingGroups(allTraceItems),
+    [allTraceItems]
   )
   const overview = useMemo(() => getRequestOverview(request), [request])
   const diagnosis = getDiagnosis(request, traceItems)
@@ -316,8 +326,166 @@ function RequestDetails({
 
       <Trace items={traceItems} request={request} />
 
+      {reactGroups.length > 0 ? (
+        <div className="request-insights-section request-insights-react-timings">
+          <div className="request-insights-section-heading">
+            <div className="request-insights-section-title">
+              React Server Components
+            </div>
+          </div>
+          {reactGroups.map((group, index) => (
+            <ReactRenderPass
+              group={group}
+              index={index}
+              key={`${getRequestInsightKey(request)}:${group.id}`}
+              request={request}
+            />
+          ))}
+        </div>
+      ) : null}
+
       <FetchTable fetches={request.fetches} />
     </div>
+  )
+}
+
+function ReactRenderPass({
+  group,
+  index,
+  request,
+}: {
+  group: ReactTimingGroup
+  index: number
+  request: RequestInsight
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const contentId = useId()
+  const label = `${group.environment || 'React'} · ${index + 1}`
+  const incompleteMessage = group.incompleteReason
+    ? group.incompleteReason === 'budget'
+      ? 'Recording limit reached. Some React intervals are missing.'
+      : 'Some React intervals could not be decoded.'
+    : undefined
+
+  return (
+    <div className="request-insights-react-pass">
+      <button
+        aria-controls={expanded ? contentId : undefined}
+        aria-expanded={expanded}
+        className="request-insights-react-toggle"
+        onClick={() => setExpanded((value) => !value)}
+        type="button"
+      >
+        <span className="request-insights-react-pass-label">
+          <span aria-hidden="true" className="request-insights-react-chevron">
+            ›
+          </span>
+          {label}
+          {incompleteMessage ? (
+            <span
+              className="request-insights-section-note"
+              title={incompleteMessage}
+            >
+              Incomplete
+            </span>
+          ) : null}
+        </span>
+        <span className="request-insights-section-note">
+          {group.components.length} render interval
+          {group.components.length === 1 ? '' : 's'}
+          {group.awaits.length > 0
+            ? ` · ${group.awaits.length} wait${group.awaits.length === 1 ? '' : 's'}`
+            : ''}
+          {' · '}
+          {formatDuration(group.range.durationMs)} window
+        </span>
+      </button>
+      {expanded ? (
+        <div id={contentId}>
+          {incompleteMessage ? (
+            <p className="request-insights-section-note">{incompleteMessage}</p>
+          ) : null}
+          {group.components.length > 0 ? (
+            <Trace
+              items={group.components}
+              request={request}
+              range={group.range}
+              title="Rendering"
+            />
+          ) : null}
+          {group.awaits.length > 0 ? (
+            <Trace
+              items={group.awaits}
+              request={request}
+              range={group.range}
+              title="Waiting"
+            />
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
+function ReactTimingSourceButton({ item }: { item: TraceItem }) {
+  const [opening, setOpening] = useState(false)
+  const [message, setMessage] = useState<string | null>(null)
+  const generationRef = useRef(0)
+  useEffect(
+    () => () => {
+      generationRef.current++
+    },
+    []
+  )
+  const kind = item.reactTiming?.kind === 'await' ? 'await' : 'render'
+
+  async function openLocation() {
+    const source = item.reactTiming?.source
+    if (!source || opening) return
+    const generation = generationRef.current
+    setOpening(true)
+    setMessage(null)
+    try {
+      const [result] = await getOriginalStackFrames([source], 'server', true)
+      if (generation !== generationRef.current) return
+      const frame = result?.originalStackFrame
+      if (
+        result?.error ||
+        result?.ignored ||
+        result?.external ||
+        !frame?.file ||
+        frame.line1 == null ||
+        frame.column1 == null
+      ) {
+        setMessage(
+          `${kind === 'await' ? 'Await' : 'Render'} location unavailable.`
+        )
+        return
+      }
+      await openInEditor(frame)
+    } catch {
+      if (generation === generationRef.current) {
+        setMessage(`Could not open ${kind} location.`)
+      }
+    } finally {
+      if (generation === generationRef.current) setOpening(false)
+    }
+  }
+
+  return (
+    <>
+      <button
+        className="request-insights-react-source"
+        data-react-source-link=""
+        disabled={opening}
+        onClick={() => void openLocation()}
+        title={`Open ${kind} location`}
+        type="button"
+      >
+        {item.label}
+      </button>
+      {message ? <span role="status">{message}</span> : null}
+    </>
   )
 }
 
@@ -341,11 +509,18 @@ function RequestOverview({
 function Trace({
   request,
   items,
+  range: suppliedRange,
+  title = 'Trace',
 }: {
   request: RequestInsight
   items: TraceItem[]
+  range?: TraceRange
+  title?: 'Trace' | 'Rendering' | 'Waiting'
 }) {
-  const range = getTraceRange(request)
+  const itemLabel = title === 'Trace' ? 'span' : 'interval'
+  const range = suppliedRange
+    ? { ...suppliedRange, durationMs: Math.max(suppliedRange.durationMs, 0.1) }
+    : getTraceRange(request)
   const ticks = Array.from({ length: TRACE_TICK_COUNT }, (_, index) => {
     const position = index / (TRACE_TICK_COUNT - 1)
     return {
@@ -357,16 +532,16 @@ function Trace({
   return (
     <div className="request-insights-section">
       <div className="request-insights-section-heading">
-        <div className="request-insights-section-title">Trace</div>
+        <div className="request-insights-section-title">{title}</div>
         <div className="request-insights-section-note">
-          {items.length} span{items.length === 1 ? '' : 's'} ·{' '}
-          {formatDuration(range.durationMs)}
+          {items.length} {itemLabel}
+          {items.length === 1 ? '' : 's'} · {formatDuration(range.durationMs)}
         </div>
       </div>
       <div className="request-insights-trace-viewport">
         <div className="request-insights-trace">
           <div className="request-insights-trace-header">
-            <span>Span</span>
+            <span>{title === 'Trace' ? 'Span' : 'Interval'}</span>
             <span className="request-insights-trace-axis">
               {ticks.map((tick, index) => (
                 <span
@@ -397,8 +572,9 @@ function Trace({
                 <div
                   className="request-insights-span-row"
                   data-kind={item.kind}
+                  data-react-kind={item.reactTiming?.kind}
                   key={item.id}
-                  title={`${item.label} · +${formatDuration(position.offsetMs)} · ${formatDuration(item.durationMs)}`}
+                  title={`${item.fullLabel ?? item.label} · +${formatDuration(position.offsetMs)} · ${formatDuration(item.durationMs)}`}
                 >
                   <span
                     className="request-insights-span-name"
@@ -410,7 +586,11 @@ function Trace({
                         data-kind={item.kind}
                         data-status={item.status}
                       />
-                      <span>{item.label}</span>
+                      {item.reactTiming?.source ? (
+                        <ReactTimingSourceButton item={item} />
+                      ) : (
+                        <span>{item.label}</span>
+                      )}
                     </span>
                   </span>
                   <span className="request-insights-span-track">

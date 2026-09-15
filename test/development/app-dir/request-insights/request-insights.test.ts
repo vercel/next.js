@@ -1,11 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { createServer } from 'http'
 import type { AddressInfo } from 'net'
-import {
-  retry,
-  toggleDevToolsIndicatorPopover,
-  waitForNoRedbox,
-} from 'next-test-utils'
+import { retry, waitForNoRedbox } from 'next-test-utils'
 
 type RequestInsight = {
   requestId: string
@@ -36,6 +32,136 @@ describe('request insights', () => {
     files: __dirname,
   })
 
+  it('expands React timings separately and opens captured source locations', async () => {
+    const editorRequests: URL[] = []
+    let mappingRequests = 0
+    const browser = await next.browser('/', {
+      async beforePageLoad(page) {
+        await page.route('**/__nextjs_launch-editor**', async (route) => {
+          editorRequests.push(new URL(route.request().url()))
+          await route.fulfill({ status: 204 })
+        })
+        page.on('request', (request) => {
+          if (request.url().includes('/__nextjs_original-stack-frames'))
+            mappingRequests++
+        })
+      },
+    })
+    await openRequestInsightsPanel(browser)
+    const group = browser
+      .locator('nextjs-portal .request-insights-react-toggle')
+      .first()
+    const intervals = browser.locator(
+      'nextjs-portal [data-react-kind="component"]'
+    )
+    await retry(async () => {
+      expect(await group.getAttribute('aria-expanded')).toBe('false')
+    })
+    expect(await intervals.count()).toBe(0)
+    const mainRows = await browser
+      .locator('nextjs-portal .request-insights-span-row')
+      .count()
+    await group.click()
+    await retry(async () => {
+      expect(await intervals.count()).toBeGreaterThan(0)
+    })
+    const greeting = browser.locator(
+      'nextjs-portal [data-react-kind="component"]:has-text("render Greeting")'
+    )
+    expect(mappingRequests).toBe(0)
+    await greeting.locator('[data-react-source-link]').click()
+    await retry(async () => {
+      expect(editorRequests).toHaveLength(1)
+    })
+    expect(editorRequests[0].searchParams.get('file')).toMatch(
+      /app\/page\.tsx$/
+    )
+    expect(editorRequests[0].searchParams.get('line1')).toBe('6')
+    expect(
+      Number(editorRequests[0].searchParams.get('column1'))
+    ).toBeGreaterThan(0)
+    await greeting.locator('[data-react-source-link]').focus()
+    await browser.keydown('Enter')
+    await retry(async () => {
+      expect(editorRequests).toHaveLength(2)
+    })
+    expect(editorRequests[1].search).toBe(editorRequests[0].search)
+    await group.click()
+    await retry(async () => {
+      expect(await intervals.count()).toBe(0)
+      expect(
+        await browser
+          .locator('nextjs-portal .request-insights-span-row')
+          .count()
+      ).toBe(mainRows)
+    })
+  })
+
+  it('keeps cached React intervals without counting them as new executions', async () => {
+    const first = await next.render$('/cached-timings')
+    const generation = first('#cached-generation').text()
+    expect(generation).not.toBe('')
+    const before = await next
+      .fetch('/_next/development/request-insights')
+      .then((response) => response.json())
+    const coldRequest = before.requests.find(
+      (request: RequestInsight) =>
+        request.kind !== 'instant-insights' &&
+        request.route === '/cached-timings'
+    ) as RequestInsight | undefined
+    expect(coldRequest).toBeDefined()
+    expect(coldRequest!.spans).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          attributes: expect.objectContaining({
+            'next.span_type': 'ReactServerComponents.component',
+            'next.span_name': 'render CachedTree',
+            'next.rsc.environment': 'Server',
+          }),
+        }),
+      ])
+    )
+    expect(
+      coldRequest!.spans.filter(
+        (span) => span.name === 'ReactServerComponents.incomplete'
+      )
+    ).toEqual([])
+    const existing = new Set(
+      before.requests.map((request: RequestInsight) => request.requestId)
+    )
+    const second = await next.render$('/cached-timings')
+    expect(second('#cached-generation').text()).toBe(generation)
+
+    await retry(async () => {
+      const snapshot = await next
+        .fetch('/_next/development/request-insights')
+        .then((response) => response.json())
+      const request = snapshot.requests.find(
+        (request: RequestInsight) =>
+          !existing.has(request.requestId) &&
+          request.kind !== 'instant-insights' &&
+          request.route === '/cached-timings'
+      ) as RequestInsight | undefined
+      expect(request).toBeDefined()
+      expect(request!.spans).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            attributes: expect.objectContaining({
+              'next.span_type': 'ReactServerComponents.component',
+              'next.span_name': 'render CachedLeaf',
+              'next.rsc.environment': 'Cache',
+            }),
+          }),
+        ])
+      )
+      expect(
+        request!.spans.some(
+          (span) => span.name === 'ReactServerComponents.incomplete'
+        )
+      ).toBe(false)
+    })
+  })
+
   function createRequest(index: number, fetchCount = 0): RequestInsight {
     return {
       requestId: `request-${index}`,
@@ -57,7 +183,7 @@ describe('request insights', () => {
   async function openRequestInsightsPanel(
     browser: Awaited<ReturnType<typeof next.browser>>
   ) {
-    await toggleDevToolsIndicatorPopover(browser)
+    await browser.locator('nextjs-portal #next-logo').click()
     await browser.elementByCss('[data-request-insights]').click()
     await browser.waitForElementByCss('.request-insights-list-toolbar')
     // The panel selector menu stays mounted for its exit animation and its
@@ -137,6 +263,15 @@ describe('request insights', () => {
   })
 
   it('keeps outer server and app render spans on the same request', async () => {
+    const existingRequestIds = new Set(
+      (
+        (await next
+          .fetch('/_next/development/request-insights')
+          .then((response) => response.json())) as {
+          requests: RequestInsight[]
+        }
+      ).requests.map((request) => request.requestId)
+    )
     await next.render('/')
 
     await retry(async () => {
@@ -146,7 +281,10 @@ describe('request insights', () => {
         requests: RequestInsight[]
       }
       const pageRequests = snapshot.requests.filter(
-        (request) => request.route === '/'
+        (request) =>
+          !existingRequestIds.has(request.requestId) &&
+          request.kind !== 'instant-insights' &&
+          request.route === '/'
       )
       const requestsWithRelevantSpans = pageRequests.filter((request) =>
         request.spans.some((span) => {
