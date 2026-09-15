@@ -1,7 +1,7 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 
 describe('`next-js` Condition - Rendering', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
     files: __dirname + '/fixtures/render',
     // copy shared packages over to the test folder. This will override the symlink that currently
     // exists in the fixture with relative paths
@@ -429,50 +429,103 @@ describe('`next-js` Condition - Rendering', () => {
         const $ = await next.render$('/esm')
 
         const text = formatHtmlText($('main').html())
-        expect(text).toMatchInlineSnapshot(`
-         "  Server
-             Exports
-               Static
-               Default:
-               "EXPORTS DEFAULT SERVER - Default Export"
-               Namespace:
-               {"default":"EXPORTS DEFAULT SERVER - Default Export","named":"EXPORTS DEFAULT SERVER - Named Export"}
-               named:
-               "EXPORTS DEFAULT SERVER - Named Export"
-               Dynamic
-               {"default":"EXPORTS DEFAULT SERVER - Default Export","named":"EXPORTS DEFAULT SERVER - Named Export"}
-             Imports
-               Static
-               Default:
-               "IMPORTS DEFAULT SERVER - Default Export"
-               Namespace:
-               {"default":"IMPORTS DEFAULT SERVER - Default Export","named":"IMPORTS DEFAULT SERVER - Named Export"}
-               named:
-               "IMPORTS DEFAULT SERVER - Named Export"
-               Dynamic
-               {"default":"IMPORTS DEFAULT SERVER - Default Export","named":"IMPORTS DEFAULT SERVER - Named Export"}
-           Client
-             Exports
-               Static
-               Default:
-               "EXPORTS DEFAULT CLIENT - Default Export"
-               Namespace:
-               {"default":"EXPORTS DEFAULT CLIENT - Default Export","named":"EXPORTS DEFAULT CLIENT - Named Export"}
-               named:
-               "EXPORTS DEFAULT CLIENT - Named Export"
-               Dynamic
-               {"default":"EXPORTS DEFAULT CLIENT - Default Export","named":"EXPORTS DEFAULT CLIENT - Named Export"}
-             Imports
-               Static
-               Default:
-               "IMPORTS DEFAULT CLIENT - Default Export"
-               Namespace:
-               {"default":"IMPORTS DEFAULT CLIENT - Default Export","named":"IMPORTS DEFAULT CLIENT - Named Export"}
-               named:
-               "IMPORTS DEFAULT CLIENT - Named Export"
-               Dynamic
-               {"default":"IMPORTS DEFAULT CLIENT - Default Export","named":"IMPORTS DEFAULT CLIENT - Named Export"}"
-        `)
+        // webpack's namespace emulation uses an ordinary object rather than a
+        // native Module Namespace Exotic Object. In production,
+        // `optimization.inlineExports` defines the re-exported `named` getter
+        // before appending the inlined constant `default` value, so insertion
+        // order is observable here. Keep this optimization enabled and document
+        // its accepted order separately from dev and Turbopack.
+        if (isNextStart && !isTurbopack) {
+          expect(text).toMatchInlineSnapshot(`
+           "  Server
+               Exports
+                 Static
+                 Default:
+                 "EXPORTS DEFAULT SERVER - Default Export"
+                 Namespace:
+                 {"default":"EXPORTS DEFAULT SERVER - Default Export","named":"EXPORTS DEFAULT SERVER - Named Export"}
+                 named:
+                 "EXPORTS DEFAULT SERVER - Named Export"
+                 Dynamic
+                 {"default":"EXPORTS DEFAULT SERVER - Default Export","named":"EXPORTS DEFAULT SERVER - Named Export"}
+               Imports
+                 Static
+                 Default:
+                 "IMPORTS DEFAULT SERVER - Default Export"
+                 Namespace:
+                 {"named":"IMPORTS DEFAULT SERVER - Named Export","default":"IMPORTS DEFAULT SERVER - Default Export"}
+                 named:
+                 "IMPORTS DEFAULT SERVER - Named Export"
+                 Dynamic
+                 {"named":"IMPORTS DEFAULT SERVER - Named Export","default":"IMPORTS DEFAULT SERVER - Default Export"}
+             Client
+               Exports
+                 Static
+                 Default:
+                 "EXPORTS DEFAULT CLIENT - Default Export"
+                 Namespace:
+                 {"default":"EXPORTS DEFAULT CLIENT - Default Export","named":"EXPORTS DEFAULT CLIENT - Named Export"}
+                 named:
+                 "EXPORTS DEFAULT CLIENT - Named Export"
+                 Dynamic
+                 {"default":"EXPORTS DEFAULT CLIENT - Default Export","named":"EXPORTS DEFAULT CLIENT - Named Export"}
+               Imports
+                 Static
+                 Default:
+                 "IMPORTS DEFAULT CLIENT - Default Export"
+                 Namespace:
+                 {"named":"IMPORTS DEFAULT CLIENT - Named Export","default":"IMPORTS DEFAULT CLIENT - Default Export"}
+                 named:
+                 "IMPORTS DEFAULT CLIENT - Named Export"
+                 Dynamic
+                 {"named":"IMPORTS DEFAULT CLIENT - Named Export","default":"IMPORTS DEFAULT CLIENT - Default Export"}"
+          `)
+        } else {
+          expect(text).toMatchInlineSnapshot(`
+           "  Server
+               Exports
+                 Static
+                 Default:
+                 "EXPORTS DEFAULT SERVER - Default Export"
+                 Namespace:
+                 {"default":"EXPORTS DEFAULT SERVER - Default Export","named":"EXPORTS DEFAULT SERVER - Named Export"}
+                 named:
+                 "EXPORTS DEFAULT SERVER - Named Export"
+                 Dynamic
+                 {"default":"EXPORTS DEFAULT SERVER - Default Export","named":"EXPORTS DEFAULT SERVER - Named Export"}
+               Imports
+                 Static
+                 Default:
+                 "IMPORTS DEFAULT SERVER - Default Export"
+                 Namespace:
+                 {"default":"IMPORTS DEFAULT SERVER - Default Export","named":"IMPORTS DEFAULT SERVER - Named Export"}
+                 named:
+                 "IMPORTS DEFAULT SERVER - Named Export"
+                 Dynamic
+                 {"default":"IMPORTS DEFAULT SERVER - Default Export","named":"IMPORTS DEFAULT SERVER - Named Export"}
+             Client
+               Exports
+                 Static
+                 Default:
+                 "EXPORTS DEFAULT CLIENT - Default Export"
+                 Namespace:
+                 {"default":"EXPORTS DEFAULT CLIENT - Default Export","named":"EXPORTS DEFAULT CLIENT - Named Export"}
+                 named:
+                 "EXPORTS DEFAULT CLIENT - Named Export"
+                 Dynamic
+                 {"default":"EXPORTS DEFAULT CLIENT - Default Export","named":"EXPORTS DEFAULT CLIENT - Named Export"}
+               Imports
+                 Static
+                 Default:
+                 "IMPORTS DEFAULT CLIENT - Default Export"
+                 Namespace:
+                 {"default":"IMPORTS DEFAULT CLIENT - Default Export","named":"IMPORTS DEFAULT CLIENT - Named Export"}
+                 named:
+                 "IMPORTS DEFAULT CLIENT - Named Export"
+                 Dynamic
+                 {"default":"IMPORTS DEFAULT CLIENT - Default Export","named":"IMPORTS DEFAULT CLIENT - Named Export"}"
+          `)
+        }
       })
       it('should not follow the next-js condition from an external commonjs package', async () => {
         const $ = await next.render$('/external-cjs')
