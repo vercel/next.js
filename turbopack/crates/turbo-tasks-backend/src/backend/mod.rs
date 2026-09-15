@@ -1811,6 +1811,7 @@ impl TurboTasksBackend {
         let shard = get_shard(&self.storage.task_cache, hash);
 
         let mut ctx = self.execute_context(turbo_tasks);
+        let mut created_new = false;
         // Step 1: Fast read-only cache lookup (read lock, no allocation).
         // Use a read lock rather than a write lock to avoid contention. connect_child
         // may re-enter task_cache with a write lock, so we must not hold a write lock here.
@@ -1885,6 +1886,7 @@ impl TurboTasksBackend {
 
             // The entry closure has returned, so the task_cache shard lock is released before
             // cache tracking or aggregation updates can re-enter the backend.
+            created_new = created;
             if created {
                 self.track_cache_miss_by_fn(native_fn);
                 // Update the aggregation number before connecting the child. We don't need this on
@@ -1917,6 +1919,10 @@ impl TurboTasksBackend {
         };
 
         operation::ConnectChildOperation::run(parent_task, task_id, ctx);
+
+        if created_new {
+            self.unpin_task_for_gc(task_id, turbo_tasks);
+        }
 
         task_id
     }

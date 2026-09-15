@@ -858,6 +858,11 @@ impl TaskStorage {
         self.get_transient_ref_count().copied().unwrap_or(0)
     }
 
+    /// Pins a newly initialized task until its construction operation connects it to the graph.
+    pub fn gc_pin_for_construction(&mut self) {
+        self.set_transient_ref_count(1);
+    }
+
     /// Whether a GC pass may collect this task: nothing references it, via parents, transient
     /// pins, aggregation edges, or dependency edges.
     ///
