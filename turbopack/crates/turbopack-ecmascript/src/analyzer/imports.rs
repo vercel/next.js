@@ -7,6 +7,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use auto_hash_map::AutoSet;
+use bincode::{Decode, Encode};
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
 use swc_core::{
@@ -21,7 +22,7 @@ use swc_core::{
 };
 use turbo_frozenmap::FrozenMap;
 use turbo_rcstr::{RcStr, rcstr};
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, trace::TraceRawVcs};
 use turbopack_core::{
     loader::WebpackLoaderItem,
     resolve::{ExportUsage, ImportUsage},
@@ -564,6 +565,26 @@ pub(crate) enum ImportedSymbol {
     PartEvaluation(u32),
 }
 
+/// Which spelling a module's export registration can use, decided during analysis so that the
+/// export code generation and the import references agree without either re-deriving it.
+///
+/// See `references::esm::export` for the emitted forms.
+#[derive(
+    Copy, Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue, Encode, Decode, Default,
+)]
+pub enum ExportRegistrationMode {
+    /// The module has local exports (or no re-exports at all): the general registration is needed.
+    #[default]
+    Normal,
+    /// Only re-exports, but an import follows one of them. The compact registration can be used,
+    /// but the imports still have to be generated in place to preserve evaluation order, so its
+    /// groups reuse the namespace objects those imports already bound.
+    Mixed,
+    /// Only re-exports, and no import follows one of them. The compact registration subsumes the
+    /// imports, so the references do not generate them at all -- this is the case that saves bytes.
+    Reexport,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct ImportMapReference {
     pub module_path: Wtf8Atom,
@@ -653,6 +674,10 @@ impl ImportMap {
         self.references.iter()
     }
 
+    pub fn reference_span(&self, index: usize) -> Span {
+        self.references[index].span
+    }
+
     pub fn reexports_reference_idxs(&self) -> impl Iterator<Item = usize> {
         self.exports
             .values()
@@ -661,6 +686,77 @@ impl ImportMap {
                 Export::LocalBinding(..) | Export::Error => None,
             })
             .chain(self.reexport_namespaces.iter().copied())
+    }
+
+    /// Indices of references that also provide a binding used by the module's own code, i.e. a
+    /// named import or a namespace import. A re-export whose reference is in here cannot have its
+    /// import subsumed by a compact registration: the binding would be left undefined.
+    pub fn locally_bound_reference_idxs(&self) -> impl Iterator<Item = usize> {
+        self.imports
+            .values()
+            .map(|(i, _)| *i)
+            .chain(self.namespace_imports.values().copied())
+    }
+
+    /// How this module's export registration can be emitted.
+    ///
+    /// A declaration contributes separate evaluation and binding references, so reference indices
+    /// do not preserve source order across imports. Their spans identify the declaration and tell
+    /// us whether an import would be reordered by hoisting the re-exported ones into one call.
+    pub fn export_registration_mode(&self) -> ExportRegistrationMode {
+        let has_local_exports = self
+            .exports
+            .values()
+            .any(|export| matches!(export, Export::LocalBinding(..) | Export::Error));
+        if has_local_exports {
+            return ExportRegistrationMode::Normal;
+        }
+
+        let reexports: FxHashSet<usize> = self.reexports_reference_idxs().collect();
+        if reexports.is_empty() {
+            return ExportRegistrationMode::Normal;
+        }
+
+        // Each `export ... from` declaration contributes an evaluation reference plus one or more
+        // binding references. The binding references are the ones recorded as re-exports; exclude
+        // every reference from the same declaration so its evaluation edge is not mistaken for an
+        // unrelated import.
+        let reexport_declarations: FxHashSet<_> = reexports
+            .iter()
+            .map(|i| {
+                let reference = &self.references[*i];
+                (reference.module_path.clone(), reference.span)
+            })
+            .collect();
+        let first_reexport = reexport_declarations
+            .iter()
+            .map(|(_, span)| span.lo)
+            .min()
+            .unwrap();
+
+        // Every remaining declaration is an import this module needs in its own right -- including
+        // a side-effect-only `import './x'`, which contributes no imported binding. Compare source
+        // spans rather than reference indices: the analyser groups evaluation references before
+        // binding references, so their indices do not retain declaration order.
+        let last_other = self
+            .references
+            .iter()
+            .filter(|reference| {
+                !reexport_declarations.contains(&(reference.module_path.clone(), reference.span))
+            })
+            .map(|reference| reference.span.lo)
+            .max();
+        let Some(last_other) = last_other else {
+            // Nothing but re-export declarations: hoisting cannot reorder anything.
+            return ExportRegistrationMode::Reexport;
+        };
+
+        // Safe to hoist only when no unrelated import follows a re-export.
+        if last_other < first_reexport {
+            ExportRegistrationMode::Reexport
+        } else {
+            ExportRegistrationMode::Mixed
+        }
     }
 
     pub fn as_esm_exports(
@@ -1794,5 +1890,173 @@ mod tests {
     fn test_parse_empty_with() {
         let annotations = ImportAnnotations::parse(None);
         assert!(annotations.is_none());
+    }
+
+    /// Builds an `ImportMap` with the given references and exports, so the mode classifier can be
+    /// exercised without running the full analyser.
+    fn map_with(
+        n_refs: usize,
+        exports: Vec<(&str, Export)>,
+        reexport_namespaces: &[usize],
+    ) -> ImportMap {
+        let mut map = ImportMap::default();
+        for i in 0..n_refs {
+            map.references.insert(ImportMapReference {
+                module_path: format!("./m{i}").into(),
+                imported_symbol: ImportedSymbol::Symbol(Atom::from("x")),
+                annotations: None,
+                span: Span::new(BytePos(i as u32 + 1), BytePos(i as u32 + 2)),
+            });
+        }
+        for (name, export) in exports {
+            map.exports.insert(name.into(), export);
+        }
+        map.reexport_namespaces = reexport_namespaces.to_vec();
+        map
+    }
+
+    #[test]
+    fn export_registration_mode_normal_without_reexports() {
+        // No exports at all, and a plain import.
+        let map = map_with(1, vec![], &[]);
+        assert_eq!(
+            map.export_registration_mode(),
+            ExportRegistrationMode::Normal
+        );
+    }
+
+    #[test]
+    fn export_registration_mode_normal_with_a_local_export() {
+        // A local export forces the general registration even alongside a re-export.
+        let map = map_with(
+            1,
+            vec![
+                ("local", Export::LocalBinding("local".into(), false)),
+                ("a", Export::ImportedBinding(0, "a".into(), false)),
+            ],
+            &[],
+        );
+        assert_eq!(
+            map.export_registration_mode(),
+            ExportRegistrationMode::Normal
+        );
+    }
+
+    #[test]
+    fn export_registration_mode_reexport_when_only_reexports() {
+        // `export { a } from './a'; export { b } from './b'`
+        let map = map_with(
+            2,
+            vec![
+                ("a", Export::ImportedBinding(0, "a".into(), false)),
+                ("b", Export::ImportedBinding(1, "b".into(), false)),
+            ],
+            &[],
+        );
+        assert_eq!(
+            map.export_registration_mode(),
+            ExportRegistrationMode::Reexport
+        );
+    }
+
+    #[test]
+    fn export_registration_mode_reexport_when_imports_precede() {
+        // `import { first } from './first'; export { a } from './a'; export { b } from './b'`
+        // Reference 0 is the plain import, so nothing that must run earlier follows a re-export.
+        let map = map_with(
+            3,
+            vec![
+                ("a", Export::ImportedBinding(1, "a".into(), false)),
+                ("b", Export::ImportedBinding(2, "b".into(), false)),
+            ],
+            &[],
+        );
+        assert_eq!(
+            map.export_registration_mode(),
+            ExportRegistrationMode::Reexport
+        );
+    }
+
+    #[test]
+    fn export_registration_mode_mixed_when_an_import_follows_a_reexport() {
+        // The operator's case: `export { a } from './a'; import { b } from './b';
+        // export { c } from './c'`. Reference 1 is the plain import and it follows a re-export, so
+        // hoisting would evaluate './c' before './b'.
+        let map = map_with(
+            3,
+            vec![
+                ("a", Export::ImportedBinding(0, "a".into(), false)),
+                ("c", Export::ImportedBinding(2, "c".into(), false)),
+            ],
+            &[],
+        );
+        assert_eq!(
+            map.export_registration_mode(),
+            ExportRegistrationMode::Mixed
+        );
+    }
+
+    #[test]
+    fn export_registration_mode_mixed_for_a_trailing_side_effect_import() {
+        // `export { a } from './a'; import './effect'` -- the side-effect-only import carries a
+        // reference but no imported symbol, so it is not a re-export source and must not be hoisted
+        // away.
+        let mut map = map_with(
+            2,
+            vec![("a", Export::ImportedBinding(0, "a".into(), false))],
+            &[],
+        );
+        map.references.insert(ImportMapReference {
+            module_path: "./effect".into(),
+            imported_symbol: ImportedSymbol::ModuleEvaluation,
+            annotations: None,
+            span: DUMMY_SP,
+        });
+        assert_eq!(
+            map.export_registration_mode(),
+            ExportRegistrationMode::Mixed
+        );
+    }
+
+    #[test]
+    fn export_registration_mode_uses_declaration_spans_not_reference_indices() {
+        // The analyzer stores every declaration's evaluation reference before its binding
+        // references, so the index order here is not source order:
+        // `export { a } from './a'; import { b } from './b'; export { c } from './c'`.
+        let mut map = ImportMap::default();
+        for (path, symbol, position) in [
+            ("./a", ImportedSymbol::ModuleEvaluation, 1),
+            ("./b", ImportedSymbol::ModuleEvaluation, 2),
+            ("./b", ImportedSymbol::Symbol("b".into()), 2),
+            ("./c", ImportedSymbol::ModuleEvaluation, 3),
+            ("./a", ImportedSymbol::Symbol("a".into()), 1),
+            ("./c", ImportedSymbol::Symbol("c".into()), 3),
+        ] {
+            map.references.insert(ImportMapReference {
+                module_path: path.into(),
+                imported_symbol: symbol,
+                annotations: None,
+                span: Span::new(BytePos(position), BytePos(position + 1)),
+            });
+        }
+        map.exports
+            .insert("a".into(), Export::ImportedBinding(4, "a".into(), false));
+        map.exports
+            .insert("c".into(), Export::ImportedBinding(5, "c".into(), false));
+
+        assert_eq!(
+            map.export_registration_mode(),
+            ExportRegistrationMode::Mixed
+        );
+    }
+
+    #[test]
+    fn export_registration_mode_reexport_for_a_star_reexport() {
+        // `export * from './a'` is tracked in `reexport_namespaces`, not `exports`.
+        let map = map_with(1, vec![], &[0]);
+        assert_eq!(
+            map.export_registration_mode(),
+            ExportRegistrationMode::Reexport
+        );
     }
 }

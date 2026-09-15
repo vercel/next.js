@@ -166,6 +166,11 @@ type EsmBindings = Array<
 >
 
 /**
+ * Terminates a module's group of entries in an {@link EsmReexports} list.
+ */
+const REEXPORT_GROUP_END = 0
+
+/**
  * Adds the getters to the exports object.
  */
 function esm(exports: Exports, bindings: EsmBindings, dynamic?: boolean) {
@@ -234,6 +239,102 @@ function esmExport(
   esm(exports, bindings, dynamic)
 }
 contextPrototype.s = esmExport
+
+/**
+ * Registers re-exports that all forward to properties of other modules.
+ *
+ * This is a compact spelling of the pattern
+ *
+ * ```js
+ * var ns = context.i(moduleId)
+ * context.s([exportName, () => ns[importedName], ...])
+ * ```
+ *
+ * The list is a flat sequence of groups. Each group starts with the source the exports come from,
+ * followed by that group's entries, and is terminated by the `0` sentinel (or the end of the list).
+ *
+ * The group head is either a **module id**, which is instantiated here:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default', 'f', 'named', 'A', 0,
+ *   29842, 'otherModule', 'f',
+ * ])
+ * ```
+ *
+ * or the **namespace object** of a module that has already been imported, which is used directly:
+ *
+ * ```js
+ * var ns1 = context.i(76061)
+ * context.S([ns1, 'default', 'f', 'named', 'A'])
+ * ```
+ *
+ * The producer picks the namespace form when it has generated the import anyway -- because some
+ * later import must not be reordered past it -- so nothing is instantiated twice. The two are told
+ * apart by type: a namespace object is always an object, a module id never is.
+ *
+ * Entries are `exportName, importedName` pairs, except when a group holds exactly one string. That
+ * string is then a comma-joined list of the same pairs, which saves the repeated quoting:
+ *
+ * ```js
+ * context.S([
+ *   76061, 'default,f,named,A', 0,
+ *   29842, 'otherModule,f',
+ * ])
+ * ```
+ *
+ * The producer picks that spelling independently for each group whose names contain no commas,
+ * since that group's names are recovered by splitting on them.
+ *
+ * Groups whose head is a module id are instantiated in list order, at the point where the call
+ * appears, so the producer must not merge such a group across an import of another module.
+ *
+ * `id` names the module the exports belong to when this module was merged into a scope-hoisting
+ * group, exactly as it does for {@link EsmExport}.
+ */
+function esmReexport(
+  this: TurbopackBaseContext<Module>,
+  list: EsmReexports,
+  id?: ModuleId
+): void {
+  const bindings: EsmBindings = []
+  let i = 0
+  while (i < list.length) {
+    const head = list[i++]
+    const start = i
+    while (i < list.length && list[i] !== REEXPORT_GROUP_END) i++
+    const end = i
+    // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
+    i++
+
+    // An already-imported namespace is passed as an object; a module id never is, so the type is
+    // enough to tell them apart. `esmImport` may return a promise for an async module, but
+    // re-exports of async modules keep going through `context.s`, so the producer never routes them
+    // here and this stays synchronous.
+    const namespace = (
+      typeof head === 'object' && head !== null
+        ? head
+        : // `EsmImport` declares an `allowExportDefault` parameter that `esmImport` itself does not
+          // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
+          // argument. Passed here only to satisfy the declared type.
+          this.i(head as ModuleId, false)
+    ) as Record<string, unknown>
+    if (end - start === 1) {
+      const pairs = (list[start] as string).split(',')
+      for (let j = 0; j < pairs.length; j += 2) {
+        const importedName = pairs[j + 1]
+        bindings.push(pairs[j], () => namespace[importedName])
+      }
+    } else {
+      for (let j = start; j < end; j += 2) {
+        const importedName = list[j + 1] as string
+        bindings.push(list[j] as string, () => namespace[importedName])
+      }
+    }
+  }
+  esmExport.call(this, bindings, id)
+}
+contextPrototype.S = esmReexport
 
 type ReexportedObjects = Record<PropertyKey, unknown>[]
 function ensureDynamicExports(
