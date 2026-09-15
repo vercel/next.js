@@ -1,4 +1,6 @@
-use std::{fs, path::Path, time::Instant};
+#[cfg(not(miri))]
+use std::time::Instant;
+use std::{fs, path::Path};
 
 use anyhow::Result;
 #[cfg(not(miri))]
@@ -11,11 +13,15 @@ use rstest::rstest;
 use crate::parallel_scheduler::SerialScheduler as RayonParallelScheduler;
 use crate::{
     AccessMode, Compression, DbConfig, FamilyConfig, FamilyKind,
-    constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
+    constants::MAX_INLINE_VALUE_SIZE,
     db::{CompactConfig, TurboPersistence, read_current_version},
     lookup_entry::IterValue,
-    parallel_scheduler::ParallelScheduler,
     static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
+};
+#[cfg(not(miri))]
+use crate::{
+    constants::{MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
+    parallel_scheduler::ParallelScheduler,
     write_batch::WriteBatch,
 };
 
@@ -114,6 +120,7 @@ impl ParallelScheduler for RayonParallelScheduler {
     }
 }
 
+#[cfg(not(miri))]
 fn tuple_key(prefix: u8, suffix: [u8; 4]) -> Box<[u8]> {
     let mut key = Vec::with_capacity(1 + suffix.len());
     key.push(prefix);
@@ -172,6 +179,8 @@ fn open_multi_value_db(
     open_db_with_config(path, multi_value_config_with_mmap(mmap))
 }
 
+// This stress test writes more than ten million entries and uses Rayon directly, so it is too slow
+// to run under Miri and depends on concurrency that Miri cannot provide efficiently.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -559,6 +568,8 @@ fn full_cycle(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+// This test exceeded 20 minutes under Miri because it writes and repeatedly reads tens of
+// thousands of entries across multiple reopen/compaction cycles.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -672,6 +683,7 @@ fn persist_changes(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+// This 50-iteration compaction/restore stress test exceeded 20 minutes under Miri.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -760,6 +772,7 @@ fn partial_compaction(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+// This repeated large-file merge/removal stress test exceeded 20 minutes under Miri.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -1057,7 +1070,7 @@ fn batch_get_large_batch(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
-// This test is too slow to run under Miri.
+// Crossing the real blob-size boundary makes this test exceed 20 minutes under Miri.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -1384,6 +1397,7 @@ fn batch_get_after_restore(#[case] mmap: bool) -> Result<()> {
 
 /// Test that compaction works with many small values without overflowing block indices.
 /// Reproduces a CI benchmark failure with key_4/value_512/entries_1.98Mi/compacted.
+// Miri was killed while processing this production-scale, two-million-entry workload.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -1431,6 +1445,7 @@ fn many_small_values_compaction(#[case] mmap: bool) -> Result<()> {
 
 /// Test compaction with MAX_SMALL_VALUE_SIZE (4096-byte) values.
 /// Worst case for small value blocks: fewest entries per block.
+// This production-scale 512K-entry workload exceeded 20 minutes under Miri.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -1477,6 +1492,7 @@ fn many_max_small_values_compaction(#[case] mmap: bool) -> Result<()> {
 
 /// Test compaction with 4097-byte values (minimum medium size).
 /// Each medium value gets its own dedicated block, so this is the worst case for block count.
+// This production-scale 128K-entry workload exceeded 20 minutes under Miri.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -1989,6 +2005,7 @@ fn multi_value_tombstone_shadows_older_sst_only(#[case] mmap: bool) -> Result<()
 }
 
 /// Returns the number of `.blob` files in the given directory.
+#[cfg(not(miri))]
 fn count_blob_files(dir: &Path) -> usize {
     fs::read_dir(dir)
         .unwrap()
@@ -1999,6 +2016,8 @@ fn count_blob_files(dir: &Path) -> usize {
 
 /// Test that compaction deletes blob files when their entries are superseded
 /// by newer values (SingleValue family).
+// The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
+// blob boundary.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -2059,6 +2078,8 @@ fn compaction_deletes_superseded_blob(#[case] mmap: bool) -> Result<()> {
 
 /// Test that compaction deletes blob files when a key is deleted via tombstone
 /// (SingleValue family).
+// The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
+// blob boundary.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -2111,6 +2132,8 @@ fn compaction_deletes_blob_on_tombstone(#[case] mmap: bool) -> Result<()> {
 
 /// Test that compaction deletes blob files for MultiValue families when a
 /// tombstone prunes older blob entries.
+// The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
+// blob boundary.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -2161,6 +2184,8 @@ fn compaction_deletes_blob_multi_value_tombstone(#[case] mmap: bool) -> Result<(
 
 /// Test that compaction preserves blob files that are still referenced
 /// (not superseded).
+// The first access-mode variant exceeded 20 minutes under Miri while processing the production-size
+// blob boundary.
 #[cfg(not(miri))]
 #[rstest]
 #[case(true)]
@@ -2313,7 +2338,6 @@ fn valued_tombstone_deletes_only_its_pair() -> Result<()> {
 
 /// A partial compaction must NOT drop a key-value tombstone: an unmerged older SST may still hold a
 /// matching value, and dropping the tombstone would resurrect it.
-#[cfg(not(miri))]
 #[test]
 fn valued_tombstone_survives_partial_compaction() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2494,7 +2518,6 @@ fn count_tombstones(
 
 /// Compaction reclaims tombstones once no *older* SST outside the job can still hold the key.
 /// Without this, tombstones accumulate forever.
-#[cfg(not(miri))]
 #[test]
 fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2576,7 +2599,6 @@ fn compaction_reclaims_tombstones_when_no_older_sst_has_the_key() -> Result<()> 
 
 /// When an older SST *outside* the compaction job still holds the key, the tombstone must be
 /// kept. Dropping it would resurrect the value.
-#[cfg(not(miri))]
 #[test]
 fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
     let tempdir = tempfile::tempdir()?;
@@ -2658,6 +2680,7 @@ fn compaction_keeps_tombstone_when_older_sst_has_the_key() -> Result<()> {
 ///
 /// This is the case a sequence-number threshold gets wrong — it would treat the skipped SST as
 /// part of the job and drop a tombstone that is still load-bearing.
+// This multi-SST partial-compaction scenario exceeded 20 minutes under Miri.
 #[cfg(not(miri))]
 #[test]
 fn compaction_keeps_tombstone_when_skipped_sst_has_the_key() -> Result<()> {

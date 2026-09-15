@@ -6,6 +6,7 @@ use std::{
     sync::Arc,
 };
 
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
 
 use crate::{
@@ -22,7 +23,7 @@ enum Backing {
     Arc {
         _backing: Arc<[u8]>,
     },
-    #[cfg_attr(miri, allow(dead_code))]
+    #[cfg(feature = "mmap")]
     Mmap {
         _backing: Arc<Mmap>,
     },
@@ -93,7 +94,11 @@ impl Eq for ArcBytes {}
 impl ArcBytes {
     /// Returns `true` if this `ArcBytes` is backed by a memory-mapped file.
     pub fn is_mmap_backed(&self) -> bool {
-        matches!(self.backing, Backing::Mmap { .. })
+        #[cfg(feature = "mmap")]
+        return matches!(self.backing, Backing::Mmap { .. });
+
+        #[cfg(not(feature = "mmap"))]
+        false
     }
 
     /// Returns `true` if the backing `Arc` allocation is shared (i.e., there
@@ -103,12 +108,14 @@ impl ArcBytes {
     pub fn is_shared_arc(&self) -> bool {
         match &self.backing {
             Backing::Arc { _backing } => Arc::strong_count(_backing) > 1,
+            #[cfg(feature = "mmap")]
             Backing::Mmap { .. } => false,
         }
     }
 }
 
 impl SharedBytes for ArcBytes {
+    #[cfg(feature = "mmap")]
     type MmapHandle = Arc<Mmap>;
 
     fn slice(self, range: Range<usize>) -> Self {
@@ -126,6 +133,7 @@ impl SharedBytes for ArcBytes {
                 subslice,
                 match &self.backing {
                     Backing::Arc { _backing } => _backing,
+                    #[cfg(feature = "mmap")]
                     Backing::Mmap { _backing } => _backing,
                 }
             ),
@@ -137,6 +145,7 @@ impl SharedBytes for ArcBytes {
         }
     }
 
+    #[cfg(feature = "mmap")]
     unsafe fn from_mmap(mmap: &Arc<Mmap>, subslice: &[u8]) -> Self {
         debug_assert!(
             is_subslice_of(subslice, mmap),

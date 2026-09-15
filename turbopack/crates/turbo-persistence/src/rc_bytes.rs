@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
 
 use crate::{
@@ -22,7 +23,7 @@ enum Backing {
     Rc {
         _backing: Rc<[u8]>,
     },
-    #[cfg_attr(miri, allow(dead_code))]
+    #[cfg(feature = "mmap")]
     Mmap {
         _backing: Rc<Mmap>,
     },
@@ -89,6 +90,7 @@ impl Hash for RcBytes {
 }
 
 impl SharedBytes for RcBytes {
+    #[cfg(feature = "mmap")]
     type MmapHandle = Rc<Mmap>;
 
     fn slice(self, range: Range<usize>) -> Self {
@@ -106,6 +108,7 @@ impl SharedBytes for RcBytes {
                 subslice,
                 match &self.backing {
                     Backing::Rc { _backing } => _backing,
+                    #[cfg(feature = "mmap")]
                     Backing::Mmap { _backing } => _backing,
                 }
             ),
@@ -117,6 +120,7 @@ impl SharedBytes for RcBytes {
         }
     }
 
+    #[cfg(feature = "mmap")]
     unsafe fn from_mmap(mmap: &Rc<Mmap>, subslice: &[u8]) -> Self {
         debug_assert!(
             is_subslice_of(subslice, mmap),
