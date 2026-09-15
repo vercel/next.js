@@ -10201,6 +10201,7 @@ dependencies = [
  "notify",
  "omnipath",
  "parking_lot",
+ "pathdiff",
  "rand 0.10.1",
  "regex",
  "rstest",
