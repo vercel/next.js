@@ -6,7 +6,9 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkData, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        ChunksData, ModuleChunkItemIdExt, availability_info::AvailabilityInfo,
+        ChunksData, ModuleChunkItemIdExt,
+        availability_info::{AvailabilityInfo, availability_info_for_async_chunk_group},
+        available_modules::AvailableModuleItem,
     },
     ident::AssetIdent,
     module::{Module, ModuleSideEffects},
@@ -38,7 +40,28 @@ pub struct AsyncLoaderModule {
 #[turbo_tasks::value_impl]
 impl AsyncLoaderModule {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        availability_info: AvailabilityInfo,
+    ) -> Result<Vc<Self>> {
+        let availability_info = availability_info_for_async_chunk_group(
+            module,
+            chunking_context,
+            module_graph,
+            availability_info,
+        )
+        .await?;
+        Ok(Self::new_deduped(
+            *module,
+            *chunking_context,
+            availability_info,
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn new_deduped(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         availability_info: AvailabilityInfo,
@@ -73,7 +96,9 @@ impl AsyncLoaderModule {
             let module_or_batch = batches.get_entry(inner_module).await?;
             if let Some(chunkable_module_or_batch) =
                 ChunkableModuleOrBatch::from_module_or_batch(module_or_batch)
-                && *chunk_items.get(chunkable_module_or_batch.into()).await?
+                && chunk_items
+                    .contains_key(&AvailableModuleItem::from(chunkable_module_or_batch))
+                    .await?
             {
                 return Ok(OutputAssetsWithReferenced {
                     assets: ResolvedVc::cell(vec![]),

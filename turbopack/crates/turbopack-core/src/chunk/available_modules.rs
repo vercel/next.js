@@ -1,8 +1,8 @@
 use anyhow::Result;
 use bincode::{Decode, Encode};
 use turbo_tasks::{
-    FxIndexSet, JoinIterExt, OperationVc, ReadRef, ResolvedVc, ValueToString, Vc,
-    trace::TraceRawVcs, turbofmt,
+    FxIndexSet, JoinIterExt, OperationVc, ResolvedVc, ValueToString, Vc, trace::TraceRawVcs,
+    turbofmt,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
@@ -54,57 +54,39 @@ pub struct AvailableModulesSet(
     #[bincode(with = "turbo_bincode::indexset")] FxIndexSet<AvailableModuleItem>,
 );
 
-/// Allows to gather information about which assets are already available.
-/// Adding more roots will form a linked list like structure to allow caching
-/// `include` queries.
-#[turbo_tasks::value]
-pub struct AvailableModules {
-    parent: Option<ResolvedVc<AvailableModules>>,
-    modules: OperationVc<AvailableModulesSet>,
-}
-
 #[turbo_tasks::value_impl]
-impl AvailableModules {
+impl AvailableModulesSet {
+    /// Returns a new set holding everything in `self` plus everything in `extra`.
+    ///
+    /// The sets are merged eagerly rather than chained: a flat set keeps `contains` O(1) and lets
+    /// two contexts with equal availability share one cell, which a chain cannot do because its
+    /// identity includes the shape of the chain rather than just its contents.
     #[turbo_tasks::function]
-    pub fn new(modules: OperationVc<AvailableModulesSet>) -> Vc<Self> {
-        AvailableModules {
-            parent: None,
-            modules,
-        }
-        .cell()
-    }
-
-    #[turbo_tasks::function]
-    pub fn with_modules(
+    pub async fn with_modules(
         self: ResolvedVc<Self>,
-        modules: OperationVc<AvailableModulesSet>,
+        extra: OperationVc<AvailableModulesSet>,
     ) -> Result<Vc<Self>> {
-        Ok(AvailableModules {
-            parent: Some(self),
-            modules,
+        let base = self.await?;
+        let extra = extra.connect().await?;
+        if extra.is_empty() {
+            return Ok(*self);
         }
-        .cell())
+        let mut merged = (*base).clone();
+        merged.extend(extra.iter().copied());
+        Ok(Vc::cell(merged))
     }
 
     #[turbo_tasks::function]
     pub async fn hash(&self) -> Result<Vc<u64>> {
         let mut hasher = Xxh3Hash64Hasher::new();
-        if let Some(parent) = self.parent {
-            hasher.write_value(parent.hash().await?);
-        } else {
-            hasher.write_value(0u64);
-        }
         let item_idents = self
-            .modules
-            .connect()
-            .await?
+            .0
             .iter()
             .map(async |&module| module.ident_strings().await)
             .join()
             .await;
         for idents in item_idents {
-            let idents = idents?;
-            match idents {
+            match idents? {
                 IdentStrings::Single(ident) => hasher.write_value(ident),
                 IdentStrings::Multiple(idents) => {
                     for ident in &idents {
@@ -116,40 +98,10 @@ impl AvailableModules {
         }
         Ok(Vc::cell(hasher.finish()))
     }
-
-    #[turbo_tasks::function]
-    pub async fn get(&self, item: AvailableModuleItem) -> Result<Vc<bool>> {
-        if self.modules.connect().await?.contains(&item) {
-            return Ok(Vc::cell(true));
-        };
-        if let Some(parent) = self.parent {
-            return Ok(parent.get(item));
-        }
-        Ok(Vc::cell(false))
-    }
-
-    #[turbo_tasks::function]
-    pub async fn snapshot(&self) -> Result<Vc<AvailableModulesSnapshot>> {
-        let modules = self.modules.connect().await?;
-        let parent = if let Some(parent) = self.parent {
-            Some(parent.snapshot().await?)
-        } else {
-            None
-        };
-
-        Ok(AvailableModulesSnapshot { parent, modules }.cell())
-    }
 }
 
-#[turbo_tasks::value(serialization = "skip")]
-#[derive(Debug, Clone)]
-pub struct AvailableModulesSnapshot {
-    parent: Option<ReadRef<AvailableModulesSnapshot>>,
-    modules: ReadRef<AvailableModulesSet>,
-}
-
-impl AvailableModulesSnapshot {
-    pub fn get(&self, item: AvailableModuleItem) -> bool {
-        self.modules.contains(&item) || self.parent.as_ref().is_some_and(|parent| parent.get(item))
+impl AvailableModulesSet {
+    pub fn contains(&self, item: &AvailableModuleItem) -> bool {
+        self.0.contains(item)
     }
 }
