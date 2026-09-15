@@ -4,16 +4,19 @@ import type {
   SpanContext,
   SpanOptions,
 } from 'next/dist/compiled/@opentelemetry/api'
-import { getOrCreateGlobalAsyncLocalStorage } from '../../app-render/async-local-storage'
 import { SpanStatusCode, trace } from 'next/dist/compiled/@opentelemetry/api'
 import {
   isLocalSpanRecordingEnabled,
+  isLocalSpanSinkActive,
   captureLocalSpanRecorder,
   type SpanStoreAttributes,
   type SpanStoreEvent,
   type SpanStoreLink,
+  type SpanStoreRecord,
+  type LocalSpanParent,
 } from './span-store'
 import type { RequestInsightKind } from '../../../next-devtools/shared/request-insights'
+import { getOrCreateGlobalAsyncLocalStorage } from '../../app-render/async-local-storage'
 
 export { isLocalSpanRecordingEnabled } from './span-store'
 
@@ -49,16 +52,18 @@ type TraceLocalSpanOptions = Omit<
 
 let lastLocalTraceId = 0
 let lastLocalSpanId = 0
-type LocalSpanScope = {
-  span: Span
-  publicContext: SpanContext | undefined
+
+function getLocalTraceId(): string {
+  return (++lastLocalTraceId).toString(16).padStart(TRACE_ID_HEX_LENGTH, '0')
 }
 
-const getLocalTraceId = () =>
-  (++lastLocalTraceId).toString(16).padStart(TRACE_ID_HEX_LENGTH, '0')
-
-const getLocalSpanId = () =>
-  (++lastLocalSpanId).toString(16).padStart(SPAN_ID_HEX_LENGTH, '0')
+export function createLocalSpanId(excludedId?: string): string {
+  let spanId: string
+  do {
+    spanId = (++lastLocalSpanId).toString(16).padStart(SPAN_ID_HEX_LENGTH, '0')
+  } while (spanId === excludedId)
+  return spanId
+}
 
 export function createLocalSpan({
   name,
@@ -80,7 +85,7 @@ export function createLocalSpan({
     delegateSpan,
     publicParentSpan,
     traceId: traceId ?? getLocalTraceId(),
-    spanId: spanId ?? getLocalSpanId(),
+    spanId: spanId ?? createLocalSpanId(),
     parentSpanId,
     requestIdentity: getCurrentRequestIdentity(),
     isolateOpenTelemetry: isolateOpenTelemetry ?? false,
@@ -110,6 +115,47 @@ export function getLocalParentSpan(
 
 export function getOpenTelemetrySpan(span: Span): Span | undefined {
   return span instanceof LocalRecordingSpan ? span.getOpenTelemetrySpan() : span
+}
+
+export function captureLocalSpanContext(parent: LocalSpanParent) {
+  return {
+    ...getCurrentRequestIdentity(),
+    traceId: parent.traceId,
+    parentSpanId: parent.spanId,
+  }
+}
+
+export function reparentLocalSpans(
+  parent: LocalSpanParent,
+  spans: readonly SpanStoreRecord[]
+): SpanStoreRecord[] {
+  const importedIds = new Map<string, string>()
+  const key = (traceId: string, spanId: string) => `${traceId}:${spanId}`
+  for (const span of spans) {
+    if (span.traceId && span.spanId) {
+      importedIds.set(
+        key(span.traceId, span.spanId),
+        createLocalSpanId(parent.spanId)
+      )
+    }
+  }
+
+  return spans.map((span) => ({
+    ...span,
+    traceId: parent.traceId,
+    spanId:
+      (span.traceId && span.spanId
+        ? importedIds.get(key(span.traceId, span.spanId))
+        : undefined) ?? createLocalSpanId(parent.spanId),
+    parentSpanId:
+      (span.traceId && span.parentSpanId
+        ? importedIds.get(key(span.traceId, span.parentSpanId))
+        : undefined) ?? parent.spanId,
+    links: span.links?.map((link) => {
+      const spanId = importedIds.get(key(link.traceId, link.spanId))
+      return spanId ? { ...link, traceId: parent.traceId, spanId } : link
+    }),
+  }))
 }
 
 export function isLocalRecordingSpan(span: Span): boolean {
@@ -167,35 +213,57 @@ export type LocalSpanRecorder = {
   isLocalRecordingSpan: typeof isLocalRecordingSpan
   isOpenTelemetryIsolatedSpan: typeof isOpenTelemetryIsolatedSpan
   isLocalSpanRecordingEnabled: typeof isLocalSpanRecordingEnabled
+  isLocalSpanSinkActive: typeof isLocalSpanSinkActive
   traceLocalSpan: typeof traceLocalSpan
   withLocalSpan: typeof withLocalSpan
 }
 
-export function registerLocalSpanRecorder(): void {
-  const key = Symbol.for(
-    `@next/local-span-recorder@${process.env.__NEXT_VERSION}`
-  )
-  ;(
-    globalThis as typeof globalThis & {
-      [key]?: LocalSpanRecorder
-    }
-  )[key] = {
+// Some development entrypoints, including the proxy adapter, bundle their own
+// tracer copy. This versioned function-only registry lets those copies reach
+// the externalized recorder without sharing any per-request state globally.
+const LOCAL_SPAN_RECORDER_KEY = Symbol.for(
+  `@next/local-span-recorder@${process.env.__NEXT_VERSION}`
+)
+
+type GlobalWithLocalSpanRecorder = typeof globalThis & {
+  [LOCAL_SPAN_RECORDER_KEY]?: LocalSpanRecorder
+}
+
+function getLocalSpanRecorderApi({
+  sinkOnly,
+}: {
+  sinkOnly: boolean
+}): LocalSpanRecorder {
+  return {
     createLocalSpan,
     getActiveLocalSpan,
     getLocalParentSpan,
     getOpenTelemetrySpan,
     isLocalRecordingSpan,
     isOpenTelemetryIsolatedSpan,
-    isLocalSpanRecordingEnabled,
+    isLocalSpanRecordingEnabled: sinkOnly
+      ? isLocalSpanSinkActive
+      : isLocalSpanRecordingEnabled,
+    isLocalSpanSinkActive,
     traceLocalSpan,
     withLocalSpan,
   }
 }
 
+export function registerLocalSpanRecorder({
+  sinkOnly = false,
+}: {
+  sinkOnly?: boolean
+} = {}): void {
+  ;(globalThis as GlobalWithLocalSpanRecorder)[LOCAL_SPAN_RECORDER_KEY] =
+    getLocalSpanRecorderApi({ sinkOnly })
+}
+
 function getLocalSpanAsyncStorage() {
-  return getOrCreateGlobalAsyncLocalStorage<LocalSpanScope>(
-    'local-span-storage'
-  )
+  return getOrCreateGlobalAsyncLocalStorage<{
+    span: Span
+    publicContext: SpanContext | undefined
+  }>('local-span-storage')
 }
 
 type RequestIdentity = {
