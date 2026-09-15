@@ -1,11 +1,13 @@
 import type { ExperimentConfig } from '@vercel/agent-eval'
 import { setupUpgrade } from './fixture'
+import { setupSecurity } from '../security/setup'
 
 export function upgradeExperiment(
   harness: 'codex' | 'claude-code'
 ): ExperimentConfig {
   const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
   if (!fixture) throw new Error('Select one upgrade eval case')
+  const security = fixture.startsWith('security-')
 
   return {
     agent: `vercel-ai-gateway/${harness}`,
@@ -18,6 +20,9 @@ export function upgradeExperiment(
     earlyExit: false,
     timeout: 1800,
     copyFiles: 'changed',
-    setup: setupUpgrade,
+    setup: async (sandbox) => {
+      await setupUpgrade(sandbox)
+      if (security) await setupSecurity(sandbox)
+    },
   }
 }
