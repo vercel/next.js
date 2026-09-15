@@ -1,6 +1,7 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import type { FallbackRouteParam } from '../static-paths/types'
+import type { AppPageRenderOperation } from '../../server/app-render/types'
 
 import {
   AppPageRouteModule,
@@ -90,8 +91,6 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { InvariantError } from '../../shared/lib/invariant-error' with { 'turbopack-transition': 'next-server-utility' }
 import { scheduleOnNextTick } from '../../lib/scheduler' with { 'turbopack-transition': 'next-server-utility' }
 import { getSegmentParam } from '../../shared/lib/router/utils/get-segment-param' with { 'turbopack-transition': 'next-server-utility' }
-
-type AppPageRenderOperation = 'render' | 'prerender'
 
 /**
  * Builds the cache key for the most complete prerenderable shell we can derive
@@ -869,10 +868,11 @@ export function createAppPageEntrypoint({
             routeModule,
             page: srcPage,
             postponed,
+            renderOperation,
             allowEmptyStaticShell,
             serveStreamingMetadata,
             supportsDynamicResponse:
-              renderOperation === 'render' &&
+              renderOperation !== 'prerender' &&
               (typeof postponed === 'string' || supportsDynamicResponse),
             buildManifest,
             nextFontManifest,
@@ -1587,12 +1587,25 @@ export function createAppPageEntrypoint({
             !isDebugPrerender &&
             (supportsDynamicResponse || isPossibleServerAction)
 
+          const isResumeRender =
+            !forceStaticRender &&
+            !isDebugPrerender &&
+            typeof postponed === 'string' &&
+            hasPostponedState &&
+            !isPossibleServerAction
+
+          const renderOperation: AppPageRenderOperation = isResumeRender
+            ? 'resume'
+            : isRequestSpecificRender
+              ? 'render'
+              : 'prerender'
+
           // Perform the render.
           return doRender({
             span,
             postponed,
             fallbackRouteParams,
-            renderOperation: isRequestSpecificRender ? 'render' : 'prerender',
+            renderOperation,
             allowEmptyStaticShell: isInstantNavigationTest || undefined,
           })
         } catch (err) {
@@ -2124,7 +2137,7 @@ export function createAppPageEntrypoint({
           // The resume retains concrete param values; staging only defers
           // access.
           fallbackRouteParams: null,
-          renderOperation: 'render',
+          renderOperation: 'resume',
         })
           .then(async (result) => {
             if (!result) {
