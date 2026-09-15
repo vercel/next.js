@@ -157,16 +157,17 @@ pub struct BackendOptions {
     /// This reclaims memory by clearing persisted data that can be re-loaded from disk on demand.
     pub eviction_mode: EvictionMode,
 
-    /// Overrides whether the reference-counting GC runs for this backend. `None` (default) derives
-    /// it from the `TURBO_ENGINE_GC` env var;
+    /// Whether the reference-counting GC runs for this backend. `None` (default) leaves it off.
+    ///
+    /// In Next.js this is driven by the `experimental.turbopackGc` config option.
     pub gc: Option<bool>,
 
-    /// Overrides how long a GC root may go un-anchored before it ages out. `None` (default)
-    /// derives it from the `TURBO_ENGINE_GC_ROOT_TTL_MS` env var, falling back to
+    /// How long a GC root may go un-anchored before it ages out. `None` (default) uses
     /// [`DEFAULT_GC_ROOT_TTL`].
     pub gc_root_ttl: Option<Duration>,
 
-    /// Overrides how long a GC pass runs before it will honour an interrupt.
+    /// How long a GC pass runs before it will honour an interrupt. `None` (default) uses
+    /// [`GC_MIN_PROGRESS`].
     pub gc_min_progress: Option<Duration>,
 }
 
@@ -311,57 +312,24 @@ impl TurboTasksBackend {
             options.active_tracking = false;
         }
         let small_preallocation = options.small_preallocation;
+        let gc_root_ttl = options.gc_root_ttl.unwrap_or(DEFAULT_GC_ROOT_TTL);
+        let gc_min_progress = options.gc_min_progress.unwrap_or(GC_MIN_PROGRESS);
         let next_task_id = backing_storage
             .next_free_task_id()
             .expect("Failed to get task id");
 
-        let mut gc_enabled = options.gc.unwrap_or_else(|| {
-            std::env::var_os("TURBO_ENGINE_GC")
-                .is_some_and(|v| matches!(v.to_str(), Some("1" | "true" | "yes")))
-        });
+        let mut gc_enabled = options.gc.unwrap_or(false);
         if gc_enabled
             && options.storage_mode == Some(StorageMode::ReadWrite)
             && options.eviction_mode == EvictionMode::Off
         {
             eprintln!(
-                "warning: GC is enabled but eviction is disabled on a ReadWrite backend; GC would \
-                 leave collected tasks resident forever. Forcing GC off. Enable eviction \
-                 ('auto'/'full') to use GC in this mode."
+                "warning: GC is enabled but eviction is disabled; GC would leave collected tasks \
+                 resident forever. Forcing GC off. Enable eviction ('auto'/'full') to use GC in \
+                 this mode."
             );
             gc_enabled = false;
         }
-
-        let gc_min_progress = options.gc_min_progress.unwrap_or_else(|| {
-            match std::env::var("TURBO_ENGINE_GC_MIN_PROGRESS_MS") {
-                Ok(v) => match v.parse::<u64>() {
-                    Ok(ms) => Duration::from_millis(ms),
-                    Err(e) => {
-                        eprintln!(
-                            "warning: TURBO_ENGINE_GC_MIN_PROGRESS_MS set but is not parsable: \
-                             {e}. Using the default instead."
-                        );
-                        GC_MIN_PROGRESS
-                    }
-                },
-                Err(_) => GC_MIN_PROGRESS,
-            }
-        });
-
-        let gc_root_ttl = options.gc_root_ttl.unwrap_or_else(|| {
-            match std::env::var("TURBO_ENGINE_GC_ROOT_TTL_MS") {
-                Ok(v) => match v.parse::<u64>() {
-                    Ok(ms) => Duration::from_millis(ms),
-                    Err(e) => {
-                        eprintln!(
-                            "warning: TURBO_ENGINE_GC_ROOT_TTL_MS set but is not parsable: {e}. \
-                             Using the default instead."
-                        );
-                        DEFAULT_GC_ROOT_TTL
-                    }
-                },
-                Err(_) => DEFAULT_GC_ROOT_TTL,
-            }
-        });
 
         Self {
             options,
