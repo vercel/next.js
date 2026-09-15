@@ -8,15 +8,15 @@ import { retry, waitFor } from 'next-test-utils'
 // @force-gate !deploy
 // @force-gate dev
 describe('evict-after-snapshot', () => {
-  const envVars = [
-    'ENABLE_CACHING=1',
-    'TURBO_ENGINE_IGNORE_DIRTY=1',
-    'TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000',
+  const env = {
+    ENABLE_CACHING: '1',
+    TURBO_ENGINE_IGNORE_DIRTY: '1',
+    TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '1000',
     // Persist even tiny snapshots so the test doesn't depend on the
     // minimum-compilation-time threshold.
-    'TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0',
-    'ENABLE_EVICTION=1',
-  ].join(' ')
+    TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
+    ENABLE_EVICTION: '1',
+  }
 
   const { next } = nextTestSetup({
     files: __dirname,
@@ -27,13 +27,7 @@ node-linker=hoisted
 package-import-method=copy
 `,
     },
-    packageJson: {
-      scripts: {
-        dev: `${envVars} next dev`,
-      },
-    },
-    installCommand: 'pnpm install',
-    startCommand: 'pnpm run dev',
+    env,
   })
 
   async function waitForSnapshotAndEviction() {

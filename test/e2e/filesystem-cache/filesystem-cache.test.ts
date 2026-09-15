@@ -39,16 +39,16 @@ for (const cacheEnabled of [false, true]) {
       delete process.env.NEXT_PUBLIC_ENV_VAR
     })
 
-    let envVars = [
-      `ENABLE_CACHING=${cacheEnabled ? '1' : ''}`,
+    const env = {
+      ENABLE_CACHING: cacheEnabled ? '1' : '',
       // Make it easier to run in development, test directories are cleared between runs already so this is safe.
-      `TURBO_ENGINE_IGNORE_DIRTY=1`,
+      TURBO_ENGINE_IGNORE_DIRTY: '1',
       // decrease the idle timeout to make the test more reliable
-      `TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000`,
+      TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '1000',
       // persist even tiny snapshots so the test doesn't depend on the
       // minimum-compilation-time threshold
-      `TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0`,
-    ].join(' ')
+      TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
+    }
 
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
@@ -59,17 +59,8 @@ node-linker=hoisted
 package-import-method=copy
 `,
       },
-      packageJson: {
-        scripts: {
-          build: `${envVars} next build`,
-          dev: `${envVars} next dev`,
-          start: 'next start',
-        },
-      },
-      installCommand: 'pnpm install',
-      // Next is always started with caching, but this can disable it for the followup restarts
-      buildCommand: `pnpm run build`,
-      startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
+      // Pass the cache setting through every harness-managed build and restart.
+      env,
     })
 
     beforeAll(() => {

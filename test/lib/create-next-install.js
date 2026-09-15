@@ -140,6 +140,49 @@ async function applyWorkspaceOverrides(installDir, isolationRoot, overrides) {
 }
 
 /**
+ * pnpm's hoisted linker does not expose the `@pkg+name@file` virtual-store
+ * path used by the default linker. Verify the exact local tarball through the
+ * lockfile instead.
+ *
+ * @param {string} installDir
+ * @param {string} packageName
+ * @param {string} expectedTarballPath
+ * @returns {Promise<boolean>}
+ */
+async function lockfileResolvesLocalTarball(
+  installDir,
+  packageName,
+  expectedTarballPath
+) {
+  const lockfile = /** @type {Record<string, any>} */ (
+    yaml.load(
+      await fs.readFile(path.join(installDir, 'pnpm-lock.yaml'), 'utf8')
+    )
+  )
+  const expectedRealpath = await fs.realpath(expectedTarballPath)
+
+  for (const [key, pkg] of Object.entries(lockfile.packages || {})) {
+    const tarball = pkg?.resolution?.tarball
+    if (
+      !key.startsWith(`${packageName}@file:`) ||
+      typeof tarball !== 'string' ||
+      !tarball.startsWith('file:')
+    ) {
+      continue
+    }
+
+    const resolvedTarball = path.resolve(
+      installDir,
+      tarball.slice('file:'.length)
+    )
+    if ((await fs.realpath(resolvedTarball)) === expectedRealpath) {
+      return true
+    }
+  }
+  return false
+}
+
+/**
  * @param {import('next/dist/trace').Span} parentSpan
  * @returns {Promise<Map<string, string>>}
  */
@@ -376,7 +419,18 @@ async function createNextInstall({
               '../@next/env'
             )
           )
-          if (!envDir.includes('@next+env@file')) {
+          const envTarballPath = pkgPaths.get('@next/env')
+          if (
+            !envDir.includes('@next+env@file') &&
+            !(
+              envTarballPath &&
+              (await lockfileResolvesLocalTarball(
+                installDir,
+                '@next/env',
+                envTarballPath
+              ))
+            )
+          ) {
             throw new Error(
               `@next/env resolved from the npm registry instead of the local tarball (${envDir}), ` +
                 'the workspace overrides were not applied to the install'

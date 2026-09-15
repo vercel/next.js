@@ -30,17 +30,17 @@ const STATS_RELATIVE_PATH = '.next/warm-restart-task-stats.json'
 // @force-gate !deploy
 // @force-gate turbopack
 describe('warm-restart task statistics', () => {
-  const env = [
-    'ENABLE_CACHING=1',
-    'TURBO_ENGINE_IGNORE_DIRTY=1',
-    'TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS=1000',
+  const env = {
+    ENABLE_CACHING: '1',
+    TURBO_ENGINE_IGNORE_DIRTY: '1',
+    TURBO_ENGINE_SNAPSHOT_IDLE_TIMEOUT_MILLIS: '1000',
     // Persist even tiny snapshots so the test doesn't depend on the
     // minimum-compilation-time threshold.
-    'TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS=0',
-    `NEXT_TURBOPACK_TASK_STATISTICS=${STATS_RELATIVE_PATH}`,
+    TURBO_ENGINE_SNAPSHOT_MIN_ACTIVE_TIME_MILLIS: '0',
+    NEXT_TURBOPACK_TASK_STATISTICS: STATS_RELATIVE_PATH,
     // Wait for turbo-tasks to persist the cache before the dev process exits.
-    'NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN=1',
-  ].join(' ')
+    NEXT_DEV_WAIT_FOR_TURBOPACK_SHUTDOWN: '1',
+  }
 
   const { next } = nextTestSetup({
     files: __dirname,
@@ -51,16 +51,7 @@ node-linker=hoisted
 package-import-method=copy
 `,
     },
-    packageJson: {
-      scripts: {
-        build: `${env} next build`,
-        dev: `${env} next dev`,
-        start: 'next start',
-      },
-    },
-    installCommand: 'pnpm install',
-    buildCommand: 'pnpm run build',
-    startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
+    env,
   })
 
   beforeAll(() => {
