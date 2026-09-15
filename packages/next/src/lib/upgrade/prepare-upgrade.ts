@@ -1,9 +1,13 @@
 import { readFile } from 'fs/promises'
 import { createRequire } from 'module'
 import { join } from 'path'
+import { resetEnv } from '@next/env'
 import semver from 'next/dist/compiled/semver'
 import * as Log from '../../build/output/log'
+import loadConfig from '../../server/config'
+import { PHASE_INFO } from '../../shared/lib/constants'
 import { dim } from '../picocolors'
+import { futureDefaults, type FutureDefaultEntry } from './future-defaults'
 
 type UpgradePreparation =
   | { status: 'unaffected'; reason: string }
@@ -13,23 +17,32 @@ type UpgradePreparation =
       targetVersion: string
       checkedAt: string
       references: string[]
+      futureDefaults: FutureDefaultEntry[]
     }
 
 export async function prepareUpgrade(
   directory: string,
   targetRequest: string
 ): Promise<UpgradePreparation> {
-  if (targetRequest !== 'security' && targetRequest !== 'latest') {
+  if (
+    targetRequest !== 'security' &&
+    targetRequest !== 'latest' &&
+    targetRequest !== 'future'
+  ) {
     throw new Error(
-      `Unsupported AI upgrade type ${JSON.stringify(targetRequest)}. Expected "security" or "latest".`
+      `Unsupported AI upgrade type ${JSON.stringify(targetRequest)}. Expected "security", "latest", or "future".`
     )
   }
 
   // Resolve from the app: the invoking canary is only the upgrade tooling.
   const requireFromApp = createRequire(join(directory, 'package.json'))
-  const { version: installedVersion } = JSON.parse(
+  const installedNext = JSON.parse(
     await readFile(requireFromApp.resolve('next/package.json'), 'utf8')
-  )
+  ) as {
+    version: string
+    engines: { node: string | undefined } | undefined
+  }
+  const installedVersion = installedNext.version
 
   if (!semver.valid(installedVersion)) {
     throw new Error('The installed Next.js version is not valid semver.')
@@ -39,6 +52,7 @@ export async function prepareUpgrade(
   let target: PackageRelease
   let checkedAt: string
   let references: string[]
+  let pendingFutureDefaults: FutureDefaultEntry[] = []
 
   if (targetRequest === 'security') {
     // Prerelease advisory coverage and remediation policy are deferred.
@@ -83,29 +97,65 @@ export async function prepareUpgrade(
       throw new Error('Could not resolve the latest stable Next.js release.')
     }
 
+    let selectedVersion = release.version
+    let selectedNodeRange = release.engines?.node ?? null
+
+    if (
+      targetRequest === 'future' &&
+      semver.gt(installedVersion, release.version)
+    ) {
+      selectedVersion = installedVersion
+      selectedNodeRange = installedNext.engines?.node ?? null
+    }
+
+    if (
+      targetRequest === 'future' &&
+      semver.prerelease(selectedVersion) !== null
+    ) {
+      throw new Error(
+        'Future upgrades for prerelease Next.js versions are not supported yet.'
+      )
+    }
+
     const securityReferences: string[] = []
-    if (!semver.prerelease(installedVersion)) {
+    let latestCheckedAt = new Date().toISOString()
+    if (
+      targetRequest === 'future' ||
+      semver.prerelease(installedVersion) === null
+    ) {
       const snapshot = await readSecuritySnapshot()
+      const securityTarget =
+        targetRequest === 'latest' &&
+        semver.gt(installedVersion, release.version)
+          ? installedVersion
+          : selectedVersion
       if (
         affectedRanges(snapshot.advisories).some((range) =>
-          semver.satisfies(release.version, range)
+          semver.satisfies(securityTarget, range)
         )
       ) {
         throw new Error(
-          `The latest stable Next.js release ${release.version} is affected by an active advisory.`
+          `Next.js ${securityTarget} is affected by an active advisory.`
         )
       }
       securityReferences.push(...snapshot.references)
+      latestCheckedAt = snapshot.checkedAt
     }
 
-    if (semver.eq(release.version, installedVersion)) {
+    if (
+      targetRequest === 'latest' &&
+      semver.eq(release.version, installedVersion)
+    ) {
       return {
         status: 'unaffected',
         reason: `Next.js ${installedVersion} is already the latest stable release.`,
       }
     }
 
-    if (semver.lt(release.version, installedVersion)) {
+    if (
+      targetRequest === 'latest' &&
+      semver.lt(release.version, installedVersion)
+    ) {
       return {
         status: 'unaffected',
         reason: `Next.js ${installedVersion} is newer than the latest stable release ${release.version}.`,
@@ -113,10 +163,10 @@ export async function prepareUpgrade(
     }
 
     target = {
-      version: release.version,
-      nodeRange: release.engines?.node ?? null,
+      version: selectedVersion,
+      nodeRange: selectedNodeRange,
     }
-    checkedAt = new Date().toISOString()
+    checkedAt = latestCheckedAt
     references = [...new Set([...securityReferences, url])]
   }
 
@@ -130,12 +180,35 @@ export async function prepareUpgrade(
     )
   }
 
+  if (targetRequest === 'future') {
+    const config = await loadConfig(PHASE_INFO, directory, {
+      silent: true,
+    }).finally(resetEnv)
+
+    pendingFutureDefaults = futureDefaults.filter(
+      (futureDefault) =>
+        semver.gte(target.version, futureDefault.availableSince) &&
+        config[futureDefault.key] !== futureDefault.value
+    )
+
+    if (
+      semver.eq(target.version, installedVersion) &&
+      pendingFutureDefaults.length === 0
+    ) {
+      return {
+        status: 'unaffected',
+        reason: `Next.js ${installedVersion} is current and all available Future Defaults are enabled.`,
+      }
+    }
+  }
+
   return {
     status: 'ready',
     installedVersion,
     targetVersion: target.version,
     checkedAt,
     references,
+    futureDefaults: pendingFutureDefaults,
   }
 }
 

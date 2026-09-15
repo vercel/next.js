@@ -193,7 +193,7 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 
 export const experimentalSchema = {
   agenticAutoUpgrade: z
-    .union([z.enum(['security', 'latest']), z.literal(false)])
+    .union([z.enum(['security', 'latest', 'future']), z.literal(false)])
     .optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),

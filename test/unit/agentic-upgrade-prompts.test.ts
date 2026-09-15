@@ -1,4 +1,5 @@
-import { access, cp, mkdtemp, rm, stat } from 'fs/promises'
+import { EventEmitter } from 'events'
+import { access, cp, mkdir, mkdtemp, rm, stat, writeFile } from 'fs/promises'
 import * as Log from 'next/dist/build/output/log'
 import cliSelect from 'next/dist/compiled/cli-select'
 import { spawnNextUpgrade } from 'next/dist/cli/next-upgrade'
@@ -11,9 +12,11 @@ import { getAgentName } from 'next/dist/telemetry/agent-name'
 jest.mock('fs/promises', () => ({
   access: jest.fn(),
   cp: jest.fn(),
+  mkdir: jest.fn(),
   mkdtemp: jest.fn(),
   rm: jest.fn(),
   stat: jest.fn(),
+  writeFile: jest.fn(),
 }))
 jest.mock('next/dist/build/spinner', () => ({
   __esModule: true,
@@ -28,6 +31,7 @@ jest.mock('next/dist/compiled/cli-select', () => ({
   __esModule: true,
   default: jest.fn(),
 }))
+jest.mock('next/dist/compiled/cross-spawn', () => jest.fn())
 jest.mock('next/dist/lib/find-pages-dir', () => ({
   findDir: jest.fn(),
 }))
@@ -47,6 +51,7 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
 }))
 
 const createSpinner = require('next/dist/build/spinner').default as jest.Mock
+const crossSpawn = require('next/dist/compiled/cross-spawn') as jest.Mock
 const restoreDescriptors: Array<() => void> = []
 
 function normalizedBootstrapCalls(): string[][] {
@@ -95,10 +100,13 @@ describe('agentic upgrade prompts', () => {
         'https://registry.npmjs.org/next',
         'https://registry.npmjs.org/next/latest',
       ],
+      futureDefaults: [],
     })
     jest.mocked(mkdtemp).mockResolvedValue('/tmp/next-upgrade-test')
     jest.mocked(cp).mockResolvedValue(undefined)
+    jest.mocked(mkdir).mockResolvedValue(undefined)
     jest.mocked(rm).mockResolvedValue(undefined)
+    jest.mocked(writeFile).mockResolvedValue(undefined)
     jest.mocked(getAgentName).mockResolvedValue('codex')
   })
 
@@ -237,6 +245,83 @@ describe('agentic upgrade prompts', () => {
      This is a --experimental-agentic-dry-run: complete the migration and verification, create local commits, then stop. Do not push or create a PR/MR.",
        ],
      ]
+    `)
+  })
+
+  it('adds temporary Future Default instructions to the migration prompt', async () => {
+    jest.mocked(prepareUpgrade).mockResolvedValue({
+      status: 'ready',
+      installedVersion: '16.2.0',
+      targetVersion: '16.4.0',
+      checkedAt: '2026-09-14T13:41:58.013Z',
+      references: [
+        'https://api.github.com/advisories?affects=next',
+        'https://registry.npmjs.org/next/latest',
+      ],
+      futureDefaults: [
+        {
+          key: 'cacheComponents',
+          value: true,
+          availableSince: '16.3.0',
+          guide: '01-app/02-guides/migrating-to-cache-components.md',
+          skills: {
+            adoption: 'next-cache-components-adoption',
+            optimize: 'next-cache-components-optimizer',
+          },
+        },
+      ],
+    })
+
+    crossSpawn.mockImplementation(() => {
+      const child = new EventEmitter() as EventEmitter & {
+        stdout: EventEmitter & { setEncoding: jest.Mock }
+        stderr: EventEmitter & { setEncoding: jest.Mock }
+      }
+      child.stdout = Object.assign(new EventEmitter(), {
+        setEncoding: jest.fn(),
+      })
+      child.stderr = Object.assign(new EventEmitter(), {
+        setEncoding: jest.fn(),
+      })
+      process.nextTick(() => {
+        child.stdout.emit('data', 'Adopt Cache Components safely.\n')
+        child.emit('close', 0)
+      })
+      return child
+    })
+
+    await spawnNextUpgrade('/workspace/app', {
+      revision: undefined,
+      verbose: false,
+      ai: 'future',
+      experimentalAgenticDryRun: false,
+    })
+
+    expect({
+      prompt: normalizedBootstrapCalls(),
+      savedInstructions: jest.mocked(writeFile).mock.calls,
+    }).toMatchInlineSnapshot(`
+     {
+       "prompt": [
+         [
+           "Upgrade "/workspace/app" from Next.js 16.2.0 to 16.4.0.
+     Upgrade type: future.
+     References: ["https://api.github.com/advisories?affects=next","https://registry.npmjs.org/next/latest"]
+     Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before making changes.
+     After completing and verifying the version migration, adopt these Future Defaults in order:
+     - Set cacheComponents to true. Read and follow "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md".
+     After verification, set experimental.agenticAutoUpgrade to "future".
+     Preserve existing permissions.",
+         ],
+       ],
+       "savedInstructions": [
+         [
+           "/tmp/next-upgrade-test/skills/next-cache-components-adoption/PROMPT.md",
+           "Adopt Cache Components safely.
+     ",
+         ],
+       ],
+     }
     `)
   })
 })
