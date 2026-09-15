@@ -119,36 +119,20 @@ describe('ReactRefreshLogBox app', () => {
       `)
     } else {
       await expect(browser).toDisplayRedbox(`
-       [
-         {
-           "description": "no",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "index.js (3:7) @ eval
+       {
+         "description": "no",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "index.js (3:7) @ eval
        > 3 | throw new Error('no')
            |       ^",
-           "stack": [
-             "eval index.js (3:7)",
-             "<FIXME-next-dist-dir>",
-             "eval ./app/page.js",
-             "<FIXME-next-dist-dir>",
-           ],
-         },
-         {
-           "description": "no",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "index.js (3:7) @ eval
-       > 3 | throw new Error('no')
-           |       ^",
-           "stack": [
-             "eval index.js (3:7)",
-             "<FIXME-next-dist-dir>",
-             "eval ./app/page.js",
-             "<FIXME-next-dist-dir>",
-           ],
-         },
-       ]
+         "stack": [
+           "eval index.js (3:7)",
+           "<FIXME-next-dist-dir>",
+           "eval ./app/page.js",
+           "<FIXME-next-dist-dir>",
+         ],
+       }
       `)
     }
   })
@@ -1653,36 +1637,20 @@ export default function Home() {
     } else {
       // FIXME: Webpack stack frames are not source mapped
       await expect(browser).toDisplayRedbox(`
-       [
-         {
-           "description": "utils error",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "app/utils.ts (1:7) @ eval
+       {
+         "description": "utils error",
+         "environmentLabel": null,
+         "label": "Runtime Error",
+         "source": "app/utils.ts (1:7) @ eval
        > 1 | throw new Error('utils error')
            |       ^",
-           "stack": [
-             "eval app/utils.ts (1:7)",
-             "<FIXME-next-dist-dir>",
-             "eval ./app/page.js",
-             "<FIXME-next-dist-dir>",
-           ],
-         },
-         {
-           "description": "utils error",
-           "environmentLabel": null,
-           "label": "Runtime Error",
-           "source": "app/utils.ts (1:7) @ eval
-       > 1 | throw new Error('utils error')
-           |       ^",
-           "stack": [
-             "eval app/utils.ts (1:7)",
-             "<FIXME-next-dist-dir>",
-             "eval ./app/page.js",
-             "<FIXME-next-dist-dir>",
-           ],
-         },
-       ]
+         "stack": [
+           "eval app/utils.ts (1:7)",
+           "<FIXME-next-dist-dir>",
+           "eval ./app/page.js",
+           "<FIXME-next-dist-dir>",
+         ],
+       }
       `)
     }
   })

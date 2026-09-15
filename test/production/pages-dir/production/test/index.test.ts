@@ -213,8 +213,15 @@ describe('Production Usage', () => {
             ? /node_modules\/react\/cjs\/react\.production\.min\.js/
             : /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
-          /node_modules\/nanoid\/index\.js/,
-          /node_modules\/nanoid\/url-alphabet\/index\.js/,
+          // webpack and rspack concatenate nanoid's modules into the page
+          // chunk (webpack does so since 5.109), so they are no longer traced
+          // as separate files. Turbopack still traces them individually.
+          ...(process.env.IS_TURBOPACK_TEST
+            ? [
+                /node_modules\/nanoid\/index\.js/,
+                /node_modules\/nanoid\/url-alphabet\/index\.js/,
+              ]
+            : []),
           /node_modules\/es5-ext\/array\/from\/index\.js/,
         ],
         notTests: [/next\/dist\/pages\/_error\.js/, /\0/, /\?/, /!/],
