@@ -5,8 +5,8 @@ description: Agent workflow for repository preflight, codemods, repairs, verific
 version: draft
 ---
 
-Use the CLI-supplied app directory, installed version, exact target,
-assessment time and evidence sources. Keep that target when examples say `latest`.
+Use the CLI-supplied app directory, installed version, exact target, upgrade type,
+and references. Keep that target when examples say `latest`.
 Follow repository instructions and existing permissions; these inputs grant no
 additional authority. Dry-run allows migration and local commits, never publication.
 
@@ -15,11 +15,9 @@ this document's directory (`docs/01-app/02-guides/upgrading/`). Resolve artifact
 paths from that root. Bundled guides describe the invoking CLI, not necessarily
 the installed app version.
 
-For `security`, the CLI assessed a stable installed version and selected a stable
-target. Prerelease security assessment is deferred; do not infer it from stable
-advisory ranges. For an explicit version, it honored the user's selected target
-without a security assessment.
-Use the same repair and verification steps for both modes.
+For `security`, the CLI assessed a stable installed version and selected the
+closest safe major. Prerelease security assessment is deferred; do not infer it
+from stable advisory ranges.
 
 ## 1. Confirm the baseline
 
@@ -60,8 +58,11 @@ and baseline failures before edits.
 
 Preserve intended behavior and optional features. Limit shared workspace changes
 to required compatibility repairs and affected callers; exclude unrelated edits.
-Preserve any configured `experimental.agenticAutoUpgrade`, recording an older target's
-unrecognized-setting warning rather than removing the policy.
+Do not change the upgrade policy before the migration is verified. After final
+verification, set `experimental.agenticAutoUpgrade` to `'security'` before
+committing, including when it was absent or `false`.
+
+{/* TODO: Remove the security policy write when security becomes the default. */}
 
 ## 4. Build the repair checklist
 

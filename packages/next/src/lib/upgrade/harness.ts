@@ -98,7 +98,7 @@ async function chooseHarness(
   }
 }
 
-function copyUpgradePrompt(prompt: string): void {
+function copyUpgradePrompt(prompt: string, noHarness = false): void {
   const commands =
     process.platform === 'darwin'
       ? [['pbcopy']]
@@ -120,12 +120,20 @@ function copyUpgradePrompt(prompt: string): void {
     })
 
     if (!result.error && result.status === 0) {
-      Log.info('Upgrade prompt copied. Paste it into your coding agent.')
+      Log.info(
+        noHarness
+          ? 'No coding harness detected. Copied the upgrade prompt to your clipboard.'
+          : 'Upgrade prompt copied. Paste it into your coding agent.'
+      )
       return
     }
   }
 
-  Log.info('Could not access the clipboard. Copy this upgrade prompt:')
+  Log.info(
+    noHarness
+      ? 'No coding harness detected. Copy this upgrade prompt:'
+      : 'Could not access the clipboard. Copy this upgrade prompt:'
+  )
   Log.bootstrap(prompt)
 }
 
@@ -187,10 +195,7 @@ export async function handoffUpgrade(
   const installed = await findHarnesses()
 
   if (installed.length === 0) {
-    Log.info(
-      'No supported agent found. Paste the prompt into your coding agent.'
-    )
-    copyUpgradePrompt(prompt)
+    copyUpgradePrompt(prompt, true)
     return
   }
 

@@ -192,7 +192,9 @@ const zTurbopackConfig: zod.ZodType<TurbopackOptions> = z.strictObject({
 })
 
 export const experimentalSchema = {
-  agenticAutoUpgrade: z.literal('security').optional(),
+  agenticAutoUpgrade: z
+    .union([z.literal('security'), z.literal(false)])
+    .optional(),
   outputHashSalt: z.string().optional(),
   useSkewCookie: z.boolean().optional(),
   after: z.boolean().optional(),

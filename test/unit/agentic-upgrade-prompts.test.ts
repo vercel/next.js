@@ -49,6 +49,12 @@ jest.mock('next/dist/telemetry/agent-name', () => ({
 const createSpinner = require('next/dist/build/spinner').default as jest.Mock
 const restoreDescriptors: Array<() => void> = []
 
+function normalizedBootstrapCalls(): string[][] {
+  return jest
+    .mocked(Log.bootstrap)
+    .mock.calls.map(([message]) => [String(message).replace(/\\+/g, '/')])
+}
+
 function overrideTTY(target: NodeJS.ReadStream | NodeJS.WriteStream): void {
   const descriptor = Object.getOwnPropertyDescriptor(target, 'isTTY')
   restoreDescriptors.push(() => {
@@ -81,10 +87,13 @@ describe('agentic upgrade prompts', () => {
     } as never)
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
-      nextVersion: '14.1.1',
+      installedVersion: '14.1.1',
       targetVersion: '16.3.5',
       checkedAt: '2026-09-14T13:41:58.013Z',
-      evidenceReferences: ['https://registry.npmjs.org/next/latest'],
+      references: [
+        'https://api.github.com/advisories?affects=next',
+        'https://registry.npmjs.org/next',
+      ],
     })
     jest.mocked(mkdtemp).mockResolvedValue('/tmp/next-upgrade-test')
     jest.mocked(cp).mockResolvedValue(undefined)
@@ -189,20 +198,19 @@ describe('agentic upgrade prompts', () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: undefined,
       verbose: false,
-      experimentalAgentic: 'latest',
+      ai: 'security',
       experimentalAgenticDryRun: false,
     })
 
-    expect(jest.mocked(Log.bootstrap).mock.calls).toMatchInlineSnapshot(`
+    expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Upgrade the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5.
-     Upgrade request: "latest".
-     The CLI resolved the target and checked Node.js compatibility at 2026-09-14T13:41:58.013Z. Security mode additionally checked the advisory policy; an explicit version does not imply a security assessment.
-     Evidence sources: ["https://registry.npmjs.org/next/latest"].
+         "Upgrade "/workspace/app" from Next.js 14.1.1 to 16.3.5.
+     Upgrade type: security.
+     References: ["https://api.github.com/advisories?affects=next","https://registry.npmjs.org/next"]
      Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before making changes.
-     The run directory contains the workflow instructions and bundled migration guides.
-     Use the resolved target above and preserve your existing permissions.",
+     After verification, set experimental.agenticAutoUpgrade to "security".
+     Preserve existing permissions.",
        ],
      ]
     `)
@@ -212,20 +220,20 @@ describe('agentic upgrade prompts', () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: undefined,
       verbose: false,
-      experimentalAgentic: 'latest',
+      ai: 'security',
       experimentalAgenticDryRun: true,
     })
 
-    expect(jest.mocked(Log.bootstrap).mock.calls).toMatchInlineSnapshot(`
+    expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Upgrade the app in "/workspace/app" from Next.js 14.1.1 to 16.3.5.
-     Upgrade request: "latest".
-     The CLI resolved the target and checked Node.js compatibility at 2026-09-14T13:41:58.013Z. Security mode additionally checked the advisory policy; an explicit version does not imply a security assessment.
-     Evidence sources: ["https://registry.npmjs.org/next/latest"].
+         "Upgrade "/workspace/app" from Next.js 14.1.1 to 16.3.5.
+     Upgrade type: security.
+     References: ["https://api.github.com/advisories?affects=next","https://registry.npmjs.org/next"]
      Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before making changes.
-     The run directory contains the workflow instructions and bundled migration guides.
-     Use the resolved target above and preserve your existing permissions. This is a --experimental-agentic-dry-run: complete the migration and verification, create local commits, then stop. Do not push or create a PR/MR.",
+     After verification, set experimental.agenticAutoUpgrade to "security".
+     Preserve existing permissions.
+     This is a --experimental-agentic-dry-run: complete the migration and verification, create local commits, then stop. Do not push or create a PR/MR.",
        ],
      ]
     `)

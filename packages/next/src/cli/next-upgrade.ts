@@ -2,6 +2,7 @@ import { spawn } from 'child_process'
 import { cp, mkdtemp, rm } from 'fs/promises'
 import { constants as osConstants, tmpdir } from 'os'
 import { join } from 'path'
+import { resetEnv } from '@next/env'
 import spawnCanary from 'next/dist/compiled/cross-spawn'
 import createSpinner from '../build/spinner'
 import * as Log from '../build/output/log'
@@ -13,7 +14,7 @@ import { dim } from '../lib/picocolors'
 type NextUpgradeOptions = {
   revision: string | undefined
   verbose: boolean
-  experimentalAgentic: boolean | string
+  ai: boolean | string
   experimentalAgenticDryRun: boolean
 }
 
@@ -23,7 +24,7 @@ export async function spawnNextUpgrade(
 ) {
   const baseDir = getProjectDir(directory)
 
-  if (options.experimentalAgentic) {
+  if (options.ai) {
     try {
       // Local development and evals run the invoked build directly. The canary
       // child uses the same flag to avoid recursion. Consume it before handoff
@@ -42,12 +43,8 @@ export async function spawnNextUpgrade(
           `${
             options.experimentalAgenticDryRun
               ? '--experimental-agentic-dry-run'
-              : '--experimental-agentic'
-          }${
-            typeof options.experimentalAgentic === 'string'
-              ? `=${options.experimentalAgentic}`
-              : ''
-          }`,
+              : '--ai'
+          }${typeof options.ai === 'string' ? `=${options.ai}` : ''}`,
         ]
 
         if (options.verbose) {
@@ -96,21 +93,19 @@ export async function spawnNextUpgrade(
         )
       }
 
-      // Bare agentic mode follows the app policy; explicit targets do not need config.
-      let targetRequest = options.experimentalAgentic
+      // Bare AI mode follows the app policy and otherwise defaults to security.
+      let targetRequest = options.ai
 
       if (typeof targetRequest !== 'string') {
         const { default: loadConfig } = await import('../server/config')
         const { PHASE_INFO } = await import('../shared/lib/constants')
-        const config = await loadConfig(PHASE_INFO, baseDir)
+        // loadConfig applies the app's production dotenv files to process.env.
+        // Restore the caller environment before assessment or handoff so a
+        // launched agent cannot inherit app secrets or __NEXT_PROCESSED_ENV.
+        const config = await loadConfig(PHASE_INFO, baseDir).finally(resetEnv)
 
-        if (!config.experimental.agenticAutoUpgrade) {
-          throw new Error(
-            'Set experimental.agenticAutoUpgrade in next.config or provide a target, for example --agentic=security.'
-          )
-        }
-
-        targetRequest = config.experimental.agenticAutoUpgrade
+        // `false` disables automatic nudges, not an explicitly requested run.
+        targetRequest = config.experimental.agenticAutoUpgrade || 'security'
       }
 
       // Resolve the requested target before preparing an agent session.
@@ -127,7 +122,7 @@ export async function spawnNextUpgrade(
       }
 
       Log.info(
-        `Upgrade: Next.js ${result.nextVersion} → ${result.targetVersion}`
+        `Upgrade: Next.js ${result.installedVersion} → ${result.targetVersion}`
       )
 
       // Use the invoking CLI's guides, even when the app runs an older Next.js.
@@ -151,16 +146,23 @@ export async function spawnNextUpgrade(
         guidesSpinner?.stop()
       }
 
+      const references =
+        result.references.length === 1
+          ? `Reference: ${result.references[0]}`
+          : `References: ${JSON.stringify(result.references)}`
+
+      // TODO: Stop persisting `security` when it becomes the default policy.
+      const policyInstruction = `After verification, set experimental.agenticAutoUpgrade to ${JSON.stringify(targetRequest)}.`
+
       // Pass resolved inputs directly; the agent owns repairs and verification.
-      const prompt = `Upgrade the app in ${JSON.stringify(baseDir)} from Next.js ${result.nextVersion} to ${result.targetVersion}.
-Upgrade request: ${JSON.stringify(targetRequest)}.
-The CLI resolved the target and checked Node.js compatibility at ${result.checkedAt}. Security mode additionally checked the advisory policy; an explicit version does not imply a security assessment.
-Evidence sources: ${JSON.stringify(result.evidenceReferences)}.
+      const prompt = `Upgrade ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion}.
+Upgrade type: ${targetRequest}.
+${references}
 Read and follow ${JSON.stringify(join(runDirectory, 'docs/01-app/02-guides/upgrading/agentic-upgrade.md'))} before making changes.
-The run directory contains the workflow instructions and bundled migration guides.
-Use the resolved target above and preserve your existing permissions.${
+${policyInstruction}
+Preserve existing permissions.${
         options.experimentalAgenticDryRun
-          ? ' This is a --experimental-agentic-dry-run: complete the migration and verification, create local commits, then stop. Do not push or create a PR/MR.'
+          ? '\nThis is a --experimental-agentic-dry-run: complete the migration and verification, create local commits, then stop. Do not push or create a PR/MR.'
           : ''
       }`
 

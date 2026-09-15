@@ -9,88 +9,58 @@ type UpgradePreparation =
   | { status: 'unaffected'; reason: string }
   | {
       status: 'ready'
-      nextVersion: string
+      installedVersion: string
       targetVersion: string
       checkedAt: string
-      evidenceReferences: string[]
+      references: string[]
     }
 
 export async function prepareUpgrade(
   directory: string,
   targetRequest: string
 ): Promise<UpgradePreparation> {
+  if (targetRequest !== 'security') {
+    throw new Error(
+      `Unsupported AI upgrade type ${JSON.stringify(targetRequest)}. Expected "security".`
+    )
+  }
+
   // Resolve from the app: the invoking canary is only the upgrade tooling.
   const requireFromApp = createRequire(join(directory, 'package.json'))
-  const { version: nextVersion } = JSON.parse(
+  const { version: installedVersion } = JSON.parse(
     await readFile(requireFromApp.resolve('next/package.json'), 'utf8')
   )
 
-  if (!semver.valid(nextVersion)) {
+  if (!semver.valid(installedVersion)) {
     throw new Error('The installed Next.js version is not valid semver.')
   }
 
-  Log.info(dim(`Installed Next.js: ${nextVersion}`))
+  Log.info(dim(`Installed Next.js: ${installedVersion}`))
   let target: PackageRelease
   let checkedAt: string
-  let evidenceReferences: string[]
+  let references: string[]
 
-  if (targetRequest === 'security') {
-    // Prerelease advisory coverage and remediation policy are deferred.
-    if (semver.prerelease(nextVersion)) {
-      throw new Error(
-        'Security upgrades for prerelease Next.js versions are not supported yet. Provide an explicit target with --agentic=<version>.'
-      )
-    }
-
-    const snapshot = await readSecuritySnapshot()
-    Log.info(dim('Selecting a compatible security target'))
-    const selected = selectSecurityTarget(nextVersion, snapshot, new Date())
-
-    if (!selected) {
-      return {
-        status: 'unaffected',
-        reason: `Next.js ${nextVersion} matches no active Next.js advisory in this snapshot.`,
-      }
-    }
-
-    target = selected
-    checkedAt = snapshot.checkedAt
-    evidenceReferences = snapshot.evidenceReferences
-  } else {
-    const url = `${NPM_REGISTRY}next/${encodeURIComponent(targetRequest)}`
-    Log.info(dim(`Fetching Next.js ${targetRequest} release metadata`))
-    const { value } = await fetchJSON(url)
-    const release = value as {
-      version: string
-      engines: { node: string | undefined } | undefined
-    } | null
-
-    if (
-      !release ||
-      !semver.valid(release.version) ||
-      (semver.valid(targetRequest) && release.version !== targetRequest)
-    ) {
-      throw new Error(`Could not resolve Next.js ${targetRequest}.`)
-    }
-
-    if (semver.eq(release.version, nextVersion)) {
-      return {
-        status: 'unaffected',
-        reason: `Next.js ${nextVersion} is already installed.`,
-      }
-    }
-
-    if (semver.lt(release.version, nextVersion)) {
-      throw new Error('Agentic upgrades do not support downgrades.')
-    }
-
-    target = {
-      version: release.version,
-      nodeRange: release.engines?.node ?? null,
-    }
-    checkedAt = new Date().toISOString()
-    evidenceReferences = [url]
+  // Prerelease advisory coverage and remediation policy are deferred.
+  if (semver.prerelease(installedVersion)) {
+    throw new Error(
+      'Security upgrades for prerelease Next.js versions are not supported yet.'
+    )
   }
+
+  const snapshot = await readSecuritySnapshot()
+  Log.info(dim('Selecting the closest safe major'))
+  const selected = selectSecurityTarget(installedVersion, snapshot, new Date())
+
+  if (!selected) {
+    return {
+      status: 'unaffected',
+      reason: `Next.js ${installedVersion} matches no active Next.js advisory in this snapshot.`,
+    }
+  }
+
+  target = selected
+  checkedAt = snapshot.checkedAt
+  references = snapshot.references
 
   Log.info(dim(`Checking Node.js compatibility for Next.js ${target.version}`))
   if (
@@ -104,10 +74,10 @@ export async function prepareUpgrade(
 
   return {
     status: 'ready',
-    nextVersion,
+    installedVersion,
     targetVersion: target.version,
     checkedAt,
-    evidenceReferences,
+    references,
   }
 }
 
@@ -130,7 +100,7 @@ type SecuritySnapshot = {
   checkedAt: string
   advisories: Advisory[]
   releases: (PackageRelease & { publishedAt: string })[]
-  evidenceReferences: string[]
+  references: string[]
 }
 
 const ADVISORIES =
@@ -165,7 +135,7 @@ async function fetchJSON(
     throw new Error(
       'Could not fetch upgrade metadata.\n' +
         `URL: ${url}\nCause: ${detail}\n` +
-        'Check access to this URL, then retry next upgrade --experimental-agentic.',
+        'Check access to this URL, then retry next upgrade --ai.',
       { cause: error }
     )
   }
@@ -271,7 +241,7 @@ function affectedRanges(advisories: Advisory[]): string[] {
 
 async function readGitHubAdvisories() {
   const advisories: Advisory[] = []
-  const evidenceReferences: string[] = []
+  const visited = new Set<string>()
   let url: string | undefined = ADVISORIES
 
   for (let page = 0; url; page++) {
@@ -279,6 +249,7 @@ async function readGitHubAdvisories() {
       throw new Error('Advisory pagination exceeded its bound.')
     }
 
+    visited.add(url)
     const { value, headers } = await fetchJSON(url)
 
     if (!Array.isArray(value)) {
@@ -286,7 +257,6 @@ async function readGitHubAdvisories() {
     }
 
     advisories.push(...value)
-    evidenceReferences.push(url)
     const next = headers
       .get('link')
       ?.split(',')
@@ -302,7 +272,7 @@ async function readGitHubAdvisories() {
         parsed.searchParams.get('ecosystem') !== 'npm' ||
         parsed.searchParams.get('affects') !== 'next' ||
         parsed.searchParams.get('type') !== 'reviewed' ||
-        evidenceReferences.includes(next)
+        visited.has(next)
       ) {
         throw new Error('Invalid advisory pagination link.')
       }
@@ -312,7 +282,7 @@ async function readGitHubAdvisories() {
   }
 
   affectedRanges(advisories)
-  return { advisories, evidenceReferences }
+  return { advisories }
 }
 
 async function readNpmAdvisories(versions: string[]): Promise<Advisory[]> {
@@ -386,7 +356,7 @@ async function readSecuritySnapshot(): Promise<SecuritySnapshot> {
   const registryURL = `${NPM_REGISTRY}next`
   let releases: SecuritySnapshot['releases']
   let advisories: Advisory[]
-  let evidenceReferences: string[]
+  let advisoryReference: string
 
   try {
     Log.info(dim('Fetching Next.js release metadata from npm'))
@@ -395,7 +365,7 @@ async function readSecuritySnapshot(): Promise<SecuritySnapshot> {
 
     if (github) {
       advisories = github.advisories
-      evidenceReferences = github.evidenceReferences
+      advisoryReference = ADVISORIES
     } else {
       Log.info(dim('GitHub advisory lookup failed; fetching npm advisories'))
       // Query every published version, including prereleases: querying only the
@@ -404,7 +374,7 @@ async function readSecuritySnapshot(): Promise<SecuritySnapshot> {
         (value as { versions: Record<string, unknown> }).versions
       ).filter((version) => semver.valid(version))
       advisories = await readNpmAdvisories(versions)
-      evidenceReferences = [NPM_ADVISORIES]
+      advisoryReference = NPM_ADVISORIES
     }
   } catch (error) {
     if (!github) {
@@ -421,7 +391,7 @@ async function readSecuritySnapshot(): Promise<SecuritySnapshot> {
     checkedAt: new Date().toISOString(),
     advisories,
     releases,
-    evidenceReferences: [...evidenceReferences, registryURL],
+    references: [advisoryReference, registryURL],
   }
 }
 

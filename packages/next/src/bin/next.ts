@@ -114,8 +114,7 @@ class NextRootCommand extends Command {
       // production mode merely because they were launched through this CLI.
       if (
         commandName !== 'upgrade' ||
-        (!event.getOptionValue('experimentalAgentic') &&
-          !event.getOptionValue('agentic') &&
+        (!event.getOptionValue('ai') &&
           !event.getOptionValue('experimentalAgenticDryRun'))
       ) {
         ;(process.env as any).NODE_ENV = process.env.NODE_ENV || defaultEnv
@@ -586,41 +585,36 @@ program
   )
   .option('--verbose', 'Verbose output', false)
   .option(
-    '--experimental-agentic [target]',
-    'Upgrade with an agent to security, a version or an npm tag. Requires a target or an app policy.'
+    '--ai [type]',
+    'Upgrade with AI using the configured policy, or security by default.'
   )
-  .option('--agentic [target]', 'Alias for --experimental-agentic.')
   .option(
-    '--experimental-agentic-dry-run [target]',
-    'Run an agentic upgrade and commit locally without pushing or creating a PR.'
+    '--experimental-agentic-dry-run [type]',
+    'Run an AI upgrade and commit locally without pushing or creating a PR.'
   )
   .action(async (directory, options, command) => {
-    const agenticTargets = [
-      options.experimentalAgentic,
-      options.agentic,
-      options.experimentalAgenticDryRun,
-    ].filter((value) => value !== undefined)
+    const aiTypes = [options.ai, options.experimentalAgenticDryRun].filter(
+      (value) => value !== undefined
+    )
 
-    if (agenticTargets.length > 1) {
-      command.error('Specify only one agentic upgrade option.')
+    if (aiTypes.length > 1) {
+      command.error('Specify only one AI upgrade option.')
     }
 
-    const agentic = agenticTargets[0] ?? false
+    const ai = aiTypes[0] ?? false
 
-    if (agentic === '') {
-      command.error('Provide an agentic target or omit the equals sign.')
+    if (ai === '') {
+      command.error('Provide an AI upgrade type or omit the equals sign.')
     }
 
-    if (agentic && command.getOptionValueSource('revision') !== 'default') {
-      command.error(
-        'Use --agentic=<target> instead of --revision for agentic upgrades.'
-      )
+    if (ai && command.getOptionValueSource('revision') !== 'default') {
+      command.error('Use --ai <type> instead of --revision for AI upgrades.')
     }
 
     const mod = await import('../cli/next-upgrade.js')
     await mod.spawnNextUpgrade(directory, {
       ...options,
-      experimentalAgentic: agentic,
+      ai,
       experimentalAgenticDryRun: !!options.experimentalAgenticDryRun,
     })
   })
