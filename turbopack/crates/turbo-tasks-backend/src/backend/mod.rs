@@ -1819,7 +1819,12 @@ impl TurboTasksBackend {
             get_in_shard(shard, hash, |k| k.eq_components(native_fn, this, arg_ref))
         {
             self.track_cache_hit_by_fn(native_fn);
-            operation::ConnectChildOperation::run(parent_task, task_id, ctx);
+            operation::ConnectChildOperation::run(
+                parent_task,
+                task_id,
+                /* release_construction_ref */ false,
+                ctx,
+            );
             return task_id;
         }
 
@@ -1918,11 +1923,9 @@ impl TurboTasksBackend {
             task_id
         };
 
-        operation::ConnectChildOperation::run(parent_task, task_id, ctx);
-
-        if created_new {
-            self.unpin_task_for_gc(task_id, turbo_tasks);
-        }
+        // New tasks carry a transient ref so they survive construction. Release it while
+        // connecting the task to the graph.
+        operation::ConnectChildOperation::run(parent_task, task_id, created_new, ctx);
 
         task_id
     }
@@ -3538,7 +3541,12 @@ impl TurboTasksBackend {
         turbo_tasks: &TurboTasks<TurboTasksBackend>,
     ) {
         self.assert_not_persistent_calling_transient(parent_task, task, None);
-        ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
+        ConnectChildOperation::run(
+            parent_task,
+            task,
+            /* release_construction_ref */ false,
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {

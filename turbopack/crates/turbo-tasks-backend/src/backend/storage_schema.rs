@@ -860,6 +860,7 @@ impl TaskStorage {
 
     /// Pins a newly initialized task until its construction operation connects it to the graph.
     pub fn gc_pin_for_construction(&mut self) {
+        debug_assert_eq!(self.gc_transient_ref_count(), 0);
         self.set_transient_ref_count(1);
     }
 
