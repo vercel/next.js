@@ -487,5 +487,60 @@ describe('App Shell revalidation', () => {
         )
       })
     })
+
+    it('does not repeat static requests if a runtime follow-up is needed', async () => {
+      let page: Playwright.Page
+      const browser = await next.browser('/', {
+        beforePageLoad(p: Playwright.Page) {
+          page = p
+        },
+      })
+      const act = createRouterAct(page, { includeAppShellRequests: true })
+
+      // Update the cache and for revalidation to settle before opening the page
+      await updateAndWaitForRevalidation(route)
+
+      // Reveal a prefetch-true link to the page. We should see revalidated content.
+      // After the revalidation, the page starts using cookies in the prefetch,
+      // so we should follow up with a runtime prefetch.
+      await act(async () => {
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `[data-prefetch="true"] input[data-link-accordion="${route}"]`
+            )
+            .click()
+        }, [
+          // First, a static request (because the page was statically optimized at build time).
+          // This response should signal to the client router that runtime requests are still needed,
+          // but only for prefetches, not shells.
+          { includes: 'Cached value: updated', kind: 'static', block: true },
+          // There should not be a runtime follow up.
+          { includes: '', kind: 'runtime', block: 'reject' },
+        ])
+      }, [
+        // After the static reponse arrives, we should do a runtime follow-up, and no
+        // other further static requests.
+        {
+          includes: 'Runtime prefetch data (behind cookies)',
+          kind: 'runtime',
+        },
+        { includes: '', kind: 'static', block: 'reject' },
+      ])
+
+      // Navigate to the page. We should show the runtime-prefetched content
+      await act(async () => {
+        // Navigate while the runtime prefetch is blocked.
+        await browser.elementByCss(`a[href="${route}"]`).click()
+
+        // We should show the most complete static prefetch we have.
+        expect(await browser.elementById('prefetch-data').text()).toBe(
+          'Prefetch data'
+        )
+        expect(
+          await browser.elementById('cookies-runtime-prefetch-data').text()
+        ).toBe('Runtime prefetch data (behind cookies)')
+      })
+    })
   })
 })

@@ -153,6 +153,7 @@ describe('static App Shell prefetch attempt', () => {
     }, 'no-requests')
   })
 
+  // TODO: somehow flaky now
   it('prefetches a fully static route that uses prefetch() with static requests only, then navigates instantly from cache', async () => {
     let page: Playwright.Page
     const browser = await next.browser('/', {
@@ -847,7 +848,7 @@ describe('static App Shell prefetch attempt', () => {
     // route accesses no runtime data, so its tree carries the
     // static-prefetch hint; both the Shell phase and the Speculative phase
     // attempt static prefetches of the page segment, and the complete
-    // static responses make any runtime request unnecessary.
+    // static response makes any runtime request unnecessary.
     await act(async () => {
       await browser
         .elementByCss('input[data-link-accordion="/speculative-static"]')
@@ -1002,6 +1003,8 @@ describe('static App Shell prefetch attempt', () => {
       })
     })
 
+    // TODO: failing/ flaky now
+    // seems like we're repeatedly fetching an inserting RuntimeShell but can't?
     it("speculative: attempts static prefetch first even when static hint is stale and there's already a runtime shell", async () => {
       let page: Playwright.Page
       const browser = await next.browser('/', {

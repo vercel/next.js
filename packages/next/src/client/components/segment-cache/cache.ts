@@ -99,7 +99,7 @@ import {
 import { getNavigationBuildId } from '../../navigation-build-id'
 import { NEXT_NAV_DEPLOYMENT_ID_HEADER } from '../../../lib/constants'
 
-const SHOULD_DEBUG = false
+const SHOULD_DEBUG = true
 const debug = SHOULD_DEBUG ? console.log : undefined
 
 /**
@@ -948,7 +948,7 @@ export function readOrCreateSegmentCacheEntry(
  * under. The stale time is set to a default value; the actual stale time will
  * be set when the entry is fulfilled with data from the server response.
  */
-function insertEmptySegmentCacheEntry(
+export function insertEmptySegmentCacheEntry(
   now: number,
   map: CacheMap<SegmentCacheEntry>,
   fetchStrategy: FetchStrategy,
@@ -1047,7 +1047,8 @@ export function overwriteRevalidatingSegmentCacheEntry(
  */
 function isExistingSegmentEntryPreferred(
   existingEntry: SegmentCacheEntry,
-  candidateEntry: SegmentCacheEntry
+  candidateEntry: SegmentCacheEntry,
+  isRuntimeFollowUp: boolean
 ): boolean {
   if (existingEntry.status === EntryStatus.Empty) {
     // An Empty entry is a placeholder that carries no data, and its
@@ -1058,7 +1059,7 @@ function isExistingSegmentEntryPreferred(
     return false
   }
   debug?.(
-    `  isExistingSegmentEntryPreferred: existing=${FetchStrategy[existingEntry.fetchStrategy]}, candidate=${FetchStrategy[candidateEntry.fetchStrategy]}`
+    `  isExistingSegmentEntryPreferred: existing=${FetchStrategy[existingEntry.fetchStrategy]} (held=${!!existingEntry.fetchStrategyOnFollowUp}), candidate=${FetchStrategy[candidateEntry.fetchStrategy]} (held=${!!candidateEntry.fetchStrategyOnFollowUp}) (runtime follow-up: ${isRuntimeFollowUp})`
   )
   return (
     // We fetched the new segment using a different, less specific fetch
@@ -1071,7 +1072,10 @@ function isExistingSegmentEntryPreferred(
         // (when inserting a temporary entry, it's the candidate entry,
         // and when its request resolves, it may be the existing entry
         // when writing the rewound shell
-        existingEntry.fetchStrategyOnFollowUp ?? existingEntry.fetchStrategy,
+        isRuntimeFollowUp
+          ? existingEntry.fetchStrategy
+          : (existingEntry.fetchStrategyOnFollowUp ??
+              existingEntry.fetchStrategy),
         candidateEntry.fetchStrategyOnFollowUp ?? candidateEntry.fetchStrategy
       )) ||
     // The existing entry isn't partial, but the new one is.
@@ -1089,7 +1093,7 @@ export function upsertSegmentEntry(
   // live in.
   map: CacheMap<SegmentCacheEntry>,
   varyPath: SegmentVaryPath,
-  candidateEntry: SegmentCacheEntry,
+  candidateEntry: FulfilledSegmentCacheEntry,
   // The fully concrete vary path a read for this segment position resolves
   // against (all concrete param values, i.e. `tree.varyPath`) — the most
   // specific path a read would use. Note this is the opposite of the
@@ -1097,7 +1101,8 @@ export function upsertSegmentEntry(
   // Used to detect and evict stale entries at more specific keypaths that
   // would otherwise shadow the candidate. Pass null when there's no request
   // context; the shadow check is skipped.
-  lookupVaryPath: SegmentVaryPath | null
+  lookupVaryPath: SegmentVaryPath | null,
+  requestStrategy: FetchStrategy
 ): SegmentCacheEntry | null {
   // We have a new entry that has not yet been inserted into the cache. Before
   // we do so, we need to confirm whether it takes precedence over the existing
@@ -1119,11 +1124,56 @@ export function upsertSegmentEntry(
     false,
     false
   )
+  debug?.('upsert request strategy', FetchStrategy[requestStrategy])
+  const isRuntimeFollowUp =
+    requestStrategy === FetchStrategy.RuntimeShell ||
+    requestStrategy === FetchStrategy.PPRRuntime ||
+    requestStrategy === FetchStrategy.Full
+
   if (existingEntry !== null) {
+    // Check if we're retaining the existing entry for a runtime follow up.
+    if (existingEntry.fetchStrategyOnFollowUp !== null) {
+      // If the new entry is at the follow up tier or better
+      // we can stop retaining the entry. We're likely going to upsert over it anyway,
+      // but if we don't (e.g. due to a different vary path), we should prevent if from being
+      // held indefinitely, because the new entry should be preferred.
+      if (
+        existingEntry.fetchStrategyOnFollowUp ===
+          candidateEntry.fetchStrategy ||
+        canNewFetchStrategyProvideMoreContent(
+          existingEntry.fetchStrategyOnFollowUp,
+          candidateEntry.fetchStrategy
+        )
+      ) {
+        debug?.(
+          `allowing held entry to be evicted because new entry's strategy ${FetchStrategy[candidateEntry.fetchStrategy]} beats follow up`
+        )
+        existingEntry.fetchStrategyOnFollowUp = null
+      } else if (isRuntimeFollowUp) {
+        debug?.(
+          `allowing held entry to be evicted because we did runtime follow up (or better) ${requestStrategy}`
+        )
+        // If we're retaining this entry for a runtime follow up,
+        // and entry came from a runtime follow up (or better), we can release it now.
+        // (especially if the shell turned out to be insufficient and we fetched one
+        // with a runtime request, we need to let the new shell insert over the
+        // retained entry, which otherwise would be preferred)
+
+        // TODO: this doesn't work because the held PPR entry is at a different vary path
+        existingEntry.fetchStrategyOnFollowUp = null
+      }
+    }
+
     // Don't replace a more specific segment with a less-specific one. A case where this
     // might happen is if the existing segment was fetched via
     // `<Link prefetch={true}>`.
-    if (isExistingSegmentEntryPreferred(existingEntry, candidateEntry)) {
+    if (
+      isExistingSegmentEntryPreferred(
+        existingEntry,
+        candidateEntry,
+        isRuntimeFollowUp
+      )
+    ) {
       // The candidate does not supersede the existing entry. Leave the
       // existing entry in place and discard the candidate by not inserting it.
       //
@@ -1173,7 +1223,13 @@ export function upsertSegmentEntry(
   setInCacheMap(map, varyPath, candidateEntry, isRevalidation)
 
   if (lookupVaryPath !== null) {
-    evictShadowingSegmentEntries(now, map, lookupVaryPath, candidateEntry)
+    evictShadowingSegmentEntries(
+      now,
+      map,
+      lookupVaryPath,
+      candidateEntry,
+      isRuntimeFollowUp
+    )
   }
 
   return candidateEntry
@@ -1215,7 +1271,8 @@ function evictShadowingSegmentEntries(
   now: number,
   map: CacheMap<SegmentCacheEntry>,
   lookupVaryPath: SegmentVaryPath,
-  candidateEntry: SegmentCacheEntry
+  candidateEntry: SegmentCacheEntry,
+  isRuntimeFollowUp: boolean
 ): void {
   // There can in principle be multiple shadowing entries at successively less
   // specific keypaths, so loop until the read returns the candidate (or an
@@ -1249,7 +1306,13 @@ function evictShadowingSegmentEntries(
       // on it so they re-run and find the candidate.)
       return
     }
-    if (isExistingSegmentEntryPreferred(shadowEntry, candidateEntry)) {
+    if (
+      isExistingSegmentEntryPreferred(
+        shadowEntry,
+        candidateEntry,
+        isRuntimeFollowUp
+      )
+    ) {
       // The shadowing entry is preferred over the candidate (e.g. it's a
       // complete entry fetched with a more specific strategy). Leave it —
       // reads at this path should keep matching it.
@@ -1292,15 +1355,11 @@ export function createDetachedSegmentCacheEntry(
   return emptyEntry
 }
 
-export function preserveEntryForRuntimeFollowUp(entry: SegmentCacheEntry) {
+export function retainEntryForPotentialRuntimeFollowUp(
+  entry: SegmentCacheEntry
+) {
   if (entry.fetchStrategy === FetchStrategy.PPR) {
     entry.fetchStrategyOnFollowUp = FetchStrategy.PPRRuntime
-  }
-}
-
-export function releaseEntryHeldForRuntimeFollowUp(entry: SegmentCacheEntry) {
-  if (entry.fetchStrategy === FetchStrategy.PPR) {
-    entry.fetchStrategyOnFollowUp = null
   }
 }
 
@@ -1425,7 +1484,8 @@ export function attemptToUpgradeSegmentFromBFCache(
       // The concrete lookup path this BFCache upgrade applies to. (In
       // practice a Full request path is already fully concrete, so nothing
       // can shadow the new entry and the shadow check is a no-op.)
-      tree.varyPath
+      tree.varyPath,
+      FetchStrategy.Full
     )
     if (upserted !== null && upserted.status === EntryStatus.Fulfilled) {
       return upserted
@@ -1672,7 +1732,13 @@ function fulfillSegmentCacheEntry(
   // we can find it again and follow up with a runtime request.
   // It turned out that we're resolving it with that strategy, so
   // a runtime follow-up won't be performed, and we can clear this.
-  if (fulfilledEntry.fetchStrategyOnFollowUp === fetchStrategy) {
+  if (
+    fulfilledEntry.fetchStrategyOnFollowUp !== null &&
+    canNewFetchStrategyProvideMoreContent(
+      fulfilledEntry.fetchStrategyOnFollowUp,
+      fetchStrategy
+    )
+  ) {
     fulfilledEntry.fetchStrategyOnFollowUp = null
   }
 
@@ -3678,6 +3744,19 @@ function writeSegmentDataIntoCache(
         ? canonicalVaryPath
         : getSegmentVaryPathForRequest(fetchStrategy, tree)
   }
+
+  if (
+    requiresRuntimeCompleteness &&
+    fulfilledEntry.fetchStrategy === FetchStrategy.PPR
+  ) {
+    // The static prefetch was insufficient, and we might need to do
+    // a runtime prefetch follow-up.
+    // Make sure this doesn't get evicted until we do, because it might
+    // be shadowing a RuntimeShell-tier entry.
+    // (e.g. if the shell was sufficient but the shell was not)
+    retainEntryForPotentialRuntimeFollowUp(fulfilledEntry)
+  }
+
   if (insertVaryPath !== null) {
     // Insert through the upsert so the usual precedence rules apply — an
     // existing entry with more complete content is never downgraded, and a
@@ -3703,7 +3782,8 @@ function writeSegmentDataIntoCache(
       map,
       insertVaryPath,
       fulfilledEntry,
-      tree.varyPath
+      tree.varyPath,
+      fetchStrategy
     )
     debug?.('  -->', installedEntry)
     if (installedEntry === null && !isOwned) {
@@ -3926,6 +4006,80 @@ export function canNewFetchStrategyProvideMoreContent(
   newStrategy: FetchStrategy
 ): boolean {
   return currentStrategy < newStrategy
+}
+
+/**
+ * Similar to `canNewFetchStrategyProvideMoreContent`, but accounts for speculative links,
+ * where we assume that a shell strategy can be improved upon. */
+export function canNewStaticFetchStrategyProvideMoreContent(
+  currentStrategy: FetchStrategy,
+  fetchStrategy: FetchStrategy.StaticShell | FetchStrategy.PPR
+): boolean {
+  switch (currentStrategy) {
+    case FetchStrategy.LoadingBoundary: {
+      // Shouldn't occur in the same app, but if we see it, prefer
+      // the new strategy
+      return true
+    }
+    case FetchStrategy.StaticShell:
+    case FetchStrategy.RuntimeShell: {
+      if (fetchStrategy === FetchStrategy.PPR) {
+        // Assume that a shell might not have enough content
+        // for a speculative link.
+        // NOTE - RuntimeShell beats PPR according to the enum
+        // order, this is a special case to avoid that
+        return true
+      }
+      return fetchStrategy > currentStrategy
+    }
+    case FetchStrategy.PPR:
+    case FetchStrategy.PPRRuntime:
+    case FetchStrategy.Full: {
+      return fetchStrategy > currentStrategy
+    }
+  }
+}
+
+export function isStaticStrategy(
+  fetchStrategy: FetchStrategy
+): fetchStrategy is FetchStrategy.StaticShell | FetchStrategy.RuntimeShell {
+  switch (fetchStrategy) {
+    case FetchStrategy.StaticShell:
+    case FetchStrategy.PPR: {
+      return true
+    }
+    case FetchStrategy.LoadingBoundary:
+    case FetchStrategy.RuntimeShell:
+    case FetchStrategy.PPRRuntime:
+    case FetchStrategy.Full: {
+      return false
+    }
+    default: {
+      fetchStrategy satisfies never
+      return false
+    }
+  }
+}
+
+export function isShellStrategy(
+  fetchStrategy: FetchStrategy
+): fetchStrategy is FetchStrategy.StaticShell | FetchStrategy.RuntimeShell {
+  switch (fetchStrategy) {
+    case FetchStrategy.StaticShell:
+    case FetchStrategy.RuntimeShell: {
+      return true
+    }
+    case FetchStrategy.LoadingBoundary:
+    case FetchStrategy.PPR:
+    case FetchStrategy.PPRRuntime:
+    case FetchStrategy.Full: {
+      return false
+    }
+    default: {
+      fetchStrategy satisfies never
+      return false
+    }
+  }
 }
 
 function getStaleAtFromHeader(
