@@ -30,6 +30,9 @@ const classificationKey = ({ routeType, response, compute }: Classification) =>
 describe('adapter-prerender-metadata', () => {
   const { next } = nextTestSetup({
     files: __dirname,
+    env: {
+      NEXT_PRIVATE_HTML_LIMITED_BOTS_AFTER_CACHE_BYPASS: '1',
+    },
   })
 
   async function getPrerenders() {
@@ -42,6 +45,67 @@ describe('adapter-prerender-metadata', () => {
   async function getPrerenderManifest() {
     return next.readJSON('.next/prerender-manifest.json')
   }
+
+  it('moves the HTML-limited bot bypass after the cache', async () => {
+    const { outputs }: AdapterBuildContext = await next.readJSON(
+      'build-complete.json'
+    )
+    const page = outputs.prerenders.find(
+      (output) => output.pathname === '/ppr-shell'
+    )
+
+    expect(
+      outputs.prerenders
+        .flatMap((output) => output.config.bypassFor ?? [])
+        .filter(
+          (bypass) => bypass.type === 'header' && bypass.key === 'user-agent'
+        )
+    ).toEqual([])
+
+    expect(page.config.bypassFor).toEqual([
+      {
+        type: 'header',
+        key: 'next-action',
+      },
+      {
+        type: 'header',
+        key: 'content-type',
+        value: 'multipart/form-data;.*',
+      },
+    ])
+
+    const prerenderManifest = await getPrerenderManifest()
+    expect(
+      prerenderManifest.routes['/ppr-shell'].experimentalBypassFor
+    ).toContainEqual({
+      type: 'header',
+      key: 'user-agent',
+      value: '.*(?:MyHTMLLimitedBot).*',
+    })
+
+    expect(
+      await next.readJSON('.next/output/deployment_config_v3.json')
+    ).toEqual({
+      after_cache_bypass: [
+        {
+          hasAll: [
+            {
+              type: 'request.header',
+              key: 'user-agent',
+              value: {
+                re: '.*(?:MyHTMLLimitedBot).*',
+              },
+            },
+            {
+              type: 'cache.response.header',
+              key: 'x-next-prelude-metadata',
+              value: { eq: '0' },
+            },
+          ],
+        },
+      ],
+    })
+  })
 
   it('exercises every valid classification combination', async () => {
     const cases: Array<

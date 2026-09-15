@@ -62,6 +62,8 @@ import { Bundler } from '../../lib/bundler'
 import { resolveCacheHandlerPathToFilesystem } from '../../lib/format-dynamic-import-path'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import type { __ApiPreviewProps } from '../../server/api-utils'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from '../../shared/lib/router/utils/is-bot'
+import { NEXT_PRELUDE_METADATA_HEADER } from '../../client/components/app-router-headers'
 
 interface SharedRouteFields {
   /**
@@ -648,6 +650,21 @@ export async function handleBuildComplete({
   appPageKeys?: readonly string[] | undefined
   functionsConfigManifest: FunctionsConfigManifest
 }) {
+  const useHtmlLimitedBotsAfterCacheBypass =
+    process.env.NEXT_PRIVATE_HTML_LIMITED_BOTS_AFTER_CACHE_BYPASS === '1'
+
+  const filterHtmlLimitedBotsBypass = (
+    bypassFor: RouteHas[] | undefined
+  ): RouteHas[] | undefined => {
+    if (!useHtmlLimitedBotsAfterCacheBypass) {
+      return bypassFor
+    }
+
+    return bypassFor?.filter(
+      (bypass) => bypass.type !== 'header' || bypass.key !== 'user-agent'
+    )
+  }
+
   const adapterMod = interopDefault(
     await import(pathToFileURL(require.resolve(adapterPath)).href)
   ) as NextAdapter
@@ -1593,7 +1610,7 @@ export async function handleBuildComplete({
             renderingMode,
             bypassFor:
               isAppPage && srcRoute !== '/_not-found'
-                ? experimentalBypassFor
+                ? filterHtmlLimitedBotsBypass(experimentalBypassFor)
                 : undefined,
             bypassToken: previewProps.previewModeId,
           },
@@ -1866,7 +1883,9 @@ export async function handleBuildComplete({
             allowHeader,
             renderingMode,
             partialFallback: canEmitPartialFallback || undefined,
-            bypassFor: isAppPage ? experimentalBypassFor : undefined,
+            bypassFor: isAppPage
+              ? filterHtmlLimitedBotsBypass(experimentalBypassFor)
+              : undefined,
             bypassToken: previewProps.previewModeId,
           },
         }
@@ -2446,6 +2465,39 @@ export async function handleBuildComplete({
         projectDir: dir,
         repoRoot: repoRoot,
       })
+
+      if (useHtmlLimitedBotsAfterCacheBypass) {
+        // This is a temporary bridge for testing the Vercel proxy's after-cache
+        // bypass support before the deployment config has a first-class adapter
+        // interface. adapter-vercel creates this Build Output API directory.
+        const outputDir = path.join(distDir, 'output')
+        await fs.mkdir(outputDir, { recursive: true })
+        await fs.writeFile(
+          path.join(outputDir, 'deployment_config_v3.json'),
+          JSON.stringify({
+            after_cache_bypass: [
+              {
+                hasAll: [
+                  {
+                    type: 'request.header',
+                    key: 'user-agent',
+                    value: {
+                      re: `.*(?:${
+                        config.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING
+                      }).*`,
+                    },
+                  },
+                  {
+                    type: 'cache.response.header',
+                    key: NEXT_PRELUDE_METADATA_HEADER,
+                    value: { eq: '0' },
+                  },
+                ],
+              },
+            ],
+          })
+        )
+      }
     } catch (err) {
       Log.error(`Failed to run onBuildComplete from ${adapterMod.name}`)
       throw err
