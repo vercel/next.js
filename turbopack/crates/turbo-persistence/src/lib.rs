@@ -40,25 +40,10 @@ pub use db::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AccessMode {
     /// Memory-map the file and access blocks via the mapped region.
+    #[cfg(not(miri))]
     Mmap,
     /// Read blocks directly from the file via pread (no mmap).
     File,
-}
-
-impl AccessMode {
-    /// Returns the access mode that can be used by the current execution environment.
-    #[inline]
-    pub(crate) fn effective(self) -> Self {
-        #[cfg(miri)]
-        {
-            // Miri does not support file-backed memory mappings.
-            AccessMode::File
-        }
-        #[cfg(not(miri))]
-        {
-            self
-        }
-    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -94,8 +79,32 @@ pub struct DbConfig<const FAMILIES: usize> {
     pub access_mode: AccessMode,
 }
 
-/// Reads the `TURBO_PERSISTENCE_MMAP` env var (cached). Returns `AccessMode::File` when the var
-/// is set to `"0"`, `AccessMode::Mmap` otherwise.
+/// Returns the default access mode for this execution environment.
+///
+/// Miri does not support memory mapping, so it always uses file I/O. Native execution honors
+/// `TURBO_PERSISTENCE_MMAP=0`; mmap remains the default otherwise.
+fn default_access_mode() -> AccessMode {
+    #[cfg(miri)]
+    return AccessMode::File;
+
+    #[cfg(not(miri))]
+    access_mode_env_var()
+}
+
+/// Returns mmap mode where available, and file mode under Miri.
+///
+/// Call sites that specifically want mmap use this helper because `AccessMode::Mmap` does not
+/// exist under Miri; they fall back to file I/O there and still exercise the surrounding logic.
+#[cfg(any(test, feature = "verify_sst_content"))]
+pub(crate) fn mmap_access_mode() -> AccessMode {
+    #[cfg(miri)]
+    return AccessMode::File;
+
+    #[cfg(not(miri))]
+    AccessMode::Mmap
+}
+
+#[cfg(not(miri))]
 fn access_mode_env_var() -> AccessMode {
     static ACCESS_MODE_ENV: std::sync::LazyLock<AccessMode> = std::sync::LazyLock::new(|| {
         if std::env::var("TURBO_PERSISTENCE_MMAP")
@@ -111,8 +120,7 @@ fn access_mode_env_var() -> AccessMode {
 }
 
 impl<const FAMILIES: usize> DbConfig<FAMILIES> {
-    /// Returns a config with all defaults, reading the `TURBO_PERSISTENCE_MMAP` env var
-    /// to determine the access mode.
+    /// Returns a config with all defaults, using the execution environment's default access mode.
     pub fn new() -> Self {
         Self {
             family_configs: [FamilyConfig {
@@ -120,7 +128,7 @@ impl<const FAMILIES: usize> DbConfig<FAMILIES> {
                 kind: FamilyKind::SingleValue,
                 compression: Compression::Lz4,
             }; FAMILIES],
-            access_mode: access_mode_env_var(),
+            access_mode: default_access_mode(),
         }
     }
 }

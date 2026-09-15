@@ -9,15 +9,18 @@ use std::{
 use anyhow::{Context, Result, bail, ensure};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
+#[cfg(not(miri))]
 use fs_err::File;
+#[cfg(not(miri))]
 use memmap2::{Mmap, MmapOptions};
 use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
+#[cfg(not(miri))]
+use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, FamilyConfig, QueryKey,
     lookup_entry::LookupValue,
-    mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
 
@@ -242,6 +245,7 @@ pub struct StaticSortedFileRange {
 }
 
 enum MetaFileBacking {
+    #[cfg(not(miri))]
     Mmap(Mmap),
     /// Heap bytes for [`AccessMode::File`].
     ///
@@ -257,6 +261,7 @@ impl Deref for MetaFileBacking {
 
     fn deref(&self) -> &Self::Target {
         match self {
+            #[cfg(not(miri))]
             MetaFileBacking::Mmap(mmap) => mmap,
             MetaFileBacking::Bytes(bytes) => bytes,
         }
@@ -322,7 +327,8 @@ impl MetaFile {
         family_configs: Option<&[FamilyConfig]>,
         access_mode: AccessMode,
     ) -> Result<Self> {
-        let backing = match access_mode.effective() {
+        let backing = match access_mode {
+            #[cfg(not(miri))]
             AccessMode::Mmap => {
                 let file = File::open(path)?;
                 let mmap = unsafe { MmapOptions::new().map(file.file()) }
