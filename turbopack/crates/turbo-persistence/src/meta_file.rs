@@ -216,9 +216,16 @@ pub struct MetaBatchLookupResult {
 /// The key family and hash range of an SST file.
 #[derive(Clone, Copy)]
 pub struct StaticSortedFileRange {
-    pub family: u32,
     pub min_hash: u64,
     pub max_hash: u64,
+}
+
+impl StaticSortedFileRange {
+    /// Whether `hash` falls within this file's span. A lookup can skip the file entirely if not.
+    #[inline(always)]
+    pub fn contains(&self, hash: u64) -> bool {
+        hash >= self.min_hash && hash <= self.max_hash
+    }
 }
 
 enum MetaFileBacking {
@@ -237,24 +244,6 @@ impl Deref for MetaFileBacking {
     }
 }
 
-/// The span of key hashes an SST file covers.
-///
-/// Kept in a dense array on [`MetaFile`] rather than in [`MetaEntry`] so that the range scan every
-/// lookup performs reads contiguous memory. See [`MetaFile::hash_ranges`].
-#[derive(Clone, Copy)]
-pub struct HashRange {
-    pub min_hash: u64,
-    pub max_hash: u64,
-}
-
-impl HashRange {
-    /// Whether `hash` falls within this file's span. A lookup can skip the file entirely if not.
-    #[inline(always)]
-    pub fn contains(&self, hash: u64) -> bool {
-        hash >= self.min_hash && hash <= self.max_hash
-    }
-}
-
 /// # Safety
 ///
 /// `entries` must be declared before `backing` so every borrowed `FilterRef` is dropped before
@@ -268,15 +257,11 @@ pub struct MetaFile {
     family: u32,
     /// Compression recorded for this family.
     compression: Compression,
-    /// The hash range of each entry, parallel to `entries` and indexed the same way.
-    ///
-    /// Stored apart from [`MetaEntry`] because a lookup that misses reads nothing else: it walks
-    /// every entry comparing the queried hash against these bounds, and only touches the entry
-    /// itself once a range matches. Inline, that scan strided over a 144-byte `MetaEntry` to read
-    /// 16 useful bytes, so 100 entries spanned 225 cache lines instead of 25.
-    hash_ranges: Vec<HashRange>,
+    /// Stored separately from [`MetaEntry`] so that lookups can operate over a denser data
+    /// structure that's hotter in cache.
+    hash_ranges: Box<[StaticSortedFileRange]>,
     /// The entries of the file. Dropped before `backing` (field declaration order).
-    entries: Vec<MetaEntry>,
+    entries: Box<[MetaEntry]>,
     /// The entries that have been marked as obsolete.
     obsolete_entries: Vec<u32>,
     /// The obsolete SST files.
@@ -406,7 +391,7 @@ impl MetaFile {
             // declaration order), so the borrow remains valid for the lifetime of the MetaEntry.
             let amqf: qfilter::FilterRef<'static> = unsafe { std::mem::transmute(amqf) };
 
-            hash_ranges.push(HashRange { min_hash, max_hash });
+            hash_ranges.push(StaticSortedFileRange { min_hash, max_hash });
             entries.push(MetaEntry {
                 sst_data,
                 size,
@@ -427,8 +412,8 @@ impl MetaFile {
             sequence_number,
             family,
             compression,
-            hash_ranges,
-            entries,
+            hash_ranges: hash_ranges.into_boxed_slice(),
+            entries: entries.into_boxed_slice(),
             obsolete_entries: Vec::new(),
             obsolete_sst_files,
             amqf_data_start,
@@ -473,23 +458,18 @@ impl MetaFile {
     }
 
     /// The hash ranges of this file's entries, in the same order as [`Self::entries`].
-    pub fn hash_ranges(&self) -> &[HashRange] {
+    pub fn hash_ranges(&self) -> &[StaticSortedFileRange] {
         &self.hash_ranges
     }
 
     /// The hash range of the entry at `index`.
-    pub fn hash_range(&self, index: u32) -> HashRange {
+    pub fn hash_range(&self, index: u32) -> StaticSortedFileRange {
         self.hash_ranges[index as usize]
     }
 
     /// The key family and hash range of the entry at `index`.
     pub fn range(&self, index: u32) -> StaticSortedFileRange {
-        let HashRange { min_hash, max_hash } = self.hash_range(index);
-        StaticSortedFileRange {
-            family: self.family,
-            min_hash,
-            max_hash,
-        }
+        self.hash_range(index)
     }
 
     pub fn entry(&self, index: u32) -> &MetaEntry {
@@ -531,7 +511,7 @@ impl MetaFile {
         // Entries move between slots but never leave this `MetaFile`, so the `FilterRef`s they
         // hold keep borrowing a mmap that is neither touched nor dropped.
         let obsolete = &mut self.obsolete_entries;
-        let (entries, hash_ranges) = take(&mut self.entries)
+        let (entries, hash_ranges): (Vec<_>, Vec<_>) = take(&mut self.entries)
             .into_iter()
             .zip(take(&mut self.hash_ranges))
             .filter(|(entry, _)| {
@@ -542,8 +522,8 @@ impl MetaFile {
                 retain
             })
             .unzip();
-        self.entries = entries;
-        self.hash_ranges = hash_ranges;
+        self.entries = entries.into_boxed_slice();
+        self.hash_ranges = hash_ranges.into_boxed_slice();
         old_len != self.entries.len()
     }
 
@@ -578,7 +558,6 @@ impl MetaFile {
         let mut miss_result = MetaLookupResult::RangeMiss;
         let mut all_results: SmallVec<[LookupValue; 1]> = SmallVec::new();
 
-        // Walk the dense range array; only reach for the entry once its span matches.
         for (index, range) in self.hash_ranges.iter().enumerate().rev() {
             if !range.contains(key_hash) {
                 continue;

@@ -1385,6 +1385,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
         struct SstWithRange {
             meta_index: usize,
+            family: u32,
             index_in_meta: u32,
             seq: u32,
             range: StaticSortedFileRange,
@@ -1417,6 +1418,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
                     .enumerate()
                     .map(move |(index_in_meta, entry)| SstWithRange {
                         meta_index,
+                        family: meta.family(),
                         index_in_meta: index_in_meta as u32,
                         seq: entry.sequence_number(),
                         range: meta.range(index_in_meta as u32),
@@ -1429,7 +1431,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         let mut sst_by_family = [(); FAMILIES].map(|_| Vec::new());
 
         for sst in ssts_with_ranges {
-            sst_by_family[sst.range.family as usize].push(sst);
+            sst_by_family[sst.family as usize].push(sst);
         }
 
         let path = &self.path;
@@ -2059,11 +2061,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
 
         let mut size = 0;
 
-        // Resolved once rather than per meta file: these are `OnceLock::get_or_init`, so calling
-        // them inside the loop repeats an acquire-load and a branch for every meta file scanned.
-        // A lookup that misses walks all of them, which cost ~127ns per lookup at 100 meta files.
-        // They stay lazily initialized because opening a database that is never read should not
-        // allocate the caches at all.
         let key_block_cache = self.key_block_cache();
         let value_block_cache = self.value_block_cache();
         for meta in inner.meta_files.iter().rev() {
@@ -2203,7 +2200,6 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
         }
         cells.sort_by_key(|(hash, _, _)| *hash);
         let inner = self.inner.read();
-        // Resolved once rather than per meta file; see the note in `get_impl`.
         let key_block_cache = self.key_block_cache();
         let value_block_cache = self.value_block_cache();
         for meta in inner.meta_files.iter().rev() {
