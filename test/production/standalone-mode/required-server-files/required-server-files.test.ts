@@ -84,6 +84,7 @@ describe('required server files', () => {
   let errors = []
   let stderr = ''
   let requiredFilesManifest
+  let buildOutput = ''
   let minimalMode = true
 
   beforeAll(async () => {
@@ -100,7 +101,30 @@ describe('required server files', () => {
       'dir'
     )
 
-    let { exitCode } = await next.build()
+    // Links that leave the tracing root cannot be rewritten. A file target
+    // is copied into the output, a directory target warns during the build.
+    const outsideDir = join(
+      next.testDir,
+      '..',
+      `required-server-files-outside-${nanoid()}`
+    )
+    await fs.outputFile(join(outsideDir, 'file.txt'), 'from outside file')
+    await fs.outputFile(join(outsideDir, 'dir/data.txt'), 'from outside dir')
+    await fs.symlink(
+      join(outsideDir, 'file.txt'),
+      join(next.testDir, 'outside-file.txt'),
+      'file'
+    )
+    await fs.symlink(
+      join(outsideDir, 'dir'),
+      join(next.testDir, 'outside-dir'),
+      'dir'
+    )
+
+    let { exitCode, cliOutput } = await next.build()
+    buildOutput = cliOutput
+    // The standalone output must not depend on files outside of the project.
+    await fs.remove(outsideDir)
     if (exitCode !== 0) {
       throw new Error(`Failed to build next: ${exitCode}`)
     }
@@ -474,6 +498,28 @@ describe('required server files', () => {
 
     const $ = cheerio.load(await res.text())
     expect($('#linked-data').text()).toBe('from linked dir')
+  })
+
+  it('should copy file symlink targets outside of the tracing root', async () => {
+    const res = await fetchViaHTTP(
+      appPort,
+      '/outside-symlinks',
+      undefined,
+      withInvocationId()
+    )
+    expect(res.status).toBe(200)
+
+    const $ = cheerio.load(await res.text())
+    expect($('#outside-file').text()).toBe('from outside file')
+    expect($('#outside-dir').text()).toBe('missing')
+  })
+
+  it('should warn for directory symlink targets outside of the tracing root', async () => {
+    expect(buildOutput).toContain('The traced symlink "outside-dir" points to')
+    expect(buildOutput).toContain('outputFileTracingRoot')
+    expect(buildOutput).toContain(
+      'https://nextjs.org/docs/messages/standalone-symlink-outside-tracing-root'
+    )
   })
 
   it('should de-dupe HTML/data requests', async () => {
