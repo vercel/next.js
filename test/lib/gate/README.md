@@ -73,8 +73,16 @@ output, the fixture can't build under the condition.
 
 Both forms work on `it`, `test`, `fit`, `describe`, and their `.only` variants.
 A gate on a `describe` applies to every test inside it. Several pragmas may stack
-on one call. (Build-skipping applies only to suites where `nextTestSetup` owns
-the build — not `skipStart` suites — and to `start`/`dev`, not deploy.)
+on one call. In `start`/`dev`, build-skipping applies only to suites where
+`nextTestSetup` owns the build, not local `skipStart` suites. In deploy mode,
+the gate is checked after preparing the fixture files but before deployment,
+including for `skipStart` suites (deployment happens during setup).
+
+Deploy gates use the prepared fixture's locally resolved production config,
+including configuration overrides and the fixture environment. This uses the
+same local approximation as other lazy deploy gates; configuration depending
+on remote-only state cannot be reproduced locally. If config resolution fails,
+the suite fails: an unknown gate condition is never treated as an exclusion.
 
 ## Conditions
 
