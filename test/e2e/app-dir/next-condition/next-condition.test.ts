@@ -446,11 +446,11 @@ describe('`next-js` Condition - Rendering', () => {
                Default:
                "IMPORTS DEFAULT SERVER - Default Export"
                Namespace:
-               {"default":"IMPORTS DEFAULT SERVER - Default Export","named":"IMPORTS DEFAULT SERVER - Named Export"}
+               {"named":"IMPORTS DEFAULT SERVER - Named Export","default":"IMPORTS DEFAULT SERVER - Default Export"}
                named:
                "IMPORTS DEFAULT SERVER - Named Export"
                Dynamic
-               {"default":"IMPORTS DEFAULT SERVER - Default Export","named":"IMPORTS DEFAULT SERVER - Named Export"}
+               {"named":"IMPORTS DEFAULT SERVER - Named Export","default":"IMPORTS DEFAULT SERVER - Default Export"}
            Client
              Exports
                Static
@@ -467,11 +467,11 @@ describe('`next-js` Condition - Rendering', () => {
                Default:
                "IMPORTS DEFAULT CLIENT - Default Export"
                Namespace:
-               {"default":"IMPORTS DEFAULT CLIENT - Default Export","named":"IMPORTS DEFAULT CLIENT - Named Export"}
+               {"named":"IMPORTS DEFAULT CLIENT - Named Export","default":"IMPORTS DEFAULT CLIENT - Default Export"}
                named:
                "IMPORTS DEFAULT CLIENT - Named Export"
                Dynamic
-               {"default":"IMPORTS DEFAULT CLIENT - Default Export","named":"IMPORTS DEFAULT CLIENT - Named Export"}"
+               {"named":"IMPORTS DEFAULT CLIENT - Named Export","default":"IMPORTS DEFAULT CLIENT - Default Export"}"
         `)
       })
       it('should not follow the next-js condition from an external commonjs package', async () => {
