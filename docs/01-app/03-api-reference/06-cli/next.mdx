@@ -250,6 +250,15 @@ Security upgrades and reminders currently assess stable installed versions only.
 Prerelease security support is deferred. The target's Node.js compatibility is
 checked before handoff.
 
+With `experimental.agenticAutoUpgrade: 'security'`, `next dev` and `next build`
+check the running Next.js version for known vulnerabilities when a coding agent
+is detected. The advisory lookup runs in the background without delaying startup.
+An affected version logs a warning with advisory counts by severity, the source endpoint, and the
+`next upgrade --ai` command. Development and builds continue.
+The agent decides how to proceed under its existing permissions. No upgrade is
+launched automatically. If advisory lookup fails, the command warns and continues.
+Ordinary terminals and `next start` are unaffected.
+
 The command delegates to the published Next.js canary CLI for current migration
 instructions. It continues in an existing coding agent or offers an installed
 Codex/Claude session in an interactive terminal. Dry-run still edits, verifies
