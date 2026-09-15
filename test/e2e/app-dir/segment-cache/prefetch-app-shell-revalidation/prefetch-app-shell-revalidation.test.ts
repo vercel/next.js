@@ -499,4 +499,290 @@ describe('App Shell revalidation', () => {
       })
     })
   })
+
+  describe('partial pages that change whether the shell is static (while keeping the prefetch runtime)', () => {
+    describe('only reading cookies in the prefetch at build, but then also reading them in the shell after a revalidation', () => {
+      // We should upgrade from a static shell to a runtime shell after a revalidation
+      // despite the build-time hints being stale.
+      // Usage of runtime data in the shell and prefetch should be tracked separately.
+
+      const route =
+        '/partial-conditional-cookies-in-both/first-prefetch-then-shell'
+      afterAll(() => resetCachedValue())
+
+      it('uses static requests for the shell when the shell does not use cookies', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Reveal a link to the page.
+        // It used dynamic data during build, so it's partial, but it did not
+        // use runtime data in the shell, so it should use static requests.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `[data-prefetch="auto"] input[data-link-accordion="${route}"]`
+            )
+            .click()
+        }, [
+          // Only a static request for the shell.
+          { includes: 'No cookies used in the shell', kind: 'static' },
+          // This should only show up after the revalidation.
+          { includes: 'Cookie data in shell', block: 'reject' },
+          // No runtime requests.
+          { includes: '', kind: 'runtime', block: 'reject' },
+        ])
+
+        // Reveal a prefetch-true link.
+        // The page used cookies in the prefetch, so it should use a runtime request for it.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `[data-prefetch="true"] input[data-link-accordion="${route}"]`
+            )
+            .click()
+        }, [{ includes: 'Cookie data in prefetch', kind: 'runtime' }])
+
+        // Navigate to the page.
+        // We should be showing the cookie data from the prefetch while the navigation is pending.
+        await act(async () => {
+          await browser.elementByCss(`a[href="${route}"]`).click()
+
+          expect(await browser.elementById('cookie-data').text()).toBe(
+            'Cookie data in prefetch'
+          )
+          // This was a prefetch, so we should have prefetch-only data.
+          expect(
+            await browser.elementById('cookies-runtime-prefetch-data').text()
+          ).toEqual('Runtime prefetch data (behind cookies)')
+        }, [{ includes: 'Dynamic data' }])
+
+        expect(await browser.elementById('dynamic-data').text()).toEqual(
+          'Dynamic data'
+        )
+      })
+
+      it('starts using runtime requests for the shell when the page starts using cookies in the shell after a revalidation', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Update the cache and for revalidation to settle before opening the page
+        await updateAndWaitForRevalidation(route)
+
+        // Reveal a prefetch-auto link to the page. We should see revalidated content.
+        // After the revalidation, the page starts using cookies in the shell,
+        // so we should fetch a runtime shell.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `[data-prefetch="auto"] input[data-link-accordion="${route}"]`
+            )
+            .click()
+        }, [
+          // First, a static request (because the page was statically optimized at build time).
+          // This response should signal to the client router that runtime requests are still needed,
+          // but only for prefetches, not shells.
+          { includes: 'Cached value: updated', kind: 'static' },
+          // This should not show up anymore after the revalidation.
+          { includes: 'No cookies used in the shell', block: 'reject' },
+          // Runtime follow-up, because the static shell is now insufficient.
+          {
+            includes: 'Cookie data in shell',
+            kind: 'runtime',
+          },
+        ])
+
+        // Reveal a prefetch-true link to the page.
+        // The prefetch also requires runtime data.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `[data-prefetch="true"] input[data-link-accordion="${route}"]`
+            )
+            .click()
+        }, [
+          {
+            includes: 'Runtime prefetch data (behind cookies)',
+            kind: 'runtime',
+          },
+        ])
+
+        // Navigate to the page.
+        await act(async () => {
+          await browser.elementByCss(`a[href="${route}"]`).click()
+
+          // We should show contents from the runtime prefetch while navigating.
+          expect(await browser.elementById('cookie-data').text()).toEqual(
+            'Cookie data in shell'
+          )
+          expect(
+            await browser.elementById('cookies-runtime-prefetch-data').text()
+          ).toEqual('Runtime prefetch data (behind cookies)')
+        }, [{ includes: 'Dynamic data' }])
+
+        expect(await browser.elementById('dynamic-data').text()).toEqual(
+          'Dynamic data'
+        )
+      })
+    })
+
+    describe('reading cookies in the shell at build, but then only reading them in the prefetch after a revalidation', () => {
+      // We *cannot* downgrade from a runtime shell to a static shell after a revalidation,
+      // because we'll continue using a runtime request for the shell based on stale hints.
+
+      const route =
+        '/partial-conditional-cookies-in-both/first-shell-then-prefetch'
+      afterAll(() => resetCachedValue())
+
+      it('uses runtime requests for the shell and prefetch when the shell uses cookies', async () => {
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Reveal a link to the page.
+        // It used dynamic data during build, so it's partial.
+        // It used runtime data in the shell, so we should use runtime requests for it.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `[data-prefetch="auto"] input[data-link-accordion="${route}"]`
+            )
+            .click()
+        }, [
+          // A runtime request for the shell.
+          { includes: 'Cookie data in shell', kind: 'runtime' },
+          // This should only show up after the revalidation.
+          { includes: 'No cookies used in the shell', block: 'reject' },
+          // Should not use a static request.
+          {
+            includes: 'Cached value: original',
+            kind: 'static',
+            block: 'reject',
+          },
+        ])
+
+        // Reveal a prefetch-true link.
+        // The page used cookies in the shell, which makes the prefetch use runtime requests as well.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `[data-prefetch="true"] input[data-link-accordion="${route}"]`
+            )
+            .click()
+        }, [
+          {
+            includes: 'Runtime prefetch data (behind cookies)',
+            kind: 'runtime',
+          },
+          // This should only show up after a revalidation.
+          { includes: 'Cookie data in prefetch', block: 'reject' },
+        ])
+
+        // Navigate to the page.
+        // We should be showing the cookie data from the prefetch while the navigation is pending.
+        await act(async () => {
+          await browser.elementByCss(`a[href="${route}"]`).click()
+
+          expect(await browser.elementById('cookie-data').text()).toBe(
+            'Cookie data in shell'
+          )
+          // This was a prefetch, so we should have prefetch-only data.
+          expect(
+            await browser.elementById('cookies-runtime-prefetch-data').text()
+          ).toEqual('Runtime prefetch data (behind cookies)')
+        })
+
+        expect(await browser.elementById('dynamic-data').text()).toEqual(
+          'Dynamic data'
+        )
+      })
+
+      it('continues using runtime requests for the shell even after the shell stopped using cookies', async () => {
+        // This is an unfortunate consequence of the static hints only being computed
+        // at build-time -- there is no way for us to stop using a runtime shell.
+
+        let page: Playwright.Page
+        const browser = await next.browser('/', {
+          beforePageLoad(p: Playwright.Page) {
+            page = p
+          },
+        })
+        const act = createRouterAct(page, { includeAppShellRequests: true })
+
+        // Update the cache and for revalidation to settle before opening the page
+        await updateAndWaitForRevalidation(route)
+
+        // Reveal a prefetch-auto link to the page. We should see revalidated content.
+        // After the revalidation, the page stops using cookies in the shell,
+        // but we have no way of knowing this without performing the request.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `[data-prefetch="auto"] input[data-link-accordion="${route}"]`
+            )
+            .click()
+        }, [
+          {
+            includes: 'No cookies used in the shell',
+            kind: 'runtime',
+          },
+          // This should stop showing up after the revalidation.
+          {
+            includes: 'Cookie data in shell',
+            block: 'reject',
+          },
+        ])
+
+        // Reveal a prefetch-true link to the page.
+        // The prefetch also requires runtime data.
+        await act(async () => {
+          await browser
+            .elementByCss(
+              `[data-prefetch="true"] input[data-link-accordion="${route}"]`
+            )
+            .click()
+        }, [
+          {
+            includes: 'Runtime prefetch data (behind cookies)',
+            kind: 'runtime',
+          },
+          // This should stop showing up after the revalidation.
+          {
+            includes: 'Cookie data in shell',
+            block: 'reject',
+          },
+        ])
+
+        // Navigate to the page.
+        await act(async () => {
+          await browser.elementByCss(`a[href="${route}"]`).click()
+
+          // We should show contents from the runtime prefetch while navigating.
+          expect(await browser.elementById('cookie-data').text()).toEqual(
+            'Cookie data in prefetch'
+          )
+          expect(
+            await browser.elementById('cookies-runtime-prefetch-data').text()
+          ).toEqual('Runtime prefetch data (behind cookies)')
+        }, [{ includes: 'Dynamic data' }])
+
+        expect(await browser.elementById('dynamic-data').text()).toEqual(
+          'Dynamic data'
+        )
+      })
+    })
+  })
 })
