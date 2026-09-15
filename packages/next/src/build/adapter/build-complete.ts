@@ -661,6 +661,7 @@ export async function handleBuildComplete({
       prerenders: [],
       staticFiles: [],
     }
+    let hasStaticRootTreePrefetch = false
 
     const clientHashes: Record<string, string> | undefined =
       bundler === Bundler.Turbopack && config.supportsImmutableAssets
@@ -1292,10 +1293,28 @@ export async function handleBuildComplete({
 
           for (const segmentPath of meta.segmentPaths) {
             const outputSegmentPath =
-              path.join(
+              path.posix.join(
                 normalizedRoute + prefetchSegmentDirSuffix,
                 segmentPath
               ) + prefetchSegmentSuffix
+
+            if (
+              routesManifest.rsc.clientParamParsing &&
+              segmentPath === '/_tree'
+            ) {
+              hasStaticRootTreePrefetch = true
+              outputs.staticFiles.push({
+                id: outputSegmentPath,
+                pathname: outputSegmentPath,
+                type: AdapterOutputType.STATIC_FILE,
+                filePath: path.join(
+                  segmentsDir,
+                  segmentPath + prefetchSegmentSuffix
+                ),
+                immutableHash: undefined,
+              })
+              continue
+            }
 
             // Only use the fallback value when the allowQuery is defined and
             // either: (1) it is empty, meaning segments do not vary by params,
@@ -2419,6 +2438,22 @@ export async function handleBuildComplete({
               },
             },
             ...onMatchHeaders,
+            ...(hasStaticRootTreePrefetch
+              ? [
+                  {
+                    sourceRegex: `^${escapeStringRegexp(
+                      config.basePath || ''
+                    )}/.+${escapeStringRegexp(
+                      `${routesManifest.rsc.prefetchSegmentDirSuffix}/_tree${routesManifest.rsc.prefetchSegmentSuffix}`
+                    )}(?:/)?$`,
+                    headers: {
+                      vary: routesManifest.rsc.varyHeader,
+                      'content-type': routesManifest.rsc.contentTypeHeader,
+                      [routesManifest.rsc.didPostponeHeader]: '2',
+                    },
+                  } satisfies Route,
+                ]
+              : []),
           ],
           fallback: rewrites.fallback,
           shouldNormalizeNextData: !!needsMiddlewareResolveRoutes,
