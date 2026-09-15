@@ -73,6 +73,12 @@ type EsmExport = (
   id: ModuleId | undefined,
   dynamic?: boolean
 ) => void
+/**
+ * A flat list of `moduleId, ...entries` groups separated by the `0` sentinel. Each group's entries
+ * are either `exportName, importedName` pairs, or a single comma-joined string of those pairs.
+ */
+type EsmReexports = Array<ModuleId | string | 0>
+type EsmReexport = (list: EsmReexports) => void
 type ExportValue = (value: any, id: ModuleId | undefined) => void
 type ExportUrl = (url: string, id: ModuleId | undefined) => void
 type ExportNamespace = (namespace: any, id: ModuleId | undefined) => void
@@ -147,6 +153,7 @@ interface TurbopackBaseContext<M> {
   i: EsmImport
   A: InvokeAsyncLoader
   s: EsmExport
+  S: EsmReexport
   j: DynamicExport
   v: ExportValue
   q: ExportUrl
