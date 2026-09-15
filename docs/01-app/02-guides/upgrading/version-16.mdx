@@ -6,6 +6,34 @@ description: Upgrade your Next.js Application from Version 15 to 16.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
+{/* @next-upgrade-checklist
+Agent instructions:
+- Use this guide for the 15-to-16 transition and read earlier guides when crossing multiple majors. Keep the resolved upgrade target when command examples say latest.
+- Run applicable codemods, inspect their output, then review the outcomes below. Do not repeat edits the codemod already completed.
+- Record each outcome as verified with evidence, not applicable with a reason, or blocked in the migration checklist. Optional adoption is not required to finish an upgrade.
+
+Migration outcomes:
+- The app meets the Node.js, TypeScript and React requirements in this guide.
+- Async Request API access and affected callers are migrated; codemod error comments and UnsafeUnwrapped casts are resolved. Synchronous Client Components use React use where appropriate.
+- Dynamic metadata image functions and sitemap functions handle their documented asynchronous parameters, and affected generated URLs work.
+- Dev/build scripts and effective bundler configuration agree, including plugin-provided configuration, loaders, aliases and affected Sass imports.
+- Middleware/proxy changes preserve the required runtime and existing routing behavior. Edge middleware is not blindly renamed to proxy.
+- Parallel route slots have defaults appropriate to the app, and direct navigation/reloads retain the intended fallback behavior.
+- Affected image requests succeed under the documented image restrictions and defaults, with intended quality preserved.
+- Existing cache API calls follow the documented signatures and semantics. React Compiler and Cache Components are not enabled merely to complete the upgrade.
+- Removed APIs and configuration have no remaining consumers. Runtime configuration replacements preserve server/client visibility and the required evaluation time.
+- Scripts and CI no longer invoke next lint; linting runs separately where the app requires it.
+- The app's supported checks and affected runtime behavior have been exercised. A green build alone does not close runtime findings.
+
+Common issues and solutions:
+- Async API errors after codemods: follow Async Request APIs and inspect helpers/callers rather than deleting markers or adding casts.
+- A webpack configuration error: inspect plugins as well as next.config and choose a documented option under Turbopack by default; do not discard required configuration just to pass the build.
+- Image optimizer 400 responses: inspect the failing URL against the relevant next/image subsection before changing configuration. Do not broadly disable restrictions.
+- Missing parallel-route defaults: choose null or notFound according to intended behavior, then check reloads as well as client navigation.
+- Proxy runtime incompatibility: follow middleware to proxy; keep middleware when Edge execution is required.
+- Missing lint execution after upgrading: follow the next lint Command removal and inspect CI as well as package scripts.
+*/}
+
 ## Use an AI agent (recommended)
 
 An AI coding agent can run the mechanical parts of the upgrade, inspect the diff, fix follow-up breakages, and verify the app. The prompt below asks the agent to read version-matched docs, use the codemods where appropriate, explain important changes, and verify the result. Some runtime verification tools are only available after the app is upgraded.
@@ -801,7 +829,11 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-If you specify a `quality` prop not included in the `image.qualities` array, the quality will be coerced to the closest value in `images.qualities`. For example, given the configuration above, a `quality` prop of 80, is coerced to 75.
+If you specify a `quality` prop not included in the `images.qualities` array, the quality will be coerced to the closest value in `images.qualities`. For example, given the configuration above, a `quality` prop of 80, is coerced to 75.
+
+To preserve existing image quality, find custom `quality` props and direct requests to `/_next/image` with a `q` parameter. Add the quality values the app needs to `images.qualities`. Direct optimizer requests with a quality outside the allowed values return `400 Bad Request` instead of being coerced.
+
+After upgrading, load affected images and check their optimizer requests. Confirm that they succeed and retain the intended quality; a successful build does not exercise these requests.
 
 ### Local IP Restriction (Breaking change)
 
