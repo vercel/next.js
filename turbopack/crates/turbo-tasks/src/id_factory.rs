@@ -186,7 +186,10 @@ mod tests {
     #[should_panic(expected = "Max id limit (overflow)")]
     // wasm has no unwinding (panic = abort), so a panic aborts the process instead of being caught
     // and `#[should_panic]` can never pass. See the `wasi-test-host` README.
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn test_overflow_detection() {
         let factory = IdFactory::new(NonZeroU8::MIN, NonZeroU8::MAX);
         assert_eq!(factory.get(), NonZeroU8::new(1).unwrap());
@@ -198,7 +201,10 @@ mod tests {
 
     #[test]
     #[should_panic(expected = "Max id limit (overflow)")]
-    #[cfg_attr(target_family = "wasm", ignore = "no unwinding on wasm")]
+    #[cfg_attr(
+        target_family = "wasm",
+        ignore = "no unwinding on wasm: std is built panic=abort, so catch_unwind cannot catch"
+    )]
     fn test_overflow_detection_near_u64_max() {
         let factory = IdFactory::new(NonZeroU64::try_from(u64::MAX - 5).unwrap(), NonZeroU64::MAX);
         for _ in 0..=6 {
