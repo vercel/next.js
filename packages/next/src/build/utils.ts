@@ -1272,6 +1272,14 @@ export async function copyTracedFiles(
   const copiedFiles = new Set()
   const skippedTraceFiles = new Set<string>()
 
+  const isInsideTracingRoot = (filePath: string) => {
+    const relativePath = path.relative(tracingRoot, filePath)
+    return (
+      relativePath === '' ||
+      (!relativePath.startsWith('..') && !path.isAbsolute(relativePath))
+    )
+  }
+
   async function createTracedSymlink(
     target: string,
     linkPath: string,
@@ -1363,7 +1371,33 @@ export async function copyTracedFiles(
           } else if (traceData.symlinks === undefined) {
             const target = await fs.readlink(tracedFilePath).catch(() => null)
             if (target) {
-              await createTracedSymlink(target, fileOutputPath, tracedFilePath)
+              // Webpack traces do not carry symlink metadata, so the link is
+              // recreated from the file system. Package managers such as pnpm
+              // link packages with targets that can be absolute (for example
+              // junctions on Windows). A link that points into the tracing
+              // root is rewritten to point at the copied location inside the
+              // standalone output, so the output stays valid after it is
+              // moved or deployed on its own. Links that leave the tracing
+              // root are preserved as they are.
+              const resolvedTargetPath = path.resolve(
+                path.dirname(tracedFilePath),
+                target
+              )
+              const symlinkTarget = isInsideTracingRoot(resolvedTargetPath)
+                ? path.relative(
+                    path.dirname(fileOutputPath),
+                    path.join(
+                      outputPath,
+                      path.relative(tracingRoot, resolvedTargetPath)
+                    )
+                  ) || '.'
+                : target
+
+              await createTracedSymlink(
+                symlinkTarget,
+                fileOutputPath,
+                tracedFilePath
+              )
             } else {
               await fs.copyFile(tracedFilePath, fileOutputPath)
             }
