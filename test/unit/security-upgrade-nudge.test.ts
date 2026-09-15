@@ -1,4 +1,5 @@
 import {
+  nudgeIfUpgradeNeeded,
   nudgeIfLatestUpgradeNeeded,
   nudgeIfSecurityUpgradeNeeded,
 } from 'next/dist/lib/upgrade/nudge'
@@ -116,7 +117,7 @@ describe('security upgrade nudge', () => {
       .mocked(getSecurityAdvisorySummary)
       .mockRejectedValue(new Error('Advisory service unavailable'))
 
-    await expect(nudgeIfSecurityUpgradeNeeded('/app')).resolves.toBeUndefined()
+    await expect(nudgeIfSecurityUpgradeNeeded('/app')).resolves.toBe(true)
 
     expect(jest.mocked(warn).mock.calls).toMatchInlineSnapshot(`
      [
@@ -176,7 +177,7 @@ describe('latest upgrade nudge', () => {
      [
        [
          "Next.js 16.0.0 is available. You're using 15.0.0.
-     Run \`next upgrade "/workspace/my app" --agentic=latest\` to upgrade when you're ready.
+     Run \`next upgrade "/workspace/my app" --ai\` to upgrade when you're ready.
 
      Reference: https://registry.npmjs.org/next/latest
 
@@ -209,11 +210,44 @@ describe('latest upgrade nudge', () => {
       .mocked(getLatestUpgradeVersion)
       .mockRejectedValue(new Error('Registry unavailable'))
 
-    await expect(
-      nudgeIfLatestUpgradeNeeded('/app', '15.0.0')
-    ).resolves.toBeUndefined()
+    await expect(nudgeIfLatestUpgradeNeeded('/app', '15.0.0')).resolves.toBe(
+      false
+    )
 
     expect(info).not.toHaveBeenCalled()
     expect(warn).not.toHaveBeenCalled()
+  })
+})
+
+describe('composed latest nudge', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+    jest.mocked(getAgentName).mockResolvedValue('codex')
+    jest.mocked(getSecurityAdvisorySummary).mockResolvedValue({
+      counts: { critical: 0, high: 0, moderate: 0, low: 0, unknown: 0 },
+      reference: 'https://api.github.com/advisories?affects=next%4015.0.0',
+    })
+    jest.mocked(getLatestUpgradeVersion).mockResolvedValue('16.0.0')
+  })
+
+  it('shows security instead of latest when both apply', async () => {
+    jest.mocked(getSecurityAdvisorySummary).mockResolvedValue({
+      counts: { critical: 1, high: 0, moderate: 0, low: 0, unknown: 0 },
+      reference: 'https://api.github.com/advisories?affects=next%4015.0.0',
+    })
+
+    await nudgeIfUpgradeNeeded('/app', 'latest')
+
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(getLatestUpgradeVersion).not.toHaveBeenCalled()
+    expect(info).not.toHaveBeenCalled()
+  })
+
+  it('shows latest when no security warning applies', async () => {
+    await nudgeIfUpgradeNeeded('/app', 'latest')
+
+    expect(warn).not.toHaveBeenCalled()
+    expect(getLatestUpgradeVersion).toHaveBeenCalled()
+    expect(info).toHaveBeenCalledTimes(1)
   })
 })

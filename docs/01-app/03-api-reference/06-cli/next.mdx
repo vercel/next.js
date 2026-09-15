@@ -269,12 +269,13 @@ Ordinary terminals and `next start` are unaffected.
 
 Set `experimental.agenticAutoUpgrade: 'latest'` for a gentle reminder when a
 newer stable major or minor release is available. Patch-only updates do not
-trigger reminders; explicit `--agentic=latest` upgrades still include them.
+trigger reminders; explicit `--ai latest` upgrades still include them. The
+latest policy checks security first and shows only the security warning when the
+installed version is affected.
 In agent-driven `next dev` and `next build`,
 Next.js prints the running and latest versions with an upgrade command. The
 check runs without delaying startup, stays silent on lookup failure, and does
-not launch an upgrade. This policy checks release availability rather than
-security advisories.
+not launch an upgrade.
 
 The command delegates to the published Next.js canary CLI for current migration
 instructions. It continues in an existing coding agent or offers an installed

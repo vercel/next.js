@@ -219,16 +219,17 @@ export async function initialize(opts: {
     let developmentConfig = config as NextConfigComplete
 
     // Check only development; production startup does not query advisories.
-    if (developmentConfig.experimental.agenticAutoUpgrade === 'security') {
-      const { nudgeIfSecurityUpgradeNeeded } =
+    if (
+      developmentConfig.experimental.agenticAutoUpgrade === 'security' ||
+      developmentConfig.experimental.agenticAutoUpgrade === 'latest'
+    ) {
+      const { nudgeIfUpgradeNeeded } =
         require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
-      // Advisory requests must not delay startup. The helper handles failures.
-      void nudgeIfSecurityUpgradeNeeded(opts.dir)
-    } else if (developmentConfig.experimental.agenticAutoUpgrade === 'latest') {
-      const { nudgeIfLatestUpgradeNeeded } =
-        require('../../lib/upgrade/nudge') as typeof import('../../lib/upgrade/nudge')
-      // Release reminders must not delay or interrupt development.
-      void nudgeIfLatestUpgradeNeeded(opts.dir)
+      // Upgrade checks must not delay or interrupt development.
+      void nudgeIfUpgradeNeeded(
+        opts.dir,
+        developmentConfig.experimental.agenticAutoUpgrade
+      )
     }
 
     // Resolve the effective serverFastRefresh value.
