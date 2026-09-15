@@ -1057,6 +1057,8 @@ fn batch_get_large_batch(#[case] mmap: bool) -> Result<()> {
     Ok(())
 }
 
+// This test is too slow to run under Miri.
+#[cfg(not(miri))]
 #[rstest]
 #[case(true)]
 #[case(false)]
