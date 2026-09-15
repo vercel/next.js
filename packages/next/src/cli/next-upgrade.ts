@@ -1,4 +1,7 @@
 import { spawn } from 'child_process'
+import { cp, mkdtemp, readFile, rm, writeFile } from 'fs/promises'
+import { tmpdir } from 'os'
+import { join } from 'path'
 
 import * as Log from '../build/output/log'
 import createSpinner from '../build/spinner'
@@ -13,6 +16,8 @@ type NextUpgradeOptions = {
   verbose: boolean
   ai: boolean | string | undefined
 }
+
+const CODEMOD_COMMAND_PLACEHOLDER = '<codemod-command>'
 
 export async function spawnNextUpgrade(
   directory: string | undefined,
@@ -87,14 +92,59 @@ export async function spawnNextUpgrade(
         `Security update: Next.js ${result.installedVersion} → ${result.targetVersion}`
       )
 
+      // Use the invoking CLI's guides, even when the app runs an older Next.js.
+      // Retain them outside the app so dependency changes cannot remove them.
+      const bundledDocs = join(__dirname, '../docs')
+      const runDirectory = await mkdtemp(join(tmpdir(), 'next-upgrade-'))
+      const guidePath = join(
+        runDirectory,
+        'docs/01-app/02-guides/upgrading/agentic-upgrade.md'
+      )
+      const guidesSpinner = createSpinner('Preparing upgrade')
+
+      try {
+        for (const router of ['01-app', '02-pages']) {
+          await cp(
+            join(bundledDocs, router, '02-guides/upgrading'),
+            join(runDirectory, 'docs', router, '02-guides/upgrading'),
+            { recursive: true }
+          )
+        }
+
+        const codemodVersion = process.env.__NEXT_VERSION
+        if (!codemodVersion) {
+          throw new Error('Could not determine the @next/codemod version.')
+        }
+        const codemodCommand = `${getNpxCommand(baseDir)} @next/codemod@${codemodVersion} upgrade ${result.targetVersion} --yes --skip-adoption${options.verbose ? ' --verbose' : ''}`
+        const guide = await readFile(guidePath, 'utf8')
+        if (!guide.includes(CODEMOD_COMMAND_PLACEHOLDER)) {
+          throw new Error('Could not prepare the upgrade guide.')
+        }
+        await writeFile(
+          guidePath,
+          guide.replace(CODEMOD_COMMAND_PLACEHOLDER, codemodCommand)
+        )
+      } catch (error) {
+        await rm(runDirectory, { recursive: true, force: true })
+        throw error
+      } finally {
+        guidesSpinner?.stop()
+      }
+
       // TODO: Once every eligible security target supports
       // `experimental.agenticAutoUpgrade`, ask the agent to enable it after
       // verification so future upgrade reminders can use the same policy.
 
+      const references = result.references
+        .map((reference) => `- ${reference}`)
+        .join('\n')
       // Pass resolved inputs directly; the agent owns repairs and verification.
-      const prompt = `Upgrade ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion}.
-References: ${JSON.stringify(result.references)}
-Preserve existing permissions.`
+      const prompt = `Read and follow every applicable instruction in ${JSON.stringify(guidePath)} before proceeding.
+
+We're upgrading the app in ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion} because the installed version is affected by a published security advisory.
+
+References:
+${references}`
 
       Log.bootstrap(prompt)
     } catch (error) {
