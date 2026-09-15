@@ -5,6 +5,7 @@ version: experimental
 related:
   links:
     - app/api-reference/functions/navigation
+    - app/api-reference/functions/connection
     - app/guides/adopting-partial-prefetching
     - app/api-reference/functions/io
     - app/api-reference/config/next-config-js/partialPrefetching
@@ -123,6 +124,14 @@ async function getRecommendations() {
 The greeting reads the session and stays in the App Shell. The recommendations read it too, inside `getRecommendations`, so that read is deferred along with the ranking. Remove `unstable_prefetch()` and they become part of the App Shell that every link into the route prefetches.
 
 Put the directive on a function called below it, as `getRecommendations` does here. Awaiting `unstable_prefetch()` inside a cached scope, such as [`use cache`](/docs/app/api-reference/directives/use-cache) or [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), is not allowed.
+
+## How `unstable_prefetch()` differs from `connection()`
+
+The [`connection()`](/docs/app/api-reference/functions/connection) function waits for a real request. It excludes the code that follows from prerendering and prefetching, making that work request-dependent.
+
+`unstable_prefetch()` only excludes the code that follows from the App Shell. It can resolve during a per-link prefetch without making that work request-dependent. A function called after `await unstable_prefetch()` can therefore use [`"use cache"`](/docs/app/api-reference/directives/use-cache) and keep its cache lifetime without generating its result for every link into the route.
+
+Use `connection()` when the work must run for a real request. Use `unstable_prefetch()` when the work is reusable but should only run for a selected per-link prefetch or a navigation.
 
 ## When to use it
 

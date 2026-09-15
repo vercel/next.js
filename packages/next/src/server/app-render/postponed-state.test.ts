@@ -1,5 +1,6 @@
 import {
   createPrerenderResumeDataCache,
+  deflateResumeDataCache,
   stringifyResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
 import {
@@ -85,6 +86,12 @@ describe('getDynamicHTMLPostponedState', () => {
          "imageResponses": Map {},
          "mutable": false,
        },
+       "stagedFallbackParams": Map {
+         "slug" => [
+           "%%drp:slug:e9615126684e5%%",
+           "d",
+         ],
+       },
        "type": 2,
      }
     `)
@@ -125,6 +132,7 @@ describe('getDynamicHTMLPostponedState', () => {
     const parsed = parsePostponedState(state, params, undefined)
     expect(parsed).toEqual({
       type: DynamicState.HTML,
+      stagedFallbackParams: fallbackRouteParams,
       data: [1, { [value]: value }],
       renderResumeDataCache: {
         cache: new Map(),
@@ -142,44 +150,84 @@ describe('getDynamicHTMLPostponedState', () => {
 })
 
 describe('getDynamicDataPostponedState', () => {
-  it('serializes a data postponed state with fallback params', async () => {
-    const state = await getDynamicDataPostponedState(
-      createPrerenderResumeDataCache(),
-      isCacheComponentsEnabled
-    )
-    expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
-  })
+  it.each([undefined, null, new Map()])(
+    'serializes a data postponed state with no fallback params (%p)',
+    async (fallbackRouteParams) => {
+      const state = await getDynamicDataPostponedState(
+        createPrerenderResumeDataCache(),
+        isCacheComponentsEnabled,
+        undefined,
+        false,
+        fallbackRouteParams
+      )
+      expect(state).toBe(
+        fallbackRouteParams === undefined ? '4:nullnull' : '7:2[]nullnull'
+      )
+      const parsed = parsePostponedState(state, {}, undefined)
+      expect(parsed.type).toBe(DynamicState.DATA)
+      expect(parsed.stagedFallbackParams).toBe(
+        fallbackRouteParams === undefined ? undefined : null
+      )
+    }
+  )
 
-  it('serializes and parses an uncompressed cache when compression is disabled', async () => {
-    const resumeDataCache = createPrerenderResumeDataCache()
-    resumeDataCache.fetch.set('cache-key', {
-      kind: CachedRouteKind.FETCH,
-      data: {
-        headers: {},
-        body: 'cached body',
-        url: 'https://example.com',
-      },
-      revalidate: 60,
-    })
+  it.each([false, true])(
+    'serializes and parses fallback params and a cache (disableResumeDataCacheCompression: %s)',
+    async (disableResumeDataCacheCompression) => {
+      const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
+        slug: ['%%drp:slug:e9615126684e5%%', 'd'],
+      })
+      const resumeDataCache = createPrerenderResumeDataCache()
+      resumeDataCache.fetch.set('cache-key', {
+        kind: CachedRouteKind.FETCH,
+        data: {
+          headers: {},
+          body: 'cached body',
+          url: 'https://example.com',
+        },
+        revalidate: 60,
+      })
 
-    const serializedResumeDataCache = await stringifyResumeDataCache(
-      resumeDataCache,
-      isCacheComponentsEnabled
-    )
-    const state = await getDynamicDataPostponedState(
-      resumeDataCache,
-      isCacheComponentsEnabled,
-      undefined,
-      true
-    )
+      const serializedResumeDataCache = await stringifyResumeDataCache(
+        resumeDataCache,
+        isCacheComponentsEnabled
+      )
+      const state = await getDynamicDataPostponedState(
+        resumeDataCache,
+        isCacheComponentsEnabled,
+        undefined,
+        disableResumeDataCacheCompression,
+        fallbackRouteParams
+      )
 
-    expect(state).toBe(`4:null${serializedResumeDataCache}`)
+      expect(state).toBe(
+        `51:45[["slug",["%%drp:slug:e9615126684e5%%","d"]]]null${
+          disableResumeDataCacheCompression
+            ? serializedResumeDataCache
+            : deflateResumeDataCache(serializedResumeDataCache)
+        }`
+      )
 
-    const parsed = parsePostponedState(state, {}, undefined, true)
-    expect(parsed.renderResumeDataCache.fetch.get('cache-key')).toEqual(
-      resumeDataCache.fetch.get('cache-key')
-    )
-  })
+      const parsed = parsePostponedState(
+        state,
+        { slug: '123' },
+        undefined,
+        disableResumeDataCacheCompression
+      )
+      expect(parsed.type).toBe(DynamicState.DATA)
+      expect(parsed.stagedFallbackParams).toEqual(fallbackRouteParams)
+      expect(parsed.renderResumeDataCache.fetch.get('cache-key')).toEqual(
+        resumeDataCache.fetch.get('cache-key')
+      )
+      expect(
+        parseResumeDataCacheFromPostponedState(
+          state,
+          undefined,
+          disableResumeDataCacheCompression
+        ).fetch.get('cache-key')
+      ).toEqual(resumeDataCache.fetch.get('cache-key'))
+    }
+  )
 
   it('warns when the uncompressed state would exceed the size limit', async () => {
     const resumeDataCache = createPrerenderResumeDataCache()
@@ -282,6 +330,7 @@ describe('parsePostponedState', () => {
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.HTML,
+      stagedFallbackParams: new Map([['slug', '%%drp:slug:e9615126684e5%%']]),
       data: expect.any(Object),
       renderResumeDataCache: {
         cache: new Map(),
@@ -305,6 +354,7 @@ describe('parsePostponedState', () => {
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.HTML,
+      stagedFallbackParams: null,
       data: expect.any(Object),
       renderResumeDataCache: {
         cache: new Map(),
@@ -317,7 +367,7 @@ describe('parsePostponedState', () => {
     })
   })
 
-  it('parses a data postponed state', () => {
+  it('parses a legacy data postponed state', () => {
     const state = '4:nullnull'
     const parsed = parsePostponedState(state, {}, undefined)
 
@@ -333,5 +383,6 @@ describe('parsePostponedState', () => {
         mutable: false,
       },
     })
+    expect(parsed).not.toHaveProperty('stagedFallbackParams')
   })
 })

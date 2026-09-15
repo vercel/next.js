@@ -87,6 +87,7 @@
             ),
         ],
         span: 50..61,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "Math",
@@ -297,6 +298,7 @@
             ),
         ],
         span: 273..287,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "JSON",

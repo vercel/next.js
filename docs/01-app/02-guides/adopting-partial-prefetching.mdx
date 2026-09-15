@@ -89,7 +89,30 @@ A legacy full prefetch can include more UI than the navigation needs. In most ca
 
 ### Verify prefetched UI with tests
 
-To verify the migration programmatically, an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test can capture the UI that should stay available from an existing full prefetch. Run this baseline against a production build with `partialPrefetching` disabled because automatic prefetching doesn't run in `next dev`. Then rerun the same assertions after adopting the destination. A failure identifies UI the App Shell no longer carries, so you can cache the data or subtree that restores it. The passing test provides regression coverage.
+To verify the migration programmatically, an [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test can capture the UI that should stay available from an existing full prefetch. Test the exact source link because different links to the same destination can use different prefetch settings:
+
+```ts filename="e2e/product-navigation.test.ts" highlight={7-16}
+import { expect, test } from '@playwright/test'
+import { instant } from '@next/playwright'
+
+test('preserves the prefetched product summary', async ({ page }) => {
+  await page.goto('/products')
+
+  await instant(page, async () => {
+    const link = page.getByRole('link', { name: 'Baseball Cap' })
+    await expect(link).toBeVisible()
+    await link.click()
+    await page.waitForURL((url) => url.pathname === '/products/baseball-cap')
+
+    await expect(
+      page.getByRole('heading', { name: 'Baseball Cap' })
+    ).toBeVisible()
+    await expect(page.getByTestId('product-summary')).toBeVisible()
+  })
+})
+```
+
+Run this baseline against a production build with `partialPrefetching` disabled because automatic prefetching doesn't run in `next dev`. Then rerun the same test after adopting the destination. If it fails, the selected UI is no longer prefetched. Cache the reusable data or subtree that should stay available, then keep the passing test as regression coverage.
 
 ### Static or cached content
 

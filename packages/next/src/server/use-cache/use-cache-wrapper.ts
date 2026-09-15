@@ -12,7 +12,6 @@ import {
   createTemporaryReferenceSet as createClientTemporaryReferenceSet,
 } from 'react-server-dom-webpack/client'
 import { prerender } from 'react-server-dom-webpack/static'
-/* eslint-enable import/no-extraneous-dependencies */
 
 import type { WorkStore } from '../app-render/work-async-storage.external'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
@@ -52,6 +51,7 @@ import type { ClientReferenceManifest } from '../../build/webpack/plugins/flight
 
 import {
   getClientReferenceManifest,
+  getRscModuleMappingForUseCache,
   getServerActionsManifest,
   getServerModuleMap,
   normalizeWorkerPageName,
@@ -350,6 +350,10 @@ const crossRequestPendingCacheInvocations = new Map<
   Promise<SharedCacheResult>
 >()
 
+// Prevent duplicate background revalidations for the same key until generation
+// and cache writes finish.
+const backgroundRevalidations = new Map<string, Promise<void>>()
+
 // The first argument at each call site is the full directive that produced
 // the invocation, e.g. "'use cache'" or "'use cache: remote'".
 const debug = process.env.NEXT_PRIVATE_DEBUG_CACHE
@@ -610,17 +614,16 @@ function serveJoinedCacheEntry(
 
 function saveToCacheHandler(
   cacheHandler: CacheReadWriteHandler,
-  workStore: WorkStore,
   id: string,
   cacheHandlerKeyBase: string,
   savedCacheResult: Promise<CollectedCacheResult>,
   rootParams: Params | undefined
-): Promise<CollectedCacheResult> {
+): Promise<void> {
   // Write the entry to the cache handler. With root params, this is a redirect
   // entry at the coarse key plus the actual entry at the specific key;
   // otherwise just the entry at the coarse key. Both set calls are fired
   // together and awaited in parallel.
-  const combinedSetPromise = savedCacheResult.then(async (collectedResult) => {
+  return savedCacheResult.then(async (collectedResult) => {
     const { entry: fullEntry, readRootParamNames } = collectedResult
 
     // Use the combined set (union of all historically observed reads) for both
@@ -644,7 +647,10 @@ function saveToCacheHandler(
         computeRootParamsCacheKeySuffix(rootParams, rootParamNames)
 
       setPromises.push(
-        cacheHandler.set(specificKey, Promise.resolve(fullEntry))
+        // Capture synchronous `set()` throws as rejected write promises.
+        new Promise<void>((resolve) => {
+          resolve(cacheHandler.set(specificKey, Promise.resolve(fullEntry)))
+        })
       )
 
       // The coarse key gets a redirect entry instead. On a cold server (empty
@@ -671,25 +677,22 @@ function saveToCacheHandler(
     }
 
     setPromises.push(
-      cacheHandler.set(cacheHandlerKeyBase, Promise.resolve(coarseEntry))
+      // Capture synchronous `set()` throws as rejected write promises.
+      new Promise<void>((resolve) => {
+        resolve(
+          cacheHandler.set(cacheHandlerKeyBase, Promise.resolve(coarseEntry))
+        )
+      })
     )
 
-    await Promise.all(setPromises)
+    // A failed write must not finish the operation while another write is
+    // pending.
+    for (const result of await Promise.allSettled(setPromises)) {
+      if (result.status === 'rejected') {
+        throw result.reason
+      }
+    }
   })
-
-  workStore.pendingRevalidateWrites ??= []
-  workStore.pendingRevalidateWrites.push(combinedSetPromise)
-
-  // A cross-request joiner reads its recomputed specific key only after it has
-  // awaited this entry's metadata, so gate the metadata on the writes landing:
-  // that guarantees the entry is present when the joiner re-reads. A failed
-  // write shouldn't reject the metadata (the joiner just misses and
-  // regenerates), so settle either way; a collection failure still propagates
-  // through `savedCacheResult`.
-  return combinedSetPromise.then(
-    () => savedCacheResult,
-    () => savedCacheResult
-  )
 }
 
 function generateCacheEntry(
@@ -2119,20 +2122,19 @@ export async function cache(
 
   const temporaryReferences = createClientTemporaryReferenceSet()
 
-  // The base serialized cache key doesn't include the cookies or headers that
-  // private caches are allowed to read. In production this is because private
-  // cache entries aren't stored in a cache handler, only in the Resume Data
-  // Cache (RDC): private caches are only used during dynamic requests and
-  // runtime prefetches; for dynamic requests the RDC is immutable and excludes
-  // private caches, and for runtime prefetches it's mutable but lives only as
-  // long as the request. In development private caches are persisted across
-  // requests, so `cacheHandlerKeyBase` (below) additionally scopes the handler
-  // key by the request's cookies and headers.
-  const cacheKeyParts: CacheKeyParts = [
-    id,
-    args,
-    await computeCacheKeyImplementationPart(workStore, workUnitStore, id),
-  ]
+  // The base serialized cache key doesn't include runtime env var state or the
+  // cookies and headers that private caches are allowed to read. Env var state
+  // only scopes the cache handler because the RDC must reuse entries across
+  // rendering phases. In production private cache entries aren't stored in a
+  // cache handler, only in the Resume Data Cache (RDC): private caches are only
+  // used during dynamic requests and runtime prefetches; for dynamic requests
+  // the RDC is immutable and excludes private caches, and for runtime prefetches
+  // it's mutable but lives only as long as the request. In development private
+  // caches are persisted across requests, so `cacheHandlerKeyBase` (below)
+  // additionally scopes the handler key by the request's cookies and headers.
+  const { implementationPart, runtimeEnvVarStateHash } =
+    await computeCacheKeyImplementationPart(workStore, workUnitStore, id)
+  const cacheKeyParts: CacheKeyParts = [id, args, implementationPart]
 
   const encodeCacheKeyParts = () =>
     encodeReply(cacheKeyParts, {
@@ -2267,19 +2269,19 @@ export async function cache(
 
   // The coarse cache-handler key. With no root params read, it locates the
   // entry directly; otherwise it locates a redirect entry from which the
-  // specific key (this key + root params, computed below) is derived. For
-  // private caches in development (persisted in the built-in in-memory handler)
-  // it's additionally scoped by the request's cookies and headers, so entries
-  // for requests with different request data don't collide; keys derived from
-  // it inherit that scoping.
+  // specific key (this key + root params, computed below) is derived. It's
+  // scoped by runtime env var state and, for private caches in development
+  // (persisted in the built-in in-memory handler), the request's cookies and
+  // headers. Keys derived from it inherit that scoping.
   const cacheHandlerKeyBase =
-    process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
-      ? serializedCacheKey +
-        computePrivateCacheKeyRequestSuffix(
+    serializedCacheKey +
+    (runtimeEnvVarStateHash ?? '') +
+    (process.env.__NEXT_DEV_SERVER && cacheContext.kind === 'private'
+      ? computePrivateCacheKeyRequestSuffix(
           cacheContext.outerWorkUnitStore.cookies,
           cacheContext.outerWorkUnitStore.headers
         )
-      : serializedCacheKey
+      : '')
   // If we already know which root params this function reads, include them in
   // the cache handler key for a direct hit (skipping the redirect entry).
   // rootParams is undefined when nested inside unstable_cache.
@@ -3064,9 +3066,14 @@ export async function cache(
         }
 
         let entry: CacheEntry | undefined
+        let observedRevalidation: Promise<void> | undefined
 
         // We ignore existing cache entries when force revalidating.
         if (cacheHandler && !shouldForceRevalidate(workStore, workUnitStore)) {
+          // Record an existing revalidation before `get()` so a stale result
+          // does not start another revalidation. The existing revalidation may
+          // finish and remove its map entry before the lookup returns.
+          observedRevalidation = backgroundRevalidations.get(cacheHandlerKey)
           entry = await cacheHandler.get(cacheHandlerKey, implicitTags)
 
           // Check if this is a redirect entry (coarse key → specific key).
@@ -3084,6 +3091,8 @@ export async function cache(
               cacheHandlerKey =
                 cacheHandlerKeyBase +
                 computeRootParamsCacheKeySuffix(rootParams, paramNames)
+              observedRevalidation =
+                backgroundRevalidations.get(cacheHandlerKey)
               entry = await cacheHandler.get(cacheHandlerKey, implicitTags)
             }
           }
@@ -3386,13 +3395,23 @@ export async function cache(
             )
 
             if (cacheHandler) {
-              metadataSource = saveToCacheHandler(
+              const pendingWrite = saveToCacheHandler(
                 cacheHandler,
-                workStore,
                 id,
                 cacheHandlerKeyBase,
                 savedCacheResult,
                 rootParams
+              )
+              workStore.pendingRevalidateWrites ??= []
+              workStore.pendingRevalidateWrites.push(pendingWrite)
+              // Wait for cache writes before exposing metadata. Cross-request
+              // joiners may recompute their root-param-specific key from it,
+              // then read the handler again. A write failure does not reject
+              // the metadata: joiners can regenerate if no entry was stored.
+              // Collection failures still propagate through `savedCacheResult`.
+              metadataSource = pendingWrite.then(
+                () => savedCacheResult,
+                () => savedCacheResult
               )
             }
           }
@@ -3536,23 +3555,32 @@ export async function cache(
             }
           }
 
-          if (shouldTriggerBackgroundRevalidation) {
+          if (
+            shouldTriggerBackgroundRevalidation &&
+            // The revalidation observed before the lookup may have finished.
+            observedRevalidation === undefined &&
+            // A new revalidation may have started since the lookup began.
+            !backgroundRevalidations.has(cacheHandlerKey)
+          ) {
             const revalidateCacheHandlerKey = cacheHandlerKey
-            const revalidatePromise = generateCacheEntry(
-              workStore,
-              // The background revalidation preserves the outer store for
-              // reading (e.g. implicitTags) but skips propagation of cache life
-              // and tags back to the outer scope.
-              {
-                ...cacheContext,
-                skipPropagation: true,
-              },
-              clientReferenceManifest,
-              encodedCacheKeyParts,
-              fn,
-              timeoutError,
-              deadlockError
-            )
+            // Defer the call so synchronous setup errors reject the background
+            // task instead of failing the stale response. This also lets us
+            // register the task before generation starts.
+            const revalidatePromise = Promise.resolve()
+              .then(() =>
+                generateCacheEntry(
+                  workStore,
+                  // The background revalidation preserves the outer store for
+                  // reading (e.g. implicitTags) but skips propagation of cache
+                  // life and tags back to the outer scope.
+                  { ...cacheContext, skipPropagation: true },
+                  clientReferenceManifest,
+                  encodedCacheKeyParts,
+                  fn,
+                  timeoutError,
+                  deadlockError
+                )
+              )
               .then(async (result) => {
                 if (result.type === 'cached') {
                   const { stream: ignoredStream, pendingCacheResult } = result
@@ -3564,28 +3592,46 @@ export async function cache(
                     logPrefix
                   )
 
-                  if (cacheHandler) {
-                    saveToCacheHandler(
-                      cacheHandler,
-                      workStore,
-                      id,
-                      cacheHandlerKeyBase,
-                      savedCacheResult,
-                      rootParams
-                    )
-                  }
+                  const pendingWrite = cacheHandler
+                    ? saveToCacheHandler(
+                        cacheHandler,
+                        id,
+                        cacheHandlerKeyBase,
+                        savedCacheResult,
+                        rootParams
+                      )
+                    : savedCacheResult.then(() => {})
 
-                  await ignoredStream.cancel()
+                  for (const completion of await Promise.allSettled([
+                    ignoredStream.cancel(),
+                    pendingWrite,
+                  ])) {
+                    if (completion.status === 'rejected') {
+                      throw completion.reason
+                    }
+                  }
                 }
               })
-              .catch((error) => {
-                debug?.(
-                  logPrefix,
-                  'background cache revalidation failed for',
-                  revalidateCacheHandlerKey,
-                  error
-                )
+              .finally(() => {
+                if (
+                  backgroundRevalidations.get(revalidateCacheHandlerKey) ===
+                  revalidatePromise
+                ) {
+                  backgroundRevalidations.delete(revalidateCacheHandlerKey)
+                }
               })
+            backgroundRevalidations.set(
+              revalidateCacheHandlerKey,
+              revalidatePromise
+            )
+            revalidatePromise.catch((error) => {
+              debug?.(
+                logPrefix,
+                'background cache revalidation failed for',
+                revalidateCacheHandlerKey,
+                error
+              )
+            })
             workStore.pendingRevalidateWrites ??= []
             workStore.pendingRevalidateWrites.push(revalidatePromise)
           }
@@ -3611,7 +3657,7 @@ export async function cache(
     // to be added to the consumer. Instead, we'll wait for any ClientReference to be emitted
     // which themselves will handle the preloading.
     moduleLoading: null,
-    moduleMap: clientReferenceManifest.rscModuleMapping,
+    moduleMap: getRscModuleMappingForUseCache(),
     serverModuleMap: getServerModuleMap(),
   }
 
@@ -3625,15 +3671,18 @@ export async function cache(
 }
 
 /**
- * This returns a cache key that has to cover everything that can affect the result of the cached
- * function (apart from the arguments). So
+ * This returns cache key parts that cover everything that can affect the result of the cached
+ * function (apart from the arguments). The implementation part is used by both the RDC and cache
+ * handler, while the runtime env var state hash is only used by the cache handler. The RDC is
+ * per-page and must reuse entries across rendering phases even if an env var changes between them.
+ *
+ * The parts cover:
  * - codeHash: the code itself that generates the return value
- *    - Notably, this excludes the following modules.  Those are included via the Next.js version
- *      anyway:
+ *    - Notably, this excludes the following modules.  Those are included via the Next.js version anyway:
  *    - react, react-dom, private-next-rsc-server-reference, private-next-rsc-cache-wrapper
- * - runtimeEnvVars: the keys and values runtime environment variables that the code reads (and are
- *   not inlined)
- * - the version of Next.js (to account for RSC wire format changes, or use-cache-wrapper.ts
+ * - runtimeEnvVarsRead: the keys and values of runtime environment variables that the code reads
+ * - runtimeEnvVarExistence: the unset/falsy/truthy state of runtime environment variables used in boolean contexts
+ * - the version of Next.js (to account for RSC wire format changes, or use-cache-wrapper.ts changes)
  *
  * In case that granular information isn't available, fall back to
  * buildId/deploymentId/hmrRefreshHash, which is a correct hash but over-invalidates way too often.
@@ -3642,34 +3691,42 @@ async function computeCacheKeyImplementationPart(
   workStore: WorkStore,
   workUnitStore: WorkUnitStore,
   id: string
-): Promise<unknown> {
+): Promise<{
+  implementationPart: unknown
+  runtimeEnvVarStateHash: string | undefined
+}> {
   let durability = workStore.durableUseCacheEntries
     ? getServerActionsManifest().node[id].workers?.[
         normalizeWorkerPageName(workStore.page)
       ]?.durability
     : undefined
-  if (
-    durability &&
-    // TODO replace this with more granular tracking: a list of all imported client components
-    durability.referencesClientComponent !== true
-  ) {
+  if (durability) {
     // use cache is only supported in Node.js runtime. So we can use the Node.js crypto module here.
     const crypto = require('crypto') as typeof import('crypto')
     let runtimeEnvVarStateHash = crypto
       // Hash the env var values, to not leak secrets into the cache key.
       .createHash('sha256')
       .update(
-        durability.runtimeEnvVars
-          .map((k) => {
+        [
+          ...durability.runtimeEnvVarsRead.map((k) => {
             // Make sure not to stringify `undefined` and `"undefined"` to the same value.
-            return process.env[k] != null ? `${k}=${process.env[k]}` : k
-          })
-          .join('\0') ?? ''
+            return process.env[k] != null ? `${k}==${process.env[k]}` : k
+          }),
+          ...durability.runtimeEnvVarsExistence.map((k) => {
+            const value = process.env[k]
+            const state = value == null ? 'unset' : value ? 'truthy' : 'falsy'
+            return `${k}~=${state}`
+          }),
+        ].join('\0') ?? ''
       )
       .digest('hex')
 
-    // When more accurate analysis information is available, use codeHash + runtimeEnvVars
-    return [durability.codeHash, nextVersion, runtimeEnvVarStateHash]
+    // The env var state is added to the cache handler key separately so it
+    // doesn't affect RDC lookups between rendering phases.
+    return {
+      implementationPart: [durability.codeHash, nextVersion],
+      runtimeEnvVarStateHash,
+    }
   } else {
     // Because the Action ID is not yet unique per implementation of that Action we can't
     // safely reuse the results across builds yet. In the meantime we add the buildId to the
@@ -3685,7 +3742,12 @@ async function computeCacheKeyImplementationPart(
     const hmrRefreshHash = getHmrRefreshHash(workUnitStore)
 
     // otherwise fall back to buildId and/or the HMR hash.
-    return hmrRefreshHash ? [buildId, hmrRefreshHash] : [buildId]
+    return {
+      implementationPart: hmrRefreshHash
+        ? [buildId, hmrRefreshHash]
+        : [buildId],
+      runtimeEnvVarStateHash: undefined,
+    }
   }
 }
 

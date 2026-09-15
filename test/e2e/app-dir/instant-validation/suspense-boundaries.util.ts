@@ -464,11 +464,12 @@ export function registerSuspenseBoundariesTests(
       const result = await prerender(
         '/suspense-in-root/runtime/invalid-no-suspense-around-params/[param]'
       )
-      // TODO(app-shells): missing fallback params in build validation
-      // It seems like `workUnitStore.fallbackParams` is undefined
-      // during the validation render, which makes us treat these params as static.
-      // In partialPrefetching, static params are also delayed until the runtime stage,
-      // which ultimately makes the validation fail, but also hides the underlying issue.
+      // TODO(app-shells): Verify fallback params in build validation.
+      //
+      // This assertion can pass even if `workUnitStore.stagedFallbackParams` is
+      // missing. Without that set, validation treats these params as static.
+      // Partial Prefetching still delays them to the runtime stage, so the
+      // expected error does not detect the missing fallback params.
 
       expect(extractBuildValidationError(result.cliOutput))
         .toMatchInlineSnapshot(`

@@ -210,11 +210,11 @@ turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
-swc_ecma_react_compiler = "24.0.0"
-react_compiler = { version = "0.2", package = "forked_react_compiler" }
+swc_ecma_react_compiler = "25.0.0"
+react_compiler = "0.1.0"
 
 # SWC crates
-swc_core = { version = "77.1.2", default-features = false, features = [
+swc_core = { version = "78.0.0", default-features = false, features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
   "parallel_rayon",

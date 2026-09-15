@@ -21,4 +21,9 @@ describe('webpack-loader-resolve', () => {
     const $ = await next.render$('/no-options')
     expect($('#no-options').text()).toBe('xyz')
   })
+
+  it('should support callback-style loader resolve', async () => {
+    const $ = await next.render$('/callback')
+    expect($('#resolved').text()).toBe('resolved-value.js')
+  })
 })

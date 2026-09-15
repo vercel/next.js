@@ -4,12 +4,12 @@ import { createRouterAct } from 'router-act'
 
 import { UNEXPECTED_CACHE_MISS_MESSAGE } from 'next/src/server/use-cache/use-cache-errors'
 
+// Deploy mode exclusion: This suite asserts local server CLI output.
+// @force-gate !deploy
 describe('runtime prerender cache warming', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true, // reads CLI output
   })
-  if (skipped) return
 
   if (isNextDev) {
     it.skip('no prefetching in dev', () => {})

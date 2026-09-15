@@ -1,3 +1,4 @@
+import cheerio from 'cheerio'
 import path from 'path'
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
@@ -5,7 +6,7 @@ import type * as Playwright from 'playwright'
 import { createRouterAct } from 'router-act'
 
 describe('cached navigations', () => {
-  const { next, isNextDev } = nextTestSetup({
+  const { next, isNextDev, isNextDeploy } = nextTestSetup({
     files: path.join(__dirname, 'default'),
   })
 
@@ -402,6 +403,303 @@ describe('cached navigations', () => {
     expect(await browser.elementById('connection-boundary').text()).toContain(
       'Dynamic content'
     )
+  })
+
+  it.each([
+    { source: 'dynamic RSC', top: 't2' },
+    { source: 'initial HTML with partial resume', top: 't3' },
+  ])(
+    'caches a required fallback shell from $source for repeated navigations',
+    async ({ source, top }) => {
+      const route = `/required-fallback-params/${top}/b1`
+      const startDate = Date.now()
+      let bottomIsStatic = false
+      let page: Playwright.Page
+      let initialDocument: Promise<Playwright.Response>
+      const browser = await next.browser(
+        source === 'dynamic RSC' ? `/fallback-params-hub/${top}/start` : route,
+        {
+          async beforePageLoad(p: Playwright.Page) {
+            page = p
+            await page.clock.install()
+            await page.clock.setFixedTime(startDate)
+            initialDocument = page.waitForResponse((response) =>
+              response.request().isNavigationRequest()
+            )
+          },
+        }
+      )
+      const act = createRouterAct(page)
+
+      if (source === 'dynamic RSC') {
+        await act(
+          async () => {
+            await browser
+              .elementByCss(`input[data-link-accordion="${route}"]`)
+              .click()
+            await browser.elementByCss(`a[href="${route}"]`).click()
+          },
+          { includes: 'Dynamic content' }
+        )
+      } else {
+        // Inspect the document that populated this browser's cache, not a
+        // separate prefetch or a later request after the shell was cached.
+        const html = await (await initialDocument).text()
+        const [shell, resume] = html.split('<!-- PPR_BOUNDARY_SENTINEL -->')
+        expect(resume).toBeDefined()
+        const $ = cheerio.load(shell)
+        expect($('#top').text()).toBe(`Top: ${top}`)
+        bottomIsStatic = $('#bottom').length > 0
+        expect($('#bottom-boundary').text()).toBe(
+          bottomIsStatic ? 'Bottom: b1' : 'Loading bottom...'
+        )
+        expect($('#connection-boundary').text()).toBe('Loading connection...')
+        expect(resume).toContain('id="dynamic-content"')
+      }
+
+      expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
+      expect(await browser.elementById('bottom').text()).toBe('Bottom: b1')
+      expect(await browser.elementById('dynamic-content').text()).toBe(
+        'Dynamic content'
+      )
+
+      for (const [index, step] of ['a', 'b'].entries()) {
+        const hub = `/fallback-params-hub/${top}/${step}`
+        await act(
+          async () => {
+            await browser
+              .elementByCss(`input[data-link-accordion="${hub}"]`)
+              .click()
+            await browser.elementByCss(`a[href="${hub}"]`).click()
+          },
+          { includes: `Fallback params hub ${step}` }
+        )
+        expect(await browser.elementByCss('h1').text()).toBe(
+          `Fallback params hub ${step}`
+        )
+        await page.clock.setFixedTime(startDate + (index + 1) * 60_000)
+
+        await act(async () => {
+          await act(
+            async () => {
+              await browser
+                .elementByCss(`input[data-link-accordion="${route}"]`)
+                .click()
+              await browser.elementByCss(`a[href="${route}"]`).click()
+            },
+            { includes: 'Dynamic content', block: true }
+          )
+
+          // Hydration retains the static content of its actual prerender. A
+          // cold dynamic RSC render retains the required shell's unresolved
+          // bottom param.
+          expect(await browser.elementByCss('main').text()).toContain(
+            `Top: ${top}`
+          )
+          expect(await browser.elementById('bottom-boundary').text()).toBe(
+            bottomIsStatic ? 'Bottom: b1' : 'Loading bottom...'
+          )
+          expect(await browser.elementById('connection-boundary').text()).toBe(
+            'Loading connection...'
+          )
+        })
+
+        expect(await browser.elementById('top').text()).toBe(`Top: ${top}`)
+        expect(await browser.elementById('bottom').text()).toBe('Bottom: b1')
+        expect(await browser.elementById('dynamic-content').text()).toBe(
+          'Dynamic content'
+        )
+      }
+    }
+  )
+
+  it('caches a fully static on-demand param for repeated navigations', async () => {
+    const route = '/fully-static-params/t4'
+    const startDate = Date.now()
+    let page: Playwright.Page
+    const browser = await next.browser('/fallback-params-hub/t4/start', {
+      async beforePageLoad(p: Playwright.Page) {
+        page = p
+        await page.clock.install()
+        await page.clock.setFixedTime(startDate)
+      },
+    })
+    const act = createRouterAct(page)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${route}"]`)
+          .click()
+        await browser.elementByCss(`a[href="${route}"]`).click()
+      },
+      { includes: 'Top:' }
+    )
+    expect(await browser.elementById('top').text()).toBe('Top: t4')
+
+    for (const [index, step] of ['a', 'b'].entries()) {
+      const hub = `/fallback-params-hub/t4/${step}`
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${hub}"]`)
+            .click()
+          await browser.elementByCss(`a[href="${hub}"]`).click()
+        },
+        { includes: `Fallback params hub ${step}` }
+      )
+      expect(await browser.elementByCss('h1').text()).toBe(
+        `Fallback params hub ${step}`
+      )
+      await page.clock.setFixedTime(startDate + (index + 1) * 60_000)
+
+      const navigate = async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${route}"]`)
+          .click()
+        await browser.elementByCss(`a[href="${route}"]`).click()
+      }
+      if (isNextDeploy) {
+        // The platform serves a completed static prerender, not an unmarked
+        // live-render prefix.
+        await act(navigate, 'no-requests')
+        expect(await browser.elementById('top').text()).toBe('Top: t4')
+        continue
+      }
+
+      await act(async () => {
+        await act(navigate, { includes: 'Top:', block: true })
+
+        // Live navigation prefixes remain marked partial even for a static
+        // page.
+        expect(await browser.elementByCss('main').text()).toContain('Top: t4')
+      })
+      expect(await browser.elementById('top').text()).toBe('Top: t4')
+    }
+  })
+
+  it('does not cache synchronous IO after a novel param resolves', async () => {
+    const route = '/fully-static-params/time'
+    if (isNextDeploy) {
+      // The platform must prerender this cold route before it can resume it.
+      // The prerender rejects the uncached timestamp instead of serving a
+      // cacheable result.
+      const response = await next.fetch(route)
+      expect(response.status).toBe(500)
+      expect(await response.text()).not.toContain('Top: time')
+      return
+    }
+    const hub = '/fallback-params-hub/time/a'
+    let page: Playwright.Page
+    const browser = await next.browser('/fallback-params-hub/time/start', {
+      async beforePageLoad(browserPage: Playwright.Page) {
+        page = browserPage
+        await page.clock.install()
+      },
+    })
+    const act = createRouterAct(page)
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${route}"]`)
+          .click()
+        await browser.elementByCss(`a[href="${route}"]`).click()
+      },
+      { includes: 'Top:' }
+    )
+    const timestamp = await browser.elementById('timestamp').text()
+    expect(timestamp).not.toBe('')
+
+    await act(
+      async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${hub}"]`)
+          .click()
+        await browser.elementByCss(`a[href="${hub}"]`).click()
+      },
+      { includes: 'Fallback params hub a' }
+    )
+    await page.clock.fastForward(60_000)
+
+    await act(async () => {
+      await act(
+        async () => {
+          await browser
+            .elementByCss(`input[data-link-accordion="${route}"]`)
+            .click()
+          await browser.elementByCss(`a[href="${route}"]`).click()
+        },
+        { includes: 'Top:', block: true }
+      )
+
+      expect(await browser.elementByCss('main').text()).not.toContain(
+        'Top: time'
+      )
+    })
+    expect(await browser.elementById('timestamp').text()).not.toBe(timestamp)
+  })
+
+  it('finishes a full prefetch after synchronous IO interrupts its shell', async () => {
+    const route = '/fully-static-params/time'
+    if (isNextDeploy) {
+      const response = await next.fetch(route)
+      expect(response.status).toBe(500)
+      return
+    }
+
+    let page: Playwright.Page
+    const browser = await next.browser('/fallback-params-hub/time/start', {
+      beforePageLoad(browserPage: Playwright.Page) {
+        page = browserPage
+      },
+    })
+    const act = createRouterAct(page)
+    await act(
+      async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${route}"]`)
+          .click()
+        await browser.elementByCss(`a[href="${route}"]`).click()
+      },
+      { includes: 'Top:' }
+    )
+    const timestamp = await browser.elementById('timestamp').text()
+
+    const hub = '/fallback-params-hub/time/a'
+    await act(
+      async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${hub}"]`)
+          .click()
+        await browser.elementByCss(`a[href="${hub}"]`).click()
+      },
+      { includes: 'Fallback params hub a' }
+    )
+    await act(
+      async () => {
+        await browser.eval('window.next.router.refresh()')
+      },
+      { includes: 'Fallback params hub a' }
+    )
+
+    // Refresh clears segment data and BFCache but retains the route tree. The
+    // full prefetch must fetch new data without a cold static tree prerender.
+    const fullPrefetchLink = `${route}#full-prefetch`
+    await act(
+      async () => {
+        await browser
+          .elementByCss(`input[data-link-accordion="${fullPrefetchLink}"]`)
+          .click()
+      },
+      { includes: 'Top:' }
+    )
+
+    await act(async () => {
+      await browser.elementByCss(`a[href="${fullPrefetchLink}"]`).click()
+    }, 'no-requests')
+    expect(await browser.elementById('top').text()).toBe('Top: time')
+    expect(await browser.elementById('timestamp').text()).not.toBe(timestamp)
   })
 
   it('caches runtime-prefetchable content from a navigation for instant second visit', async () => {
