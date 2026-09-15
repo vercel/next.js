@@ -233,4 +233,21 @@ describe('fetchExternalImage', () => {
       expect(result.buffer.length).toBe(maximumResponseBody)
     })
   })
+  describe('upstream fetch errors', () => {
+    it('should throw a 502 ImageError when the upstream fetch fails', async () => {
+      global.fetch = jest.fn().mockRejectedValue(new Error('fetch failed'))
+
+      const error = await fetchExternalImage(
+        'https://example.com/image.jpg',
+        false,
+        50_000_000
+      ).catch((e) => e)
+
+      expect(error).toBeInstanceOf(ImageError)
+      expect((error as ImageError).statusCode).toBe(502)
+      expect((error as ImageError).message).toBe(
+        '"url" parameter is valid but upstream request failed'
+      )
+    })
+  })
 })
