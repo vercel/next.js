@@ -21,7 +21,7 @@ workspace = true
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
-base64 = "0.21.0"
+base64 = { workspace = true }
 bincode = { workspace = true }
 image = { workspace = true, default-features = false, features = [
   "gif",

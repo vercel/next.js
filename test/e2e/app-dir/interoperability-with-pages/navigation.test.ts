@@ -4,9 +4,7 @@ describe('navigation between pages and app dir', () => {
   const { next } = nextTestSetup({
     files: new FileRef(__dirname),
     dependencies: {
-      typescript: 'latest',
       '@types/react': 'latest',
-      '@types/node': 'latest',
     },
   })
 

@@ -454,6 +454,14 @@ impl IssueSource {
         }
     }
 
+    /// Drops the precise range while preserving the source file.
+    pub fn without_range(self) -> Self {
+        IssueSource {
+            range: None,
+            ..self
+        }
+    }
+
     pub fn from_line_col(
         source: ResolvedVc<Box<dyn Source>>,
         start: SourcePos,
@@ -768,7 +776,7 @@ pub type PlainTrace = Vec<PlainTraceItem>;
 async fn into_plain_trace(traces: Vec<Vec<ReadRef<AssetIdent>>>) -> Result<Vec<PlainTrace>> {
     let mut plain_traces = traces
         .into_iter()
-        .map(|trace| async move {
+        .map(async |trace| {
             let mut plain_trace = trace
                 .into_iter()
                 .filter(|asset| {

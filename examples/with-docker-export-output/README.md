@@ -182,6 +182,40 @@ Both Dockerfiles support multiple package managers:
 
 The Dockerfiles automatically detect which lockfile is present and use the appropriate package manager.
 
+## Environment Variables
+
+The [`.dockerignore`](./.dockerignore) in this example **excludes `.env`**, so a local development file — which usually holds real credentials — is never copied into the build context or the final image.
+
+With `output: "export"` there is **no server at run time**: Nginx (or `serve`) only hands out the prebuilt files in `out/`. `docker run -e …` therefore has no effect on the application. Values used by the exported application must be present while `next build` runs. Any value inlined or rendered into `out/` is served to every visitor.
+
+### Non-secret configuration: use `.env.production`
+
+`.env.production` is intentionally **not** ignored, so `next build` picks it up:
+
+```bash
+# .env.production
+NEXT_PUBLIC_SITE_URL=https://example.com
+```
+
+### Per-environment values: use a build argument
+
+To build the same source for several environments, pass the value into the build:
+
+```dockerfile
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_SITE_URL=$NEXT_PUBLIC_SITE_URL
+# ... before the build step
+```
+
+```bash
+docker build \
+  --build-arg NEXT_PUBLIC_SITE_URL=https://example.com \
+  -t nextjs-export-nginx .
+```
+
+> [!IMPORTANT]
+> A static export cannot keep a secret. `NEXT_PUBLIC_*` values are inlined verbatim into the exported JavaScript, and values without the prefix are read while pages are prerendered, so anything derived from them can end up in the exported HTML. Keep API keys and other credentials out of the build entirely and call them from a separate backend.
+
 ## Deployment
 
 This example can be deployed to any container-based platform:

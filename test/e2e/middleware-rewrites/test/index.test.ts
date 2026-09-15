@@ -6,6 +6,9 @@ import { check, fetchViaHTTP, retry } from 'next-test-utils'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 
+const isTurbopackTest = Boolean(process.env.IS_TURBOPACK_TEST)
+const isAdapterTest = process.env.NEXT_ENABLE_ADAPTER === '1'
+
 describe('Middleware Rewrite', () => {
   const { next, isNextDeploy } = nextTestSetup({
     files: {
@@ -13,6 +16,8 @@ describe('Middleware Rewrite', () => {
       'next.config.js': new FileRef(join(__dirname, '../app/next.config.js')),
       'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
     },
+    // FIXME: Fails to deploy
+    skipDeployment: isAdapterTest && isTurbopackTest,
   })
 
   function tests() {
@@ -720,8 +725,7 @@ describe('Middleware Rewrite', () => {
     const label = locale ? `${locale} ` : ``
 
     function getCookieFromResponse(res, cookieName) {
-      // node-fetch bundles the cookies as string in the Response
-      const cookieArray = res.headers.raw()['set-cookie']
+      const cookieArray = res.headers.getSetCookie()
       for (const cookie of cookieArray) {
         let individualCookieParams = cookie.split(';', 1)
         let individualCookie = individualCookieParams[0].split('=', 2)
@@ -737,7 +741,7 @@ describe('Middleware Rewrite', () => {
       const html = await res.text()
       const $ = cheerio.load(html)
       // Set-Cookie header with Expires should not be split into two
-      expect(res.headers.raw()['set-cookie']).toHaveLength(1)
+      expect(res.headers.getSetCookie()).toHaveLength(1)
       const bucket = getCookieFromResponse(res, 'bucket')
       const expectedText = bucket === 'a' ? 'Welcome Page A' : 'Welcome Page B'
       const browser = await next.browser(`${locale}/rewrite-to-ab-test`)

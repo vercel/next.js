@@ -67,7 +67,7 @@ jobs:
         id: check-skip
         # Graphite's action is designed to fail open, but still sometimes fails if GH's infra flakes
         continue-on-error: true
-        uses: withgraphite/graphite-ci-action@ee395f3a78254c006d11339669c6cabddf196f72 # main
+        uses: withgraphite/graphite-ci-action@402a89bc8aa6db18ae1f9c61953d001d5f9d828f # main
         with:
           graphite_token: ${{ secrets.GRAPHITE_CI_OPTIMIZER_TOKEN }}
       - name: Debug Output

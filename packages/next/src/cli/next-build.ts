@@ -11,10 +11,7 @@ import { getProjectDir } from '../lib/get-project-dir'
 import { enableMemoryDebuggingMode } from '../lib/memory/startup'
 import { disableMemoryDebuggingMode } from '../lib/memory/shutdown'
 import { Bundler, parseBundlerArgs } from '../lib/bundler'
-import {
-  resolveBuildPaths,
-  parseBuildPathsInput,
-} from '../lib/resolve-build-paths'
+import { parseBuildPathsInput } from '../lib/resolve-build-paths'
 
 export type NextBuildOptions = {
   experimentalAnalyze?: boolean
@@ -104,24 +101,13 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     printAndExit(`> No such directory exists as the project root: ${dir}`)
   }
 
-  // Resolve selective build paths
-  let resolvedBuildPaths: { app: string[]; pages: string[] } | undefined
+  let debugBuildPathsPatterns: string[] | undefined
 
   if (debugBuildPaths) {
-    try {
-      const patterns = parseBuildPathsInput(debugBuildPaths)
+    const patterns = parseBuildPathsInput(debugBuildPaths)
 
-      if (patterns.length > 0) {
-        const resolved = await resolveBuildPaths(patterns, dir)
-        resolvedBuildPaths = {
-          app: resolved.appPaths,
-          pages: resolved.pagePaths,
-        }
-      }
-    } catch (err) {
-      printAndExit(
-        `Failed to resolve build paths: ${isError(err) ? err.message : String(err)}`
-      )
+    if (patterns.length > 0) {
+      debugBuildPathsPatterns = patterns
     }
   }
 
@@ -145,7 +131,7 @@ const nextBuild = async (options: NextBuildOptions, directory?: string) => {
     bundler,
     experimentalBuildMode,
     traceUploadUrl,
-    resolvedBuildPaths,
+    debugBuildPathsPatterns,
     enabledFeatures
   )
     .catch((err) => {

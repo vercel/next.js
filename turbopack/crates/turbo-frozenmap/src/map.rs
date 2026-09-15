@@ -4,12 +4,16 @@ use std::{
     fmt::{self, Debug},
     hash::BuildHasher,
     iter::FusedIterator,
+    marker::PhantomData,
     ops::{Bound, Index, RangeBounds},
 };
 
 use bincode::{BorrowDecode, Decode, Encode};
 use indexmap::IndexMap;
-use serde::{Deserialize, Serialize};
+use serde::{
+    Deserialize, Serialize,
+    de::{MapAccess, Visitor},
+};
 
 /// A compact frozen (immutable) ordered map backed by a sorted boxed slice.
 ///
@@ -38,7 +42,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// Overlapping keys encountered during construction preserve the last overlapping entry, matching
 /// similar behavior for other maps in the standard library.
-#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Encode, Decode)]
 #[rustfmt::skip] // rustfmt breaks bincode's proc macro string processing
 #[bincode(
     decode_bounds = "K: Decode<__Context> + 'static, V: Decode<__Context> + 'static",
@@ -47,6 +51,44 @@ use serde::{Deserialize, Serialize};
 pub struct FrozenMap<K, V> {
     /// Invariant: entries are sorted by key in ascending order with no overlapping keys.
     pub(crate) entries: Box<[(K, V)]>,
+}
+
+impl<K: Serialize, V: Serialize> Serialize for FrozenMap<K, V> {
+    fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.collect_map(self.iter())
+    }
+}
+
+impl<'de, K, V> Deserialize<'de> for FrozenMap<K, V>
+where
+    K: Deserialize<'de> + Ord,
+    V: Deserialize<'de>,
+{
+    fn deserialize<D: serde::Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        struct MapVisitor<K, V>(PhantomData<(K, V)>);
+
+        impl<'de, K, V> Visitor<'de> for MapVisitor<K, V>
+        where
+            K: Deserialize<'de> + Ord,
+            V: Deserialize<'de>,
+        {
+            type Value = FrozenMap<K, V>;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+                formatter.write_str("a map")
+            }
+
+            fn visit_map<A: MapAccess<'de>>(self, mut map: A) -> Result<Self::Value, A::Error> {
+                let mut entries = Vec::with_capacity(map.size_hint().unwrap_or(0));
+                while let Some(entry) = map.next_entry()? {
+                    entries.push(entry);
+                }
+                Ok(FrozenMap::from(entries))
+            }
+        }
+
+        deserializer.deserialize_map(MapVisitor(PhantomData))
+    }
 }
 
 impl<K, V> FrozenMap<K, V> {
@@ -811,6 +853,18 @@ impl<K, V> Clone for Range<'_, K, V> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn serde_uses_map_shape() {
+        let map = FrozenMap::from([("b", 2), ("a", 1)]);
+        let json = serde_json::to_string(&map).unwrap();
+
+        assert_eq!(json, r#"{"a":1,"b":2}"#);
+        assert_eq!(
+            serde_json::from_str::<FrozenMap<&str, i32>>(r#"{"b":2, "a":1}"#).unwrap(),
+            map
+        );
+    }
 
     #[test]
     fn test_empty() {

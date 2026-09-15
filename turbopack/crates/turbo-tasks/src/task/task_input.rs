@@ -90,7 +90,12 @@ impl<'a, T> Unpin for CloneReady<'a, T> {}
 /// Structs or enums can be made into task inputs by deriving `TaskInput`:
 ///
 /// ```rust
+/// # use turbo_tasks::{
+/// #     macro_helpers::bincode::{Decode, Encode},
+/// #     trace::TraceRawVcs,
+/// # };
 /// #[turbo_tasks::task_input]
+/// #[derive(Clone, Debug, PartialEq, Eq, Hash, TraceRawVcs, Encode, Decode)]
 /// struct MyStruct {
 ///     // Fields go here...
 /// }
@@ -504,8 +509,8 @@ where
 {
     fn resolve_input(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
         self.as_ref().map_either(
-            |l| async move { anyhow::Ok(Self(Either::Left(l.resolve_input().await?))) },
-            |r| async move { anyhow::Ok(Self(Either::Right(r.resolve_input().await?))) },
+            async |l| anyhow::Ok(Self(Either::Left(l.resolve_input().await?))),
+            async |r| anyhow::Ok(Self(Either::Right(r.resolve_input().await?))),
         )
     }
 

@@ -1,18 +1,23 @@
 use std::{
-    fs::File,
     io::{self, BufWriter, Write},
     path::Path,
 };
 
 use anyhow::{Context, Result};
 use byteorder::{BE, WriteBytesExt};
+use fs_err::File;
 use qfilter::Filter;
 use zerocopy::IntoBytes;
 
-use crate::{meta_file::EntryHeader, static_sorted_file_builder::StaticSortedFileBuilderMeta};
+use crate::{
+    Compression,
+    meta_file::{EntryHeader, META_FILE_MAGIC},
+    static_sorted_file_builder::StaticSortedFileBuilderMeta,
+};
 
 pub struct MetaFileBuilder<'a> {
     family: u32,
+    compression: Compression,
     /// Entries in the meta file, tuples of (sequence_number, StaticSortedFileBuilderMetaResult)
     entries: Vec<(u32, StaticSortedFileBuilderMeta<'a>)>,
     /// Obsolete SST files, represented by their sequence numbers
@@ -22,9 +27,10 @@ pub struct MetaFileBuilder<'a> {
 }
 
 impl<'a> MetaFileBuilder<'a> {
-    pub fn new(family: u32) -> Self {
+    pub fn new(family: u32, compression: Compression) -> Self {
         Self {
             family,
+            compression,
             entries: Vec::new(),
             obsolete_sst_files: Vec::new(),
             used_key_hashes_amqf: None,
@@ -54,8 +60,9 @@ impl<'a> MetaFileBuilder<'a> {
         // Wrap the writer to count the bytes written, so callers can accumulate written-byte totals
         // without stat'ing the file afterwards.
         let mut file = CountingWriter::new(BufWriter::new(File::create(file)?));
-        file.write_u32::<BE>(0xFE4ADA4A)?; // Magic number
+        file.write_u32::<BE>(META_FILE_MAGIC)?; // Magic number
         file.write_u32::<BE>(self.family)?;
+        file.write_u8(self.compression as u8)?;
 
         self.obsolete_sst_files.sort();
         file.write_u32::<BE>(self.obsolete_sst_files.len() as u32)?;

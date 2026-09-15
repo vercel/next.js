@@ -1,4 +1,8 @@
-import { createPrerenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
+import {
+  createPrerenderResumeDataCache,
+  deflateResumeDataCache,
+  stringifyResumeDataCache,
+} from '../resume-data-cache/resume-data-cache'
 import {
   streamFromString,
   streamToString,
@@ -7,6 +11,7 @@ import {
   DynamicState,
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
+  parseResumeDataCacheFromPostponedState,
   parsePostponedState,
   DynamicHTMLPreludeState,
 } from './postponed-state'
@@ -14,6 +19,7 @@ import type {
   OpaqueFallbackRouteParams,
   OpaqueFallbackRouteParamValue,
 } from '../request/fallback-params'
+import { CachedRouteKind } from '../response-cache/types'
 
 export function createMockOpaqueFallbackRouteParams(
   params: Record<string, OpaqueFallbackRouteParamValue>
@@ -80,6 +86,12 @@ describe('getDynamicHTMLPostponedState', () => {
          "imageResponses": Map {},
          "mutable": false,
        },
+       "stagedFallbackParams": Map {
+         "slug" => [
+           "%%drp:slug:e9615126684e5%%",
+           "d",
+         ],
+       },
        "type": 2,
      }
     `)
@@ -120,6 +132,7 @@ describe('getDynamicHTMLPostponedState', () => {
     const parsed = parsePostponedState(state, params, undefined)
     expect(parsed).toEqual({
       type: DynamicState.HTML,
+      stagedFallbackParams: fallbackRouteParams,
       data: [1, { [value]: value }],
       renderResumeDataCache: {
         cache: new Map(),
@@ -137,12 +150,172 @@ describe('getDynamicHTMLPostponedState', () => {
 })
 
 describe('getDynamicDataPostponedState', () => {
-  it('serializes a data postponed state with fallback params', async () => {
-    const state = await getDynamicDataPostponedState(
-      createPrerenderResumeDataCache(),
+  it.each([undefined, null, new Map()])(
+    'serializes a data postponed state with no fallback params (%p)',
+    async (fallbackRouteParams) => {
+      const state = await getDynamicDataPostponedState(
+        createPrerenderResumeDataCache(),
+        isCacheComponentsEnabled,
+        undefined,
+        false,
+        fallbackRouteParams
+      )
+      expect(state).toBe(
+        fallbackRouteParams === undefined ? '4:nullnull' : '7:2[]nullnull'
+      )
+      const parsed = parsePostponedState(state, {}, undefined)
+      expect(parsed.type).toBe(DynamicState.DATA)
+      expect(parsed.stagedFallbackParams).toBe(
+        fallbackRouteParams === undefined ? undefined : null
+      )
+    }
+  )
+
+  it.each([false, true])(
+    'serializes and parses fallback params and a cache (disableResumeDataCacheCompression: %s)',
+    async (disableResumeDataCacheCompression) => {
+      const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
+        slug: ['%%drp:slug:e9615126684e5%%', 'd'],
+      })
+      const resumeDataCache = createPrerenderResumeDataCache()
+      resumeDataCache.fetch.set('cache-key', {
+        kind: CachedRouteKind.FETCH,
+        data: {
+          headers: {},
+          body: 'cached body',
+          url: 'https://example.com',
+        },
+        revalidate: 60,
+      })
+
+      const serializedResumeDataCache = await stringifyResumeDataCache(
+        resumeDataCache,
+        isCacheComponentsEnabled
+      )
+      const state = await getDynamicDataPostponedState(
+        resumeDataCache,
+        isCacheComponentsEnabled,
+        undefined,
+        disableResumeDataCacheCompression,
+        fallbackRouteParams
+      )
+
+      expect(state).toBe(
+        `51:45[["slug",["%%drp:slug:e9615126684e5%%","d"]]]null${
+          disableResumeDataCacheCompression
+            ? serializedResumeDataCache
+            : deflateResumeDataCache(serializedResumeDataCache)
+        }`
+      )
+
+      const parsed = parsePostponedState(
+        state,
+        { slug: '123' },
+        undefined,
+        disableResumeDataCacheCompression
+      )
+      expect(parsed.type).toBe(DynamicState.DATA)
+      expect(parsed.stagedFallbackParams).toEqual(fallbackRouteParams)
+      expect(parsed.renderResumeDataCache.fetch.get('cache-key')).toEqual(
+        resumeDataCache.fetch.get('cache-key')
+      )
+      expect(
+        parseResumeDataCacheFromPostponedState(
+          state,
+          undefined,
+          disableResumeDataCacheCompression
+        ).fetch.get('cache-key')
+      ).toEqual(resumeDataCache.fetch.get('cache-key'))
+    }
+  )
+
+  it('warns when the uncompressed state would exceed the size limit', async () => {
+    const resumeDataCache = createPrerenderResumeDataCache()
+    resumeDataCache.fetch.set('cache-key', {
+      kind: CachedRouteKind.FETCH,
+      data: {
+        headers: {},
+        body: '💥'.repeat(2048),
+        url: 'https://example.com',
+      },
+      revalidate: 60,
+    })
+
+    const serializedResumeDataCache = await stringifyResumeDataCache(
+      resumeDataCache,
       isCacheComponentsEnabled
     )
-    expect(state).toMatchInlineSnapshot(`"4:nullnull"`)
+    const uncompressedStateByteLength = Buffer.byteLength(
+      `4:null${serializedResumeDataCache}`
+    )
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {})
+
+    await getDynamicDataPostponedState(
+      resumeDataCache,
+      isCacheComponentsEnabled,
+      uncompressedStateByteLength
+    )
+    expect(warn).not.toHaveBeenCalled()
+
+    await getDynamicDataPostponedState(
+      resumeDataCache,
+      isCacheComponentsEnabled,
+      uncompressedStateByteLength - 1
+    )
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `The uncompressed postponed state is ${uncompressedStateByteLength} bytes`
+      )
+    )
+
+    warn.mockRestore()
+  })
+})
+
+describe('parseResumeDataCacheFromPostponedState', () => {
+  it('extracts the resume data cache without parsing the React state', async () => {
+    const key = '%%drp:slug:e9615126684e5%%'
+    const fallbackRouteParams = createMockOpaqueFallbackRouteParams({
+      slug: [key, 'd'],
+    })
+    const prerenderResumeDataCache = createPrerenderResumeDataCache()
+
+    prerenderResumeDataCache.cache.set(
+      'cache-key',
+      Promise.resolve({
+        entry: {
+          value: streamFromString('cached value'),
+          tags: [],
+          stale: 0,
+          timestamp: 0,
+          expire: 300,
+          revalidate: 1,
+        },
+        hasExplicitRevalidate: true,
+        hasExplicitExpire: true,
+        readRootParamNames: undefined,
+        dynamicNestedCacheError: undefined,
+      })
+    )
+
+    const state = await getDynamicHTMLPostponedState(
+      { [key]: key } as any,
+      DynamicHTMLPreludeState.Full,
+      fallbackRouteParams,
+      prerenderResumeDataCache,
+      isCacheComponentsEnabled
+    )
+
+    const resumeDataCache = parseResumeDataCacheFromPostponedState(
+      state,
+      undefined
+    )
+    const value = await resumeDataCache.cache.get('cache-key')
+
+    expect(value).toBeDefined()
+    await expect(streamToString(value!.entry.value)).resolves.toBe(
+      'cached value'
+    )
   })
 })
 
@@ -157,6 +330,7 @@ describe('parsePostponedState', () => {
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.HTML,
+      stagedFallbackParams: new Map([['slug', '%%drp:slug:e9615126684e5%%']]),
       data: expect.any(Object),
       renderResumeDataCache: {
         cache: new Map(),
@@ -180,6 +354,7 @@ describe('parsePostponedState', () => {
     // Ensure that it parsed it correctly.
     expect(parsed).toEqual({
       type: DynamicState.HTML,
+      stagedFallbackParams: null,
       data: expect.any(Object),
       renderResumeDataCache: {
         cache: new Map(),
@@ -192,7 +367,7 @@ describe('parsePostponedState', () => {
     })
   })
 
-  it('parses a data postponed state', () => {
+  it('parses a legacy data postponed state', () => {
     const state = '4:nullnull'
     const parsed = parsePostponedState(state, {}, undefined)
 
@@ -208,5 +383,6 @@ describe('parsePostponedState', () => {
         mutable: false,
       },
     })
+    expect(parsed).not.toHaveProperty('stagedFallbackParams')
   })
 })

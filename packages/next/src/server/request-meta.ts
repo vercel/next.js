@@ -115,6 +115,14 @@ export interface RequestMeta {
   serverComponentsHmrCache?: ServerComponentsHmrCache
 
   /**
+   * The hash of the most recent server component change (dev only), set by the
+   * router-server from the hot-reloader. Included in `"use cache"` cache keys
+   * so that cached entries are revalidated after an edit, for every client,
+   * regardless of whether it runs the HMR client.
+   */
+  hmrRefreshHash?: string
+
+  /**
    * Equals the segment path that was used for the prefetch RSC request.
    */
   segmentPrefetchRSCRequest?: string
@@ -147,10 +155,13 @@ export interface RequestMeta {
   isNextDataReq?: true
 
   /**
-   * Postponed state to use for resumption. If present it's assumed that the
-   * request is for a page that has postponed (there are no guarantees that the
-   * page actually has postponed though as it would incur an additional cache
-   * lookup).
+   * Postponed state to use for resumption. When absent, the request is not a
+   * resume request. A non-empty string contains the state to resume, while an
+   * empty string represents a resume request without postponed state and
+   * signals that the renderer should perform a full dynamic render.
+   *
+   * There are no guarantees that the page actually postponed, as verifying
+   * that would incur an additional cache lookup.
    */
   postponed?: string
 
@@ -308,10 +319,36 @@ export interface RequestMeta {
   minimalMode?: boolean
 
   /**
-   * The fallback params for this route. In dev, used for validating prerenders.
-   * In production, used to defer params resolution during staged rendering.
+   * Staged renders defer these route params until after the static stage. They
+   * keep their concrete request values instead of replacing them with
+   * placeholders. Dev static-shell validation uses the same set for the
+   * selected shell.
+   *
+   * For `/t2/items/b2` with selected shell `/t2/items/[bottom]`, this map
+   * contains only `bottom`:
+   * - A layout's `params` containing only `top` can resolve statically.
+   * - A page's `params` containing `bottom` waits until after the static stage.
+   *
+   * A set recorded in postponed state overrides this metadata on a resume,
+   * including an explicitly empty set.
    */
-  fallbackParams?: OpaqueFallbackRouteParams
+  stagedFallbackParams?: OpaqueFallbackRouteParams | null
+
+  /**
+   * Dev static-shell debug renders use these params to prerender the matched
+   * source shell. The Instant Navigation Testing API uses this path too. The
+   * prerender substitutes opaque placeholders for these params rather than
+   * using their request values.
+   *
+   * Suppose `generateStaticParams` returns `[{ top: 't1' }]` for
+   * `/[top]/items/[bottom]`. A request for `/t2/items/b2` has:
+   * - Source `/[top]/items/[bottom]`: `top` and `bottom` are unresolved.
+   * - Completed shell `/t2/items/[bottom]`: only `bottom` is unresolved.
+   *
+   * This map contains the source's `top` and `bottom`. A debug render of that
+   * source also uses this map as `stagedFallbackParams`.
+   */
+  fallbackRouteParams?: OpaqueFallbackRouteParams | null
 
   /**
    * DEV only: Request timings in process.hrtime.bigint()

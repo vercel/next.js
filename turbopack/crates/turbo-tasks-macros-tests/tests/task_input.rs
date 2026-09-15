@@ -22,7 +22,7 @@ fn one_unnamed_field(input: OneUnnamedField) -> Vc<Completion> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn tests() {
-    run_once(&REGISTRATION, || async {
+    run_once(&REGISTRATION, async || {
         #[turbo_tasks::function(operation, root)]
         async fn equality_operation() -> Result<Vc<bool>> {
             Ok(Vc::cell(ReadRef::ptr_eq(
@@ -30,8 +30,7 @@ async fn tests() {
                 &Completion::immutable().await?,
             )))
         }
-        equality_operation().read_strongly_consistent().await?;
-        anyhow::Ok(())
+        equality_operation().read_strongly_consistent().await
     })
     .await
     .unwrap()

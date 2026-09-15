@@ -4,6 +4,8 @@
  * This module is shared between server and client.
  */
 
+import { readFulfilledValue } from '../rsc-transport'
+
 export type VaryParams = Set<string>
 
 /**
@@ -24,25 +26,14 @@ export type VaryParams = Set<string>
 export type VaryParamsIterable = AsyncIterable<string>
 
 /**
- * A Flight "chunk": when an `AsyncIterable` arrives over a fully-buffered Flight
- * stream, each `iterator.next()` returns one of these instead of a native
- * Promise. It follows the React thenable protocol — once `status` is
- * `'fulfilled'`, `value` (the `IteratorResult`) can be read synchronously.
- */
-type IteratorResultChunk = PromiseLike<IteratorResult<string>> & {
-  status?: 'pending' | 'resolved_model' | 'fulfilled' | 'rejected' | string
-  value?: IteratorResult<string>
-}
-
-/**
  * Synchronously drains a vary params `AsyncIterable`, adding each yielded name
  * to `target`.
  *
  * By the time this runs (on the client, or in collectSegmentData), the Flight
  * stream has been fully buffered, so every yielded value is already
- * materialized and can be read without awaiting. We force each iterator result
- * to resolve synchronously using the same `.then(noop)` trick React uses
- * internally, then read its `status`/`value` directly.
+ * materialized and can be read without awaiting: each iterator result is a
+ * Flight chunk whose settled state `readFulfilledValue` reads off the
+ * thenable's status.
  *
  * We add "every param yielded up to the point the stream suspends": a
  * normally-closed iterable drains fully, while one left hanging (a sync-I/O
@@ -58,21 +49,10 @@ function drainVaryParams(
 ): void {
   const iterator = iterable[Symbol.asyncIterator]()
   while (true) {
-    const chunk = iterator.next() as IteratorResultChunk
-    // Attach a no-op listener to force Flight to synchronously resolve the
-    // chunk. A freshly-arrived result may be in an intermediate
-    // 'resolved_model' state (data received but not unwrapped); calling
-    // .then() transitions it to 'fulfilled', making the value available
-    // synchronously. (A native Promise has no `status` and simply reads as
-    // not-fulfilled below, so this can never hang.)
-    chunk.then(noop, noop)
-    if (chunk.status !== 'fulfilled' || chunk.value === undefined) {
-      // The stream suspended here. Everything yielded before this point has
-      // already been added.
-      return
-    }
-    const step = chunk.value
-    if (step.done) {
+    const step = readFulfilledValue(iterator.next(), undefined)
+    if (step === undefined || step.done) {
+      // Either the stream suspended here — everything yielded before this
+      // point has already been added — or the iterable finished cleanly.
       return
     }
     target.add(step.value)
@@ -117,5 +97,3 @@ export function readVaryParams(
   drainVaryParams(rootIterable, varyParams)
   return varyParams
 }
-
-const noop = () => {}

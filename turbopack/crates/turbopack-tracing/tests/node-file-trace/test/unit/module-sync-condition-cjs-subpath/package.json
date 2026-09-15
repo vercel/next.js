@@ -1,0 +1,12 @@
+{
+  "name": "test-pkg-sync-cjs-subpath",
+  "type": "commonjs",
+  "exports": {
+    "./_/helper": {
+      "module-sync": "./esm/helper.mjs",
+      "webpack": "./esm/helper.mjs",
+      "import": "./esm/helper.mjs",
+      "default": "./cjs/helper.cjs"
+    }
+  }
+}

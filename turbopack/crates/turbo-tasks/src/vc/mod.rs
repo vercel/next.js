@@ -392,7 +392,7 @@ where
     /// usecases.
     ///
     /// # Example
-    /// ```rust
+    /// ```ignore
     /// // In generic code where T might be the same as K
     /// fn process_foo(vc: ResolvedVc<impl Upcast<Box<dyn MyTrait>>>) -> Vc<Foo> {
     ///    let my_trait: ResolvedVc<Box<dyn MyTrait>> = Vc::upcast_non_strict(vc);

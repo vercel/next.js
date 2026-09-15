@@ -52,6 +52,34 @@ describe('experimental-lightningcss-features', () => {
     })
   })
 
+  describe('custom-media-queries', () => {
+    const { next } = nextTestSetup({
+      files: __dirname,
+      dependencies: { lightningcss: '^1.23.0' },
+      packageJson: {
+        browserslist: ['chrome 123'],
+      },
+      nextConfig: {
+        experimental: {
+          useLightningcss: true,
+          lightningCssFeatures: {
+            include: ['custom-media-queries'],
+          },
+        },
+      },
+    })
+
+    it('should substitute @custom-media when custom-media-queries is included', async () => {
+      const html = await next.render('/custom-media')
+      expect(html).toContain('Custom media')
+
+      const css = await collectPageCss(next, '/custom-media')
+      expect(css).not.toContain('@custom-media')
+      expect(css).not.toContain('--narrow')
+      expect(css).toMatch(/max-width:\s*960px|width\s*<=\s*960px/)
+    })
+  })
+
   describe('exclude', () => {
     const { next } = nextTestSetup({
       files: __dirname,

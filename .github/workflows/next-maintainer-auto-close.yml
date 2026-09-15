@@ -1,0 +1,38 @@
+name: Next Maintainer Auto Close
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: next-maintainer-auto-close
+  cancel-in-progress: false
+
+jobs:
+  close-one-verified-issue:
+    if: github.repository == 'vercel/next.js' && github.ref == 'refs/heads/canary'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      id-token: write
+      issues: write
+    steps:
+      - name: Checkout trusted workflow code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          sparse-checkout: .github/scripts/next-maintainer-auto-close.js
+          sparse-checkout-cone-mode: false
+
+      - name: Pull and deliver one verified close
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { deliverOneVerifiedClose } = require('./.github/scripts/next-maintainer-auto-close.js')
+            await deliverOneVerifiedClose({ core, github })

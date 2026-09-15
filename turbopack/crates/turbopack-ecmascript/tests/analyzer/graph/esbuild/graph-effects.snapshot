@@ -30,10 +30,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -117,10 +117,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -169,6 +169,7 @@
             ),
         ],
         span: 2725..2739,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "__filename",
@@ -201,10 +202,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -306,10 +307,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -395,10 +396,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -447,6 +448,7 @@
             ),
         ],
         span: 2775..2789,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "__dirname",
@@ -479,10 +481,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -584,10 +586,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -756,10 +758,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -827,10 +829,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -939,10 +941,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -1006,10 +1008,10 @@
                         ArrowExpr(
                             Body,
                         ),
-                        BlockStmtOrExpr(
-                            BlockStmt,
+                        ArrowFunctionBody(
+                            FunctionBody,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -1053,10 +1055,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1120,10 +1122,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     1,
                                 ),
@@ -1184,6 +1186,7 @@
                             ),
                         ],
                         span: 3526..3536,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "__dirname",
@@ -1216,10 +1219,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     1,
                                 ),
@@ -1360,10 +1363,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     1,
                                 ),
@@ -1448,10 +1451,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     1,
                                 ),
@@ -1506,10 +1509,10 @@
                         ArrowExpr(
                             Body,
                         ),
-                        BlockStmtOrExpr(
-                            BlockStmt,
+                        ArrowFunctionBody(
+                            FunctionBody,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 1,
                             ),
@@ -1562,10 +1565,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     2,
                                 ),
@@ -1625,10 +1628,10 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     2,
                                 ),
@@ -1669,10 +1672,10 @@
                         ArrowExpr(
                             Body,
                         ),
-                        BlockStmtOrExpr(
-                            BlockStmt,
+                        ArrowFunctionBody(
+                            FunctionBody,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 1,
                             ),
@@ -1713,10 +1716,10 @@
             ArrowExpr(
                 Body,
             ),
-            BlockStmtOrExpr(
-                BlockStmt,
+            ArrowFunctionBody(
+                FunctionBody,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -1820,6 +1823,7 @@
             ),
         ],
         span: 3671..3682,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2176,7 +2180,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2208,6 +2212,7 @@
             ),
         ],
         span: 1005..1021,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "process",
@@ -2232,7 +2237,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2306,7 +2311,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2347,6 +2352,7 @@
             ),
         ],
         span: 1025..1032,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2384,7 +2390,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2454,7 +2460,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2495,6 +2501,7 @@
             ),
         ],
         span: 1038..1051,
+        in_truthiness_context: false,
     },
     MemberCall {
         obj: Variable(
@@ -2532,7 +2539,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -2601,7 +2608,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     3,
                 ),
@@ -2671,7 +2678,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -2707,6 +2714,7 @@
                             ),
                         ],
                         span: 1112..1145,
+                        in_truthiness_context: false,
                     },
                 ],
                 range: Exact(
@@ -2731,7 +2739,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 3,
                             ),
@@ -2781,7 +2789,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -2857,7 +2865,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -2899,6 +2907,7 @@
                                             ),
                                         ],
                                         span: 1239..1273,
+                                        in_truthiness_context: false,
                                     },
                                 ],
                                 range: Exact(
@@ -2923,7 +2932,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 3,
                                             ),
@@ -2968,7 +2977,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -3058,7 +3067,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -3120,7 +3129,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 3,
                                             ),
@@ -3162,7 +3171,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3205,7 +3214,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 3,
                             ),
@@ -3241,7 +3250,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     3,
                 ),
@@ -3277,7 +3286,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     4,
                 ),
@@ -3310,7 +3319,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -3357,7 +3366,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -3410,7 +3419,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -3457,7 +3466,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -3473,6 +3482,46 @@
             },
             else: EffectsBlock {
                 effects: [
+                    DestructuredMember {
+                        obj: Call(
+                            2,
+                            Variable(
+                                (
+                                    "pkgAndSubpathForCurrentPlatform",
+                                    #2,
+                                ),
+                            ),
+                            [],
+                        ),
+                        prop: Constant(
+                            Str(
+                                Atom(
+                                    "pkg",
+                                ),
+                            ),
+                        ),
+                        span: 1513..1516,
+                    },
+                    DestructuredMember {
+                        obj: Call(
+                            2,
+                            Variable(
+                                (
+                                    "pkgAndSubpathForCurrentPlatform",
+                                    #2,
+                                ),
+                            ),
+                            [],
+                        ),
+                        prop: Constant(
+                            Str(
+                                Atom(
+                                    "subpath",
+                                ),
+                            ),
+                        ),
+                        span: 1518..1525,
+                    },
                     Call {
                         func: Variable(
                             (
@@ -3502,7 +3551,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     1,
                                 ),
@@ -3561,7 +3610,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3603,6 +3652,7 @@
                             ),
                         ],
                         span: 1602..1617,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "require",
@@ -3627,7 +3677,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3736,7 +3786,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3795,7 +3845,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3884,7 +3934,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -3955,7 +4005,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -4000,6 +4050,7 @@
                             ),
                         ],
                         span: 1712..1725,
+                        in_truthiness_context: false,
                     },
                     FreeVar {
                         var: "fs",
@@ -4024,7 +4075,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -4118,7 +4169,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -4217,7 +4268,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -4281,6 +4332,7 @@
                                             ),
                                         ],
                                         span: 1758..1773,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "require",
@@ -4305,7 +4357,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -4418,7 +4470,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -4499,7 +4551,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -4618,7 +4670,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     3,
                                                 ),
@@ -4702,7 +4754,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 3,
                                             ),
@@ -4752,7 +4804,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     3,
                                 ),
@@ -4803,7 +4855,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     5,
                                 ),
@@ -4876,7 +4928,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     5,
                                 ),
@@ -4951,7 +5003,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -4998,6 +5050,7 @@
                                             ),
                                         ],
                                         span: 2299..2311,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: FreeVar(
@@ -5031,7 +5084,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5089,6 +5142,7 @@
                                             ),
                                         ],
                                         span: 2312..2327,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "require",
@@ -5113,7 +5167,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5221,7 +5275,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5334,7 +5388,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5410,7 +5464,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5457,6 +5511,7 @@
                                             ),
                                         ],
                                         span: 2367..2376,
+                                        in_truthiness_context: false,
                                     },
                                     Member {
                                         obj: Variable(
@@ -5493,7 +5548,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5559,6 +5614,7 @@
                                             ),
                                         ],
                                         span: 2422..2435,
+                                        in_truthiness_context: false,
                                     },
                                     MemberCall {
                                         obj: Variable(
@@ -5605,7 +5661,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5761,7 +5817,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5834,7 +5890,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5879,6 +5935,7 @@
                                             ),
                                         ],
                                         span: 2463..2476,
+                                        in_truthiness_context: false,
                                     },
                                     FreeVar {
                                         var: "fs",
@@ -5903,7 +5960,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -5997,7 +6054,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -6096,7 +6153,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6149,6 +6206,7 @@
                                                             ),
                                                         ],
                                                         span: 2501..2516,
+                                                        in_truthiness_context: false,
                                                     },
                                                     FreeVar {
                                                         var: "fs",
@@ -6173,7 +6231,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6283,7 +6341,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6362,7 +6420,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6415,6 +6473,7 @@
                                                             ),
                                                         ],
                                                         span: 2548..2560,
+                                                        in_truthiness_context: false,
                                                     },
                                                     FreeVar {
                                                         var: "fs",
@@ -6439,7 +6498,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6550,7 +6609,7 @@
                                                             Function(
                                                                 Body,
                                                             ),
-                                                            BlockStmt(
+                                                            FunctionBody(
                                                                 Stmts(
                                                                     6,
                                                                 ),
@@ -6620,7 +6679,7 @@
                                                         Function(
                                                             Body,
                                                         ),
-                                                        BlockStmt(
+                                                        FunctionBody(
                                                             Stmts(
                                                                 6,
                                                             ),
@@ -6670,7 +6729,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -6720,7 +6779,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     6,
                                                 ),
@@ -6767,7 +6826,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 6,
                                             ),
@@ -6805,7 +6864,7 @@
                                             Function(
                                                 Body,
                                             ),
-                                            BlockStmt(
+                                            FunctionBody(
                                                 Stmts(
                                                     7,
                                                 ),
@@ -6838,7 +6897,7 @@
                                         Function(
                                             Body,
                                         ),
-                                        BlockStmt(
+                                        FunctionBody(
                                             Stmts(
                                                 6,
                                             ),
@@ -6871,7 +6930,7 @@
                             Function(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     6,
                                 ),
@@ -6908,7 +6967,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -6941,7 +7000,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

@@ -1,6 +1,6 @@
 Tasks are created by defining a Rust function annotated with the `#[turbo_tasks::function]` macro and calling it with arguments. Each unique combination of function and arguments create a new task at runtime. Tasks are the fundamental units of work within the build system.
 
-```rust
+```ignore
 #[turbo_tasks::function]
 fn add(a: i32, b: i32) -> Vc<Something> {
     // Task implementation goes here...
@@ -65,7 +65,7 @@ async fn foo(
 
 will have an external signature of
 
-```rust
+```ignore
 fn foo(
     self: Vc<Self>,           // was: &self
     a: i32,
@@ -80,7 +80,7 @@ fn foo(
 The `#[turbo_tasks::function]` macro accepts optional attributes that modify the behavior of the
 task. Multiple attributes can be combined by separating them with commas.
 
-```rust
+```ignore
 #[turbo_tasks::function(fs, session_dependent)]
 async fn read_file(path: RcStr) -> Result<Vc<FileContent>> {
     // ...
@@ -155,7 +155,7 @@ Tasks can be methods associated with a value or a trait implementation using the
 
 ### Inherent Implementations
 
-```rust
+```ignore
 #[turbo_tasks::value_impl]
 impl Something {
     #[turbo_tasks::function]
@@ -201,7 +201,7 @@ impl Something {
 
 ### Trait Implementations
 
-```rust
+```ignore
 #[turbo_tasks::value_impl]
 impl Trait for Something {
     #[turbo_tasks::function]

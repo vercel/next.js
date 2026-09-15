@@ -4,8 +4,14 @@ const execa = require('execa')
 const fs = require('fs-extra')
 const childProcess = require('child_process')
 const { randomBytes } = require('crypto')
-const { linkPackages } =
-  require('../../.github/actions/next-stats-action/src/prepare/repo-setup')()
+const { linkPackages } = require('./link-packed-packages')
+const yaml = require('js-yaml')
+const {
+  getPnpmSecuritySettings,
+  mergePnpmSecuritySettingsIntoYaml,
+  getYarnSecuritySettings,
+  mergeYarnSecuritySettingsIntoYaml,
+} = require('./pnpm-security-settings')
 
 const PREFER_OFFLINE = process.env.NEXT_TEST_PREFER_OFFLINE === '1'
 const useRspack = process.env.NEXT_TEST_USE_RSPACK === '1'
@@ -26,18 +32,140 @@ async function installDependencies(cwd, tmpDir) {
   await execa('pnpm', args, {
     cwd,
     stdio: ['ignore', 'inherit', 'inherit'],
-    env: {
-      ...process.env,
-      // pnpm reads this despite claims it ignores `npm_config_*` env variables.
-      // This isn't set in CI but some local environments set this from the
-      // pnpm-workspace.yaml for unknown reasons.
-      // minimumReleaseAgeExclude is not propagated with environment variables
-      // so some installs would just fail.
-      // TODO: ideally every test fixture would run with minimumReleaseAgeExclude but
-      // that requires some work in monorepo test suites.
-      npm_config_minimum_release_age: undefined,
-    },
   })
+}
+
+/**
+ * Finds `fileName` in the dirs from `installDir` up to `isolationRoot`
+ * (inclusive), or null if absent.
+ *
+ * @param {string} fileName
+ * @param {string} installDir
+ * @param {string} isolationRoot
+ * @returns {Promise<string | null>}
+ */
+async function findConfigFile(fileName, installDir, isolationRoot) {
+  let dir = path.resolve(installDir)
+  const stopDir = path.resolve(isolationRoot)
+  while (true) {
+    const file = path.join(dir, fileName)
+    if (await fs.pathExists(file)) {
+      return file
+    }
+    if (dir === stopDir) break
+    const parent = path.dirname(dir)
+    if (parent === dir) break
+    dir = parent
+  }
+  return null
+}
+
+/**
+ * Applies the supply-chain security settings from the repo root
+ * `pnpm-workspace.yaml` to installs in the isolated test dir, by writing (or
+ * merging into) a `pnpm-workspace.yaml` and a `.yarnrc.yml`. npm added
+ * equivalent functionality in 11.10.0; we can configure it here once we
+ * upgrade npm.
+ *
+ * @param {string} installDir
+ * @param {string} isolationRoot
+ * @returns {Promise<void>}
+ */
+async function applyInstallSecuritySettings(installDir, isolationRoot) {
+  const workspaceFile = await findConfigFile(
+    'pnpm-workspace.yaml',
+    installDir,
+    isolationRoot
+  )
+  if (workspaceFile !== null) {
+    await fs.writeFile(
+      workspaceFile,
+      mergePnpmSecuritySettingsIntoYaml(
+        await fs.readFile(workspaceFile, 'utf8')
+      )
+    )
+  } else {
+    await fs.writeFile(
+      path.join(installDir, 'pnpm-workspace.yaml'),
+      yaml.dump(getPnpmSecuritySettings())
+    )
+  }
+
+  const yarnrcFile = await findConfigFile(
+    '.yarnrc.yml',
+    installDir,
+    isolationRoot
+  )
+  if (yarnrcFile !== null) {
+    await fs.writeFile(
+      yarnrcFile,
+      mergeYarnSecuritySettingsIntoYaml(await fs.readFile(yarnrcFile, 'utf8'))
+    )
+  } else {
+    await fs.writeFile(
+      path.join(installDir, '.yarnrc.yml'),
+      yaml.dump(getYarnSecuritySettings())
+    )
+  }
+}
+
+/**
+ * pnpm only honors overrides at the workspace root, so they go into the
+ * `pnpm-workspace.yaml` that governs the install.
+ *
+ * @param {string} installDir
+ * @param {string} isolationRoot
+ * @param {Record<string, string>} overrides
+ * @returns {Promise<void>}
+ */
+async function applyWorkspaceOverrides(installDir, isolationRoot, overrides) {
+  const workspaceFile = await findConfigFile(
+    'pnpm-workspace.yaml',
+    installDir,
+    isolationRoot
+  )
+  if (workspaceFile === null) {
+    return
+  }
+
+  const workspaceConfig =
+    /** @type {Record<string, any>} */ (
+      yaml.load(await fs.readFile(workspaceFile, 'utf8'))
+    ) ?? {}
+  workspaceConfig.overrides = {
+    ...overrides,
+    ...(workspaceConfig.overrides || {}),
+  }
+  await fs.writeFile(workspaceFile, yaml.dump(workspaceConfig))
+}
+
+/**
+ * @param {import('next/dist/trace').Span} parentSpan
+ * @returns {Promise<Map<string, string>>}
+ */
+async function packPackages(parentSpan) {
+  const repositoryDirectory = path.join(__dirname, '../..')
+  await parentSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
+    execa(
+      'pnpm',
+      [
+        'turbo',
+        'run',
+        'pack-for-isolated-tests',
+        '--output-logs',
+        'new-only',
+        '--ui',
+        'stream',
+      ],
+      {
+        cwd: repositoryDirectory,
+        stdio: ['ignore', 'inherit', 'inherit'],
+      }
+    )
+  )
+  return parentSpan
+    .traceChild('linkPackages')
+    .traceAsyncFn(() => linkPackages({ repoDir: repositoryDirectory }))
 }
 
 /**
@@ -67,11 +195,11 @@ async function createNextInstall({
     .traceChild('createNextInstall')
     .traceAsyncFn(async (rootSpan) => {
       const origRepoDir = path.join(__dirname, '../../')
-      const installDir = path.join(
+      const isolationRoot = path.join(
         tmpDir,
-        `next-install-${randomBytes(32).toString('hex')}`,
-        subDir
+        `next-install-${randomBytes(32).toString('hex')}`
       )
+      const installDir = path.join(isolationRoot, subDir)
       require('console').log('Creating next instance in:')
       require('console').log(installDir)
 
@@ -82,26 +210,7 @@ async function createNextInstall({
         pkgPaths = new Map(JSON.parse(pkgPathsEnv))
         require('console').log('using provided pkg paths')
       } else {
-        await rootSpan.traceChild('turbo-run-pack').traceAsyncFn(() =>
-          execa(
-            'pnpm',
-            [
-              'turbo',
-              'run',
-              'pack-for-isolated-tests',
-              '--output-logs',
-              'new-only',
-              // Jest tui can't handle Turborepo tui. But we're cutting off stdin
-              // so Turborepo's tui isn't interactive anyway.
-              '--ui',
-              'stream',
-            ],
-            {
-              cwd: origRepoDir,
-              stdio: ['ignore', 'inherit', 'inherit'],
-            }
-          )
-        )
+        pkgPaths = await packPackages(rootSpan)
 
         if (process.env.NEXT_TEST_WASM) {
           const wasmPath = path.join(origRepoDir, 'crates', 'wasm', 'pkg')
@@ -135,19 +244,25 @@ async function createNextInstall({
           swcNativeDirectory: process.env.NEXT_TEST_NATIVE_DIR,
           swcWasmDirectory: process.env.NEXT_TEST_WASM_DIR,
         })
-
-        pkgPaths = await rootSpan.traceChild('linkPackages').traceAsyncFn(() =>
-          linkPackages({
-            repoDir: origRepoDir,
-          })
-        )
       }
 
       const combinedDependencies = {
         next: pkgPaths.get('next'),
         ...Object.keys(dependencies).reduce((prev, pkg) => {
           const pkgPath = pkgPaths.get(pkg)
-          prev[pkg] = pkgPath || dependencies[pkg]
+          const version = dependencies[pkg]
+          if (version === 'workspace:*') {
+            if (pkgPath) {
+              prev[pkg] = pkgPath
+            } else {
+              throw new Error(
+                `"${pkg}" is declared as "workspace:*" but no packed tarball was found for it. ` +
+                  `Only packages in this repository with a "pack-for-isolated-tests" script can be used with "workspace:*".`
+              )
+            }
+          } else {
+            prev[pkg] = pkgPath || version
+          }
           return prev
         }, {}),
       }
@@ -206,13 +321,6 @@ async function createNextInstall({
               ...workspacePkgOverrides,
               ...(packageJson.overrides || {}),
             },
-            pnpm: {
-              ...(packageJson.pnpm || {}),
-              overrides: {
-                ...workspacePkgOverrides,
-                ...(packageJson.pnpm?.overrides || {}),
-              },
-            },
             resolutions: {
               ...workspacePkgOverrides,
               ...(resolutions || {}),
@@ -231,15 +339,22 @@ async function createNextInstall({
           })
       }
 
-      if (installCommand) {
-        const installString =
-          typeof installCommand === 'function'
-            ? installCommand({
-                dependencies: combinedDependencies,
-                resolutions,
-              })
-            : installCommand
+      const installString = installCommand
+        ? typeof installCommand === 'function'
+          ? installCommand({
+              dependencies: combinedDependencies,
+              resolutions,
+            })
+          : installCommand
+        : null
 
+      await applyInstallSecuritySettings(installDir, isolationRoot)
+      await applyWorkspaceOverrides(installDir, isolationRoot, {
+        ...workspacePkgOverrides,
+        ...(resolutions || {}),
+      })
+
+      if (installString !== null) {
         console.log('running install command', installString)
         rootSpan.traceChild('run custom install').traceFn(() => {
           childProcess.execSync(installString, {
@@ -251,6 +366,23 @@ async function createNextInstall({
         await rootSpan
           .traceChild('run generic install command', combinedDependencies)
           .traceAsyncFn(() => installDependencies(installDir, tmpDir))
+
+        // `@next/env` is a dependency of `next`, so it only resolves to the
+        // local tarball if the overrides were applied.
+        if (!combinedDependencies['@next/env']) {
+          const envDir = await fs.realpath(
+            path.join(
+              await fs.realpath(path.join(installDir, 'node_modules/next')),
+              '../@next/env'
+            )
+          )
+          if (!envDir.includes('@next+env@file')) {
+            throw new Error(
+              `@next/env resolved from the npm registry instead of the local tarball (${envDir}), ` +
+                'the workspace overrides were not applied to the install'
+            )
+          }
+        }
       }
 
       if (useRspack) {
@@ -268,4 +400,5 @@ async function createNextInstall({
 module.exports = {
   createNextInstall,
   getPkgPaths: linkPackages,
+  packPackages,
 }
