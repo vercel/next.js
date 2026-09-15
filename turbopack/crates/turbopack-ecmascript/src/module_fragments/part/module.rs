@@ -151,6 +151,11 @@ impl EcmascriptModulePartAsset {
             return Ok(Vc::upcast(module));
         };
 
+        let namespace_member = match &part {
+            ModulePart::ExportedNamespaceMember { member, .. } => Some(member.clone()),
+            _ => None,
+        };
+
         match part {
             ModulePart::Evaluation => {
                 // We resolve the module evaluation here to prevent duplicate assets.
@@ -163,7 +168,8 @@ impl EcmascriptModulePartAsset {
                 ));
             }
 
-            ModulePart::Export(export) => {
+            ModulePart::Export(export)
+            | ModulePart::ExportedNamespaceMember { export, member: _ } => {
                 if entrypoints.contains_key(&Key::Export(export.clone())) {
                     return Ok(Vc::upcast(
                         EcmascriptModulePartAsset::new_with_resolved_part(
@@ -199,7 +205,12 @@ impl EcmascriptModulePartAsset {
                     ResolvedVc::upcast(
                         EcmascriptModuleRenameModule::new(
                             **final_module,
-                            ModulePart::renamed_namespace(export.clone()),
+                            match namespace_member {
+                                Some(member) => {
+                                    ModulePart::renamed_namespace_member(export.clone(), member)
+                                }
+                                None => ModulePart::renamed_namespace(export.clone()),
+                            },
                         )
                         .to_resolved()
                         .await?,
@@ -311,7 +322,9 @@ impl Module for EcmascriptModulePartAsset {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let part_dep = |part: ModulePart| -> Vc<Box<dyn ModuleReference>> {
             let export = match &part {
-                ModulePart::Export(export) => ExportUsage::named(export.clone()),
+                ModulePart::Export(export) | ModulePart::ExportedNamespaceMember { export, .. } => {
+                    ExportUsage::named(export.clone())
+                }
                 ModulePart::Evaluation => ExportUsage::evaluation(),
                 _ => ExportUsage::all(),
             };
@@ -342,7 +355,9 @@ impl Module for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     async fn side_effects(&self) -> Vc<ModuleSideEffects> {
         match self.part {
-            ModulePart::Exports | ModulePart::Export(..) => {
+            ModulePart::Exports
+            | ModulePart::Export(_)
+            | ModulePart::ExportedNamespaceMember { .. } => {
                 ModuleSideEffects::SideEffectFree.cell()
             }
             _ => self.full_module.side_effects(),
