@@ -285,6 +285,40 @@ export function runSharedTests(type: 'app' | 'pages') {
         ['file', 'hello.txt'],
       ])
     })
+
+    it('normalizes line endings in textarea values to CRLF, matching native form submissions', async () => {
+      // First, establish what a native form submits for a textarea whose value
+      // contains newlines: the browser's form submission algorithm normalizes
+      // line endings to CRLF before URL-encoding the value.
+      let session = await next.browser(pathPrefix + '/forms/textarea')
+      await session.elementByCss('#native-form [type="submit"]').click()
+
+      const nativeResult = await session
+        .waitForElementByCss('#search-results')
+        .text()
+      expect(nativeResult).toBe('query: "line1\\r\\nline2"')
+
+      // Then, verify that <Form> submits the same value. (Without the
+      // newline normalization, the hydrated <Form> would submit LF instead.)
+      session = await next.browser(pathPrefix + '/forms/textarea')
+      const navigationTracker = await trackMpaNavs(session)
+
+      // Wait for hydration so the submission is handled by <Form>'s submit
+      // handler, rather than the browser's default submit behavior.
+      await session.waitForElementByCss('#hydrated')
+
+      await session.elementByCss('#next-form [type="submit"]').click()
+
+      const nextFormResult = await session
+        .waitForElementByCss('#search-results')
+        .text()
+      expect(nextFormResult).toBe(nativeResult)
+
+      expect(await navigationTracker.didMpaNavigate()).toBe(false)
+
+      const url = new URL(await session.url())
+      expect(url.searchParams.get('query')).toBe('line1\r\nline2')
+    })
   })
 
   async function trackMpaNavs(session: Playwright) {
