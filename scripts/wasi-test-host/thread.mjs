@@ -10,7 +10,7 @@ import { WASI } from 'node:wasi'
 import { workerData } from 'node:worker_threads'
 import process from 'node:process'
 
-import { createReadCustomSection } from './lib.mjs'
+import { createReadCustomSection, createWasiEnvironment } from './lib.mjs'
 import { createThreadSpawn } from './spawn.mjs'
 
 const { bytes, memory, threadIds, threadId, startArg, args, cwd } = workerData
@@ -20,7 +20,7 @@ const module = await WebAssembly.compile(bytes)
 const wasi = new WASI({
   version: 'preview1',
   args,
-  env: process.env,
+  env: createWasiEnvironment(process.env),
   preopens: { '/': cwd },
   returnOnExit: true,
 })
@@ -51,8 +51,8 @@ const instance = await WebAssembly.instantiate(module, {
 // Bind the WASI instance to this thread's exports so the `wasi_snapshot_preview1` imports work.
 //
 // `initialize()` is the reactor-style entry point, and it rejects anything exporting `_start`
-// ("The "instance.exports._start" property must be undefined") because that marks a command, whose
-// `_start` must run exactly once — on the main thread. A spawned thread needs the WASI binding
+// ("The \"instance.exports._start\" property must be undefined") because that marks a command,
+// whose `_start` must run exactly once — on the main thread. A spawned thread needs the WASI binding
 // without that entry point, so it is hidden here; `wasi_thread_start` below is the thread's real
 // entry point. Passing a plain `{ exports }` is enough for `initialize()`.
 const threadExports = { ...instance.exports }

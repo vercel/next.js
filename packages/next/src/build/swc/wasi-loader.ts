@@ -10,12 +10,13 @@
  * counterpart.
  *
  * This is groundwork only — nothing here is wired into the SWC-only wasm
- * fallback in `./index.ts`, and `module_init` (absent on wasm) and packaging
- * are deliberately out of scope, so loading Turbopack from wasm does not work
- * yet.
+ * fallback in `./index.ts`, and packaging is deliberately out of scope, so
+ * loading Turbopack from wasm does not work yet.
  */
 
+import { availableParallelism } from 'node:os'
 import path from 'node:path'
+import { WASI } from 'node:wasi'
 import { Worker } from 'node:worker_threads'
 
 const MAX_WASM32_PAGES = 65_536
@@ -44,6 +45,14 @@ export type WasiLike = {
   initialize(instance: WebAssembly.Instance): void
 }
 
+type WasiConstructor = new (options: {
+  version: 'preview1'
+  args: string[]
+  env: Record<string, string>
+  preopens: Record<string, string>
+  returnOnExit: true
+}) => WasiLike
+
 type WorkerLike = {
   on(event: 'error', listener: (error: Error) => void): WorkerLike
   on(event: 'exit', listener: (code: number) => void): WorkerLike
@@ -58,6 +67,19 @@ type WorkerConstructor = new (
     stderr: false
   }
 ) => WorkerLike
+
+const PARALLELISM_ENV = 'TURBO_TASKS_AVAILABLE_PARALLELISM'
+
+/** Pass Node's effective CPU allowance into Rust before WASI constructors run. */
+export function createWasiEnvironment(
+  env: Record<string, string> = {},
+  detectedParallelism = availableParallelism()
+) {
+  return {
+    [PARALLELISM_ENV]: String(env[PARALLELISM_ENV] ?? detectedParallelism),
+    ...env,
+  }
+}
 
 export type WasiThreadWorkerData = {
   bytes: Uint8Array
@@ -428,12 +450,25 @@ export function createThreadSpawn(options: {
   }
 }
 
-/** Bind WASI for a worker without running the command-only _start export.
+/** Populate napi-rs's wasm-side export registry before `napiModule.init()` consumes it. */
+export function registerNapiExports(instance: WebAssembly.Instance) {
+  for (const [name, register] of Object.entries(instance.exports)) {
+    if (name.startsWith('__napi_register__')) {
+      if (typeof register !== 'function') {
+        throw new TypeError(`${name} must be a WebAssembly function`)
+      }
+      register()
+    }
+  }
+}
+
+/** Bind WASI for a worker without rerunning process initialization.
  *
- * `WASI#initialize` is the reactor-style entry point and rejects a module
- * exporting `_start`, since that marks a command whose `_start` must run
- * exactly once, on the main thread. A spawned thread hides that export to get
- * the WASI binding and enters through the returned `wasi_thread_start` instead.
+ * `WASI#initialize` rejects a command's `_start` and invokes a reactor's
+ * `_initialize`; both entry points belong to the main instance. A spawned
+ * thread hides both while binding WASI, then enters through the returned
+ * `wasi_thread_start`. This is especially important now that `_initialize`
+ * constructs the process-wide Tokio runtime.
  */
 export function initializeWasiThread(
   wasi: WasiLike,
@@ -445,6 +480,7 @@ export function initializeWasiThread(
   }
   const threadExports = { ...instance.exports }
   delete threadExports._start
+  delete threadExports._initialize
   wasi.initialize({ exports: threadExports } as WebAssembly.Instance)
   return threadStart
 }
@@ -452,15 +488,26 @@ export function initializeWasiThread(
 export async function instantiateWasiNapiModule(options: {
   bytes: Uint8Array
   napiModule: NapiModuleLike
-  wasi: WasiLike
   args?: string[]
   env?: Record<string, string>
   preopens?: Record<string, string>
   onThreadError: (error: Error, threadId: number) => void
   workerPath?: string
   napiModuleSpecifier?: string
+  WasiClass?: WasiConstructor
 }) {
-  const { bytes, napiModule, wasi } = options
+  const { bytes, napiModule } = options
+  const args = options.args ?? []
+  const env = createWasiEnvironment(options.env)
+  const preopens = options.preopens ?? {}
+  const WasiClass = options.WasiClass ?? WASI
+  const wasi = new WasiClass({
+    version: 'preview1',
+    args,
+    env,
+    preopens,
+    returnOnExit: true,
+  })
   const module = await WebAssembly.compile(Uint8Array.from(bytes))
   const memory = createImportedMemory(bytes)
   const threadIds = new Int32Array(
@@ -470,9 +517,9 @@ export async function instantiateWasiNapiModule(options: {
     bytes,
     memory,
     threadIds,
-    args: options.args,
-    env: options.env,
-    preopens: options.preopens,
+    args,
+    env,
+    preopens,
     workerPath: options.workerPath,
     napiModuleSpecifier: options.napiModuleSpecifier,
     onError: options.onThreadError,
@@ -486,6 +533,7 @@ export async function instantiateWasiNapiModule(options: {
   })
   const instance = await WebAssembly.instantiate(module, imports)
   wasi.initialize(instance)
+  registerNapiExports(instance)
   napiModule.init({ instance, module, memory })
   return { instance, module, memory, threadIds }
 }

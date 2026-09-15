@@ -13,7 +13,11 @@ import { WASI } from 'node:wasi'
 import { readFileSync } from 'node:fs'
 import process from 'node:process'
 
-import { createReadCustomSection, parseImportedMemory } from './lib.mjs'
+import {
+  createReadCustomSection,
+  createWasiEnvironment,
+  parseImportedMemory,
+} from './lib.mjs'
 import { createThreadSpawn } from './spawn.mjs'
 
 const [wasmPath, ...testArgs] = process.argv.slice(2)
@@ -44,7 +48,7 @@ const args = [wasmPath, ...testArgs]
 const wasi = new WASI({
   version: 'preview1',
   args,
-  env: process.env,
+  env: createWasiEnvironment(process.env),
   // Tests may touch the filesystem (tempfiles, fixtures); expose the working directory only.
   preopens: { '/': process.cwd() },
   returnOnExit: true,
