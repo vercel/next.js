@@ -623,7 +623,6 @@ describe.each(
             )
 
             expect(response.status).toBe(200)
-            await expect(response.text()).rejects.toThrow()
 
             await retry(() => {
               expect(next.cliOutput).toContain(
@@ -642,9 +641,10 @@ describe.each(
                   'next.route': '/api/app/[param]/stream-error',
                   'next.span_name': 'GET /api/app/[param]/stream-error',
                   'next.span_type': 'BaseServer.handleRequest',
+                  'error.type': 'Error',
                 },
                 kind: 1,
-                status: { code: 0 },
+                status: { code: 2, message: 'failed to pipe response' },
                 traceId: env.span.traceId,
                 parentId: env.span.rootParentId,
                 spans: [
@@ -687,6 +687,17 @@ describe.each(
               },
             ])
           })
+
+          if (useDirectEntrypointHandler && env.name === 'root context') {
+            it('should end a committed response when pending revalidation fails', async () => {
+              const response = await next.fetch(
+                '/api/app/param/revalidation-error'
+              )
+
+              expect(response.status).toBe(200)
+              await expect(response.text()).resolves.toBe('committed')
+            })
+          }
 
           it('should record accurate status code for non-200 route handler responses', async () => {
             await next.fetch('/api/app/param/status', env.fetchInit)

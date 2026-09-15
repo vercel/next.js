@@ -504,8 +504,23 @@ export async function handler(
 
       // Otherwise, send a 500 response unless the original response has
       // already committed. In that case, preserve its status code for
-      // telemetry instead of mutating it to a status that was never sent.
-      if (!res.headersSent) {
+      // telemetry while still recording the failure and terminating a response
+      // that the failed pipeline left open.
+      if (res.headersSent) {
+        if (currentSpan) {
+          const error =
+            err instanceof Error ? err : new Error('Unknown app route error')
+          currentSpan.recordException(error)
+          currentSpan.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: error.message,
+          })
+          currentSpan.setAttribute('error.type', error.name)
+        }
+        if (!res.writableEnded && !res.destroyed) {
+          res.end()
+        }
+      } else {
         await sendResponse(
           nodeNextReq,
           nodeNextRes,
