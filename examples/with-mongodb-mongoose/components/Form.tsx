@@ -138,6 +138,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
       <form id={formId} onSubmit={handleSubmit}>
         <label htmlFor="name">Name</label>
         <input
+          id="name"
           type="text"
           maxLength={20}
           name="name"
@@ -148,6 +149,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
 
         <label htmlFor="owner_name">Owner</label>
         <input
+          id="owner_name"
           type="text"
           maxLength={20}
           name="owner_name"
@@ -158,6 +160,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
 
         <label htmlFor="species">Species</label>
         <input
+          id="species"
           type="text"
           maxLength={30}
           name="species"
@@ -168,6 +171,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
 
         <label htmlFor="age">Age</label>
         <input
+          id="age"
           type="number"
           name="age"
           value={form.age}
@@ -176,6 +180,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
 
         <label htmlFor="poddy_trained">Potty Trained</label>
         <input
+          id="poddy_trained"
           type="checkbox"
           name="poddy_trained"
           checked={form.poddy_trained}
@@ -184,6 +189,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
 
         <label htmlFor="diet">Diet</label>
         <textarea
+          id="diet"
           name="diet"
           maxLength={60}
           value={form.diet}
@@ -192,6 +198,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
 
         <label htmlFor="image_url">Image URL</label>
         <input
+          id="image_url"
           type="url"
           name="image_url"
           value={form.image_url}
@@ -201,6 +208,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
 
         <label htmlFor="likes">Likes</label>
         <textarea
+          id="likes"
           name="likes"
           maxLength={60}
           value={form.likes}
@@ -209,6 +217,7 @@ const Form = ({ formId, petForm, forNewPet = true }: Props) => {
 
         <label htmlFor="dislikes">Dislikes</label>
         <textarea
+          id="dislikes"
           name="dislikes"
           maxLength={60}
           value={form.dislikes}
