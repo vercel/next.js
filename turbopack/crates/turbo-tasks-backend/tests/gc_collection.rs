@@ -250,7 +250,9 @@ async fn dispose_root_task_releases_anchored_subgraph() {
     turbo_tasks::run_once(tt.clone(), async move { anyhow::Ok(()) })
         .await
         .unwrap();
-    assert_eq!(tt.backend().gc_for_testing(&tt), 1);
+    // Two: the leaf, and the disposed root itself. The root is a transient task, and transient
+    // tasks are collectible, so releasing the last reference to the subgraph reclaims both.
+    assert_eq!(tt.backend().gc_for_testing(&tt), 2);
 
     // Disposal after the backend has stopped (the whole task map is dropped by `stop`), as a
     // `RootTask` finalized during Node worker teardown would be.
