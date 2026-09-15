@@ -228,9 +228,9 @@ pub async fn availability_info_for_async_chunk_group(
 
 /// Re-exposes an already-computed set as an operation.
 ///
-/// [`AvailableModules`] stores its set as an [`OperationVc`], whose identity is the task it came
-/// from. Keying that task on the set *contents* is what makes two parents with equal filtered
-/// availability share one `AvailableModules` cell.
+/// [`AvailabilityInfo`] stores its set behind an [`OperationVc`], whose identity is the task call
+/// it came from. Keying that task on the set *contents* is what makes two parents with equal
+/// filtered availability share one [`AvailableModulesSet`] cell.
 #[turbo_tasks::function(operation)]
 fn available_modules_set(items: Vec<AvailableModuleItem>) -> Vc<AvailableModulesSet> {
     Vc::cell(items.into_iter().collect())
