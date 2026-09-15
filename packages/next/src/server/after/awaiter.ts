@@ -1,4 +1,8 @@
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { createSnapshot } from '../app-render/async-local-storage'
+
+// Capture an empty context so pending tasks do not retain request data.
+const registerOutsideCallerContext = createSnapshot()
 
 /**
  * Provides a `waitUntil` implementation which gathers promises to be awaited later (via {@link AwaiterMulti.awaiting}).
@@ -21,9 +25,11 @@ export class AwaiterMulti {
       this.promises.delete(promise)
     }
 
-    promise.then(cleanup, (err) => {
-      cleanup()
-      this.onError(err)
+    registerOutsideCallerContext(() => {
+      promise.then(cleanup, (err) => {
+        cleanup()
+        this.onError(err)
+      })
     })
 
     this.promises.add(promise)
