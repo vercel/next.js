@@ -12,19 +12,18 @@ function checkDataRoute(data: any, page: string) {
   expect(data.pageProps).toHaveProperty('page', page)
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// This test skips deployment because env vars that are doubled underscore prefixed
+// are not supported.
+// @force-gate !deploy
 describe('i18n-data-route', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    // This test skips deployment because env vars that are doubled underscore prefixed
-    // are not supported.
-    skipDeployment: true,
     env: {
       // Disable internal header stripping so we can test the invoke output.
       __NEXT_NO_STRIP_INTERNAL_HEADERS: '1',
     },
   })
-
-  if (skipped) return
 
   describe('with locale prefix', () => {
     describe.each(i18n.locales)('/%s', (locale) => {

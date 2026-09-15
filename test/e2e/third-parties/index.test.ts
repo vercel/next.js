@@ -1,6 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { waitFor } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+// It was excluded as a known deploy failure without a documented root cause.
 describe('@next/third-parties basic usage', () => {
   const { next } = nextTestSetup({
     files: __dirname,

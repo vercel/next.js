@@ -4,12 +4,13 @@ import { getDeterministicOutput } from '../app-dir/cache-components-errors/utils
 
 const partialPrefetching = !!process.env.__NEXT_PARTIAL_PREFETCHING
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Validations for <Link legacyBehavior>', () => {
-  const { next, skipped } = nextTestSetup({
+  const { next } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
   let previousOutputIndex = 0
 
   beforeEach(() => {

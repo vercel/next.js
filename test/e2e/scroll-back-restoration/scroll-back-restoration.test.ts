@@ -1,6 +1,9 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
+// @force-gate !deploy
 describe('Scroll Back Restoration Support', () => {
   const { next } = nextTestSetup({
     files: __dirname,
@@ -8,8 +11,6 @@ describe('Scroll Back Restoration Support', () => {
       react: '19.3.0-canary-fef12a01-20260413',
       'react-dom': '19.3.0-canary-fef12a01-20260413',
     },
-    // Vercel deployment fails to build/deploy this fixture in CI; skip in deploy mode.
-    skipDeployment: true,
   })
 
   it('should restore the scroll position on navigating back', async () => {

@@ -2,12 +2,13 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import cheerio from 'cheerio'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely mutates files in the isolated local fixture after setup.
+// @force-gate !deploy
 describe('gip identifiers', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
   })
-  if (skipped) return
 
   const getNextData = async () => {
     const html = await next.render('/')

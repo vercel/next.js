@@ -3,6 +3,8 @@ import path from 'path'
 
 const appDir = path.join(__dirname, 'material-ui')
 
+// TODO(deploy-test-completion): Remove this suite from the deploy manifest.
+// It was excluded as a known deploy failure without a documented root cause.
 describe('New Link Behavior with material-ui', () => {
   const { next } = nextTestSetup({
     files: {

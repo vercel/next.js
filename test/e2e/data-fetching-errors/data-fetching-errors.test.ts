@@ -1,4 +1,4 @@
-import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
+import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import {
   GSP_NO_RETURNED_VALUE,
@@ -6,12 +6,14 @@ import {
 } from '../../../packages/next/dist/lib/constants'
 
 describe('GS(S)P Page Errors', () => {
-  ;(isNextDev ? describe : describe.skip)('development mode', () => {
-    const { next, skipped } = nextTestSetup({
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely expects a local build failure instead of a successful deployment.
+  // @force-gate !deploy
+  // @force-gate dev
+  describe('development mode', () => {
+    const { next } = nextTestSetup({
       files: __dirname,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should show error for getStaticProps as component member', async () => {
       const outputIndex = next.cliOutput.length
@@ -103,13 +105,15 @@ describe('GS(S)P Page Errors', () => {
       )
     })
   })
-  ;(isNextStart ? describe : describe.skip)('production mode', () => {
-    const { next, skipped } = nextTestSetup({
+  // TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+  // It likely expects a local build failure instead of a successful deployment.
+  // @force-gate !deploy
+  // @force-gate start
+  describe('production mode', () => {
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
-      skipDeployment: true,
     })
-    if (skipped) return
 
     it('should show build error for getStaticProps as component member', async () => {
       await next.patchFile(
