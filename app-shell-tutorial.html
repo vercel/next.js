@@ -1,0 +1,3219 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>The App Shell — Instant Navigations with Cache Components</title>
+    <style>
+      /* ============================================================
+   Tokens — two semantic hues carry the whole system:
+   --shell  (viridian)  = "in the shell: prerendered or cached"
+   --stream (sienna)    = "streams in after the navigation"
+   ============================================================ */
+      :root {
+        --bg: #f6f7f4;
+        --bg-raised: #ffffff;
+        --bg-sunken: #eef0ec;
+        --ink: #1d2620;
+        --ink-soft: #57635c;
+        --ink-faint: #8a958e;
+        --line: #d8ded8;
+        --line-soft: #e5e9e4;
+
+        --shell: #0b7a5e;
+        --shell-ink: #085c47;
+        --shell-tint: rgba(11, 122, 94, 0.09);
+        --shell-tint-2: rgba(11, 122, 94, 0.16);
+
+        --stream: #c05a12;
+        --stream-ink: #9c470c;
+        --stream-tint: rgba(192, 90, 18, 0.09);
+        --stream-tint-2: rgba(192, 90, 18, 0.17);
+
+        --code-bg: #141b17;
+        --code-line: #223029;
+        --code-ink: #d5e0d8;
+        --code-faint: #93a398;
+        --code-k: #6fccab;
+        --code-s: #e4b77d;
+        --code-c: #78877d;
+        --code-t: #bfe0d2;
+        --code-hl: rgba(63, 203, 159, 0.1);
+        --code-hl-edge: #3fcb9f;
+
+        --serif:
+          'Charter', 'Bitstream Charter', 'Sitka Text', Cambria, Georgia, serif;
+        --sans:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica,
+          Arial, sans-serif;
+        --mono:
+          ui-monospace, 'SF Mono', 'Cascadia Code', Menlo, Consolas, monospace;
+
+        --radius: 6px;
+        --wrap: 720px;
+        --bleed: 880px;
+      }
+
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0f1512;
+          --bg-raised: #151d18;
+          --bg-sunken: #0b100d;
+          --ink: #e2e9e3;
+          --ink-soft: #9caba1;
+          --ink-faint: #6b7a70;
+          --line: #2a342d;
+          --line-soft: #202922;
+
+          --shell: #3fcb9f;
+          --shell-ink: #6fdcb8;
+          --shell-tint: rgba(63, 203, 159, 0.1);
+          --shell-tint-2: rgba(63, 203, 159, 0.18);
+
+          --stream: #ef9b4e;
+          --stream-ink: #f5b477;
+          --stream-tint: rgba(239, 155, 78, 0.1);
+          --stream-tint-2: rgba(239, 155, 78, 0.19);
+
+          --code-bg: #101713;
+          --code-line: #223029;
+        }
+      }
+      :root[data-theme='dark'] {
+        --bg: #0f1512;
+        --bg-raised: #151d18;
+        --bg-sunken: #0b100d;
+        --ink: #e2e9e3;
+        --ink-soft: #9caba1;
+        --ink-faint: #6b7a70;
+        --line: #2a342d;
+        --line-soft: #202922;
+        --shell: #3fcb9f;
+        --shell-ink: #6fdcb8;
+        --shell-tint: rgba(63, 203, 159, 0.1);
+        --shell-tint-2: rgba(63, 203, 159, 0.18);
+        --stream: #ef9b4e;
+        --stream-ink: #f5b477;
+        --stream-tint: rgba(239, 155, 78, 0.1);
+        --stream-tint-2: rgba(239, 155, 78, 0.19);
+        --code-bg: #101713;
+        --code-line: #223029;
+      }
+      :root[data-theme='light'] {
+        --bg: #f6f7f4;
+        --bg-raised: #ffffff;
+        --bg-sunken: #eef0ec;
+        --ink: #1d2620;
+        --ink-soft: #57635c;
+        --ink-faint: #8a958e;
+        --line: #d8ded8;
+        --line-soft: #e5e9e4;
+        --shell: #0b7a5e;
+        --shell-ink: #085c47;
+        --shell-tint: rgba(11, 122, 94, 0.09);
+        --shell-tint-2: rgba(11, 122, 94, 0.16);
+        --stream: #c05a12;
+        --stream-ink: #9c470c;
+        --stream-tint: rgba(192, 90, 18, 0.09);
+        --stream-tint-2: rgba(192, 90, 18, 0.17);
+        --code-bg: #141b17;
+        --code-line: #223029;
+      }
+
+      /* ============ Base ============ */
+      * {
+        box-sizing: border-box;
+      }
+      html {
+        scroll-behavior: smooth;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.001s !important;
+          transition-duration: 0.001s !important;
+        }
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: var(--serif);
+        font-size: 17.5px;
+        line-height: 1.68;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      .wrap {
+        max-width: var(--wrap);
+        margin: 0 auto;
+        padding: 0 22px;
+      }
+      .bleed {
+        width: min(var(--bleed), calc(100vw - 64px));
+        margin-left: 50%;
+        transform: translateX(-50%);
+      }
+      @media (max-width: 640px) {
+        .bleed {
+          width: 100%;
+        }
+      }
+
+      h1,
+      h2,
+      h3,
+      h4 {
+        font-family: var(--serif);
+        line-height: 1.22;
+        text-wrap: balance;
+        margin: 0;
+      }
+      h1 {
+        font-size: clamp(2rem, 5.5vw, 2.85rem);
+        font-weight: 700;
+        letter-spacing: -0.015em;
+      }
+      h2 {
+        font-size: 1.72rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+        margin-top: 0.4rem;
+      }
+      h3 {
+        font-size: 1.22rem;
+        font-weight: 700;
+        margin: 2.2rem 0 0.6rem;
+      }
+      p {
+        margin: 0 0 1.1rem;
+      }
+      a {
+        color: var(--shell-ink);
+        text-decoration-color: color-mix(
+          in srgb,
+          var(--shell) 45%,
+          transparent
+        );
+        text-underline-offset: 3px;
+      }
+      a:hover {
+        text-decoration-color: var(--shell);
+      }
+      strong {
+        font-weight: 700;
+      }
+      em {
+        font-style: italic;
+      }
+      hr {
+        border: 0;
+        border-top: 1px solid var(--line);
+        margin: 2.5rem 0;
+      }
+      ul,
+      ol {
+        padding-left: 1.4rem;
+        margin: 0 0 1.1rem;
+      }
+      li {
+        margin-bottom: 0.35rem;
+      }
+      :focus-visible {
+        outline: 2px solid var(--shell);
+        outline-offset: 2px;
+        border-radius: 2px;
+      }
+
+      code {
+        font-family: var(--mono);
+        font-size: 0.86em;
+        background: var(--bg-sunken);
+        border: 1px solid var(--line-soft);
+        border-radius: 4px;
+        padding: 0.08em 0.34em;
+        white-space: nowrap;
+      }
+
+      .eyebrow {
+        font-family: var(--sans);
+        font-size: 0.72rem;
+        font-weight: 650;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--shell);
+      }
+
+      /* ============ Masthead / chapter nav ============ */
+      .masthead {
+        position: sticky;
+        top: 0;
+        z-index: 40;
+        background: color-mix(in srgb, var(--bg) 86%, transparent);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .masthead-inner {
+        max-width: var(--bleed);
+        margin: 0 auto;
+        padding: 0 22px;
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        height: 46px;
+      }
+      .masthead-title {
+        font-family: var(--sans);
+        font-size: 0.8rem;
+        font-weight: 700;
+        white-space: nowrap;
+        color: var(--ink);
+      }
+      .masthead-title .shellword {
+        color: var(--shell);
+      }
+      .chapnav {
+        display: flex;
+        gap: 2px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        margin-left: auto;
+      }
+      .chapnav::-webkit-scrollbar {
+        display: none;
+      }
+      .chapnav a {
+        font-family: var(--sans);
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: var(--ink-soft);
+        text-decoration: none;
+        padding: 5px 9px;
+        border-radius: 99px;
+        white-space: nowrap;
+      }
+      .chapnav a:hover {
+        color: var(--ink);
+        background: var(--bg-sunken);
+      }
+      .chapnav a.current {
+        color: var(--shell-ink);
+        background: var(--shell-tint);
+      }
+
+      /* ============ Hero ============ */
+      .hero {
+        padding: 72px 0 20px;
+      }
+      .hero .eyebrow {
+        display: block;
+        margin-bottom: 14px;
+      }
+      .hero .dek {
+        font-size: 1.24rem;
+        line-height: 1.55;
+        color: var(--ink-soft);
+        margin: 18px 0 0;
+        max-width: 36em;
+      }
+      .hero-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 20px;
+        margin-top: 26px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+        font-family: var(--sans);
+        font-size: 0.74rem;
+        color: var(--ink-faint);
+      }
+      .hero-meta b {
+        color: var(--ink-soft);
+        font-weight: 650;
+      }
+
+      /* ============ Legend ============ */
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px 22px;
+        align-items: center;
+        padding: 12px 16px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--bg-raised);
+        font-family: var(--sans);
+        font-size: 0.8rem;
+        color: var(--ink-soft);
+        margin: 1.4rem 0;
+      }
+      .legend .chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .swatch {
+        width: 22px;
+        height: 13px;
+        border-radius: 3px;
+        flex: none;
+      }
+      .swatch.shell {
+        background: var(--shell-tint-2);
+        border: 1.5px solid var(--shell);
+      }
+      .swatch.stream {
+        border: 1.5px dashed var(--stream);
+        background: repeating-linear-gradient(
+          135deg,
+          var(--stream-tint-2) 0 3px,
+          transparent 3px 7px
+        );
+      }
+
+      /* ============ Chapters ============ */
+      .chapter {
+        padding: 3.2rem 0 0.6rem;
+      }
+      .chapter-head {
+        margin-bottom: 1.4rem;
+      }
+      .chapter-no {
+        font-family: var(--sans);
+        font-size: 0.72rem;
+        font-weight: 700;
+        letter-spacing: 0.13em;
+        text-transform: uppercase;
+        color: var(--shell);
+      }
+      .kicker {
+        color: var(--ink-soft);
+        font-size: 1.05rem;
+        margin-top: 0.55rem;
+      }
+
+      /* ============ Callouts ============ */
+      .note,
+      .warn,
+      .term {
+        border: 1px solid var(--line);
+        border-left: 3px solid var(--shell);
+        border-radius: 0 var(--radius) var(--radius) 0;
+        background: var(--bg-raised);
+        padding: 0.85rem 1.1rem;
+        margin: 1.4rem 0;
+        font-size: 0.95rem;
+      }
+      .note p:last-child,
+      .warn p:last-child,
+      .term p:last-child {
+        margin-bottom: 0;
+      }
+      .warn {
+        border-left-color: var(--stream);
+      }
+      .callout-label {
+        display: block;
+        font-family: var(--sans);
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--shell);
+        margin-bottom: 0.35rem;
+      }
+      .warn .callout-label {
+        color: var(--stream-ink);
+      }
+      .term {
+        background: var(--shell-tint);
+        border-color: color-mix(in srgb, var(--shell) 30%, var(--line));
+      }
+      .term dfn {
+        font-style: normal;
+        font-weight: 700;
+      }
+
+      /* ============ Go deeper (details) ============ */
+      details.deeper {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--bg-raised);
+        margin: 1.4rem 0;
+        overflow: hidden;
+      }
+      details.deeper > summary {
+        cursor: pointer;
+        list-style: none;
+        padding: 0.75rem 1.1rem;
+        font-family: var(--sans);
+        font-size: 0.83rem;
+        font-weight: 650;
+        color: var(--shell-ink);
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        user-select: none;
+      }
+      details.deeper > summary::-webkit-details-marker {
+        display: none;
+      }
+      details.deeper > summary::before {
+        content: '';
+        width: 7px;
+        height: 7px;
+        border-right: 2px solid var(--shell);
+        border-bottom: 2px solid var(--shell);
+        transform: rotate(-45deg);
+        transition: transform 0.15s ease;
+        flex: none;
+      }
+      details.deeper[open] > summary::before {
+        transform: rotate(45deg);
+      }
+      details.deeper > summary:hover {
+        background: var(--shell-tint);
+      }
+      details.deeper > .deeper-body {
+        padding: 0.35rem 1.1rem 1rem;
+        border-top: 1px solid var(--line-soft);
+        font-size: 0.95rem;
+      }
+      details.deeper > .deeper-body > :first-child {
+        margin-top: 0.7rem;
+      }
+
+      /* ============ Check yourself ============ */
+      .quiz {
+        border: 1px dashed color-mix(in srgb, var(--shell) 55%, var(--line));
+        border-radius: var(--radius);
+        padding: 1rem 1.2rem;
+        margin: 1.8rem 0;
+        background: var(--bg-raised);
+      }
+      .quiz .callout-label {
+        color: var(--shell);
+      }
+      .quiz details {
+        margin-top: 0.5rem;
+      }
+      .quiz summary {
+        cursor: pointer;
+        font-family: var(--sans);
+        font-size: 0.8rem;
+        font-weight: 650;
+        color: var(--ink-soft);
+      }
+      .quiz summary:hover {
+        color: var(--ink);
+      }
+      .quiz details p {
+        margin-top: 0.6rem;
+        font-size: 0.95rem;
+      }
+
+      /* ============ Code blocks ============ */
+      .code {
+        margin: 1.4rem 0;
+        border-radius: var(--radius);
+        overflow: hidden;
+        border: 1px solid var(--code-line);
+        background: var(--code-bg);
+      }
+      .code-title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--code-faint);
+        padding: 8px 14px;
+        border-bottom: 1px solid var(--code-line);
+        background: color-mix(in srgb, var(--code-bg) 65%, black);
+      }
+      .code-title .badge {
+        font-family: var(--sans);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        padding: 2px 7px;
+        border-radius: 99px;
+        margin-left: auto;
+      }
+      .badge.shellb {
+        color: var(--code-hl-edge);
+        background: rgba(63, 203, 159, 0.13);
+      }
+      .badge.streamb {
+        color: #ef9b4e;
+        background: rgba(239, 155, 78, 0.13);
+      }
+      .code pre {
+        margin: 0;
+        padding: 13px 0;
+        overflow-x: auto;
+        font-family: var(--mono);
+        font-size: 0; /* collapses the newlines between .ln blocks */
+        line-height: 1.62;
+        color: var(--code-ink);
+      }
+      .code pre .ln {
+        display: block;
+        padding: 0 16px;
+        font-size: 12.8px;
+        line-height: 1.62;
+      }
+      .code pre .ln:empty::before {
+        content: '\00a0';
+      }
+      .code pre .ln.hl {
+        background: var(--code-hl);
+        box-shadow: inset 3px 0 0 var(--code-hl-edge);
+      }
+      .code pre .ln.dim {
+        opacity: 0.5;
+      }
+      .k {
+        color: var(--code-k);
+      }
+      .s {
+        color: var(--code-s);
+      }
+      .c {
+        color: var(--code-c);
+        font-style: italic;
+      }
+      .t {
+        color: var(--code-t);
+      }
+      .dir {
+        color: var(--code-s);
+        background: rgba(228, 183, 125, 0.12);
+        border-radius: 3px;
+        padding: 0 3px;
+        font-weight: 700;
+      }
+
+      /* Terminal-ish output block */
+      .termout {
+        margin: 1.4rem 0;
+        border-radius: var(--radius);
+        border: 1px solid var(--code-line);
+        background: var(--code-bg);
+        padding: 13px 16px;
+        font-family: var(--mono);
+        font-size: 0.78rem;
+        line-height: 1.6;
+        color: var(--code-ink);
+        overflow-x: auto;
+      }
+      .termout .err {
+        color: #f08a8a;
+        font-weight: 700;
+      }
+      .termout .dim2 {
+        color: var(--code-faint);
+      }
+
+      /* ============ Tables ============ */
+      .tblwrap {
+        overflow-x: auto;
+        margin: 1.4rem 0;
+      }
+      table.tbl {
+        border-collapse: collapse;
+        width: 100%;
+        font-family: var(--sans);
+        font-size: 0.86rem;
+        background: var(--bg-raised);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+      }
+      .tbl th,
+      .tbl td {
+        text-align: left;
+        padding: 9px 13px;
+        border-bottom: 1px solid var(--line-soft);
+        vertical-align: top;
+      }
+      .tbl th {
+        font-size: 0.68rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        background: var(--bg-sunken);
+        white-space: nowrap;
+      }
+      .tbl tr:last-child td {
+        border-bottom: 0;
+      }
+      .tbl td code {
+        white-space: nowrap;
+      }
+      .tbl .yes {
+        color: var(--shell-ink);
+        font-weight: 650;
+      }
+      .tbl .no {
+        color: var(--stream-ink);
+        font-weight: 650;
+      }
+
+      /* ============ Figures / diagrams ============ */
+      .fig {
+        margin: 1.8rem 0;
+      }
+      .fig-cap {
+        font-family: var(--sans);
+        font-size: 0.78rem;
+        color: var(--ink-faint);
+        margin-top: 0.7rem;
+        line-height: 1.5;
+      }
+      .fig-cap b {
+        color: var(--ink-soft);
+      }
+
+      /* Wireframe page diagrams */
+      .wire {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--bg-raised);
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 9px;
+        font-family: var(--sans);
+        font-size: 0.74rem;
+      }
+      .wire .row {
+        display: flex;
+        gap: 9px;
+      }
+      .wire .blk {
+        border-radius: 4px;
+        padding: 8px 10px;
+        min-height: 30px;
+        flex: 1;
+        display: flex;
+        align-items: center;
+        color: var(--ink-soft);
+        line-height: 1.35;
+      }
+      .blk.solid {
+        background: var(--shell-tint);
+        border: 1.5px solid var(--shell);
+        color: var(--shell-ink);
+        font-weight: 600;
+      }
+      .blk.hole {
+        border: 1.5px dashed var(--stream);
+        background: repeating-linear-gradient(
+          135deg,
+          var(--stream-tint) 0 4px,
+          transparent 4px 9px
+        );
+        color: var(--stream-ink);
+        font-weight: 600;
+      }
+      .blk.ghost {
+        border: 1px solid var(--line);
+        color: var(--ink-faint);
+        background: var(--bg-sunken);
+      }
+      .blk.tall {
+        min-height: 64px;
+        align-items: flex-start;
+        padding-top: 9px;
+      }
+
+      /* Tree diagram (re-render scope) */
+      .trees {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+      }
+      @media (max-width: 640px) {
+        .trees {
+          grid-template-columns: 1fr;
+        }
+      }
+      .tree {
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: var(--bg-raised);
+        padding: 13px 14px 15px;
+        font-family: var(--sans);
+        font-size: 0.74rem;
+      }
+      .tree-title {
+        font-weight: 700;
+        font-size: 0.76rem;
+        margin-bottom: 10px;
+        color: var(--ink);
+      }
+      .tree-title small {
+        display: block;
+        font-weight: 500;
+        color: var(--ink-faint);
+        margin-top: 1px;
+      }
+      .tnode {
+        border-radius: 4px;
+        padding: 6px 9px;
+        margin-top: 7px;
+        line-height: 1.4;
+      }
+      .tnode .tag {
+        font-family: var(--mono);
+        font-size: 0.68rem;
+      }
+      .tnode.kept {
+        border: 1px solid var(--line);
+        background: var(--bg-sunken);
+        color: var(--ink-faint);
+      }
+      .tnode.fresh {
+        border: 1.5px solid var(--shell);
+        background: var(--shell-tint);
+        color: var(--shell-ink);
+      }
+      .tnode.dyn {
+        border: 1.5px dashed var(--stream);
+        background: repeating-linear-gradient(
+          135deg,
+          var(--stream-tint) 0 4px,
+          transparent 4px 9px
+        );
+        color: var(--stream-ink);
+      }
+      .tnode .why {
+        display: block;
+        font-size: 0.68rem;
+        opacity: 0.85;
+        margin-top: 1px;
+        font-weight: 500;
+      }
+      .tindent {
+        margin-left: 18px;
+        border-left: 1px solid var(--line-soft);
+        padding-left: 12px;
+      }
+
+      /* Ladder (3 layers of shell) */
+      .ladder {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+      .rung {
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--shell);
+        border-radius: 0 var(--radius) var(--radius) 0;
+        background: var(--bg-raised);
+        padding: 12px 16px;
+        display: grid;
+        grid-template-columns: 150px 1fr;
+        gap: 4px 18px;
+        font-family: var(--sans);
+        font-size: 0.84rem;
+      }
+      @media (max-width: 560px) {
+        .rung {
+          grid-template-columns: 1fr;
+        }
+      }
+      .rung h4 {
+        font-family: var(--sans);
+        font-size: 0.92rem;
+        margin: 0;
+        grid-column: 1 / -1;
+      }
+      .rung h4 small {
+        font-weight: 500;
+        color: var(--ink-faint);
+        margin-left: 6px;
+      }
+      .rung .rk {
+        color: var(--ink-faint);
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        padding-top: 2px;
+      }
+      .rung .rv {
+        color: var(--ink-soft);
+      }
+
+      /* ============ Demo ============ */
+      .demo {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--bg-raised);
+        padding: 18px;
+        margin-block: 1.6rem; /* horizontal margins stay with .bleed */
+      }
+      .demo-modes {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 14px;
+      }
+      .mode-btn {
+        font-family: var(--sans);
+        font-size: 0.78rem;
+        font-weight: 650;
+        padding: 7px 14px;
+        border-radius: 99px;
+        border: 1px solid var(--line);
+        background: var(--bg-sunken);
+        color: var(--ink-soft);
+        cursor: pointer;
+      }
+      .mode-btn:hover {
+        border-color: var(--ink-faint);
+      }
+      .mode-btn[aria-pressed='true'] {
+        background: var(--ink);
+        color: var(--bg);
+        border-color: var(--ink);
+      }
+      .demo-hint {
+        font-family: var(--sans);
+        font-size: 0.78rem;
+        color: var(--ink-faint);
+        margin: 0 0 12px;
+      }
+
+      .browser {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--bg);
+      }
+      .bbar {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 12px;
+        background: var(--bg-sunken);
+        border-bottom: 1px solid var(--line);
+      }
+      .bdots {
+        display: flex;
+        gap: 5px;
+      }
+      .bdots i {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--line);
+        display: block;
+      }
+      .baddr {
+        flex: 1;
+        font-family: var(--mono);
+        font-size: 0.72rem;
+        color: var(--ink-soft);
+        background: var(--bg-raised);
+        border: 1px solid var(--line-soft);
+        border-radius: 5px;
+        padding: 4px 10px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+      .bspin {
+        width: 12px;
+        height: 12px;
+        border: 2px solid var(--line);
+        border-top-color: var(--stream);
+        border-radius: 50%;
+        flex: none;
+        visibility: hidden;
+      }
+      .bspin.on {
+        visibility: visible;
+        animation: spin 0.7s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+
+      .bview {
+        min-height: 292px;
+        position: relative;
+        font-family: var(--sans);
+      }
+      .bpage {
+        padding: 14px 16px 18px;
+        transition: opacity 0.12s ease;
+      }
+      .bpage.frozen {
+        opacity: 0.45;
+        pointer-events: none;
+      }
+      .sitehead {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+        padding-bottom: 10px;
+        margin-bottom: 13px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+      .sitehead .logo {
+        font-family: var(--serif);
+        font-weight: 700;
+        font-size: 0.95rem;
+      }
+      .sitehead nav {
+        display: flex;
+        gap: 12px;
+        font-size: 0.72rem;
+        color: var(--ink-faint);
+      }
+      .pcards {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+      @media (max-width: 560px) {
+        .pcards {
+          grid-template-columns: 1fr;
+        }
+      }
+      .pcard {
+        text-align: left;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--bg-raised);
+        padding: 10px 11px;
+        cursor: pointer;
+        font-family: var(--sans);
+        color: var(--ink);
+      }
+      .pcard:hover {
+        border-color: var(--shell);
+      }
+      .pcard .ph {
+        height: 44px;
+        border-radius: 4px;
+        background: var(--bg-sunken);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.1rem;
+      }
+      .pcard b {
+        display: block;
+        font-size: 0.8rem;
+      }
+      .pcard span {
+        font-size: 0.74rem;
+        color: var(--ink-soft);
+      }
+      .pcard small {
+        display: block;
+        margin-top: 4px;
+        font-size: 0.66rem;
+        color: var(--shell-ink);
+        font-weight: 650;
+      }
+
+      .prodpage .crumb {
+        font-size: 0.7rem;
+        color: var(--ink-faint);
+        margin-bottom: 8px;
+      }
+      .prodpage h4 {
+        font-family: var(--serif);
+        font-size: 1.3rem;
+        margin: 0 0 2px;
+      }
+      .prodpage .price {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: var(--ink);
+        margin-bottom: 2px;
+      }
+      .prodpage .stars {
+        font-size: 0.74rem;
+        color: var(--ink-soft);
+        margin-bottom: 12px;
+      }
+      .prodrows {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-width: 380px;
+      }
+      .prodrow {
+        border-radius: 5px;
+        padding: 8px 11px;
+        font-size: 0.78rem;
+        border: 1px solid var(--line-soft);
+        background: var(--bg-raised);
+        min-height: 36px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .prodrow.streamed {
+        border-color: color-mix(in srgb, var(--stream) 40%, var(--line));
+      }
+      .sk {
+        display: inline-block;
+        height: 11px;
+        border-radius: 3px;
+        background: linear-gradient(
+          90deg,
+          var(--bg-sunken) 25%,
+          var(--line-soft) 50%,
+          var(--bg-sunken) 75%
+        );
+        background-size: 200% 100%;
+        animation: shimmer 1.1s linear infinite;
+      }
+      @keyframes shimmer {
+        to {
+          background-position: -200% 0;
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .sk {
+          animation: none;
+          background: var(--bg-sunken);
+        }
+      }
+      .backlink {
+        margin-top: 14px;
+        font-family: var(--sans);
+        font-size: 0.74rem;
+        font-weight: 650;
+        color: var(--shell-ink);
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        text-decoration: underline;
+        text-underline-offset: 3px;
+      }
+      .toast {
+        position: absolute;
+        right: 10px;
+        bottom: 10px;
+        max-width: 78%;
+        font-family: var(--mono);
+        font-size: 0.66rem;
+        line-height: 1.45;
+        color: var(--shell-ink);
+        background: var(--shell-tint);
+        border: 1px solid color-mix(in srgb, var(--shell) 40%, transparent);
+        border-radius: 5px;
+        padding: 6px 10px;
+        opacity: 0;
+        transition: opacity 0.25s ease;
+        pointer-events: none;
+      }
+      .toast.on {
+        opacity: 1;
+      }
+      .toast.streamy {
+        color: var(--stream-ink);
+        background: var(--stream-tint);
+        border-color: color-mix(in srgb, var(--stream) 40%, transparent);
+      }
+
+      /* Timeline */
+      .tl {
+        margin-top: 16px;
+        font-family: var(--sans);
+      }
+      .tl-title {
+        font-size: 0.7rem;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-faint);
+        margin-bottom: 8px;
+      }
+      .lane {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 9px;
+      }
+      .lane-label {
+        font-size: 0.72rem;
+        font-weight: 650;
+        color: var(--ink-soft);
+        text-align: right;
+      }
+      .lane-track {
+        position: relative;
+        height: 22px;
+        border-radius: 4px;
+        background: var(--bg-sunken);
+        border: 1px solid var(--line-soft);
+        overflow: hidden;
+      }
+      .lane-bar {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 0;
+      }
+      .lane-bar.waitseg {
+        background: repeating-linear-gradient(
+          135deg,
+          var(--stream-tint-2) 0 4px,
+          transparent 4px 9px
+        );
+        border-right: 1.5px dashed var(--stream);
+      }
+      .lane-bar.shellseg {
+        background: var(--shell-tint-2);
+        border-right: 2px solid var(--shell);
+      }
+      .lane-bar.doneseg {
+        background: color-mix(in srgb, var(--shell) 55%, var(--bg-raised));
+      }
+      .lane-flag {
+        position: absolute;
+        top: 1px;
+        font-size: 0.62rem;
+        font-weight: 700;
+        padding: 1px 5px;
+        border-radius: 3px;
+        white-space: nowrap;
+        transform: translateX(4px);
+        visibility: hidden;
+      }
+      .lane-flag.paint {
+        color: var(--shell-ink);
+        background: var(--bg-raised);
+        border: 1px solid var(--shell);
+      }
+      .lane-flag.done {
+        color: var(--ink-soft);
+        background: var(--bg-raised);
+        border: 1px solid var(--line);
+      }
+      .tl-axis {
+        display: grid;
+        grid-template-columns: 92px 1fr;
+        gap: 10px;
+      }
+      .tl-scale {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.62rem;
+        color: var(--ink-faint);
+        font-family: var(--mono);
+      }
+      .tl-read {
+        grid-column: 2;
+        font-size: 0.74rem;
+        color: var(--ink-soft);
+        margin-top: 7px;
+        min-height: 1.2em;
+      }
+      .tl-read b {
+        color: var(--shell-ink);
+      }
+
+      /* ============ Footer ============ */
+      .foot {
+        margin-top: 4rem;
+        padding: 2rem 0 3rem;
+        border-top: 1px solid var(--line);
+        font-family: var(--sans);
+        font-size: 0.8rem;
+        color: var(--ink-faint);
+      }
+      .foot p {
+        margin-bottom: 0.4rem;
+      }
+
+      @media (max-width: 640px) {
+        body {
+          font-size: 16.5px;
+        }
+        .hero {
+          padding-top: 48px;
+        }
+        .rung {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="masthead">
+      <div class="masthead-inner">
+        <span class="masthead-title"
+          >The <span class="shellword">App Shell</span></span
+        >
+        <nav class="chapnav" aria-label="Chapters">
+          <a href="#ch1">1 · The shell you know</a>
+          <a href="#ch2">2 · The click it can't help</a>
+          <a href="#ch3">3 · A shell for navigations</a>
+          <a href="#ch4">4 · Build it</a>
+          <a href="#ch5">5 · One shell per route</a>
+          <a href="#ch6">6 · The personal parts</a>
+          <a href="#appendix">A · Under the hood</a>
+          <a href="#recap">☰ Recap</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section class="hero">
+        <span class="eyebrow">A Next.js field guide · Cache Components</span>
+        <h1>The App Shell</h1>
+        <p class="dek">
+          You made the first load instant — Partial Prerendering serves a static
+          shell from the CDN and streams the rest. This is the story of every
+          load <em>after</em> that: what happens when the user clicks a link,
+          and how Cache Components gives client-side navigations a shell of
+          their own.
+        </p>
+        <div class="hero-meta">
+          <span><b>Audience</b> · you know RSC and PPR for initial loads</span>
+          <span
+            ><b>Version</b> · Next.js 16.3 (canary),
+            <code style="border: none; background: none; padding: 0"
+              >cacheComponents: true</code
+            ></span
+          >
+          <span
+            ><b>Format</b> · seven short chapters, deep-dives are
+            collapsible</span
+          >
+        </div>
+      </section>
+
+      <section aria-label="Introduction">
+        <p>
+          Here's a fact that's easy to miss, because nothing in the API surface
+          points at it:
+          <strong
+            >Partial Prerendering, as you know it, only ever runs for document
+            requests.</strong
+          >
+          The static shell you worked so hard to maximize is served when a
+          browser asks for an HTML page — the first visit, a hard refresh, a
+          link from an email. The moment your app hydrates, the user stops
+          making document requests. Every click from then on is a client-side
+          navigation, and client-side navigations play by different rules.
+        </p>
+        <p>
+          Cache Components extends the shell idea to those clicks. The mechanism
+          is called the <strong>App Shell</strong>, and by the end of this guide
+          you'll know precisely what's inside one, how the router uses it to
+          paint the next page in roughly zero milliseconds, and how to structure
+          your routes so that shell is worth painting.
+        </p>
+        <p>
+          Two colors do a lot of work in this guide. Everything
+          <strong>green is in a shell</strong> — prerendered or cached, ready
+          before the user clicks. Everything <strong>orange streams</strong> —
+          it needs a server at navigation time and arrives after the click.
+          Every diagram, code sample, and demo below uses them the same way.
+        </p>
+
+        <div class="legend" role="note">
+          <span class="chip"
+            ><span class="swatch shell"></span> In the shell — prerendered or
+            cached, ready before the click</span
+          >
+          <span class="chip"
+            ><span class="swatch stream"></span> Streams in — rendered at
+            request time, arrives after the click</span
+          >
+        </div>
+
+        <h3>Feel it first</h3>
+        <p>
+          Below is a simulated store. The <em>Blocking navigation</em> mode
+          replays how a client-side navigation to an un-prefetched dynamic page
+          behaved before Cache Components: click, wait for the server, then the
+          whole page at once. The <em>App Shell navigation</em> mode is the
+          model this guide teaches: the page's shell paints instantly from the
+          prefetch cache, and only the genuinely per-request parts stream in.
+          Run both, click a product, and watch the timeline.
+        </p>
+
+        <div class="demo bleed" id="navDemo">
+          <div class="demo-modes" role="group" aria-label="Demo mode">
+            <button class="mode-btn" id="modeBlocking" aria-pressed="true">
+              Blocking navigation <small>(before)</small>
+            </button>
+            <button class="mode-btn" id="modeShell" aria-pressed="false">
+              App Shell navigation <small>(after)</small>
+            </button>
+          </div>
+          <p class="demo-hint" id="demoHint">
+            Click a product card to navigate.
+          </p>
+          <div class="browser">
+            <div class="bbar">
+              <span class="bdots" aria-hidden="true"
+                ><i></i><i></i><i></i
+              ></span>
+              <span class="baddr" id="demoAddr">acme.supply/</span>
+              <span class="bspin" id="demoSpin" aria-hidden="true"></span>
+            </div>
+            <div class="bview">
+              <div class="bpage" id="demoPage"></div>
+              <div class="toast" id="demoToast" aria-live="polite"></div>
+            </div>
+          </div>
+          <div class="tl" aria-label="Navigation timeline">
+            <div class="tl-title">What's on screen after the click</div>
+            <div class="lane">
+              <span class="lane-label">Blocking</span>
+              <div class="lane-track" id="laneBlocking"></div>
+            </div>
+            <div class="lane">
+              <span class="lane-label">App Shell</span>
+              <div class="lane-track" id="laneShell"></div>
+            </div>
+            <div class="tl-axis">
+              <span></span>
+              <div class="tl-scale">
+                <span>0 ms</span><span>500 ms</span><span>1000 ms</span
+                ><span>1500 ms</span>
+              </div>
+            </div>
+            <div class="tl-axis">
+              <span></span>
+              <div class="tl-read" id="tlRead">
+                Run a navigation to fill in a lane.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <p>
+          Same server, same data, same 1.4-second round trip for the fresh stock
+          count. The difference is entirely in
+          <em>what the browser already had when the click happened</em>, and
+          that's a thing you control. Let's build up to it properly, starting
+          from what you already know.
+        </p>
+      </section>
+
+      <section class="chapter" id="ch1">
+        <div class="chapter-head">
+          <span class="chapter-no">Chapter 1</span>
+          <h2>The shell you already know</h2>
+          <p class="kicker">
+            A two-minute recap of Partial Prerendering, told in a way that sets
+            up everything that follows.
+          </p>
+        </div>
+
+        <p>
+          When Cache Components is on, every route in your app is partially
+          prerendered. At build time, Next.js renders each route's component
+          tree and sorts the output into two piles:
+        </p>
+        <ul>
+          <li>
+            Content that can be known ahead of a request — static JSX, pure
+            computation, and anything you cached with <code>'use cache'</code> —
+            is rendered <em>now</em>, into the route's
+            <strong>static shell</strong>.
+          </li>
+          <li>
+            Content that can't — uncached <code>fetch</code>es,
+            <code>cookies()</code>, <code>headers()</code>, dynamic
+            <code>params</code>, <code>searchParams</code> — is left as a
+            <strong>hole</strong>, and the
+            <code>&lt;Suspense&gt;</code> fallback around it is rendered into
+            the shell instead.
+          </li>
+        </ul>
+        <p>
+          On a document request, the shell is served immediately — typically
+          straight from a CDN, no origin server involved — and the holes are
+          rendered at request time, streaming into their fallbacks as they
+          resolve. The user sees a real page instantly, and the personalized or
+          fresh parts pop in a beat later.
+        </p>
+
+        <figure class="fig">
+          <div
+            class="wire"
+            role="img"
+            aria-label="Wireframe of a partially prerendered product page: navigation, product info, and page frame are solid shell; the stock count and personalized deals are hatched holes with Suspense fallbacks"
+          >
+            <div class="row">
+              <div class="blk solid">Site navigation — static</div>
+            </div>
+            <div class="row">
+              <div class="blk solid tall">
+                Product name, price, description<br /><small
+                  style="font-weight: 500"
+                  >cached with
+                  <code style="background: none; border: none; padding: 0"
+                    >'use cache'</code
+                  ></small
+                >
+              </div>
+              <div class="blk hole tall">
+                Live stock count<br /><small style="font-weight: 500"
+                  >fallback: “Checking stock…”</small
+                >
+              </div>
+            </div>
+            <div class="row">
+              <div class="blk hole">Deals for you — reads cookies()</div>
+              <div class="blk solid">Footer — static</div>
+            </div>
+          </div>
+          <figcaption class="fig-cap">
+            <b>A partially prerendered page.</b> Green regions exist as HTML
+            before any request happens. Hatched regions are Suspense holes: the
+            shell contains their fallbacks, and their real content streams in at
+            request time.
+          </figcaption>
+        </figure>
+
+        <p>
+          One sentence in that description deserves a second look:
+          <em>the shell is served on a document request</em>. That's the
+          contract. PPR's shell is an HTML artifact, addressed by URL, delivered
+          when a browser asks for a page. Keep that in mind as we move to
+          chapter 2, because it's exactly the assumption that's about to break.
+        </p>
+
+        <details class="deeper">
+          <summary>
+            Go deeper — what “prerender, then resume” actually produces
+          </summary>
+          <div class="deeper-body">
+            <p>
+              Internally, the build-time prerender emits two artifacts per
+              route. The stream of bytes rendered before any dynamic access is
+              the <strong>prelude</strong> — that's the static shell, both as
+              HTML (for document requests) and as a serialized RSC payload (for
+              client navigations; chapter 3 explains why that second form
+              matters). Where the render hit dynamic data, React
+              <strong>postpones</strong>: it records where it stopped in a blob
+              of <em>postponed state</em> that Next.js stores alongside the
+              shell.
+            </p>
+            <p>
+              At request time the server doesn't re-render the page from
+              scratch. It parses the postponed state and
+              <strong>resumes</strong> rendering from exactly the recorded
+              stopping points, streaming the results into the shell's holes. If
+              a route accesses dynamic data above the page's
+              <code>&lt;body&gt;</code> with no
+              <code>&lt;Suspense&gt;</code> above it, the prelude would be empty
+              — the framework treats an empty shell as an error unless you've
+              explicitly opted out, which is what the validation you'll meet in
+              chapter 4 enforces.
+            </p>
+          </div>
+        </details>
+      </section>
+
+      <section class="chapter" id="ch2">
+        <div class="chapter-head">
+          <span class="chapter-no">Chapter 2</span>
+          <h2>The click the shell can't help</h2>
+          <p class="kicker">
+            Client-side navigations don't make document requests — and they
+            re-render less of the tree than you might think.
+          </p>
+        </div>
+
+        <p>
+          After hydration, clicking a <code>&lt;Link&gt;</code> doesn't fetch a
+          document. The router fetches an <strong>RSC payload</strong> — the
+          serialized server-component tree for the destination — and grafts it
+          into the running React app. Two consequences follow, and together they
+          explain why PPR alone never made navigations instant.
+        </p>
+
+        <h3>Consequence 1: nobody serves you the HTML shell</h3>
+        <p>
+          The static shell you built in chapter 1 is sitting on a CDN, keyed by
+          URL, waiting for a document request that isn't coming. A client
+          navigation asks a different question — “give me the RSC data for
+          <code>/store/hats</code>” — and in the old model, answering that
+          question for a dynamic page meant rendering it on the server
+          <em>at click time</em>. Until the response arrived, the router had
+          nothing new to show. The old page just sat there.
+        </p>
+
+        <h3>
+          Consequence 2: the transition re-renders less than a page load does
+        </h3>
+        <p>
+          A client navigation keeps every layout that the current and
+          destination routes share — that's the whole point of layouts. Only the
+          tree <em>below the shared layout</em> re-renders. This sounds like a
+          pure win, but it quietly disables a tool you've been relying on: a
+          <code>&lt;Suspense&gt;</code> boundary in your root layout catches
+          everything on a page load, but during a transition it sits
+          <em>above</em> the re-render scope. It never fires. Whatever fallback
+          story you wrote up there does not exist for navigations.
+        </p>
+
+        <figure class="fig">
+          <div class="trees">
+            <div class="tree">
+              <div class="tree-title">
+                Document request → <span class="tag">/store/hats</span
+                ><small>everything renders; any boundary can catch</small>
+              </div>
+              <div class="tnode fresh">
+                <span class="tag">app/layout.tsx</span> — renders
+              </div>
+              <div class="tindent">
+                <div class="tnode fresh">
+                  <span class="tag">store/layout.tsx</span> — renders
+                </div>
+                <div class="tindent">
+                  <div class="tnode fresh">
+                    <span class="tag">store/[slug]/page.tsx</span> — renders
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="tree">
+              <div class="tree-title">
+                Client nav → <span class="tag">/store/shoes → /store/hats</span
+                ><small>shared layouts persist; only the page swaps</small>
+              </div>
+              <div class="tnode kept">
+                <span class="tag">app/layout.tsx</span> — kept, does not
+                re-render<span class="why"
+                  >its &lt;Suspense&gt; can't fire here</span
+                >
+              </div>
+              <div class="tindent">
+                <div class="tnode kept">
+                  <span class="tag">store/layout.tsx</span> — kept, does not
+                  re-render
+                </div>
+                <div class="tindent">
+                  <div class="tnode dyn">
+                    <span class="tag">store/[slug]/page.tsx</span> — must come
+                    from somewhere, <em>now</em>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <figcaption class="fig-cap">
+            <b>The re-render scope.</b> On a client navigation, only the subtree
+            below the deepest shared layout is replaced. Fallbacks defined above
+            that point can't participate in the transition — the page needs its
+            own answer to “what do I show immediately?”
+          </figcaption>
+        </figure>
+
+        <h3>What the old router did about it</h3>
+        <p>
+          The pre-Cache-Components router wasn't naive — it prefetched. But its
+          prefetching had a shape that stopped working the moment pages got
+          dynamic:
+        </p>
+
+        <div class="tblwrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Destination</th>
+                <th>Default <code>&lt;Link&gt;</code> prefetched…</th>
+                <th>On click</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Fully static page</td>
+                <td>The entire page</td>
+                <td class="yes">Instant (while the cache entry was fresh)</td>
+              </tr>
+              <tr>
+                <td>Dynamic page with <code>loading.js</code></td>
+                <td>
+                  Layouts down to the first <code>loading.js</code> boundary
+                </td>
+                <td>Loading skeleton, then wait for the server</td>
+              </tr>
+              <tr>
+                <td>Dynamic page, no <code>loading.js</code></td>
+                <td>Nothing</td>
+                <td class="no">Wait for the server, then everything at once</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>And the fine print made it worse in practice:</p>
+        <ul>
+          <li>
+            <strong>Route-level granularity.</strong> The cache was keyed per
+            <em>route</em>, not per segment. Prefetches for
+            <code>/store/shoes</code> and <code>/store/hats</code> couldn't
+            share the store layout they had in common — each prefetch carried
+            the whole thing.
+          </li>
+          <li>
+            <strong>Coarse, short lifetimes.</strong> Client cache entries
+            expired wholesale on a timer (<code>staleTimes</code>: five minutes
+            for static content, and since v15, <em>zero</em> for dynamic —
+            dynamic pages were effectively never reusable).
+          </li>
+          <li>
+            <strong>The escape hatch was expensive.</strong>
+            <code>&lt;Link prefetch={true}&gt;</code> forced a
+            <em>full</em> prefetch — including the dynamic parts, cookies and
+            all. One full server render per visible link, usually thrown away
+            unclicked. Fine for one checkout button; ruinous for a feed of two
+            hundred links.
+          </li>
+          <li>
+            <strong>Miss the window, pay full price.</strong> A prefetch never
+            blocks a navigation. If it hadn't landed (or had expired) by click
+            time, the router went straight to a blocking server request.
+          </li>
+        </ul>
+
+        <p>
+          So the old model gave you a hard choice for dynamic pages: navigate
+          into a <code>loading.js</code> skeleton at best, block at worst, or
+          pay for full prefetches per link. What it never gave you was the thing
+          PPR gave document requests —
+          <em>a cheap, always-available, mostly-rendered starting point</em>.
+        </p>
+
+        <div class="quiz">
+          <span class="callout-label">Check yourself</span>
+          <p style="margin-bottom: 0">
+            Your root layout wraps <code>{children}</code> in
+            <code>&lt;Suspense fallback={&lt;AppSkeleton /&gt;}&gt;</code>. A
+            user clicks from <code>/dashboard</code> to <code>/settings</code>.
+            Why do they never see <code>&lt;AppSkeleton /&gt;</code>?
+          </p>
+          <details>
+            <summary>Reveal answer</summary>
+            <p>
+              Both routes share the root layout, so the transition only
+              re-renders below it. The root layout — including its
+              <code>&lt;Suspense&gt;</code> boundary — is kept, not re-rendered,
+              so the boundary never gets a chance to show its fallback. It only
+              ever fires on document requests, where the whole tree renders. Any
+              “what shows immediately?” answer for navigations has to live at or
+              below the segments that actually change.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="chapter" id="ch3">
+        <div class="chapter-head">
+          <span class="chapter-no">Chapter 3</span>
+          <h2>A shell for navigations</h2>
+          <p class="kicker">
+            Cache Components' answer: prefetch the prerendered parts, per
+            segment, and compose them into the next page the instant the user
+            clicks.
+          </p>
+        </div>
+
+        <p>
+          Remember the detail from chapter 1: the build-time prerender saves the
+          shell in <em>two</em> forms. HTML, for document requests — and a
+          serialized <strong>RSC payload</strong>, for exactly this moment. The
+          shell was never only an HTML artifact. Cache Components puts the
+          second form to work.
+        </p>
+        <p>
+          Here's the new model, end to end. While a page is idle, the router
+          looks at the <code>&lt;Link&gt;</code>s in the viewport and quietly
+          prefetches each destination's <em>prerendered</em> parts — the same
+          green content from chapter 1, in RSC form, fetched per segment and
+          stored in an in-memory cache. When the user clicks:
+        </p>
+        <ol>
+          <li>
+            The router composes the next page
+            <strong>synchronously</strong> from what's already in the cache.
+            Shared layouts are kept in place; the new segments mount with their
+            prefetched content. This is the paint at ~0 ms.
+          </li>
+          <li>
+            Any segment whose prefetched content was <em>partial</em> — it had
+            holes — gets exactly one dynamic request, and the missing content
+            streams into its <code>&lt;Suspense&gt;</code> fallbacks as it
+            arrives. Fully prerendered segments don't contact the server at all.
+          </li>
+        </ol>
+        <p>
+          The click stops being “ask the server, then render” and becomes
+          “render, then let the server fill in the orange parts.” Which is
+          precisely what PPR did for document requests — transplanted to the
+          client.
+        </p>
+
+        <div class="term">
+          <span class="callout-label"
+            >Definition · from the Next.js glossary</span
+          >
+          <p>
+            <dfn>App Shell</dfn> — “A per-route prerender containing the parts
+            of a page that don't depend on URL-specific data. Routes that read
+            <code>cookies()</code> or <code>headers()</code> produce a
+            session-personalized variant, cached per session on the client.”
+            It's used as the prefetch payload during client navigations, the
+            loading state during runtime prefetching, and the fallback for ISR
+            with Cache Components.
+          </p>
+        </div>
+
+        <p>Read that definition slowly, because each clause is load-bearing:</p>
+        <ul>
+          <li>
+            <strong>“Per-route”</strong> — not per URL. There is one App Shell
+            for <code>/store/[slug]</code>, not one for every slug. Two hundred
+            product links on a page share a single prefetched shell. Rendering a
+            <code>&lt;Link&gt;</code> becomes effectively free, no matter how
+            many point at the same route.
+          </li>
+          <li>
+            <strong>“The parts that don't depend on URL-specific data”</strong>
+            — the store nav, the page frame, and the fallbacks for anything
+            slug-dependent. It's the destination's floor: what can be shown for
+            <em>any</em> product before we know which product.
+          </li>
+          <li>
+            <strong>“A session-personalized variant”</strong> — a shell isn't
+            necessarily anonymous. If the route reads <code>cookies()</code> or
+            <code>headers()</code>, the framework detects it and builds the
+            shell <em>for this user's session</em>, cached per session in the
+            browser rather than shared. Your logged-in nav can be part of the
+            shell. (Chapter 6 covers how to make that actually work.)
+          </li>
+        </ul>
+
+        <p>
+          So the full picture has two layers of “ready before the click.” The
+          router prefetches the destination's prerender for the concrete URL
+          when it can; the App Shell is the per-route floor that's always there
+          — including when a link's specific prefetch hasn't landed yet, when
+          there are too many links to prefetch individually, or when the URL was
+          never prefetchable in the first place.
+        </p>
+
+        <div class="tblwrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th></th>
+                <th>Static shell <small>(chapter 1)</small></th>
+                <th>App Shell <small>(this chapter)</small></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><b>Serves</b></td>
+                <td>Document requests</td>
+                <td>Client-side navigations</td>
+              </tr>
+              <tr>
+                <td><b>Delivered as</b></td>
+                <td>HTML, from the CDN</td>
+                <td>RSC payload, from the prefetch cache</td>
+              </tr>
+              <tr>
+                <td><b>Scope</b></td>
+                <td>One per URL (concrete params when known)</td>
+                <td>One per <em>route</em>, shared by every link to it</td>
+              </tr>
+              <tr>
+                <td><b>Holes filled by</b></td>
+                <td>The resumed render, streamed into the document</td>
+                <td>
+                  A dynamic request after the click, streamed into the live page
+                </td>
+              </tr>
+              <tr>
+                <td><b>Personalization</b></td>
+                <td>None — it's cached publicly</td>
+                <td>Session variant when the route reads cookies or headers</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="note">
+          <span class="callout-label">Where the name comes from</span>
+          <p>
+            “App shell” is an homage to the 2015-era PWA
+            <em>application shell</em> pattern: cache the chrome of your app
+            with a service worker so something meaningful paints before the
+            network answers. The idea was right; the ergonomics were brutal —
+            you hand-maintained the shell and its cache invalidation. Here the
+            framework derives the shell from your component tree and your
+            <code>&lt;Suspense&gt;</code>/<code>'use cache'</code> decisions,
+            keeps it fresh, and personalizes it per session. Same instinct, no
+            service worker.
+          </p>
+        </div>
+      </section>
+
+      <section class="chapter" id="ch4">
+        <div class="chapter-head">
+          <span class="chapter-no">Chapter 4</span>
+          <h2>Build it: a store that navigates instantly</h2>
+          <p class="kicker">
+            Four steps: turn it on, hit the guardrail, carve the seams with
+            Suspense, then grow the shell with <code>'use cache'</code>.
+          </p>
+        </div>
+
+        <p>
+          Theory over — let's build the store from the demo. The route is
+          <code>/store/[slug]</code>: a product page showing details (name,
+          price) that rarely change, and a live stock count that must be fresh
+          on every request. The goal: clicking between products paints
+          instantly.
+        </p>
+
+        <h3>Step 1 — Turn it on</h3>
+        <div class="code">
+          <div class="code-title">next.config.ts</div>
+          <pre><span class="ln"><span class="k">import</span> <span class="k">type</span> { <span class="t">NextConfig</span> } <span class="k">from</span> <span class="s">'next'</span></span>
+<span class="ln"></span>
+<span class="ln"><span class="k">const</span> nextConfig: <span class="t">NextConfig</span> = {</span>
+<span class="ln hl">  cacheComponents: <span class="k">true</span>,</span>
+<span class="ln">}</span>
+<span class="ln"></span>
+<span class="ln"><span class="k">export</span> <span class="k">default</span> nextConfig</span></pre>
+        </div>
+        <p>
+          One top-level flag. It enables the <code>'use cache'</code> directive
+          and its companions (<code>cacheLife</code>, <code>cacheTag</code>),
+          turns on Partial Prerendering for every route, switches the router to
+          per-segment prefetching, and — the part this guide cares about —
+          generates App Shells. It also switches on <em>validation</em>, which
+          you're about to meet.
+        </p>
+
+        <h3>Step 2 — Write the obvious thing, hit the guardrail</h3>
+        <p>
+          Here's the page the way you'd write it without thinking about shells
+          at all:
+        </p>
+        <div class="code">
+          <div class="code-title">
+            app/store/[slug]/page.tsx
+            <span class="badge streamb">blocks navigations</span>
+          </div>
+          <pre><span class="ln"><span class="k">import</span> { db } <span class="k">from</span> <span class="s">'@/lib/db'</span></span>
+<span class="ln"></span>
+<span class="ln"><span class="k">export</span> <span class="k">default</span> <span class="k">async</span> <span class="k">function</span> <span class="t">ProductPage</span>(props: <span class="t">PageProps</span>&lt;<span class="s">'/store/[slug]'</span>&gt;) {</span>
+<span class="ln">  <span class="k">const</span> { slug } = <span class="k">await</span> props.params</span>
+<span class="ln">  <span class="k">const</span> product = <span class="k">await</span> db.products.findBySlug(slug)</span>
+<span class="ln">  <span class="k">const</span> stock = <span class="k">await</span> db.inventory.findBySlug(slug)</span>
+<span class="ln"></span>
+<span class="ln">  <span class="k">return</span> (</span>
+<span class="ln">    &lt;<span class="t">main</span>&gt;</span>
+<span class="ln">      &lt;<span class="t">h1</span>&gt;{product.name}&lt;/<span class="t">h1</span>&gt;</span>
+<span class="ln">      &lt;<span class="t">p</span>&gt;${product.price}&lt;/<span class="t">p</span>&gt;</span>
+<span class="ln">      &lt;<span class="t">p</span>&gt;{stock.count} in stock&lt;/<span class="t">p</span>&gt;</span>
+<span class="ln">    &lt;/<span class="t">main</span>&gt;</span>
+<span class="ln">  )</span>
+<span class="ln">}</span></pre>
+        </div>
+        <p>The dev overlay objects immediately:</p>
+        <div class="termout" role="img" aria-label="Dev overlay error output">
+          <span class="err"
+            >Route "/store/[slug]": Next.js encountered runtime data during
+            prerendering.</span
+          >
+          <span class="dim2"
+            >`cookies()`, `headers()`, `params`, or `searchParams` accessed
+            outside of &lt;Suspense&gt; prevents the route from being
+            prerendered, blocking the page load or the navigation from being
+            instant.</span
+          >
+
+          <span class="dim2">
+            [stream] Wrap the access in a &lt;Suspense&gt; boundary [cache]
+            Cache the data access with "use cache" [block] Opt out: export const
+            instant = false</span
+          >
+        </div>
+        <p>
+          This is the deal Cache Components strikes with you. Awaiting
+          <code>props.params</code> at the top level makes the
+          <em>entire page</em> depend on runtime data — nothing can be
+          prerendered, there is no shell, and every navigation into this route
+          would block on the server exactly like chapter 2. Rather than silently
+          produce that experience, the framework makes you choose, per piece of
+          data, one of three answers:
+        </p>
+        <ul>
+          <li>
+            <strong>Stream it</strong> — put it behind
+            <code>&lt;Suspense&gt;</code>; the fallback joins the shell, the
+            content arrives after the click.
+          </li>
+          <li>
+            <strong>Cache it</strong> — give it a lifetime with
+            <code>'use cache'</code>; the real content joins the shell.
+          </li>
+          <li>
+            <strong>Block on it</strong> —
+            <code>export const instant = false</code>; an honest, explicit
+            opt-out for routes where instant isn't worth the restructuring.
+          </li>
+        </ul>
+        <p>
+          Validation runs in development on every page load and checks
+          navigations too — including the “only re-renders below the shared
+          layout” scenarios from chapter 2, which are nearly impossible to audit
+          by hand across a growing app.
+        </p>
+
+        <h3>Step 3 — Carve the seams with Suspense</h3>
+        <p>
+          Answer one: push the awaits <em>down</em>, out of the page body and
+          into children wrapped in <code>&lt;Suspense&gt;</code>. Pass
+          <code>params</code> along as a promise — don't await it at the top —
+          so the page component itself stays synchronous and prerenderable:
+        </p>
+        <div class="code">
+          <div class="code-title">
+            app/store/[slug]/page.tsx
+            <span class="badge shellb">has a shell</span>
+          </div>
+          <pre><span class="ln"><span class="k">import</span> { <span class="t">Suspense</span> } <span class="k">from</span> <span class="s">'react'</span></span>
+<span class="ln"><span class="k">import</span> { db } <span class="k">from</span> <span class="s">'@/lib/db'</span></span>
+<span class="ln"></span>
+<span class="ln"><span class="k">type</span> <span class="t">Params</span> = <span class="t">PageProps</span>&lt;<span class="s">'/store/[slug]'</span>&gt;[<span class="s">'params'</span>]</span>
+<span class="ln"></span>
+<span class="ln hl"><span class="k">export</span> <span class="k">default</span> <span class="k">function</span> <span class="t">ProductPage</span>(props: <span class="t">PageProps</span>&lt;<span class="s">'/store/[slug]'</span>&gt;) {</span>
+<span class="ln">  <span class="k">return</span> (</span>
+<span class="ln">    &lt;<span class="t">main</span>&gt;</span>
+<span class="ln hl">      &lt;<span class="t">Suspense</span> fallback={&lt;<span class="t">ProductSkeleton</span> /&gt;}&gt;</span>
+<span class="ln">        &lt;<span class="t">ProductInfo</span> params={props.params} /&gt;</span>
+<span class="ln hl">      &lt;/<span class="t">Suspense</span>&gt;</span>
+<span class="ln hl">      &lt;<span class="t">Suspense</span> fallback={&lt;<span class="t">p</span>&gt;Checking stock…&lt;/<span class="t">p</span>&gt;}&gt;</span>
+<span class="ln">        &lt;<span class="t">Stock</span> params={props.params} /&gt;</span>
+<span class="ln hl">      &lt;/<span class="t">Suspense</span>&gt;</span>
+<span class="ln">    &lt;/<span class="t">main</span>&gt;</span>
+<span class="ln">  )</span>
+<span class="ln">}</span>
+<span class="ln"></span>
+<span class="ln"><span class="k">async</span> <span class="k">function</span> <span class="t">ProductInfo</span>({ params }: { params: <span class="t">Params</span> }) {</span>
+<span class="ln">  <span class="k">const</span> { slug } = <span class="k">await</span> params   <span class="c">// suspends here, inside the boundary</span></span>
+<span class="ln">  <span class="k">const</span> product = <span class="k">await</span> db.products.findBySlug(slug)</span>
+<span class="ln">  <span class="k">return</span> (</span>
+<span class="ln">    &lt;&gt;</span>
+<span class="ln">      &lt;<span class="t">h1</span>&gt;{product.name}&lt;/<span class="t">h1</span>&gt;</span>
+<span class="ln">      &lt;<span class="t">p</span>&gt;${product.price}&lt;/<span class="t">p</span>&gt;</span>
+<span class="ln">    &lt;/&gt;</span>
+<span class="ln">  )</span>
+<span class="ln">}</span>
+<span class="ln"></span>
+<span class="ln"><span class="k">async</span> <span class="k">function</span> <span class="t">Stock</span>({ params }: { params: <span class="t">Params</span> }) {</span>
+<span class="ln">  <span class="k">const</span> { slug } = <span class="k">await</span> params</span>
+<span class="ln">  <span class="k">const</span> item = <span class="k">await</span> db.inventory.findBySlug(slug)</span>
+<span class="ln">  <span class="k">return</span> &lt;<span class="t">p</span>&gt;{item.count} in stock&lt;/<span class="t">p</span>&gt;</span>
+<span class="ln">}</span></pre>
+        </div>
+        <p>
+          Validation passes. The route now has a shell: the
+          <code>&lt;main&gt;</code> frame, the store layout above it, and the
+          two fallbacks. Navigations into this route paint instantly — but they
+          paint <em>skeletons</em>. Structurally sound, visually disappointing:
+          the App Shell for this route is all fallback, because everything
+          interesting depends on the slug. Time to grow the green.
+        </p>
+
+        <h3>Step 4 — Grow the shell with <code>'use cache'</code></h3>
+        <p>
+          Product details rarely change — nobody renames a boot mid-session. The
+          stock count is genuinely per-request. That asymmetry is the whole
+          design input: cache the first, keep streaming the second.
+        </p>
+        <div class="code">
+          <div class="code-title">
+            app/store/[slug]/page.tsx
+            <span class="badge shellb">shell + cached content</span>
+          </div>
+          <pre><span class="ln"><span class="k">async</span> <span class="k">function</span> <span class="t">ProductInfo</span>({ params }: { params: <span class="t">Params</span> }) {</span>
+<span class="ln">  <span class="k">const</span> { slug } = <span class="k">await</span> params</span>
+<span class="ln hl">  <span class="k">const</span> product = <span class="k">await</span> getProduct(slug)</span>
+<span class="ln">  <span class="k">return</span> (</span>
+<span class="ln">    &lt;&gt;</span>
+<span class="ln">      &lt;<span class="t">h1</span>&gt;{product.name}&lt;/<span class="t">h1</span>&gt;</span>
+<span class="ln">      &lt;<span class="t">p</span>&gt;${product.price}&lt;/<span class="t">p</span>&gt;</span>
+<span class="ln">    &lt;/&gt;</span>
+<span class="ln">  )</span>
+<span class="ln">}</span>
+<span class="ln"></span>
+<span class="ln"><span class="k">async</span> <span class="k">function</span> <span class="t">getProduct</span>(slug: <span class="k">string</span>) {</span>
+<span class="ln hl">  <span class="dir">'use cache'</span></span>
+<span class="ln">  <span class="k">return</span> db.products.findBySlug(slug)</span>
+<span class="ln">}</span></pre>
+        </div>
+        <p>
+          Note what's cached: not the component, the <em>data function</em>.
+          <code>getProduct</code> is keyed by its argument, so each slug gets
+          its own entry with a real lifetime. That lifetime is the ticket into
+          prerenders — when the router prefetches <code>/store/hats</code>, the
+          server can include the cached product info in the prerendered payload
+          it hands back. The stock count has no lifetime, so it stays orange:
+          behind its fallback in every prerender, streamed only after a real
+          navigation.
+        </p>
+        <p>
+          Run the demo's second mode again with this page in mind — it's exactly
+          this code. Click a product: name and price paint at 0 ms (they came
+          down with the prefetch), “Checking stock…” shows for the one thing
+          that honestly needs a server, and streams in when it answers.
+        </p>
+
+        <div class="note">
+          <span class="callout-label">Cold caches are honest</span>
+          <p>
+            “Instant” assumes warm caches. The <em>first</em> time anyone lands
+            on a given product, the server still has to compute
+            <code>getProduct('trail-boot')</code> once — that navigation
+            streams. Every prefetch and navigation after it, for any user, hits
+            the cache. You control freshness with
+            <code>cacheLife()</code> profiles (<code>'use cache'</code> defaults
+            to a 15-minute revalidate) and on-demand invalidation with
+            <code>cacheTag()</code> + <code>updateTag()</code>.
+          </p>
+        </div>
+
+        <h3>Step 5 — See it, then pin it down</h3>
+        <p>
+          Two tools close the loop. In dev, open the Next.js DevTools
+          <strong>Navigation Inspector</strong> and toggle
+          <em>Pause on navigations</em>: the next click freezes the page at its
+          initial state, labeled <em>Client nav</em>, showing precisely what
+          painted before any server response — your shell, with real cached
+          content in it. (Pair it with the React DevTools Suspense panel to
+          toggle individual boundaries.)
+        </p>
+        <p>
+          Then lock the behavior in CI with the <code>instant()</code> helper
+          from <code>@next/playwright</code>, which scopes assertions to what's
+          visible <em>before</em> dynamic content streams:
+        </p>
+        <div class="code">
+          <div class="code-title">e2e/store.test.ts</div>
+          <pre><span class="ln"><span class="k">import</span> { test, expect } <span class="k">from</span> <span class="s">'@playwright/test'</span></span>
+<span class="ln"><span class="k">import</span> { instant } <span class="k">from</span> <span class="s">'@next/playwright'</span></span>
+<span class="ln"></span>
+<span class="ln">test(<span class="s">'product info paints before the server answers'</span>, <span class="k">async</span> ({ page }) =&gt; {</span>
+<span class="ln">  <span class="k">await</span> page.goto(<span class="s">'/store/trail-boot'</span>)</span>
+<span class="ln"></span>
+<span class="ln hl">  <span class="k">await</span> instant(page, <span class="k">async</span> () =&gt; {</span>
+<span class="ln">    <span class="k">await</span> page.click(<span class="s">'a[href="/store/field-jacket"]'</span>)</span>
+<span class="ln">    <span class="k">await</span> expect(page.locator(<span class="s">'h1'</span>)).toContainText(<span class="s">'Field Jacket'</span>)</span>
+<span class="ln hl">  })</span>
+<span class="ln"></span>
+<span class="ln">  <span class="c">// after instant() exits, streamed content is allowed to land</span></span>
+<span class="ln">  <span class="k">await</span> expect(page.locator(<span class="s">'text=in stock'</span>)).toBeVisible()</span>
+<span class="ln">})</span></pre>
+        </div>
+
+        <details class="deeper">
+          <summary>
+            Go deeper — good shells vs. shells that merely pass validation
+          </summary>
+          <div class="deeper-body">
+            <p>
+              Validation checks that a shell <em>exists</em>, not that it's
+              <em>good</em>. One giant <code>&lt;Suspense&gt;</code> around the
+              whole page passes — and replaces everything with a single spinner
+              on every navigation. The craft is in the seams: keep as much real
+              content green as possible and put fallbacks only where data is
+              genuinely in flight. A product page that keeps its name, image,
+              and description visible while only the price and stock sit behind
+              small fallbacks <em>feels</em> faster than a full-page skeleton at
+              identical network timings.
+            </p>
+            <p>
+              The general lever is <strong>push down</strong>: the deeper your
+              awaits sit in the tree, the more static siblings float up into the
+              shell. Passing promises (<code>params</code>, or a shared data
+              promise) down through props and awaiting them inside the boundary
+              — as step 3 did — is the idiom that makes this mechanical. The
+              same trick works in layouts: a layout that never awaits
+              <code>params</code> itself stays entirely green even when its
+              heading needs the slug.
+            </p>
+          </div>
+        </details>
+
+        <div class="quiz">
+          <span class="callout-label">Check yourself</span>
+          <p style="margin-bottom: 0">
+            Emboldened, you add <code>'use cache'</code> to a helper that calls
+            <code>cookies()</code> to read the user's currency preference. What
+            happens, and why?
+          </p>
+          <details>
+            <summary>Reveal answer</summary>
+            <p>
+              It errors. A <code>'use cache'</code> entry is shared across
+              requests — potentially across <em>users</em> — so reading request
+              data inside one is a contradiction (whose cookie would be in the
+              cache?). You either read the cookie <em>outside</em> and pass the
+              value in as an argument (the entry is then keyed by currency,
+              shared by everyone with the same preference), or reach for
+              <code>'use cache: private'</code>, which caches per-user in the
+              browser. Both patterns are chapter 6's subject.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="chapter" id="ch5">
+        <div class="chapter-head">
+          <span class="chapter-no">Chapter 5</span>
+          <h2>One shell per route</h2>
+          <p class="kicker">
+            What happens when there are two hundred links on the page — and how
+            Partial Prefetching makes the App Shell the default unit of
+            prefetching.
+          </p>
+        </div>
+
+        <p>
+          Chapter 4's story had one link and one destination. Real pages are
+          feeds, tables, and sidebars — hundreds of <code>&lt;Link&gt;</code>s,
+          many to the same route with different params. Prefetching each
+          destination's full cached render, per URL, per visible link, adds up:
+          it's chapter 2's “full prefetch per link” problem wearing a nicer
+          outfit.
+        </p>
+        <p>
+          The App Shell's “per-route” property is the fix, and
+          <strong>Partial Prefetching</strong> is the switch that makes it the
+          default economics of <code>&lt;Link&gt;</code>:
+        </p>
+
+        <div class="code">
+          <div class="code-title">next.config.ts</div>
+          <pre><span class="ln"><span class="k">import</span> <span class="k">type</span> { <span class="t">NextConfig</span> } <span class="k">from</span> <span class="s">'next'</span></span>
+<span class="ln"></span>
+<span class="ln"><span class="k">const</span> nextConfig: <span class="t">NextConfig</span> = {</span>
+<span class="ln">  cacheComponents: <span class="k">true</span>,</span>
+<span class="ln hl">  partialPrefetching: <span class="k">true</span>,</span>
+<span class="ln">}</span>
+<span class="ln"></span>
+<span class="ln"><span class="k">export</span> <span class="k">default</span> nextConfig</span></pre>
+        </div>
+
+        <p>
+          With it on, a plain <code>&lt;Link&gt;</code> stops prefetching
+          per-URL page content and loads just the destination's App Shell — one
+          payload, shared by every link to that route, no matter how many are on
+          screen. You then <em>choose</em> which links deserve more:
+        </p>
+
+        <div class="tblwrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>Link</th>
+                <th>Prefetches</th>
+                <th>Use for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>&lt;Link href="/store/hats"&gt;</code></td>
+                <td>
+                  The <code>/store/[slug]</code> App Shell — once, shared across
+                  all product links
+                </td>
+                <td>The two hundred links in the feed</td>
+              </tr>
+              <tr>
+                <td><code>&lt;Link href="/checkout" prefetch&gt;</code></td>
+                <td>App Shell <b>plus</b> the destination's cached content</td>
+                <td>The handful of links users actually click next</td>
+              </tr>
+              <tr>
+                <td>
+                  <code>&lt;Link href="/legal" prefetch={false}&gt;</code>
+                </td>
+                <td>Nothing</td>
+                <td>Rarely-used links you'd rather not spend on</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p>
+          Notice what <code>prefetch={true}</code> means now. Before Cache
+          Components it meant “prefetch <em>everything</em>, dynamic data and
+          all” — a full server render per link that even pulled cookie-dependent
+          content. Under Partial Prefetching it means “also ship the
+          <em>cached</em> parts.” Uncached reads stay behind their fallbacks
+          until a real navigation, always. The expensive, easy-to-misuse hammer
+          became a scoped, predictable one.
+        </p>
+
+        <div class="note">
+          <span class="callout-label">Adopting incrementally</span>
+          <p>
+            Can't flip the global flag on a large app? Opt routes in one at a
+            time with the route segment config
+            <code>export const prefetch = 'partial'</code> in a
+            <code>page.tsx</code> or <code>layout.tsx</code> — links pointing at
+            that route load only its App Shell even without the global flag. In
+            dev, the overlay flags each
+            <code>&lt;Link prefetch={true}&gt;</code> whose destination hasn't
+            adopted yet, so you can work through them one at a time. Once every
+            route is covered, enable <code>partialPrefetching: true</code> and
+            delete the per-route exports. (Partial Prefetching shipped with
+            Next.js 16.3 and requires <code>cacheComponents</code>.)
+          </p>
+        </div>
+
+        <p>
+          It's worth pausing on how neatly the pieces now stack. Suspense seams
+          and <code>'use cache'</code> decide <em>what's green</em> (chapter 4).
+          The App Shell packages the green that's URL-independent, per route.
+          Partial Prefetching decides
+          <em>how much green ships before the click</em>, per link. Three
+          separate dials, each with a clear owner.
+        </p>
+
+        <div class="quiz">
+          <span class="callout-label">Check yourself</span>
+          <p style="margin-bottom: 0">
+            A category page renders 60 product links: 59 plain
+            <code>&lt;Link&gt;</code>s and one
+            <code>&lt;Link prefetch&gt;</code> to the current bestseller. Under
+            Partial Prefetching, how many App Shell payloads come down, and what
+            does the sixtieth link add?
+          </p>
+          <details>
+            <summary>Reveal answer</summary>
+            <p>
+              One. All 60 links target the <code>/store/[slug]</code> route, and
+              the App Shell is per-route, so the 59 plain links share a single
+              shell prefetch. The <code>prefetch</code> link additionally
+              downloads the bestseller's <em>cached</em> content —
+              <code>getProduct('bestseller')</code>'s entry — so navigating to
+              it paints with real product info. Its stock count still streams:
+              it's uncached, and no prefetch mode changes that.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="chapter" id="ch6">
+        <div class="chapter-head">
+          <span class="chapter-no">Chapter 6</span>
+          <h2>The personal parts</h2>
+          <p class="kicker">
+            Getting session- and URL-dependent content into the shell —
+            <code>'use cache: private'</code>, the extract-and-pass pattern, and
+            runtime prefetching.
+          </p>
+        </div>
+
+        <p>
+          Everything green so far has been anonymous: the same product info for
+          every user. But chapter 3's definition promised more — a
+          <em>session-personalized</em> shell variant for routes that read
+          <code>cookies()</code> or <code>headers()</code>. Your logged-in nav,
+          the user's team, their currency. This chapter is about earning that.
+        </p>
+        <p>
+          One rule governs all of it, and it hasn't changed since chapter 4:
+          <strong
+            >a prerender only advances through content that has a cache
+            lifetime.</strong
+          >
+          Prefetching happens before the click, so anything in a prefetched
+          payload is by definition rendered ahead of time — and the framework
+          will only render ahead of time what it's allowed to reuse. Uncached
+          reads stay behind their fallbacks in <em>every</em> prerender, no
+          matter which knobs you turn. What the knobs change is
+          <em>which request data is in scope</em> when the prerender runs.
+        </p>
+
+        <h3>The obstacle, concretely</h3>
+        <p>A dashboard layout with a personalized nav:</p>
+        <div class="code">
+          <div class="code-title">app/dashboard/layout.tsx</div>
+          <pre><span class="ln"><span class="k">import</span> { <span class="t">Suspense</span> } <span class="k">from</span> <span class="s">'react'</span></span>
+<span class="ln"></span>
+<span class="ln"><span class="k">export</span> <span class="k">default</span> <span class="k">function</span> <span class="t">DashboardLayout</span>({ children }: <span class="t">LayoutProps</span>&lt;<span class="s">'/dashboard'</span>&gt;) {</span>
+<span class="ln">  <span class="k">return</span> (</span>
+<span class="ln">    &lt;<span class="t">div</span>&gt;</span>
+<span class="ln">      &lt;<span class="t">Suspense</span> fallback={&lt;<span class="t">nav</span>&gt;…&lt;/<span class="t">nav</span>&gt;}&gt;</span>
+<span class="ln">        &lt;<span class="t">UserNav</span> /&gt;  <span class="c">// needs the session cookie</span></span>
+<span class="ln">      &lt;/<span class="t">Suspense</span>&gt;</span>
+<span class="ln">      &lt;<span class="t">main</span>&gt;{children}&lt;/<span class="t">main</span>&gt;</span>
+<span class="ln">    &lt;/<span class="t">div</span>&gt;</span>
+<span class="ln">  )</span>
+<span class="ln">}</span></pre>
+        </div>
+        <p>
+          The quiz at the end of chapter 4 told you why the naive fix fails:
+          <code>'use cache'</code> can't read <code>cookies()</code> — a shared
+          cache entry can't contain one user's data. Two patterns resolve it,
+          chosen by one question:
+          <em>is the result shared by many users, or tied to one?</em>
+        </p>
+
+        <h3>
+          Pattern 1 — Extract and pass
+          <small
+            style="
+              font-family: var(--sans);
+              font-weight: 500;
+              color: var(--ink-faint);
+            "
+            >(shared result)</small
+          >
+        </h3>
+        <div class="code">
+          <div class="code-title">app/dashboard/user-nav.tsx</div>
+          <pre><span class="ln"><span class="k">import</span> { cookies } <span class="k">from</span> <span class="s">'next/headers'</span></span>
+<span class="ln"></span>
+<span class="ln"><span class="k">async</span> <span class="k">function</span> <span class="t">UserNav</span>() {</span>
+<span class="ln hl">  <span class="k">const</span> team = (<span class="k">await</span> cookies()).get(<span class="s">'team'</span>)?.value  <span class="c">// read outside</span></span>
+<span class="ln hl">  <span class="k">const</span> topics = <span class="k">await</span> getTopics(team)               <span class="c">// pass in</span></span>
+<span class="ln">  <span class="k">return</span> &lt;<span class="t">nav</span>&gt;{topics.map(<span class="c">/* … */</span>)}&lt;/<span class="t">nav</span>&gt;</span>
+<span class="ln">}</span>
+<span class="ln"></span>
+<span class="ln"><span class="k">async</span> <span class="k">function</span> <span class="t">getTopics</span>(team: <span class="k">string</span> | <span class="k">undefined</span>) {</span>
+<span class="ln hl">  <span class="dir">'use cache'</span></span>
+<span class="ln">  <span class="k">return</span> db.topics.forTeam(team)</span>
+<span class="ln">}</span></pre>
+        </div>
+        <p>
+          The cookie read stays outside the cached scope; only its
+          <em>value</em> crosses in, as an argument. The cache entry is keyed by
+          team, so everyone on the same team shares it — your database sees
+          traffic proportional to the number of teams, not the number of users.
+        </p>
+
+        <h3>
+          Pattern 2 — <code>'use cache: private'</code>
+          <small
+            style="
+              font-family: var(--sans);
+              font-weight: 500;
+              color: var(--ink-faint);
+            "
+            >(per-user result)</small
+          >
+        </h3>
+        <div class="code">
+          <div class="code-title">app/dashboard/user-nav.tsx</div>
+          <pre><span class="ln"><span class="k">async</span> <span class="k">function</span> <span class="t">getUser</span>() {</span>
+<span class="ln hl">  <span class="dir">'use cache: private'</span></span>
+<span class="ln">  <span class="k">const</span> session = (<span class="k">await</span> cookies()).get(<span class="s">'session'</span>)?.value  <span class="c">// allowed here</span></span>
+<span class="ln">  <span class="k">return</span> db.users.findBySession(session)</span>
+<span class="ln">}</span></pre>
+        </div>
+        <p>
+          The <code>private</code> variant may read request data directly,
+          because its results are cached <strong>in the browser only</strong> —
+          per user by construction, never on the server, and never part of the
+          anonymous static shell. Reach for it when the value is inherently
+          personal, or when the cookie read happens deep inside an auth helper
+          you can't restructure around.
+        </p>
+        <p>
+          With either pattern in place, <code>UserNav</code>'s content has a
+          lifetime — so when the router builds this route's App Shell for
+          <em>this session</em>, the personalized nav is in it. That's the
+          “session-personalized variant” from the glossary definition, earned:
+          the shell that prefetches for a logged-in user has their name already
+          rendered, cached per session on the client rather than shared.
+        </p>
+
+        <h3>The last frontier: data that varies per link</h3>
+        <p>
+          One class of request data remains out of reach: values the App Shell
+          <em>can't</em> know because they differ per destination URL — dynamic
+          <code>params</code> not covered by <code>generateStaticParams</code>,
+          and <code>searchParams</code>. A per-route shell can hold the
+          session's nav, but it can't hold <code>?sort=price</code>. For routes
+          where that content is worth having before the click, opt in to
+          <strong>runtime prefetching</strong>:
+        </p>
+        <div class="code">
+          <div class="code-title">
+            app/search/page.tsx <span class="badge shellb">experimental</span>
+          </div>
+          <pre><span class="ln hl"><span class="k">export</span> <span class="k">const</span> prefetch = <span class="s">'allow-runtime'</span></span>
+<span class="ln"></span>
+<span class="ln"><span class="k">export</span> <span class="k">default</span> <span class="k">function</span> <span class="t">SearchPage</span>(props: <span class="t">PageProps</span>&lt;<span class="s">'/search'</span>&gt;) { <span class="c">/* … */</span> }</span></pre>
+        </div>
+        <p>
+          Now a <code>&lt;Link prefetch={true}&gt;</code> pointing at this route
+          triggers a <strong>runtime prerender</strong>: the server renders the
+          route again at <em>prefetch time</em>, with the destination URL fully
+          resolved — params, search params, cookies, headers all in scope. The
+          same advancement rule applies: it renders through static and cached
+          content (including <code>'use cache'</code> keyed by runtime-derived
+          arguments, and <code>'use cache: private'</code>), and stops at
+          uncached reads, which keep their fallbacks. More of the page is real
+          before the click; only the honestly-fresh parts stream after it.
+        </p>
+        <p>
+          The cost model is the old full-prefetch one — a server invocation per
+          visible link — which is why it's per-route opt-in and worth being
+          deliberate about. Skip it when the App Shell already paints everything
+          useful, when the URL-dependent content must be fresh anyway (the
+          prerender would stop at the same fallback), or when the route is
+          linked often but visited rarely. And note its role in the stack:
+          runtime prefetching is a <em>per-link upgrade</em>, racing the user's
+          click. The App Shell is the floor underneath it — if the click wins
+          the race, the shell still paints. Runtime prefetching is currently
+          experimental; expect its surface to move.
+        </p>
+
+        <figure class="fig">
+          <div class="ladder">
+            <div class="rung">
+              <h4>Static shell <small>per URL · chapter 1</small></h4>
+              <span class="rk">Serves</span
+              ><span class="rv">Document requests, as HTML from the CDN</span>
+              <span class="rk">Contains</span
+              ><span class="rv"
+                >Static + cached content for a concrete URL; fallbacks
+                elsewhere</span
+              >
+            </div>
+            <div class="rung">
+              <h4>App Shell <small>per route · chapters 3–5</small></h4>
+              <span class="rk">Serves</span
+              ><span class="rv"
+                >Client navigations, as an RSC payload from the prefetch
+                cache</span
+              >
+              <span class="rk">Contains</span
+              ><span class="rv"
+                >Everything URL-independent — including session data, when
+                cached</span
+              >
+              <span class="rk">Cost</span
+              ><span class="rv"
+                >One per route, shared by every link. Effectively free per
+                link.</span
+              >
+            </div>
+            <div class="rung">
+              <h4>
+                Runtime prerender
+                <small>per link · chapter 6, experimental</small>
+              </h4>
+              <span class="rk">Serves</span
+              ><span class="rv"
+                >A specific prefetched link, rendered with its URL
+                resolved</span
+              >
+              <span class="rk">Contains</span
+              ><span class="rv"
+                >App Shell content + cached content keyed by
+                params/searchParams</span
+              >
+              <span class="rk">Cost</span
+              ><span class="rv"
+                >One server invocation per visible opted-in link. Spend
+                deliberately.</span
+              >
+            </div>
+          </div>
+          <figcaption class="fig-cap">
+            <b>Three layers of “ready before the click.”</b> Each layer narrows
+            scope (URL → route → link) and admits more request data. Uncached
+            reads join none of them — that rule is what makes all three safe to
+            serve ahead of time.
+          </figcaption>
+        </figure>
+
+        <div class="quiz">
+          <span class="callout-label">Check yourself</span>
+          <p style="margin-bottom: 0">
+            A <code>/reports?quarter=Q3</code> page shows the user's team name
+            (from a cookie, via <code>'use cache'</code> extract-and-pass), the
+            Q3 revenue table (a <code>'use cache'</code> query keyed by
+            quarter), and a “generated just now” timestamp (uncached, per
+            request). Which pieces can be rendered before the click, and what
+            does each require?
+          </p>
+          <details>
+            <summary>Reveal answer</summary>
+            <p>
+              The team name can ride in the session-personalized App Shell —
+              it's cached and doesn't depend on the URL. The revenue table
+              depends on <code>searchParams</code>, so the App Shell can't hold
+              it; it needs <code>prefetch = 'allow-runtime'</code> on the route
+              (plus <code>&lt;Link prefetch&gt;</code>), after which the runtime
+              prerender resolves <code>quarter=Q3</code> and advances through
+              the cached query. The timestamp is uncached: it streams after the
+              navigation, behind its fallback, under every configuration — by
+              design.
+            </p>
+          </details>
+        </div>
+      </section>
+
+      <section class="chapter" id="appendix">
+        <div class="chapter-head">
+          <span class="chapter-no">Appendix</span>
+          <h2>Under the hood</h2>
+          <p class="kicker">
+            Entirely optional — what the network tab and the router are actually
+            doing. Read this when you want to debug prefetching, not to use it.
+          </p>
+        </div>
+
+        <p>
+          Everything above works without knowing any of this. But if you open
+          the network tab on a Cache Components app, here's how to read what you
+          see.
+        </p>
+
+        <details class="deeper">
+          <summary>
+            The prefetch protocol — one tree request, then per-segment requests
+          </summary>
+          <div class="deeper-body">
+            <p>
+              The client keeps <strong>two caches</strong>: a
+              <em>route tree cache</em> (“which segments exist at this URL?” —
+              structure only, no content) and a <em>segment cache</em> (the
+              actual prerendered RSC per segment). Route structure only changes
+              on deploy, so tree entries live long; segment entries carry their
+              own lifetimes.
+            </p>
+            <p>
+              When a <code>&lt;Link&gt;</code> enters the viewport, the router
+              first fetches the destination's route tree, then requests each
+              segment it doesn't already have. In the network tab that looks
+              like:
+            </p>
+            <div class="tblwrap">
+              <table class="tbl">
+                <thead>
+                  <tr>
+                    <th>Request</th>
+                    <th>Distinguishing header</th>
+                    <th>Returns</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><code>GET /store/hats</code></td>
+                    <td><code>Next-Router-Segment-Prefetch: /_tree</code></td>
+                    <td>
+                      The route tree: segment names, slots, prefetch hints
+                    </td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /store/hats</code></td>
+                    <td><code>Next-Router-Segment-Prefetch: /_index</code></td>
+                    <td>The root segment's prerendered RSC</td>
+                  </tr>
+                  <tr>
+                    <td><code>GET /store/hats</code></td>
+                    <td>
+                      <code>Next-Router-Segment-Prefetch: /store/[slug]/…</code>
+                    </td>
+                    <td>
+                      That segment's prerendered RSC (ancestors may be bundled
+                      in)
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <p>
+              All of them also carry <code>RSC: 1</code> and
+              <code>Next-Router-Prefetch: 1</code>, and responses that come from
+              the per-segment prerender are stamped
+              <code>x-nextjs-postponed: 2</code>. Because these are static
+              payloads with no per-user variation (the session-personalized
+              cases go through a different, runtime request), they're highly
+              CDN-cacheable — the same shell bytes serve every visitor.
+            </p>
+            <p>
+              Each cached segment records its RSC payload, whether it's
+              <em>partial</em> (has holes that will need a dynamic request),
+              when it goes stale, and which params it actually depended on. That
+              last one powers <strong>layout deduplication</strong>: a store
+              layout that never reads the slug is stored once, keyed
+              independently of any product, and every
+              <code>/store/…</code> prefetch and navigation reuses it instead of
+              refetching.
+            </p>
+          </div>
+        </details>
+
+        <details class="deeper">
+          <summary>The navigation — synchronous by design</summary>
+          <div class="deeper-body">
+            <p>
+              The core of the navigation code is deliberately <em>not</em> an
+              async function. From the router source:
+            </p>
+            <p
+              style="
+                border-left: 3px solid var(--line);
+                padding-left: 1rem;
+                color: var(--ink-soft);
+                font-style: italic;
+              "
+            >
+              “To allow for synchronous navigations whenever possible, this is
+              not an async function. It returns a promise only if there's no
+              matching prefetch in the cache. Otherwise it returns an immediate
+              result and uses Suspense/RSC to stream in any missing data.”
+            </p>
+            <p>
+              On click, the router walks the cached route tree, reads each
+              segment from the segment cache, and mounts what it finds — in the
+              same synchronous pass as the click handler. For each segment it
+              makes one binary decision: if the cached entry is
+              <em>complete</em>, that's the segment, done, no server involved.
+              If it's <em>partial</em>, the prefetched shell mounts immediately
+              as the visible content while a deferred slot is wired up for the
+              real thing; then a single dynamic request (one per navigation, not
+              per segment) streams the missing pieces into all the deferred
+              slots as they resolve.
+            </p>
+            <p>
+              Only when there's no usable prefetch at all — cold cache, expired
+              entries, unknown route — does the router fall back to chapter 2's
+              behavior: one blocking request carrying both static and dynamic
+              data. Every improvement in this guide amounts to making that
+              fallback rarer.
+            </p>
+          </div>
+        </details>
+
+        <details class="deeper">
+          <summary>
+            Staleness — who decides how long a prefetched segment lives
+          </summary>
+          <div class="deeper-body">
+            <p>
+              Every prefetch response carries a stale time, which the client
+              turns into an absolute expiry for that segment. The server derives
+              it from your <code>cacheLife()</code> profiles — the
+              <code>stale</code> field of a profile is, precisely, the
+              client-side prefetch lifetime for content cached under it.
+              Statically prerendered content defaults to the
+              <code>staleTimes.static</code> config (five minutes).
+            </p>
+            <p>
+              Two guardrails worth knowing: the client enforces a
+              <strong>30-second floor</strong> (a server sending absurdly short
+              stale times would otherwise make prefetching pointless), and for
+              the same reason, a cache profile whose <code>stale</code> is under
+              30 seconds excludes that content from static shells entirely — if
+              it can't usefully be prefetched, it isn't prerendered into the
+              shell. Expiry is lazy: entries aren't proactively purged; they're
+              re-validated when read, and server actions or
+              <code>updateTag()</code>/<code>revalidateTag()</code> bump version
+              counters that invalidate en masse.
+            </p>
+          </div>
+        </details>
+      </section>
+
+      <section class="chapter" id="recap">
+        <div class="chapter-head">
+          <span class="chapter-no">Recap</span>
+          <h2>The whole picture</h2>
+          <p class="kicker">
+            Seven sentences, one decision table, and where to go next.
+          </p>
+        </div>
+
+        <ol>
+          <li>
+            PPR's static shell serves <strong>document requests</strong>; after
+            hydration, every click is a client-side navigation, which the shell
+            — as HTML — never serves.
+          </li>
+          <li>
+            Client navigations re-render only
+            <strong>below the shared layout</strong>, so fallback plans that
+            live above it (like a root-layout Suspense) don't exist during
+            transitions.
+          </li>
+          <li>
+            Cache Components prefetches the destination's
+            <strong>prerendered parts as RSC payloads, per segment</strong>, and
+            composes them synchronously at click time — paint first, stream the
+            rest.
+          </li>
+          <li>
+            The <strong>App Shell</strong> is the per-route floor of that
+            system: everything URL-independent, shared by every link to the
+            route, session-personalized when the route reads cookies or headers.
+          </li>
+          <li>
+            You shape what's in shells with two tools:
+            <code>&lt;Suspense&gt;</code> decides where content
+            <em>yields</em> to a fallback; <code>'use cache'</code> (and
+            <code>: private</code>) decides what has a lifetime and may
+            therefore be <strong>rendered before the click</strong>.
+          </li>
+          <li>
+            <strong>Partial Prefetching</strong> makes the App Shell the default
+            <code>&lt;Link&gt;</code> payload; <code>prefetch={true}</code> adds
+            cached content; <code>prefetch = 'allow-runtime'</code> upgrades
+            specific links with URL-resolved runtime prerenders.
+          </li>
+          <li>
+            Uncached reads join <strong>no prerender, ever</strong> — they
+            stream after navigation, behind the fallback you chose for them.
+            That invariant is what makes everything else safe.
+          </li>
+        </ol>
+
+        <h3>Which tool, when</h3>
+        <div class="tblwrap">
+          <table class="tbl">
+            <thead>
+              <tr>
+                <th>You want…</th>
+                <th>Reach for</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Navigations to paint <em>something</em> instantly</td>
+                <td>
+                  <code>&lt;Suspense&gt;</code> seams below the shared layout —
+                  validation guides you
+                </td>
+              </tr>
+              <tr>
+                <td>Real content in the shell instead of skeletons</td>
+                <td>
+                  <code>'use cache'</code> on the data functions,
+                  <code>cacheLife()</code> for freshness
+                </td>
+              </tr>
+              <tr>
+                <td>Session data (user's name, team) in the shell</td>
+                <td>
+                  Extract-and-pass into <code>'use cache'</code>, or
+                  <code>'use cache: private'</code>
+                </td>
+              </tr>
+              <tr>
+                <td>Hundreds of links without hundreds of prefetches</td>
+                <td>
+                  <code>partialPrefetching: true</code> — App Shell per route by
+                  default
+                </td>
+              </tr>
+              <tr>
+                <td>The likely-next page fully warm, cached parts included</td>
+                <td><code>&lt;Link prefetch={true}&gt;</code> on that link</td>
+              </tr>
+              <tr>
+                <td>
+                  URL-dependent content (params, searchParams) pre-rendered per
+                  link
+                </td>
+                <td>
+                  <code>export const prefetch = 'allow-runtime'</code>
+                  (experimental)
+                </td>
+              </tr>
+              <tr>
+                <td>To see what actually paints before the server answers</td>
+                <td>
+                  DevTools Navigation Inspector; <code>instant()</code> from
+                  <code>@next/playwright</code> in CI
+                </td>
+              </tr>
+              <tr>
+                <td>Out — this route isn't worth making instant</td>
+                <td>
+                  <code>export const instant = false</code>, honestly and
+                  explicitly
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h3>Further reading</h3>
+        <p>
+          In the Next.js docs, in roughly the order this guide followed:
+          <em>Caching</em> (getting started — the full Cache Components mental
+          model), <em>Ensuring instant navigations</em> (guides — validation and
+          DevTools workflow), <em>Adopting Partial Prefetching</em> (guides —
+          migration and the <code>&lt;Link&gt;</code> audit),
+          <em>Runtime prefetching</em> (guides — experimental), and the
+          <em>Glossary</em> entries for App Shell, Static Shell, and Partial
+          Prefetching. The API references for <code>'use cache'</code>,
+          <code>'use cache: private'</code>, <code>cacheLife</code>, and the
+          <code>prefetch</code> route segment config cover the corners a
+          tutorial shouldn't.
+        </p>
+      </section>
+
+      <footer class="foot">
+        <p>
+          <b>The App Shell — Instant Navigations with Cache Components.</b> A
+          teaching companion, not normative documentation.
+        </p>
+        <p>
+          Written against Next.js 16.3 (canary). Cache Components is stable
+          configuration; Partial Prefetching is new in 16.3; runtime prefetching
+          is experimental — check current docs before relying on flagged
+          behavior.
+        </p>
+      </footer>
+    </main>
+
+    <script>
+      ;(function () {
+        'use strict'
+
+        /* ---------- Scrollspy ---------- */
+        var navLinks = Array.prototype.slice.call(
+          document.querySelectorAll('.chapnav a')
+        )
+        var sections = navLinks
+          .map(function (a) {
+            return document.querySelector(a.getAttribute('href'))
+          })
+          .filter(Boolean)
+        if ('IntersectionObserver' in window) {
+          var spy = new IntersectionObserver(
+            function (entries) {
+              entries.forEach(function (entry) {
+                if (!entry.isIntersecting) return
+                navLinks.forEach(function (a) {
+                  a.classList.toggle(
+                    'current',
+                    a.getAttribute('href') === '#' + entry.target.id
+                  )
+                })
+              })
+            },
+            { rootMargin: '-15% 0px -70% 0px' }
+          )
+          sections.forEach(function (s) {
+            spy.observe(s)
+          })
+        }
+
+        /* ---------- Demo ---------- */
+        var PRODUCTS = {
+          'trail-boot': {
+            name: 'Trail Boot',
+            price: '$148',
+            emoji: '🥾',
+            stock: '7 in stock · ships today',
+            delivery: 'Free delivery by Thu, Jul 9',
+          },
+          'field-jacket': {
+            name: 'Field Jacket',
+            price: '$210',
+            emoji: '🧥',
+            stock: '3 in stock · ships today',
+            delivery: 'Free delivery by Fri, Jul 10',
+          },
+          'canvas-tote': {
+            name: 'Canvas Tote',
+            price: '$38',
+            emoji: '👜',
+            stock: 'In stock · ships today',
+            delivery: 'Free delivery by Thu, Jul 9',
+          },
+        }
+        var SCALE_MS = 1500 // timeline right edge
+        var BLOCK_MS = 1400 // server round trip in blocking mode
+        var STREAM_MS = 900 // stream completion in shell mode
+
+        var page = document.getElementById('demoPage')
+        var addr = document.getElementById('demoAddr')
+        var spin = document.getElementById('demoSpin')
+        var toast = document.getElementById('demoToast')
+        var hint = document.getElementById('demoHint')
+        var btnBlocking = document.getElementById('modeBlocking')
+        var btnShell = document.getElementById('modeShell')
+        var lanes = {
+          blocking: document.getElementById('laneBlocking'),
+          shell: document.getElementById('laneShell'),
+        }
+        var tlRead = document.getElementById('tlRead')
+
+        var mode = 'blocking'
+        var timers = []
+        var navigating = false
+
+        function later(fn, ms) {
+          timers.push(setTimeout(fn, ms))
+        }
+        function clearTimers() {
+          timers.forEach(clearTimeout)
+          timers = []
+        }
+        function pct(ms) {
+          return ((ms / SCALE_MS) * 100).toFixed(1) + '%'
+        }
+
+        function setToast(text, streamy) {
+          if (!text) {
+            toast.classList.remove('on')
+            return
+          }
+          toast.textContent = text
+          toast.classList.toggle('streamy', !!streamy)
+          toast.classList.add('on')
+        }
+
+        function homeHTML() {
+          var cards = Object.keys(PRODUCTS)
+            .map(function (slug) {
+              var p = PRODUCTS[slug]
+              return (
+                '<button class="pcard" data-slug="' +
+                slug +
+                '">' +
+                '<span class="ph">' +
+                p.emoji +
+                '</span>' +
+                '<b>' +
+                p.name +
+                '</b><span>' +
+                p.price +
+                '</span>' +
+                (mode === 'shell' ? '<small>prefetched ✓</small>' : '') +
+                '</button>'
+              )
+            })
+            .join('')
+          return siteHead() + '<div class="pcards">' + cards + '</div>'
+        }
+
+        function siteHead() {
+          return (
+            '<div class="sitehead"><span class="logo">Acme Supply</span>' +
+            '<nav><span>Home</span><span>New</span><span>Sale</span></nav></div>'
+          )
+        }
+
+        function productHTML(slug, streamed) {
+          var p = PRODUCTS[slug]
+          var stockRow = streamed
+            ? '<div class="prodrow streamed">✓ ' + p.stock + '</div>'
+            : '<div class="prodrow" data-fill="stock">Checking stock… <span class="sk" style="width:72px"></span></div>'
+          var delivRow = streamed
+            ? '<div class="prodrow streamed">🚚 ' + p.delivery + '</div>'
+            : '<div class="prodrow" data-fill="delivery">Delivery estimate… <span class="sk" style="width:96px"></span></div>'
+          return (
+            siteHead() +
+            '<div class="prodpage">' +
+            '<div class="crumb">Store / ' +
+            p.name +
+            '</div>' +
+            '<h4>' +
+            p.emoji +
+            ' ' +
+            p.name +
+            '</h4>' +
+            '<div class="price">' +
+            p.price +
+            '</div>' +
+            '<div class="stars">★★★★☆ · 214 reviews</div>' +
+            '<div class="prodrows">' +
+            stockRow +
+            delivRow +
+            '</div>' +
+            '<button class="backlink" data-home>← Back to Acme Supply home</button>' +
+            '</div>'
+          )
+        }
+
+        function resetLane(which) {
+          lanes[which].innerHTML = ''
+        }
+
+        function addBar(which, cls, fromMs, toMs, durMs) {
+          var bar = document.createElement('div')
+          bar.className = 'lane-bar ' + cls
+          bar.style.left = pct(fromMs)
+          bar.style.width = '0'
+          lanes[which].appendChild(bar)
+          // grow in real time
+          requestAnimationFrame(function () {
+            bar.style.transition = 'width ' + durMs + 'ms linear'
+            bar.style.width =
+              (((toMs - fromMs) / SCALE_MS) * 100).toFixed(1) + '%'
+          })
+          return bar
+        }
+
+        function addFlag(which, cls, atMs, label) {
+          var f = document.createElement('span')
+          f.className = 'lane-flag ' + cls
+          f.style.left = pct(atMs)
+          if (atMs > SCALE_MS * 0.6)
+            f.style.transform = 'translateX(calc(-100% - 6px))'
+          f.textContent = label
+          f.style.visibility = 'visible'
+          lanes[which].appendChild(f)
+        }
+
+        function showHome() {
+          clearTimers()
+          navigating = false
+          page.classList.remove('frozen')
+          spin.classList.remove('on')
+          page.innerHTML = homeHTML()
+          addr.textContent = 'acme.supply/'
+          setToast('')
+          if (mode === 'shell') {
+            later(function () {
+              setToast(
+                '✓ prefetched: /store/[slug] App Shell + cached product info (shared by all 3 links)'
+              )
+            }, 600)
+          }
+        }
+
+        function navigate(slug) {
+          if (navigating) return
+          navigating = true
+          clearTimers()
+
+          if (mode === 'blocking') {
+            resetLane('blocking')
+            addBar('blocking', 'waitseg', 0, BLOCK_MS, BLOCK_MS)
+            page.classList.add('frozen')
+            spin.classList.add('on')
+            setToast('GET /store/' + slug + ' — rendering on the server…', true)
+            tlRead.innerHTML =
+              'Blocking: the old page just sits there while the server renders.'
+            later(function () {
+              page.classList.remove('frozen')
+              spin.classList.remove('on')
+              page.innerHTML = productHTML(slug, true)
+              addr.textContent = 'acme.supply/store/' + slug
+              setToast('response arrived — everything rendered at once', true)
+              addFlag('blocking', 'paint', BLOCK_MS, 'first paint · 1400 ms')
+              addBar('blocking', 'doneseg', BLOCK_MS, SCALE_MS, 100)
+              tlRead.innerHTML =
+                'Blocking: first paint at <b>1400 ms</b> — nothing new on screen until the server answered.'
+              navigating = false
+            }, BLOCK_MS)
+          } else {
+            resetLane('shell')
+            // paint happens synchronously from the prefetch cache
+            page.innerHTML = productHTML(slug, false)
+            addr.textContent = 'acme.supply/store/' + slug
+            setToast(
+              '0 ms — painted from the prefetch cache · 1 dynamic request for the holes'
+            )
+            addFlag('shell', 'paint', 0, 'first paint · 0 ms')
+            addBar('shell', 'shellseg', 0, STREAM_MS, STREAM_MS)
+            tlRead.innerHTML =
+              'App Shell: name, price and reviews were prefetched — only stock and delivery need a server.'
+            later(function () {
+              var p = PRODUCTS[slug]
+              var stockEl = page.querySelector('[data-fill="stock"]')
+              var delivEl = page.querySelector('[data-fill="delivery"]')
+              if (stockEl) {
+                stockEl.classList.add('streamed')
+                stockEl.innerHTML = '✓ ' + p.stock
+              }
+              if (delivEl) {
+                delivEl.classList.add('streamed')
+                delivEl.innerHTML = '🚚 ' + p.delivery
+              }
+              setToast('streamed in: stock + delivery (900 ms)')
+              addFlag('shell', 'done', STREAM_MS, 'streamed · 900 ms')
+              addBar(
+                'shell',
+                'doneseg',
+                STREAM_MS,
+                SCALE_MS,
+                SCALE_MS - STREAM_MS
+              )
+              tlRead.innerHTML =
+                'App Shell: first paint at <b>0 ms</b>, complete at 900 ms. Run both modes to compare lanes.'
+              navigating = false
+            }, STREAM_MS)
+          }
+        }
+
+        function setMode(next) {
+          if (mode === next && !navigating) return
+          mode = next
+          btnBlocking.setAttribute('aria-pressed', String(mode === 'blocking'))
+          btnShell.setAttribute('aria-pressed', String(mode === 'shell'))
+          hint.textContent =
+            mode === 'blocking'
+              ? 'Before Cache Components: this dynamic product page had no prefetch to lean on. Click a product card.'
+              : 'With Cache Components: the shell (and cached product info) was prefetched while you idled. Click a product card.'
+          showHome()
+        }
+
+        btnBlocking.addEventListener('click', function () {
+          setMode('blocking')
+        })
+        btnShell.addEventListener('click', function () {
+          setMode('shell')
+        })
+
+        page.addEventListener('click', function (e) {
+          var card = e.target.closest('[data-slug]')
+          if (card) {
+            navigate(card.getAttribute('data-slug'))
+            return
+          }
+          if (e.target.closest('[data-home]')) {
+            showHome()
+          }
+        })
+
+        setMode('blocking')
+        hint.textContent =
+          'Before Cache Components: this dynamic product page had no prefetch to lean on. Click a product card.'
+        showHome()
+      })()
+    </script>
+  </body>
+</html>
