@@ -15,11 +15,11 @@
     ),
     (
         "c",
-        Function(
-            6,
-            1,
-            false,
-            Array {
+        Function {
+            total_nodes: 6,
+            func_ident: 1,
+            maybe_uses_this: false,
+            return_value: Array {
                 total_nodes: 5,
                 items: [
                     Concat(
@@ -48,7 +48,7 @@
                 ],
                 mutable: true,
             },
-        ),
+        },
     ),
     (
         "d",

@@ -1,11 +1,11 @@
 [
     (
         "*anonymous function 455*",
-        Function(
-            4,
-            455,
-            true,
-            Member(
+        Function {
+            total_nodes: 4,
+            func_ident: 455,
+            maybe_uses_this: true,
+            return_value: Member(
                 3,
                 Unknown {
                     original_value: None,
@@ -20,15 +20,15 @@
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 333*",
-        Function(
-            4,
-            333,
-            false,
-            Member(
+        Function {
+            total_nodes: 4,
+            func_ident: 333,
+            maybe_uses_this: false,
+            return_value: Member(
                 3,
                 Unknown {
                     original_value: None,
@@ -43,29 +43,29 @@
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 597*",
-        Function(
-            2,
-            597,
-            false,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 597,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*arrow function 603*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 603*",
-        Function(
-            4,
-            603,
-            false,
-            Member(
+        Function {
+            total_nodes: 4,
+            func_ident: 603,
+            maybe_uses_this: false,
+            return_value: Member(
                 3,
                 Unknown {
                     original_value: None,
@@ -80,20 +80,20 @@
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 643*",
-        Function(
-            2,
-            643,
-            false,
-            Unknown {
+        Function {
+            total_nodes: 2,
+            func_ident: 643,
+            maybe_uses_this: false,
+            return_value: Unknown {
                 original_value: None,
                 reason: "unsupported expression",
                 has_side_effects: true,
             },
-        ),
+        },
     ),
     (
         "Klass",
@@ -114,18 +114,18 @@
     ),
     (
         "doesNotUseThis",
-        Function(
-            2,
-            180,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 180,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         1.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "o",
@@ -173,11 +173,11 @@
     ),
     (
         "usesThis",
-        Function(
-            4,
-            139,
-            true,
-            Member(
+        Function {
+            total_nodes: 4,
+            func_ident: 139,
+            maybe_uses_this: true,
+            return_value: Member(
                 3,
                 Unknown {
                     original_value: None,
@@ -192,7 +192,7 @@
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "v",
@@ -203,25 +203,25 @@
     ),
     (
         "viaArrow",
-        Function(
-            2,
-            302,
-            true,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 302,
+            maybe_uses_this: true,
+            return_value: Variable(
                 (
                     "*arrow function 333*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "viaEval",
-        Function(
-            4,
-            992,
-            true,
-            Call(
+        Function {
+            total_nodes: 4,
+            func_ident: 992,
+            maybe_uses_this: true,
+            return_value: Call(
                 3,
                 FreeVar(
                     "eval",
@@ -236,45 +236,45 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "viaNestedArrows",
-        Function(
-            2,
-            559,
-            true,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 559,
+            maybe_uses_this: true,
+            return_value: Variable(
                 (
                     "*arrow function 597*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "viaNestedFunction",
-        Function(
-            2,
-            415,
-            false,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 415,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "*anonymous function 455*",
                     #0,
                 ),
             ),
-        ),
+        },
     ),
     (
         "viaWith",
-        Function(
-            2,
-            1112,
-            true,
-            FreeVar(
+        Function {
+            total_nodes: 2,
+            func_ident: 1112,
+            maybe_uses_this: true,
+            return_value: FreeVar(
                 "x",
             ),
-        ),
+        },
     ),
 ]

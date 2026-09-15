@@ -469,12 +469,11 @@ async fn can_capture_export_value(
         return Ok(ExportCapture::unknown());
     };
 
+    // `maybe_uses_this` describes the value the binding was declared with. A binding that can be
+    // reassigned may hold something else by the time it is called, so the answer only holds for
+    // constants.
     if binding.liveness != Liveness::Constant {
-        return Ok(ExportCapture {
-            can_value_bind: false,
-            maybe_uses_this: binding.maybe_uses_this,
-        }
-        .cell());
+        return Ok(ExportCapture::unknown());
     }
 
     let export_usage = chunking_context

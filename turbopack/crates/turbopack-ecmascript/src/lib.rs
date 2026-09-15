@@ -121,10 +121,7 @@ use crate::{
     references::{
         analyze_ecmascript_module,
         async_module::OptionAsyncModule,
-        esm::{
-            UrlRewriteBehavior, base::EsmAssetReferences, binding::VALUE_BINDINGS_KEY_PREFIX,
-            export,
-        },
+        esm::{UrlRewriteBehavior, base::EsmAssetReferences, export},
         exports::compute_ecmascript_module_exports,
     },
     side_effect_optimization::reference::EcmascriptModulePartReference,
@@ -2442,29 +2439,30 @@ fn process_content_with_code_gens(
     let mut early_late_stmts = FxIndexMap::default();
     let mut late_stmts = FxIndexMap::default();
     for code_gen in code_gens {
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
+        for CodeGenerationHoistedStmt {
+            key,
+            stmt,
+            mergeable,
+        } in code_gen.hoisted_stmts.drain(..)
+        {
             match hoisted_stmts.entry(key) {
                 indexmap::map::Entry::Vacant(entry) => {
                     entry.insert(stmt);
                 }
                 indexmap::map::Entry::Occupied(mut entry) => {
-                    // A single source import can be split into one reference per named export, so
-                    // several code gens contribute declarations that read the same namespace.
-                    // Those are merged into one declaration; everything else keeps the first
-                    // statement, as duplicate keys are how identical statements are deduplicated.
-                    if entry.key().starts_with(VALUE_BINDINGS_KEY_PREFIX) {
+                    if mergeable {
                         merge_var_decls(entry.get_mut(), &stmt);
                     }
                 }
             }
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.early_hoisted_stmts.drain(..) {
             early_hoisted_stmts.insert(key.clone(), stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.late_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.late_stmts.drain(..) {
             late_stmts.insert(key.clone(), stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_late_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.early_late_stmts.drain(..) {
             early_late_stmts.insert(key.clone(), stmt);
         }
         for (path, visitor) in &code_gen.visitors {

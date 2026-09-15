@@ -431,7 +431,7 @@ impl JsValue<'_> {
                     name
                 }
             }
-            JsValue::Function(_, _, _, return_value) => {
+            JsValue::Function { return_value, .. } => {
                 if depth > 0 {
                     format!(
                         "(...) => {}",

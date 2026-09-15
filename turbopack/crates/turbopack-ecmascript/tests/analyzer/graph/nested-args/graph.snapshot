@@ -36,11 +36,11 @@
     ),
     (
         "inner",
-        Function(
-            4,
-            219,
-            false,
-            Add(
+        Function {
+            total_nodes: 4,
+            func_ident: 219,
+            maybe_uses_this: false,
+            return_value: Add(
                 3,
                 [
                     Variable(
@@ -57,15 +57,15 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "outer",
-        Function(
-            4,
-            197,
-            false,
-            Call(
+        Function {
+            total_nodes: 4,
+            func_ident: 197,
+            maybe_uses_this: false,
+            return_value: Call(
                 3,
                 Variable(
                     (
@@ -83,15 +83,15 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "r",
-        Function(
-            10,
-            87,
-            false,
-            Alternatives {
+        Function {
+            total_nodes: 10,
+            func_ident: 87,
+            maybe_uses_this: false,
+            return_value: Alternatives {
                 total_nodes: 9,
                 values: [
                     Variable(
@@ -144,7 +144,7 @@
                 ],
                 logical_property: None,
             },
-        ),
+        },
     ),
     (
         "v1",
@@ -223,25 +223,25 @@
     ),
     (
         "x",
-        Function(
-            2,
-            1,
-            false,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 1,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "y",
                     #4,
                 ),
             ),
-        ),
+        },
     ),
     (
         "y",
-        Function(
-            4,
-            26,
-            false,
-            Add(
+        Function {
+            total_nodes: 4,
+            func_ident: 26,
+            maybe_uses_this: false,
+            return_value: Add(
                 3,
                 [
                     Variable(
@@ -258,6 +258,6 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
 ]

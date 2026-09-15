@@ -1416,27 +1416,27 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_getter_prop(&mut self, node: &GetterProp) {
-        self.enter_fn(true, |this| {
+        self.enter_fn(/* binds_this */ true, |this| {
             node.visit_children_with(this);
         });
     }
     fn visit_setter_prop(&mut self, node: &SetterProp) {
-        self.enter_fn(true, |this| {
+        self.enter_fn(/* binds_this */ true, |this| {
             node.visit_children_with(this);
         });
     }
     fn visit_function(&mut self, node: &Function) {
-        self.enter_fn(true, |this| {
+        self.enter_fn(/* binds_this */ true, |this| {
             node.visit_children_with(this);
         });
     }
     fn visit_constructor(&mut self, node: &Constructor) {
-        self.enter_fn(true, |this| {
+        self.enter_fn(/* binds_this */ true, |this| {
             node.visit_children_with(this);
         });
     }
     fn visit_arrow_expr(&mut self, node: &ArrowExpr) {
-        self.enter_fn(false, |this| {
+        self.enter_fn(/* binds_this */ false, |this| {
             node.visit_children_with(this);
         });
     }

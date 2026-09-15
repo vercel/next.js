@@ -37,7 +37,7 @@ pub struct EsmBinding {
     export: Option<RcStr>,
     local: Option<RcStr>,
     ast_path: AstPath,
-    propagates_this: bool,
+    caller_propagates_this: bool,
 }
 
 impl EsmBinding {
@@ -46,7 +46,7 @@ impl EsmBinding {
             export,
             local,
             ast_path,
-            propagates_this: false,
+            caller_propagates_this: false,
         }
     }
 
@@ -56,9 +56,8 @@ impl EsmBinding {
     /// invoked as a method. Every other use is an ordinary binding and can be captured in a local
     /// value, so it is built as one.
     ///
-    /// TODO: Track whether the imported export can observe `this` (for example, whether it is a
-    /// function that references `this`). Such exports could use a local value binding even in call
-    /// position instead of preserving the namespace as the receiver.
+    /// A call still resolves against the export's `maybe_uses_this`, so even here the namespace is
+    /// only kept when the callee could actually observe it.
     pub fn new_namespace_member(export: Option<RcStr>, ast_path: AstPath) -> Self {
         // The path ends at the namespace object inside the member expression
         // (`.., <enclosing>, Expr(Member), MemberExpr(Obj)`). Drop those two trailing entries so
@@ -68,12 +67,12 @@ impl EsmBinding {
             .len()
             .checked_sub(2)
             .map_or(&[][..], |end| &ast_path.0[..end]);
-        let propagates_this = is_this_receiver_position(enclosing);
+        let caller_propagates_this = is_this_receiver_position(enclosing);
         EsmBinding {
             export,
             local: None,
             ast_path,
-            propagates_this,
+            caller_propagates_this,
         }
     }
 
@@ -105,51 +104,54 @@ impl EsmBinding {
                     // call receiver. Source-level assignments to ESM imports are illegal, but SWC
                     // still parses them; retain namespace access for those assignment targets so
                     // assigning to the non-writable export continues to throw.
-                    let value_binding = if !propagates_this(self.propagates_this, &imported_ident)
-                        && let ReferencedAssetIdent::Module {
-                            namespace_ident,
-                            ctxt,
-                            export: Some(export),
-                            can_value_bind: true,
-                            ..
-                        } = &imported_ident
-                        && !is_assignment_target(&self.ast_path)
-                    {
-                        // A source alias is unique in an ordinary module. Under scope hoisting the
-                        // capture needs a globally unique name because bindings from multiple
-                        // source modules share one output scope.
-                        let binding_name = self
-                            .local
-                            .clone()
-                            .filter(|_| ctxt.is_none())
-                            .unwrap_or_else(|| {
-                                let imported_name = self.export.as_deref().unwrap_or(export);
-                                magic_identifier::mangle(&format!(
-                                    "imported binding {imported_name} {}",
-                                    encode_hex(hash_xxh3_hash64((
-                                        /* namespace */ namespace_ident,
-                                        /* export */ export,
-                                    )))
-                                ))
-                                .into()
+                    let value_binding =
+                        if !propagates_this(self.caller_propagates_this, &imported_ident)
+                            && let ReferencedAssetIdent::Module {
+                                namespace_ident,
+                                ctxt,
+                                export: Some(export),
+                                can_value_bind: true,
+                                ..
+                            } = &imported_ident
+                            && !is_assignment_target(&self.ast_path)
+                        {
+                            // A source alias is unique in an ordinary module. Under scope hoisting
+                            // the capture needs a globally unique name
+                            // because bindings from multiple
+                            // source modules share one output scope.
+                            let binding_name = self
+                                .local
+                                .clone()
+                                .filter(|_| ctxt.is_none())
+                                .unwrap_or_else(|| {
+                                    let imported_name = self.export.as_deref().unwrap_or(export);
+                                    magic_identifier::mangle(&format!(
+                                        "imported binding {imported_name} {}",
+                                        encode_hex(hash_xxh3_hash64((
+                                            /* namespace */ namespace_ident,
+                                            /* export */ export,
+                                        )))
+                                    ))
+                                    .into()
+                                });
+                            let binding_ident = Ident::new(
+                                binding_name.as_str().into(),
+                                DUMMY_SP,
+                                // This is a synthetic local in the consuming module, not an export
+                                // of the module whose syntax
+                                // context the namespace accessor carries.
+                                Default::default(),
+                            );
+                            captures.push(ValueBindingCapture {
+                                namespace_ident: namespace_ident.as_str().into(),
+                                ctxt: *ctxt,
+                                export: export.clone(),
+                                binding: binding_ident.clone(),
                             });
-                        let binding_ident = Ident::new(
-                            binding_name.as_str().into(),
-                            DUMMY_SP,
-                            // This is a synthetic local in the consuming module, not an export of
-                            // the module whose syntax context the namespace accessor carries.
-                            Default::default(),
-                        );
-                        captures.push(ValueBindingCapture {
-                            namespace_ident: namespace_ident.as_str().into(),
-                            ctxt: *ctxt,
-                            export: export.clone(),
-                            binding: binding_ident.clone(),
-                        });
-                        Some(binding_ident)
-                    } else {
-                        None
-                    };
+                            Some(binding_ident)
+                        } else {
+                            None
+                        };
                     ImportedIdent::Module(imported_ident, value_binding)
                 }
                 None => ImportedIdent::Unresolvable,
@@ -201,9 +203,9 @@ impl EsmBinding {
                     // enclosing position that `is_this_receiver_position` inspects.
                     let in_call = match &imported_ident {
                         ImportedIdent::Module(imported_ident, _) => {
-                            !propagates_this(self.propagates_this, imported_ident)
+                            !propagates_this(self.caller_propagates_this, imported_ident)
                         }
-                        _ => !self.propagates_this,
+                        _ => !self.caller_propagates_this,
                     } && is_this_receiver_position(&ast_path);
 
                     visitors.push(create_visitor!(
@@ -338,10 +340,6 @@ impl From<EsmBindings> for CodeGen {
     }
 }
 
-/// Hoist-key prefix for the declarations that capture imported bindings. All declarations reading
-/// one namespace share a key so they can be merged into a single declaration.
-pub const VALUE_BINDINGS_KEY_PREFIX: &str = "value bindings ";
-
 /// The bindings captured from one namespace, as `(export name, local binding)` pairs.
 type NamespaceBindings = Vec<(RcStr, Ident)>;
 
@@ -392,11 +390,17 @@ fn value_binding_stmts(
                 DUMMY_SP,
                 ctxt.unwrap_or_default(),
             );
-            // A single binding is smaller and faster read directly; destructuring only pays off
-            // once several bindings share the declaration.
+            // `var {foo} = ns` is smaller than `var foo = ns.foo`, but only while the name
+            // survives. A minifier that renames the local has to write the key back out:
+            //
+            //     var a = ns.foo;        // one binding, renamed
+            //     var {foo: a} = ns;     // the same binding, now longer
+            //
+            // Sharing one declaration between several bindings still wins, so destructure only
+            // once there is more than one.
             let decl = if supports_destructuring && members.len() > 1 {
-                // Keys are written as strings because mangled export names are not always valid
-                // identifiers.
+                // Export names are written as string keys: mangling is not always enabled, so
+                // the name here can be anything the source exported.
                 VarDecl {
                     span: DUMMY_SP,
                     kind: VarDeclKind::Var,
@@ -457,12 +461,11 @@ fn value_binding_stmts(
                 }
             };
 
-            // Every declaration reading this namespace shares one key so they merge into a
-            // single statement, including those from sibling groups: one source import can be
-            // split into a separate reference per named export. The key deliberately does not
-            // depend on the members, so the merge is by namespace rather than by group.
-            CodeGenerationHoistedStmt::new(
-                format!("{VALUE_BINDINGS_KEY_PREFIX}{namespace_ident} {ctxt:?}").into(),
+            // Use a key that only depends on the namespace, so every declaration reading it
+            // merges into one statement — including those from sibling groups, since one source
+            // import can be split into a separate reference per named export.
+            CodeGenerationHoistedStmt::new_mergeable(
+                format!("value bindings {namespace_ident} {ctxt:?}").into(),
                 Stmt::Decl(Decl::Var(Box::new(decl))),
             )
         })
@@ -496,8 +499,8 @@ fn is_assignment_target(ast_path: &AstPath) -> bool {
 /// as the `this` receiver, i.e. `ns.f()` or ``ns.f`...` ``.
 ///
 /// `parents` must be the path of the enclosing node, with any trailing entries that describe the
-/// member expression itself already removed. Both the `propagates_this` decision made when the
-/// binding is created and the `in_call` decision made during code generation go through this
+/// member expression itself already removed. Both the `caller_propagates_this` decision made when
+/// the binding is created and the `in_call` decision made during code generation go through this
 /// function so the two can never disagree.
 fn is_this_receiver_position(parents: &[swc_core::ecma::visit::AstParentKind]) -> bool {
     use swc_core::ecma::visit::AstParentKind;

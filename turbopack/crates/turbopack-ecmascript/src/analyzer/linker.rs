@@ -179,15 +179,15 @@ where
             // This need special handling, since we want to replace the function call and process
             // the function return value after that.
             Step::Visit(JsValue::Call(_, call))
-                if matches!(call.callee(), JsValue::Function(..)) =>
+                if matches!(call.callee(), JsValue::Function { .. }) =>
             {
                 let (callee, args) = call.into_parts();
-                let JsValue::Function(
-                    function_nodes,
+                let JsValue::Function {
+                    total_nodes: function_nodes,
                     func_ident,
                     maybe_uses_this,
                     mut return_value,
-                ) = callee
+                } = callee
                 else {
                     unreachable!()
                 };
@@ -209,12 +209,12 @@ where
                     done.push(JsValue::unknown(
                         JsValue::call_from_parts(
                             arena.get_or_default(),
-                            JsValue::Function(
-                                function_nodes,
+                            JsValue::Function {
+                                total_nodes: function_nodes,
                                 func_ident,
                                 maybe_uses_this,
                                 return_value,
-                            ),
+                            },
                             args,
                         ),
                         true,
@@ -231,7 +231,7 @@ where
             // We don't want to process the function return value yet, this will happen after
             // function calls
             // - just put it into done
-            Step::Enter(func @ JsValue::Function(..)) => {
+            Step::Enter(func @ JsValue::Function { .. }) => {
                 done.push(func);
             }
             // Enter a value

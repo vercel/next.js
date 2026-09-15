@@ -117,11 +117,31 @@ impl CodeGeneration {
 pub struct CodeGenerationHoistedStmt {
     pub key: RcStr,
     pub stmt: Stmt,
+    /// Whether a later statement sharing this key should be merged into this one rather than
+    /// dropped.
+    ///
+    /// Duplicate keys normally mean the statement is already present, so the first one wins. Value
+    /// binding declarations are the exception: one source import can be split into a separate
+    /// reference per named export, so several of them legitimately declare different bindings
+    /// against the same namespace.
+    pub mergeable: bool,
 }
 
 impl CodeGenerationHoistedStmt {
     pub fn new(key: RcStr, stmt: Stmt) -> Self {
-        CodeGenerationHoistedStmt { key, stmt }
+        CodeGenerationHoistedStmt {
+            key,
+            stmt,
+            mergeable: false,
+        }
+    }
+
+    pub fn new_mergeable(key: RcStr, stmt: Stmt) -> Self {
+        CodeGenerationHoistedStmt {
+            key,
+            stmt,
+            mergeable: true,
+        }
     }
 }
 

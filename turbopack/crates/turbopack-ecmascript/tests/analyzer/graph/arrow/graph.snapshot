@@ -1,153 +1,153 @@
 [
     (
         "*anonymous function 116*",
-        Function(
-            2,
-            116,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 116,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         3.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*anonymous function 339*",
-        Function(
-            2,
-            339,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 339,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         3.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 11*",
-        Function(
-            2,
-            11,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 11,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         1.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 214*",
-        Function(
-            2,
-            214,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 214,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         1.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 236*",
-        Function(
-            2,
-            236,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 236,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         2.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 259*",
-        Function(
-            2,
-            259,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 259,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         1.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 299*",
-        Function(
-            2,
-            299,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 299,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         2.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 30*",
-        Function(
-            2,
-            30,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 30,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         2.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 50*",
-        Function(
-            2,
-            50,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 50,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         1.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "*arrow function 83*",
-        Function(
-            2,
-            83,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 83,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         2.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "a",
@@ -196,18 +196,18 @@
     ),
     (
         "e#8",
-        Function(
-            2,
-            155,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 155,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         4.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "f",
@@ -220,14 +220,14 @@
     ),
     (
         "x",
-        Function(
-            2,
-            186,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 186,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "xa",
@@ -276,18 +276,18 @@
     ),
     (
         "xe#16",
-        Function(
-            2,
-            385,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 385,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Num(
                     ConstantNumber(
                         4.0,
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "xf",

@@ -19,3 +19,13 @@ export const nested = {
     return this === undefined ? 'no-this' : 'has-this'
   },
 }
+
+// A reassignable export: its declared value ignores `this`, but the value it is
+// reassigned to does not.
+export let swappable = () => 'no-this'
+
+export function swap() {
+  swappable = function () {
+    return this === undefined ? 'no-this' : 'has-this'
+  }
+}

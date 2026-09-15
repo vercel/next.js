@@ -59,10 +59,10 @@ pub struct LocalBinding {
     /// The name the binding has inside the module.
     pub name: RcStr,
     pub liveness: Liveness,
-    /// Whether calling this export could observe `this`.
+    /// Whether calling this export could maybe observe `this`.
     ///
-    /// Conservatively true unless the value is a function whose body provably never reaches
-    /// `this`. When false, a caller does not have to pass the module namespace as the receiver.
+    /// Intentionally conservative; when false, a caller does not have to pass the module
+    /// namespace as the receiver.
     pub maybe_uses_this: bool,
 }
 

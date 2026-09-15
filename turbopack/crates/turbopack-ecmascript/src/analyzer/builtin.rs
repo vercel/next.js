@@ -47,7 +47,10 @@ pub fn early_replace_builtin(value: &mut JsValue<'_>) -> Modified {
                 // value and the helper function) analyzable.
                 JsValue::Alternatives { values, .. }
                     if !values.iter().any(|value| {
-                        matches!(value, JsValue::Function(..) | JsValue::WellKnownFunction(_))
+                        matches!(
+                            value,
+                            JsValue::Function { .. } | JsValue::WellKnownFunction(_)
+                        )
                     }) =>
                 {
                     let has_side_effects = args_have_side_effects();
@@ -399,7 +402,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> Modified
                                             | JsValue::Add(..)
                                             | JsValue::WellKnownObject(_)
                                             | JsValue::WellKnownFunction(_)
-                                            | JsValue::Function(..)
+                                            | JsValue::Function { .. }
                                     )
                                 }) => {
                                     for arg in args {
@@ -418,7 +421,7 @@ pub fn replace_builtin<'a>(arena: &'a Bump, value: &mut JsValue<'a>) -> Modified
                                             | JsValue::Add(..)
                                             | JsValue::WellKnownObject(_)
                                             | JsValue::WellKnownFunction(_)
-                                            | JsValue::Function(..)) => {
+                                            | JsValue::Function { .. }) => {
                                                 items.push(arena, other);
                                             }
                                             _ => {

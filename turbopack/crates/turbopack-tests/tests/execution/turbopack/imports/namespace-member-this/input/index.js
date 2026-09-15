@@ -29,6 +29,13 @@ it('reads plain namespace values', () => {
   expect([ns.value, ns.value]).toEqual([41, 41])
 })
 
+it('keeps the receiver for a live binding reassigned to a this-using function', () => {
+  // The declared value ignores `this`, so the receiver may only be dropped if the
+  // binding cannot be reassigned. It can be, so the namespace has to be preserved.
+  ns.swap()
+  expect(ns.swappable()).toBe('has-this')
+})
+
 it('keeps the inner object as the receiver for nested member calls', () => {
   // The receiver here is `ns.nested`, not `ns`.
   expect(ns.nested.deep()).toBe('has-this')

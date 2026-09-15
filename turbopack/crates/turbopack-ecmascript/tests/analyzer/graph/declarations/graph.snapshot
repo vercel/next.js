@@ -1,25 +1,25 @@
 [
     (
         "*anonymous function 25*",
-        Function(
-            2,
-            25,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 25,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "a",
-        Function(
-            2,
-            1,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 1,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "aa",

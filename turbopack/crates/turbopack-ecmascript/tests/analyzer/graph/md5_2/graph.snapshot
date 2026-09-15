@@ -1,11 +1,11 @@
 [
     (
         "*anonymous function 181*",
-        Function(
-            9,
-            181,
-            false,
-            MemberCall(
+        Function {
+            total_nodes: 9,
+            func_ident: 181,
+            maybe_uses_this: false,
+            return_value: MemberCall(
                 8,
                 Variable(
                     (
@@ -53,15 +53,15 @@
                     },
                 ],
             ),
-        ),
+        },
     ),
     (
         "*anonymous function 5013*",
-        Function(
-            4,
-            5013,
-            false,
-            Add(
+        Function {
+            total_nodes: 4,
+            func_ident: 5013,
+            maybe_uses_this: false,
+            return_value: Add(
                 3,
                 [
                     Unknown {
@@ -77,15 +77,15 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "*anonymous function 5163*",
-        Function(
-            4,
-            5163,
-            false,
-            Add(
+        Function {
+            total_nodes: 4,
+            func_ident: 5163,
+            maybe_uses_this: false,
+            return_value: Add(
                 3,
                 [
                     Unknown {
@@ -101,15 +101,15 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "*anonymous function 5313*",
-        Function(
-            4,
-            5313,
-            false,
-            Add(
+        Function {
+            total_nodes: 4,
+            func_ident: 5313,
+            maybe_uses_this: false,
+            return_value: Add(
                 3,
                 [
                     Unknown {
@@ -125,15 +125,15 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "*anonymous function 5454*",
-        Function(
-            4,
-            5454,
-            false,
-            Add(
+        Function {
+            total_nodes: 4,
+            func_ident: 5454,
+            maybe_uses_this: false,
+            return_value: Add(
                 3,
                 [
                     Unknown {
@@ -149,15 +149,15 @@
                     ),
                 ],
             ),
-        ),
+        },
     ),
     (
         "*anonymous function 5685*",
-        Function(
-            22,
-            5685,
-            false,
-            Tenary(
+        Function {
+            total_nodes: 22,
+            func_ident: 5685,
+            maybe_uses_this: false,
+            return_value: Tenary(
                 21,
                 Logical(
                     5,
@@ -273,7 +273,7 @@
                     ),
                 ),
             ),
-        ),
+        },
     ),
     (
         "FF",

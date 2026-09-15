@@ -1,99 +1,99 @@
 [
     (
         "a",
-        Function(
-            2,
-            1,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 1,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "b",
-        Function(
-            2,
-            67,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 67,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "c",
-        Function(
-            2,
-            154,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 154,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "d",
-        Function(
-            2,
-            210,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 210,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "e",
-        Function(
-            2,
-            287,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 287,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "f",
-        Function(
-            2,
-            365,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 365,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "g",
-        Function(
-            2,
-            433,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 433,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "h",
-        Function(
-            2,
-            521,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 521,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "i",
-        Function(
-            6,
-            606,
-            false,
-            Alternatives {
+        Function {
+            total_nodes: 6,
+            func_ident: 606,
+            maybe_uses_this: false,
+            return_value: Alternatives {
                 total_nodes: 5,
                 values: [
                     Call(
@@ -113,15 +113,15 @@
                 ],
                 logical_property: None,
             },
-        ),
+        },
     ),
     (
         "j#2",
-        Function(
-            6,
-            673,
-            false,
-            Alternatives {
+        Function {
+            total_nodes: 6,
+            func_ident: 673,
+            maybe_uses_this: false,
+            return_value: Alternatives {
                 total_nodes: 5,
                 values: [
                     Call(
@@ -141,7 +141,7 @@
                 ],
                 logical_property: None,
             },
-        ),
+        },
     ),
     (
         "j#25",

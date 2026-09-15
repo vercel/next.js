@@ -1,11 +1,11 @@
 [
     (
         "*arrow function 24*",
-        Function(
-            16,
-            24,
-            false,
-            MemberCall(
+        Function {
+            total_nodes: 16,
+            func_ident: 24,
+            maybe_uses_this: false,
+            return_value: MemberCall(
                 15,
                 FreeVar(
                     "JSON",
@@ -95,7 +95,7 @@
                     },
                 ],
             ),
-        ),
+        },
     ),
     (
         "BuggyArguments",

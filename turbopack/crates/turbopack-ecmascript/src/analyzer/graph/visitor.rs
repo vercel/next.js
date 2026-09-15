@@ -305,7 +305,7 @@ mod analyzer_state {
         /// a `this` inside an arrow is attributed to the enclosing function it actually refers to.
         /// A class body binds `this` without being a function, so the walk stops there rather than
         /// attributing to a function further out.
-        pub(super) fn this_binding_fn_ident(&self) -> Option<u32> {
+        fn this_binding_fn_ident(&self) -> Option<u32> {
             for context in self.state.lexical_stack.iter().rev() {
                 match context {
                     LexicalContext::Function {
@@ -320,14 +320,10 @@ mod analyzer_state {
         }
 
         /// Records that the innermost function binding `this` may observe it.
-        pub(super) fn mark_this_used(&mut self) {
+        pub(super) fn mark_this_maybe_used(&mut self) {
             if let Some(id) = self.this_binding_fn_ident() {
                 self.state.fns_maybe_using_this.insert(id);
             }
-        }
-
-        pub(super) fn fn_maybe_uses_this(&self, id: u32) -> bool {
-            self.state.fns_maybe_using_this.contains(&id)
         }
 
         /// Adds a return value to the current function.
@@ -434,7 +430,7 @@ mod analyzer_state {
                 function.is_async(),
                 function.is_generator(),
                 // The body has been walked, so any `this` inside it is recorded by now.
-                self.fn_maybe_uses_this(fn_id),
+                self.state.fns_maybe_using_this.contains(&fn_id),
                 match return_values.len() {
                     0 => JsValue::Constant(ConstantValue::Undefined),
                     1 => return_values.into_iter().next().unwrap(),
@@ -1760,12 +1756,17 @@ impl VisitAstPath for Analyzer<'_, '_> {
     ) {
         // A direct `eval` runs in the enclosing scope, so the evaluated code can read `this`
         // without it appearing anywhere in the source.
+        //
+        // Only the direct form can. `new Function(...)`, an indirect `eval` and a string passed
+        // to `setTimeout` are all compiled in the global scope, so they see the global `this`
+        // rather than this function's receiver. `arguments` exposes the argument list, not the
+        // receiver, so it does not leak `this` either.
         if let Callee::Expr(callee) = &n.callee
             && let Expr::Ident(ident) = unparen(callee)
             && ident.sym == atom!("eval")
             && is_unresolved_id(&ident.to_id(), self.eval_context.unresolved_mark)
         {
-            self.mark_this_used();
+            self.mark_this_maybe_used();
         }
 
         // `Object.defineProperty(exports, …)` is a CommonJS export write; recognize
@@ -2557,7 +2558,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
     ) {
         // A `with` block can resolve a bare name to a property of the scrutinee, so the body may
         // read `this` without naming it.
-        self.mark_this_used();
+        self.mark_this_maybe_used();
         node.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -2571,7 +2572,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         }
 
         // Whatever else `this` means here, the function it binds to can observe it.
-        self.mark_this_used();
+        self.mark_this_maybe_used();
 
         if !self.is_this_bound() {
             // 'this' is free; in CommonJS a top-level `this` aliases `exports`.

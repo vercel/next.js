@@ -1,58 +1,58 @@
 [
     (
         "*arrow function 567*",
-        Function(
-            2,
-            567,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 567,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "a",
-        Function(
-            2,
-            1,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 1,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "b",
-        Function(
-            2,
-            45,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 45,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "c",
-        Function(
-            2,
-            125,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 125,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "d",
-        Function(
-            2,
-            209,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 209,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "e#16",
@@ -71,58 +71,58 @@
     ),
     (
         "e#2",
-        Function(
-            2,
-            284,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 284,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "f",
-        Function(
-            2,
-            368,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 368,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "g",
-        Function(
-            2,
-            452,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 452,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "h",
-        Function(
-            2,
-            540,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 540,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "i",
-        Function(
-            2,
-            622,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 622,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "x#10",

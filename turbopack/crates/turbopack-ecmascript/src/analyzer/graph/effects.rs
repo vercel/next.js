@@ -171,6 +171,9 @@ pub enum Effect<'a> {
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
+        /// The name the binding has in this module, when the reference is to the binding itself
+        /// rather than to a member of a namespace object. Used to name the local that captures
+        /// the import, so the generated code keeps the source's own name.
         local: Option<Atom>,
         ast_path: BumpBox<'a, [AstParentKind]>,
         span: Span,

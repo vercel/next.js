@@ -1,17 +1,17 @@
 [
     (
         "_",
-        Function(
-            2,
-            17,
-            false,
-            Variable(
+        Function {
+            total_nodes: 2,
+            func_ident: 17,
+            maybe_uses_this: false,
+            return_value: Variable(
                 (
                     "parent",
                     #4,
                 ),
             ),
-        ),
+        },
     ),
     (
         "i",

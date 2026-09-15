@@ -1,14 +1,14 @@
 [
     (
         "*arrow function 907*",
-        Function(
-            2,
-            907,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 907,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "ConstAfterEvalClass",
@@ -30,14 +30,14 @@
     ),
     (
         "default_function_export_const_after_eval",
-        Function(
-            2,
-            251,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 251,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "foo_const_after_eval",
@@ -121,14 +121,14 @@
         Alternatives {
             total_nodes: 4,
             values: [
-                Function(
-                    2,
-                    65,
-                    false,
-                    Constant(
+                Function {
+                    total_nodes: 2,
+                    func_ident: 65,
+                    maybe_uses_this: false,
+                    return_value: Constant(
                         Undefined,
                     ),
-                ),
+                },
                 Constant(
                     Num(
                         ConstantNumber(

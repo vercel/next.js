@@ -1,11 +1,11 @@
 [
     (
         "*arrow function 2666*",
-        Function(
-            16,
-            2666,
-            false,
-            Alternatives {
+        Function {
+            total_nodes: 16,
+            func_ident: 2666,
+            maybe_uses_this: false,
+            return_value: Alternatives {
                 total_nodes: 15,
                 values: [
                     Array {
@@ -93,7 +93,7 @@
                 ],
                 logical_property: None,
             },
-        ),
+        },
     ),
     (
         "args",
@@ -381,11 +381,11 @@
     ),
     (
         "generateBinPath",
-        Function(
-            5,
-            1409,
-            false,
-            Alternatives {
+        Function {
+            total_nodes: 5,
+            func_ident: 1409,
+            maybe_uses_this: false,
+            return_value: Alternatives {
                 total_nodes: 4,
                 values: [
                     FreeVar(
@@ -406,7 +406,7 @@
                 ],
                 logical_property: None,
             },
-        ),
+        },
     ),
     (
         "isYarnPnP",
@@ -859,11 +859,11 @@
     ),
     (
         "pkgAndSubpathForCurrentPlatform",
-        Function(
-            6,
-            911,
-            false,
-            Object {
+        Function {
+            total_nodes: 6,
+            func_ident: 911,
+            maybe_uses_this: false,
+            return_value: Object {
                 total_nodes: 5,
                 parts: [
                     KeyValue(
@@ -899,7 +899,7 @@
                 ],
                 mutability: Mutable,
             },
-        ),
+        },
     ),
     (
         "platformKey",

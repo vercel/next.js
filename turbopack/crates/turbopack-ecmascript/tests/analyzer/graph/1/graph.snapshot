@@ -1,36 +1,36 @@
 [
     (
         "a",
-        Function(
-            2,
-            37,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 37,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "b",
-        Function(
-            2,
-            76,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 76,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "c",
-        Function(
-            2,
-            116,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 116,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
     (
         "x",

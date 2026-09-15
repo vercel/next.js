@@ -53,7 +53,7 @@ impl JsValue<'_> {
             JsValue::MemberCall(_, _call) => true,
             JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
             JsValue::In(_, left, right) => left.has_side_effects() || right.has_side_effects(),
-            JsValue::Function(..) => false,
+            JsValue::Function { .. } => false,
             JsValue::Url(_, _) => false,
             JsValue::Variable(_) => false,
             JsValue::Module(_) => false,
@@ -83,7 +83,7 @@ impl JsValue<'_> {
             | JsValue::Promise(..)
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
-            | JsValue::Function(..) => Some(true),
+            | JsValue::Function { .. } => Some(true),
             JsValue::Alternatives {
                 total_nodes: _,
                 values,
@@ -170,7 +170,7 @@ impl JsValue<'_> {
             | JsValue::Not(..)
             | JsValue::Binary(..)
             | JsValue::Promise(..)
-            | JsValue::Function(..) => Some(false),
+            | JsValue::Function { .. } => Some(false),
             JsValue::Alternatives {
                 total_nodes: _,
                 values,
@@ -236,7 +236,7 @@ impl JsValue<'_> {
             | JsValue::Object { .. }
             | JsValue::WellKnownObject(..)
             | JsValue::WellKnownFunction(..)
-            | JsValue::Function(..) => Some(false),
+            | JsValue::Function { .. } => Some(false),
             _ => None,
         }
     }
@@ -269,7 +269,7 @@ impl JsValue<'_> {
             | JsValue::Object { .. }
             | JsValue::Url(..)
             | JsValue::Module(..)
-            | JsValue::Function(..)
+            | JsValue::Function { .. }
             | JsValue::WellKnownObject(_)
             | JsValue::WellKnownFunction(_)
             | JsValue::Promise(_, _) => Some(false),

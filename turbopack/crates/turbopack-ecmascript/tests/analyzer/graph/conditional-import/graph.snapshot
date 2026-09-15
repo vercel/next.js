@@ -132,11 +132,11 @@
     ),
     (
         "earlyExit",
-        Function(
-            4,
-            374,
-            false,
-            Alternatives {
+        Function {
+            total_nodes: 4,
+            func_ident: 374,
+            maybe_uses_this: false,
+            return_value: Alternatives {
                 total_nodes: 3,
                 values: [
                     Variable(
@@ -151,17 +151,17 @@
                 ],
                 logical_property: None,
             },
-        ),
+        },
     ),
     (
         "hoisted",
-        Function(
-            2,
-            459,
-            false,
-            Constant(
+        Function {
+            total_nodes: 2,
+            func_ident: 459,
+            maybe_uses_this: false,
+            return_value: Constant(
                 Undefined,
             ),
-        ),
+        },
     ),
 ]
