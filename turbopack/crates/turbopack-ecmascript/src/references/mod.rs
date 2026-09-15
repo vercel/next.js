@@ -99,8 +99,8 @@ use worker::{WorkerAssetReference, WorkerGlobalPlaceholder, WorkerGlobalsReplace
 
 pub use crate::references::esm::export::{FollowExportsResult, follow_reexports};
 use crate::{
-    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable, EnvVarInfo,
-    ModuleTypeResult, TypeofWindow,
+    AnalyzeMode, EcmascriptModuleAsset, EcmascriptModuleAssetType, EcmascriptParsable,
+    EnvVarAccessMode, EnvVarInfo, ModuleTypeResult, TypeofWindow,
     analyzer::{
         Bump, BumpVec, ConstantNumber, ConstantString, ConstantValue as JsConstantValue, JsValue,
         JsValueUrlKind, Modified, ModuleValue, ObjectPart, RequireContextValue, ThreadLocal,
@@ -134,9 +134,9 @@ use crate::{
         dynamic_expression::DynamicExpression,
         emit_collect::{CollectReference, EmitReference},
         esm::{
-            EsmAssetReference, EsmAsyncAssetReference, EsmBinding, ImportMetaBinding,
-            ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
-            module_id::EsmModuleIdAssetReference,
+            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, EsmBinding,
+            ImportMetaBinding, ImportMetaRef, UrlAssetReference, UrlRewriteBehavior,
+            base::EsmAssetReferences, module_id::EsmModuleIdAssetReference,
         },
         exports::{EcmascriptExportsAnalysis, compute_ecmascript_module_exports},
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
@@ -235,7 +235,7 @@ struct AnalyzeEcmascriptModuleResultBuilder {
     source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     cjs_static_exports: Option<CjsStaticExports>,
 
-    env_var_info_runtime: FxIndexSet<RcStr>,
+    env_var_info_runtime: FxIndexMap<RcStr, EnvVarAccessMode>,
 
     #[cfg(debug_assertions)]
     ident: RcStr,
@@ -269,10 +269,26 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds an asset reference with codegen to the analysis result.
-    pub fn add_reference_code_gen<R: IntoCodeGenReference>(&mut self, reference: R, path: AstPath) {
-        let (reference, code_gen) = reference.into_code_gen_reference(path);
-        self.references.insert(reference);
-        self.add_code_gen(code_gen);
+    pub fn add_reference_code_gen<R: IntoCodeGenReference>(
+        &mut self,
+        reference: R,
+        path: AstPath,
+        link_context: ValueLinkContext,
+    ) {
+        match link_context {
+            ValueLinkContext::Default => {
+                let (reference, code_gen) = reference.into_code_gen_reference(path);
+                self.references.insert(reference);
+                self.add_code_gen(code_gen);
+            }
+            ValueLinkContext::InAlternative => {
+                debug_assert!(
+                    self.analyze_mode.is_tracing_assets(),
+                    "unexpected add_reference_code_gen InAlternative in non-tracing mode"
+                );
+                self.references.insert(reference.into_reference());
+            }
+        }
     }
 
     /// Adds an ESM asset reference to the analysis result.
@@ -333,9 +349,17 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.successful = successful;
     }
 
-    /// Adds a runtime environment variable reference to the analysis result.
-    pub fn add_runtime_env_var_reference(&mut self, runtime_env: RcStr) {
-        self.env_var_info_runtime.insert(runtime_env);
+    pub fn add_runtime_env_var_reference_read(&mut self, runtime_env: RcStr) {
+        self.env_var_info_runtime
+            // Overwrite any existing value with Existence.
+            .insert(runtime_env, EnvVarAccessMode::Read);
+    }
+
+    pub fn add_runtime_env_var_reference_existence(&mut self, runtime_env: RcStr) {
+        self.env_var_info_runtime
+            .entry(runtime_env)
+            // Only set if it hasn't been set to Read already.
+            .or_insert(EnvVarAccessMode::Existence);
     }
 
     pub fn add_esm_reference_namespace_resolved(
@@ -444,7 +468,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 source_map: self.source_map,
                 cjs_static_exports: self.cjs_static_exports,
                 env_var_info: EnvVarInfo {
-                    runtime: self.env_var_info_runtime.into_iter().collect(),
+                    runtime: self.env_var_info_runtime,
                 }
                 .resolved_cell(),
             },
@@ -498,6 +522,7 @@ struct AnalysisState<'a> {
     module_fragments_enabled: bool,
     cjs_tree_shaking: bool,
     cross_module_constants: bool,
+    lazy_compilation: bool,
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
@@ -866,6 +891,7 @@ async fn analyze_ecmascript_module_internal(
             module_fragments_enabled: options.module_fragments_enabled,
             cjs_tree_shaking: options.cjs_tree_shaking,
             cross_module_constants: options.cross_module_constants,
+            lazy_compilation: options.lazy_compilation,
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
@@ -1118,6 +1144,7 @@ async fn analyze_ecmascript_module_internal(
                         in_try,
                         eval_context.imports.get_attributes(span),
                         export_usage,
+                        ValueLinkContext::Default,
                     )
                     .await?;
                 }
@@ -1261,6 +1288,7 @@ async fn analyze_ecmascript_module_internal(
                     mut prop,
                     ast_path,
                     span,
+                    in_truthiness_context,
                 } => {
                     // Intentionally not awaited because `handle_member` reads this only when needed
                     let obj =
@@ -1277,7 +1305,9 @@ async fn analyze_ecmascript_module_internal(
                         span,
                         &analysis_state,
                         &mut analysis,
-                        MembershipType::Member,
+                        MembershipType::Member {
+                            in_truthiness_context,
+                        },
                     )
                     .await?;
                 }
@@ -1314,7 +1344,7 @@ async fn analyze_ecmascript_module_internal(
                                     )
                             })
                         {
-                            analysis.add_runtime_env_var_reference(RcStr::from(prop));
+                            analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
                         }
                     }
                 }
@@ -1386,6 +1416,7 @@ async fn analyze_ecmascript_module_internal(
                         analysis.add_reference_code_gen(
                             EsmModuleIdAssetReference::new(*r, chunking_type),
                             ast_path.to_vec().into(),
+                            ValueLinkContext::Default,
                         )
                     } else {
                         if options.follow_reexports && !options.module_fragments_enabled {
@@ -1691,9 +1722,13 @@ async fn handle_call<'a>(
         } => {
             for alt in values {
                 if let JsValue::WellKnownFunction(wkf) = alt {
+                    // Only register the reference, but don't perform replacement, as it might
+                    // not actually be a require at runtime (due to the
+                    // alternatives)
                     handle_well_known_function_call(
                         wkf,
                         new,
+                        ValueLinkContext::InAlternative,
                         &linked_args,
                         handler,
                         span,
@@ -1720,6 +1755,7 @@ async fn handle_call<'a>(
             handle_well_known_function_call(
                 wkf,
                 new,
+                ValueLinkContext::Default,
                 &linked_args,
                 handler,
                 span,
@@ -1755,6 +1791,7 @@ async fn handle_dynamic_import<'a>(
     in_try: bool,
     attributes: &ImportAttributes,
     export_usage: ExportUsage,
+    link_context: ValueLinkContext,
 ) -> Result<()> {
     // If the import has a webpackIgnore/turbopackIgnore comment, skip processing
     // so the import expression is preserved as-is in the output.
@@ -1767,6 +1804,7 @@ async fn handle_dynamic_import<'a>(
         origin,
         source,
         ignore_dynamic_requests,
+        lazy_compilation,
         ..
     } = state;
 
@@ -1798,6 +1836,8 @@ async fn handle_dynamic_import<'a>(
         error_mode,
         state.import_externals,
         export_usage,
+        link_context,
+        lazy_compilation,
     )
     .await
 }
@@ -1815,6 +1855,8 @@ async fn handle_dynamic_import_with_linked_args(
     error_mode: ResolveErrorMode,
     import_externals: bool,
     export_usage: ExportUsage,
+    link_context: ValueLinkContext,
+    lazy_compilation: bool,
 ) -> Result<()> {
     if linked_args.len() == 1 || linked_args.len() == 2 {
         let pat = js_value_to_pattern(&linked_args[0]);
@@ -1849,7 +1891,9 @@ async fn handle_dynamic_import_with_linked_args(
                 ),
             );
             if ignore_dynamic_requests {
-                analysis.add_code_gen(DynamicExpression::new_promise(ast_path.to_vec().into()));
+                if link_context != ValueLinkContext::InAlternative {
+                    analysis.add_code_gen(DynamicExpression::new_promise(ast_path.to_vec().into()));
+                }
                 return Ok(());
             }
         }
@@ -1873,9 +1917,11 @@ async fn handle_dynamic_import_with_linked_args(
                 import_externals,
                 export_usage,
                 resolve_override,
+                lazy_compilation,
             )
             .await?,
             ast_path.to_vec().into(),
+            link_context,
         );
         return Ok(());
     }
@@ -1889,9 +1935,18 @@ async fn handle_dynamic_import_with_linked_args(
     Ok(())
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
+enum ValueLinkContext {
+    Default,
+    // The given value/callee was linked inside an alternative. Codegen replacements probably
+    // shouldn't be performed.
+    InAlternative,
+}
+
 async fn handle_well_known_function_call<'a, 'l, F, Fut>(
     func: WellKnownFunctionKind<'a>,
     new: bool,
+    link_context: ValueLinkContext,
     linked_args: &F,
     handler: &Handler,
     span: Span,
@@ -1919,10 +1974,19 @@ where
         JsValue::explain_args(args, 10, 2)
     }
 
-    // Compute error mode from in_try and attributes.optional
+    if link_context == ValueLinkContext::InAlternative && !analysis.analyze_mode.is_tracing_assets()
+    {
+        // We are in an alternative (can't do any replacement anyway) and are not tracing assets, so
+        // we can skip further processing.
+        return Ok(());
+    }
+
     let error_mode = if attributes.optional {
+        // Explicitly marked optional
         ResolveErrorMode::Ignore
-    } else if in_try {
+    } else if in_try || link_context == ValueLinkContext::InAlternative {
+        // In try-catch, or we are not certain that this function is called at runtime (e.g. in a
+        // logical alternative).
         ResolveErrorMode::Warn
     } else {
         ResolveErrorMode::Error
@@ -1989,6 +2053,7 @@ where
                             url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
                         ),
                         ast_path.to_vec().into(),
+                        link_context,
                     );
                 }
                 return Ok(());
@@ -2033,6 +2098,7 @@ where
                                 is_shared,
                             ),
                             ast_path.to_vec().into(),
+                            link_context,
                         );
                     }
 
@@ -2137,6 +2203,7 @@ where
                             tracing_only,
                         ),
                         ast_path.to_vec().into(),
+                        link_context,
                     );
 
                     return Ok(());
@@ -2179,6 +2246,8 @@ where
                 error_mode,
                 state.import_externals,
                 export_usage,
+                link_context,
+                state.lazy_compilation,
             )
             .await?;
         }
@@ -2196,7 +2265,9 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if link_context != ValueLinkContext::InAlternative {
+                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        }
                         return Ok(());
                     }
                 }
@@ -2222,6 +2293,7 @@ where
                         state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
+                    link_context,
                 );
                 return Ok(());
             }
@@ -2246,7 +2318,9 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if link_context != ValueLinkContext::InAlternative {
+                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        }
                         return Ok(());
                     }
                 }
@@ -2276,6 +2350,7 @@ where
                         state.cjs_tree_shaking,
                     ),
                     ast_path.to_vec().into(),
+                    link_context,
                 );
                 return Ok(());
             }
@@ -2317,7 +2392,9 @@ where
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        if link_context != ValueLinkContext::InAlternative {
+                            analysis.add_code_gen(DynamicExpression::new(ast_path.to_vec().into()));
+                        }
                         return Ok(());
                     }
                 }
@@ -2341,6 +2418,7 @@ where
                         resolve_override,
                     ),
                     ast_path.to_vec().into(),
+                    link_context,
                 );
                 return Ok(());
             }
@@ -2380,6 +2458,7 @@ where
                     error_mode,
                 ),
                 ast_path.to_vec().into(),
+                link_context,
             );
         }
 
@@ -2415,6 +2494,7 @@ where
                 )
                 .await?,
                 ast_path.to_vec().into(),
+                link_context,
             );
         }
 
@@ -3211,6 +3291,7 @@ where
                             error_mode,
                         ),
                         ast_path.to_vec().into(),
+                        link_context,
                     );
                 }
             }
@@ -3340,6 +3421,7 @@ where
                         emit_to_all_entries,
                     ),
                     ast_path.to_vec().into(),
+                    link_context,
                 );
                 return Ok(());
             }
@@ -3392,6 +3474,7 @@ where
                 analysis.add_reference_code_gen(
                     CollectReference::new(origin, parent_module, namespace.as_rcstr()),
                     ast_path.to_vec().into(),
+                    link_context,
                 );
                 return Ok(());
             }
@@ -3429,9 +3512,10 @@ fn extract_hot_dep_strings(arg: &JsValue<'_>) -> Option<Vec<RcStr>> {
 }
 
 enum MembershipType {
-    Member,
+    Member { in_truthiness_context: bool },
     In,
 }
+
 async fn handle_membership<'a>(
     ast_path: &[AstParentKind],
     link_obj: impl Future<Output = Result<JsValue<'a>>> + Send + Sync,
@@ -3453,7 +3537,7 @@ async fn handle_membership<'a>(
             if has_member && let Some((mut name, false)) = obj_name.clone() {
                 name.0.push(DefinableNameSegmentRef::Name(prop));
                 match ty {
-                    MembershipType::Member => {
+                    MembershipType::Member { .. } => {
                         if let Some(value) = state
                             .compile_time_info_ref
                             .free_var_references
@@ -3487,7 +3571,7 @@ async fn handle_membership<'a>(
                 && let JsValue::WellKnownFunction(WellKnownFunctionKind::Require) = &obj
             {
                 analysis.add_code_gen::<CodeGen>(match ty {
-                    MembershipType::Member => {
+                    MembershipType::Member { .. } => {
                         CjsRequireCacheAccess::new(ast_path.to_vec().into()).into()
                     }
                     MembershipType::In => ConstantValueCodeGen::new(
@@ -3511,7 +3595,20 @@ async fn handle_membership<'a>(
                     ]
                 )
         }) {
-            analysis.add_runtime_env_var_reference(RcStr::from(prop));
+            match ty {
+                MembershipType::In => {
+                    analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
+                }
+                MembershipType::Member {
+                    in_truthiness_context,
+                } => {
+                    if in_truthiness_context {
+                        analysis.add_runtime_env_var_reference_existence(RcStr::from(prop));
+                    } else {
+                        analysis.add_runtime_env_var_reference_read(RcStr::from(prop));
+                    }
+                }
+            }
             return Ok(());
         }
     }
@@ -3642,19 +3739,22 @@ async fn handle_free_var_reference(
                             state.origin
                         },
                         request.clone(),
-                        IssueSource::from_swc_offsets(
-                            state.source,
-                            span.lo.to_u32(),
-                            span.hi.to_u32(),
-                        ),
-                        Default::default(),
-                        export.clone().map(ModulePart::export),
-                        // TODO This could be optimized. E.g. referencing `Buffer` in some top
-                        // level function could set ImportUsage properly here
-                        ImportUsage::TopLevel,
-                        state.import_externals,
-                        state.module_fragments_enabled,
-                        None,
+                        EsmAssetReferenceOptions {
+                            issue_source: IssueSource::from_swc_offsets(
+                                state.source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            ),
+                            annotations: Default::default(),
+                            export_name: export.clone().map(ModulePart::export),
+                            // TODO This could be optimized. E.g. referencing `Buffer` in some top
+                            // level function could set ImportUsage properly here
+                            import_usage: ImportUsage::TopLevel,
+                            import_externals: state.import_externals,
+                            module_fragments_enabled: state.module_fragments_enabled,
+                            export_usage_passthrough: None,
+                            resolve_override: None,
+                        },
                     )
                     .await?
                     .resolved_cell())

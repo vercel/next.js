@@ -267,7 +267,7 @@ fn collect_sst_info(db_path: &Path) -> Result<BTreeMap<u32, Vec<SstInfo>>> {
     let mut meta_files: Vec<MetaFile> = meta_seqs
         .iter()
         .map(|&seq| {
-            MetaFile::open(db_path, seq, None)
+            MetaFile::open(db_path, seq, None, turbo_persistence::AccessMode::Mmap)
                 .with_context(|| format!("Failed to open {seq:08}.meta"))
         })
         .collect::<Result<_>>()?;

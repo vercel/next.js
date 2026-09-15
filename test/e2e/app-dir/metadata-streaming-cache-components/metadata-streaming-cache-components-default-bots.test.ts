@@ -52,7 +52,7 @@ function countSubstring(str: string, substr: string): number {
       const abortController = new AbortController()
       let body:
         | (AsyncIterable<Uint8Array> & {
-            destroy: () => void
+            cancel: () => void
           })
         | undefined
 
@@ -71,7 +71,7 @@ function countSubstring(str: string, substr: string): number {
         expect(res.body).not.toBeNull()
 
         body = res.body! as unknown as AsyncIterable<Uint8Array> & {
-          destroy: () => void
+          cancel: () => void
         }
         let initialHtml = ''
 
@@ -87,7 +87,7 @@ function countSubstring(str: string, substr: string): number {
         expect(initialHtml).not.toContain('dynamic-content')
       } finally {
         abortController.abort()
-        body?.destroy()
+        body?.cancel()
       }
     })
 

@@ -7,6 +7,7 @@ use swc_core::{
             ArrayLit, EsVersion, Expr, KeyValueProp, Lit, ObjectLit, Prop, PropName, Regex, Str,
         },
         parser::{Syntax, parse_file_as_expr},
+        visit::fields::PropField,
     },
     quote,
 };
@@ -37,12 +38,40 @@ impl ConstantValueCodeGen {
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let value = self.value.clone();
+        let mut visitors = Vec::new();
+        let mut ast_path = self.path.0.clone();
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
-            *expr = value_to_expr(&value);
-        });
+        if matches!(
+            ast_path.last(),
+            Some(swc_core::ecma::visit::AstParentKind::Prop(
+                PropField::Shorthand
+            ))
+        ) {
+            ast_path.pop();
+            visitors.push(create_visitor!(
+                exact,
+                ast_path,
+                visit_mut_prop,
+                |prop: &mut Prop| {
+                    if let Prop::Shorthand(ident) = prop {
+                        *prop = Prop::KeyValue(KeyValueProp {
+                            key: PropName::Ident(ident.clone().into()),
+                            value: value_to_expr(&value).into(),
+                        });
+                    }
+                }
+            ));
+        } else {
+            visitors.push(create_visitor!(
+                self.path,
+                visit_mut_expr,
+                |expr: &mut Expr| {
+                    *expr = value_to_expr(&value);
+                }
+            ));
+        }
 
-        Ok(CodeGeneration::visitors(vec![visitor]))
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 

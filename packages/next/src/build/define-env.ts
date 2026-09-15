@@ -169,6 +169,9 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
       config.experimental.appNavFailHandling
     ),
+    'process.env.__NEXT_PARALLEL_ROUTE_METADATA': Boolean(
+      config.experimental.parallelRouteMetadata
+    ),
     'process.env.__NEXT_TURBOPACK_SHARED_RUNTIME': Boolean(
       config.experimental.turbopackSharedRuntime
     ),
@@ -366,6 +369,10 @@ export function getDefineEnv({
       (config.logging && config.logging.browserToTerminal) || false
     ),
     'process.env.__NEXT_MCP_SERVER': !!config.experimental.mcpServer,
+    'process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR':
+      dev &&
+      (config.experimental.exposeRuntimeErrorsToHMR ||
+        Boolean(process.env.__NEXT_EXPOSE_RUNTIME_ERRORS_TO_HMR)),
 
     // The devtools need to know whether or not to show an option to clear the
     // bundler cache. This option may be removed later once Turbopack's

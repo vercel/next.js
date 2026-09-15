@@ -24,7 +24,7 @@ describe('Custom routes i18n with index redirect', () => {
         const text = await res.text()
         expect(text).toEqual(dest)
         if (dest.startsWith('/')) {
-          const parsed = new URL(res.headers.get('location'))
+          const parsed = new URL(res.headers.get('location'), res.url)
           expect(parsed.pathname).toBe(dest)
           expect(parsed.search).toBe('')
         } else {

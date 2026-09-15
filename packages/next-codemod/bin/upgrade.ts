@@ -113,7 +113,7 @@ function resolveSemanticRevision(
 
 export async function runUpgrade(
   revision: string | undefined,
-  options: { verbose: boolean; yes?: boolean }
+  options: { verbose: boolean; yes?: boolean; skipAdoption?: boolean }
 ): Promise<void> {
   const { verbose } = options
   const nonInteractive = options.yes === true || !process.stdin.isTTY
@@ -272,7 +272,8 @@ export async function runUpgrade(
   const codemods = await suggestCodemods(
     installedNextVersion,
     targetNextVersion,
-    nonInteractive
+    nonInteractive,
+    options.skipAdoption
   )
   const packageManager: PackageManager = getPkgManager(cwd)
 
@@ -641,7 +642,8 @@ async function suggestTurbopack(
 async function suggestCodemods(
   initialNextVersion: string,
   targetNextVersion: string,
-  nonInteractive: boolean
+  nonInteractive: boolean,
+  skipAdoption = false
 ): Promise<string[]> {
   // example:
   // codemod version: 15.0.0-canary.45
@@ -670,7 +672,7 @@ async function suggestCodemods(
   const relevantCodemods = TRANSFORMER_INQUIRER_CHOICES.slice(
     initialVersionIndex,
     targetVersionIndex
-  )
+  ).filter((codemod) => !skipAdoption || !codemod.adoption)
 
   if (relevantCodemods.length === 0) {
     return []

@@ -146,7 +146,7 @@ export type RequestStoreInputs = {
    * edit, for every client, regardless of whether it runs the HMR client.
    */
   hmrRefreshHash: string | undefined
-  fallbackParams: OpaqueFallbackRouteParams | null | undefined
+  stagedFallbackParams: OpaqueFallbackRouteParams | null | undefined
 }
 
 /**
@@ -193,7 +193,7 @@ export function createRequestStoreForRender(
   isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
   resumeDataCache: ResumeDataCache | null,
-  fallbackParams: OpaqueFallbackRouteParams | null,
+  stagedFallbackParams: OpaqueFallbackRouteParams | null,
   hmrRefreshHash: string | undefined
 ): RequestStore {
   return createRequestStore({
@@ -215,7 +215,7 @@ export function createRequestStoreForRender(
     isHmrRefresh,
     serverComponentsHmrCache,
     hmrRefreshHash,
-    fallbackParams,
+    stagedFallbackParams,
   })
 }
 
@@ -240,7 +240,7 @@ export function createRequestStoreForAPI(
     isHmrRefresh: false,
     serverComponentsHmrCache: undefined,
     hmrRefreshHash,
-    fallbackParams: null,
+    stagedFallbackParams: null,
   })
 }
 
@@ -264,7 +264,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
     isHmrRefresh,
     serverComponentsHmrCache,
     hmrRefreshHash,
-    fallbackParams,
+    stagedFallbackParams,
   } = inputs
 
   const cache: {
@@ -347,7 +347,7 @@ export function createRequestStore(inputs: RequestStoreInputs): RequestStore {
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
     hmrRefreshHash,
-    fallbackParams,
+    stagedFallbackParams,
   }
 }
 

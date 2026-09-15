@@ -267,6 +267,7 @@ impl CodeGens {
 }
 
 pub trait IntoCodeGenReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>>;
     fn into_code_gen_reference(
         self,
         path: AstPath,

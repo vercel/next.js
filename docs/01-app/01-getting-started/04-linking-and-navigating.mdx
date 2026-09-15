@@ -5,6 +5,7 @@ related:
   links:
     - app/api-reference/components/link
     - app/api-reference/file-conventions/loading
+    - app/guides/optimizing-prefetching
     - app/guides/prefetching
 ---
 
@@ -95,7 +96,7 @@ By skipping or partially prefetching dynamic routes, Next.js avoids unnecessary 
   height="748"
 />
 
-> **Good to know:** See the [Prefetching guide](/docs/app/guides/prefetching) for the full behavior, including how to control prefetching per link and how it changes when you adopt [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching).
+> **Good to know:** See the [Prefetching guide](/docs/app/guides/prefetching) for the full behavior, including how to control prefetching per link and how it changes when you adopt [Partial Prefetching](/docs/app/guides/adopting-partial-prefetching). To include URL-dependent content in a link's prefetch, see [Optimizing prefetching](/docs/app/guides/optimizing-prefetching).
 
 To improve the navigation experience to dynamic routes, you can use [streaming](#streaming).
 
