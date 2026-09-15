@@ -146,7 +146,9 @@ We're upgrading the app in ${JSON.stringify(baseDir)} from Next.js ${result.inst
 References:
 ${references}`
 
-      Log.bootstrap(prompt)
+      const { handoffUpgrade } =
+        require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
+      await handoffUpgrade(prompt, baseDir)
     } catch (error) {
       Log.error(
         'Could not prepare the security upgrade:',
