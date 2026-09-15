@@ -129,7 +129,9 @@ ${references}
 
 Preserve existing permissions.`
 
-      Log.bootstrap(prompt)
+      const { handoffUpgrade } =
+        require('../lib/upgrade/harness') as typeof import('../lib/upgrade/harness')
+      await handoffUpgrade(prompt, baseDir)
     } catch (error) {
       Log.error(
         'Could not prepare the security upgrade:',
