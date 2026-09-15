@@ -14,7 +14,9 @@ use turbopack_core::{
     module::Module,
     module_graph::{ModuleGraph, RefData},
 };
-use turbopack_ecmascript::async_chunk::module::AsyncLoaderModule;
+use turbopack_ecmascript::{
+    async_chunk::module::AsyncLoaderModule, worker_chunk::module::worker_loader_asset_ident_for,
+};
 
 #[turbo_tasks::function]
 pub async fn get_global_module_id_strategy(
@@ -25,22 +27,37 @@ pub async fn get_global_module_id_strategy(
         let module_graph = module_graph.await?;
 
         // All modules in the graph and additionally, all the modules that are inserted by chunking
-        // (i.e. async loaders)
+        // (i.e. async loaders and worker loaders). Those loader modules are created during
+        // chunking, so they never appear in the graph — but their generated code is referenced by
+        // id, so their synthetic idents have to be registered here too.
         let mut modules = FxHashSet::default();
-        let mut async_idents = vec![];
+        let mut loader_idents = vec![];
         module_graph.traverse_edges_unordered(|parent, current| {
             modules.insert(current);
-            if let Some((
-                _,
-                &RefData {
-                    chunking_type: ChunkingType::Async,
-                    ..
-                },
-            )) = parent
-            {
-                let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
-                    .context("expected chunkable module for async reference")?;
-                async_idents.push(AsyncLoaderModule::asset_ident_for(*module));
+            match parent {
+                Some((
+                    _,
+                    &RefData {
+                        chunking_type: ChunkingType::Async,
+                        ..
+                    },
+                )) => {
+                    let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
+                        .context("expected chunkable module for async reference")?;
+                    loader_idents.push(AsyncLoaderModule::asset_ident_for(*module));
+                }
+                Some((
+                    _,
+                    &RefData {
+                        chunking_type: ChunkingType::Worker { ty },
+                        ..
+                    },
+                )) => {
+                    let module = ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(current)
+                        .context("expected chunkable module for worker reference")?;
+                    loader_idents.push(worker_loader_asset_ident_for(*module, ty));
+                }
+                _ => {}
             }
             Ok(())
         })?;
@@ -48,7 +65,7 @@ pub async fn get_global_module_id_strategy(
         let mut module_id_map = modules
             .into_iter()
             .map(|m| m.ident())
-            .chain(async_idents.into_iter())
+            .chain(loader_idents.into_iter())
             .map(async |ident| {
                 let ident = ident.to_resolved().await?;
                 let ident_str = ident.to_string().await?;
