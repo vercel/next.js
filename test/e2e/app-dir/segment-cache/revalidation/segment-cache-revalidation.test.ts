@@ -3,7 +3,7 @@ import { isNextDev, isNextDeploy, nextTestSetup } from 'e2e-utils'
 import { createRouterAct } from 'router-act'
 import { createTestDataServer } from 'test-data-service/writer'
 import { createTestLog } from 'test-log'
-import { findPort } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 
 describe('segment cache (revalidation)', () => {
   // Deploy mode exclusion: This suite starts and mutates a process-local test
@@ -433,4 +433,37 @@ describe('segment cache (revalidation)', () => {
       expect(await greeting.innerHTML()).toBe('random-greeting [1]')
     }, 'no-requests')
   })
+
+  it.failing(
+    'does not reuse a stale redirect from a revalidated route after a server action redirect',
+    async () => {
+      const browser = await next.browser('/redirect-revalidation/register')
+
+      expect(await browser.elementById('entry-status').text()).toBe(
+        'UNAUTHORIZED'
+      )
+
+      await browser.elementById('grant-access').click()
+      await browser.waitForElementByCss('#protected-page')
+      expect(await browser.elementById('protected-status').text()).toBe(
+        'AUTHORIZED'
+      )
+
+      await browser.elementById('revoke-access').click()
+      await browser.waitForElementByCss('#entry-page')
+      expect(await browser.elementById('entry-status').text()).toBe(
+        'UNAUTHORIZED'
+      )
+
+      await browser.elementById('grant-access').click()
+      await retry(async () => {
+        expect(await browser.url()).toContain(
+          '/redirect-revalidation/protected'
+        )
+      }, 10000)
+      expect(await browser.elementById('protected-status').text()).toBe(
+        'AUTHORIZED'
+      )
+    }
+  )
 })
