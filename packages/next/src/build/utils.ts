@@ -1280,6 +1280,43 @@ export async function copyTracedFiles(
     )
   }
 
+  /**
+   * Handles a traced symlink whose target is outside of the tracing root.
+   * Nothing outside of the tracing root is traced, so the target is missing
+   * from the standalone output. A file target is copied in place of the link.
+   * Returns `false` when the link has to be preserved as it is.
+   */
+  const copySymlinkTargetOutsideTracingRoot = async (
+    tracedFilePath: string,
+    resolvedTargetPath: string,
+    fileOutputPath: string
+  ): Promise<boolean> => {
+    let targetStats
+    try {
+      targetStats = await fs.stat(resolvedTargetPath)
+    } catch (err: any) {
+      if (err.code === 'ENOENT') {
+        // A dangling link cannot be copied, keep it as it is.
+        return false
+      }
+      throw err
+    }
+
+    if (targetStats.isFile()) {
+      await fs.copyFile(resolvedTargetPath, fileOutputPath)
+      return true
+    }
+
+    Log.warn(
+      `The traced symlink "${path.relative(tracingRoot, tracedFilePath)}" points to "${resolvedTargetPath}", ` +
+        `which is outside of the tracing root "${tracingRoot}". ` +
+        `The link is copied as it is and the files it points to are missing from the standalone output. ` +
+        `Set "outputFileTracingRoot" in next.config to a directory that contains the target.\n` +
+        `Read more: https://nextjs.org/docs/messages/standalone-symlink-outside-tracing-root`
+    )
+    return false
+  }
+
   async function createTracedSymlink(
     target: string,
     linkPath: string,
@@ -1377,27 +1414,37 @@ export async function copyTracedFiles(
               // junctions on Windows). A link that points into the tracing
               // root is rewritten to point at the copied location inside the
               // standalone output, so the output stays valid after it is
-              // moved or deployed on its own. Links that leave the tracing
-              // root are preserved as they are.
+              // moved or deployed on its own.
               const resolvedTargetPath = path.resolve(
                 path.dirname(tracedFilePath),
                 target
               )
-              const symlinkTarget = isInsideTracingRoot(resolvedTargetPath)
-                ? path.relative(
+
+              if (isInsideTracingRoot(resolvedTargetPath)) {
+                await createTracedSymlink(
+                  path.relative(
                     path.dirname(fileOutputPath),
                     path.join(
                       outputPath,
                       path.relative(tracingRoot, resolvedTargetPath)
                     )
-                  ) || '.'
-                : target
-
-              await createTracedSymlink(
-                symlinkTarget,
-                fileOutputPath,
-                tracedFilePath
-              )
+                  ) || '.',
+                  fileOutputPath,
+                  tracedFilePath
+                )
+              } else if (
+                !(await copySymlinkTargetOutsideTracingRoot(
+                  tracedFilePath,
+                  resolvedTargetPath,
+                  fileOutputPath
+                ))
+              ) {
+                await createTracedSymlink(
+                  target,
+                  fileOutputPath,
+                  tracedFilePath
+                )
+              }
             } else {
               await fs.copyFile(tracedFilePath, fileOutputPath)
             }
