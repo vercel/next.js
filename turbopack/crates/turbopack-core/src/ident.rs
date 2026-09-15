@@ -251,6 +251,13 @@ impl AssetIdent {
                     2_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
                 }
+                ModulePart::ExportedNamespaceMember { export, member } => {
+                    // Keep the named-export prefix stable, then distinguish the namespace member.
+                    2_u8.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
+                    9_u8.deterministic_hash(&mut hasher);
+                    member.deterministic_hash(&mut hasher);
+                }
                 ModulePart::RenamedExport {
                     original_export,
                     export,
@@ -262,6 +269,12 @@ impl AssetIdent {
                 ModulePart::RenamedNamespace { export } => {
                     4_u8.deterministic_hash(&mut hasher);
                     export.deterministic_hash(&mut hasher);
+                }
+                ModulePart::RenamedNamespaceMember { export, member } => {
+                    4_u8.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
+                    9_u8.deterministic_hash(&mut hasher);
+                    member.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Internal(id) => {
                     5_u8.deterministic_hash(&mut hasher);

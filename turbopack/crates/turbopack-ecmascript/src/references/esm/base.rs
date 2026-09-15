@@ -733,7 +733,12 @@ impl ModuleReference for EsmAssetReference {
         )
         .await?;
 
-        if let Some(ModulePart::Export(export_name)) = &self.export_name {
+        if let Some(export_name) = self.export_name.as_ref().and_then(|part| match part {
+            ModulePart::Export(export) | ModulePart::ExportedNamespaceMember { export, .. } => {
+                Some(export)
+            }
+            _ => None,
+        }) {
             for &module in result.await?.primary_modules().await?.iter() {
                 if let Some(module) = ResolvedVc::try_downcast(module)
                     && *is_export_missing(*module, export_name.clone()).await?
@@ -783,6 +788,12 @@ impl ModuleReference for EsmAssetReference {
                 },
                 (Some(ModulePart::Export(export_name)), _) => {
                     ExportUsage::Named(export_name.clone())
+                }
+                (Some(ModulePart::ExportedNamespaceMember { export, .. }), _) => {
+                    // Until resolution proves this export is a namespace, this is still an
+                    // ordinary named read of the outer module. The synthesized namespace rename
+                    // reference records the member read on the resolved target.
+                    ExportUsage::Named(export.clone())
                 }
                 _ => ExportUsage::All,
             },
@@ -868,8 +879,11 @@ impl EsmAssetReference {
                         let ident = referenced_asset
                             .get_ident(
                                 chunking_context,
-                                this.export_name.as_ref().and_then(|e| match e {
-                                    ModulePart::Export(export_name) => Some(export_name.clone()),
+                                this.export_name.as_ref().and_then(|part| match part {
+                                    ModulePart::Export(export)
+                                    | ModulePart::ExportedNamespaceMember { export, .. } => {
+                                        Some(export.clone())
+                                    }
                                     _ => None,
                                 }),
                                 scope_hoisting_context,
