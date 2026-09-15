@@ -89,6 +89,36 @@ describe('app-dir - metadata-streaming', () => {
     expect($('body meta').length).toBe(9)
   })
 
+  it('should not wrap streamed metadata in a <div>, so a third-party <div> prepended to <body> before hydration is skipped rather than claimed', async () => {
+    const $ = await next.render$('/third-party-prepend')
+    // The streamed metadata wrapper is the first child of <body>. React
+    // hydrates <body> children by tag name, so it must be a tag no third
+    // party prepends — a foreign <div> in front of a <div> wrapper is claimed
+    // for it and hydration fails.
+    expect($('body > *').first().is('div')).toBe(false)
+    expect($('body > next-metadata[hidden]').length).toBe(1)
+
+    const browser = await next.browser('/third-party-prepend')
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toBe(
+        'third-party prepend page'
+      )
+    })
+
+    // The foreign node is still there — a failed hydration regenerates the
+    // document and would have removed it.
+    expect(await browser.elementByCss('#third-party').text()).toBe(
+      'third party'
+    )
+    const logs = await browser.log()
+    const hydrationErrors = logs.filter(
+      (log) =>
+        log.source === 'error' &&
+        /hydrat|Minified React error #(418|423|425)/i.test(log.message)
+    )
+    expect(hydrationErrors).toEqual([])
+  })
+
   describe('dynamic api', () => {
     it('should render metadata to body', async () => {
       const $ = await next.render$('/dynamic-api')
