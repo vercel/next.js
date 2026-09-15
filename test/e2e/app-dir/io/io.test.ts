@@ -1,14 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('io with cache components', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/cache-components',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should make content after io() dynamic during prerender', async () => {
     const $ = await next.render$('/io-boundary')
@@ -57,15 +55,13 @@ describe('io with cache components', () => {
   })
 })
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// No deploy-specific incompatibility is documented.
+// @force-gate !deploy
 describe('io without cache components', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname + '/fixtures/default',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   it('should be a no-op during prerender without cache components', async () => {
     const $ = await next.render$('/io-boundary')

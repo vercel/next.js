@@ -3,10 +3,12 @@ import { nextTestSetup } from 'e2e-utils'
 const METADATA_BASE_WARN_STRING =
   'metadataBase property in metadata export is not set for resolving social open graph or twitter images,'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('app dir - metadata missing metadataBase', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     overrideFiles: {
       'app/layout.js': `
         export default function Layout({ children }) {
@@ -23,10 +25,6 @@ describe('app dir - metadata missing metadataBase', () => {
       `,
     },
   })
-
-  if (skipped) {
-    return
-  }
 
   // If it's start mode, we get the whole logs since they're from build process.
   // If it's development mode, we get the logs after request

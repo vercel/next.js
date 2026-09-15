@@ -2,15 +2,16 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import type { ValidationEvent } from 'next/dist/server/app-render/dev-validation-events'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('instant validation causes', () => {
-  const { next, skipped, isNextDev } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     env: {
       NEXT_TEST_LOG_VALIDATION: '1',
     },
   })
-  if (skipped) return
   if (!isNextDev) {
     it.skip('Only implemented in dev', () => {})
     return

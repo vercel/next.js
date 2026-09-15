@@ -13,17 +13,13 @@ if (!(globalThis as any).isNextStart) {
   it('should skip for non-next start', () => {})
 } else {
   describe('output: standalone with app dir', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       dependencies: {
         nanoid: '4.0.1',
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     beforeAll(async () => {
       await next.patchFile(

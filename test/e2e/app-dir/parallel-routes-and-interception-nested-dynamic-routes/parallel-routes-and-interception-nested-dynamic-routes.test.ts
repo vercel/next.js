@@ -1,11 +1,12 @@
 import { nextTestSetup } from 'e2e-utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// TODO: re-enable when resolved related thread
+// https://vercel.slack.com/archives/C07UCHRBWGK/p1759165345308879
+// @force-gate !deploy
 describe('parallel-routes-and-interception-nested-dynamic-routes', () => {
   const { next } = nextTestSetup({
     files: __dirname,
-    // TODO: re-enable when resolved related thread
-    // https://vercel.slack.com/archives/C07UCHRBWGK/p1759165345308879
-    skipDeployment: true,
   })
 
   it('should intercept the route for nested dynamic routes', async () => {

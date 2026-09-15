@@ -13,7 +13,7 @@ if (!(globalThis as any).isNextStart) {
   it('should skip for non-next start', () => {})
 } else {
   describe('output: standalone with getStaticProps', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: __dirname,
       skipStart: true,
       dependencies: {
@@ -21,10 +21,6 @@ if (!(globalThis as any).isNextStart) {
         nanoid: '4.0.1',
       },
     })
-
-    if (skipped) {
-      return
-    }
 
     beforeAll(async () => {
       await next.patchFile(

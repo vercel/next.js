@@ -1056,11 +1056,12 @@ describe.each([true, false])(
   }
 )
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// This is skipped when deployed as it appears to cause an issue when tracing Next.js files
+// TODO: Investigate why this causes an issue when deployed
+// @force-gate !deploy
 describe('parallel-routes-and-interception-conflicting-pages', () => {
-  const { next, skipped } = nextTestSetup({
-    // This is skipped when deployed as it appears to cause an issue when tracing Next.js files
-    // TODO: Investigate why this causes an issue when deployed
-    skipDeployment: true,
+  const { next } = nextTestSetup({
     files: {
       app: new FileRef(path.join(__dirname, 'app')),
       'app/parallel/nested-2/page.js': `
@@ -1071,8 +1072,6 @@ describe('parallel-routes-and-interception-conflicting-pages', () => {
     },
     nextConfig,
   })
-
-  if (skipped) return
 
   it('should gracefully handle when two page segments match the `children` parallel slot', async () => {
     const html = await next.render('/parallel/nested-2')

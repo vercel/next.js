@@ -13,7 +13,7 @@ if (!(globalThis as any).isNextStart) {
   it('should skip for non-next start', () => {})
 } else {
   describe('output: standalone with ESM app dir', () => {
-    const { next, skipped } = nextTestSetup({
+    const { next } = nextTestSetup({
       files: {
         app: new FileRef(path.join(__dirname, 'app')),
         pages: new FileRef(path.join(__dirname, 'pages')),
@@ -25,10 +25,6 @@ if (!(globalThis as any).isNextStart) {
       },
       skipStart: true,
     })
-
-    if (skipped) {
-      return
-    }
 
     beforeAll(async () => {
       await next.start()
