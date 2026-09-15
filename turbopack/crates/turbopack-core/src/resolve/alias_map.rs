@@ -512,6 +512,12 @@ where
                         }
                     }
                     AliasKey::Wildcard { suffix } => {
+                        println!(
+                            "AliasKey::Wildcard {} {}*{}",
+                            self.request.describe_as_string(),
+                            prefix,
+                            suffix
+                        );
                         // This is quite messy as we'd have to match against the FS to do this
                         // properly. For now, try to support as many cases as possible (and as are
                         // actually used).
@@ -520,6 +526,7 @@ where
                             // The request is a constant string, so the PatriciaMap lookup already
                             // ensured that the prefix is matching the request.
                             let remaining = &request[prefix.len()..];
+                            println!("1");
                             remaining.ends_with(&**suffix)
                         } else if let Pattern::Concatenation(req) = self.request
                             && let [
@@ -532,6 +539,7 @@ where
 
                             // The request might be more specific than the mapping, e.g. for
                             // `require('@/foo/' + dyn)` into a `@/*` mapping
+                            println!("2");
                             req_prefix.starts_with(&**prefix)
                         } else if let Pattern::Concatenation(req) = self.request
                             && let [
@@ -540,12 +548,16 @@ where
                                 Pattern::Constant(req_suffix),
                             ] = req.as_slice()
                         {
+                            println!("3");
                             req_prefix.starts_with(&**prefix) && req_suffix.ends_with(&**suffix)
                         } else if !self.request.could_match(prefix) {
-                            // There's no way it could match if the prefix can't match.
+                            // If the whole of the prefix doesn't match, then it can't possibly
+                            // match.
+                            println!("4");
                             false
                         } else if suffix.is_empty() {
-                            // Prefix matches the request, and suffix is empty.
+                            // Prefix could match the request, and suffix is empty.
+                            println!("5");
                             true
                         } else {
                             // It may or may not match, throw an error.
@@ -557,13 +569,24 @@ where
                                 suffix,
                             )));
                         };
+                        println!(
+                            "AliasKey::Wildcard {} {}*{}, {}",
+                            self.request.describe_as_string(),
+                            prefix,
+                            suffix,
+                            is_match
+                        );
 
                         if is_match {
                             let mut remaining = self.request.clone();
-                            if let Err(e) = remaining.strip_prefix_len(prefix.len()) {
-                                return Some(Err(e.context(self.request.describe_as_string())));
+                            if let Err(e) = remaining.strip_constant_prefix_len(prefix.len()) {
+                                return Some(Err(e.context(format!(
+                                    "{}.strip_constant_prefix_len({:?}.len())",
+                                    self.request.describe_as_string(),
+                                    prefix
+                                ))));
                             }
-                            remaining.strip_suffix_len(suffix.len());
+                            remaining.strip_constant_suffix_len(suffix.len());
 
                             let output = template.replace(&remaining);
                             return Some(Ok(AliasMatch {

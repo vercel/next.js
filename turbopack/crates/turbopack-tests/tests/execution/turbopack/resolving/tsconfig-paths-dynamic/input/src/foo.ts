@@ -1,3 +1,11 @@
+export function load(v: string) {
+  return require(`@/${v}`)
+}
+
+export function loadComplex(dir: string, name: string, ext: string) {
+  return require(`@/${dir}/${name}/${ext}`)
+}
+
 export function loadSub(v: string) {
   return require(`@/sub/${v}`)
 }
