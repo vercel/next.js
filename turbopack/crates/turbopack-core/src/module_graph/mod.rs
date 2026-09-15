@@ -3,6 +3,7 @@ use std::{
     future::Future,
     iter::FusedIterator,
     ops::Deref,
+    sync::OnceLock,
 };
 
 use anyhow::{Context, Result, bail};
@@ -295,7 +296,7 @@ impl GraphEntries {
 }
 
 #[turbo_tasks::value(cell = "new", eq = "manual")]
-#[derive(Clone, Default)]
+#[derive(Default)]
 pub struct SingleModuleGraph {
     pub graph: TracedDiGraph<SingleModuleGraphNode, RefData>,
 
@@ -314,6 +315,25 @@ pub struct SingleModuleGraph {
 
     #[turbo_tasks(trace_ignore)]
     pub entries: GraphEntries,
+
+    /// Derived from `entries` and `modules`. Both are immutable after graph construction, and node
+    /// indices are stable because graph nodes are never removed.
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    #[bincode(skip, default = "OnceLock::new")]
+    entry_nodes: OnceLock<FxHashSet<NodeIndex>>,
+}
+
+impl Clone for SingleModuleGraph {
+    fn clone(&self) -> Self {
+        Self {
+            graph: self.graph.clone(),
+            number_of_modules: self.number_of_modules,
+            modules: self.modules.clone(),
+            entries: self.entries.clone(),
+            // Never carry derived state into a clone that might be modified before being stored.
+            entry_nodes: OnceLock::new(),
+        }
+    }
 }
 
 #[derive(
@@ -505,6 +525,7 @@ impl SingleModuleGraph {
             number_of_modules,
             modules,
             entries: entries.clone(),
+            entry_nodes: OnceLock::new(),
         }
         .cell();
 
@@ -523,13 +544,23 @@ impl SingleModuleGraph {
         })
     }
 
+    fn entry_nodes(&self) -> &FxHashSet<NodeIndex> {
+        self.entry_nodes.get_or_init(|| {
+            self.entries
+                .all_modules()
+                .filter_map(|module| self.modules.get(&module).copied())
+                .collect()
+        })
+    }
+
     /// Returns true if the given module is in this graph and is an entry module.
     ///
     /// Entry modules are tracked explicitly because an entry can have incoming edges when it is
     /// part of a module cycle.
     pub fn has_entry_module(&self, module: ResolvedVc<Box<dyn Module>>) -> bool {
-        self.modules.contains_key(&module)
-            && self.entries.all_modules().any(|entry| entry == module)
+        self.modules
+            .get(&module)
+            .is_some_and(|index| self.entry_nodes().contains(index))
     }
 
     /// Iterate over graph entry points
@@ -714,11 +745,7 @@ impl ImportTracer for ModuleGraphImportTracer {
         let reversed_graph = Reversed(&graph.graph.0);
         // A graph entry may have incoming edges when it participates in a cycle, so roots cannot
         // be inferred from graph topology alone.
-        let root_nodes = graph
-            .entries
-            .all_modules()
-            .filter_map(|module| graph.modules.get(&module).copied())
-            .collect::<FxHashSet<_>>();
+        let root_nodes = graph.entry_nodes();
         return Ok(ImportTraces::cell(ImportTraces(
             modules
                 .iter()
@@ -2068,6 +2095,9 @@ pub mod tests {
         .to_resolved()
         .await?;
         let graph = if rootless {
+            // Initialize the source graph's cache before cloning to ensure clones reset derived
+            // state instead of retaining entry indices that could become stale after modification.
+            let _ = graph.await?.entry_nodes();
             let mut graph = (*graph.await?).clone();
             graph.entries = GraphEntries::default();
             graph.resolved_cell()
@@ -2148,7 +2178,7 @@ pub mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn test_rootless_import_trace_emits_bug_issue() {
+    async fn test_cloned_rootless_import_trace_resets_cache_and_emits_bug_issue() {
         let tt = turbo_tasks::TurboTasks::new(TurboTasksBackend::new(
             BackendOptions::default(),
             noop_backing_storage(),
