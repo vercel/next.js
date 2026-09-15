@@ -1,3 +1,5 @@
+#![cfg(feature = "mmap")]
+
 use std::{cell::UnsafeCell, path::Path, sync::LazyLock, time::Duration};
 
 use anyhow::Result;

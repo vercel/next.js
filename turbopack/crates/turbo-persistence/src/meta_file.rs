@@ -3,21 +3,24 @@ use std::{
     fmt::Display,
     ops::Deref,
     path::{Path, PathBuf},
-    sync::OnceLock,
+    sync::{Arc, OnceLock},
 };
 
 use anyhow::{Context, Result, bail, ensure};
 use bitfield::bitfield;
 use byteorder::{BE, ReadBytesExt};
+#[cfg(feature = "mmap")]
 use fs_err::File;
+#[cfg(feature = "mmap")]
 use memmap2::{Mmap, MmapOptions};
 use smallvec::SmallVec;
 use zerocopy::{FromBytes, Immutable, IntoBytes, KnownLayout, Ref, big_endian as be};
 
+#[cfg(feature = "mmap")]
+use crate::mmap_helper::advise_mmap_for_persistence;
 use crate::{
     AccessMode, Compression, FamilyConfig, QueryKey,
     lookup_entry::LookupValue,
-    mmap_helper::advise_mmap_for_persistence,
     static_sorted_file::{BlockCache, SstLookupResult, StaticSortedFile, StaticSortedFileMetaData},
 };
 
@@ -242,8 +245,15 @@ pub struct StaticSortedFileRange {
 }
 
 enum MetaFileBacking {
+    #[cfg(feature = "mmap")]
     Mmap(Mmap),
-    Bytes(Box<[u8]>),
+    /// Heap bytes for [`AccessMode::File`].
+    ///
+    /// This is an `Arc<[u8]>` rather than a `Box<[u8]>` so that moving the backing into
+    /// [`MetaFile`] does not reborrow the bytes: a `Box` is a unique pointer, so the move
+    /// invalidates the `FilterRef`s that already borrow from it, which Miri reports as undefined
+    /// behavior under Stacked Borrows. An `Arc` moves its handle without retagging the allocation.
+    Bytes(Arc<[u8]>),
 }
 
 impl Deref for MetaFileBacking {
@@ -251,6 +261,7 @@ impl Deref for MetaFileBacking {
 
     fn deref(&self) -> &Self::Target {
         match self {
+            #[cfg(feature = "mmap")]
             MetaFileBacking::Mmap(mmap) => mmap,
             MetaFileBacking::Bytes(bytes) => bytes,
         }
@@ -317,6 +328,7 @@ impl MetaFile {
         access_mode: AccessMode,
     ) -> Result<Self> {
         let backing = match access_mode {
+            #[cfg(feature = "mmap")]
             AccessMode::Mmap => {
                 let file = File::open(path)?;
                 let mmap = unsafe { MmapOptions::new().map(file.file()) }
@@ -327,7 +339,7 @@ impl MetaFile {
                 advise_mmap_for_persistence(&mmap)?;
                 MetaFileBacking::Mmap(mmap)
             }
-            AccessMode::File => MetaFileBacking::Bytes(fs_err::read(path)?.into_boxed_slice()),
+            AccessMode::File => MetaFileBacking::Bytes(fs_err::read(path)?.into()),
         };
         // Parse the header from stable backing bytes via ReadBytesExt on &[u8].
         let mut reader: &[u8] = &backing;

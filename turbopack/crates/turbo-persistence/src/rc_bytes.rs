@@ -6,6 +6,7 @@ use std::{
     rc::Rc,
 };
 
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
 
 use crate::{
@@ -19,8 +20,13 @@ use crate::{
 /// Uses `Rc` for all refcounting, eliminating atomic operations.
 #[derive(Clone)]
 enum Backing {
-    Rc { _backing: Rc<[u8]> },
-    Mmap { _backing: Rc<Mmap> },
+    Rc {
+        _backing: Rc<[u8]>,
+    },
+    #[cfg(feature = "mmap")]
+    Mmap {
+        _backing: Rc<Mmap>,
+    },
 }
 
 /// An owned byte slice backed by either an `Rc<[u8]>` or a memory-mapped file.
@@ -84,6 +90,7 @@ impl Hash for RcBytes {
 }
 
 impl SharedBytes for RcBytes {
+    #[cfg(feature = "mmap")]
     type MmapHandle = Rc<Mmap>;
 
     fn slice(self, range: Range<usize>) -> Self {
@@ -101,6 +108,7 @@ impl SharedBytes for RcBytes {
                 subslice,
                 match &self.backing {
                     Backing::Rc { _backing } => _backing,
+                    #[cfg(feature = "mmap")]
                     Backing::Mmap { _backing } => _backing,
                 }
             ),
@@ -112,6 +120,7 @@ impl SharedBytes for RcBytes {
         }
     }
 
+    #[cfg(feature = "mmap")]
     unsafe fn from_mmap(mmap: &Rc<Mmap>, subslice: &[u8]) -> Self {
         debug_assert!(
             is_subslice_of(subslice, mmap),

@@ -1,5 +1,6 @@
 use std::ops::{Deref, Range};
 
+#[cfg(feature = "mmap")]
 use memmap2::Mmap;
 
 use crate::Compression;
@@ -15,6 +16,7 @@ use crate::Compression;
 /// once and used for both lookup (ArcBytes) and iteration (RcBytes) paths.
 pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
     /// The ref-counted handle to the memory-mapped file.
+    #[cfg(feature = "mmap")]
     type MmapHandle: Deref<Target = Mmap>;
 
     /// Returns a new instance that points to a sub-range of the current slice.
@@ -35,6 +37,7 @@ pub trait SharedBytes: Clone + Deref<Target = [u8]> + Sized {
     ///
     /// The caller must ensure that `subslice` points to memory within the
     /// given `mmap`.
+    #[cfg(feature = "mmap")]
     unsafe fn from_mmap(mmap: &Self::MmapHandle, subslice: &[u8]) -> Self;
 
     /// Creates an instance from a decompressed block.
