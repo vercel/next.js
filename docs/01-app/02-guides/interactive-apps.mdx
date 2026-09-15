@@ -742,7 +742,7 @@ export async function updateStatus(taskId: string, newStatus: Status) {
 
 Every Server Function follows the same shape: run the write, then call `updateTag` for the cached reads that changed. Dynamic reads do not have tags to invalidate, so use `refresh()` for those mutations.
 
-In this demo, the comment thread stays dynamic because readers expect the current discussion to update immediately on the open task page. Adding or deleting a comment calls `refresh()`, which reruns the dynamic comment read for the current route while leaving the task caches in place. See the [Revalidating guide](/docs/app/getting-started/revalidating) for tag patterns, time-based revalidation, and on-demand invalidation from route handlers.
+In this demo, the comment thread stays dynamic because readers expect the current discussion to update immediately on the open task page. Adding or deleting a comment calls `refresh()`, which reruns the dynamic comment read for the current route while leaving the task caches in place. See [Caching](/docs/app/getting-started/caching) for tag patterns and time-based revalidation, and [Revalidating the cache](/docs/app/getting-started/mutating-data#revalidating-the-cache) for on-demand invalidation.
 
 #### Prefetch the destination with the real request
 

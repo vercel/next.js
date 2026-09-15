@@ -18,4 +18,29 @@ Our documentation assumes some familiarity with web development. Before getting 
 
 If you're new to React or need a refresher, we recommend starting with our [React Foundations course](/learn/react-foundations), and the [Next.js Foundations course](/learn/dashboard-app) that has you building an application as you learn.
 
-## Next Steps
+## What you'll learn
+
+One path from an empty directory to a deployed app. Twelve pages in three groups: six carry the concepts, and the other six are setup, presentation, and deployment.
+
+### Set up and route
+
+- [Installation](/docs/app/getting-started/installation): a project on disk, and a dev server, via the `create-next-app` CLI or by hand.
+- [Layouts and Pages](/docs/app/getting-started/layouts-and-pages): how a URL resolves to a response, through the `page` and `layout` file conventions, and `<Link>` to move between them.
+- [Linking and Navigating](/docs/app/getting-started/linking-and-navigating): what happens during a navigation, and how to trigger one programmatically with `useRouter`.
+
+### Learn the model
+
+Each page depends on the one before it, so read these in order.
+
+- [Server and Client Components](/docs/app/getting-started/server-and-client-components): which code runs on the server and which runs in the browser, where `use client` marks the boundary.
+- [Fetching Data](/docs/app/getting-started/fetching-data): reading data in `async` components while the response is being built, with `<Suspense>` around the slow parts.
+- [Rendering model](/docs/app/getting-started/rendering-model): whether a response is built ahead of the request or per request, and how Partial Prerendering does both at once.
+- [Caching](/docs/app/getting-started/caching): reusing work instead of repeating it for every request. `use cache` marks what to keep, `cacheLife` says for how long.
+- [Mutating Data](/docs/app/getting-started/mutating-data): writing data on the server through Server Functions, declared with `use server` and followed by `updateTag` to refresh what changed.
+- [Error handling](/docs/app/getting-started/error-handling): what the response is when something fails. `error.js` catches a whole route, `catchError` anything smaller.
+
+### Polish and deploy
+
+- [Styling and assets](/docs/app/getting-started/styling-and-assets): what ships alongside the HTML. CSS, plus `next/image` and `next/font` for the assets.
+- [Metadata and OG images](/docs/app/getting-started/metadata-and-og-images): the document head, and what crawlers and social cards read, through `generateMetadata` and the OG image conventions.
+- [Deploying](/docs/app/getting-started/deploying): getting it onto a server, starting from what `next build` produces.
