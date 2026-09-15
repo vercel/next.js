@@ -84,6 +84,7 @@ export async function prepareUpgrade(
 type Advisory = {
   ghsa_id: string
   html_url: string
+  severity: string | undefined
   withdrawn_at: string | null
   vulnerabilities: {
     package: { ecosystem: string; name: string }
@@ -239,10 +240,74 @@ function affectedRanges(advisories: Advisory[]): string[] {
   return ranges
 }
 
-async function readGitHubAdvisories() {
+// Count only advisories affecting the running version for the startup prompt.
+// Full release selection remains in the explicit upgrade command.
+export async function getSecurityAdvisorySummary(version: string) {
+  if (!semver.valid(version)) {
+    throw new Error('The running Next.js version is not valid semver.')
+  }
+
+  if (semver.prerelease(version)) {
+    return null
+  }
+
+  let advisories: Advisory[]
+  let reference: string
+
+  try {
+    const result = await readGitHubAdvisories(version)
+    advisories = result.advisories
+    reference = result.reference
+  } catch {
+    advisories = await readNpmAdvisories([version])
+    reference = NPM_ADVISORIES
+  }
+
+  const counts = { critical: 0, high: 0, moderate: 0, low: 0, unknown: 0 }
+  const seen = new Set<string>()
+
+  for (const advisory of advisories) {
+    if (
+      seen.has(advisory.ghsa_id) ||
+      !affectedRanges([advisory]).some((range) =>
+        semver.satisfies(version, range)
+      )
+    ) {
+      continue
+    }
+
+    // Multiple affected ranges or repeated records still describe one advisory.
+    seen.add(advisory.ghsa_id)
+    const severity =
+      typeof advisory.severity === 'string'
+        ? advisory.severity.toLowerCase()
+        : undefined
+
+    switch (severity) {
+      case 'critical':
+      case 'high':
+      case 'low':
+        counts[severity]++
+        break
+      case 'medium': // GitHub calls npm's moderate severity "medium".
+      case 'moderate':
+        counts.moderate++
+        break
+      default:
+        counts.unknown++
+    }
+  }
+
+  return { counts, reference }
+}
+
+async function readGitHubAdvisories(version: string | null) {
   const advisories: Advisory[] = []
   const visited = new Set<string>()
-  let url: string | undefined = ADVISORIES
+  const affects = version === null ? 'next' : `next@${version}`
+  const firstPage = new URL(ADVISORIES)
+  firstPage.searchParams.set('affects', affects)
+  let url: string | undefined = firstPage.href
 
   for (let page = 0; url; page++) {
     if (page === 100) {
@@ -270,7 +335,7 @@ async function readGitHubAdvisories() {
         parsed.origin !== 'https://api.github.com' ||
         parsed.pathname !== '/advisories' ||
         parsed.searchParams.get('ecosystem') !== 'npm' ||
-        parsed.searchParams.get('affects') !== 'next' ||
+        parsed.searchParams.get('affects') !== affects ||
         parsed.searchParams.get('type') !== 'reviewed' ||
         visited.has(next)
       ) {
@@ -282,7 +347,7 @@ async function readGitHubAdvisories() {
   }
 
   affectedRanges(advisories)
-  return { advisories }
+  return { advisories, reference: firstPage.href }
 }
 
 async function readNpmAdvisories(versions: string[]): Promise<Advisory[]> {
@@ -326,6 +391,8 @@ async function readNpmAdvisories(versions: string[]): Promise<Advisory[]> {
       ghsa_id:
         finding.url.match(/GHSA-[a-z0-9-]+$/)?.[0] ?? `npm-${finding.id}`,
       html_url: finding.url,
+      severity:
+        typeof finding.severity === 'string' ? finding.severity : undefined,
       // npm's active advisory feed does not expose withdrawal metadata.
       withdrawn_at: null,
       vulnerabilities: [
@@ -348,7 +415,7 @@ async function readSecuritySnapshot(): Promise<SecuritySnapshot> {
 
   try {
     Log.info(dim('Fetching GitHub security advisories'))
-    github = await readGitHubAdvisories()
+    github = await readGitHubAdvisories(null)
   } catch (error) {
     githubFailure = error
   }
@@ -365,7 +432,7 @@ async function readSecuritySnapshot(): Promise<SecuritySnapshot> {
 
     if (github) {
       advisories = github.advisories
-      advisoryReference = ADVISORIES
+      advisoryReference = github.reference
     } else {
       Log.info(dim('GitHub advisory lookup failed; fetching npm advisories'))
       // Query every published version, including prereleases: querying only the
