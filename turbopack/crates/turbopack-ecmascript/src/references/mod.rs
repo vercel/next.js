@@ -3752,6 +3752,7 @@ async fn handle_free_var_reference(
                             import_usage: ImportUsage::TopLevel,
                             import_externals: state.import_externals,
                             module_fragments_enabled: state.module_fragments_enabled,
+                            export_usage_passthrough: None,
                             resolve_override: None,
                         },
                     )
