@@ -92,6 +92,9 @@ pub enum ReferencedAssetIdent {
         /// Whether the named export can be captured once instead of read through the namespace at
         /// every use. This is false for namespace imports, live bindings, and circuit breakers.
         can_value_bind: bool,
+        /// Whether calling the named export could observe `this`, in which case a member call has
+        /// to keep the namespace as the receiver. Conservatively true.
+        maybe_uses_this: bool,
         /// Describes what to import to populate the variable that `namespace_ident` names.
         ///
         /// When the ident was resolved through a re-export chain (e.g. `export * as X from
@@ -156,6 +159,7 @@ impl ReferencedAssetIdent {
                 ctxt,
                 export,
                 can_value_bind: _,
+                maybe_uses_this: _,
                 import_source: _,
             } => {
                 if let Some(export) = export {
@@ -236,14 +240,14 @@ impl ReferencedAsset {
                     let exports = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
                     let esm_export = exports.exports.get(export);
                     match esm_export {
-                        Some(EsmExport::LocalBinding(_name, liveness)) => {
+                        Some(EsmExport::LocalBinding(binding)) => {
                             // A local binding in a module that is merged in the same group. Use the
                             // export name as identifier, it will be replaced with the actual
                             // variable name during AST merging.
                             return Ok(Some(ReferencedAssetIdent::LocalBinding {
                                 ident: export.clone(),
                                 ctxt,
-                                liveness: *liveness,
+                                liveness: binding.liveness,
                             }));
                         }
                         Some(b @ EsmExport::ImportedBinding(esm_ref, _, _))
@@ -293,12 +297,14 @@ impl ReferencedAsset {
                                         ctxt: None,
                                         export,
                                         can_value_bind,
+                                        maybe_uses_this,
                                         import_source,
                                     }) => Some(ReferencedAssetIdent::Module {
                                         namespace_ident,
                                         ctxt: Some(ctxt),
                                         export,
                                         can_value_bind,
+                                        maybe_uses_this,
                                         import_source,
                                     }),
                                     ident => ident,
@@ -313,10 +319,10 @@ impl ReferencedAsset {
                 }
 
                 let import_source = ImportSource::Module { asset: *asset };
-                let can_value_bind = if let Some(export) = &export {
-                    *can_capture_export_value(**asset, export.clone(), chunking_context).await?
+                let capture = if let Some(export) = &export {
+                    can_capture_export_value(**asset, export.clone(), chunking_context).await?
                 } else {
-                    false
+                    ExportCapture::unknown().await?
                 };
                 Some(ReferencedAssetIdent::Module {
                     namespace_ident: import_source.get_namespace_ident(chunking_context).await?,
@@ -331,7 +337,8 @@ impl ReferencedAsset {
                         }
                         None => None,
                     },
-                    can_value_bind,
+                    can_value_bind: capture.can_value_bind,
+                    maybe_uses_this: capture.maybe_uses_this,
                     import_source,
                 })
             }
@@ -345,6 +352,8 @@ impl ReferencedAsset {
                     ctxt: None,
                     export,
                     can_value_bind: false,
+                    // An external's value is opaque, so a member call keeps the receiver.
+                    maybe_uses_this: true,
                     import_source,
                 })
             }
@@ -400,48 +409,82 @@ impl ReferencedAsset {
 /// This is a turbo task because every use of the same imported binding asks this question during
 /// code generation. Cache the re-export walk and circuit-breaker lookup once per export and
 /// chunking context instead of repeating those reads for every use.
+#[turbo_tasks::value]
+pub struct ExportCapture {
+    /// Whether the export can be read once into a local instead of at every use.
+    pub can_value_bind: bool,
+    /// Whether calling the export could observe `this`. Conservatively true.
+    pub maybe_uses_this: bool,
+}
+
+impl ExportCapture {
+    /// Nothing is known about the export, so it must be read through the namespace and called
+    /// with it as the receiver.
+    fn unknown() -> Vc<Self> {
+        ExportCapture {
+            can_value_bind: false,
+            maybe_uses_this: true,
+        }
+        .cell()
+    }
+}
+
 #[turbo_tasks::function]
 async fn can_capture_export_value(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export: RcStr,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-) -> Result<Vc<bool>> {
+) -> Result<Vc<ExportCapture>> {
     let imported_module = module;
     let mut module = module;
     let mut export = export;
     let mut visited = FxHashSet::default();
-    let is_constant = loop {
+    let binding = loop {
         if !visited.insert((module, export.clone())) {
-            break false;
+            break None;
         }
         let EcmascriptExports::EsmExports(exports) = *module.get_exports().await? else {
-            break false;
+            break None;
         };
         let expanded = exports.expand_exports(ModuleExportUsageInfo::all()).await?;
         match expanded.exports.get(&export) {
-            Some(EsmExport::LocalBinding(_, liveness)) => {
-                break *liveness == Liveness::Constant;
+            Some(EsmExport::LocalBinding(binding)) => {
+                break Some(binding.clone());
             }
             Some(EsmExport::ImportedBinding(reference, name, _)) => {
                 let ReferencedAsset::Some(reexported_module) =
                     ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
                 else {
-                    break false;
+                    break None;
                 };
                 module = reexported_module;
                 export = name.clone();
             }
-            Some(EsmExport::ImportedNamespace(_) | EsmExport::Error) | None => break false,
+            Some(EsmExport::ImportedNamespace(_) | EsmExport::Error) | None => break None,
         }
     };
-    if !is_constant {
-        return Ok(Vc::cell(false));
+    // A hop that could not be followed says nothing about the value, so stay conservative on both
+    // questions.
+    let Some(binding) = binding else {
+        return Ok(ExportCapture::unknown());
+    };
+
+    if binding.liveness != Liveness::Constant {
+        return Ok(ExportCapture {
+            can_value_bind: false,
+            maybe_uses_this: binding.maybe_uses_this,
+        }
+        .cell());
     }
 
     let export_usage = chunking_context
         .module_export_usage(*ResolvedVc::upcast(imported_module))
         .await?;
-    Ok(Vc::cell(!export_usage.is_circuit_breaker))
+    Ok(ExportCapture {
+        can_value_bind: !export_usage.is_circuit_breaker,
+        maybe_uses_this: binding.maybe_uses_this,
+    }
+    .cell())
 }
 
 impl ReferencedAsset {
@@ -914,6 +957,7 @@ impl EsmAssetReference {
                                 ctxt,
                                 export: _,
                                 can_value_bind: _,
+                                maybe_uses_this: _,
                                 import_source,
                             }) => {
                                 let span = this

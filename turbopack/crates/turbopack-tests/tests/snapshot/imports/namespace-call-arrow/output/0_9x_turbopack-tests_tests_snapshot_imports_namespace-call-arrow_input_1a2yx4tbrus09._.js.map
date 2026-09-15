@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/namespace-call-arrow/input/index.js"],"sourcesContent":["import * as ns from './lib.js'\n\nconsole.log(ns.arrowFn(1), ns.plainFn(2), ns.methodLike())\n"],"names":["console","log"],"mappings":"AAAA;;;AAEAA,QAAQC,GAAG,CAAC,4DAAW,IAAI,4DAAW,IAAI,+NAAa"}},
+    {"offset": {"line": 13, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/namespace-call-arrow/input/lib.js"],"sourcesContent":["// An arrow has no `this` of its own, so calling it through the namespace does not need the\n// namespace as a receiver.\nexport const arrowFn = (x) => x * 2\n\n// A function declaration that never reaches `this` is equally safe.\nexport function plainFn(x) {\n  return x + 1\n}\n\n// This one observes `this`, so the namespace has to stay the receiver.\nexport function methodLike() {\n  return this === undefined ? 'no-this' : 'has-this'\n}\n"],"names":["arrowFn","x","plainFn","methodLike","undefined"],"mappings":"AAAA,2FAA2F;AAC3F,2BAA2B;AACpB,MAAMA,UAAU,CAACC,IAAMA,IAAI;AAG3B,SAASC,QAAQD,CAAC;IACvB,OAAOA,IAAI;AACb;AAGO,SAASE;IACd,OAAO,IAAI,KAAKC,YAAY,YAAY;AAC1C"}}]
+}

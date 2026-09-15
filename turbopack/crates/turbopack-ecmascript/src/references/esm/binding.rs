@@ -38,7 +38,7 @@ pub struct EsmBinding {
     export: Option<RcStr>,
     local: Option<RcStr>,
     ast_path: AstPath,
-    keep_this: bool,
+    propagates_this: bool,
 }
 
 impl EsmBinding {
@@ -53,7 +53,7 @@ impl EsmBinding {
             export,
             local,
             ast_path,
-            keep_this: false,
+            propagates_this: false,
         }
     }
 
@@ -79,13 +79,13 @@ impl EsmBinding {
             .len()
             .checked_sub(2)
             .map_or(&[][..], |end| &ast_path.0[..end]);
-        let keep_this = is_this_receiver_position(enclosing);
+        let propagates_this = is_this_receiver_position(enclosing);
         EsmBinding {
             reference,
             export,
             local: None,
             ast_path,
-            keep_this,
+            propagates_this,
         }
     }
 
@@ -151,7 +151,7 @@ impl EsmBinding {
                     // call receiver. Source-level assignments to ESM imports are illegal, but SWC
                     // still parses them; retain namespace access for those assignment targets so
                     // assigning to the non-writable export continues to throw.
-                    let value_binding = if !self.keep_this
+                    let value_binding = if !propagates_this(self.propagates_this, &imported_ident)
                         && let ReferencedAssetIdent::Module {
                             namespace_ident,
                             ctxt,
@@ -245,7 +245,12 @@ impl EsmBinding {
                     ast_path.pop();
                     // `ast_path` no longer has the trailing `Expr`, so it already describes the
                     // enclosing position that `is_this_receiver_position` inspects.
-                    let in_call = !self.keep_this && is_this_receiver_position(&ast_path);
+                    let in_call = match &imported_ident {
+                        ImportedIdent::Module(imported_ident, _) => {
+                            !propagates_this(self.propagates_this, imported_ident)
+                        }
+                        _ => !self.propagates_this,
+                    } && is_this_receiver_position(&ast_path);
 
                     visitors.push(create_visitor!(
                         exact,
@@ -516,6 +521,20 @@ fn value_binding_stmts(
         .collect()
 }
 
+/// Whether a member call has to keep the namespace as the `this` receiver.
+///
+/// Only calls need a receiver at all, and only a callee that could observe `this` cares which one
+/// it gets.
+fn propagates_this(is_member_call: bool, imported_ident: &ReferencedAssetIdent) -> bool {
+    is_member_call
+        && match imported_ident {
+            ReferencedAssetIdent::Module {
+                maybe_uses_this, ..
+            } => *maybe_uses_this,
+            ReferencedAssetIdent::LocalBinding { .. } => true,
+        }
+}
+
 fn is_assignment_target(ast_path: &AstPath) -> bool {
     ast_path.iter().any(|parent| {
         matches!(
@@ -529,9 +548,9 @@ fn is_assignment_target(ast_path: &AstPath) -> bool {
 /// as the `this` receiver, i.e. `ns.f()` or ``ns.f`...` ``.
 ///
 /// `parents` must be the path of the enclosing node, with any trailing entries that describe the
-/// member expression itself already removed. Both the `keep_this` decision made when the binding is
-/// created and the `in_call` decision made during code generation go through this function so the
-/// two can never disagree.
+/// member expression itself already removed. Both the `propagates_this` decision made when the
+/// binding is created and the `in_call` decision made during code generation go through this
+/// function so the two can never disagree.
 fn is_this_receiver_position(parents: &[swc_core::ecma::visit::AstParentKind]) -> bool {
     use swc_core::ecma::visit::AstParentKind;
 
