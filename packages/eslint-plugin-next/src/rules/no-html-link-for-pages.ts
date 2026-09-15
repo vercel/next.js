@@ -62,9 +62,6 @@ export default defineRule({
           },
         ],
       },
-      {
-        type: 'string',
-      },
     ],
   },
 
@@ -76,11 +73,12 @@ export default defineRule({
     const [customPagesDirectory] = ruleOptions
     const nextSettings: { pageExtensions?: string[] } =
       context.settings?.next || {}
-    const pageExtensions =
-      nextSettings.pageExtensions ||
-      (context.options.length === 2 && typeof context.options[1] === 'string'
-        ? [context.options[1]]
-        : ['js', 'jsx', 'ts', 'tsx'])
+    const pageExtensions = nextSettings.pageExtensions || [
+      'js',
+      'jsx',
+      'ts',
+      'tsx',
+    ]
 
     const rootDirs = getRootDirs(context)
 

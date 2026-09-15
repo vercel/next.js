@@ -18,8 +18,9 @@ function parseUrlForPages(
   })
   const res = []
 
-  const extPattern = new RegExp(`\\.(${pageExtensions.join('|')})$`)
-  const indexPattern = new RegExp(`^index\\.(${pageExtensions.join('|')})$`)
+  const extensions = pageExtensions.map(escapeRegExpString).join('|')
+  const extPattern = new RegExp(`\\.(${extensions})$`)
+  const indexPattern = new RegExp(`^index\\.(${extensions})$`)
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extPattern.test(dirent.name)) {
@@ -56,9 +57,10 @@ function parseUrlForAppDir(
   })
   const res = []
 
-  const extPattern = new RegExp(`\\.(${pageExtensions.join('|')})$`)
-  const pagePattern = new RegExp(`^page\\.(${pageExtensions.join('|')})$`)
-  const layoutPattern = new RegExp(`^layout\\.(${pageExtensions.join('|')})$`)
+  const extensions = pageExtensions.map(escapeRegExpString).join('|')
+  const extPattern = new RegExp(`\\.(${extensions})$`)
+  const pagePattern = new RegExp(`^page\\.(${extensions})$`)
+  const layoutPattern = new RegExp(`^layout\\.(${extensions})$`)
 
   fsReadDirSyncCache[directory].forEach((dirent) => {
     if (extPattern.test(dirent.name)) {
@@ -225,4 +227,8 @@ function ensureLeadingSlash(route: string) {
 
 function isGroupSegment(segment: string) {
   return segment[0] === '(' && segment.endsWith(')')
+}
+
+function escapeRegExpString(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
