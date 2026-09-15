@@ -485,6 +485,15 @@ impl<'e> ExecuteContextImpl<'e> {
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Result<StorageWriteGuard<'e>> {
+        // Fast path: the restoring thread usually finishes its I/O before this waiter gets here.
+        // Avoid registering a listener when the requested category is already available.
+        {
+            let task = self.backend.storage.access_mut(task_id);
+            if task.flags.is_restored(category) {
+                return Ok(task);
+            }
+        }
+
         loop {
             // Register before taking the task lock to avoid a lost wakeup when another restorer is
             // still active. It is harmless when this thread becomes the replacement restorer.
