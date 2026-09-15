@@ -1,9 +1,12 @@
 #![feature(deref_patterns)]
-#![feature(bufreader_peek)]
+#![cfg_attr(not(target_arch = "wasm32"), feature(bufreader_peek))]
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::path::PathBuf;
 use std::{
     hash::BuildHasherDefault,
-    path::PathBuf,
+    io::Read,
+    ops::ControlFlow,
     sync::Arc,
     thread,
     time::{Duration, Instant},
@@ -11,16 +14,18 @@ use std::{
 
 use rustc_hash::FxHasher;
 
-use self::{
-    reader::TraceReader, server::serve, span_graph_ref::SpanGraphEventRef, span_ref::SpanRef,
-    store_container::StoreContainer,
-};
+#[cfg(not(target_arch = "wasm32"))]
+use self::{reader::TraceReader, server::serve};
+use self::{span_graph_ref::SpanGraphEventRef, span_ref::SpanRef, store_container::StoreContainer};
 
 mod bottom_up;
 mod chunked_vec;
 mod lazy_sorted_vec;
+pub mod protocol;
+#[cfg(not(target_arch = "wasm32"))]
 mod reader;
 mod self_time_tree;
+#[cfg(not(target_arch = "wasm32"))]
 mod server;
 mod span;
 mod span_bottom_up_ref;
@@ -30,6 +35,8 @@ mod store;
 pub mod store_container;
 mod string_tuple_ref;
 mod timestamp;
+mod trace;
+pub use trace::TraceParser;
 mod u64_empty_string;
 mod u64_string;
 mod viewer;
@@ -42,6 +49,7 @@ type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
 /// Starts the trace server on a background thread and returns the store
 /// immediately. The WebSocket server runs non-blocking.
+#[cfg(not(target_arch = "wasm32"))]
 pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<StoreContainer> {
     let store = Arc::new(StoreContainer::new());
 
@@ -55,6 +63,129 @@ pub fn start_turbopack_trace_server(path: PathBuf, port: Option<u16>) -> Arc<Sto
     });
 
     store
+}
+
+/// Parses a complete raw or gzip-compressed trace held in memory.
+///
+/// Zstd is intentionally unsupported here because the browser WASM build does
+/// not include the native zstd decoder used by the file reader.
+pub fn read_trace_bytes(bytes: &[u8]) -> anyhow::Result<Arc<StoreContainer>> {
+    read_trace_bytes_impl(bytes, None)
+}
+
+/// Progress made while parsing a complete trace held in memory.
+pub struct TraceReadProgress<'a> {
+    pub bytes_read: usize,
+    pub total_bytes: usize,
+    pub uncompressed_bytes_read: usize,
+    pub done: bool,
+    parser: &'a TraceParser,
+}
+
+impl TraceReadProgress<'_> {
+    pub fn stats(&self) -> String {
+        self.parser.stats()
+    }
+}
+
+type TraceProgressCallback<'a> = dyn FnMut(TraceReadProgress<'_>) -> ControlFlow<()> + 'a;
+
+/// Parses a complete trace and reports progress after each parsing batch.
+///
+/// Returning `ControlFlow::Break(())` from the callback aborts parsing.
+pub fn read_trace_bytes_with_progress(
+    bytes: &[u8],
+    mut progress: impl FnMut(TraceReadProgress<'_>) -> ControlFlow<()>,
+) -> anyhow::Result<Arc<StoreContainer>> {
+    read_trace_bytes_impl(bytes, Some(&mut progress))
+}
+
+fn read_trace_bytes_impl(
+    bytes: &[u8],
+    mut progress: Option<&mut TraceProgressCallback<'_>>,
+) -> anyhow::Result<Arc<StoreContainer>> {
+    const PARSE_CHUNK_SIZE: usize = 2 * 1024 * 1024;
+    const GZIP_MAGIC: &[u8] = &[0x1f, 0x8b];
+    const ZSTD_MAGIC: &[u8] = &[0x28, 0xb5, 0x2f, 0xfd];
+
+    if bytes.starts_with(ZSTD_MAGIC) {
+        anyhow::bail!("zstd-compressed traces are not supported by the WASM trace engine");
+    }
+
+    let store = Arc::new(StoreContainer::new());
+    let mut parser = TraceParser::new_complete(store.clone());
+    let mut uncompressed_bytes_read = 0;
+
+    if bytes.starts_with(GZIP_MAGIC) {
+        let mut decoder = flate2::read::GzDecoder::new(bytes);
+        let mut chunk = vec![0; PARSE_CHUNK_SIZE];
+        loop {
+            let bytes_read = decoder.read(&mut chunk)?;
+            if bytes_read == 0 {
+                break;
+            }
+            parser.push(&chunk[..bytes_read])?;
+            uncompressed_bytes_read += bytes_read;
+            let bytes_read = bytes.len() - decoder.get_ref().len();
+            report_trace_read_progress(
+                &mut progress,
+                &parser,
+                bytes_read,
+                bytes.len(),
+                uncompressed_bytes_read,
+                false,
+            )?;
+        }
+    } else {
+        let mut bytes_read = 0;
+        for chunk in bytes.chunks(PARSE_CHUNK_SIZE) {
+            parser.push(chunk)?;
+            bytes_read += chunk.len();
+            uncompressed_bytes_read = bytes_read;
+            report_trace_read_progress(
+                &mut progress,
+                &parser,
+                bytes_read,
+                bytes.len(),
+                uncompressed_bytes_read,
+                false,
+            )?;
+        }
+    }
+
+    parser.finish()?;
+    report_trace_read_progress(
+        &mut progress,
+        &parser,
+        bytes.len(),
+        bytes.len(),
+        uncompressed_bytes_read,
+        true,
+    )?;
+    Ok(store)
+}
+
+fn report_trace_read_progress(
+    progress: &mut Option<&mut TraceProgressCallback<'_>>,
+    parser: &TraceParser,
+    bytes_read: usize,
+    total_bytes: usize,
+    uncompressed_bytes_read: usize,
+    done: bool,
+) -> anyhow::Result<()> {
+    if let Some(progress) = progress
+        && progress(TraceReadProgress {
+            bytes_read,
+            total_bytes,
+            uncompressed_bytes_read,
+            done,
+            parser,
+        })
+        .is_break()
+    {
+        anyhow::bail!("trace loading was aborted by the progress callback");
+    }
+    Ok(())
 }
 
 const PAGE_SIZE: usize = 20;

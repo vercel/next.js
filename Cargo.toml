@@ -207,6 +207,7 @@ turbopack-static = { path = "turbopack/crates/turbopack-static" }
 turbopack-swc-utils = { path = "turbopack/crates/turbopack-swc-utils" }
 turbopack-test-utils = { path = "turbopack/crates/turbopack-test-utils" }
 turbopack-trace-server = { path = "turbopack/crates/turbopack-trace-server" }
+turbopack-trace-server-wasm = { path = "turbopack/crates/turbopack-trace-server-wasm" }
 turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
@@ -344,10 +345,12 @@ smallvec = { version = "1.15.1", features = [
   "const_new",
   "impl_bincode",
 ] }
+spinning_top = "0.3.0"
 shrink-to-fit = "0.2.10"
 strsim = "0.11.1"
 swc_sourcemap = "10.0.2"
 syn = "2.0.100"
+talc = "5.1.0"
 tempfile = "3.20.0"
 terminal_size = "0.3.0"
 thiserror = "1.0.48"
