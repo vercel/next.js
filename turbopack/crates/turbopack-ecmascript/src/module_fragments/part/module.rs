@@ -14,6 +14,7 @@ use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleAsset, EcmascriptModuleContent, EcmascriptModuleContentOptions,
     EcmascriptParsable, EnvVarInfo,
+    analyzer::imports::ExportRegistrationMode,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -103,6 +104,8 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
             generate_source_map,
             original_source_map: analyze_ref.source_map,
             exports: self.get_exports().to_resolved().await?,
+            // Module fragments keep the general registration.
+            export_registration_mode: Some(ExportRegistrationMode::Normal),
             async_module_info,
         }
         .cell())
