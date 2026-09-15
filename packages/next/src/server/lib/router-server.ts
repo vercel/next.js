@@ -870,6 +870,12 @@ export async function initialize(opts: {
           invokeStatus: res.statusCode,
         })
       } catch (err2) {
+        if (err instanceof DecodeError) {
+          res.statusCode = 400
+          res.setHeader('Content-Type', 'text/plain; charset=utf-8')
+          res.end('Bad Request')
+          return
+        }
         console.error(err2)
       }
       res.statusCode = 500
