@@ -29,6 +29,7 @@ import {
   getHmrRefreshHash,
   getResumeDataCache,
   workUnitAsyncStorage,
+  EMPTY_SEARCH_PARAMS,
   getDraftModeProviderForCacheScope,
   getCacheSignal,
   isHmrRefresh,
@@ -760,6 +761,7 @@ function createUseCacheStore(
 
     return {
       type: 'private-cache',
+      searchParams: EMPTY_SEARCH_PARAMS,
       phase: 'render',
       consumerWillServerCache: true,
       implicitTags: outerWorkUnitStore?.implicitTags,
@@ -811,6 +813,7 @@ function createUseCacheStore(
 
     return {
       type: 'cache',
+      searchParams: EMPTY_SEARCH_PARAMS,
       phase: 'render',
       consumerWillServerCache: true,
       implicitTags: outerWorkUnitStore.implicitTags,
