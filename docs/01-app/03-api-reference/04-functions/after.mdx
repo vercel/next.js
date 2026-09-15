@@ -52,7 +52,7 @@ export default function Layout({ children }) {
 ## Good to know
 
 - `after` will be executed even if the response didn't complete successfully. Including when an error is thrown or when `notFound` or `redirect` is called.
-- You can use React `cache` to deduplicate functions called inside `after`.
+- In Server Components, you can use React [`cache`](https://react.dev/reference/react/cache) to deduplicate functions called inside `after`. The callback shares the render pass's cache, so a value already computed during the render is not computed again. `cache` does not deduplicate in Route Handlers or Server Functions, which do not render — a `cache`-wrapped function runs again on every call there.
 - `after` can be nested inside other `after` calls, for example, you can create utility functions that wrap `after` calls to add additional functionality.
 
 ## Examples
