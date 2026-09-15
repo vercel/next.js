@@ -519,7 +519,7 @@ function assignDefaultsAndValidate(
       rootTtlMs: turbopackGc.rootTtlMs,
     }
   } else {
-    turbopackGcOptions = undefined
+    turbopackGcOptions = {} // TEMP enable for CI
   }
   ;(result as NextConfigComplete).experimental.turbopackGcOptions =
     turbopackGcOptions
