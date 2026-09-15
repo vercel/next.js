@@ -1,15 +1,26 @@
 import { PassThrough } from 'stream'
 
 let latestForkEnv: NodeJS.ProcessEnv | undefined
+let latestStdout: PassThrough | undefined
+let latestStderr: PassThrough | undefined
+let latestEnd: jest.Mock | undefined
+let latestKill: jest.Mock | undefined
 
 jest.mock('next/dist/compiled/jest-worker', () => {
   const WorkerMock = jest.fn().mockImplementation((_path, options) => {
     latestForkEnv = options?.forkOptions?.env
+    latestStdout = new PassThrough()
+    latestStderr = new PassThrough()
+    latestEnd = jest.fn().mockResolvedValue({ forceExited: false })
+    latestKill = jest.fn()
+
     return {
-      _workerPool: { _workers: [] },
-      getStdout: () => new PassThrough(),
-      getStderr: () => new PassThrough(),
-      end: jest.fn().mockResolvedValue(undefined),
+      _workerPool: {
+        _workers: [{ _child: { kill: latestKill, on: jest.fn() } }],
+      },
+      getStdout: () => latestStdout,
+      getStderr: () => latestStderr,
+      end: latestEnd,
       close: jest.fn(),
     }
   })
@@ -62,8 +73,14 @@ describe('lib/worker color propagation', () => {
       const restore = restoreDescriptors.pop()
       restore?.()
     }
+    latestStdout?.end()
+    latestStderr?.end()
     jest.resetModules()
     latestForkEnv = undefined
+    latestStdout = undefined
+    latestStderr = undefined
+    latestEnd = undefined
+    latestKill = undefined
   })
 
   it('enables FORCE_COLOR when the parent supports colors', () => {
@@ -123,5 +140,63 @@ describe('lib/worker color propagation', () => {
     worker.close()
 
     expect(latestForkEnv?.FORCE_COLOR).toBeUndefined()
+  })
+})
+
+describe('lib/worker shutdown', () => {
+  afterEach(() => {
+    latestStdout?.end()
+    latestStderr?.end()
+    jest.useRealTimers()
+    jest.resetModules()
+    latestForkEnv = undefined
+    latestStdout = undefined
+    latestStderr = undefined
+    latestEnd = undefined
+    latestKill = undefined
+  })
+
+  it('retains interrupt-driven shutdown by default', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+    const worker = new Worker(__filename, noopOptions)
+
+    await expect(worker.end()).resolves.toEqual({ forceExited: false })
+    expect(latestKill).toHaveBeenCalledWith('SIGINT')
+  })
+
+  it('gracefully waits for stdout and stderr to drain', async () => {
+    const { Worker } = require('./worker') as typeof import('./worker')
+    const worker = new Worker(__filename, noopOptions)
+
+    let didEnd = false
+    const endPromise = worker.endGracefully().then((result) => {
+      didEnd = true
+      return result
+    })
+
+    await Promise.resolve()
+    expect(latestEnd).toHaveBeenCalledTimes(1)
+    expect(latestKill).not.toHaveBeenCalled()
+    expect(didEnd).toBe(false)
+
+    latestStdout!.end()
+    await Promise.resolve()
+    expect(didEnd).toBe(false)
+
+    latestStderr!.end()
+    await expect(endPromise).resolves.toEqual({ forceExited: false })
+  })
+
+  it('bounds the graceful output drain wait', async () => {
+    jest.useFakeTimers()
+    const { Worker } = require('./worker') as typeof import('./worker')
+    const worker = new Worker(__filename, noopOptions)
+
+    const endPromise = worker.endGracefully()
+    await Promise.resolve()
+
+    jest.advanceTimersByTime(1000)
+    await expect(endPromise).resolves.toEqual({ forceExited: false })
+    expect(latestKill).not.toHaveBeenCalled()
   })
 })
