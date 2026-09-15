@@ -1,4 +1,8 @@
-export default function Page({ params, children }) {
+export default async function Page(props) {
+  const {
+    children
+  } = props;
+
   return children
 }
 
