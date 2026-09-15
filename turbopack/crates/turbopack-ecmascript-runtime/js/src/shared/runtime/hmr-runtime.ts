@@ -74,7 +74,7 @@ type ModuleEffect =
     }
   | {
       type: 'accepted'
-      moduleId: ModuleId
+      moduleId: ModuleId | undefined
       outdatedModules: Set<ModuleId>
       outdatedDependencies: Map<ModuleId, Set<ModuleId>>
     }

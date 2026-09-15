@@ -1,5 +1,7 @@
 import { cookies } from 'next/headers'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AccountPage() {
   const cookieStore = await cookies()
   const displayName = cookieStore.get('display-name')?.value ?? 'Guest'

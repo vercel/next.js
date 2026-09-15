@@ -12,7 +12,7 @@ export default async function Page() {
   cacheLife('minutes')
   return (
     <main>
-      <h2>App Shells</h2>
+      <h1>App Shells</h1>
       <ul>
         <li>
           <DebugLinks href="/shells/valid-session-only" />
@@ -49,6 +49,19 @@ export default async function Page() {
         </li>
         <li>
           <DebugLinks href="/shells/valid-prefetch-with-suspense" />
+        </li>
+      </ul>
+
+      <h2>Excluded caches</h2>
+      <ul>
+        <li>
+          <DebugLinks href="/shells/invalid-non-shell-cache" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/valid-non-shell-cache" />
+        </li>
+        <li>
+          <DebugLinks href="/shells/valid-non-prerenderable-cache" />
         </li>
       </ul>
     </main>

@@ -150,6 +150,18 @@ pub async fn webpack_loader_options(
         &mut get_babel_loader_rules(&project_path, next_config, &builtin_conditions, &user_rules)
             .await?,
     );
+    let target = ResolvedVc::cell(
+        if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Node) {
+            rcstr!("node")
+        } else {
+            rcstr!("web")
+        },
+    );
+    let mode = if builtin_conditions.contains(&WebpackLoaderBuiltinCondition::Development) {
+        rcstr!("development")
+    } else {
+        rcstr!("production")
+    };
 
     Ok(Vc::cell(Some(
         WebpackLoadersOptions {
@@ -158,6 +170,8 @@ pub async fn webpack_loader_options(
             builtin_conditions: NextWebpackLoaderBuiltinConditionSet::new(builtin_conditions)
                 .to_resolved()
                 .await?,
+            target,
+            mode,
         }
         .resolved_cell(),
     )))

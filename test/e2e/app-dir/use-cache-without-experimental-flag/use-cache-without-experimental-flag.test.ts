@@ -13,16 +13,14 @@ const nextConfigWithUseCache: NextConfig = {
   experimental: { useCache: true },
 }
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely expects a local build failure instead of a successful deployment.
+// @force-gate !deploy
 describe('use-cache-without-experimental-flag', () => {
-  const { next, isNextStart, isTurbopack, skipped, isRspack } = nextTestSetup({
+  const { next, isNextStart, isTurbopack, isRspack } = nextTestSetup({
     files: __dirname,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextStart) {
     it('should fail the build with an error', async () => {

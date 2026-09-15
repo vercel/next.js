@@ -142,6 +142,10 @@ impl EmittedModuleReference for EmitReference {
 }
 
 impl IntoCodeGenReference for EmitReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         mut path: AstPath,
@@ -215,6 +219,10 @@ impl ModuleReference for CollectReference {
 }
 
 impl IntoCodeGenReference for CollectReference {
+    fn into_reference(self) -> ResolvedVc<Box<dyn ModuleReference>> {
+        ResolvedVc::upcast(self.resolved_cell())
+    }
+
     fn into_code_gen_reference(
         self,
         mut path: AstPath,

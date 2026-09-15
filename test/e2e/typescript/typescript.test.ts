@@ -1,14 +1,12 @@
 import { nextTestSetup, isNextDev, isNextStart } from 'e2e-utils'
 
 describe('TypeScript Features', () => {
-  const { next, isTurbopack, skipped } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: __dirname,
     dependencies: {
       sass: 'latest',
     },
-    skipDeployment: true,
   })
-  if (skipped) return
 
   it('should render the page', async () => {
     const $ = await next.render$('/hello')

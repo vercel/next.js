@@ -270,6 +270,7 @@
             ),
         ],
         span: 57..81,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -342,6 +343,7 @@
             ),
         ],
         span: 57..68,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "process",

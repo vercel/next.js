@@ -6,7 +6,6 @@ import { AddressInfo, Server } from 'net'
 describe('use-cache-output-export', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
-    skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
   })
 

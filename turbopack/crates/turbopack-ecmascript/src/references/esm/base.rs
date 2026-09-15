@@ -443,6 +443,23 @@ pub struct EsmAssetReference {
     extras: Option<Box<EsmReferenceExtras>>,
 }
 
+/// Construction options for an [`EsmAssetReference`].
+///
+/// The module, origin, and request stay as constructor arguments because they identify the
+/// reference. The remaining behavior is named here so call sites don't depend on argument order.
+pub struct EsmAssetReferenceOptions {
+    pub issue_source: IssueSource,
+    pub annotations: Option<ImportAnnotations>,
+    pub export_name: Option<ModulePart>,
+    pub import_usage: ImportUsage,
+    pub import_externals: bool,
+    pub module_fragments_enabled: bool,
+    /// Explicit export-usage passthrough mode for syntax-driven forwarding. `Some(false)` forwards
+    /// used names without exposing the target namespace's original property names.
+    pub export_usage_passthrough: Option<bool>,
+    pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+}
+
 /// Optional extra state for an [`EsmAssetReference`] that is rarely present: the few values
 /// extracted from `ImportAnnotations` (the full `ImportAnnotations` — a `BTreeMap` plus several
 /// `Option`s — is not retained) plus a `resolve_override` from matched inner assets.
@@ -470,8 +487,20 @@ struct EsmReferenceExtras {
     module_type: Option<RcStr>,
     /// The chunking-type annotation (drives `chunking_type`).
     chunking_type: Option<SpecifiedChunkingType>,
+    /// Whether the importing module's used exports should be forwarded to the target. The boolean
+    /// records whether this edge itself exposes the target namespace's original property names.
+    export_usage_passthrough: Option<bool>,
     /// A module to resolve to directly, bypassing resolution (from a matched inner asset).
     resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+}
+
+fn merge_export_usage_passthrough(
+    explicit: Option<bool>,
+    annotation_passthrough: bool,
+) -> Option<bool> {
+    // An annotation is an explicit request to expose the namespace's original names, so it must
+    // not be weakened by a syntax-driven passthrough mode on the same reference.
+    annotation_passthrough.then_some(true).or(explicit)
 }
 
 impl EsmReferenceExtras {
@@ -479,6 +508,7 @@ impl EsmReferenceExtras {
     /// than an all-empty box) when nothing relevant is present — the common case.
     fn new(
         annotations: Option<&ImportAnnotations>,
+        export_usage_passthrough: Option<bool>,
         resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
     ) -> Option<Box<Self>> {
         let extras = EsmReferenceExtras {
@@ -489,27 +519,59 @@ impl EsmReferenceExtras {
                 .and_then(|a| a.module_type())
                 .map(|m| RcStr::from(&*m.to_string_lossy())),
             chunking_type: annotations.and_then(|a| a.chunking_type()),
+            export_usage_passthrough: merge_export_usage_passthrough(
+                export_usage_passthrough,
+                annotations.is_some_and(|a| a.export_usage_passthrough()),
+            ),
             resolve_override,
         };
         (extras != EsmReferenceExtras::default()).then(|| Box::new(extras))
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::merge_export_usage_passthrough;
+
+    #[test]
+    fn annotation_passthrough_cannot_be_weakened() {
+        assert_eq!(merge_export_usage_passthrough(None, false), None);
+        assert_eq!(
+            merge_export_usage_passthrough(Some(false), false),
+            Some(false)
+        );
+        assert_eq!(
+            merge_export_usage_passthrough(Some(true), false),
+            Some(true)
+        );
+        assert_eq!(merge_export_usage_passthrough(None, true), Some(true));
+        assert_eq!(
+            merge_export_usage_passthrough(Some(false), true),
+            Some(true)
+        );
+        assert_eq!(merge_export_usage_passthrough(Some(true), true), Some(true));
+    }
+}
+
 impl EsmAssetReference {
-    #[allow(clippy::too_many_arguments)]
     async fn new_inner(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
-        issue_source: IssueSource,
-        annotations: Option<ImportAnnotations>,
-        export_name: Option<ModulePart>,
-        import_usage: ImportUsage,
-        import_externals: bool,
-        module_fragments_enabled: bool,
-        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        options: EsmAssetReferenceOptions,
         is_pure_import: bool,
     ) -> Result<Self> {
+        let EsmAssetReferenceOptions {
+            issue_source,
+            annotations,
+            export_name,
+            import_usage,
+            import_externals,
+            module_fragments_enabled,
+            export_usage_passthrough,
+            resolve_override,
+        } = options;
+
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
         let origin = if let Some(transition) = annotations.as_ref().and_then(|a| a.transition()) {
@@ -531,64 +593,34 @@ impl EsmAssetReference {
             import_externals,
             module_fragments_enabled,
             is_pure_import,
-            extras: EsmReferenceExtras::new(annotations.as_ref(), resolve_override),
+            extras: EsmReferenceExtras::new(
+                annotations.as_ref(),
+                export_usage_passthrough,
+                resolve_override,
+            ),
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
-        issue_source: IssueSource,
-        annotations: Option<ImportAnnotations>,
-        export_name: Option<ModulePart>,
-        import_usage: ImportUsage,
-        import_externals: bool,
-        module_fragments_enabled: bool,
-        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        options: EsmAssetReferenceOptions,
     ) -> Result<Self> {
         Self::new_inner(
-            module,
-            origin,
-            request,
-            issue_source,
-            annotations,
-            export_name,
-            import_usage,
-            import_externals,
-            module_fragments_enabled,
-            resolve_override,
-            /* is_pure_import */ false,
+            module, origin, request, options, /* is_pure_import */ false,
         )
         .await
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn new_pure(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
-        issue_source: IssueSource,
-        annotations: Option<ImportAnnotations>,
-        export_name: Option<ModulePart>,
-        import_usage: ImportUsage,
-        import_externals: bool,
-        module_fragments_enabled: bool,
-        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        options: EsmAssetReferenceOptions,
     ) -> Result<Self> {
         Self::new_inner(
-            module,
-            origin,
-            request,
-            issue_source,
-            annotations,
-            export_name,
-            import_usage,
-            import_externals,
-            module_fragments_enabled,
-            resolve_override,
-            /* is_pure_import */ true,
+            module, origin, request, options, /* is_pure_import */ true,
         )
         .await
     }
@@ -736,11 +768,22 @@ impl ModuleReference for EsmAssetReference {
     }
 
     fn binding_usage(&self) -> BindingUsage {
+        let export_usage_passthrough = self
+            .extras
+            .as_deref()
+            .and_then(|extras| extras.export_usage_passthrough);
         BindingUsage {
             import: self.import_usage.clone(),
-            export: match &self.export_name {
-                Some(ModulePart::Export(export_name)) => ExportUsage::Named(export_name.clone()),
-                Some(ModulePart::Evaluation) => ExportUsage::Evaluation,
+            export: match (&self.export_name, export_usage_passthrough) {
+                // Evaluation references preserve their side-effect-only semantics even when the
+                // corresponding import forwards export usage.
+                (Some(ModulePart::Evaluation), _) => ExportUsage::Evaluation,
+                (_, Some(namespace_object_may_escape)) => ExportUsage::Passthrough {
+                    namespace_object_may_escape,
+                },
+                (Some(ModulePart::Export(export_name)), _) => {
+                    ExportUsage::Named(export_name.clone())
+                }
                 _ => ExportUsage::All,
             },
         }

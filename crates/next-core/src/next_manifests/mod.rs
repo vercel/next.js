@@ -472,9 +472,8 @@ pub struct ActionManifestWorkerEntry<'a> {
 #[serde(rename_all = "camelCase")]
 pub struct ActionManifestWorkerEntryDurability<'a> {
     pub code_hash: &'a str,
-    pub runtime_env_vars: &'a [RcStr],
-    #[serde(skip_serializing_if = "std::ops::Not::not")]
-    pub references_client_component: bool,
+    pub runtime_env_vars_read: &'a [RcStr],
+    pub runtime_env_vars_existence: &'a [RcStr],
 }
 
 #[derive(Serialize, Debug, Clone)]

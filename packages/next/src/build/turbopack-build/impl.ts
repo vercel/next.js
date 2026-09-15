@@ -18,11 +18,7 @@ import { backgroundLogCompilationEvents } from '../../shared/lib/turbopack/compi
 import { getSupportedBrowsers } from '../get-supported-browsers'
 import { printBuildErrors } from '../print-build-errors'
 import { normalizePath } from '../../lib/normalize-path'
-import type {
-  ProjectOptions,
-  RawEntrypoints,
-  TurbopackResult,
-} from '../swc/types'
+import type { ProjectOptions, RawEntrypoints } from '../swc/types'
 import { Bundler } from '../../lib/bundler'
 
 export async function turbopackBuild(telemetry: Telemetry): Promise<{
@@ -200,7 +196,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
       }
     }
 
-    const routes = entrypoints.routes
+    const routes = entrypoints.value.routes
     if (!routes) {
       // This should never ever happen, there should be an error issue, or the bindings call should
       // have thrown.
@@ -227,7 +223,7 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
     })
 
     const currentEntrypoints = await rawEntrypointsToEntrypoints(
-      entrypoints as TurbopackResult<RawEntrypoints>
+      entrypoints.value as RawEntrypoints
     )
 
     const promises: Promise<void>[] = []
@@ -270,12 +266,12 @@ export async function turbopackBuild(telemetry: Telemetry): Promise<{
             manifestLoader.loadFontManifest('_error'),
           ]
         : []),
-      entrypoints.instrumentation &&
+      entrypoints.value.instrumentation &&
         manifestLoader.loadMiddlewareManifest(
           'instrumentation',
           'instrumentation'
         ),
-      entrypoints.middleware &&
+      entrypoints.value.middleware &&
         (await manifestLoader.loadMiddlewareManifest(
           'middleware',
           'middleware'

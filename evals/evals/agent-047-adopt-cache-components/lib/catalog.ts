@@ -1,3 +1,5 @@
+import { unstable_cache } from 'next/cache'
+
 export type Product = {
   slug: string
   name: string
@@ -17,10 +19,14 @@ const products: Product[] = [
   },
 ]
 
-export async function getProducts() {
-  await new Promise((resolve) => setTimeout(resolve, 100))
-  return products
-}
+export const getProducts = unstable_cache(
+  async () => {
+    await new Promise((resolve) => setTimeout(resolve, 100))
+    return products
+  },
+  ['products'],
+  { revalidate: 86400 }
+)
 
 export async function getProduct(slug: string) {
   await new Promise((resolve) => setTimeout(resolve, 100))
