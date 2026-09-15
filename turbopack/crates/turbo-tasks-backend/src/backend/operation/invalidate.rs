@@ -60,7 +60,7 @@ impl Operation for InvalidateOperation {
                 } => {
                     let mut queue = AggregationUpdateQueue::new();
                     for task_id in task_ids {
-                        make_task_dirty(
+                        try_make_task_dirty(
                             task_id,
                             #[cfg(feature = "task_dirty_cause")]
                             cause.clone(),
@@ -88,6 +88,7 @@ impl Operation for InvalidateOperation {
     }
 }
 
+/// Marks a task dirty. The task must exist.
 pub fn make_task_dirty(
     task_id: TaskId,
     #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
@@ -95,6 +96,28 @@ pub fn make_task_dirty(
     ctx: &mut impl ExecuteContext<'_>,
 ) {
     let mut task = ctx.task(task_id, TaskDataCategory::All);
+    make_task_dirty_internal(
+        &mut task,
+        true,
+        #[cfg(feature = "task_dirty_cause")]
+        cause,
+        queue,
+        ctx,
+    );
+}
+
+/// Marks a task dirty, doing nothing if it no longer exists.
+///
+/// Intended for invalidation usecases.
+fn try_make_task_dirty(
+    task_id: TaskId,
+    #[cfg(feature = "task_dirty_cause")] cause: TaskDirtyCause,
+    queue: &mut AggregationUpdateQueue,
+    ctx: &mut impl ExecuteContext<'_>,
+) {
+    let Some(mut task) = ctx.try_get_task(task_id, TaskDataCategory::All) else {
+        return;
+    };
     make_task_dirty_internal(
         &mut task,
         true,
