@@ -1439,10 +1439,8 @@ async fn analyze_ecmascript_module_internal(
                             .get_inline_export(esm_reference_index, export.clone())
                             .await?
                     {
-                        analysis.add_code_gen(ConstantValueCodeGen::new_inline_export(
-                            c,
-                            ast_path.to_vec().into(),
-                        ));
+                        analysis
+                            .add_code_gen(ConstantValueCodeGen::new(c, ast_path.to_vec().into()));
                     } else if let Some("__turbopack_module_id__") = export.as_deref() {
                         let chunking_type = r.await?.chunking_type();
                         analysis.add_reference_code_gen(
