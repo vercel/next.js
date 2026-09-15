@@ -1,9 +1,14 @@
 use std::{fs, path::Path, time::Instant};
 
 use anyhow::Result;
+#[cfg(not(miri))]
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use rstest::rstest;
 
+// Miri rejects a process that exits while rayon's global worker threads are still parked, so
+// run the same tests on the serial scheduler there. The alias keeps the test bodies identical.
+#[cfg(miri)]
+use crate::parallel_scheduler::SerialScheduler as RayonParallelScheduler;
 use crate::{
     AccessMode, Compression, DbConfig, FamilyConfig, FamilyKind,
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
@@ -14,9 +19,11 @@ use crate::{
     write_batch::WriteBatch,
 };
 
+#[cfg(not(miri))]
 #[derive(Clone, Copy)]
 struct RayonParallelScheduler;
 
+#[cfg(not(miri))]
 impl ParallelScheduler for RayonParallelScheduler {
     fn block_in_place<R>(&self, f: impl FnOnce() -> R + Send) -> R
     where

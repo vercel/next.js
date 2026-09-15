@@ -662,7 +662,7 @@ impl<S: ParallelScheduler, const FAMILIES: usize> TurboPersistence<S, FAMILIES> 
     fn read_blob(&self, seq: u32, compression: Compression) -> Result<ArcBytes> {
         let path = self.path.join(format!("{seq:08}.blob"));
         let file = File::open(&path)?;
-        let data: Either<Mmap, Vec<u8>> = match self.config.access_mode {
+        let data: Either<Mmap, Vec<u8>> = match self.config.access_mode.effective() {
             AccessMode::Mmap => {
                 let mmap = unsafe { Mmap::map(file.file()) }.with_context(|| {
                     format!(

@@ -37,12 +37,15 @@
 //! Reading the value back as an integer (`get_ptr`, `get_value`, `tag_byte`) only ever happens at
 //! run time, where pointer → integer is perfectly legal.
 
-#[cfg(not(any(
-    target_pointer_width = "32",
-    target_pointer_width = "16",
-    feature = "atom_size_64",
-    feature = "atom_size_128"
-)))]
+#[cfg(all(
+    miri,
+    not(any(
+        target_pointer_width = "32",
+        target_pointer_width = "16",
+        feature = "atom_size_64",
+        feature = "atom_size_128"
+    ))
+))]
 use std::num::NonZeroUsize;
 use std::{num::NonZeroU8, os::raw::c_void, ptr::NonNull, slice};
 
@@ -216,15 +219,33 @@ impl TaggedValue {
 
     #[inline(always)]
     pub const fn new_tag(value: NonZeroU8) -> Self {
-        #[cfg(miri)]
+        #[cfg(all(
+            miri,
+            not(any(
+                target_pointer_width = "32",
+                target_pointer_width = "16",
+                feature = "atom_size_64",
+                feature = "atom_size_128"
+            ))
+        ))]
         {
+            // A provenance-free integer → pointer conversion. Equivalent to the transmute below,
+            // but Miri accepts it without treating the result as an exposed-provenance pointer.
             Self {
                 value: NonNull::without_provenance(
                     NonZeroUsize::new(value.get() as usize).unwrap(),
                 ),
             }
         }
-        #[cfg(not(miri))]
+        #[cfg(not(all(
+            miri,
+            not(any(
+                target_pointer_width = "32",
+                target_pointer_width = "16",
+                feature = "atom_size_64",
+                feature = "atom_size_128"
+            ))
+        )))]
         {
             // An integer → pointer transmute, which const evaluation permits.
             let value = value.get() as RawTaggedValue;
@@ -270,8 +291,30 @@ impl TaggedValue {
 
     #[inline(always)]
     fn get_value(&self) -> RawTaggedValue {
-<<<<<<< HEAD
         #[cfg(all(
+            miri,
+            not(any(
+                target_pointer_width = "32",
+                target_pointer_width = "16",
+                feature = "atom_size_64",
+                feature = "atom_size_128"
+            ))
+        ))]
+        {
+            // Reads the address without exposing provenance, which keeps Miri from having to
+            // track an integer-to-pointer round trip for a value that is only ever inspected.
+            self.value.addr().get()
+        }
+        #[cfg(all(
+            not(all(
+                miri,
+                not(any(
+                    target_pointer_width = "32",
+                    target_pointer_width = "16",
+                    feature = "atom_size_64",
+                    feature = "atom_size_128"
+                ))
+            )),
             any(target_pointer_width = "32", target_pointer_width = "16"),
             not(feature = "atom_size_128")
         ))]
@@ -280,10 +323,21 @@ impl TaggedValue {
             // value as an integer is well defined. Again, run time only.
             unsafe { std::mem::transmute::<RawTaggedNonZeroValue, RawTaggedValue>(self.value) }
         }
-        #[cfg(not(all(
-            any(target_pointer_width = "32", target_pointer_width = "16"),
-            not(feature = "atom_size_128")
-        )))]
+        #[cfg(all(
+            not(all(
+                miri,
+                not(any(
+                    target_pointer_width = "32",
+                    target_pointer_width = "16",
+                    feature = "atom_size_64",
+                    feature = "atom_size_128"
+                ))
+            )),
+            not(all(
+                any(target_pointer_width = "32", target_pointer_width = "16"),
+                not(feature = "atom_size_128")
+            ))
+        ))]
         {
             unsafe {
                 std::mem::transmute::<Option<RawTaggedNonZeroValue>, RawTaggedValue>(Some(
@@ -291,29 +345,6 @@ impl TaggedValue {
                 ))
             }
         }
-||||||| parent of 200e5a17 (tagged_value.rs: no integer-pointer conversion)
-        unsafe { std::mem::transmute(Some(self.value)) }
-=======
-        #[cfg(any(
-            target_pointer_width = "32",
-            target_pointer_width = "16",
-            feature = "atom_size_64",
-            feature = "atom_size_128"
-        ))]
-        {
-            self.value.get()
-        }
-
-        #[cfg(not(any(
-            target_pointer_width = "32",
-            target_pointer_width = "16",
-            feature = "atom_size_64",
-            feature = "atom_size_128"
-        )))]
-        {
-            self.value.addr().get()
-        }
->>>>>>> 200e5a17 (tagged_value.rs: no integer-pointer conversion)
     }
 
     #[inline(always)]

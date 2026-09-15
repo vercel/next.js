@@ -45,6 +45,22 @@ pub enum AccessMode {
     File,
 }
 
+impl AccessMode {
+    /// Returns the access mode that can be used by the current execution environment.
+    #[inline]
+    pub(crate) fn effective(self) -> Self {
+        #[cfg(miri)]
+        {
+            // Miri does not support file-backed memory mappings.
+            AccessMode::File
+        }
+        #[cfg(not(miri))]
+        {
+            self
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FamilyKind {
     /// Each key maps to a single value (default LSM behavior).
