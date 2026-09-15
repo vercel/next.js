@@ -11,7 +11,11 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { createReadCustomSection, parseImportedMemory } from './lib.mjs'
+import {
+  createReadCustomSection,
+  createWasiEnvironment,
+  parseImportedMemory,
+} from './lib.mjs'
 
 /** Minimal wasm module importing `env.memory` with the given limits, plus one custom section. */
 function buildModule({ initial, maximum, shared, sectionName, sectionBytes }) {
@@ -63,6 +67,25 @@ function buildModule({ initial, maximum, shared, sectionName, sectionBytes }) {
 
 const SECTION = '.data.link_section.TEST'
 const SECTION_BYTES = [1, 2, 3, 4, 5]
+
+test('passes Node parallelism to WASI while preserving an explicit override', () => {
+  const detected = Number(
+    createWasiEnvironment({}).TURBO_TASKS_AVAILABLE_PARALLELISM
+  )
+  assert.equal(Number.isInteger(detected) && detected > 0, true)
+
+  assert.deepEqual(createWasiEnvironment({ KEEP: 'yes' }, 6), {
+    TURBO_TASKS_AVAILABLE_PARALLELISM: '6',
+    KEEP: 'yes',
+  })
+  assert.deepEqual(
+    createWasiEnvironment(
+      { TURBO_TASKS_AVAILABLE_PARALLELISM: '2', KEEP: 'yes' },
+      6
+    ),
+    { TURBO_TASKS_AVAILABLE_PARALLELISM: '2', KEEP: 'yes' }
+  )
+})
 
 test('parseImportedMemory reads the limits of the imported memory', () => {
   const bytes = buildModule({

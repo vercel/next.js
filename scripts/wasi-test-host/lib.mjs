@@ -10,6 +10,22 @@
  * CI job that uses it runs with `skipInstallBuild`, so `node_modules` does not exist there.
  */
 
+import { availableParallelism } from 'node:os'
+import process from 'node:process'
+
+const PARALLELISM_ENV = 'TURBO_TASKS_AVAILABLE_PARALLELISM'
+
+/** Pass Node's effective CPU allowance into Rust before WASI constructors run. */
+export function createWasiEnvironment(
+  env = process.env,
+  detectedParallelism = availableParallelism()
+) {
+  return {
+    [PARALLELISM_ENV]: String(env[PARALLELISM_ENV] ?? detectedParallelism),
+    ...env,
+  }
+}
+
 /** Parse the limits of an imported memory out of a wasm binary.
  *
  * `WebAssembly.Module.imports()` reports that a memory is imported but not its limits, and an

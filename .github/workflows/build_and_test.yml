@@ -621,13 +621,11 @@ jobs:
       stepName: 'test-next-swc-wasm'
     secrets: inherit
 
-  # Guards that Turbopack keeps compiling for wasm, so the wasm fallback Next.js loads when the
-  # native bindings are unavailable can eventually support Turbopack and not just SWC.
+  # Guards that Turbopack keeps compiling and linking for wasm, so the wasm fallback Next.js loads
+  # when the native bindings are unavailable can eventually support Turbopack and not just SWC.
   # See https://github.com/vercel/next.js/issues/96960.
   #
-  # This compiles the bindings and runs the wasm test suites. It stops short of a full `napi build`:
-  # linking additionally requires emnapi v2 (for the `emnapi_create_env` / `emnapi_delete_env`
-  # exports), which is still unreleased — so linking cannot be gated on yet.
+  # The exact emnapi v2 prerelease needed for linking is provisioned by setup-wasi-env.sh.
   test-next-napi-bindings-wasi:
     name: test next-swc wasi
     needs: ['optimize-ci', 'changes', 'build-next']
@@ -651,12 +649,14 @@ jobs:
 
         # A distinct always-true target table merges with the repository's existing `cfg(true)`
         # rustflags (notably `tokio_unstable`), while making warnings fatal for every command here.
-        cargo_wasi=(cargo --config 'target."cfg(all())".rustflags=["-Dwarnings"]')
+        # Rust deliberately excludes linker diagnostics from the `warnings` group, so deny those
+        # explicitly too.
+        cargo_wasi=(cargo --config 'target."cfg(all())".rustflags=["-Dwarnings","-Dlinker-messages"]')
 
         # swc's plugin host is gated off for wasm (see turbopack-ecmascript-plugins and
         # next-napi-bindings), so nothing needs patching here: the wasm32 plugin path that does not
         # compile is simply never built.
-        "${cargo_wasi[@]}" check -p next-napi-bindings --target wasm32-wasip1-threads
+        "${cargo_wasi[@]}" build -p next-napi-bindings --target wasm32-wasip1-threads
 
         # Run the crates whose tests can execute on wasm. This needs a host that supplies the
         # `env.read_custom_section` import turbo-tasks' link-time registries depend on; no stock
