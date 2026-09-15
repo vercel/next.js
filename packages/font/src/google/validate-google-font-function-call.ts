@@ -139,12 +139,6 @@ export function validateGoogleFontFunctionCall(
     if (!fontWeights.includes('variable')) {
       nextFontError('Axes can only be defined for variable fonts.')
     }
-
-    if (weights[0] !== 'variable') {
-      nextFontError(
-        'Axes can only be defined for variable fonts when the weight property is nonexistent or set to `variable`.'
-      )
-    }
   }
 
   return {
