@@ -20,6 +20,7 @@ export async function setupUpgrade(sandbox: Sandbox) {
       'Run through pnpm eval:upgrade to provide the candidate packages'
     )
 
+  await run('npm', ['install'])
   await run('mkdir', ['-p', toolsDirectory])
   await sandbox.writeFiles({
     // @ts-expect-error agent-eval accepts binary upload at runtime
@@ -38,6 +39,11 @@ export async function setupUpgrade(sandbox: Sandbox) {
     `${toolsDirectory}/next.tgz`,
   ])
   await run('chmod', ['+x', `${toolsDirectory}/entry.mjs`])
+  await run('rm', ['-f', 'node_modules/.bin/next'])
+  await sandbox.writeFiles({
+    'node_modules/.bin/next': `#!/bin/sh\nexec node ${toolsDirectory}/entry.mjs "$@"\n`,
+  })
+  await run('chmod', ['+x', 'node_modules/.bin/next'])
   const prefix = await run('npm', ['prefix', '-g'])
   await run('mkdir', ['-p', join(prefix, 'bin')])
   await run('ln', [

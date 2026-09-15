@@ -1,0 +1,54 @@
+---
+title: Complete an agentic Next.js upgrade
+description: Agent workflow for repository preflight, codemods, repairs, verification, and delivery of an agentic Next.js upgrade.
+# Experimental agent workflow. Not ready for indexing; keep this document marked as draft.
+version: draft
+---
+
+## 1. Check for duplicates
+
+Check origin and open PRs for an existing upgrade of this app. Inspect the diff;
+do not rely on the title alone. Look for unmarked upgrades and these markers:
+
+```html
+<!-- next-upgrade: <type>; path="." -->
+<!-- next-upgrade: <type>; path="apps/web" -->
+```
+
+If the lookup cannot be completed, stop and report the blocker. If an equivalent
+upgrade exists, report it and stop.
+
+## 2. Make a checklist
+
+Read `codemods.md` and the applicable `version-<major>.md` files next to this
+guide for every crossed major, or the target major for a same-major upgrade. For
+version 13 and below, also check the Pages Router guides under the copied
+`docs/02-pages/02-guides/upgrading/` directory. Read each **Review migration
+checklist** and **Troubleshooting** section. A missing required guide blocks the
+upgrade.
+
+## 3. Upgrade and repair
+
+Resolve `@next/codemod@canary` to an exact version and run it with the workspace's
+package manager:
+
+```text
+@next/codemod@<exact-version> upgrade <target-version> --yes --skip-adoption
+```
+
+If a required option is unavailable, correct the tool version or stop. Complete
+the codemod's manual steps and every checklist item.
+
+## 4. Verify and commit
+
+Run the repository's checks, build when supported, and test affected runtime
+behavior. A successful codemod or build alone is insufficient. Every checklist
+item must be verified, inapplicable with a reason, or blocked.
+
+Commit dependencies, lockfiles, and repairs through the exact target version.
+
+## 5. Deliver
+
+Without publication permission, report the local commits. With permission,
+recheck for duplicates and publish one draft PR with the app marker. If the
+upgrade is incomplete, report completed work, the blocker, and how to resume.
