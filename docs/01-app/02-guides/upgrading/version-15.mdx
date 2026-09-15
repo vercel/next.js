@@ -6,6 +6,29 @@ description: Upgrade your Next.js Application from Version 14 to 15.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
+{/* @next-upgrade-checklist
+Agent instructions:
+- Use this guide for the 14-to-15 transition. Keep the resolved upgrade target when command examples say latest.
+- Run applicable codemods and inspect their output before doing equivalent edits manually.
+- Review each outcome below against the app. Record verified with evidence, not applicable with a reason, or blocked in the migration checklist.
+
+Migration outcomes:
+- React dependencies and types satisfy the requirements in React 19 for the app's router.
+- Async Request API access, including affected helpers and callers, is migrated. Codemod error comments and UnsafeUnwrapped casts do not count as completed repairs.
+- Route segment runtime settings no longer use experimental-edge.
+- Font imports use next/font instead of @next/font.
+- Existing bundlePagesExternals and serverComponentsExternalPackages settings use their documented stable names and preserve package configuration.
+- NextRequest geo/ip consumers use an appropriate source for the actual hosting provider.
+- Apps that relied on automatic Speed Insights instrumentation have an explicit integration if they still need it.
+- The app's supported checks and affected runtime behavior have been exercised; remaining required failures keep the migration incomplete.
+
+Common issues and solutions:
+- Synchronous request API warnings or UnsafeUnwrapped casts: follow Async Request APIs and inspect affected callers. Synchronous Client Components can use React use; do not make every component async.
+- An experimental-edge configuration error: apply the runtime configuration migration to edge.
+- Missing @next/font imports: use the next/font codemod and inspect dependency changes.
+- Missing geo/ip properties: follow NextRequest Geolocation for the deployment provider; do not assume Vercel.
+*/}
+
 ## Upgrading from 14 to 15
 
 To update to Next.js version 15, you can use the `upgrade` codemod:

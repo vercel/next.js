@@ -222,6 +222,35 @@ The following options are available for the `next upgrade` command:
 | `--revision <revision>` | Specify a Next.js version or tag to upgrade to (e.g., `latest`, `canary`, `15.0.0`). Defaults to the release channel you have currently installed. |
 | `--verbose`             | Show verbose output during the upgrade process.                                                                                                    |
 
+#### AI upgrades (experimental)
+
+`next update` and `next up` are aliases for `next upgrade`. Use `--ai` to hand
+security migration work to a coding agent:
+
+```bash filename="Terminal"
+next upgrade --ai
+next upgrade --ai security
+next upgrade apps/web --ai
+next upgrade apps/web --ai security
+next upgrade --experimental-agentic-dry-run=security
+```
+
+The positional directory selects the app in both modes, defaulting to the current
+directory. `--ai security` explicitly selects security, while bare `--ai`
+defaults to security. `--experimental-agentic-dry-run` accepts the same optional
+upgrade type. Use only one AI option; `--revision` is reserved for traditional
+upgrades.
+
+Security mode chooses the closest supported major whose latest stable release
+clears known advisories. Security upgrades currently assess stable installed
+versions only. Prerelease security support is deferred. The target's Node.js
+compatibility is checked before handoff.
+
+The command delegates to the published Next.js canary CLI for current migration
+instructions. It continues in an existing coding agent or offers an installed
+Codex/Claude session in an interactive terminal. Dry-run still edits, verifies
+and creates local commits, but stops before pushing or creating a PR.
+
 ### `next experimental-analyze` options
 
 `next experimental-analyze` analyzes your application's bundle output using [Turbopack](/docs/app/api-reference/turbopack). This command helps you understand the size and composition of your bundles, including JavaScript, CSS, and other assets. This command doesn't produce an application build.
