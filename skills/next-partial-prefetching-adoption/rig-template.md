@@ -94,18 +94,6 @@ Client Component text might not appear in the response bytes. Do not use a
 marker on `display: none`, `display: contents`, a fragment, off-screen content,
 or a hover-only overlay.
 
-Use a Link whose `href` is the final destination. A redirect cannot prefetch
-the final route tree.
-
-Use a fresh destination to prove that content was not prefetched. On repeat or
-browser-back navigation, Next.js may keep the previous route hidden in a React
-Activity boundary. Follow the
-[preserved-state testing guidance](https://nextjs.org/docs/app/guides/preserving-ui-state#testing)
-and assert the visible UI instead of counting matching DOM nodes.
-
-Assert each independently suspended region separately. Its position in the
-rendered page does not determine when its data becomes available.
-
 ### Test context
 
 Record the state required to reach the audited Links and destination UI:

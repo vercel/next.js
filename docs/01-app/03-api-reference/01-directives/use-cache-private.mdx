@@ -159,6 +159,8 @@ Private Cache Functions contribute their `stale` time to the route's [Client Cac
 
 Next.js uses the shortest stale time from the route's cache entries, so another cache or route setting can still set a finite value. Setting `stale` to `Infinity` does not store the private result on the server across production requests. Use a finite value when the client router should revalidate personalized output after a known interval.
 
+> **Good to know:** Because private output is stored in the Client Cache, calling [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) from a Route Handler does not evict output already delivered to a browser. For read-your-own-writes, call [`updateTag`](/docs/app/api-reference/functions/updateTag) from a Server Action. Other tabs and browsers can keep the previous output until its stale time expires.
+
 ## Request APIs allowed in private caches
 
 The following request-specific APIs can be used inside `'use cache: private'` functions:
