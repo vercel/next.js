@@ -530,6 +530,17 @@ export async function startServer(
                   `Generated ${generated.join(' and ')} for AI agents. Set \`agentRules: false\` in next.config to disable.`
                 )
               }
+              const malformedFile =
+                result.agentsMd === 'malformed'
+                  ? 'AGENTS.md'
+                  : result.claudeMd === 'malformed'
+                    ? 'CLAUDE.md'
+                    : null
+              if (malformedFile) {
+                Log.warn(
+                  `Skipped updating ${malformedFile} because its Next.js agent-rules markers are malformed. Repair or remove the managed marker pair, or set \`agentRules: false\` in next.config to disable.`
+                )
+              }
             }
           }
         }
