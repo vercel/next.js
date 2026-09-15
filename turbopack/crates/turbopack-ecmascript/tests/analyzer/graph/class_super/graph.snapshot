@@ -4,7 +4,7 @@
         Function(
             2,
             138,
-            true,
+            false,
             Constant(
                 Undefined,
             ),

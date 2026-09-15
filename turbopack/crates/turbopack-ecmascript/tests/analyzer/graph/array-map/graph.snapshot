@@ -4,7 +4,7 @@
         Function(
             3,
             170,
-            true,
+            false,
             Array {
                 total_nodes: 2,
                 items: [
@@ -24,7 +24,7 @@
         Function(
             5,
             254,
-            true,
+            false,
             MemberCall(
                 4,
                 FreeVar(
@@ -53,7 +53,7 @@
         Function(
             2,
             88,
-            true,
+            false,
             Variable(
                 (
                     "file",
@@ -241,7 +241,7 @@
         Function(
             5,
             308,
-            true,
+            false,
             MemberCall(
                 4,
                 FreeVar(

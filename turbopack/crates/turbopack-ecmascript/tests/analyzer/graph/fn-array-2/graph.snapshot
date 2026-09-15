@@ -18,7 +18,7 @@
         Function(
             6,
             1,
-            true,
+            false,
             Array {
                 total_nodes: 5,
                 items: [

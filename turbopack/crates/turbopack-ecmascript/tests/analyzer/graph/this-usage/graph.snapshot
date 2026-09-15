@@ -1,0 +1,280 @@
+[
+    (
+        "*anonymous function 455*",
+        Function(
+            4,
+            455,
+            true,
+            Member(
+                3,
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
+                Constant(
+                    Str(
+                        Atom(
+                            "x",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 333*",
+        Function(
+            4,
+            333,
+            false,
+            Member(
+                3,
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
+                Constant(
+                    Str(
+                        Atom(
+                            "x",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 597*",
+        Function(
+            2,
+            597,
+            false,
+            Variable(
+                (
+                    "*arrow function 603*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 603*",
+        Function(
+            4,
+            603,
+            false,
+            Member(
+                3,
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
+                Constant(
+                    Str(
+                        Atom(
+                            "x",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "*arrow function 643*",
+        Function(
+            2,
+            643,
+            false,
+            Unknown {
+                original_value: None,
+                reason: "unsupported expression",
+                has_side_effects: true,
+            },
+        ),
+    ),
+    (
+        "Klass",
+        Unknown {
+            original_value: None,
+            reason: "unsupported expression",
+            has_side_effects: true,
+        },
+    ),
+    (
+        "arrowAtTopLevel",
+        Variable(
+            (
+                "*arrow function 643*",
+                #0,
+            ),
+        ),
+    ),
+    (
+        "doesNotUseThis",
+        Function(
+            2,
+            180,
+            false,
+            Constant(
+                Num(
+                    ConstantNumber(
+                        1.0,
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "o",
+        Argument(
+            1112,
+            0,
+        ),
+    ),
+    (
+        "obj",
+        Object {
+            total_nodes: 5,
+            parts: [
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+                Spread(
+                    Unknown {
+                        original_value: None,
+                        reason: "unsupported object part",
+                        has_side_effects: true,
+                    },
+                ),
+            ],
+            mutability: Mutable,
+        },
+    ),
+    (
+        "usesThis",
+        Function(
+            4,
+            139,
+            true,
+            Member(
+                3,
+                Unknown {
+                    original_value: None,
+                    reason: "unsupported expression",
+                    has_side_effects: true,
+                },
+                Constant(
+                    Str(
+                        Atom(
+                            "x",
+                        ),
+                    ),
+                ),
+            ),
+        ),
+    ),
+    (
+        "v",
+        Argument(
+            781,
+            0,
+        ),
+    ),
+    (
+        "viaArrow",
+        Function(
+            2,
+            302,
+            true,
+            Variable(
+                (
+                    "*arrow function 333*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "viaEval",
+        Function(
+            4,
+            992,
+            true,
+            Call(
+                3,
+                FreeVar(
+                    "eval",
+                ),
+                [
+                    Constant(
+                        Str(
+                            Atom(
+                                "this",
+                            ),
+                        ),
+                    ),
+                ],
+            ),
+        ),
+    ),
+    (
+        "viaNestedArrows",
+        Function(
+            2,
+            559,
+            true,
+            Variable(
+                (
+                    "*arrow function 597*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "viaNestedFunction",
+        Function(
+            2,
+            415,
+            false,
+            Variable(
+                (
+                    "*anonymous function 455*",
+                    #0,
+                ),
+            ),
+        ),
+    ),
+    (
+        "viaWith",
+        Function(
+            2,
+            1112,
+            true,
+            FreeVar(
+                "x",
+            ),
+        ),
+    ),
+]

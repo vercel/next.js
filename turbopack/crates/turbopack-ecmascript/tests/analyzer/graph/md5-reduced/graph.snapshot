@@ -1367,7 +1367,7 @@
         Function(
             17,
             1414,
-            true,
+            false,
             Call(
                 16,
                 FreeVar(
@@ -1451,7 +1451,7 @@
         Function(
             9,
             1530,
-            true,
+            false,
             Call(
                 8,
                 Variable(
@@ -1648,7 +1648,7 @@
         Function(
             6,
             83,
-            true,
+            false,
             Array {
                 total_nodes: 5,
                 items: [

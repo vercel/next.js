@@ -4,7 +4,7 @@
         Function(
             4,
             1213,
-            true,
+            false,
             Call(
                 3,
                 Variable(
@@ -28,7 +28,7 @@
         Function(
             2,
             131,
-            true,
+            false,
             Constant(
                 Undefined,
             ),
@@ -39,7 +39,7 @@
         Function(
             2,
             389,
-            true,
+            false,
             Variable(
                 (
                     "handler",
@@ -137,7 +137,7 @@
         Function(
             3,
             760,
-            true,
+            false,
             Promise(
                 2,
                 Constant(
