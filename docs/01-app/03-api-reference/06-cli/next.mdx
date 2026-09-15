@@ -225,20 +225,23 @@ The following options are available for the `next upgrade` command:
 #### AI upgrades (experimental)
 
 `next update` and `next up` are aliases for `next upgrade`. Use `--ai` to hand
-security or latest-stable migration work to a coding agent:
+security, latest-stable, or Future Defaults migration work to a coding agent:
 
 ```bash filename="Terminal"
 next upgrade --ai
 next upgrade --ai security
 next upgrade --ai latest
+next upgrade --ai future
 next upgrade apps/web --ai
 next upgrade apps/web --ai security
 next upgrade apps/web --ai latest
+next upgrade apps/web --ai future
 next upgrade --experimental-agentic-dry-run=security
 ```
 
 The positional directory selects the app in both modes, defaulting to the current
-directory. `--ai security` and `--ai latest` explicitly select an upgrade type.
+directory. `--ai security`, `--ai latest`, and `--ai future` explicitly select an
+upgrade type.
 Bare `--ai` reads
 `experimental.agenticAutoUpgrade` from the app's configuration and defaults to
 security when the policy is absent or `false`. The `false` value disables automatic
@@ -251,6 +254,12 @@ clears known advisories. Latest mode resolves npm's stable `latest` tag once,
 keeps that exact release throughout the migration, and includes the security
 assessment for stable installed versions. If the installed version is equal to
 or newer than the latest stable release, it exits without changes.
+
+Future mode includes the security and latest checks, then adopts Future Defaults
+available in the selected stable release. It never downgrades an app already on
+a newer stable release. Next.js prepares temporary, version-matched instructions
+for each available default and falls back to its bundled migration guide when
+additional instructions cannot be prepared.
 
 After verification, the agent sets `experimental.agenticAutoUpgrade` to the
 selected upgrade type so future nudges are enabled.
@@ -276,6 +285,12 @@ In agent-driven `next dev` and `next build`,
 Next.js prints the running and latest versions with an upgrade command. The
 check runs without delaying startup, stays silent on lookup failure, and does
 not launch an upgrade.
+
+Set `experimental.agenticAutoUpgrade: 'future'` to compose all three checks.
+Security warnings take priority, followed by newer stable release reminders,
+then available Future Defaults. The reminder lists defaults that are available
+for the installed stable version but are not enabled in the app. Run the shown
+bare `next upgrade --ai` command to use the configured Future policy.
 
 The command delegates to the published Next.js canary CLI for current migration
 instructions. It continues in an existing coding agent or offers an installed

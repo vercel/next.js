@@ -586,7 +586,7 @@ program
   .option('--verbose', 'Verbose output', false)
   .option(
     '--ai [type]',
-    'Upgrade with AI to security or latest, using the configured policy or security by default.'
+    'Upgrade with AI to security, latest, or future, using the configured policy or security by default.'
   )
   .option(
     '--experimental-agentic-dry-run [type]',

@@ -1,6 +1,9 @@
 import * as Log from '../../build/output/log'
+import type { NextConfigComplete } from '../../server/config-shared'
 import { getAgentName } from '../../telemetry/agent-name'
+import semver from 'next/dist/compiled/semver'
 import { bold } from '../picocolors'
+import { futureDefaults } from './future-defaults'
 
 export async function nudgeIfLatestUpgradeNeeded(
   directory: string,
@@ -87,15 +90,69 @@ export async function nudgeIfSecurityUpgradeNeeded(
   }
 }
 
-export async function nudgeIfUpgradeNeeded(
+export async function nudgeIfFutureUpgradeNeeded(
+  directory: string,
+  config: NextConfigComplete,
+  installedVersion: string = process.env.__NEXT_VERSION || 'unknown'
+): Promise<boolean> {
+  if (
+    !(await getAgentName()) ||
+    !semver.valid(installedVersion) ||
+    semver.prerelease(installedVersion)
+  ) {
+    return false
+  }
+
+  const available = futureDefaults.filter(
+    (futureDefault) =>
+      semver.gte(installedVersion, futureDefault.availableSince) &&
+      config[futureDefault.key] !== futureDefault.value
+  )
+
+  if (available.length === 0) {
+    return false
+  }
+
+  Log.info(
+    `Installed Next.js ${installedVersion} includes Future Defaults available for this app:\n\n` +
+      available.map((futureDefault) => `- ${futureDefault.key}`).join('\n') +
+      `\n\nRun \`next upgrade ${JSON.stringify(directory)} --ai\` to adopt them when you're ready.\n\n` +
+      "Note: This reminder is enabled by `experimental.agenticAutoUpgrade: 'future'`."
+  )
+  return true
+}
+
+export function nudgeIfUpgradeNeeded(
   directory: string,
   policy: 'security' | 'latest'
+): Promise<void>
+export function nudgeIfUpgradeNeeded(
+  directory: string,
+  policy: 'future',
+  config: NextConfigComplete
+): Promise<void>
+export function nudgeIfUpgradeNeeded(
+  directory: string,
+  policy: 'security' | 'latest' | 'future',
+  config: NextConfigComplete
+): Promise<void>
+export async function nudgeIfUpgradeNeeded(
+  directory: string,
+  policy: 'security' | 'latest' | 'future',
+  config: NextConfigComplete | undefined = undefined
 ): Promise<void> {
   if (await nudgeIfSecurityUpgradeNeeded(directory)) {
     return
   }
 
-  if (policy === 'latest') {
-    await nudgeIfLatestUpgradeNeeded(directory)
+  if (
+    (policy === 'latest' || policy === 'future') &&
+    (await nudgeIfLatestUpgradeNeeded(directory))
+  ) {
+    return
+  }
+
+  if (policy === 'future' && config) {
+    await nudgeIfFutureUpgradeNeeded(directory, config)
   }
 }

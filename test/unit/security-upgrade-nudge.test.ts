@@ -1,4 +1,5 @@
 import {
+  nudgeIfFutureUpgradeNeeded,
   nudgeIfUpgradeNeeded,
   nudgeIfLatestUpgradeNeeded,
   nudgeIfSecurityUpgradeNeeded,
@@ -249,5 +250,53 @@ describe('composed latest nudge', () => {
     expect(warn).not.toHaveBeenCalled()
     expect(getLatestUpgradeVersion).toHaveBeenCalled()
     expect(info).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('composed future nudge', () => {
+  beforeEach(() => {
+    jest.resetAllMocks()
+    jest.mocked(getAgentName).mockResolvedValue('codex')
+    jest.mocked(getSecurityAdvisorySummary).mockResolvedValue({
+      counts: { critical: 0, high: 0, moderate: 0, low: 0, unknown: 0 },
+      reference: 'https://api.github.com/advisories?affects=next%4016.3.0',
+    })
+    jest.mocked(getLatestUpgradeVersion).mockResolvedValue(null)
+  })
+
+  it('shows available Future Defaults after security and latest checks pass', async () => {
+    await nudgeIfFutureUpgradeNeeded(
+      '/workspace/my app',
+      { cacheComponents: false } as never,
+      '16.3.0'
+    )
+
+    expect(jest.mocked(info).mock.calls).toMatchInlineSnapshot(`
+     [
+       [
+         "Installed Next.js 16.3.0 includes Future Defaults available for this app:
+
+     - cacheComponents
+
+     Run \`next upgrade "/workspace/my app" --ai\` to adopt them when you're ready.
+
+     Note: This reminder is enabled by \`experimental.agenticAutoUpgrade: 'future'\`.",
+       ],
+     ]
+    `)
+  })
+
+  it('shows latest instead of Future Defaults when both apply', async () => {
+    jest.mocked(getLatestUpgradeVersion).mockResolvedValue('17.0.0')
+
+    await nudgeIfUpgradeNeeded('/app', 'future', {
+      cacheComponents: false,
+    } as never)
+
+    expect(info).toHaveBeenCalledTimes(1)
+    expect(info).toHaveBeenCalledWith(expect.stringContaining('17.0.0'))
+    expect(info).not.toHaveBeenCalledWith(
+      expect.stringContaining('Future Defaults')
+    )
   })
 })

@@ -1,7 +1,7 @@
 import { spawn } from 'child_process'
-import { cp, mkdtemp, rm } from 'fs/promises'
+import { cp, mkdir, mkdtemp, rm } from 'fs/promises'
 import { constants as osConstants, tmpdir } from 'os'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import { resetEnv } from '@next/env'
 import spawnCanary from 'next/dist/compiled/cross-spawn'
 import createSpinner from '../build/spinner'
@@ -139,11 +139,57 @@ export async function spawnNextUpgrade(
             { recursive: true }
           )
         }
+
+        for (const futureDefault of result.futureDefaults) {
+          const guidePath = join(runDirectory, 'docs', futureDefault.guide)
+          await mkdir(dirname(guidePath), { recursive: true })
+          await cp(join(bundledDocs, futureDefault.guide), guidePath)
+        }
       } catch (error) {
         await rm(runDirectory, { recursive: true, force: true })
         throw error
       } finally {
         guidesSpinner?.stop()
+      }
+
+      const preparedFutureDefaults: Array<
+        (typeof result.futureDefaults)[number] & {
+          guidePath: string
+          instructionsPath: string | undefined
+        }
+      > = []
+
+      if (result.futureDefaults.length > 0) {
+        const contextSpinner = createSpinner('Preparing upgrade context')
+        const { writeUpgradeSkillInstructions } =
+          require('../lib/upgrade/skills') as typeof import('../lib/upgrade/skills')
+
+        try {
+          for (const futureDefault of result.futureDefaults) {
+            let instructionsPath: string | undefined
+
+            try {
+              instructionsPath = await writeUpgradeSkillInstructions({
+                directory: baseDir,
+                runDirectory,
+                nextVersion: result.targetVersion,
+                skill: futureDefault.skills.adoption,
+              })
+            } catch {
+              Log.warn(
+                'Could not prepare additional upgrade context; the agent will use the bundled guide instead.'
+              )
+            }
+
+            preparedFutureDefaults.push({
+              ...futureDefault,
+              guidePath: join(runDirectory, 'docs', futureDefault.guide),
+              instructionsPath,
+            })
+          }
+        } finally {
+          contextSpinner?.stop()
+        }
       }
 
       const references =
@@ -154,11 +200,22 @@ export async function spawnNextUpgrade(
       // TODO: Stop persisting `security` when it becomes the default policy.
       const policyInstruction = `After verification, set experimental.agenticAutoUpgrade to ${JSON.stringify(targetRequest)}.`
 
+      const futureDefaultsPrompt = preparedFutureDefaults.length
+        ? `
+After completing and verifying the version migration, adopt these Future Defaults in order:
+${preparedFutureDefaults
+  .map(
+    (futureDefault) =>
+      `- Set ${futureDefault.key} to ${JSON.stringify(futureDefault.value)}. ${futureDefault.instructionsPath ? `Read and follow ${JSON.stringify(futureDefault.instructionsPath)}` : `Follow ${JSON.stringify(futureDefault.guidePath)}`}.`
+  )
+  .join('\n')}`
+        : ''
+
       // Pass resolved inputs directly; the agent owns repairs and verification.
       const prompt = `Upgrade ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion}.
 Upgrade type: ${targetRequest}.
 ${references}
-Read and follow ${JSON.stringify(join(runDirectory, 'docs/01-app/02-guides/upgrading/agentic-upgrade.md'))} before making changes.
+Read and follow ${JSON.stringify(join(runDirectory, 'docs/01-app/02-guides/upgrading/agentic-upgrade.md'))} before making changes.${futureDefaultsPrompt}
 ${policyInstruction}
 Preserve existing permissions.${
         options.experimentalAgenticDryRun
