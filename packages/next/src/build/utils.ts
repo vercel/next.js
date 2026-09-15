@@ -1297,7 +1297,22 @@ export async function copyTracedFiles(
 
           if (symlink) {
             try {
-              await fs.symlink(symlink, fileOutputPath)
+              // On Windows, symlinks have two distinct types (file or dir), which must be
+              // determined at creation time. The symlink variable is a relative path, resolved
+              // relative to fileOutputPath. However, at the time of creation, this target path may
+              // not yet exist. When the target doesn't exist, Node.js defaults to creating a file
+              // type symlink. To avoid this, we first detect the type of the original target via
+              // tracedFilePath, then explicitly pass the correct type.
+              if (process.platform === 'win32') {
+                const tracedFileStat = await fs.stat(tracedFilePath)
+                await fs.symlink(
+                  symlink,
+                  fileOutputPath,
+                  tracedFileStat.isDirectory() ? 'dir' : 'file'
+                )
+              } else {
+                await fs.symlink(symlink, fileOutputPath)
+              }
             } catch (err: any) {
               // Windows doesn't support creating symlinks without elevated privileges, unless
               // "Developer Mode" is turned on. If we failed to create a symlink due to EPERM, try
