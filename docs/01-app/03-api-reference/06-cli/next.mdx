@@ -225,18 +225,21 @@ The following options are available for the `next upgrade` command:
 #### AI upgrades (experimental)
 
 `next update` and `next up` are aliases for `next upgrade`. Use `--ai` to hand
-security migration work to a coding agent:
+security or latest-stable migration work to a coding agent:
 
 ```bash filename="Terminal"
 next upgrade --ai
 next upgrade --ai security
+next upgrade --ai latest
 next upgrade apps/web --ai
 next upgrade apps/web --ai security
+next upgrade apps/web --ai latest
 next upgrade --experimental-agentic-dry-run=security
 ```
 
 The positional directory selects the app in both modes, defaulting to the current
-directory. `--ai security` explicitly selects security. Bare `--ai` reads
+directory. `--ai security` and `--ai latest` explicitly select an upgrade type.
+Bare `--ai` reads
 `experimental.agenticAutoUpgrade` from the app's configuration and defaults to
 security when the policy is absent or `false`. The `false` value disables automatic
 nudges, not an explicitly requested upgrade. `--experimental-agentic-dry-run`
@@ -244,8 +247,13 @@ accepts the same optional upgrade type. Use only one AI option; `--revision` is
 reserved for traditional upgrades.
 
 Security mode chooses the closest supported major whose latest stable release
-clears known advisories. After verification, the agent sets
-`experimental.agenticAutoUpgrade: 'security'` so future nudges are enabled.
+clears known advisories. Latest mode resolves npm's stable `latest` tag once,
+keeps that exact release throughout the migration, and includes the security
+assessment for stable installed versions. If the installed version is equal to
+or newer than the latest stable release, it exits without changes.
+
+After verification, the agent sets `experimental.agenticAutoUpgrade` to the
+selected upgrade type so future nudges are enabled.
 Security upgrades and reminders currently assess stable installed versions only.
 Prerelease security support is deferred. The target's Node.js compatibility is
 checked before handoff.

@@ -19,9 +19,9 @@ export async function prepareUpgrade(
   directory: string,
   targetRequest: string
 ): Promise<UpgradePreparation> {
-  if (targetRequest !== 'security') {
+  if (targetRequest !== 'security' && targetRequest !== 'latest') {
     throw new Error(
-      `Unsupported AI upgrade type ${JSON.stringify(targetRequest)}. Expected "security".`
+      `Unsupported AI upgrade type ${JSON.stringify(targetRequest)}. Expected "security" or "latest".`
     )
   }
 
@@ -40,27 +40,85 @@ export async function prepareUpgrade(
   let checkedAt: string
   let references: string[]
 
-  // Prerelease advisory coverage and remediation policy are deferred.
-  if (semver.prerelease(installedVersion)) {
-    throw new Error(
-      'Security upgrades for prerelease Next.js versions are not supported yet.'
-    )
-  }
-
-  const snapshot = await readSecuritySnapshot()
-  Log.info(dim('Selecting the closest safe major'))
-  const selected = selectSecurityTarget(installedVersion, snapshot, new Date())
-
-  if (!selected) {
-    return {
-      status: 'unaffected',
-      reason: `Next.js ${installedVersion} matches no active Next.js advisory in this snapshot.`,
+  if (targetRequest === 'security') {
+    // Prerelease advisory coverage and remediation policy are deferred.
+    if (semver.prerelease(installedVersion)) {
+      throw new Error(
+        'Security upgrades for prerelease Next.js versions are not supported yet.'
+      )
     }
-  }
 
-  target = selected
-  checkedAt = snapshot.checkedAt
-  references = snapshot.references
+    const snapshot = await readSecuritySnapshot()
+    Log.info(dim('Selecting the closest safe major'))
+    const selected = selectSecurityTarget(
+      installedVersion,
+      snapshot,
+      new Date()
+    )
+
+    if (!selected) {
+      return {
+        status: 'unaffected',
+        reason: `Next.js ${installedVersion} matches no active Next.js advisory in this snapshot.`,
+      }
+    }
+
+    target = selected
+    checkedAt = snapshot.checkedAt
+    references = snapshot.references
+  } else {
+    const url = `${NPM_REGISTRY}next/latest`
+    Log.info(dim('Fetching the latest stable Next.js release'))
+    const { value } = await fetchJSON(url)
+    const release = value as {
+      version: string
+      engines: { node: string | undefined } | undefined
+    } | null
+
+    if (
+      !release ||
+      !semver.valid(release.version) ||
+      semver.prerelease(release.version) !== null
+    ) {
+      throw new Error('Could not resolve the latest stable Next.js release.')
+    }
+
+    const securityReferences: string[] = []
+    if (!semver.prerelease(installedVersion)) {
+      const snapshot = await readSecuritySnapshot()
+      if (
+        affectedRanges(snapshot.advisories).some((range) =>
+          semver.satisfies(release.version, range)
+        )
+      ) {
+        throw new Error(
+          `The latest stable Next.js release ${release.version} is affected by an active advisory.`
+        )
+      }
+      securityReferences.push(...snapshot.references)
+    }
+
+    if (semver.eq(release.version, installedVersion)) {
+      return {
+        status: 'unaffected',
+        reason: `Next.js ${installedVersion} is already the latest stable release.`,
+      }
+    }
+
+    if (semver.lt(release.version, installedVersion)) {
+      return {
+        status: 'unaffected',
+        reason: `Next.js ${installedVersion} is newer than the latest stable release ${release.version}.`,
+      }
+    }
+
+    target = {
+      version: release.version,
+      nodeRange: release.engines?.node ?? null,
+    }
+    checkedAt = new Date().toISOString()
+    references = [...new Set([...securityReferences, url])]
+  }
 
   Log.info(dim(`Checking Node.js compatibility for Next.js ${target.version}`))
   if (

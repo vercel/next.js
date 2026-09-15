@@ -22,6 +22,9 @@ the installed app version.
 For `security`, the CLI assessed a stable installed version and selected the
 closest safe major. Prerelease security assessment is deferred; do not infer it
 from stable advisory ranges.
+For `latest`, the CLI pinned npm's latest stable release and, for a stable
+installed version, confirmed that target clears the reviewed advisory ranges.
+Use the same repair and verification steps for both upgrade types.
 
 ## 1. Confirm the baseline
 
@@ -63,8 +66,8 @@ and baseline failures before edits.
 Preserve intended behavior and optional features. Limit shared workspace changes
 to required compatibility repairs and affected callers; exclude unrelated edits.
 Do not change the upgrade policy before the migration is verified. After final
-verification, set `experimental.agenticAutoUpgrade` to `'security'` before
-committing, including when it was absent or `false`.
+verification, set `experimental.agenticAutoUpgrade` to the supplied upgrade type
+before committing, including when it was absent or `false`.
 
 {/* TODO: Remove the security policy write when security becomes the default. */}
 
