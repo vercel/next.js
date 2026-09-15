@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { getPnpmSymlinkWorkaround } from '../../lib/pnpm-symlink-workaround'
 import { retry, waitFor } from 'next-test-utils'
 
 // Eviction requires the dev server (HMR) and persistent caching (Turbopack).
@@ -20,13 +21,7 @@ describe('evict-after-snapshot', () => {
 
   const { next } = nextTestSetup({
     files: __dirname,
-    overrideFiles: {
-      '.npmrc': `# The default pnpm symlinks trigger a kernel bug in this test. Use an
-# npm-style layout with copied package files instead.
-node-linker=hoisted
-package-import-method=copy
-`,
-    },
+    overrideFiles: getPnpmSymlinkWorkaround(),
     env,
   })
 

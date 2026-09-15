@@ -5,6 +5,7 @@ import fs from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
 import { parseTraceEvents } from '../../lib/parse-trace-file'
+import { getPnpmSymlinkWorkaround } from '../../lib/pnpm-symlink-workaround'
 
 async function getDirectorySize(dirPath: string): Promise<number> {
   try {
@@ -52,13 +53,7 @@ for (const cacheEnabled of [false, true]) {
 
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
-      overrideFiles: {
-        '.npmrc': `# The default pnpm symlinks trigger a kernel bug in this test. Use an
-# npm-style layout with copied package files instead.
-node-linker=hoisted
-package-import-method=copy
-`,
-      },
+      overrideFiles: getPnpmSymlinkWorkaround(),
       // Pass the cache setting through every harness-managed build and restart.
       env,
     })
