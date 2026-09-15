@@ -21,7 +21,9 @@
  */
 const path = require('path')
 const fs = require('fs')
-const { execFileSync, spawnSync } = require('child_process')
+const { spawnSync } = require('child_process')
+const { packPackage } = require('./evals/lib/pack')
+const { linkEnvironment } = require('./evals/lib/environment')
 
 const ROOT = __dirname
 
@@ -53,17 +55,7 @@ const BASE_VARIANTS = [
 ]
 
 function pack() {
-  fs.mkdirSync(TARBALL_DIR, { recursive: true })
-  const out = execFileSync(
-    'pnpm',
-    ['pack', '--pack-destination', TARBALL_DIR],
-    { cwd: path.join(ROOT, 'packages/next'), encoding: 'utf8' }
-  )
-  const produced = out.trim().split('\n').pop()
-  const src = path.isAbsolute(produced)
-    ? produced
-    : path.join(TARBALL_DIR, produced)
-  fs.renameSync(src, TARBALL)
+  packPackage(path.join(ROOT, 'packages/next'), TARBALL)
 }
 
 /** @param {string | null} evalName  null means all evals */
@@ -234,17 +226,7 @@ function main() {
 
   // agent-eval loads .env / .env.local from its own cwd (evals/). `vc env pull`
   // writes to the repo root, so symlink them into evals/ for agent-eval to find.
-  for (const envFile of ['.env', '.env.local']) {
-    const src = path.join(ROOT, envFile)
-    const dest = path.join(EVALS_DIR, envFile)
-    try {
-      // Remove stale symlink or file before creating a fresh one.
-      fs.rmSync(dest, { force: true })
-      if (fs.existsSync(src)) {
-        fs.symlinkSync(src, dest)
-      }
-    } catch {}
-  }
+  linkEnvironment(ROOT, EVALS_DIR)
 
   writeExperiments(evalName, variants, timeout)
   console.log(
