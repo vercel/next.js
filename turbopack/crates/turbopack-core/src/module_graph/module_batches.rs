@@ -18,12 +18,12 @@ use turbo_tasks::{
 };
 
 use crate::{
-    chunk::{ChunkableModule, ChunkingType},
+    chunk::{ChunkableModule, ChunkingType, available_modules::AvailableModuleItem},
     module::Module,
     module_graph::{
         GraphTraversalAction, ModuleGraph,
         chunk_group_info::{ChunkGroupInfo, ChunkGroupKey, RoaringBitmapWrapper},
-        module_batch::{ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
+        module_batch::{ChunkableModuleOrBatch, ModuleBatch, ModuleBatchGroup, ModuleOrBatch},
         traced_di_graph::{TracedDiGraph, iter_neighbors_rev},
     },
 };
@@ -79,6 +79,29 @@ pub struct ModuleBatchesGraph {
 }
 
 impl ModuleBatchesGraph {
+    pub async fn available_items_with_chunk_groups(
+        &self,
+        module_chunk_groups: &FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>,
+    ) -> Result<Vec<(AvailableModuleItem, RoaringBitmapWrapper)>> {
+        let mut items = Vec::new();
+
+        for &item in self.graph.node_weights() {
+            let chunk_groups = match item {
+                ModuleOrBatch::Module(module) => module_chunk_groups.get(&module).cloned(),
+                ModuleOrBatch::Batch(batch) => batch.await?.chunk_groups.clone(),
+                ModuleOrBatch::None(_) => None,
+            };
+            if let (Some(chunk_groups), Some(item)) = (
+                chunk_groups,
+                ChunkableModuleOrBatch::from_module_or_batch(item),
+            ) {
+                items.push((AvailableModuleItem::from(item), chunk_groups));
+            }
+        }
+
+        Ok(items)
+    }
+
     pub async fn get_entry_index(&self, entry: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
         let Some(entry) = self.entries.get(&entry) else {
             if cfg!(debug_assertions) {
