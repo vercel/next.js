@@ -74,7 +74,8 @@ type Actions = {
         async: boolean
         durability?: {
           codeHash: string
-          runtimeEnvVars: string[]
+          runtimeEnvVarsRead: string[]
+          runtimeEnvVarsExistence: string[]
         }
       }
     }

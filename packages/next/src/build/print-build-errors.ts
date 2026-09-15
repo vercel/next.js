@@ -16,8 +16,8 @@ export function formatWarningsHeader(count: number): string {
  * @throws {Error} If a fatal issue is encountered, this function throws an error. In development mode, we only throw on
  *                 'fatal' and 'bug' issues. In production mode, we also throw on 'error' issues.
  */
-export function printBuildErrors(
-  entrypoints: TurbopackResult,
+export function printBuildErrors<T>(
+  entrypoints: TurbopackResult<T>,
   isDev: boolean,
   opts?: { deferWarnings?: boolean }
 ): { warnings: string[] } {
