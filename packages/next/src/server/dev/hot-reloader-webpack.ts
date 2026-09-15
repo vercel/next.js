@@ -197,11 +197,12 @@ function findEntryModule(
 function erroredPages(compilation: webpack.Compilation) {
   const failedPages: { [page: string]: WebpackError[] } = {}
   for (const error of compilation.errors) {
-    if (!error.module) {
+    const webpackError = error as WebpackError
+    if (!webpackError.module) {
       continue
     }
 
-    const entryModule = findEntryModule(error.module, compilation)
+    const entryModule = findEntryModule(webpackError.module, compilation)
     const { name } = entryModule
     if (!name) {
       continue
@@ -218,7 +219,7 @@ function erroredPages(compilation: webpack.Compilation) {
       failedPages[enhancedName] = []
     }
 
-    failedPages[enhancedName].push(error)
+    failedPages[enhancedName].push(webpackError)
   }
 
   return failedPages

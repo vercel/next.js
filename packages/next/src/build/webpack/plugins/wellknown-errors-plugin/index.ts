@@ -10,9 +10,10 @@ export class WellKnownErrorsPlugin {
         if (compilation.warnings?.length) {
           await Promise.all(
             compilation.warnings.map(async (warn, i) => {
+              const webpackWarning = warn as webpack.WebpackError
               if (
-                warn.name === 'ModuleDependencyWarning' &&
-                warn.module?.context?.includes('node_modules')
+                webpackWarning.name === 'ModuleDependencyWarning' &&
+                webpackWarning.module?.context?.includes('node_modules')
               ) {
                 compilation.warnings.splice(i, 1)
               }

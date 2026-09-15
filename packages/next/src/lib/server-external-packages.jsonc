@@ -23,6 +23,8 @@
   "@statsig/statsig-node-core",
   // Native Node.js addons
   "@swc/core",
+  // Uses createRequire() with dynamic module names
+  "@vercel/otel",
   "@xenova/transformers",
   // Builds on top of @prisma/client so dynamically loads the version.
   "@zenstackhq/runtime",

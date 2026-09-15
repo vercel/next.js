@@ -463,19 +463,19 @@ export function runErrorRecoveryHmrTest(nextConfig: {
           `)
         } else {
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-                      "./components/parse-error.xyz
-                      Module parse failed: Unexpected token (3:0)
-                      You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
-                      | This
-                      | is
-                      > }}}
-                      | invalid
-                      | js
+           "./components/parse-error.xyz
+           Module parse failed: Unexpected token (3:0)
+           File was parsed as module type 'javascript/auto'.
+           You may need an appropriate loader to handle this file type, currently no loaders are configured to process this file. See https://webpack.js.org/concepts#loaders
+             2 | is
+           > 3 | }}}
+               | ^
+             4 | invalid
 
-                      Import trace for requested module:
-                      ./components/parse-error.xyz
-                      ./pages/hmr/about8.js"
-                  `)
+           Import trace for requested module:
+           ./components/parse-error.xyz
+           ./pages/hmr/about8.js"
+          `)
         }
       }
     )
