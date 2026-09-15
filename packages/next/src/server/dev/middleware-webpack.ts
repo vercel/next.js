@@ -296,13 +296,35 @@ async function getSourceMapFromCompilation(
       return undefined
     }
 
-    // @ts-expect-error The types for `CodeGenerationResults.get` require a
-    // runtime to be passed as second argument, but apparently it also works
-    // without it.
-    const codeGenerationResult = compilation.codeGenerationResults.get(module)
-    const source = codeGenerationResult?.sources.get('javascript')
+    const codeGenerationResults = compilation.codeGenerationResults
+    if (!codeGenerationResults) {
+      return undefined
+    }
 
-    return source?.map() ?? undefined
+    const runtimes = Array.from(
+      compilation.chunkGraph.getModuleRuntimes(module)
+    )
+    for (const runtime of runtimes) {
+      const codeGenerationResult = codeGenerationResults.has(module, runtime)
+        ? codeGenerationResults.get(module, runtime)
+        : module.codeGeneration({
+            dependencyTemplates: compilation.dependencyTemplates,
+            runtimeTemplate: compilation.runtimeTemplate,
+            moduleGraph: compilation.moduleGraph,
+            chunkGraph: compilation.chunkGraph,
+            runtime,
+            runtimes,
+            codeGenerationResults,
+            compilation,
+          })
+      const source = codeGenerationResult.sources.get('javascript')
+      const sourceMap = source?.map()
+      if (sourceMap) {
+        return sourceMap
+      }
+    }
+
+    return module.originalSource()?.map() ?? undefined
   } catch (err) {
     console.error(`Failed to lookup module by ID ("${id}"):`, err)
     return undefined
