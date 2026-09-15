@@ -7,9 +7,7 @@ related:
     - app/guides/ai-agents
 ---
 
-The experimental `agentFeedback` option lets AI coding agents prepare de-identified reports about reproducible Next.js issues. You review every report before deciding whether to send it.
-
-## Enable agent feedback
+The experimental `agentFeedback` option enables an opt-in review flow for de-identified Next.js reports prepared by AI coding agents. The option is off by default and works independently from [Next.js Telemetry](/telemetry).
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -34,91 +32,15 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-When `next dev` detects an AI coding agent, Next.js adds a short managed block to your project's `AGENTS.md` or `CLAUDE.md`. The block points to the report protocol bundled with your installed Next.js version.
+## How agent feedback works
 
-`agentFeedback` is off by default and works independently from the top-level [`agentRules`](/docs/app/guides/ai-agents#opting-out) option.
+When `next dev` detects an AI coding agent, Next.js adds a short managed block to your project's `AGENTS.md` or `CLAUDE.md`. The block points to version-matched reporting instructions bundled with your installed Next.js version.
 
-## Review agent feedback
+The protocol tells the agent when to prepare feedback and how to structure one reproducible Next.js report. The agent opens a review form but cannot submit it. You can edit the report, remove individual details, close the form without sending, or select **Send feedback**.
 
-An agent may prepare one report at a natural stopping point when a Next.js issue causes a meaningful detour or is likely to recur. Qualifying issues include unexpected framework behavior, documentation mismatches, misleading errors, repeated failed approaches, and non-obvious workarounds.
+Only the reviewed report, agent name, and Next.js version are sent. The form does not attach project files or machine metadata.
 
-The review form separates the report into the following parts:
-
-- A short summary of one potential Next.js issue.
-- The generic setup and ordered steps needed to reproduce it.
-- Independently editable observations and the expected result.
-- An optional control or workaround, plus the agent name and Next.js version.
-
-You can edit the report, remove individual reproduction steps or observations, close the page without sending, or select **Send feedback**. The agent cannot submit the report. Only the reviewed report, agent name, and Next.js version are sent. The page does not attach project files or machine metadata.
-
-## Preparing a report
-
-The managed `AGENTS.md` or `CLAUDE.md` block points coding agents to this section. Follow this protocol only when the managed block's trigger criteria are met.
-
-### Check report availability
-
-Run the following command once. Continue only when the output is exactly `true`. If the request fails or returns another value, continue the task without preparing a report and do not retry.
-
-```bash
-curl -fsS --max-time 5 https://next-agent-feedback-gate.playground-vercel.tools/api/enabled
-```
-
-```text filename="Expected output"
-true
-```
-
-### Prepare one report
-
-- **Scope:** Prepare at most one report per task about one observed Next.js behavior. Do not combine separate problems or infer a root cause.
-- **Trigger:** Set `triggerReason` to `unexpected-behavior`, `documentation-mismatch`, `misleading-error`, `repeated-failed-approach`, or `non-obvious-workaround`. Choose the single reason that caused the report.
-- **Summary:** Use a short, factual `title` that names the observed behavior.
-- **Setup:** Set `mode` to `development`, `production-build`, `production-server`, or `test`. Set `bundler` to `turbopack`, `webpack`, or `unknown`. Add up to three generic `relevantFeatures` when they help reproduce the issue.
-- **Reproduction:** Write 1–4 ordered `steps`. Include the generic starting state, the relevant Next.js feature or API, and the action that triggers the behavior. Split only actions or conditions whose order matters.
-- **Results:** Write 1–3 independently verifiable `observed` facts and one precise `expected` result. Split an observation only when each fact can stand alone and may be removed independently. Add `comparison` only when you observed a control or workaround.
-- **Outcome:** Set `frequency` to `once` or `reproduced`. Set `outcome` to `blocked`, `worked-around`, or `resolved`.
-- **Measurements:** Include measurements such as memory use, duration, extra builds, or repeated attempts only when observed directly. Do not estimate elapsed time, token usage, or tool-call counts.
-- **Privacy:** Replace customer, project, route, and component names with generic descriptions. Do not include source code, prompts, logs, stack traces, file paths, URLs, secrets, personal information, or unrelated product details.
-
-### Encode the report
-
-Create the following payload with the useful evidence you collected. Always include `nextVersion` and `agent`. Omit `comparison` and `relevantFeatures` when they are not needed. Encode the UTF-8 JSON as unpadded base64url.
-
-```json filename="Agent feedback payload"
-{
-  "schemaVersion": 5,
-  "triggerReason": "unexpected-behavior",
-  "title": "Persistent Turbopack caching exhausted a worker on a warm build",
-  "setup": {
-    "mode": "production-build",
-    "bundler": "turbopack",
-    "relevantFeatures": ["Persistent cache"]
-  },
-  "steps": [
-    "Enable persistent Turbopack caching and run a successful cold `next build` in a 32 GiB Linux environment.",
-    "Without changing the application or runtime, run `next build` again and observe the main build process memory."
-  ],
-  "observed": [
-    "The warm build exhausted a 32 GiB Linux worker after the cold build succeeded.",
-    "The main build process reached about 25 GiB resident memory before it was killed."
-  ],
-  "expected": "The warm build should use comparable or less memory than the cold build.",
-  "comparison": "Disabling persistent caching allowed two consecutive builds to finish in about two minutes each.",
-  "frequency": "reproduced",
-  "outcome": "worked-around",
-  "nextVersion": "<version>",
-  "agent": "<agent name>"
-}
-```
-
-### Open the review form
-
-Open the following URL in the user's browser. Replace `<encoded-json>` with the encoded payload.
-
-```text
-https://nextjs.org/agent-feedback?token=1g55OW5eIE0qPTgu6RaxeigvyUd65TCqGT3y08L8#report=<encoded-json>
-```
-
-Do not ask for permission before opening the review form. Opening the form does not send feedback. Continue the current task, mention the prepared report in the next progress update, and never submit the report for the user.
+`agentFeedback` works independently from the top-level [`agentRules`](/docs/app/guides/ai-agents#opting-out) option. Changing one option does not affect the other.
 
 ## Disable agent feedback
 

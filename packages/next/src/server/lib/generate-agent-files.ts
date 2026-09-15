@@ -43,7 +43,7 @@ function buildAgentFeedbackBlock(): string {
 
 When Next.js-specific friction requires a meaningful detour or is likely to recur, prepare at most one report at a natural stopping point. Skip routine debugging and issues resolved immediately from existing guidance.
 
-Read and follow \`node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/agentFeedback.md\`.
+Read and follow \`node_modules/next/dist/docs/agent-feedback.md\`.
 
 ${AGENT_FEEDBACK_END_MARKER}`
 }

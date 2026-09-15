@@ -224,9 +224,7 @@ describe('agent-feedback auto-generate on next dev (enabled)', () => {
     )
     expect(content).toContain(AGENT_RULES_MARKER)
     expect(content).toContain(AGENT_FEEDBACK_MARKER)
-    expect(content).toContain(
-      'node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/agentFeedback.md'
-    )
+    expect(content).toContain('node_modules/next/dist/docs/agent-feedback.md')
     expect(content).toContain('at most one report at a natural stopping point')
     expect(content).toContain('Skip routine debugging')
     expect(content).not.toContain('"schemaVersion":3')
@@ -301,9 +299,7 @@ describe('agent-feedback auto-generate on next dev (stale CLAUDE.md block)', () 
       'utf-8'
     )
     expect(content).toContain('# Team rules\r\n')
-    expect(content).toContain(
-      'node_modules/next/dist/docs/01-app/03-api-reference/05-config/01-next-config-js/agentFeedback.md'
-    )
+    expect(content).toContain('node_modules/next/dist/docs/agent-feedback.md')
     expect(content).not.toContain('stale')
     expect(content).not.toMatch(/(?<!\r)\n/)
     expect(fs.existsSync(path.join(next.testDir, 'AGENTS.md'))).toBe(false)
