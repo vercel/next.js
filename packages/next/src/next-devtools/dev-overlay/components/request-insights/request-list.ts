@@ -1,7 +1,11 @@
 import {
   getRequestInsightKey,
   getRequestInsightKind,
+  getRequestInsightSource,
+  REQUEST_INSIGHT_PROXY_SPAN_TYPE,
+  REQUEST_INSIGHT_REQUEST_SPAN_TYPE,
   type RequestInsight,
+  type RequestInsightSpan,
 } from '../../../shared/request-insights'
 
 export function getActiveRequestKey(
@@ -43,15 +47,13 @@ export function getRequestListEntries(
       .map((request) => ({ request, nested: false }))
   }
 
-  // Group internal records by the request they belong to, and record which
-  // request ids have a parent (non-internal) record present, both in one pass.
   const internalByRequestId = new Map<string, RequestInsight[]>()
   const parentRequestIds = new Set<string>()
   for (const request of requests) {
     if (isInternalRequestInsight(request)) {
-      const group = internalByRequestId.get(request.requestId)
-      if (group) {
-        group.push(request)
+      const internal = internalByRequestId.get(request.requestId)
+      if (internal) {
+        internal.push(request)
       } else {
         internalByRequestId.set(request.requestId, [request])
       }
@@ -63,9 +65,6 @@ export function getRequestListEntries(
   const entries: RequestListEntry[] = []
   for (const request of requests) {
     if (isInternalRequestInsight(request)) {
-      // Orphans (no parent request in the list) remain top-level and preserve
-      // their ordering relative to other top-level records. Nested internal
-      // records are emitted under their request below.
       if (!parentRequestIds.has(request.requestId)) {
         entries.push({ request, nested: false })
       }
@@ -73,9 +72,9 @@ export function getRequestListEntries(
     }
 
     entries.push({ request, nested: false })
-    const nested = internalByRequestId.get(request.requestId)
-    if (nested) {
-      for (const internalRequest of nested) {
+    const internal = internalByRequestId.get(request.requestId)
+    if (internal) {
+      for (const internalRequest of internal) {
         entries.push({ request: internalRequest, nested: true })
       }
     }
@@ -83,12 +82,220 @@ export function getRequestListEntries(
   return entries
 }
 
+export type RequestInsightRowType =
+  | 'page'
+  | 'page-load'
+  | 'rsc'
+  | 'api'
+  | 'image'
+  | 'asset'
+  | 'proxy'
+  | 'instant-insights'
+  | 'unknown'
+
+export type RequestInsightRowTypePresentation = Readonly<{
+  type: RequestInsightRowType
+  label: string
+  accessibleLabel: string
+}>
+
+const REQUEST_INSIGHT_ROW_TYPES: Readonly<
+  Record<RequestInsightRowType, RequestInsightRowTypePresentation>
+> = {
+  page: { type: 'page', label: 'Page', accessibleLabel: 'Page request' },
+  'page-load': {
+    type: 'page-load',
+    label: 'Page load',
+    accessibleLabel: 'Page load',
+  },
+  rsc: {
+    type: 'rsc',
+    label: 'RSC',
+    accessibleLabel: 'React Server Component request',
+  },
+  api: { type: 'api', label: 'API', accessibleLabel: 'API request' },
+  image: {
+    type: 'image',
+    label: 'Image',
+    accessibleLabel: 'Image optimization request',
+  },
+  asset: {
+    type: 'asset',
+    label: 'Asset',
+    accessibleLabel: 'Static asset request',
+  },
+  proxy: { type: 'proxy', label: 'Proxy', accessibleLabel: 'Proxy request' },
+  'instant-insights': {
+    type: 'instant-insights',
+    label: 'Instant',
+    accessibleLabel: 'Instant Insights activity',
+  },
+  unknown: {
+    type: 'unknown',
+    label: 'Unknown',
+    accessibleLabel: 'Unclassified request',
+  },
+}
+
+export function getRequestInsightRowType(
+  request: RequestInsight,
+  pageLoad = false
+): RequestInsightRowTypePresentation {
+  switch (getRequestInsightSource(request)) {
+    case 'page': {
+      if (getRequestInsightIsRsc(request) === true) {
+        return REQUEST_INSIGHT_ROW_TYPES.rsc
+      }
+      return REQUEST_INSIGHT_ROW_TYPES[pageLoad ? 'page-load' : 'page']
+    }
+    case 'app-route':
+    case 'pages-api':
+      return REQUEST_INSIGHT_ROW_TYPES.api
+    case 'image':
+      return REQUEST_INSIGHT_ROW_TYPES.image
+    case 'asset':
+      return REQUEST_INSIGHT_ROW_TYPES.asset
+    case 'proxy':
+      return REQUEST_INSIGHT_ROW_TYPES.proxy
+    case 'instant-insights':
+      return REQUEST_INSIGHT_ROW_TYPES['instant-insights']
+    case 'unknown':
+      return REQUEST_INSIGHT_ROW_TYPES.unknown
+  }
+}
+
+export function hasRequestInsightProxyActivity(
+  request: RequestInsight
+): boolean {
+  return (
+    getRequestInsightSource(request) === 'proxy' ||
+    request.proxyStatus === 'matched' ||
+    request.spans.some(
+      (span) =>
+        span.attributes?.['next.span_type'] === REQUEST_INSIGHT_PROXY_SPAN_TYPE
+    )
+  )
+}
+
+export function getCanonicalRequestSpan(
+  request: Pick<RequestInsight, 'route' | 'spans'>
+): RequestInsightSpan | undefined {
+  let latestRequestSpan: RequestInsightSpan | undefined
+  let latestMatchedRouteSpan: RequestInsightSpan | undefined
+
+  for (const span of request.spans) {
+    if (
+      span.attributes?.['next.span_type'] !== REQUEST_INSIGHT_REQUEST_SPAN_TYPE
+    ) {
+      continue
+    }
+    if (!latestRequestSpan || span.startTime >= latestRequestSpan.startTime) {
+      latestRequestSpan = span
+    }
+    if (
+      request.route &&
+      span.attributes?.['next.route'] === request.route &&
+      (!latestMatchedRouteSpan ||
+        span.startTime >= latestMatchedRouteSpan.startTime)
+    ) {
+      latestMatchedRouteSpan = span
+    }
+  }
+
+  return latestMatchedRouteSpan ?? latestRequestSpan
+}
+
+export function getRequestInsightStatusCode(
+  request: Pick<RequestInsight, 'route' | 'spans'>
+): number | undefined {
+  return getCanonicalThenAnySpanAttribute(
+    request,
+    'http.status_code',
+    (value): value is number => typeof value === 'number'
+  )
+}
+
+export function getRequestInsightIsRsc(
+  request: Pick<RequestInsight, 'route' | 'spans'>
+): boolean | undefined {
+  return getCanonicalThenAnySpanAttribute(
+    request,
+    'next.rsc',
+    (value): value is boolean => typeof value === 'boolean'
+  )
+}
+
+export type RequestInsightRepresentation =
+  | 'html'
+  | 'rsc'
+  | 'not-applicable'
+  | 'unknown'
+
+export function getRequestInsightRepresentation(
+  request: Pick<RequestInsight, 'kind' | 'source' | 'route' | 'spans'>
+): RequestInsightRepresentation {
+  switch (getRequestInsightSource(request)) {
+    case 'page': {
+      const isRsc = getRequestInsightIsRsc(request)
+      return isRsc === true ? 'rsc' : isRsc === false ? 'html' : 'unknown'
+    }
+    case 'unknown':
+      return 'unknown'
+    case 'app-route':
+    case 'pages-api':
+    case 'image':
+    case 'asset':
+    case 'proxy':
+    case 'instant-insights':
+      return 'not-applicable'
+  }
+}
+
+export function getRequestInsightSummaryTypeLabel(
+  request: RequestInsight
+): string {
+  const rowType = getRequestInsightRowType(request)
+  if (rowType.type === 'instant-insights') {
+    return rowType.accessibleLabel
+  }
+
+  switch (getRequestInsightRepresentation(request)) {
+    case 'html':
+      return 'HTML request'
+    case 'rsc':
+      return 'RSC request'
+    case 'not-applicable':
+    case 'unknown':
+      return rowType.accessibleLabel
+  }
+}
+
+function getCanonicalThenAnySpanAttribute<T>(
+  request: Pick<RequestInsight, 'route' | 'spans'>,
+  key: string,
+  isValue: (value: unknown) => value is T
+): T | undefined {
+  const canonicalValue = getCanonicalRequestSpan(request)?.attributes?.[key]
+  if (isValue(canonicalValue)) {
+    return canonicalValue
+  }
+
+  for (const span of request.spans) {
+    const value = span.attributes?.[key]
+    if (isValue(value)) {
+      return value
+    }
+  }
+}
+
 export function isPageLoadRequest(
-  request: Pick<RequestInsight, 'requestId' | 'kind'>,
+  request: RequestInsight,
   initialRequestId: string | undefined
 ): boolean {
   return (
     getRequestInsightKind(request) === 'request' &&
-    request.requestId === initialRequestId
+    getRequestInsightSource(request) === 'page' &&
+    getRequestInsightIsRsc(request) === false &&
+    request.htmlRequestId === initialRequestId
   )
 }
