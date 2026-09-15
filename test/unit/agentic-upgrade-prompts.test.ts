@@ -88,11 +88,12 @@ describe('agentic upgrade prompts', () => {
     jest.mocked(prepareUpgrade).mockResolvedValue({
       status: 'ready',
       installedVersion: '14.1.1',
-      targetVersion: '16.3.5',
+      targetVersion: '16.4.0',
       checkedAt: '2026-09-14T13:41:58.013Z',
       references: [
         'https://api.github.com/advisories?affects=next',
         'https://registry.npmjs.org/next',
+        'https://registry.npmjs.org/next/latest',
       ],
     })
     jest.mocked(mkdtemp).mockResolvedValue('/tmp/next-upgrade-test')
@@ -198,18 +199,18 @@ describe('agentic upgrade prompts', () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: undefined,
       verbose: false,
-      ai: 'security',
+      ai: 'latest',
       experimentalAgenticDryRun: false,
     })
 
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Upgrade "/workspace/app" from Next.js 14.1.1 to 16.3.5.
-     Upgrade type: security.
-     References: ["https://api.github.com/advisories?affects=next","https://registry.npmjs.org/next"]
+         "Upgrade "/workspace/app" from Next.js 14.1.1 to 16.4.0.
+     Upgrade type: latest.
+     References: ["https://api.github.com/advisories?affects=next","https://registry.npmjs.org/next","https://registry.npmjs.org/next/latest"]
      Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before making changes.
-     After verification, set experimental.agenticAutoUpgrade to "security".
+     After verification, set experimental.agenticAutoUpgrade to "latest".
      Preserve existing permissions.",
        ],
      ]
@@ -220,18 +221,18 @@ describe('agentic upgrade prompts', () => {
     await spawnNextUpgrade('/workspace/app', {
       revision: undefined,
       verbose: false,
-      ai: 'security',
+      ai: 'latest',
       experimentalAgenticDryRun: true,
     })
 
     expect(normalizedBootstrapCalls()).toMatchInlineSnapshot(`
      [
        [
-         "Upgrade "/workspace/app" from Next.js 14.1.1 to 16.3.5.
-     Upgrade type: security.
-     References: ["https://api.github.com/advisories?affects=next","https://registry.npmjs.org/next"]
+         "Upgrade "/workspace/app" from Next.js 14.1.1 to 16.4.0.
+     Upgrade type: latest.
+     References: ["https://api.github.com/advisories?affects=next","https://registry.npmjs.org/next","https://registry.npmjs.org/next/latest"]
      Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before making changes.
-     After verification, set experimental.agenticAutoUpgrade to "security".
+     After verification, set experimental.agenticAutoUpgrade to "latest".
      Preserve existing permissions.
      This is a --experimental-agentic-dry-run: complete the migration and verification, create local commits, then stop. Do not push or create a PR/MR.",
        ],
