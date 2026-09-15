@@ -234,9 +234,16 @@ export function getSelectedParams(
     const segmentValue = isDynamicParameter ? segment[1] : segment
     if (!segmentValue || segmentValue.startsWith(PAGE_SEGMENT_KEY)) continue
 
-    // Ensure catchAll and optional catchall are turned into an array
+    // Ensure catchAll / optional / intercepted catchalls are turned into arrays.
+    // Intercepted short types (`ci(.)`, …) must match getParamValueFromCacheKey.
+    const paramType = isDynamicParameter ? segment[2] : null
     const isCatchAll =
-      isDynamicParameter && (segment[2] === 'c' || segment[2] === 'oc')
+      paramType === 'c' ||
+      paramType === 'oc' ||
+      paramType === 'ci(.)' ||
+      paramType === 'ci(..)' ||
+      paramType === 'ci(...)' ||
+      paramType === 'ci(..)(..)'
 
     if (isCatchAll) {
       params[segment[0]] = segment[1].split('/')
