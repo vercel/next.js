@@ -999,11 +999,22 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply<unknown[]>(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
+            try {
+              boundActionArguments = await decodeReply<unknown[]>(
+                actionData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } catch (err) {
+              // Malformed request body (e.g. invalid JSON) should return 400,
+              // not bubble up as a 500 internal server error.
+              console.error('Failed to decode action arguments:', err)
+              res.statusCode = 400
+              return {
+                type: 'done',
+                result: RenderResult.fromStatic('Bad Request', 'text/plain'),
+              }
+            }
           }
         } else if (
           // The type check here ensures that `req` is correctly typed, and the
@@ -1207,11 +1218,22 @@ export async function handleAction({
 
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
-            boundActionArguments = await decodeReply<unknown[]>(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
+            try {
+              boundActionArguments = await decodeReply<unknown[]>(
+                actionData,
+                serverModuleMap,
+                { temporaryReferences }
+              )
+            } catch (err) {
+              // Malformed request body (e.g. invalid JSON) should return 400,
+              // not bubble up as a 500 internal server error.
+              console.error('Failed to decode action arguments:', err)
+              res.statusCode = 400
+              return {
+                type: 'done',
+                result: RenderResult.fromStatic('Bad Request', 'text/plain'),
+              }
+            }
           }
         } else {
           throw new Error('Invariant: Unknown request type.')
