@@ -351,7 +351,10 @@ contextPrototype.s = esmExport;
  *
  * Groups whose head is a module id are instantiated in list order, at the point where the call
  * appears, so the producer must not merge such a group across an import of another module.
- */ function esmReexport(list) {
+ *
+ * `id` names the module the exports belong to when this module was merged into a scope-hoisting
+ * group, exactly as it does for {@link EsmExport}.
+ */ function esmReexport(list, id) {
     var _this, _loop = function() {
         var _loop = function(j) {
             var importedName = pairs[j + 1];
@@ -378,7 +381,7 @@ contextPrototype.s = esmExport;
     var bindings = [];
     var i = 0;
     while(i < list.length)_this = this, _loop();
-    esmExport.call(this, bindings, undefined);
+    esmExport.call(this, bindings, id);
 }
 contextPrototype.S = esmReexport;
 function ensureDynamicExports(module, exports) {
