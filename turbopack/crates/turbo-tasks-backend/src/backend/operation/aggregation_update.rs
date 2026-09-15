@@ -318,6 +318,7 @@ pub enum AggregationUpdateJob {
         // upon attempted serialization) similar to #[serde(skip)] on variants
         #[bincode(skip, default = "unreachable_decode")]
         task: TaskId,
+        release_construction_ref: bool,
     },
     /// Increases the active counters of the tasks
     IncreaseActiveCounts {
@@ -1498,12 +1499,17 @@ impl AggregationUpdateQueue {
                         }
                     }
                 }
-                AggregationUpdateJob::IncreaseActiveCount { task } => {
-                    self.increase_active_count(ctx, task);
+                AggregationUpdateJob::IncreaseActiveCount {
+                    task,
+                    release_construction_ref,
+                } => {
+                    self.increase_active_count(ctx, task, release_construction_ref);
                 }
                 AggregationUpdateJob::IncreaseActiveCounts { mut task_ids } => {
                     if let Some(task_id) = task_ids.pop() {
-                        self.increase_active_count(ctx, task_id);
+                        self.increase_active_count(
+                            ctx, task_id, /* release_construction_ref */ false,
+                        );
                         if !task_ids.is_empty() {
                             self.jobs.push_front(AggregationUpdateJobItem::new(
                                 AggregationUpdateJob::IncreaseActiveCounts { task_ids },
@@ -1760,7 +1766,10 @@ impl AggregationUpdateQueue {
                         let has_active_count =
                             upper.get_activeness().is_some_and(|a| a.active_counter > 0);
                         if has_active_count {
-                            self.push(AggregationUpdateJob::IncreaseActiveCount { task: task_id });
+                            self.push(AggregationUpdateJob::IncreaseActiveCount {
+                                task: task_id,
+                                release_construction_ref: false,
+                            });
                         }
                     }
                     // notify uppers about new follower
@@ -3057,6 +3066,7 @@ impl AggregationUpdateQueue {
                     if has_active_count {
                         self.push(AggregationUpdateJob::IncreaseActiveCount {
                             task: new_follower_id,
+                            release_construction_ref: false,
                         });
                     }
 
@@ -3216,7 +3226,12 @@ impl AggregationUpdateQueue {
     /// Increases the active count of a task.
     ///
     /// Only used when activeness is tracked.
-    fn increase_active_count(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
+    fn increase_active_count(
+        &mut self,
+        ctx: &mut impl ExecuteContext<'_>,
+        task_id: TaskId,
+        release_construction_ref: bool,
+    ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("increase active count").entered();
 
@@ -3233,6 +3248,9 @@ impl AggregationUpdateQueue {
         let is_new = state.is_empty();
         let is_positive_now = state.increment_active_counter();
         let is_empty = state.is_empty();
+        if release_construction_ref {
+            task.update_and_get_transient_ref_count(-1);
+        }
         // This can happen if active count was negative before
         if is_empty {
             task.take_activeness();
