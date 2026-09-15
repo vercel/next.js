@@ -134,9 +134,9 @@ use crate::{
         dynamic_expression::DynamicExpression,
         emit_collect::{CollectReference, EmitReference},
         esm::{
-            EsmAssetReference, EsmAsyncAssetReference, EsmBinding, ImportMetaBinding,
-            ImportMetaRef, UrlAssetReference, UrlRewriteBehavior, base::EsmAssetReferences,
-            module_id::EsmModuleIdAssetReference,
+            EsmAssetReference, EsmAssetReferenceOptions, EsmAsyncAssetReference, EsmBinding,
+            ImportMetaBinding, ImportMetaRef, UrlAssetReference, UrlRewriteBehavior,
+            base::EsmAssetReferences, module_id::EsmModuleIdAssetReference,
         },
         exports::{EcmascriptExportsAnalysis, compute_ecmascript_module_exports},
         exports_info::{ExportsInfoBinding, ExportsInfoRef},
@@ -3739,19 +3739,21 @@ async fn handle_free_var_reference(
                             state.origin
                         },
                         request.clone(),
-                        IssueSource::from_swc_offsets(
-                            state.source,
-                            span.lo.to_u32(),
-                            span.hi.to_u32(),
-                        ),
-                        Default::default(),
-                        export.clone().map(ModulePart::export),
-                        // TODO This could be optimized. E.g. referencing `Buffer` in some top
-                        // level function could set ImportUsage properly here
-                        ImportUsage::TopLevel,
-                        state.import_externals,
-                        state.module_fragments_enabled,
-                        None,
+                        EsmAssetReferenceOptions {
+                            issue_source: IssueSource::from_swc_offsets(
+                                state.source,
+                                span.lo.to_u32(),
+                                span.hi.to_u32(),
+                            ),
+                            annotations: Default::default(),
+                            export_name: export.clone().map(ModulePart::export),
+                            // TODO This could be optimized. E.g. referencing `Buffer` in some top
+                            // level function could set ImportUsage properly here
+                            import_usage: ImportUsage::TopLevel,
+                            import_externals: state.import_externals,
+                            module_fragments_enabled: state.module_fragments_enabled,
+                            resolve_override: None,
+                        },
                     )
                     .await?
                     .resolved_cell())
