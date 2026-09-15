@@ -6,23 +6,19 @@ describe('app-dir - metadata workStore ALS across static prerender workers', () 
   })
 
   it('should prerender localized generateMetadata without InvariantError E1068', async () => {
+    const $ = await next.render$('/en')
+    expect($('#locale').text()).toBe('en')
+    expect($('title').text()).toContain('workStore locale en')
+
     expect(next.cliOutput).not.toContain(
       'Expected workStore to be initialized'
     )
     expect(next.cliOutput).not.toContain('InvariantError')
-
-    const $ = await next.render$('/en')
-    expect($('#locale').text()).toBe('en')
-    expect($('title').text()).toContain('workStore locale en')
   })
 
   if (isNextStart) {
-    it('should statically generate every locale from generateStaticParams', async () => {
-      const prerenderManifest = JSON.parse(
-        await next.readFile('.next/prerender-manifest.json')
-      )
-      const routes = Object.keys(prerenderManifest.routes)
-      for (const lang of [
+    it('should render all locales generated from generateStaticParams', async () => {
+      const locales = [
         'en',
         'de',
         'fi',
@@ -33,9 +29,18 @@ describe('app-dir - metadata workStore ALS across static prerender workers', () 
         'pl',
         'nl',
         'pt',
-      ]) {
-        expect(routes).toContain(`/${lang}`)
+      ]
+
+      for (const lang of locales) {
+        const $ = await next.render$(`/${lang}`)
+        expect($('#locale').text()).toBe(lang)
+        expect($('title').text()).toContain(`workStore locale ${lang}`)
       }
+
+      expect(next.cliOutput).not.toContain(
+        'Expected workStore to be initialized'
+      )
+      expect(next.cliOutput).not.toContain('InvariantError')
     })
   }
 })
