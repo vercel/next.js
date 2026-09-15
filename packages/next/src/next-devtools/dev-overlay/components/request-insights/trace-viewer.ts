@@ -113,9 +113,10 @@ const FETCH_SPAN_TYPE = 'AppRender.fetch'
 const REACT_COMPONENT_SPAN_TYPE = 'ReactServerComponents.component'
 const REACT_AWAIT_SPAN_TYPE = 'ReactServerComponents.await'
 const REACT_INCOMPLETE_SPAN_TYPE = 'ReactServerComponents.incomplete'
+const MIDDLEWARE_SPAN_TYPE = 'Middleware.execute'
 const DEFAULT_VISIBLE_SPAN_TYPES = new Set([
   'BaseServer.handleRequest',
-  'Middleware.execute',
+  MIDDLEWARE_SPAN_TYPE,
   'NextNodeServer.matchRoute',
   'DevBundlerService.ensurePage',
   'BaseServer.render',
@@ -511,6 +512,13 @@ function getSpanLabel(span: RequestInsightSpan): string {
   const displayName = name
     .replace(FIZZ_WORD, 'HTML')
     .replace(FLIGHT_WORD, 'RSC')
+
+  if (span.attributes?.['next.span_type'] === MIDDLEWARE_SPAN_TYPE) {
+    const method = span.attributes['http.method']
+    return typeof method === 'string' && method.length > 0
+      ? `proxy ${method}`
+      : displayName.replace(/^middleware\b/i, 'proxy')
+  }
 
   if (displayName === 'resolve segment modules') {
     return 'resolve segment'
