@@ -443,6 +443,20 @@ pub struct EsmAssetReference {
     extras: Option<Box<EsmReferenceExtras>>,
 }
 
+/// Construction options for an [`EsmAssetReference`].
+///
+/// The module, origin, and request stay as constructor arguments because they identify the
+/// reference. The remaining behavior is named here so call sites don't depend on argument order.
+pub struct EsmAssetReferenceOptions {
+    pub issue_source: IssueSource,
+    pub annotations: Option<ImportAnnotations>,
+    pub export_name: Option<ModulePart>,
+    pub import_usage: ImportUsage,
+    pub import_externals: bool,
+    pub module_fragments_enabled: bool,
+    pub resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+}
+
 /// Optional extra state for an [`EsmAssetReference`] that is rarely present: the few values
 /// extracted from `ImportAnnotations` (the full `ImportAnnotations` — a `BTreeMap` plus several
 /// `Option`s — is not retained) plus a `resolve_override` from matched inner assets.
@@ -499,20 +513,23 @@ impl EsmReferenceExtras {
 }
 
 impl EsmAssetReference {
-    #[allow(clippy::too_many_arguments)]
     async fn new_inner(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
-        issue_source: IssueSource,
-        annotations: Option<ImportAnnotations>,
-        export_name: Option<ModulePart>,
-        import_usage: ImportUsage,
-        import_externals: bool,
-        module_fragments_enabled: bool,
-        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        options: EsmAssetReferenceOptions,
         is_pure_import: bool,
     ) -> Result<Self> {
+        let EsmAssetReferenceOptions {
+            issue_source,
+            annotations,
+            export_name,
+            import_usage,
+            import_externals,
+            module_fragments_enabled,
+            resolve_override,
+        } = options;
+
         // Apply any annotation-driven transition eagerly so the stored origin is final and the
         // `annotations` don't need to be retained on the reference.
         let origin = if let Some(transition) = annotations.as_ref().and_then(|a| a.transition()) {
@@ -538,60 +555,26 @@ impl EsmAssetReference {
         })
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn new(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
-        issue_source: IssueSource,
-        annotations: Option<ImportAnnotations>,
-        export_name: Option<ModulePart>,
-        import_usage: ImportUsage,
-        import_externals: bool,
-        module_fragments_enabled: bool,
-        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        options: EsmAssetReferenceOptions,
     ) -> Result<Self> {
         Self::new_inner(
-            module,
-            origin,
-            request,
-            issue_source,
-            annotations,
-            export_name,
-            import_usage,
-            import_externals,
-            module_fragments_enabled,
-            resolve_override,
-            /* is_pure_import */ false,
+            module, origin, request, options, /* is_pure_import */ false,
         )
         .await
     }
 
-    #[allow(clippy::too_many_arguments)]
     pub async fn new_pure(
         module: ResolvedVc<EcmascriptModuleAsset>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: RcStr,
-        issue_source: IssueSource,
-        annotations: Option<ImportAnnotations>,
-        export_name: Option<ModulePart>,
-        import_usage: ImportUsage,
-        import_externals: bool,
-        module_fragments_enabled: bool,
-        resolve_override: Option<ResolvedVc<Box<dyn Module>>>,
+        options: EsmAssetReferenceOptions,
     ) -> Result<Self> {
         Self::new_inner(
-            module,
-            origin,
-            request,
-            issue_source,
-            annotations,
-            export_name,
-            import_usage,
-            import_externals,
-            module_fragments_enabled,
-            resolve_override,
-            /* is_pure_import */ true,
+            module, origin, request, options, /* is_pure_import */ true,
         )
         .await
     }

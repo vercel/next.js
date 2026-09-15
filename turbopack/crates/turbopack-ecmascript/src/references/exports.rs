@@ -20,7 +20,7 @@ use crate::{
     parse::ParseResult,
     references::{
         TURBOPACK_HELPER_WTF8,
-        esm::{EsmAssetReference, EsmExports},
+        esm::{EsmAssetReference, EsmAssetReferenceOptions, EsmExports},
         type_issue::SpecifiedModuleTypeIssue,
     },
     runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE},
@@ -100,41 +100,47 @@ pub async fn compute_ecmascript_module_exports(
                 module,
                 ResolvedVc::upcast(module),
                 RcStr::from(&*r.module_path.to_string_lossy()),
-                IssueSource::from_swc_offsets(source, r.span.lo.to_u32(), r.span.hi.to_u32()),
-                r.annotations.as_ref().map(|a| (**a).clone()),
-                match &r.imported_symbol {
-                    &ImportedSymbol::ModuleEvaluation => {
-                        should_add_evaluation = true;
-                        Some(ModulePart::evaluation())
-                    }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
-                    ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
-                        if !options.module_fragments_enabled {
-                            bail!(
-                                "Internal imports only exist in reexports only mode when \
-                                 importing {:?} from {}",
-                                r.imported_symbol,
-                                r.module_path.to_string_lossy()
-                            );
-                        }
-                        if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
+                EsmAssetReferenceOptions {
+                    issue_source: IssueSource::from_swc_offsets(
+                        source,
+                        r.span.lo.to_u32(),
+                        r.span.hi.to_u32(),
+                    ),
+                    annotations: r.annotations.as_ref().map(|a| (**a).clone()),
+                    export_name: match &r.imported_symbol {
+                        &ImportedSymbol::ModuleEvaluation => {
                             should_add_evaluation = true;
+                            Some(ModulePart::evaluation())
                         }
-                        Some(ModulePart::internal(*part_id))
-                    }
-                    ImportedSymbol::Exports => {
-                        options.module_fragments_enabled.then(ModulePart::exports)
-                    }
+                        ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
+                        ImportedSymbol::PartEvaluation(part_id) | ImportedSymbol::Part(part_id) => {
+                            if !options.module_fragments_enabled {
+                                bail!(
+                                    "Internal imports only exist in reexports only mode when \
+                                     importing {:?} from {}",
+                                    r.imported_symbol,
+                                    r.module_path.to_string_lossy()
+                                );
+                            }
+                            if matches!(&r.imported_symbol, ImportedSymbol::PartEvaluation(_)) {
+                                should_add_evaluation = true;
+                            }
+                            Some(ModulePart::internal(*part_id))
+                        }
+                        ImportedSymbol::Exports => {
+                            options.module_fragments_enabled.then(ModulePart::exports)
+                        }
+                    },
+                    import_usage: eval_context
+                        .imports
+                        .import_usage
+                        .get(&i)
+                        .cloned()
+                        .unwrap_or_default(),
+                    import_externals,
+                    module_fragments_enabled: options.module_fragments_enabled,
+                    resolve_override,
                 },
-                eval_context
-                    .imports
-                    .import_usage
-                    .get(&i)
-                    .cloned()
-                    .unwrap_or_default(),
-                import_externals,
-                options.module_fragments_enabled,
-                resolve_override,
             )
             .await?
             .resolved_cell();
