@@ -65,6 +65,38 @@ export function runSharedTests(type: 'app' | 'pages') {
       expect(await navigationTracker.didMpaNavigate()).toBe(false)
     })
 
+    it("should include the submitter's name and value in tree order", async () => {
+      const session = await next.browser(
+        pathPrefix + '/forms/button-with-value'
+      )
+      const navigationTracker = await trackMpaNavs(session)
+
+      const searchInput = await session.elementByCss('input[name="query"]')
+      await searchInput.fill('my search')
+
+      const submitButton = await session.elementByCss('[type="submit"]')
+      await submitButton.click()
+
+      const result = await session.waitForElementByCss('#search-results').text()
+      expect(result).toMatch(/query: "my search"/)
+
+      // A submit button with a `name` contributes its `value` to the form data,
+      // at the position where the button appears in the form:
+      //
+      //   "If the field element is a submitter button, [...] append an entry to
+      //    the entry list with the field element's name and value"
+      //   https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#constructing-form-data-set
+      //
+      const url = new URL(await session.url())
+      expect([...url.searchParams.entries()]).toEqual([
+        ['query', 'my search'],
+        ['sort', 'relevance'],
+        ['page', '1'],
+      ])
+
+      expect(await navigationTracker.didMpaNavigate()).toBe(false)
+    })
+
     // `<form action={someFunction}>` is only supported in React 19.x
     ;(isReact18 ? describe.skip : describe)(
       'functions passed to action',
