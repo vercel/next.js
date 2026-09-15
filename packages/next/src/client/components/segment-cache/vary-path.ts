@@ -435,3 +435,5 @@ export function getShellSegmentVaryPath(original: VaryPath): SegmentVaryPath {
   }
   return clone as SegmentVaryPath
 }
+
+export function isMoreSpecificVaryPath() {}
