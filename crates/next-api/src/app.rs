@@ -8,8 +8,9 @@ use next_core::{
     },
     get_edge_resolve_options_context, get_next_package,
     next_app::{
-        AppEntry, AppPage, get_app_client_references_chunks, get_app_client_shared_chunk_group,
-        get_app_page_entry, get_app_route_entry, get_client_references_chunks_for_hmr,
+        AppEntry, AppPage, get_app_client_references_chunk_group_entries,
+        get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
+        get_app_route_entry, get_client_references_chunks_for_hmr,
         metadata::route::get_app_metadata_route_entry,
     },
     next_client::{
@@ -2299,10 +2300,43 @@ impl Endpoint for AppEndpoint {
             .await?,
         );
 
-        Ok(
-            GraphEntries::from_chunk_groups(vec![ChunkGroupEntry::Shared(server_actions_loader)])
-                .cell(),
-        )
+        let mut entries = vec![GraphEntries::from_chunk_groups(vec![
+            ChunkGroupEntry::Shared(server_actions_loader),
+        ])];
+
+        if let AppEndpointType::Page { ty, .. } = &this.ty {
+            let client_references = ClientReferencesGraphs::new(
+                graph,
+                *this.app_project.project().per_page_module_graph().await?,
+            )
+            .get_client_references_for_endpoint(
+                *rsc_entry,
+                true,
+                /* include_traced */
+                *this
+                    .app_project
+                    .project()
+                    .should_write_nft_manifests()
+                    .await?,
+                /* include_binding_usage */
+                this.app_project
+                    .project()
+                    .next_mode()
+                    .await?
+                    .is_production(),
+            );
+            entries.push(
+                get_app_client_references_chunk_group_entries(
+                    client_references,
+                    true,
+                    matches!(ty, AppPageEndpointType::Html),
+                )
+                .owned()
+                .await?,
+            );
+        }
+
+        Ok(GraphEntries::concatenate(entries).cell())
     }
 
     #[turbo_tasks::function]
