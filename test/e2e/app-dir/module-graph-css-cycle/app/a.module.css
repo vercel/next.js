@@ -1,0 +1,6 @@
+@import './b.module.css';
+
+.banner {
+  color: #111;
+  background: linear-gradient(135deg, #6366f1, #a855f7);
+}

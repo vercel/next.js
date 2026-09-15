@@ -722,7 +722,7 @@ impl ImportTracer for ModuleGraphImportTracer {
                         bail!("inconsistent read?")
                     };
                     // compute the path from this index to a root of the graph.
-                    let Some((_, path)) = petgraph::algo::astar(
+                    let path = match petgraph::algo::astar(
                         &reversed_graph,
                         module_idx,
                         |n| reversed_graph.neighbors(n).next().is_none(),
@@ -746,8 +746,9 @@ impl ImportTracer for ModuleGraphImportTracer {
                         // solution would be a hand written implementation of dijkstras so we can
                         // hoist redundant work out of this loop.
                         |_| 0,
-                    ) else {
-                        unreachable!("there must be a path to a root");
+                    ) {
+                        Some((_, path)) => path,
+                        None => vec![module_idx],
                     };
 
                     // Represent the path as a sequence of AssetIdents
