@@ -75,4 +75,17 @@ describe('parallel-routes-leaf-segments-no-build-error', () => {
       expect($('#children').text()).toBe('No Children Default')
     })
   })
+
+  describe('interception host with a matching sibling route', () => {
+    it('should not require a default for the matched sibling slot', async () => {
+      // @content has no default, but it has a matching page for every ordinary
+      // child route. The interception matcher retains @content during a soft
+      // navigation, so compiling that matcher must not report a missing default.
+      const $ = await next.render$('/interception-host/dashboard')
+
+      expect($('#children').text()).toBe('Dashboard page')
+      expect($('#content').text()).toBe('Dashboard content')
+      expect($('#modal').text()).toBe('No modal')
+    })
+  })
 })

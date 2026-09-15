@@ -528,7 +528,7 @@ describe('Error recovery app', () => {
          "stack": [
            "Child child.js (3:9)",
            "Index index.js (6:7)",
-           "<FIXME-file-protocol>",
+           "Page app/client/page.js (4:10)",
          ],
        }
       `)
@@ -828,7 +828,7 @@ describe('Error recovery app', () => {
          "stack": [
            "Foo Foo.js (3:3)",
            "FunctionDefault index.js (4:10)",
-           "<FIXME-file-protocol>",
+           "Page app/page.js (4:10)",
          ],
        }
       `)

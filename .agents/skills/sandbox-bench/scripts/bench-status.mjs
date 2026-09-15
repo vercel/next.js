@@ -54,6 +54,9 @@ for (const dir of dirs) {
   let action
   if (st.phase === 'done') {
     action = 'complete — bench-analyze.mjs re-reads it any time'
+  } else if (String(st.phase).startsWith('prepared')) {
+    action =
+      'complete (--prepare: caches only) — launch the real run without --prepare'
   } else if (alive) {
     action = 'RUNNING — leave it alone'
   } else if (

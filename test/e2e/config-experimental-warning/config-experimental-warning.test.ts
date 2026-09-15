@@ -39,8 +39,6 @@ describe('Config Experimental Warning', () => {
           experimental: {
             // We enable this in some CI shards
             strictRouteTypes: false,
-            // We disable this in some CI shards
-            appNewScrollHandler: true,
           },
         },
       })
@@ -103,8 +101,6 @@ describe('Config Experimental Warning', () => {
                 workerThreads: false,
                 // We enable this in some CI shards
                 strictRouteTypes: false,
-                // We disable this in some CI shards
-                appNewScrollHandler: true,
               }
             })
           `,

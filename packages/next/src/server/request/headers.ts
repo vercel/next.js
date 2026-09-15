@@ -13,20 +13,23 @@ import {
   type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
-  postponeWithTracking,
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import {
   makeDevtoolsIOAwarePromise,
-  makeHangingPromise,
+  makeRuntimeHangingPromise,
   RENDER_STAGES_BY_DATA_KIND,
 } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { isRequestApiAllowedInCurrentPhase } from './utils'
 import { applyOwnerStack } from '../dynamic-rendering-utils'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import {
+  createHeadersInUseCacheError,
+  createHeadersInUnstableCacheError,
+} from '../use-cache/use-cache-messages'
 
 /**
  * This function allows you to read the HTTP incoming request headers in
@@ -59,18 +62,14 @@ export function headers(): Promise<ReadonlyHeaders> {
     if (workUnitStore) {
       switch (workUnitStore.type) {
         case 'cache': {
-          const error = new Error(
-            `Route ${workStore.route} used \`headers()\` inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
-          )
+          const error = createHeadersInUseCacheError(workStore.route)
           Error.captureStackTrace(error, headers)
           applyOwnerStack(error)
           workStore.invalidDynamicUsageError ??= error
           throw error
         }
         case 'unstable-cache':
-          throw new Error(
-            `Route ${workStore.route} used \`headers()\` inside a function cached with \`unstable_cache()\`. Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use \`headers()\` outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
-          )
+          throw createHeadersInUnstableCacheError(workStore.route)
         case 'generate-static-params':
           throw new Error(
             `Route ${workStore.route} used \`headers()\` inside \`generateStaticParams\`. This is not supported because \`generateStaticParams\` runs at build time without an HTTP request. Read more: https://nextjs.org/docs/messages/next-dynamic-api-wrong-context`
@@ -80,7 +79,6 @@ export function headers(): Promise<ReadonlyHeaders> {
         case 'validation-client':
         case 'private-cache':
         case 'prerender-runtime':
-        case 'prerender-ppr':
         case 'prerender-legacy':
         case 'request':
           break
@@ -104,16 +102,6 @@ export function headers(): Promise<ReadonlyHeaders> {
           const exportName = '`headers`'
           throw new InvariantError(
             `${exportName} must not be used within a client component. Next.js should be preventing ${exportName} from being included in client components statically, but did not in this case.`
-          )
-        case 'prerender-ppr':
-          // PPR Prerender (no cacheComponents)
-          // We are prerendering with PPR. We need track dynamic access here eagerly
-          // to keep continuity with how headers has worked in PPR without cacheComponents.
-          // TODO consider switching the semantic to throw on property access instead
-          return postponeWithTracking(
-            workStore.route,
-            callingExpression,
-            workUnitStore.dynamicTracking
           )
         case 'prerender-legacy':
           // Legacy Prerender
@@ -181,10 +169,11 @@ function makeHangingHeaders(
     return cachedHeaders
   }
 
-  const promise = makeHangingPromise<ReadonlyHeaders>(
+  const promise = makeRuntimeHangingPromise<ReadonlyHeaders>(
     prerenderStore.renderSignal,
     workStore.route,
-    '`headers()`'
+    '`headers()`',
+    prerenderStore
   )
   CachedHeaders.set(prerenderStore, promise)
 

@@ -1,17 +1,10 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('use-cache-og-image-top-level-await', () => {
-  const { next, isNextStart, skipped } = nextTestSetup({
+  const { next, isNextStart } = nextTestSetup({
     files: __dirname,
     skipStart: true,
-    // The prerendered output can't be observed in a deployment, and without
-    // it nothing distinguishes broken from fixed behavior.
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   if (isNextStart) {
     beforeAll(async () => {

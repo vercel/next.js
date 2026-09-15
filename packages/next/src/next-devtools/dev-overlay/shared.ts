@@ -1,8 +1,12 @@
+import type { RuntimeErrorMetadata } from '../../server/dev/hot-reloader-types'
 import { useReducer } from 'react'
 
 import type { FlightRouterState } from '../../shared/lib/app-router-types'
 import type { VersionInfo } from '../../server/dev/parse-version-info'
-import type { SupportedErrorEvent } from './container/runtime-error/render-error'
+import type {
+  SupportedErrorEvent,
+  RuntimeErrorEvent,
+} from './container/runtime-error/render-error'
 import type { DebugInfo } from '../shared/types'
 import type { DevIndicatorServerState } from '../../server/dev/dev-indicator-server-state'
 import { parseStack } from '../../server/lib/parse-stack'
@@ -12,6 +16,7 @@ import type {
   RequestInsight,
   RequestInsightsSnapshot,
 } from '../shared/request-insights'
+import { getRequestInsightKey } from '../shared/request-insights'
 import { readInstantNavCookieState } from './components/instant-navs/instant-nav-cookie'
 import { isBlockingRouteInNavError } from './container/errors'
 import { isDynamicRoute } from '../../shared/lib/router/utils/is-dynamic'
@@ -28,6 +33,10 @@ export type DevToolsConfig = {
   devToolsPanelSize?: Record<string, { width: number; height: number }>
   scale?: number
   hideShortcut?: string | null
+  requestInsights?: {
+    showInternal?: boolean
+    verbose?: boolean
+  }
 }
 
 export type Corners = 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'
@@ -82,6 +91,10 @@ export interface OverlayState {
   readonly hideShortcut: string | null
   readonly instantNavs: boolean
   readonly requestInsights: readonly RequestInsight[]
+  readonly requestInsightsConfig: Readonly<{
+    showInternal: boolean
+    verbose: boolean
+  }>
 }
 type DevtoolsPanelName = string
 export type OverlayDispatch = React.Dispatch<DispatcherEvent>
@@ -118,6 +131,18 @@ export const ACTION_INSTANT_NAVS_RESET = 'instant-navs-reset'
 export const ACTION_INSTANT_ERRORS_CLEAR = 'instant-errors-clear'
 export const ACTION_REQUEST_INSIGHTS_SNAPSHOT = 'request-insights-snapshot'
 export const ACTION_REQUEST_INSIGHTS_UPDATE = 'request-insights-update'
+
+export function updateRequestInsights(
+  currentRequests: readonly RequestInsight[],
+  insight: RequestInsight
+): RequestInsight[] {
+  const insightKey = getRequestInsightKey(insight)
+  const requests = currentRequests.filter(
+    (request) => getRequestInsightKey(request) !== insightKey
+  )
+  requests.push(insight)
+  return requests.slice(-100)
+}
 
 export const STORAGE_KEY_PANEL_POSITION_PREFIX =
   '__nextjs-dev-tools-panel-position'
@@ -157,10 +182,12 @@ interface FastRefreshAction {
 interface UnhandledErrorAction {
   type: typeof ACTION_UNHANDLED_ERROR
   reason: Error
+  metadata?: RuntimeErrorMetadata
 }
 interface UnhandledRejectionAction {
   type: typeof ACTION_UNHANDLED_REJECTION
   reason: Error
+  metadata?: RuntimeErrorMetadata
 }
 
 interface DebugInfoAction {
@@ -373,6 +400,7 @@ export const INITIAL_OVERLAY_STATE: Omit<
   hideShortcut: null,
   instantNavs: hasInstantNavsCookie,
   requestInsights: [],
+  requestInsightsConfig: { showInternal: false, verbose: false },
 }
 
 function getInitialState(
@@ -390,16 +418,62 @@ function getInitialState(
   }
 }
 
+export function mergeErrorEvent(
+  events: readonly RuntimeErrorEvent[],
+  pendingEvent: RuntimeErrorEvent,
+  getOwnerStack: (error: Error) => string | null | undefined
+): readonly RuntimeErrorEvent[] {
+  const matchesError = (event: RuntimeErrorEvent) =>
+    // SpiderMonkey and JavaScriptCore don't include the error message in the stack.
+    // We don't want to dedupe errors with different messages for which we don't have a good stack.
+    '' + event.error === '' + pendingEvent.error &&
+    (event.error.stack === pendingEvent.error.stack ||
+      // TODO: Let ReactDevTools control deduping instead?
+      getStackIgnoringStrictMode(event.error.stack) ===
+        getStackIgnoringStrictMode(pendingEvent.error.stack)) &&
+    getOwnerStack(event.error) === getOwnerStack(pendingEvent.error)
+
+  let duplicateIndex = events.findIndex(
+    (event) =>
+      matchesError(event) &&
+      event.boundary?.kind === pendingEvent.boundary?.kind &&
+      event.boundary?.name === pendingEvent.boundary?.name
+  )
+
+  if (duplicateIndex === -1 && pendingEvent.isFatal) {
+    // A previous console report may become a fatal render error. Preserve its
+    // ID while attaching the catcher, without merging different caught paths.
+    duplicateIndex = events.findIndex(
+      (event) =>
+        matchesError(event) && !event.isFatal && event.boundary === undefined
+    )
+  }
+  if (duplicateIndex === -1) {
+    return [...events, pendingEvent]
+  }
+
+  const duplicate = events[duplicateIndex]
+  if (pendingEvent.isFatal && !duplicate.isFatal) {
+    return events.map((event, index) =>
+      index === duplicateIndex ? { ...pendingEvent, id: duplicate.id } : event
+    )
+  }
+
+  return events
+}
+
 export function useErrorOverlayReducer(
   routerType: 'pages' | 'app',
   getOwnerStack: (error: Error) => string | null | undefined,
   isRecoverableError: (error: Error) => boolean,
-  enableCacheIndicator: boolean
+  enableCacheIndicator: boolean,
+  enableRuntimeErrorReporting: boolean = false
 ) {
   function pushErrorFilterDuplicates(
     events: readonly SupportedErrorEvent[],
     id: number,
-    error: Error
+    error: Error,
+    metadata: RuntimeErrorMetadata | undefined
   ): readonly SupportedErrorEvent[] {
     const ownerStack = getOwnerStack(error)
     const frames = parseStack((error.stack || '') + (ownerStack || ''))
@@ -407,31 +481,39 @@ export function useErrorOverlayReducer(
       id,
       error,
       frames,
-      type: isRecoverableError(error)
-        ? 'recoverable'
-        : isConsoleError(error)
-          ? 'console'
-          : 'runtime',
+      type:
+        enableRuntimeErrorReporting && metadata !== undefined
+          ? 'runtime'
+          : isRecoverableError(error)
+            ? 'recoverable'
+            : isConsoleError(error)
+              ? 'console'
+              : 'runtime',
+    }
+    if (enableRuntimeErrorReporting) {
+      return mergeErrorEvent(
+        events as readonly RuntimeErrorEvent[],
+        {
+          ...pendingEvent,
+          isFatal: metadata?.fatal ?? false,
+          boundary: metadata?.boundary,
+        },
+        getOwnerStack
+      )
     }
     const pendingEvents = events.filter((event) => {
-      // Filter out duplicate errors
       return (
-        // SpiderMonkey and JavaScriptCore don't include the error message in the stack.
-        // We don't want to dedupe errors with different messages for which we don't have a good stack
         '' + event.error !== '' + pendingEvent.error ||
         (event.error.stack !== pendingEvent.error.stack &&
-          // TODO: Let ReactDevTools control deduping instead?
           getStackIgnoringStrictMode(event.error.stack) !==
             getStackIgnoringStrictMode(pendingEvent.error.stack)) ||
         getOwnerStack(event.error) !== getOwnerStack(pendingEvent.error)
       )
     })
-    // If there's nothing filtered out, the event is a brand new error
     if (pendingEvents.length === events.length) {
       pendingEvents.push(pendingEvent)
       return pendingEvents
     }
-    // Otherwise remain the same events
     return events
   }
 
@@ -483,7 +565,8 @@ export function useErrorOverlayReducer(
                 errors: pushErrorFilterDuplicates(
                   state.errors,
                   state.nextId,
-                  action.reason
+                  action.reason,
+                  action.metadata
                 ),
               }
             }
@@ -496,7 +579,8 @@ export function useErrorOverlayReducer(
                   errors: pushErrorFilterDuplicates(
                     state.errors,
                     state.nextId,
-                    action.reason
+                    action.reason,
+                    action.metadata
                   ),
                 },
               }
@@ -569,6 +653,7 @@ export function useErrorOverlayReducer(
             devToolsPanelSize,
             scale,
             hideShortcut,
+            requestInsights: requestInsightsConfig,
           } = action.devToolsConfig
 
           return {
@@ -584,6 +669,16 @@ export function useErrorOverlayReducer(
             hideShortcut:
               // hideShortcut can be null.
               hideShortcut !== undefined ? hideShortcut : state.hideShortcut,
+            requestInsightsConfig: requestInsightsConfig
+              ? {
+                  showInternal:
+                    requestInsightsConfig.showInternal ??
+                    state.requestInsightsConfig.showInternal,
+                  verbose:
+                    requestInsightsConfig.verbose ??
+                    state.requestInsightsConfig.verbose,
+                }
+              : state.requestInsightsConfig,
           }
         }
         case ACTION_INSTANT_NAVS_TOGGLE: {
@@ -607,11 +702,13 @@ export function useErrorOverlayReducer(
           return { ...state, requestInsights: action.snapshot.requests }
         }
         case ACTION_REQUEST_INSIGHTS_UPDATE: {
-          const requests = state.requestInsights.filter(
-            (request) => request.requestId !== action.insight.requestId
-          )
-          requests.push(action.insight)
-          return { ...state, requestInsights: requests.slice(-100) }
+          return {
+            ...state,
+            requestInsights: updateRequestInsights(
+              state.requestInsights,
+              action.insight
+            ),
+          }
         }
         default: {
           return state

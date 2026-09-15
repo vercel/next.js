@@ -6,12 +6,7 @@ describe('adapter-dynamic-metadata', () => {
     files: __dirname,
   })
 
-  if (isNextDev) {
-    it('should skip next dev', () => {})
-    return
-  }
-
-  if (!isNextDeploy) {
+  if (!isNextDev && !isNextDeploy) {
     it('should classify dynamic metadata routes as app routes in adapter outputs', async () => {
       const { outputs }: Parameters<NextAdapter['onBuildComplete']>[0] =
         await next.readJSON('build-complete.json')

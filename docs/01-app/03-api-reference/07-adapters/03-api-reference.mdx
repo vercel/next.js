@@ -24,6 +24,7 @@ Called after the build process completes with detailed information about routes 
 
 - `context.routing`: Object containing Next.js routing phases and metadata
   - `routing.beforeMiddleware`: Routes executed before middleware (includes header and redirect handling)
+  - `routing.middlewareMatchers`: Middleware matcher definitions for this build, used to decide whether middleware should be invoked for a given request
   - `routing.beforeFiles`: Rewrite routes checked before filesystem route matching
   - `routing.afterFiles`: Rewrite routes checked after filesystem route matching
   - `routing.dynamicRoutes`: Dynamic route matching table

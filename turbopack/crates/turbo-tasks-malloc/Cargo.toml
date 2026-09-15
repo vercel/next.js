@@ -9,7 +9,14 @@ autobenches = false
 [lib]
 bench = false
 
+[[bench]]
+name = "allocation"
+harness = false
+
 [dependencies]
+
+[dev-dependencies]
+criterion = { workspace = true }
 
 [target.'cfg(not(target_family = "wasm"))'.dependencies]
 libmimalloc-sys = { version = "0.1.44", features = [

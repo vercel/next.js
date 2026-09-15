@@ -7,7 +7,7 @@ use bumpalo::boxed::Box as BumpBox;
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use swc_core::{
-    common::{BytePos, Span, Spanned, SyntaxContext, pass::AstNodePath},
+    common::{BytePos, Mark, Span, Spanned, SyntaxContext, pass::AstNodePath},
     ecma::{
         ast::*,
         atoms::atom,
@@ -23,12 +23,13 @@ use crate::{
     analyzer::{
         Bump, BumpVec, ConstantValue, ImportMap, JsValue, WellKnownFunctionKind,
         cjs_ast::{
-            as_exports_define_property, define_property_sets_es_module, is_exports_object,
-            is_global,
+            as_exports_define_property, as_module_exports_object_literal,
+            define_property_sets_es_module, is_exports_object, is_global, is_module_exports_chain,
         },
         graph::{ConditionalKind, Effect, EffectArg, EffectsBlock, EvalContext, VarGraph},
         is_unresolved_id,
     },
+    chunk::CjsStaticExports,
     code_gen::CodeGen,
     references::{
         AstPath,
@@ -103,9 +104,26 @@ pub(super) struct Analyzer<'arena, 'eval> {
 struct CjsExportsCollector {
     /// Recognized `exports.NAME = …` writes, each removable if `NAME` is unused.
     writes: Vec<DroppableCjsExportAssignment>,
+    /// Writes to an exports object a literal discarded, removable whatever the usage.
+    dead_writes: Vec<DroppableCjsExportAssignment>,
     /// Whether the `exports.__esModule = true` interop marker is set.
     has_es_module: bool,
+    /// Whether a `module.exports = { … }` literal has replaced the exports object.
+    exports_object_replaced: bool,
+    /// Whether the module body contains a top-level `return`, which skips every
+    /// write that follows it.
+    has_top_level_return: bool,
+    /// Whether any export is defined with `Object.defineProperty`.
+    has_define_property_export: bool,
 }
+
+/// The removable writes, the always-removable ones, and whether the `__esModule`
+/// interop marker is set.
+type CjsExportDrops = (
+    Vec<DroppableCjsExportAssignment>,
+    Vec<DroppableCjsExportAssignment>,
+    bool,
+);
 
 trait FunctionLike {
     fn is_async(&self) -> bool {
@@ -651,6 +669,21 @@ mod analyzer_state {
             self.state.cjs_exports = None;
         }
 
+        pub(super) fn cjs_exports_object_replaced(&self) -> bool {
+            self.state
+                .cjs_exports
+                .as_ref()
+                .is_some_and(|c| c.exports_object_replaced)
+        }
+
+        pub(super) fn replace_cjs_exports_object(&mut self) {
+            if let Some(c) = &mut self.state.cjs_exports {
+                c.dead_writes.append(&mut c.writes);
+                c.has_es_module = false;
+                c.exports_object_replaced = true;
+            }
+        }
+
         /// Records the `exports.__esModule = true` interop marker.
         pub(super) fn set_cjs_has_es_module(&mut self) {
             if let Some(c) = &mut self.state.cjs_exports {
@@ -658,21 +691,86 @@ mod analyzer_state {
             }
         }
 
-        pub(super) fn record_cjs_export(&mut self, name: RcStr, path: AstPath) {
+        /// Records a `return` in the module body, which exits the module early.
+        pub(super) fn set_cjs_has_top_level_return(&mut self) {
             if let Some(c) = &mut self.state.cjs_exports {
-                c.writes.push(DroppableCjsExportAssignment { name, path });
+                c.has_top_level_return = true;
             }
         }
 
-        /// Returns the removable writes and whether the `__esModule` flag is set.
-        pub(super) fn droppable_cjs_exports(
-            &mut self,
-        ) -> Option<(Vec<DroppableCjsExportAssignment>, bool)> {
-            let c = self.state.cjs_exports.take()?;
-            if c.writes.is_empty() {
-                return None;
+        /// Records that an export is defined with `Object.defineProperty`.
+        pub(super) fn set_cjs_has_define_property_export(&mut self) {
+            if let Some(c) = &mut self.state.cjs_exports {
+                c.has_define_property_export = true;
             }
-            Some((c.writes, c.has_es_module))
+        }
+
+        pub(super) fn record_cjs_export(&mut self, name: RcStr, path: AstPath) {
+            self.push_cjs_export(DroppableCjsExportAssignment::Write { name, path });
+        }
+
+        pub(super) fn record_dead_cjs_write(&mut self, name: RcStr, path: AstPath) {
+            if let Some(c) = &mut self.state.cjs_exports {
+                c.dead_writes
+                    .push(DroppableCjsExportAssignment::Write { name, path });
+            }
+        }
+
+        /// Records the named exports of a `module.exports = { … }` object literal. They
+        /// share `path` (the assignment); the code-gen removes each unused property.
+        pub(super) fn record_cjs_object_literal_exports(
+            &mut self,
+            names: Vec<RcStr>,
+            path: AstPath,
+        ) {
+            self.push_cjs_export(DroppableCjsExportAssignment::ObjectLiteral { names, path });
+        }
+
+        fn push_cjs_export(&mut self, drop: DroppableCjsExportAssignment) {
+            if let Some(c) = &mut self.state.cjs_exports {
+                c.writes.push(drop);
+            }
+        }
+
+        /// Returns the removable and always-removable writes and the `__esModule` flag,
+        /// plus the static-exports for scope hoisting.
+        pub(super) fn cjs_exports_analysis(
+            &mut self,
+        ) -> (Option<CjsExportDrops>, Option<CjsStaticExports>) {
+            let Some(c) = self.state.cjs_exports.take() else {
+                return (None, None);
+            };
+            // A top-level `return` skips the writes after it, and would abandon the rest
+            // of a merged factory. An `Object.defineProperty` export keeps its value in
+            // the descriptor, which the merge has no local to bind it to.
+            let static_exports =
+                (!c.has_top_level_return && !c.has_define_property_export).then(|| {
+                    CjsStaticExports {
+                        export_names: c
+                            .writes
+                            .iter()
+                            .flat_map(|w| match w {
+                                DroppableCjsExportAssignment::Write { name, .. } => {
+                                    std::slice::from_ref(name)
+                                }
+                                DroppableCjsExportAssignment::ObjectLiteral { names, .. } => {
+                                    names.as_slice()
+                                }
+                            })
+                            .cloned()
+                            .collect(),
+                        has_es_module: c.has_es_module,
+                    }
+                });
+            // Dropping an unused write stays sound regardless of the `return`, but
+            // `__esModule` may be set after it, so it can't be claimed.
+            let has_es_module = c.has_es_module && !c.has_top_level_return;
+            let drops = (!c.writes.is_empty() || !c.dead_writes.is_empty()).then_some((
+                c.writes,
+                c.dead_writes,
+                has_es_module,
+            ));
+            (drops, static_exports)
         }
 
         /// Whether `target` is a static named CommonJS export write —
@@ -718,6 +816,67 @@ pub fn as_parent_path_with_in<'a>(
     path.extend_from_slice(arena, kinds);
     path.push(arena, additional);
     path.into_boxed_slice()
+}
+
+/// Whether the node at `ast_path` is a whole statement, so its value goes nowhere:
+/// true for `module.exports = {};` and `(module.exports = {});`, false for
+/// `var x = module.exports = {}` or `f(module.exports = {})`.
+fn is_expression_statement(ast_path: &AstNodePath<AstParentNodeRef<'_>>) -> bool {
+    for node_ref in ast_path.iter().rev() {
+        match node_ref {
+            // The `Expr` wrapper of the node itself, and of a parenthesized one.
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            AstParentNodeRef::ExprStmt(_, ExprStmtField::Expr) => return true,
+            _ => return false,
+        }
+    }
+    false
+}
+
+fn is_in_boolean_context(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    unresolved_mark: Mark,
+) -> bool {
+    for parent in ast_path.iter().rev() {
+        match parent {
+            // Transparent expression wrappers.
+            AstParentNodeRef::Expr(..) | AstParentNodeRef::ParenExpr(_, ParenExprField::Expr) => {}
+            // A plain call argument may reach Boolean().
+            AstParentNodeRef::ExprOrSpread(arg, ExprOrSpreadField::Expr)
+                if arg.spread.is_none() => {}
+            // Logical results inherit their consumer's context.
+            AstParentNodeRef::BinExpr(
+                BinExpr {
+                    op: BinaryOp::LogicalAnd | BinaryOp::LogicalOr | BinaryOp::NullishCoalescing,
+                    ..
+                },
+                BinExprField::Left | BinExprField::Right,
+            ) => {}
+            // Only logical negation coerces to boolean.
+            AstParentNodeRef::UnaryExpr(expr, UnaryExprField::Arg) => {
+                return expr.op == UnaryOp::Bang;
+            }
+            // Only the first argument to global Boolean is coerced.
+            AstParentNodeRef::CallExpr(call, CallExprField::Args(0)) => {
+                return matches!(
+                    &call.callee,
+                    Callee::Expr(callee)
+                        if matches!(&**callee, Expr::Ident(ident) if is_global(ident, "Boolean", unresolved_mark))
+                );
+            }
+            // Control-flow tests coerce their value to boolean.
+            AstParentNodeRef::IfStmt(_, IfStmtField::Test)
+            | AstParentNodeRef::CondExpr(_, CondExprField::Test)
+            | AstParentNodeRef::ForStmt(_, ForStmtField::Test)
+            | AstParentNodeRef::WhileStmt(_, WhileStmtField::Test)
+            | AstParentNodeRef::DoWhileStmt(_, DoWhileStmtField::Test) => return true,
+            // A selected ternary branch becomes the ternary's result. Needed for the if(ternary)
+            AstParentNodeRef::CondExpr(_, CondExprField::Cons | CondExprField::Alt) => {}
+            // Any other parent consumes the actual value.
+            _ => return false,
+        }
+    }
+    false
 }
 
 /// Returns the [`MemberExpr`] where the current node is the object:
@@ -1010,7 +1169,7 @@ impl<'a> Analyzer<'a, '_> {
                 arrow_expr,
                 ArrowExprField::Body,
             ));
-            self.visit_block_stmt_or_expr(body, &mut ast_path);
+            self.visit_arrow_function_body(body, &mut ast_path);
         }
 
         {
@@ -1044,8 +1203,9 @@ impl<'a> Analyzer<'a, '_> {
             is_generator: _,
             params,
             return_type,
-            span: _,
             type_params,
+            this_param: _,
+            span: _,
             ctxt: _,
         } = function;
         for (i, param) in params.iter().enumerate() {
@@ -1067,7 +1227,7 @@ impl<'a> Analyzer<'a, '_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::Function(function, FunctionField::Body));
 
-            self.visit_opt_block_stmt(body, &mut ast_path);
+            self.visit_opt_function_body(body, &mut ast_path);
         }
 
         {
@@ -1146,27 +1306,29 @@ impl<'a> Analyzer<'a, '_> {
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: box BlockStmtOrExpr::BlockStmt(_),
+                            body: ArrowFunctionBody::FunctionBody(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
                             path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
                             path.push(AstParentKind::Expr(ExprField::Arrow));
                             path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                            path.push(AstParentKind::BlockStmtOrExpr(
-                                BlockStmtOrExprField::BlockStmt,
+                            path.push(AstParentKind::ArrowFunctionBody(
+                                ArrowFunctionBodyField::FunctionBody,
                             ));
                             Some(path)
                         }
                         Expr::Arrow(ArrowExpr {
-                            body: box BlockStmtOrExpr::Expr(_),
+                            body: ArrowFunctionBody::Expr(_),
                             ..
                         }) => {
                             let mut path = as_parent_path(&ast_path);
                             path.push(AstParentKind::ExprOrSpread(ExprOrSpreadField::Expr));
                             path.push(AstParentKind::Expr(ExprField::Arrow));
                             path.push(AstParentKind::ArrowExpr(ArrowExprField::Body));
-                            path.push(AstParentKind::BlockStmtOrExpr(BlockStmtOrExprField::Expr));
+                            path.push(AstParentKind::ArrowFunctionBody(
+                                ArrowFunctionBodyField::Expr,
+                            ));
                             Some(path)
                         }
                         _ => None,
@@ -1230,7 +1392,7 @@ impl<'a> Analyzer<'a, '_> {
                     export_usage,
                 });
             }
-            Callee::Expr(box expr) => {
+            Callee::Expr(expr) => {
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(expr) {
                     let obj_value =
                         BumpBox::new_in(self.eval_context.eval(self.arena, obj), self.arena);
@@ -1313,6 +1475,9 @@ impl<'a> Analyzer<'a, '_> {
         let AssignTarget::Simple(SimpleAssignTarget::Member(member)) = &n.left else {
             return;
         };
+        // After a replacement only `module.exports` still reaches the exports object.
+        let dead = self.cjs_exports_object_replaced()
+            && !is_module_exports_chain(&member.obj, self.eval_context.unresolved_mark);
         let MemberProp::Ident(name) = &member.prop else {
             return;
         };
@@ -1320,7 +1485,7 @@ impl<'a> Analyzer<'a, '_> {
         // Transpilers use this to signal that this is transpiled esm.
         // Which in turn changes the behavior of default exports. such that `import foo from
         // 'transpiled-esm-cjs'` gets the `default` export instead of the namespace
-        if name.sym.as_ref() == "__esModule" {
+        if !dead && name.sym.as_ref() == "__esModule" {
             // Only a literal `true` is the interop marker.
             if matches!(unparen(&n.right), Expr::Lit(Lit::Bool(b)) if b.value) {
                 self.set_cjs_has_es_module();
@@ -1329,10 +1494,13 @@ impl<'a> Analyzer<'a, '_> {
         }
 
         // The RHS isn't inspected; the code-gen keeps it as `<value>`.
-        self.record_cjs_export(
-            RcStr::from(name.sym.as_str()),
-            as_parent_path(ast_path).into(),
-        );
+        let name = RcStr::from(name.sym.as_str());
+        let path = as_parent_path(ast_path).into();
+        if dead {
+            self.record_dead_cjs_write(name, path);
+        } else {
+            self.record_cjs_export(name, path);
+        }
     }
 
     /// Records a top-level `Object.defineProperty(exports, "NAME", …)` export so
@@ -1348,13 +1516,96 @@ impl<'a> Analyzer<'a, '_> {
             self.taint_cjs_exports();
             return;
         }
-        if name == "__esModule" {
+        // Catches `var Self = Object.defineProperty(exports, …)`: the call returns exports.
+        if !is_expression_statement(ast_path) {
+            self.taint_cjs_exports();
+            return;
+        }
+        let dead = self.cjs_exports_object_replaced()
+            && !n.args.first().is_some_and(|target| {
+                is_module_exports_chain(&target.expr, self.eval_context.unresolved_mark)
+            });
+        if !dead && name == "__esModule" {
             if define_property_sets_es_module(n) {
                 self.set_cjs_has_es_module();
             }
             return;
         }
-        self.record_cjs_export(RcStr::from(name), as_parent_path(ast_path).into());
+        let (name, path) = (RcStr::from(name), as_parent_path(ast_path).into());
+        if dead {
+            self.record_dead_cjs_write(name, path);
+        } else {
+            self.set_cjs_has_define_property_export();
+            self.record_cjs_export(name, path);
+        }
+    }
+
+    /// Records the droppable named exports of a top-level `module.exports = { … }`
+    /// literal. A spread or computed key taints; `__esModule: true` sets the flag.
+    fn recognize_cjs_object_exports(
+        &mut self,
+        n: &AssignExpr,
+        ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    ) {
+        // Only a top-level assignment defines the module's exports.
+        if self.is_in_fn() || self.is_in_nested_block_scope() {
+            self.taint_cjs_exports();
+            return;
+        }
+        let Some(obj) = as_module_exports_object_literal(n, self.eval_context.unresolved_mark)
+        else {
+            return;
+        };
+        // Catches `var Self = module.exports = { … }`: the alias reads exports back.
+        if !is_expression_statement(ast_path) {
+            self.taint_cjs_exports();
+            return;
+        }
+        // A statement-position assignment definitely runs.
+        self.replace_cjs_exports_object();
+        let mut names = Vec::new();
+        for prop in &obj.props {
+            // A spread makes the export set unknowable.
+            let PropOrSpread::Prop(prop) = prop else {
+                self.taint_cjs_exports();
+                return;
+            };
+            // Only a data property has an eager value (preserved by the code-gen);
+            // getters/setters/methods have none and are removed outright.
+            let value = match &**prop {
+                Prop::KeyValue(kv) => Some(&*kv.value),
+                _ => None,
+            };
+            let name = match &**prop {
+                Prop::Shorthand(id) => RcStr::from(id.sym.as_str()),
+                Prop::KeyValue(KeyValueProp { key, .. })
+                | Prop::Getter(GetterProp { key, .. })
+                | Prop::Setter(SetterProp { key, .. })
+                | Prop::Method(MethodProp { key, .. }) => match key {
+                    PropName::Ident(i) => RcStr::from(i.sym.as_str()),
+                    PropName::Str(s) => RcStr::from(s.value.to_string_lossy().into_owned()),
+                    // computed / numeric / bigint key → unknowable
+                    _ => {
+                        self.taint_cjs_exports();
+                        return;
+                    }
+                },
+                Prop::Assign(_) => continue, // should never happen for a literal
+            };
+            // `__esModule: true` is the interop marker, not a droppable export.
+            if &*name == "__esModule" {
+                if let Some(Expr::Lit(Lit::Bool(b))) = value.map(unparen)
+                    && b.value
+                {
+                    self.set_cjs_has_es_module();
+                }
+                continue;
+            }
+            names.push(name);
+        }
+        if !names.is_empty() {
+            self.record_cjs_object_literal_exports(names, as_parent_path(ast_path).into());
+        }
     }
 }
 
@@ -1388,8 +1639,22 @@ impl VisitAstPath for Analyzer<'_, '_> {
         // and visit the target inside a `cjs_export_target` scope so `exports` / `module`
         // don't taint the module (see `visit_ident`).
         let is_cjs_export = self.cjs_exports_enabled() && self.is_named_cjs_export_target(&n.left);
+        // `module.exports = { a, b, c }` — a whole-exports object literal whose
+        // properties are the module's named exports.
+        let is_cjs_object_export = !is_cjs_export
+            && self.cjs_exports_enabled()
+            && as_module_exports_object_literal(n, self.eval_context.unresolved_mark).is_some();
         if is_cjs_export {
             self.maybe_recognize_cjs_export(n, ast_path);
+            let mut ast_path =
+                ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Left));
+            self.with_cjs_export_target(|this| {
+                n.left.visit_children_with_ast_path(this, &mut ast_path)
+            });
+        } else if is_cjs_object_export {
+            self.recognize_cjs_object_exports(n, ast_path);
+            // Visit the `module.exports` target under the export-target guard so the
+            // `module` read doesn't taint the module.
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Left));
             self.with_cjs_export_target(|this| {
@@ -1424,8 +1689,9 @@ impl VisitAstPath for Analyzer<'_, '_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::AssignExpr(n, AssignExprField::Right));
-            // A function assigned directly to a CommonJS export can see `exports` as `this`.
-            if is_cjs_export && matches!(&*n.right, Expr::Fn(_)) {
+            // A function assigned directly to a CommonJS export can see `exports` as
+            // `this`; likewise for functions inside a `module.exports = { … }` literal.
+            if (is_cjs_export && matches!(&*n.right, Expr::Fn(_))) || is_cjs_object_export {
                 self.with_cjs_export_value(|this| this.visit_expr(&n.right, &mut ast_path));
             } else {
                 self.visit_expr(&n.right, &mut ast_path);
@@ -1458,7 +1724,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
         // `Object.defineProperty(exports, …)` is a CommonJS export write; recognize
         // it so unused entries drop (its `exports` argument is guarded below).
         let is_cjs_define_property = if self.cjs_exports_enabled()
-            && let Some(name) = as_exports_define_property(n, self.eval_context.unresolved_mark)
+            && let Some((name, _)) =
+                as_exports_define_property(n, self.eval_context.unresolved_mark)
         {
             self.recognize_cjs_define_property(&name, n, ast_path);
             true
@@ -1551,28 +1818,30 @@ impl VisitAstPath for Analyzer<'_, '_> {
         member_expr: &'ast MemberExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() {
-            let obj_value = BumpBox::new_in(
-                self.eval_context.eval(self.arena, &member_expr.obj),
+        let obj_value = BumpBox::new_in(
+            self.eval_context.eval(self.arena, &member_expr.obj),
+            self.arena,
+        );
+        let prop_value = match &member_expr.prop {
+            // TODO avoid clone
+            MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
+            MemberProp::PrivateName(_) => None,
+            MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
+                self.eval_context.eval(self.arena, expr),
                 self.arena,
-            );
-            let prop_value = match &member_expr.prop {
-                // TODO avoid clone
-                MemberProp::Ident(i) => Some(BumpBox::new_in(i.sym.clone().into(), self.arena)),
-                MemberProp::PrivateName(_) => None,
-                MemberProp::Computed(ComputedPropName { expr, .. }) => Some(BumpBox::new_in(
-                    self.eval_context.eval(self.arena, expr),
-                    self.arena,
-                )),
-            };
-            if let Some(prop_value) = prop_value {
-                self.add_effect(Effect::Member {
-                    obj: obj_value,
-                    prop: prop_value,
-                    ast_path: as_parent_path_in(self.arena, ast_path),
-                    span: member_expr.span(),
-                });
-            }
+            )),
+        };
+        if let Some(prop_value) = prop_value {
+            self.add_effect(Effect::Member {
+                obj: obj_value,
+                prop: prop_value,
+                ast_path: as_parent_path_in(self.arena, ast_path),
+                span: member_expr.span(),
+                in_truthiness_context: is_in_boolean_context(
+                    ast_path,
+                    self.eval_context.unresolved_mark,
+                ),
+            });
         }
 
         member_expr.visit_children_with_ast_path(self, ast_path);
@@ -1583,7 +1852,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
         bin_expr: &'ast BinExpr,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        if self.analyze_mode.is_code_gen() && bin_expr.op == BinaryOp::In {
+        if bin_expr.op == BinaryOp::In {
             let left_value = BumpBox::new_in(
                 self.eval_context.eval(self.arena, &bin_expr.left),
                 self.arena,
@@ -1716,7 +1985,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
                     ast_path.with_guard(AstParentNodeRef::ArrowExpr(expr, ArrowExprField::Body));
                 expr.body.visit_with_ast_path(this, &mut ast_path);
                 // If body is a single expression treat it as a Block with an return statement
-                if let BlockStmtOrExpr::Expr(inner_expr) = &*expr.body {
+                if let ArrowFunctionBody::Expr(inner_expr) = &*expr.body {
                     let implicit_return_value = this.eval_context.eval(this.arena, inner_expr);
                     this.add_return_value(implicit_return_value);
                 }
@@ -2102,6 +2371,19 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 self.handle_object_pat_with_value(obj, value, &mut ast_path);
             }
 
+            Pat::Assign(assign) => {
+                let mut value = value.unwrap_or_else(|| {
+                    JsValue::unknown_empty(false, rcstr!("pattern without value"))
+                });
+                value.add_alt(
+                    self.arena,
+                    self.eval_context.eval(self.arena, &assign.right),
+                );
+                self.with_pat_value(Some(value), |this| {
+                    pat.visit_children_with_ast_path(this, ast_path);
+                });
+            }
+
             _ => pat.visit_children_with_ast_path(self, ast_path),
         }
     }
@@ -2123,6 +2405,8 @@ impl VisitAstPath for Analyzer<'_, '_> {
                 .unwrap_or(JsValue::Constant(ConstantValue::Undefined));
 
             self.add_return_value(return_value);
+        } else {
+            self.set_cjs_has_top_level_return();
         }
 
         self.add_early_return_always(ast_path);
@@ -2205,7 +2489,7 @@ impl VisitAstPath for Analyzer<'_, '_> {
 
         // If this identifier is free, produce an effect so we can potentially replace it later.
         if self.analyze_mode.is_code_gen()
-            && let JsValue::FreeVar(var) = self.eval_context.eval_ident(self.arena, ident)
+            && let JsValue::FreeVar(var) = self.eval_context.eval_id(self.arena, ident.to_id())
         {
             // TODO(lukesandberg): we should consider filtering effects here, e.g. there is no
             // benefit in an Effect for `window` or `Math`
@@ -2293,11 +2577,14 @@ impl VisitAstPath for Analyzer<'_, '_> {
             .extend(self.arena, take(&mut self.hoisted_effects));
         self.data.effects = take(&mut self.effects).into_iter().collect();
 
-        // Emit the CommonJS unused-export drop code-gen, if any.
-        if let Some((drops, has_es_module)) = self.droppable_cjs_exports() {
+        // Emit the CommonJS unused-export drop code-gen, if any, and surface the
+        // static-exports for scope hoisting.
+        let (drops, cjs_static_exports) = self.cjs_exports_analysis();
+        if let Some((drops, dead_writes, has_es_module)) = drops {
             self.code_gens
-                .push(CjsExportsDropCodeGen::new(drops, has_es_module).into());
+                .push(CjsExportsDropCodeGen::new(drops, dead_writes, has_es_module).into());
         }
+        self.data.cjs_static_exports = cjs_static_exports;
 
         self.data.code_gens = take(&mut self.code_gens);
     }
@@ -2457,32 +2744,37 @@ impl VisitAstPath for Analyzer<'_, '_> {
         self.effects.extend(self.arena, take(&mut effects));
     }
 
+    fn visit_function_body<'ast: 'r, 'r>(
+        &mut self,
+        n: &'ast FunctionBody,
+        ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
+    ) {
+        let mut effects = take(&mut self.effects);
+        let hoisted_effects = take(&mut self.hoisted_effects);
+
+        let (_, returns_unconditionally) = self.enter_block(LexicalContext::Block, |this| {
+            n.visit_children_with_ast_path(this, ast_path);
+        });
+        // By handling this logic here instead of in enter_fn, we naturally skip it
+        // for arrow functions with single expression bodies, since they just don't hit this
+        // path.
+        if !returns_unconditionally {
+            self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
+        }
+        self.effects
+            .extend(self.arena, take(&mut self.hoisted_effects));
+        effects.extend(self.arena, take(&mut self.effects));
+        self.hoisted_effects = hoisted_effects;
+        self.effects = effects;
+    }
+
     fn visit_block_stmt<'ast: 'r, 'r>(
         &mut self,
         n: &'ast BlockStmt,
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
         match self.cur_lexical_context() {
-            LexicalContext::Function { .. } => {
-                let mut effects = take(&mut self.effects);
-                let hoisted_effects = take(&mut self.hoisted_effects);
-
-                let (_, returns_unconditionally) =
-                    self.enter_block(LexicalContext::Block, |this| {
-                        n.visit_children_with_ast_path(this, ast_path);
-                    });
-                // By handling this logic here instead of in enter_fn, we naturally skip it
-                // for arrow functions with single expression bodies, since they just don't hit this
-                // path.
-                if !returns_unconditionally {
-                    self.add_return_value(JsValue::Constant(ConstantValue::Undefined));
-                }
-                self.effects
-                    .extend(self.arena, take(&mut self.hoisted_effects));
-                effects.extend(self.arena, take(&mut self.effects));
-                self.hoisted_effects = hoisted_effects;
-                self.effects = effects;
-            }
+            LexicalContext::Function { .. } => unreachable!("function bodies use FunctionBody"),
             LexicalContext::ControlFlow { .. } => {
                 self.with_block(LexicalContext::Block, |this| {
                     n.visit_children_with_ast_path(this, ast_path)
@@ -2839,6 +3131,13 @@ impl<'a> Analyzer<'a, '_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
+
+                    self.add_effect(Effect::DestructuredMember {
+                        obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
+                        prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
+                        span: key.span(),
+                    });
+
                     let pat_value = Some(JsValue::member(
                         self.arena,
                         pat_value.clone_in(self.arena),
@@ -2858,7 +3157,7 @@ impl<'a> Analyzer<'a, '_> {
                         ObjectPatPropField::Assign,
                     ));
                     let AssignPatProp { key, value, .. } = assign;
-                    let key_value = key.sym.clone().into();
+                    let key_value = JsValue::from(key.sym.clone());
                     {
                         let mut ast_path = ast_path.with_guard(AstParentNodeRef::AssignPatProp(
                             assign,
@@ -2866,9 +3165,16 @@ impl<'a> Analyzer<'a, '_> {
                         ));
                         key.visit_with_ast_path(self, &mut ast_path);
                     }
+
+                    self.add_effect(Effect::DestructuredMember {
+                        obj: BumpBox::new_in(pat_value.clone_in(self.arena), self.arena),
+                        prop: BumpBox::new_in(key_value.clone_in(self.arena), self.arena),
+                        span: key.span(),
+                    });
+
                     self.add_value(
                         key.to_id(),
-                        if let Some(box value) = value {
+                        if let Some(value) = value {
                             let value = self.eval_context.eval(self.arena, value);
                             JsValue::alternatives(BumpVec::from_iter_in(
                                 self.arena,

@@ -127,7 +127,7 @@ describe('next/jest', () => {
       ),
     },
     dependencies: {
-      '@next/font': 'canary',
+      '@next/font': 'workspace:*',
       jest: '29.7.0',
       'jest-environment-jsdom': '29.7.0',
       '@testing-library/jest-dom': '5.16.1',

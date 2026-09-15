@@ -524,7 +524,7 @@ pub(super) async fn split_module(asset: Vc<EcmascriptModuleAsset>) -> Result<Vc<
                     matches!(
                         item,
                         ModuleItem::Stmt(Stmt::Expr(ExprStmt {
-                            expr: box Expr::Lit(Lit::Str(..)),
+                            expr: Expr::Lit(Lit::Str(..)),
                             ..
                         }))
                     )
