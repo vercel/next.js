@@ -22,7 +22,7 @@ dashmap = { workspace = true}
 either = { workspace = true }
 fs-err = { workspace = true }
 jiff = { version = "0.2.10", features = ["serde"] }
-lzzzz = { workspace = true }
+lz4 = { workspace = true }
 memmap2 = "0.9.5"
 nohash-hasher = { workspace = true }
 parking_lot = { workspace = true }

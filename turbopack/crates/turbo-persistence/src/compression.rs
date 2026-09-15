@@ -1,7 +1,7 @@
 use std::{cell::RefCell, mem::MaybeUninit, rc::Rc, sync::Arc};
 
 use anyhow::{Context, Result, ensure};
-use lzzzz::lz4::{self, decompress};
+use lz4::block as lz4;
 
 /// Compression algorithm used for a family's SST blocks and blob values.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -35,7 +35,16 @@ fn decompress_block(
          zero-copy mmap path"
     );
     let bytes_written = match compression {
-        Compression::Lz4 => decompress(block, dest).map_err(anyhow::Error::from),
+        Compression::Lz4 => lz4::decompress_to_buffer(
+            block,
+            Some(
+                expected_len
+                    .try_into()
+                    .context("LZ4 uncompressed length exceeds i32::MAX")?,
+            ),
+            dest,
+        )
+        .map_err(anyhow::Error::from),
         Compression::Zstd3 => ZSTD_DECOMPRESSOR.with_borrow_mut(|decompressor| {
             decompressor
                 .decompress_to_buffer(block, dest)
@@ -116,27 +125,35 @@ impl Compressor {
         Ok(Self { compression, zstd })
     }
 
+    /// Compresses `block` into the start of `buffer` and returns the compressed length.
+    ///
+    /// The buffer may be longer than the returned length. Keeping the initialized LZ4 scratch
+    /// space avoids zero-filling the destination again on every block.
     #[tracing::instrument(level = "trace", skip_all)]
     pub(crate) fn compress_into_buffer(
         &mut self,
         block: &[u8],
         buffer: &mut Vec<u8>,
-    ) -> Result<()> {
+    ) -> Result<usize> {
         match self.compression {
             Compression::Lz4 => {
-                lz4::compress_to_vec(block, buffer, lz4::ACC_LEVEL_DEFAULT)
-                    .context("LZ4 compression failed")?;
+                let bound = lz4::compress_bound(block.len()).context("LZ4 input is too large")?;
+                if buffer.len() < bound {
+                    buffer.resize(bound, 0);
+                }
+                lz4::compress_to_buffer(block, None, false, &mut buffer[..bound])
+                    .context("LZ4 compression failed")
             }
             Compression::Zstd3 => {
+                buffer.clear();
                 buffer.reserve(zstd::zstd_safe::compress_bound(block.len()));
                 self.zstd
                     .as_mut()
                     .expect("zstd compressor not initialized")
                     .compress_to_buffer(block, buffer)
-                    .context("zstd compression failed")?;
+                    .context("zstd compression failed")
             }
         }
-        Ok(())
     }
 }
 
@@ -150,10 +167,15 @@ mod tests {
         for compression in [Compression::Lz4, Compression::Zstd3] {
             let mut compressor = Compressor::new(compression).unwrap();
             let mut compressed = Vec::new();
-            compressor
+            let compressed_len = compressor
                 .compress_into_buffer(&input, &mut compressed)
                 .unwrap();
-            let output = decompress_into_arc(compression, input.len() as u32, &compressed).unwrap();
+            let output = decompress_into_arc(
+                compression,
+                input.len() as u32,
+                &compressed[..compressed_len],
+            )
+            .unwrap();
             assert_eq!(&*output, input);
         }
     }

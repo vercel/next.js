@@ -398,10 +398,13 @@ fn write_block_to_file(
     compressor: &mut Compressor,
 ) -> Result<u16> {
     let (uncompressed_size, data_to_write): (u32, &[u8]) = if try_compress {
-        compressor.compress_into_buffer(block, compress_buffer)?;
+        let compressed_len = compressor.compress_into_buffer(block, compress_buffer)?;
         // Same threshold as LevelDB/RocksDB: require at least 12.5% savings.
-        if compress_buffer.len() < block.len() - (block.len() / 8) {
-            (block.len().try_into().unwrap(), compress_buffer.as_slice())
+        if compressed_len < block.len() - (block.len() / 8) {
+            (
+                block.len().try_into().unwrap(),
+                &compress_buffer[..compressed_len],
+            )
         } else {
             (0, block)
         }
@@ -412,15 +415,13 @@ fn write_block_to_file(
     // Checksum is computed on the on-disk data (after compression).
     let checksum = checksum_block(data_to_write);
 
-    let result = write_raw_block_to_file(
+    write_raw_block_to_file(
         file,
         block_offsets,
         uncompressed_size,
         checksum,
         data_to_write,
-    );
-    compress_buffer.clear();
-    result
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -1975,7 +1976,7 @@ mod tests {
             body.to_vec()
         } else {
             let mut out = vec![0u8; uncompressed_size];
-            lzzzz::lz4::decompress(body, &mut out)?;
+            lz4::block::decompress_to_buffer(body, Some(uncompressed_size.try_into()?), &mut out)?;
             out
         })
     }
