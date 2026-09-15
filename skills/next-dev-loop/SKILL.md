@@ -65,7 +65,7 @@ Once per session, confirm both views are live.
    Then open the target URL:
 
    ```bash
-   agent-browser --session "$SESSION" --restore --headed --enable react-devtools open <url>
+   agent-browser --session "$SESSION" --restore --enable react-devtools open <url>
    ```
 
    `--scope worktree` keeps parallel worktrees and copied checkouts
@@ -75,11 +75,11 @@ Once per session, confirm both views are live.
    launch flags on `open`; agent-browser will reuse, relaunch, or restart
    its scoped background state as needed.
 
-   The browser is the user's. If state was not restored (first run,
-   expired session) and the page is gated, the user drives the login —
+   If state was not restored (first run, expired session) and the page is
+   gated, let the user log in through the harness's browser controls, then
    pause until they confirm. After login, continue using the same session
-   and restore context; `agent-browser close` saves the cookie state so
-   the next `open` restores it.
+   and restore context; `agent-browser close` saves the cookie state so the
+   next `open` restores it.
 
 2. Probe `/_next/mcp` (`tools/list`) — confirm it's reachable and
    lists `get_compilation_issues`. First read the port off the
