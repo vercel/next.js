@@ -9,6 +9,7 @@ use crate::{
     constants::{MAX_INLINE_VALUE_SIZE, MAX_MEDIUM_VALUE_SIZE, MAX_SMALL_VALUE_SIZE},
     db::{CompactConfig, TurboPersistence, read_current_version},
     lookup_entry::IterValue,
+    meta_file::MetaFile,
     parallel_scheduler::ParallelScheduler,
     static_sorted_file::{StaticSortedFileIter, StaticSortedFileMetaData},
     write_batch::WriteBatch,
@@ -2810,5 +2811,101 @@ fn valued_tombstone_rejects_single_value_families() -> Result<()> {
     );
 
     db.shutdown()?;
+    Ok(())
+}
+
+#[rstest]
+#[case(true)]
+#[case(false)]
+fn partial_compaction_retires_fully_consumed_meta_files(#[case] mmap: bool) -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+    let access_mode = if mmap {
+        AccessMode::Mmap
+    } else {
+        AccessMode::File
+    };
+    let db = open_db::<1>(path, mmap)?;
+
+    const KEYS: u32 = 2_000;
+    for generation in 0..4u32 {
+        let batch = db.write_batch()?;
+        for key in 0..KEYS {
+            batch.put(
+                0,
+                key.to_be_bytes().to_vec(),
+                generation.to_be_bytes().to_vec().into(),
+            )?;
+        }
+        db.commit_write_batch(batch)?;
+        if generation == 0 {
+            // Flush this access into the following commit's used-key-hash AMQF.
+            assert!(db.get(0, &0u32.to_be_bytes())?.is_some());
+        }
+    }
+    let before_meta_sequences = db
+        .meta_info()?
+        .into_iter()
+        .map(|meta| meta.sequence_number)
+        .collect::<Vec<_>>();
+    assert_eq!(before_meta_sequences.len(), 4);
+    assert!(before_meta_sequences.iter().any(|&seq| {
+        MetaFile::open(path, seq, None, access_mode)
+            .unwrap()
+            .deserialize_used_key_hashes_amqf()
+            .unwrap()
+            .is_some()
+    }));
+
+    let partial = CompactConfig {
+        min_merge_count: 2,
+        optimal_merge_count: 2,
+        max_merge_count: 2,
+        max_merge_bytes: u64::MAX,
+        min_merge_duplication_bytes: 0,
+        optimal_merge_duplication_bytes: 0,
+        max_merge_segment_count: 1,
+    };
+    assert!(db.compact(&partial)?.is_some());
+    let after_partial = db.meta_info()?;
+    assert_eq!(
+        after_partial.len(),
+        3,
+        "two fully consumed meta files should retire while two untouched metas remain"
+    );
+    assert_eq!(
+        after_partial
+            .iter()
+            .filter(|meta| before_meta_sequences.contains(&meta.sequence_number))
+            .count(),
+        2,
+        "untouched SST metadata should stay in its two existing meta files"
+    );
+    for key in 0..KEYS {
+        assert_eq!(
+            &*db.get(0, &key.to_be_bytes())?.unwrap(),
+            &3u32.to_be_bytes()
+        );
+    }
+
+    db.full_compact()?;
+    let fully_compacted = db.meta_info()?;
+    assert_eq!(fully_compacted.len(), 1);
+    let compacted_meta =
+        MetaFile::open(path, fully_compacted[0].sequence_number, None, access_mode)?;
+    assert!(
+        compacted_meta.deserialize_used_key_hashes_amqf()?.is_none(),
+        "used-key marks should expire instead of being copied into compaction output"
+    );
+    drop(db);
+
+    let reopened = open_db::<1>(path, mmap)?;
+    assert_eq!(reopened.meta_info()?.len(), 1);
+    for key in 0..KEYS {
+        assert_eq!(
+            &*reopened.get(0, &key.to_be_bytes())?.unwrap(),
+            &3u32.to_be_bytes()
+        );
+    }
     Ok(())
 }
