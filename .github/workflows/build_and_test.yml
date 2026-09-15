@@ -314,6 +314,8 @@ jobs:
       runs_on_labels: '["ubuntu-latest-16-core-oss"]'
     secrets: inherit
 
+  # Turbo Tasks' link-section registry is unavailable under Miri, so this runs the explicit
+  # low-level package allowlist in packages/next-swc/package.json instead of the whole workspace.
   test-cargo-unit-miri:
     name: test cargo unit (miri)
     needs: ['changes', 'build-next']
