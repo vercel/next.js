@@ -9981,6 +9981,7 @@ dependencies = [
  "either",
  "fs-err",
  "jiff",
+ "libc",
  "lz4",
  "memmap2 0.9.5",
  "nohash-hasher",

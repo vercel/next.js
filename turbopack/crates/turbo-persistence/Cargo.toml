@@ -40,6 +40,10 @@ tracing = { workspace = true }
 xxhash-rust = { workspace = true }
 zstd = { workspace = true }
 
+[target.'cfg(target_os = "wasi")'.dependencies]
+# lz4-sys compiles its C sources against allocation shims on WASI but does not define the shims.
+libc = "0.2"
+
 [dev-dependencies]
 criterion = { workspace = true }
 rand = { workspace = true }

@@ -12,6 +12,8 @@ mod constants;
 mod db;
 mod key;
 mod lookup_entry;
+#[cfg(target_os = "wasi")]
+mod lz4_wasi_alloc_shims;
 mod merge_iter;
 pub mod meta_file;
 mod meta_file_builder;
