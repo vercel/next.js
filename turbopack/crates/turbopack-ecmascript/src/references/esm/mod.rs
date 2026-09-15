@@ -9,7 +9,7 @@ pub(crate) mod module_item;
 pub(crate) mod url;
 
 pub use self::{
-    base::EsmAssetReference,
+    base::{EsmAssetReference, EsmAssetReferenceOptions},
     binding::EsmBinding,
     dynamic::EsmAsyncAssetReference,
     export::{EsmExport, EsmExports, FoundExportType, Liveness},

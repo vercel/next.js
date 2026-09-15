@@ -7,7 +7,6 @@ describe('trace-build-file', () => {
   const { next } = nextTestSetup({
     files: __dirname,
     skipStart: !isNextDev,
-    skipDeployment: true,
     env: {
       // Enable persistent caching even when the git working directory is
       // dirty (e.g. when developing Next.js itself). Without this, the
