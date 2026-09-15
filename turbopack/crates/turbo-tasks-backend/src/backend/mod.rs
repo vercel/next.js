@@ -1826,6 +1826,7 @@ impl TurboTasksBackend {
 
         // Task exists in backing storage.
         // We only need to insert it into the in-memory cache.
+        let mut created_task = false;
         let task_id = if !transient
             && let Some((task_id, stored_type)) = ctx.task_by_type(native_fn, this, arg_ref)
         {
@@ -1886,6 +1887,7 @@ impl TurboTasksBackend {
             // The entry closure has returned, so the task_cache shard lock is released before
             // cache tracking or aggregation updates can re-enter the backend.
             if created {
+                created_task = true;
                 self.track_cache_miss_by_fn(native_fn);
                 // Update the aggregation number before connecting the child. We don't need this on
                 // recovery paths because the aggregation number will already be set.
@@ -1917,6 +1919,10 @@ impl TurboTasksBackend {
         };
 
         operation::ConnectChildOperation::run(parent_task, task_id, ctx);
+
+        if created_task {
+            self.storage.finish_new_task_creation(task_id);
+        }
 
         task_id
     }

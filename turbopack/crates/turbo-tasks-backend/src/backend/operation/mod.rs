@@ -12,7 +12,7 @@ use std::{
     sync::Arc,
 };
 
-use anyhow::{Context, Result, bail};
+use anyhow::{Context, Result};
 use bincode::{Decode, Encode};
 use parking_lot::RwLockReadGuard;
 use tracing::info_span;
@@ -389,11 +389,9 @@ impl<'e> ExecuteContextImpl<'e> {
                     }
 
                     if do_data || do_meta {
-                        // Drop the lock before notifying so woken threads don't
-                        // immediately contend on the same DashMap shard.
-                        drop(task);
+                        // Keep the guard through return. Once the restoring bit is clear, eviction
+                        // may otherwise drop the category before this caller can reacquire it.
                         self.backend.storage.restored.notify(usize::MAX);
-                        task = self.backend.storage.access_mut(task_id);
                     }
 
                     // The caller asserted this task exists (`MustExist`), but it looked like a
@@ -478,50 +476,76 @@ impl<'e> ExecuteContextImpl<'e> {
     /// Precondition: the caller must have observed `is_restoring()` == true for
     /// `task_id`+`category` and must have dropped the task lock before calling this.
     ///
-    /// Returns the `StorageWriteGuard` acquired at the end of the wait when successful,
-    /// or `Err` if the restoring thread failed (restoring was cleared without setting restored).
+    /// Returns the `StorageWriteGuard` acquired at the end of the wait. If eviction clears a
+    /// category after the original restorer finishes but before this waiter acquires the lock, the
+    /// waiter claims and restores that category again instead of mistaking the eviction for an I/O
+    /// failure.
     fn wait_for_restoring_task(
         &self,
         task_id: TaskId,
         category: TaskDataCategory,
     ) -> Result<StorageWriteGuard<'e>> {
-        // Fast path: acquire the write guard and check flags directly.
-        // By the time this is called, some I/O has elapsed and the other thread has
-        // likely already finished restoring.
-        {
-            let task = self.backend.storage.access_mut(task_id);
-            let is_restoring = task.flags.is_restoring(category);
-            let is_restored = task.flags.is_restored(category);
-            if is_restored {
-                return Ok(task);
-            }
-            if !is_restoring {
-                bail!("restoring failed");
-            }
-            // Still restoring — drop the write guard before waiting.
-            drop(task);
-        }
-
-        // Slow path: register a listener and wait until the other thread signals completion.
         loop {
-            // Register a listener BEFORE re-acquiring the lock (avoids a lost-wakeup race).
+            // Register before taking the task lock to avoid a lost wakeup when another restorer is
+            // still active. It is harmless when this thread becomes the replacement restorer.
             let listener = self.backend.storage.restored.listen();
+            let mut task = self.backend.storage.access_mut(task_id);
 
-            let task = self.backend.storage.access_mut(task_id);
-            let is_restoring = task.flags.is_restoring(category);
-            let is_restored = task.flags.is_restored(category);
-
-            if is_restored {
-                // The restoring thread finished successfully; return the write guard directly.
+            if task.flags.is_restored(category) {
                 return Ok(task);
             }
-            if !is_restoring {
-                // The restoring bit was cleared without setting the restored bit.
-                // This means the restoring thread encountered an error.
-                bail!("restoring failed");
+
+            let restore_data = category.includes_data()
+                && !task.flags.data_restored()
+                && !task.flags.data_restoring();
+            let restore_meta = category.includes_meta()
+                && !task.flags.meta_restored()
+                && !task.flags.meta_restoring();
+
+            if restore_data || restore_meta {
+                if restore_data {
+                    task.flags.set_data_restoring(true);
+                }
+                if restore_meta {
+                    task.flags.set_meta_restoring(true);
+                }
+                drop(task);
+
+                let storage_data = restore_data
+                    .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Data));
+                let storage_meta = restore_meta
+                    .then(|| self.restore_task_data(task_id, SpecificTaskDataCategory::Meta));
+
+                let mut task = self.backend.storage.access_mut(task_id);
+                let mut restore_error = None;
+                if let Some(result) = storage_data
+                    && let Err(error) =
+                        apply_restore_result(&mut task, result, SpecificTaskDataCategory::Data)
+                {
+                    restore_error = Some(error);
+                }
+                if let Some(result) = storage_meta
+                    && let Err(error) =
+                        apply_restore_result(&mut task, result, SpecificTaskDataCategory::Meta)
+                    && restore_error.is_none()
+                {
+                    restore_error = Some(error);
+                }
+
+                // Notify while retaining the guard. Returning the guard prevents eviction from
+                // reopening the same gap before this waiter can use the restored category.
+                self.backend.storage.restored.notify(usize::MAX);
+                if let Some(error) = restore_error {
+                    return Err(error);
+                }
+                if task.flags.is_restored(category) {
+                    return Ok(task);
+                }
+                drop(task);
+                continue;
             }
 
-            // Still restoring; drop the lock and block until notified, then loop to re-check.
+            // Every missing category is still owned by another restorer.
             drop(task);
             let _span = info_span!("blocking").entered();
             listener.wait();
@@ -539,7 +563,7 @@ impl<'e> ExecuteContextImpl<'e> {
         match self.wait_for_restoring_task(task_id, category) {
             Ok(guard) => guard,
             Err(e) => {
-                panic!("Restore of {category:?} for task {task_id} failed in another thread: {e:?}")
+                panic!("Restore of {category:?} for task {task_id} failed while waiting: {e:?}")
             }
         }
     }
@@ -818,7 +842,9 @@ impl<'e> ExecuteContextImpl<'e> {
             // Only call the callback if no category is still being restored by another thread.
             // If so, Phase 3 calls the callback after all categories are fully restored.
             if !entry.wait_data && !entry.wait_meta {
-                let task = self.backend.storage.access_mut(entry.task_id);
+                // Revalidate under the returned guard: eviction can run after Phase 1c clears
+                // the restoring bit and before callbacks consume the restored category.
+                let task = self.wait_for_restore_or_panic(entry.task_id, entry.category);
                 prepared_task_callback(self, entry.task_id, entry.category, task);
             }
         }
@@ -1136,14 +1162,9 @@ impl<'e> ExecuteContext<'e> for ExecuteContextImpl<'e> {
             }
 
             if do_data1 || do_meta1 || do_data2 || do_meta2 {
-                // Drop both locks before notifying so woken threads don't
-                // immediately contend on the same DashMap shards.
-                drop(task1);
-                drop(task2);
+                // Keep both guards through return so eviction cannot clear a newly restored
+                // category in the handoff between notification and use.
                 self.backend.storage.restored.notify(usize::MAX);
-                let (t1, t2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
-                task1 = t1;
-                task2 = t2;
             }
 
             // A `MustExist` pair open must not fabricate: a task that looked like a fresh blank and

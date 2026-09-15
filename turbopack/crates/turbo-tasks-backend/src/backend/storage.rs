@@ -290,6 +290,12 @@ impl Storage {
         let mut task = self.access_mut(task_id);
         task.flags.set_restored(TaskDataCategory::All);
         task.flags.set_new_task(true);
+        if !task_id.is_transient() {
+            // Pin the task until get_or_create_task finishes its initial connection. Aggregation
+            // updates may suspend before that connection installs a durable parent/root edge, and
+            // GC must not collect the newly visible task in that window.
+            task.set_transient_ref_count(1);
+        }
         if let Some(task_type) = task_type {
             task.set_persistent_task_type(task_type);
             if !task_id.is_transient() {
@@ -298,6 +304,19 @@ impl Storage {
                     task.track_modification(SpecificTaskDataCategory::Data, "persistent_task_type");
             }
         }
+    }
+
+    /// Releases the temporary GC pin installed by [`Self::initialize_new_task`] after the initial
+    /// connection has completed. A transient parent or detached handle may have added more pins in
+    /// the meantime, so remove exactly the one creation pin rather than clearing the field.
+    pub fn finish_new_task_creation(&self, task_id: TaskId) {
+        if task_id.is_transient() {
+            return;
+        }
+        let mut task = self.access_mut(task_id);
+        let count = task.gc_transient_ref_count();
+        assert!(count > 0, "new task creation pin underflow for {task_id}");
+        task.set_transient_ref_count(count - 1);
     }
 
     /// Processes every modified item (resp. a snapshot of it) with the given function and returns
@@ -584,7 +603,8 @@ impl Storage {
                 let mut roots = Vec::new();
                 self.for_each_resident_persistent_in_shard(index, |task_id, storage| {
                     if storage.gc_is_root() {
-                        // The `is_root` criteria is conservative, in debug assert that we aren't m
+                        // The `is_root` criteria is conservative, in debug assert that we aren't
+                        // classifying a root held by a pin that eviction can drop.
                         storage.gc_debug_assert_root_held_by_transient_pin();
                         roots.push(task_id);
                     }
@@ -1151,6 +1171,24 @@ mod tests {
     fn non_transient_task(id: u32) -> TaskId {
         // TRANSIENT_TASK_BIT is 0x2000_0000; any id without that bit is non-transient.
         TaskId::new(id).expect("id must be non-zero")
+    }
+
+    #[test]
+    fn new_task_is_pinned_until_initial_connection_finishes() {
+        let storage = Storage::new(2, true);
+        let task_id = non_transient_task(1);
+
+        storage.initialize_new_task(task_id, None);
+        storage.with_task(task_id, |task| {
+            assert_eq!(task.gc_transient_ref_count(), 1);
+            assert!(!task.gc_maybe_collectible());
+        });
+
+        storage.finish_new_task_creation(task_id);
+        storage.with_task(task_id, |task| {
+            assert_eq!(task.gc_transient_ref_count(), 0);
+            assert!(task.gc_maybe_collectible());
+        });
     }
 
     /// A process fn that returns a non-empty SnapshotItem so the iterator doesn't
