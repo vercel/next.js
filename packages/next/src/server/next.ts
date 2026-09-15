@@ -6,6 +6,8 @@ import type {
 import type { IncomingMessage, ServerResponse } from 'http'
 import type { Duplex } from 'stream'
 import type { NextUrlWithParsedQuery, RequestMeta } from './request-meta'
+import { addRequestMeta } from './request-meta'
+import { createWebSocketUpgradeListenerOwnershipTracker } from './websocket-upgrade-listener'
 
 import './require-hook'
 import './node-polyfill-crypto'
@@ -425,6 +427,13 @@ export class NextServer implements NextWrapperServer {
 /** The wrapper server used for `import next from "next" (in a custom server)` */
 class NextCustomServer implements NextWrapperServer {
   private didWebSocketSetup: boolean = false
+  private isClosing: boolean = false
+  private webSocketServer?: import('http').Server
+  private webSocketServers = new Set<import('http').Server>()
+  private webSocketUpgradeListener?: UpgradeHandler
+  private webSocketOwnershipTracker?: ReturnType<
+    typeof createWebSocketUpgradeListenerOwnershipTracker
+  >
   protected cleanupListeners?: AsyncCallbackSet
 
   protected init?: ServerInitResult
@@ -486,22 +495,120 @@ class NextCustomServer implements NextWrapperServer {
       quiet: this.options.quiet,
     })
     this.init = initResult
+    this.setupWebSocketHandler(this.options.httpServer)
   }
 
   private setupWebSocketHandler(
     customServer?: import('http').Server,
     _req?: IncomingMessage
   ) {
-    if (!this.didWebSocketSetup) {
-      this.didWebSocketSetup = true
-      customServer = customServer || (_req?.socket as any)?.server
+    if (this.didWebSocketSetup || this.isClosing) return
 
-      if (customServer) {
-        customServer.on('upgrade', async (req, socket, head) => {
-          this.upgradeHandler(req, socket, head)
-        })
+    const requestServer = customServer || (_req?.socket as any)?.server
+    if (!requestServer) return
+
+    const upgradeListener = this.getOrCreateWebSocketUpgradeListener()
+    if (requestServer.listeners('upgrade').includes(upgradeListener)) {
+      // `getUpgradeHandler()` may already have been attached explicitly. Do
+      // not install a second copy when the first ordinary request discovers
+      // the server. Since that registration bypassed the ownership observer,
+      // its listener remains delegated for WebSocket Route Handlers.
+      this.didWebSocketSetup = true
+      this.webSocketServer = requestServer
+      this.webSocketServers.add(requestServer)
+      return
+    }
+
+    const ownershipTracker = createWebSocketUpgradeListenerOwnershipTracker(
+      requestServer,
+      upgradeListener
+    )
+
+    try {
+      requestServer.on('upgrade', upgradeListener)
+      if (this.isClosing) {
+        requestServer.off('upgrade', upgradeListener)
+        ownershipTracker.dispose()
+        return
+      }
+    } catch (error) {
+      ownershipTracker.dispose()
+      throw error
+    }
+
+    this.didWebSocketSetup = true
+    this.webSocketServer = requestServer
+    this.webSocketServers.add(requestServer)
+    this.webSocketUpgradeListener = upgradeListener
+    this.webSocketOwnershipTracker = ownershipTracker
+  }
+
+  private removeWebSocketUpgradeListener(
+    server: import('http').Server,
+    listener: UpgradeHandler
+  ): void {
+    let registrationCount: number
+    try {
+      registrationCount = server
+        .listeners('upgrade')
+        .filter((registeredListener) => registeredListener === listener).length
+    } catch (error) {
+      console.error(
+        'Failed to inspect custom-server WebSocket upgrade listeners',
+        error
+      )
+      return
+    }
+
+    for (let index = 0; index < registrationCount; index++) {
+      try {
+        server.off('upgrade', listener)
+      } catch (error) {
+        console.error(
+          'Failed to remove the custom-server WebSocket upgrade listener',
+          error
+        )
       }
     }
+  }
+
+  private getOrCreateWebSocketUpgradeListener(): UpgradeHandler {
+    if (!this.webSocketUpgradeListener) {
+      const upgradeListener: UpgradeHandler = async (req, socket, head) => {
+        const requestServer = (
+          req.socket as typeof req.socket & {
+            server?: import('http').Server
+          }
+        ).server
+        if (this.isClosing) {
+          if (requestServer) {
+            this.removeWebSocketUpgradeListener(requestServer, upgradeListener)
+          }
+          socket.destroy()
+          return
+        }
+
+        if (requestServer) this.webSocketServers.add(requestServer)
+        const ownershipTracker =
+          requestServer === this.webSocketServer
+            ? this.webSocketOwnershipTracker
+            : undefined
+        addRequestMeta(
+          req,
+          'webSocketUpgradeExclusiveOwner',
+          ownershipTracker?.isExclusiveOwner() ?? false
+        )
+        try {
+          await this.upgradeHandler(req, socket, head)
+        } catch (error) {
+          socket.destroy()
+          log.error(`Failed to handle request for ${req.url}`)
+          console.error(error)
+        }
+      }
+      this.webSocketUpgradeListener = upgradeListener
+    }
+    return this.webSocketUpgradeListener
   }
 
   getRequestHandler(): RequestHandler {
@@ -563,7 +670,8 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   getUpgradeHandler(): UpgradeHandler {
-    return this.server.getUpgradeHandler()
+    this.getInit()
+    return this.getOrCreateWebSocketUpgradeListener()
   }
 
   logError(...args: Parameters<NextWrapperServer['logError']>) {
@@ -604,8 +712,37 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   async close() {
+    const init = this.init
+    if (init) {
+      this.isClosing = true
+      const webSocketServer = this.webSocketServer
+      const webSocketServers = this.webSocketServers
+      const webSocketUpgradeListener = this.webSocketUpgradeListener
+      const webSocketOwnershipTracker = this.webSocketOwnershipTracker
+      this.webSocketServer = undefined
+      this.webSocketServers = new Set()
+      this.webSocketUpgradeListener = undefined
+      this.webSocketOwnershipTracker = undefined
+
+      if (webSocketServer) webSocketServers.add(webSocketServer)
+      if (webSocketUpgradeListener) {
+        for (const server of webSocketServers) {
+          this.removeWebSocketUpgradeListener(server, webSocketUpgradeListener)
+        }
+      }
+      try {
+        webSocketOwnershipTracker?.dispose()
+      } catch (error) {
+        console.error(
+          'Failed to dispose the custom-server WebSocket ownership tracker',
+          error
+        )
+      }
+
+      await init.closeUpgraded(1001).catch(console.error)
+    }
     await Promise.allSettled([
-      this.init?.server.close(),
+      init?.server.close(),
       this.cleanupListeners?.runAll(),
     ])
   }

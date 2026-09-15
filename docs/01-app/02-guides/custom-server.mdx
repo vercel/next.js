@@ -107,6 +107,30 @@ The above `next` import is a function that receives an object with the following
 
 The returned `app` can then be used to let Next.js handle requests as required.
 
+<AppOnly>
+
+## WebSocket Route Handlers (experimental)
+
+When [`experimental.webSocketRouteHandlers`](/docs/app/api-reference/config/next-config-js/webSocketRouteHandlers) is enabled, attach `app.getUpgradeHandler()` to the custom HTTP server after `app.prepare()` finishes. This allows [`NextResponse.upgrade()`](/docs/app/api-reference/functions/next-response#upgrade) App Route Handlers to receive WebSocket upgrades, including when the WebSocket is the server's first request.
+
+```js filename="server.js"
+import { createServer } from 'node:http'
+import next from 'next'
+
+const app = next({ dev: process.env.NODE_ENV !== 'production' })
+const handle = app.getRequestHandler()
+
+app.prepare().then(() => {
+  const server = createServer((req, res) => handle(req, res))
+  server.on('upgrade', app.getUpgradeHandler())
+  server.listen(3000)
+})
+```
+
+Use one outer upgrade dispatcher when another WebSocket protocol shares the same server. Multiple independent upgrade listeners can race to write to the same socket. During shutdown, call `server.close()` to stop accepting new HTTP connections without awaiting it, await `app.close()` to drain Next.js-owned upgrades and connections, and then await the HTTP server's close callback. The HTTP server remains owned by your custom server.
+
+</AppOnly>
+
 <PagesOnly>
 
 ## Disabling file-system routing

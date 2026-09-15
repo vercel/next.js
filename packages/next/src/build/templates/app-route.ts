@@ -1,29 +1,22 @@
 import {
   AppRouteRouteModule,
-  type AppRouteRouteHandlerContext,
   type AppRouteRouteModuleOptions,
 } from '../../server/route-modules/app-route/module.compiled'
 import { RouteKind } from '../../server/route-kind'
 import { patchFetch as _patchFetch } from '../../server/lib/patch-fetch'
 import type { IncomingMessage, ServerResponse } from 'node:http'
-import {
-  addRequestMeta,
-  getRequestMeta,
-  setRequestMeta,
-  type RequestMeta,
-} from '../../server/request-meta'
+import { addRequestMeta, setRequestMeta } from '../../server/request-meta'
 import {
   getTracer,
   type Span,
   SpanKind,
   SpanStatusCode,
 } from '../../server/lib/trace/tracer'
-import { setManifestsSingleton } from '../../server/app-render/manifests-singleton'
-import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { NodeNextRequest, NodeNextResponse } from '../../server/base-http/node'
 import {
   NextRequestAdapter,
   signalFromNodeResponse,
+  signalFromNodeUpgradeSocket,
 } from '../../server/web/spec-extension/adapters/next-request'
 import { BaseServerSpan } from '../../server/lib/trace/constants'
 import { getRevalidateReason } from '../../server/instrumentation/utils'
@@ -40,6 +33,12 @@ import {
   type ResponseCacheEntry,
   type ResponseGenerator,
 } from '../../server/response-cache'
+import { isWebSocketUpgradeResponse } from '../../server/web/spec-extension/websocket-upgrade-response'
+import { createWebSocketUpgradeFallbackResponse } from '../../server/web/spec-extension/websocket-upgrade-fallback'
+import type {
+  AppRouteHandlerContext,
+  AppRouteWebSocketEntrypoint,
+} from '../../server/route-modules/app-route/websocket-runtime.external'
 
 // These are injected by the loader afterwards. This is injected as a variable
 // instead of a replacement because this could also be `undefined` instead of
@@ -72,8 +71,9 @@ const routeModule = new AppRouteRouteModule({
   userland: () => require('VAR_USERLAND') as typeof import('VAR_USERLAND'),
   // In Turbopack dev mode, also provide a synchronous per-request getter so
   // server HMR updates are picked up without re-executing the entry chunk.
-  // Using require() (synchronous) avoids adding async overhead that would be
-  // incorrectly attributed to application-code time in devRequestTiming.
+  // require() stays synchronous for ordinary modules. An async module with
+  // top-level await returns its live Promise so the request owns one exact
+  // generation while it resolves.
   ...(process.env.TURBOPACK && process.env.__NEXT_DEV_SERVER
     ? {
         getUserland: () =>
@@ -81,6 +81,62 @@ const routeModule = new AppRouteRouteModule({
       }
     : {}),
 })
+
+let upgradeHandler: AppRouteWebSocketEntrypoint['upgradeHandler']
+// Keep this compile-time if/else around the require so Edge and disabled
+// bundles cannot trace the Node-only transport.
+if (process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
+  let webSocketEntrypoint: AppRouteWebSocketEntrypoint | undefined
+
+  const createWebSocketEntrypoint = () => {
+    let srcPage = 'VAR_DEFINITION_PAGE'
+    if (process.env.TURBOPACK) {
+      srcPage = srcPage.replace(/\/index$/, '') || '/'
+    } else if (srcPage === '/index') {
+      srcPage = '/'
+    }
+
+    const { createAppRouteWebSocketEntrypoint } =
+      require('../../server/route-modules/app-route/websocket-runtime.external') as typeof import('../../server/route-modules/app-route/websocket-runtime.external')
+    return createAppRouteWebSocketEntrypoint({
+      routeModule,
+      srcPage,
+      multiZoneDraftMode: Boolean(process.env.__NEXT_MULTI_ZONE_DRAFT_MODE),
+      createNextRequest(req, socket) {
+        return NextRequestAdapter.fromNodeNextRequest(
+          new NodeNextRequest(req),
+          signalFromNodeUpgradeSocket(socket)
+        )
+      },
+    })
+  }
+
+  upgradeHandler = (ctx, transport) =>
+    (webSocketEntrypoint ??= createWebSocketEntrypoint()).upgradeHandler(
+      ctx,
+      transport
+    )
+} else {
+  upgradeHandler = (_ctx, transport) => {
+    const socket = transport?.node?.socket
+    if (
+      socket &&
+      !socket.destroyed &&
+      !socket.writableEnded &&
+      !socket.readableEnded
+    ) {
+      socket.end(
+        'HTTP/1.1 500 Internal Server Error\r\n' +
+          'Connection: close\r\n' +
+          'Cache-Control: private, no-cache, no-store, max-age=0, must-revalidate\r\n' +
+          'Content-Length: 0\r\n' +
+          '\r\n'
+      )
+      return Promise.resolve({ statusCode: 500, upgraded: false })
+    }
+    return Promise.resolve({ upgraded: false })
+  }
+}
 
 // Pull out the exports that we need to expose from the module. This should
 // be eliminated when we've moved the other routes to the new format. These
@@ -100,15 +156,18 @@ export {
   workUnitAsyncStorage,
   serverHooks,
   patchFetch,
+  upgradeHandler,
 }
+export type {
+  AppRouteHandlerContext,
+  AppRouteUpgradeHandlerTransport,
+  AppRouteUpgradeOutcome,
+} from '../../server/route-modules/app-route/websocket-runtime.external'
 
 export async function handler(
   req: IncomingMessage,
   res: ServerResponse,
-  ctx: {
-    waitUntil?: (prom: Promise<void>) => void
-    requestMeta?: RequestMeta
-  }
+  ctx: AppRouteHandlerContext
 ) {
   if (ctx.requestMeta) {
     setRequestMeta(req, ctx.requestMeta)
@@ -130,22 +189,20 @@ export async function handler(
   const multiZoneDraftMode = process.env
     .__NEXT_MULTI_ZONE_DRAFT_MODE as any as boolean
 
-  const prepareResult = await routeModule.prepare(req, res, {
+  const preparation = await routeModule.prepareNodeRequest(req, res, {
     srcPage,
     multiZoneDraftMode,
   })
 
-  if (!prepareResult) {
+  if (!preparation) {
     res.statusCode = 400
     res.end('Bad Request')
     ctx.waitUntil?.(Promise.resolve())
     return null
   }
 
+  const { prepareResult, normalizedSrcPage, isIsr } = preparation
   const {
-    buildId,
-    deploymentId,
-    params,
     nextConfig,
     parsedUrl,
     isDraftMode,
@@ -154,17 +211,7 @@ export async function handler(
     isOnDemandRevalidate,
     revalidateOnlyGenerated,
     resolvedPathname,
-    clientReferenceManifest,
-    serverActionsManifest,
-    previewProps,
   } = prepareResult
-
-  const normalizedSrcPage = normalizeAppPath(srcPage)
-
-  let isIsr = Boolean(
-    prerenderManifest.dynamicRoutes[normalizedSrcPage] ||
-      prerenderManifest.routes[resolvedPathname]
-  )
 
   const render404 = async () => {
     // TODO: should route-module itself handle rendering the 404
@@ -198,80 +245,25 @@ export async function handler(
     cacheKey = cacheKey === '/index' ? '/' : cacheKey
   }
 
-  // Before rendering (which initializes component tree modules), we have to
-  // set the reference manifests to our global store so Server Action's
-  // encryption util can access to them at the top level of the page module.
-  if (serverActionsManifest && clientReferenceManifest) {
-    setManifestsSingleton({
-      page: srcPage,
-      clientReferenceManifest,
-      serverActionsManifest,
-    })
-  }
-
   const method = req.method || 'GET'
   const tracer = getTracer()
   const activeSpan = tracer.getActiveScopeSpan()
   const isWrappedByNextServer = Boolean(
     routerServerContext?.isWrappedByNextServer
   )
-  const isMinimalMode = Boolean(getRequestMeta(req, 'minimalMode'))
 
-  const incrementalCache =
-    getRequestMeta(req, 'incrementalCache') ||
-    (await routeModule.getIncrementalCache(
-      req,
-      nextConfig,
-      previewProps,
-      prerenderManifest,
-      isMinimalMode
-    ))
-
-  incrementalCache?.resetRequestCache()
-  ;(globalThis as any).__incrementalCache = incrementalCache
-
-  const context: AppRouteRouteHandlerContext = {
-    params,
-    previewProps,
-    renderOpts: {
-      experimental: {
-        authInterrupts: Boolean(nextConfig.experimental.authInterrupts),
-        useCacheTimeout: nextConfig.experimental.useCacheTimeout,
-        durableUseCacheEntries: Boolean(
-          nextConfig.experimental.durableUseCacheEntries
-        ),
-      },
-      cacheComponents: Boolean(nextConfig.cacheComponents),
-      validationLevel: nextConfig.experimental.instantInsights.validationLevel,
-      isDraftMode,
-      incrementalCache,
-      hmrRefreshHash: getRequestMeta(req, 'hmrRefreshHash'),
-      cacheLifeProfiles: nextConfig.cacheLife,
-      staticPageGenerationTimeout: nextConfig.staticPageGenerationTimeout,
+  const { context, isMinimalMode } = await routeModule.createNodeRequestContext(
+    req,
+    srcPage,
+    prepareResult,
+    {
       waitUntil: ctx.waitUntil,
-      onClose: (cb) => {
-        res.on('close', cb)
+      onClose(callback) {
+        res.on('close', callback)
       },
       onAfterTaskError: undefined,
-      onInstrumentationRequestError: (
-        error,
-        _request,
-        errorContext,
-        silenceLog
-      ) =>
-        routeModule.onRequestError(
-          req,
-          error,
-          errorContext,
-          silenceLog,
-          routerServerContext
-        ),
-    },
-    sharedContext: {
-      buildId,
-      deploymentId,
-    },
-  }
+    }
+  )
   const nodeNextReq = new NodeNextRequest(req)
   const nodeNextRes = new NodeNextResponse(res)
 
@@ -297,10 +289,23 @@ export async function handler(
         return null
       }
 
-      const response =
+      let response =
         cacheKey === null
           ? await routeModule.handle(nextReq, context)
           : await routeModule.prerender(nextReq, context)
+
+      if (isWebSocketUpgradeResponse(response)) {
+        if (!process.env.__NEXT_EXPERIMENTAL_WEBSOCKET_ROUTE_HANDLERS) {
+          throw new Error(
+            'This App Route returned NextResponse.upgrade(), but experimental.webSocketRouteHandlers is not enabled in `next.config`.'
+          )
+        }
+        response = createWebSocketUpgradeFallbackResponse(
+          response,
+          fromNodeOutgoingHttpHeaders(res.getHeaders())
+        )
+        for (const name of res.getHeaderNames()) res.removeHeader(name)
+      }
 
       ;(req as any).fetchMetrics = (context.renderOpts as any).fetchMetrics
       let pendingWaitUntil = context.renderOpts.pendingWaitUntil
@@ -406,7 +411,7 @@ export async function handler(
         cacheKey,
         routeKind: RouteKind.APP_ROUTE,
         isFallback: false,
-        previewProps,
+        previewProps: prepareResult.previewProps,
         prerenderManifest,
         isRoutePPREnabled: false,
         isOnDemandRevalidate,

@@ -1,7 +1,7 @@
 import type { BaseNextRequest } from '../../../base-http'
 import type { NodeNextRequest } from '../../../base-http/node'
 import type { WebNextRequest } from '../../../base-http/web'
-import type { Writable } from 'node:stream'
+import type { Duplex, Writable } from 'node:stream'
 
 import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
@@ -51,6 +51,34 @@ export function signalFromNodeResponse(response: Writable): AbortSignal {
 
   const { signal } = createAbortController(response)
   return signal
+}
+
+/**
+ * Creates an AbortSignal tied to the lifetime of a raw Node.js upgrade socket.
+ *
+ * Unlike a ServerResponse, a Duplex can finish its writable side when its peer
+ * disconnects. Its readable `end` or `close` event therefore means that a
+ * pending upgrade request can no longer complete, even when `writableFinished`
+ * is true.
+ */
+export function signalFromNodeUpgradeSocket(socket: Duplex): AbortSignal {
+  const { errored, destroyed, closed, readableEnded } = socket
+  if (errored || destroyed || closed || readableEnded) {
+    return AbortSignal.abort(errored ?? new ResponseAborted())
+  }
+
+  const controller = new AbortController()
+  const cleanup = () => {
+    socket.off('end', abort)
+    socket.off('close', abort)
+  }
+  const abort = () => {
+    cleanup()
+    controller.abort(socket.errored ?? new ResponseAborted())
+  }
+  socket.once('end', abort)
+  socket.once('close', abort)
+  return controller.signal
 }
 
 export class NextRequestAdapter {
