@@ -8,23 +8,21 @@ mod util;
 use std::sync::Arc;
 
 use anyhow::Result;
-use turbo_tasks::{
-    ResolvedVc, TaskId, Vc, prevent_gc, unmark_top_level_task_may_leak_eventually_consistent_state,
-};
+use turbo_tasks::{ResolvedVc, TaskId, Vc, prevent_gc};
 
 use crate::{
     gc_fixture::{Selector, create_selector},
     util::create_tt,
 };
 
-/// The `TaskId` backing a resolved `Vc` (its `TaskOutput` node).
+/// The `TaskId` backing a `Vc`'s `TaskOutput` node.
 fn task_id_of<T>(vc: Vc<T>) -> TaskId {
     Vc::into_raw(vc)
         .try_get_task_id()
         .expect("a resolved Vc should be backed by a task")
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(root)]
 fn leaf(n: u32) -> Vc<u32> {
     Vc::cell(n)
 }
@@ -196,11 +194,10 @@ async fn dispose_root_task_releases_anchored_subgraph() {
         let tx = tx.lock().unwrap().take();
         Box::pin(async move {
             // The root body runs as a top-level task, as `subscribe`'s HMR handler does.
-            unmark_top_level_task_may_leak_eventually_consistent_state();
             let leaf_vc = leaf(88);
-            let value = *leaf_vc.await?;
+            let value = *leaf_vc.strongly_consistent().await?;
             if let Some(tx) = tx {
-                let _ = tx.send(task_id_of(leaf_vc.resolve().await?));
+                let _ = tx.send(task_id_of(leaf_vc));
             }
             anyhow::Ok(Vc::<u32>::cell(value))
         })
