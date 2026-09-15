@@ -53,18 +53,18 @@ for (const cacheEnabled of [false, true]) {
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
       packageJson: {
-        packageManager: 'npm@10.9.2',
         scripts: {
           build: `${envVars} next build`,
           dev: `${envVars} next dev`,
           start: 'next start',
         },
       },
-      // We need to use npm here as pnpms symlinks trigger a weird bug (kernel bug?)
-      installCommand: 'npm i',
+      // Use pnpm's hoisted linker with copied packages because its default
+      // symlinks trigger a kernel bug in this test (configured in .npmrc).
+      installCommand: 'pnpm install',
       // Next is always started with caching, but this can disable it for the followup restarts
-      buildCommand: `npm run build`,
-      startCommand: isNextDev ? 'npm run dev' : 'npm run start',
+      buildCommand: `pnpm run build`,
+      startCommand: isNextDev ? 'pnpm run dev' : 'pnpm run start',
     })
 
     beforeAll(() => {

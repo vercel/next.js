@@ -25,8 +25,8 @@ describe('evict-after-snapshot', () => {
         dev: `${envVars} next dev`,
       },
     },
-    installCommand: 'npm i',
-    startCommand: 'npm run dev',
+    installCommand: 'pnpm install',
+    startCommand: 'pnpm run dev',
   })
 
   async function waitForSnapshotAndEviction() {
