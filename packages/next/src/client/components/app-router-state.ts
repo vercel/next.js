@@ -883,6 +883,11 @@ async function ensurePrefetchThenNavigate(
     null, // onInvalidate
     navigationLockPrefetch
   )
+  if (prefetchTask === null) {
+    throw new Error(
+      'Internal Next.js error: Prefetch for a locked navigation was not scheduled.'
+    )
+  }
   if (navigationLockPrefetch !== null) {
     await navigationLockPrefetch.promise
   }

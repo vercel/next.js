@@ -385,6 +385,10 @@ export type PrefetchHints = {
 export type ActionResult = Promise<any>
 
 export type InitialRSCPayload = {
+  /**
+   * isDraftMode
+   */
+  D: boolean
   /** buildId, can be empty if the x-nextjs-build-id header is set */
   b?: string
   /** initialCanonicalUrlParts */
