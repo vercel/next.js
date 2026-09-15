@@ -300,6 +300,7 @@ jobs:
     with:
       needsRust: 'yes'
       needsNextest: 'yes'
+      needsRustJsInstall: 'yes'
       skipNativeBuild: 'yes'
       skipInstallBuild: 'yes'
       afterBuild: pnpm dlx turbo@${TURBO_VERSION} run test-cargo-unit ${TURBO_ARGS}
