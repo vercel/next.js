@@ -162,16 +162,16 @@ You can [browse the source for these Skills](https://github.com/vercel/next.js/t
 
 Bundled docs give an agent current framework knowledge. A Skill adds a repeatable workflow around that knowledge, including the order of decisions, the tools to use, and the evidence that confirms the result.
 
-To understand the value for a specific task, compare the same task with the bundled docs alone and with the Skill:
+The same Skill can have different value depending on the task and model. The optimizer evaluations compare a bundled-guide run with a Skill run for the same prompt and checks:
 
-| Compare                 | What it shows                                              |
-| ----------------------- | ---------------------------------------------------------- |
-| Full-task success       | Whether the agent completed the intended outcome           |
-| Reliability             | Whether the outcome holds across repeated runs and models  |
-| Durable verification    | Whether the work leaves tests or other regression coverage |
-| Execution time and cost | Whether the improvement justifies the added workflow       |
+| Workflow                                                                           | Model      | Bundled guide | Skill         | Result                                      |
+| ---------------------------------------------------------------------------------- | ---------- | ------------- | ------------- | ------------------------------------------- |
+| [Partial Prefetching optimizer](https://github.com/vercel/next.js/pull/96471#eval) | Opus 4.8   | 9/10 · $2.84  | 10/10 · $2.54 | More checks passed at a lower run cost      |
+| [Partial Prefetching optimizer](https://github.com/vercel/next.js/pull/96471#eval) | Sonnet 4.5 | 5/10 · $1.11  | 8/10 · $0.77  | More checks passed at a lower run cost      |
+| [Cache Components optimizer](https://github.com/vercel/next.js/pull/97737#eval)    | Opus 4.8   | 8/11 · $5.29  | 11/11 · $5.24 | The Skill produced the only complete result |
+| [Cache Components optimizer](https://github.com/vercel/next.js/pull/97737#eval)    | Sonnet 4.5 | 8/11 · $1.18  | 4/11 · $2.53  | Fewer checks passed at a higher run cost    |
 
-A Skill adds value when it improves the completed outcome or leaves reusable verification that offsets its execution time and model cost. When the bundled docs produce the same result reliably, the Skill adds little value for that task and model.
+Each result is one run, so the table is descriptive rather than a stable success-rate measurement. It shows why Skill value must be measured for a specific workflow and model instead of inferred from the Skill alone.
 
 The Skills serve three different workflow types:
 
