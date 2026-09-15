@@ -8,7 +8,7 @@ use turbo_tasks::{FxIndexSet, OperationVc, ResolvedVc, Vc, trace::TraceRawVcs};
 use crate::{
     chunk::{
         ChunkableModule, ChunkingContext, ChunkingType,
-        available_modules::{AvailableModuleItem, AvailableModules, AvailableModulesSet},
+        available_modules::{AvailableModuleItem, AvailableModulesSet},
     },
     module::{Module, Modules},
     module_graph::{
@@ -30,7 +30,7 @@ bitfield! {
 pub struct AvailabilityInfo {
     flags: AvailabilityFlags,
     /// There are modules already available.
-    available_modules: Option<ResolvedVc<AvailableModules>>,
+    available_modules: Option<ResolvedVc<AvailableModulesSet>>,
     /// The root ChunkGroup::Entry
     entry_group: Option<ResolvedVc<Modules>>,
 }
@@ -44,7 +44,7 @@ impl AvailabilityInfo {
         }
     }
 
-    pub fn available_modules(&self) -> Option<ResolvedVc<AvailableModules>> {
+    pub fn available_modules(&self) -> Option<ResolvedVc<AvailableModulesSet>> {
         self.available_modules
     }
 
@@ -63,7 +63,7 @@ impl AvailabilityInfo {
         } else {
             Self {
                 flags: self.flags,
-                available_modules: Some(AvailableModules::new(modules).to_resolved().await?),
+                available_modules: Some(modules.connect().to_resolved().await?),
                 entry_group: self.entry_group,
             }
         })
@@ -74,7 +74,7 @@ impl AvailabilityInfo {
     /// Used to build a minimal `AvailabilityInfo` for async loaders: the set is pre-filtered to
     /// the modules that the loader's target can actually observe, so many different parent
     /// availabilities collapse onto the same value.
-    pub fn with_flattened_modules(self, modules: ResolvedVc<AvailableModules>) -> Self {
+    pub fn with_flattened_modules(self, modules: ResolvedVc<AvailableModulesSet>) -> Self {
         Self {
             flags: self.flags,
             available_modules: Some(modules),
@@ -155,7 +155,7 @@ pub async fn availability_info_for_async_chunk_group(
     let Some(available_modules) = availability_info.available_modules() else {
         return Ok(availability_info);
     };
-    let snapshot = available_modules.snapshot().await?;
+    let available = available_modules.await?;
     let batches = module_graph
         .module_batches(chunking_context.batching_config())
         .await?;
@@ -196,7 +196,7 @@ pub async fn availability_info_for_async_chunk_group(
                 && let Some(chunkable) = edge.module.and_then(ResolvedVc::try_downcast)
             {
                 let item = AvailableModuleItem::AsyncLoader(chunkable);
-                if snapshot.get(item) {
+                if available.contains(&item) {
                     filtered.insert(item);
                 }
             }
@@ -205,7 +205,7 @@ pub async fn availability_info_for_async_chunk_group(
                 return Ok(GraphTraversalAction::Exclude);
             };
             let item: AvailableModuleItem = chunkable_node.into();
-            if snapshot.get(item) {
+            if available.contains(&item) {
                 filtered.insert(item);
             }
             // Keep descending even through available nodes: `chunk_group_content` prunes there,
@@ -215,7 +215,8 @@ pub async fn availability_info_for_async_chunk_group(
         |_, _, _| {},
     )?;
 
-    let flattened = AvailableModules::new(available_modules_set(filtered.into_iter().collect()))
+    let flattened = available_modules_set(filtered.into_iter().collect())
+        .connect()
         .to_resolved()
         .await?;
     let mut availability_info = availability_info.with_flattened_modules(flattened);
