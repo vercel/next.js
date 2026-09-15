@@ -235,9 +235,45 @@ In this example, the configuration file is expected to be the same for every req
 
 ## Validation
 
-Next.js requires you to explicitly handle components that can't complete during prerendering. It surfaces a validation insight in the dev overlay and dev server console that names the route and points at fixes (cache the access, move it into a `<Suspense>` boundary, or opt the route out). This validation keeps every route producing a static shell, so direct navigations stay instant.
+Next.js requires you to explicitly handle components that can't complete during prerendering. It surfaces a validation insight in the dev overlay and dev server console that names the route and points at the fixes:
+
+<FixCardGrid>
+  <FixCard
+    group="cache"
+    title="Cache the component or data"
+    href="/docs/messages/blocking-prerender-dynamic#cache-the-component-or-data"
+    snippets={[
+      { text: 'async function Posts() {' },
+      { text: '  "use cache"', highlight: true },
+      { text: '  return <List items={…} />' },
+    ]}
+  />
+  <FixCard
+    group="stream"
+    title="Wrap in or move into Suspense"
+    href="/docs/messages/blocking-prerender-dynamic#wrap-in-or-move-into-suspense"
+    snippets={[
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <DataChild />' },
+      { text: '</Suspense>', highlight: true },
+    ]}
+  />
+  <FixCard
+    group="block"
+    title="Allow blocking route"
+    href="/docs/messages/blocking-prerender-dynamic#allow-blocking-route"
+    snippets={[
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ]}
+  />
+</FixCardGrid>
+
+This validation keeps every route producing a static shell, so direct navigations stay instant.
 
 The same insights apply inside [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata#with-cache-components) and [`generateViewport`](/docs/app/api-reference/functions/generate-viewport#with-cache-components), where uncached fetches or runtime data access surface the same errors as in your page.
+
+See [Validate instant navigation](/docs/app/guides/instant-navigation#validate-instant-navigation) for the navigations it simulates and how to change which segments it covers.
 
 ## Maximizing the static shell
 
