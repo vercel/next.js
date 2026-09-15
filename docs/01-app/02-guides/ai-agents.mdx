@@ -200,13 +200,13 @@ Adopt Cache Components in this project using the next-cache-components-adoption 
 
 ### `next-cache-components-optimizer`
 
-The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill takes a target route or set of routes and works toward the UI you want on screen at click time:
+The [`next-cache-components-optimizer`](https://www.skills.sh/vercel/next.js/next-cache-components-optimizer) Skill expands a target route's static shell to include the useful UI you want available on an initial load:
 
-1. Writes a failing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test for the UI you named.
+1. Writes a failing [`instant()`](/docs/app/guides/instant-navigation#prevent-regressions-with-e2e-tests) test for the static-shell UI you named.
 2. Refactors the route until it passes, often by moving a data read below a `<Suspense>` boundary.
 3. Commits the passing test with the refactoring, so it catches future regressions.
 
-It needs a route that already builds with [Cache Components](/docs/app/getting-started/caching).
+It needs a route that already builds with [Cache Components](/docs/app/getting-started/caching). It can also optimize a named client navigation when the destination segments do not yet have useful instant UI. For URL-specific content that should be ready before a click after the destination App Shell is already instant, use the [`next-partial-prefetching-optimizer`](#next-partial-prefetching-optimizer) instead.
 
 ```bash filename="Terminal"
 npx skills add vercel/next.js --skill next-cache-components-optimizer
@@ -215,7 +215,7 @@ npx skills add vercel/next.js --skill next-cache-components-optimizer
 Then give the agent a prompt like:
 
 ```prompt
-Make the navigation from /settings to /dashboard instant using the next-cache-components-optimizer Skill. The header and the project list should be part of the instant UI.
+Optimize the static shell for /dashboard using the next-cache-components-optimizer Skill. On an initial load, the header and project list should be available immediately.
 ```
 
 ### `next-partial-prefetching-adoption`

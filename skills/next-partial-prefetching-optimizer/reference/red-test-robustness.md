@@ -18,6 +18,12 @@ user:
 Only then restore the selected contract assertions and change the
 implementation.
 
+Use a `data-testid` on a real, visible DOM node after its client subtree
+commits. Do not infer that commit by searching the RSC response for text:
+Client Component text might not appear in the response bytes. A marker on
+`display: none`, `display: contents`, a fragment, off-screen content, or a
+hover-only overlay cannot prove that the user can see the selected UI.
+
 ## What each signal rules out
 
 - **Destination URL wait** rules out matching the source page or clicking a
@@ -54,6 +60,9 @@ regressed.
 - The target is URL-specific but the test user's record/query returns empty.
 - The target is behind a flag, role, plan, locale, or experiment absent in CI.
 - Auth redirects to a page where the shell selector happens to exist.
+- The source link points to a redirect URL, so its prefetch receives the
+  redirect instead of the destination route tree. Point the link at its
+  canonical destination.
 - A shared selector matches the source before the destination commits.
 - The test clicks a default link while the code change modified a different
   link to the same URL.
