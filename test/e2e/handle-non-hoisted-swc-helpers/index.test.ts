@@ -6,7 +6,6 @@ describe('handle-non-hoisted-swc-helpers', () => {
     files: {
       '.npmrc': `# The helper move below needs real package directories, not pnpm symlinks.
 node-linker=hoisted
-package-import-method=copy
 `,
       'pages/index.js': `
         export default function Page() {
