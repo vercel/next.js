@@ -18,6 +18,7 @@ use crate::{
     AnalyzeEcmascriptModuleResult, EcmascriptAnalyzable, EcmascriptAnalyzableExt,
     EcmascriptModuleAsset, EcmascriptModuleContent, EcmascriptModuleContentOptions,
     EcmascriptParsable, EnvVarInfo, MergedEcmascriptModule,
+    analyzer::imports::ExportRegistrationMode,
     chunk::{
         EcmascriptChunkItemContent, EcmascriptChunkPlaceable, EcmascriptExports,
         ecmascript_chunk_item,
@@ -148,6 +149,8 @@ impl EcmascriptAnalyzable for EcmascriptModuleLocalsModule {
             generate_source_map,
             original_source_map: analyze_result.source_map,
             exports,
+            // The locals module holds the original local bindings, not re-exports.
+            export_registration_mode: Some(ExportRegistrationMode::Normal),
             async_module_info,
         }
         .cell())
