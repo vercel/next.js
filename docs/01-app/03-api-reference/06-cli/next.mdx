@@ -236,19 +236,15 @@ next upgrade --experimental-agentic-dry-run=security
 ```
 
 The positional directory selects the app in both modes, defaulting to the current
-directory. `--ai security` explicitly selects security. Bare `--ai` reads
-`experimental.agenticAutoUpgrade` from the app's configuration and defaults to
-security when the policy is absent or `false`. The `false` value disables automatic
-nudges, not an explicitly requested upgrade. `--experimental-agentic-dry-run`
-accepts the same optional upgrade type. Use only one AI option; `--revision` is
-reserved for traditional upgrades.
+directory. `--ai security` explicitly selects security, while bare `--ai`
+defaults to security. `--experimental-agentic-dry-run` accepts the same optional
+upgrade type. Use only one AI option; `--revision` is reserved for traditional
+upgrades.
 
 Security mode chooses the closest supported major whose latest stable release
-clears known advisories. After verification, the agent sets
-`experimental.agenticAutoUpgrade: 'security'` so future nudges are enabled.
-Security upgrades and reminders currently assess stable installed versions only.
-Prerelease security support is deferred. The target's Node.js compatibility is
-checked before handoff.
+clears known advisories. Security upgrades currently assess stable installed
+versions only. Prerelease security support is deferred. The target's Node.js
+compatibility is checked before handoff.
 
 The command delegates to the published Next.js canary CLI for current migration
 instructions. It continues in an existing coding agent or offers an installed

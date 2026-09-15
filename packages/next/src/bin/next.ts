@@ -584,10 +584,7 @@ program
           : 'latest'
   )
   .option('--verbose', 'Verbose output', false)
-  .option(
-    '--ai [type]',
-    'Upgrade with AI using the configured policy, or security by default.'
-  )
+  .option('--ai [type]', 'Upgrade with AI for security fixes.')
   .option(
     '--experimental-agentic-dry-run [type]',
     'Run an AI upgrade and commit locally without pushing or creating a PR.'

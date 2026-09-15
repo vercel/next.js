@@ -2,7 +2,6 @@ import { spawn } from 'child_process'
 import { cp, mkdtemp, rm } from 'fs/promises'
 import { constants as osConstants, tmpdir } from 'os'
 import { join } from 'path'
-import { resetEnv } from '@next/env'
 import spawnCanary from 'next/dist/compiled/cross-spawn'
 import createSpinner from '../build/spinner'
 import * as Log from '../build/output/log'
@@ -93,20 +92,8 @@ export async function spawnNextUpgrade(
         )
       }
 
-      // Bare AI mode follows the app policy and otherwise defaults to security.
-      let targetRequest = options.ai
-
-      if (typeof targetRequest !== 'string') {
-        const { default: loadConfig } = await import('../server/config')
-        const { PHASE_INFO } = await import('../shared/lib/constants')
-        // loadConfig applies the app's production dotenv files to process.env.
-        // Restore the caller environment before assessment or handoff so a
-        // launched agent cannot inherit app secrets or __NEXT_PROCESSED_ENV.
-        const config = await loadConfig(PHASE_INFO, baseDir).finally(resetEnv)
-
-        // `false` disables automatic nudges, not an explicitly requested run.
-        targetRequest = config.experimental.agenticAutoUpgrade || 'security'
-      }
+      const targetRequest =
+        typeof options.ai === 'string' ? options.ai : 'security'
 
       // Resolve the requested target before preparing an agent session.
       const { prepareUpgrade } =
@@ -151,15 +138,15 @@ export async function spawnNextUpgrade(
           ? `Reference: ${result.references[0]}`
           : `References: ${JSON.stringify(result.references)}`
 
-      // TODO: Stop persisting `security` when it becomes the default policy.
-      const policyInstruction = `After verification, set experimental.agenticAutoUpgrade to ${JSON.stringify(targetRequest)}.`
+      // TODO: Once every eligible security target supports
+      // `experimental.agenticAutoUpgrade`, ask the agent to enable it after
+      // verification so future upgrade reminders can use the same policy.
 
       // Pass resolved inputs directly; the agent owns repairs and verification.
       const prompt = `Upgrade ${JSON.stringify(baseDir)} from Next.js ${result.installedVersion} to ${result.targetVersion}.
 Upgrade type: ${targetRequest}.
 ${references}
 Read and follow ${JSON.stringify(join(runDirectory, 'docs/01-app/02-guides/upgrading/agentic-upgrade.md'))} before making changes.
-${policyInstruction}
 Preserve existing permissions.${
         options.experimentalAgenticDryRun
           ? '\nThis is a --experimental-agentic-dry-run: complete the migration and verification, create local commits, then stop. Do not push or create a PR/MR.'

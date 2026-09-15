@@ -209,11 +209,21 @@ describe('agentic upgrade prompts', () => {
      Upgrade type: security.
      References: ["https://api.github.com/advisories?affects=next","https://registry.npmjs.org/next"]
      Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before making changes.
-     After verification, set experimental.agenticAutoUpgrade to "security".
      Preserve existing permissions.",
        ],
      ]
     `)
+  })
+
+  it('defaults a bare AI upgrade to security without loading app policy', async () => {
+    await spawnNextUpgrade('/workspace/app', {
+      revision: undefined,
+      verbose: false,
+      ai: true,
+      experimentalAgenticDryRun: false,
+    })
+
+    expect(prepareUpgrade).toHaveBeenCalledWith('/workspace/app', 'security')
   })
 
   it('adds the local-only boundary to the dry-run prompt', async () => {
@@ -231,7 +241,6 @@ describe('agentic upgrade prompts', () => {
      Upgrade type: security.
      References: ["https://api.github.com/advisories?affects=next","https://registry.npmjs.org/next"]
      Read and follow "/tmp/next-upgrade-test/docs/01-app/02-guides/upgrading/agentic-upgrade.md" before making changes.
-     After verification, set experimental.agenticAutoUpgrade to "security".
      Preserve existing permissions.
      This is a --experimental-agentic-dry-run: complete the migration and verification, create local commits, then stop. Do not push or create a PR/MR.",
        ],

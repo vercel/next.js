@@ -58,11 +58,6 @@ and baseline failures before edits.
 
 Preserve intended behavior and optional features. Limit shared workspace changes
 to required compatibility repairs and affected callers; exclude unrelated edits.
-Do not change the upgrade policy before the migration is verified. After final
-verification, set `experimental.agenticAutoUpgrade` to `'security'` before
-committing, including when it was absent or `false`.
-
-{/* TODO: Remove the security policy write when security becomes the default. */}
 
 ## 4. Build the repair checklist
 
