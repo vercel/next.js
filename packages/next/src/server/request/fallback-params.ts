@@ -6,6 +6,7 @@ import type AppPageRouteModule from '../route-modules/app-page/module'
 import { parseNormalizedAppRoute } from '../../shared/lib/router/routes/app'
 import { extractPathnameRouteParamSegmentsFromLoaderTree } from '../../build/static-paths/app/extract-pathname-route-param-segments-from-loader-tree'
 import { getParamProperties } from '../../shared/lib/router/utils/get-segment-param'
+import { InvariantError } from '../../shared/lib/invariant-error'
 
 export type OpaqueFallbackRouteParamValue = [
   /**
@@ -73,6 +74,56 @@ export function createOpaqueFallbackRouteParams(
   }
 
   return keys
+}
+
+/**
+ * Selects the params that a staged render defers for the shell target that a
+ * request selects. Dev static-shell validation stages the same set, so it
+ * checks the shell that the build validates.
+ *
+ * The set derives from the build's shell metadata, not from the serving mode. A
+ * required shell (`throwOnEmptyStaticShell`) is the most specific shell the
+ * build generated for its params, and the build fails when its prelude is
+ * empty. Staging defers all of its fallback params, because the build validated
+ * exactly that shape. Any other shell may be empty, and a request completes it
+ * with the params that `generateStaticParams` can still supply. Only the params
+ * that completion never resolves stay deferred.
+ *
+ * `next start` without `partialPrefetching` keys ISR entries by the full
+ * pathname, so such an entry resolves every param. A cold staged render then
+ * defers params that the entry resolves, so its static stage contains less
+ * content. A resume reads the recorded set from the entry's postponed state.
+ */
+export function getStagedFallbackParams(route: {
+  fallbackRouteParams: readonly FallbackRouteParam[] | undefined
+  remainingPrerenderableParams?: readonly FallbackRouteParam[]
+  throwOnEmptyStaticShell?: boolean
+}): OpaqueFallbackRouteParams | null {
+  const { fallbackRouteParams, remainingPrerenderableParams } = route
+  if (!fallbackRouteParams?.length) {
+    return null
+  }
+
+  if (route.throwOnEmptyStaticShell === undefined) {
+    throw new InvariantError(
+      'Expected throwOnEmptyStaticShell for a route with fallback params'
+    )
+  }
+
+  // A required shell keeps all of its fallback params deferred.
+  if (route.throwOnEmptyStaticShell || !remainingPrerenderableParams?.length) {
+    return createOpaqueFallbackRouteParams(fallbackRouteParams)
+  }
+
+  return createOpaqueFallbackRouteParams(
+    fallbackRouteParams.filter(
+      (param) =>
+        !remainingPrerenderableParams.some(
+          (prerenderableParam) =>
+            prerenderableParam.paramName === param.paramName
+        )
+    )
+  )
 }
 
 export function buildDynamicSegmentPlaceholder(

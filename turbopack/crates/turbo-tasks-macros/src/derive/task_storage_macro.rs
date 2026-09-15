@@ -1381,12 +1381,7 @@ fn generate_typed_storage_struct(grouped_fields: &GroupedFields) -> TokenStream 
     };
 
     let lazy_field = if has_lazy {
-        let max_lazy: u8 = grouped_fields
-            .all_lazy()
-            .count()
-            .try_into()
-            .expect("cannot have more than 255 lazy fields");
-
+        let max_lazy: usize = grouped_fields.all_lazy().count();
         quote! {
             #[doc = "Lazily-allocated fields stored in a compact TinyVec for memory efficiency"]
             lazy: TinyVec<LazyField, #max_lazy>,
@@ -1681,6 +1676,7 @@ fn generate_task_storage_accessors_trait(grouped_fields: &GroupedFields) -> Toke
             #[doc = "- `Data` or `Meta`: Checks that the task was accessed with that category"]
             #[doc = ""]
             #[doc = "Implementors should check that the provided category matches how the task was accessed."]
+            #[track_caller]
             fn check_access(&self, category: crate::backend::storage::SpecificTaskDataCategory);
 
             #[doc = "Shrink all collection fields to fit their current contents."]
@@ -3092,9 +3088,13 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
             StorageType::AutoMap | StorageType::AutoSet | StorageType::CounterMap => quote! {
                 self.#field_name.is_empty()
             },
-            StorageType::Direct => quote! {
-                self.#field_name == Default::default()
-            },
+            StorageType::Direct => {
+                // Fully-qualified `Default` so we don't have type-inference ambiguity.
+                let field_type = &field.field_type;
+                quote! {
+                    self.#field_name == <#field_type as Default>::default()
+                }
+            }
             StorageType::Flag => unreachable!(),
         }
     }
@@ -3205,26 +3205,34 @@ fn generate_drop_method(grouped_fields: &GroupedFields) -> TokenStream {
                 // Walk lazy variants: non-persistent are preserved; persistent ones
                 // are either fully removed (non-filter_transient) or scanned for
                 // transient residue (filter_transient), dropping the variant only if
-                // it becomes empty.
-                self.lazy.retain_mut(|f| {
-                    if !f.is_persistent() {
+                // it becomes empty. `swap_remove` doesn't advance the index on a
+                // removal (the swapped-in element still needs to be checked) and
+                // doesn't preserve order, which lazy fields don't rely on.
+                let mut __i = 0;
+                while __i < self.lazy.len() {
+                    let f = &mut self.lazy[__i];
+                    let keep = if !f.is_persistent() {
                         // Transient variants normally stay put, but drop
                         // empty ones. They accumulate as zombies when cells
                         // get consumed without the task re-running (so
                         // `shrink_on_completion` never fires), and the empty
                         // `LazyField` variant blocks `is_empty()` from
                         // accepting the task for full eviction.
-                        return !f.is_empty();
+                        !f.is_empty()
+                    } else if !(if f.is_data() { data } else { meta }) {
+                        true
+                    } else {
+                        match f {
+                            #(#drop_lazy_arms)*
+                            _ => false,
+                        }
+                    };
+                    if keep {
+                        __i += 1;
+                    } else {
+                        self.lazy.swap_remove(__i);
                     }
-                    let drop_this_category = if f.is_data() { data } else { meta };
-                    if !drop_this_category {
-                        return true;
-                    }
-                    match f {
-                        #(#drop_lazy_arms)*
-                        _ => false,
-                    }
-                });
+                }
                 self.lazy.shrink_to_fit();
                 if __has_residue {
                     // Some `filter_transient` field kept transient entries;

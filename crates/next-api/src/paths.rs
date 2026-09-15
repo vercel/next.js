@@ -46,7 +46,7 @@ async fn asset_path(
             } else {
                 asset
                     .content()
-                    .hash(HashAlgorithm::Xxh3Hash128Hex)
+                    .hash(no_hash_salt(), HashAlgorithm::Xxh3Hash128Hex)
                     .owned()
                     .await?
             };

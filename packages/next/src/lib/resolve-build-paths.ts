@@ -4,6 +4,8 @@ import * as Log from '../build/output/log'
 import path from 'path'
 import fs from 'fs'
 import isError from './is-error'
+import { createValidFileMatcher } from '../server/lib/find-page-file'
+import type { PageExtensions } from '../build/page-extensions-type'
 
 const glob = promisify(globOriginal)
 
@@ -35,10 +37,12 @@ function escapeBrackets(pattern: string): string {
  */
 export async function resolveBuildPaths(
   patterns: string[],
-  projectDir: string
+  projectDir: string,
+  pageExtensions: PageExtensions
 ): Promise<ResolvedBuildPaths> {
   const appPaths: Set<string> = new Set()
   const pagePaths: Set<string> = new Set()
+  const validFileMatcher = createValidFileMatcher(pageExtensions, undefined)
 
   // Detect whether the project keeps its routes under `src/` so we can accept
   // patterns written with or without that prefix (e.g. both `app/foo/page.tsx`
@@ -89,7 +93,7 @@ export async function resolveBuildPaths(
 
     for (const file of matches) {
       if (!fs.statSync(path.join(projectDir, file)).isDirectory()) {
-        categorizeAndAddPath(file, appPaths, pagePaths)
+        categorizeAndAddPath(file, appPaths, pagePaths, validFileMatcher)
       }
     }
   } catch (error) {
@@ -128,7 +132,7 @@ function addSrcPrefixIfNeeded(
 
 /**
  * Categorizes a file path to either app or pages router based on its prefix.
- * For app router, only route-defining files (page.*, route.*) are included.
+ * For app router, only route-defining files are included.
  *
  * Accepts both top-level (`app/...`, `pages/...`) and src-prefixed
  * (`src/app/...`, `src/pages/...`) project structures.
@@ -142,7 +146,8 @@ function addSrcPrefixIfNeeded(
 function categorizeAndAddPath(
   filePath: string,
   appPaths: Set<string>,
-  pagePaths: Set<string>
+  pagePaths: Set<string>,
+  validFileMatcher: ReturnType<typeof createValidFileMatcher>
 ): void {
   let normalized = filePath.replace(/\\/g, '/')
 
@@ -151,9 +156,9 @@ function categorizeAndAddPath(
   }
 
   if (normalized.startsWith('app/')) {
-    // Only include route-defining files (page.* or route.*)
-    if (/\/(page|route)\.[^/]+$/.test(normalized)) {
-      appPaths.add('/' + normalized.slice(4))
+    const appRelativePath = '/' + normalized.slice(4)
+    if (validFileMatcher.isAppRouterPage(appRelativePath)) {
+      appPaths.add(appRelativePath)
     }
   } else if (normalized.startsWith('pages/')) {
     pagePaths.add('/' + normalized.slice(6))

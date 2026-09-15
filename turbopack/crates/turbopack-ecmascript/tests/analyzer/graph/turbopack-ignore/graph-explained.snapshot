@@ -1,14 +1,33 @@
-exported_t_r (const after eval) = FreeVar(require)("exported_t_r")
+exported_t_r (const after eval) = ???*0*
+- *0* ???*1*("exported_t_r")
+  ⚠️  turbopackIgnore
+  ⚠️  This value might have side effects
+- *1* FreeVar(require)
+  ⚠️  turbopackIgnore
+  ⚠️  This value might have side effects
 
-t_i (const after eval) = await(FreeVar(import)("t_i"))
+t_i (const after eval) = await(???*0*)
+- *0* FreeVar(import)("t_i")
+  ⚠️  turbopackIgnore
+  ⚠️  This value might have side effects
 
-t_r (const after eval) = (
-  | FreeVar(require)("w_i_f")
-  | FreeVar(require)("t_i_f")
-  | FreeVar(require)("t_r_t")
-  | FreeVar(require)("t_r_f")
-)
+t_r (const after eval) = (FreeVar(require)("w_i_f") | FreeVar(require)("t_i_f") | ???*0* | FreeVar(require)("t_r_f"))
+- *0* ???*1*("t_r_t")
+  ⚠️  turbopackIgnore
+  ⚠️  This value might have side effects
+- *1* FreeVar(require)
+  ⚠️  turbopackIgnore
+  ⚠️  This value might have side effects
 
-w_i (const after eval) = await(FreeVar(import)("w_i"))
+w_i (const after eval) = await(???*0*)
+- *0* FreeVar(import)("w_i")
+  ⚠️  turbopackIgnore
+  ⚠️  This value might have side effects
 
-w_r (const after eval) = (FreeVar(require)("w_r_t") | FreeVar(require)("w_r_f"))
+w_r (const after eval) = (???*0* | FreeVar(require)("w_r_f"))
+- *0* ???*1*("w_r_t")
+  ⚠️  turbopackIgnore
+  ⚠️  This value might have side effects
+- *1* FreeVar(require)
+  ⚠️  turbopackIgnore
+  ⚠️  This value might have side effects

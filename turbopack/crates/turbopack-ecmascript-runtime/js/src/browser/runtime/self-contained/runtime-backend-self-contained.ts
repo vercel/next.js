@@ -28,6 +28,12 @@ let BACKEND: RuntimeBackend
     // Furthermore, modules must be instantiated synchronously, hence we don't
     // use promises here.
     registerChunk(chunk, params) {
+      // Entry-only registrations (`chunk == null`) are inlined into the HTML and only produced
+      // for the browser/DOM runtime; the edge ("none") runtime never receives them (its chunks
+      // self-register via `registerChunk`).
+      if (chunk == null) {
+        throw new Error('inline entry registration is not supported')
+      }
       let chunkPath = getPathFromScript(chunk)
 
       registeredChunks.add(chunkPath)

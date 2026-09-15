@@ -2,7 +2,10 @@ use anyhow::{Result, bail};
 use turbo_rcstr::{RcStr, rcstr};
 use turbo_tasks::{ValueToString, Vc};
 
-use crate::{FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent};
+use crate::{
+    FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent, RawDirectoryContent,
+    WriteLinkContent,
+};
 
 #[derive(ValueToString)]
 #[value_to_string(self.name)]
@@ -52,6 +55,11 @@ impl FileSystem for VirtualFileSystem {
     }
 
     #[turbo_tasks::function]
+    fn is_junction_point(&self, _fs_path: FileSystemPath) -> Result<Vc<bool>> {
+        bail!("Reading is not possible on the virtual file system")
+    }
+
+    #[turbo_tasks::function]
     fn raw_read_dir(&self, _fs_path: FileSystemPath) -> Result<Vc<RawDirectoryContent>> {
         bail!("Reading is not possible on the virtual file system")
     }
@@ -62,7 +70,11 @@ impl FileSystem for VirtualFileSystem {
     }
 
     #[turbo_tasks::function]
-    fn write_link(&self, _fs_path: FileSystemPath, _target: Vc<LinkContent>) -> Result<Vc<()>> {
+    fn write_link(
+        &self,
+        _fs_path: FileSystemPath,
+        _target: Vc<WriteLinkContent>,
+    ) -> Result<Vc<()>> {
         bail!("Writing is not possible on the virtual file system")
     }
 

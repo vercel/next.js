@@ -1,5 +1,6 @@
 import type { API, FileInfo } from 'jscodeshift'
 import { createParserFromPath } from '../lib/parser'
+import { NEXT_CODEMOD_IGNORE_ERROR_PREFIX } from '../lib/utils'
 
 /**
  * Blanket-inserts `export const instant = false` into every App Router `page`,
@@ -104,11 +105,16 @@ export default function transformer(file: FileInfo, _api: API) {
     return file.source
   }
 
-  // Build `export const instant = false`. The two `//` comments above it
-  // (TODO + See:) are attached as leading comments on the declaration so
+  // Build `export const instant = false`. The ignore reason, removal condition,
+  // and guide link are attached as leading comments on the declaration so
   // recast prints them right above it.
-  const todoComment = j.commentLine(
-    ' TODO: Cache Components adoption. Refactor this route so this opt-out can be removed.',
+  const ignoreComment = j.commentLine(
+    ` ${NEXT_CODEMOD_IGNORE_ERROR_PREFIX} Cache Components adoption: this segment temporarily allows blocking.`,
+    true,
+    false
+  )
+  const removalComment = j.commentLine(
+    ' Remove this opt-out after verifying the segment passes validation without it.',
     true,
     false
   )
@@ -122,7 +128,7 @@ export default function transformer(file: FileInfo, _api: API) {
       j.variableDeclarator(j.identifier('instant'), j.booleanLiteral(false)),
     ])
   )
-  instantExport.comments = [todoComment, seeComment]
+  instantExport.comments = [ignoreComment, removalComment, seeComment]
 
   // Insert after the last top-level import, or at the top of the module
   // if there are no imports.
@@ -138,14 +144,19 @@ export default function transformer(file: FileInfo, _api: API) {
     // No imports. Inserting at index 0 would steal any file-level leading
     // comments (e.g. `// @ts-nocheck`) from `body[0]` because recast
     // attributes them to whatever is first. Move those leading comments
-    // off `body[0]` onto the new export *before* its TODO/See: lines, so
+    // off `body[0]` onto the new export *before* its adoption comments, so
     // they print in their original position.
     const first = body[0]
     const allComments = (first.comments ?? []) as any[]
     const firstLeading = allComments.filter((c) => c.leading === true)
     if (firstLeading.length > 0) {
       first.comments = allComments.filter((c) => c.leading !== true)
-      instantExport.comments = [...firstLeading, todoComment, seeComment]
+      instantExport.comments = [
+        ...firstLeading,
+        ignoreComment,
+        removalComment,
+        seeComment,
+      ]
     }
     body.unshift(instantExport)
   } else {

@@ -1,5 +1,6 @@
 /// <reference path="../../../shared/runtime/dev-globals.d.ts" />
 /// <reference path="../../../shared/runtime/dev-protocol.d.ts" />
+/// <reference path="../../../shared/runtime/hmr-runtime.ts" />
 
 interface TurbopackDevContext extends TurbopackBrowserBaseContext<HotModule> {
   k: RefreshContext
@@ -86,9 +87,9 @@ const chunkChunkListsMap: Map<ChunkPath, Set<ChunkListPath>> = new Map()
  */
 // @ts-ignore
 function getOrInstantiateRuntimeModule(
-  chunkPath: ChunkPath,
+  chunkPath: ChunkPath | undefined,
   moduleId: ModuleId
-): Module {
+): HotModule {
   const module = devModuleCache[moduleId]
   if (module) {
     if (module.error) {
@@ -158,7 +159,7 @@ function instantiateModule(
   moduleId: ModuleId,
   sourceType: SourceType,
   sourceData: SourceData
-): Module {
+): HotModule {
   // Browser: creates base HotModule object (hot API added by shared code)
   const createModuleObjectFn = (id: ModuleId) => {
     return createModuleObject(id) as HotModule
@@ -541,10 +542,17 @@ function markChunkListAsRuntime(chunkListPath: ChunkListPath) {
   runtimeChunkLists.add(chunkListPath)
 }
 
-function registerChunk(registration: ChunkRegistration) {
+function registerChunk(registration: ChunkRegistration | RuntimeParams) {
+  // An inlined entry-only registration is a bare params object (no source chunk).
+  if (!Array.isArray(registration)) {
+    return BACKEND.registerChunk(undefined, registration)
+  }
   const chunk = getChunkFromRegistration(registration[0]) as
     | ChunkPath
     | ChunkScript
+  if (SUPPORT_COMPONENT_CHUNKS) {
+    markChunkComponentsAvailable(chunk)
+  }
   let runtimeParams: RuntimeParams | undefined
   // When bootstrapping we are passed a single runtimeParams object so we can distinguish purely based on length
   if (registration.length === 2) {
@@ -572,7 +580,7 @@ function registerChunkList(chunkList: ChunkList) {
   const chunkListPath = getPathFromScript(chunkListScript)
   // The "chunk" is also registered to finish the loading in the backend
   BACKEND.registerChunk(chunkListPath as string as ChunkPath)
-  globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS!.push([
+  CHUNK_UPDATE_LISTENERS.push([
     chunkListPath,
     handleApply.bind(null, chunkListPath),
   ])
@@ -594,5 +602,3 @@ function registerChunkList(chunkList: ChunkList) {
     markChunkListAsRuntime(chunkListPath)
   }
 }
-
-globalThis.TURBOPACK_CHUNK_UPDATE_LISTENERS ??= []

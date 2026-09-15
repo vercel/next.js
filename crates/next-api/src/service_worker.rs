@@ -27,9 +27,9 @@ use crate::project::Project;
 /// reachable from `module_graph` — via the [`ServiceWorkerEntryModule`] markers the analyzer leaves
 /// in the graph — and compiles each registered worker into a single self-contained bundle.
 ///
-/// Each is emitted under `node_root/service-worker/<scope-derived name>` (e.g.
-/// `service-worker/sw.js`, `service-worker/sw-offline-mode.js`) and served at the matching
-/// origin-root URL (`/sw.js`, `/sw-offline-mode.js`).
+/// Each is emitted under `node_root/static/service-worker/<scope-derived name>` (e.g.
+/// `static/service-worker/sw.js`) and served at the matching `/_next/static/service-worker/` URL
+/// via the existing static pipeline (with a `Service-Worker-Allowed` header so it keeps its scope).
 ///
 /// Only one service worker is supported per scope.
 #[turbo_tasks::function]
@@ -87,7 +87,7 @@ pub async fn service_worker_output_assets(
 }
 
 /// Compiles a single service worker `source_path` (registered at `scope`) into one self-contained
-/// chunk emitted at `node_root/service-worker/<scope-derived name>`.
+/// chunk emitted at `node_root/static/service-worker/<scope-derived name>`.
 #[turbo_tasks::function]
 async fn service_worker_chunk(
     project: Vc<Project>,
@@ -122,7 +122,10 @@ async fn service_worker_chunk(
 
     let EntryChunkGroupResult { asset, .. } = *chunking_context
         .entry_chunk_group(
-            node_root.join("service-worker")?.join(&filename)?,
+            node_root
+                .join("static")?
+                .join("service-worker")?
+                .join(&filename)?,
             ChunkGroup::Entry(vec![module]),
             own_graph,
             /* extra_chunks */ OutputAssets::empty(),

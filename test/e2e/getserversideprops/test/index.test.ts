@@ -317,7 +317,7 @@ const runTests = (
     const res = await fetchViaHTTP(next.url, '/not-found', { hiding: true })
 
     expect(res.status).toBe(404)
-    expect(await res.text()).toContain('This page could not be found')
+    expect(await res.text()).toContain('Custom 404 page')
   })
 
   it('should render 404 correctly when notFound is returned client-transition (non-dynamic)', async () => {
@@ -329,7 +329,7 @@ const runTests = (
 
     await browser.waitForElementByCss('h1')
     expect(await browser.elementByCss('html').text()).toContain(
-      'This page could not be found'
+      'Custom 404 page'
     )
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -346,7 +346,7 @@ const runTests = (
     })
 
     expect(res.status).toBe(404)
-    expect(await res.text()).toContain('This page could not be found')
+    expect(await res.text()).toContain('Custom 404 page')
   })
 
   it('should render 404 correctly when notFound is returned client-transition (dynamic)', async () => {
@@ -358,7 +358,7 @@ const runTests = (
 
     await browser.waitForElementByCss('h1')
     expect(await browser.elementByCss('html').text()).toContain(
-      'This page could not be found'
+      'Custom 404 page'
     )
     expect(await browser.eval('window.beforeNav')).toBe(1)
   })
@@ -382,7 +382,7 @@ const runTests = (
     } else {
       expect(res.status).toBe(500)
       expect(html).toContain('custom pages/500')
-      expect(html).not.toContain('This page could not be found')
+      expect(html).not.toContain('Custom 404 page')
     }
   })
 

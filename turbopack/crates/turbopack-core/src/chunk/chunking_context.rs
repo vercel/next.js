@@ -129,6 +129,7 @@ pub struct ChunkGroupResult {
     pub referenced_assets: ResolvedVc<OutputAssets>,
     pub references: ResolvedVc<OutputAssetsReferences>,
     pub availability_info: AvailabilityInfo,
+    pub chunk_group_bootstrap_params: Option<RcStr>,
 }
 
 impl ChunkGroupResult {
@@ -138,6 +139,7 @@ impl ChunkGroupResult {
             referenced_assets: ResolvedVc::cell(vec![]),
             references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
+            chunk_group_bootstrap_params: None,
         }
         .cell()
     }
@@ -148,6 +150,7 @@ impl ChunkGroupResult {
             referenced_assets: ResolvedVc::cell(vec![]),
             references: ResolvedVc::cell(vec![]),
             availability_info: AvailabilityInfo::root(),
+            chunk_group_bootstrap_params: None,
         }
         .resolved_cell()
     }
@@ -181,6 +184,7 @@ impl ChunkGroupResult {
                 .to_resolved()
                 .await?,
             availability_info: next.availability_info,
+            chunk_group_bootstrap_params: next.chunk_group_bootstrap_params.clone(),
         }
         .cell())
     }
@@ -255,6 +259,16 @@ pub struct ChunkingConfig {
     /// This makes sure that code in big chunks is not duplicated in multiple chunks.
     pub max_merge_chunk_size: usize,
 
+    /// When enabled, a merged chunk also emits its constituent component chunks (referenced,
+    /// loaded on demand) so the runtime can fetch an individual component chunk instead of the
+    /// whole merged chunk when it is already cached.
+    pub generate_component_chunks: bool,
+
+    /// Minimum size for a component chunk to be emitted on its own when
+    /// `generate_component_chunks` is enabled. Component chunks smaller than this are folded
+    /// into a single remainder component chunk.
+    pub min_component_chunk_size: usize,
+
     /// Selects the algorithm used to compute
     /// [`crate::module_graph::style_groups::StyleGroups`]. Only consulted for the CSS chunk
     /// type.
@@ -279,6 +293,21 @@ pub struct ChunkingConfig {
 #[turbo_tasks::value(transparent)]
 pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
+/// turbopack-browser needs to know the original
+/// source of the hmr chunk list to properly map to a
+/// EcmascriptDevChunkListSource and provide the correct
+/// updates. This maps one to one with that.
+/// We could consider lifting EcmascriptDevChunkListSource to
+/// core instead if this grows. Or using this type in browser instead.
+#[turbo_tasks::task_input]
+#[derive(
+    Eq, PartialEq, Debug, Clone, Copy, Hash, TraceRawVcs, Serialize, Deserialize, Encode, Decode,
+)]
+pub enum HmrChunkListSource {
+    Entry,
+    Dynamic,
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Copy, Hash, Default, Deserialize)]
 pub enum SourceMapSourceType {
@@ -289,7 +318,12 @@ pub enum SourceMapSourceType {
 }
 
 #[turbo_tasks::value(transparent, cell = "keyed")]
-pub struct UnusedReferences(FxHashSet<ResolvedVc<Box<dyn ModuleReference>>>);
+#[allow(clippy::type_complexity)]
+/// For each reference, the targets it resolves to that were dropped as unused. One reference can
+/// resolve to several targets, which are dropped independently.
+pub struct UnusedReferences(
+    FxHashMap<ResolvedVc<Box<dyn ModuleReference>>, FxHashSet<ResolvedVc<Box<dyn Module>>>>,
+);
 
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Default)]
@@ -366,6 +400,11 @@ pub trait ChunkingContext {
     fn asset_url(self: Vc<Self>, ident: FileSystemPath, tag: Option<RcStr>) -> Result<Vc<RcStr>>;
 
     #[turbo_tasks::function]
+    fn service_worker_scope_base_path(self: Vc<Self>) -> Vc<RcStr> {
+        Vc::cell(RcStr::default())
+    }
+
+    #[turbo_tasks::function]
     fn asset_path(
         self: Vc<Self>,
         content: Vc<AssetContent>,
@@ -439,6 +478,14 @@ pub trait ChunkingContext {
     fn async_loader_chunk_item_ident(&self, module: Vc<Box<dyn ChunkableModule>>)
     -> Vc<AssetIdent>;
 
+    /// Places a synthesized chunk item into a standalone output chunk without module graph
+    /// traversal.
+    #[turbo_tasks::function]
+    fn standalone_chunk(
+        self: Vc<Self>,
+        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    ) -> Vc<Box<dyn OutputAsset>>;
+
     #[turbo_tasks::function]
     fn chunk_group(
         self: Vc<Self>,
@@ -476,6 +523,7 @@ pub trait ChunkingContext {
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
         _chunks: Vc<OutputAssets>,
+        _source: HmrChunkListSource,
     ) -> Vc<OutputAssets> {
         OutputAssets::empty()
     }

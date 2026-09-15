@@ -163,6 +163,9 @@ pub struct TimingEvent {
     ///
     /// Example:
     /// ```rust
+    /// use std::time::Duration;
+    /// use turbo_tasks::message_queue::{CompilationEvent, TimingEvent};
+    ///
     /// let event = TimingEvent::new("Compiled successfully".to_string(), Duration::from_millis(100));
     /// let message = event.message();
     /// assert_eq!(message, "Compiled successfully in 100ms");

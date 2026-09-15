@@ -77,8 +77,34 @@ const linkCards: FixCard[] = [
     id: 'wrap-in-or-move-into-suspense',
     title: 'Wrap in or move into Suspense',
     group: 'stream',
-    // TODO(app-shells): doc links
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#wrap-in-or-move-into-suspense',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense',
+    snippets: [
+      { text: '<Suspense fallback={…}>', highlight: true },
+      { text: '  <Details params={params} />' },
+      { text: '</Suspense>', highlight: true },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+// TODO(cache-stages): docs link
+const navigationCards: FixCard[] = [
+  {
+    id: 'wrap-in-or-move-into-suspense',
+    title: 'Wrap in or move into Suspense',
+    group: 'stream',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#wrap-in-or-move-into-suspense',
     snippets: [
       { text: '<Suspense fallback={…}>', highlight: true },
       { text: '  <DataChild />' },
@@ -90,8 +116,7 @@ const linkCards: FixCard[] = [
     id: 'allow-blocking-route',
     title: 'Allow blocking route',
     group: 'block',
-    // TODO(app-shells): doc links
-    link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime#allow-blocking-route',
+    link: 'https://nextjs.org/docs/messages/instant-shell-url-data#allow-blocking-route',
     snippets: [
       { text: '// page.tsx or layout.tsx' },
       { text: 'export const instant = false', highlight: true },
@@ -295,8 +320,34 @@ const metadataRuntimeCards: FixCard[] = [
   },
 ]
 
-// TODO(app-shells): docs anchors for link data errors
-// TODO(app-shells): make sure these suggestions make sense
+// TODO(cache-stages): docs link
+const metadataNavigationCards: FixCard[] = [
+  {
+    id: 'use-static-metadata',
+    title: 'Use static metadata',
+    group: 'static',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#use-static-metadata',
+    snippets: [
+      { text: 'export const metadata = {', highlight: true },
+      { text: '  title: "My Page"' },
+      { text: '}' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'mark-the-route-as-dynamic',
+    title: 'Mark the route as dynamic',
+    group: 'dynamic',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime#mark-the-route-as-dynamic',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'await connection()', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+// URL data in `generateMetadata()` shares the same fixes as runtime data.
 const metadataLinkCards = metadataRuntimeCards
 
 const metadataDynamicCards: FixCard[] = [
@@ -351,8 +402,34 @@ const viewportRuntimeCards: FixCard[] = [
   },
 ]
 
-// TODO(app-shells): docs anchors for link data errors
-// TODO(app-shells): make sure these suggestions make sense
+// TODO(cache-stages): docs link
+const viewportNavigationCards: FixCard[] = [
+  {
+    id: 'use-static-viewport',
+    title: 'Use static viewport',
+    group: 'static',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#use-static-viewport',
+    snippets: [
+      { text: 'export const viewport = {', highlight: true },
+      { text: '  themeColor: "#000"' },
+      { text: '}' },
+    ],
+    copyable: true,
+  },
+  {
+    id: 'allow-blocking-route',
+    title: 'Allow blocking route',
+    group: 'block',
+    link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime#allow-blocking-route',
+    snippets: [
+      { text: '// page.tsx or layout.tsx' },
+      { text: 'export const instant = false', highlight: true },
+    ],
+    copyable: true,
+  },
+]
+
+// URL data in `generateViewport()` shares the same fixes as runtime data.
 const viewportLinkCards = viewportRuntimeCards
 
 const viewportDynamicCards: FixCard[] = [
@@ -613,7 +690,7 @@ export type GuidanceKind =
   | 'unrendered-segment'
   | 'link-prefetch-partial'
 
-export type GuidanceVariant = 'link' | 'runtime' | 'dynamic'
+export type GuidanceVariant = 'link' | 'runtime' | 'navigation' | 'dynamic'
 
 export const DOCS_URLS: Record<GuidanceKind, string> = {
   'blocking-route': 'https://nextjs.org/docs/messages/blocking-route',
@@ -629,6 +706,39 @@ export const DOCS_URLS: Record<GuidanceKind, string> = {
     'https://nextjs.org/docs/messages/instant-unrendered-segment',
   'link-prefetch-partial':
     'https://nextjs.org/docs/messages/instant-link-prefetch-partial',
+}
+
+export const BLOCKING_ROUTE_DOCS_URLS: Record<GuidanceVariant, string> = {
+  runtime: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
+  // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
+  // TODO(cache-stages): dedicated docs for navigation errors (reuses runtime for now)
+  navigation: 'https://nextjs.org/docs/messages/blocking-prerender-runtime',
+  dynamic: 'https://nextjs.org/docs/messages/blocking-prerender-dynamic',
+}
+
+export const BLOCKING_METADATA_DOCS_URLS: Record<GuidanceVariant, string> = {
+  runtime:
+    'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
+  // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
+  // TODO(cache-stages): dedicated docs for navigation errors (reuses runtime for now)
+  navigation:
+    'https://nextjs.org/docs/messages/blocking-prerender-metadata-runtime',
+  dynamic:
+    'https://nextjs.org/docs/messages/blocking-prerender-metadata-dynamic',
+}
+
+export const BLOCKING_VIEWPORT_DOCS_URLS: Record<GuidanceVariant, string> = {
+  runtime:
+    'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
+  // TODO(app-shells): dedicated docs for link data errors (reuses runtime for now)
+  link: 'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
+  // TODO(cache-stages): dedicated docs for navigation errors (reuses runtime for now)
+  navigation:
+    'https://nextjs.org/docs/messages/blocking-prerender-viewport-runtime',
+  dynamic:
+    'https://nextjs.org/docs/messages/blocking-prerender-viewport-dynamic',
 }
 
 export const SYNC_IO_DOCS: Record<string, string> = {
@@ -705,8 +815,11 @@ export const EXPLANATIONS: Record<GuidanceKind, string> = {
     'This will lead to slower, more expensive prefetches.',
 }
 
-export const BLOCKING_ROUTE_NAVIGATION_EXPLANATION =
+export const BLOCKING_ROUTE_IN_NAVIGATION_EXPLANATION =
   'This prevents the navigation from being instant, leading to a slower user experience.'
+
+export const BLOCKING_ROUTE_BLOCKED_SHELL_EXPLANATION =
+  'This may prevent the navigation from being instant, leading to a slower user experience.'
 
 const syncCardsByCause: Record<string, FixCard[]> = {
   'Math.random()': syncMathCards,
@@ -756,26 +869,50 @@ export function getCards(
   cause?: string
 ): FixCard[] {
   switch (kind) {
-    case 'blocking-route':
-      return variant === 'link'
-        ? linkCards
-        : variant === 'dynamic'
-          ? filterCacheForConnection(dynamicCards, variant, cause)
-          : runtimeCards
+    case 'blocking-route': {
+      switch (variant) {
+        case 'link':
+          return linkCards
+        case 'runtime':
+          return runtimeCards
+        case 'navigation':
+          return navigationCards
+        case 'dynamic':
+          return filterCacheForConnection(dynamicCards, variant, cause)
+        default:
+          return variant satisfies never
+      }
+    }
     case 'client-hook':
       return clientHookCards
-    case 'metadata':
-      return variant === 'link'
-        ? metadataLinkCards
-        : variant === 'runtime'
-          ? metadataRuntimeCards
-          : filterCacheForConnection(metadataDynamicCards, variant, cause)
-    case 'viewport':
-      return variant === 'link'
-        ? viewportLinkCards
-        : variant === 'runtime'
-          ? viewportRuntimeCards
-          : filterCacheForConnection(viewportDynamicCards, variant, cause)
+    case 'metadata': {
+      switch (variant) {
+        case 'link':
+          return metadataLinkCards
+        case 'runtime':
+          return metadataRuntimeCards
+        case 'navigation':
+          return metadataNavigationCards
+        case 'dynamic':
+          return filterCacheForConnection(metadataDynamicCards, variant, cause)
+        default:
+          return variant satisfies never
+      }
+    }
+    case 'viewport': {
+      switch (variant) {
+        case 'link':
+          return viewportLinkCards
+        case 'runtime':
+          return viewportRuntimeCards
+        case 'navigation':
+          return viewportNavigationCards
+        case 'dynamic':
+          return filterCacheForConnection(viewportDynamicCards, variant, cause)
+        default:
+          return variant satisfies never
+      }
+    }
     case 'sync-io':
       return (cause && syncCardsByCause[cause]) || []
     case 'sync-io-client':

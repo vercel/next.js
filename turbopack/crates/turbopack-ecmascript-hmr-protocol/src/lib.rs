@@ -1,12 +1,12 @@
 use std::{collections::BTreeMap, fmt::Display, path::PathBuf};
 
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use turbo_rcstr::RcStr;
 use turbopack_cli_utils::issue::{LogOptions, format_issue};
 use turbopack_core::{
     issue::{IssueSeverity, IssueStage, PlainIssue, StyledString},
     source_pos::SourcePos,
+    update_instruction::UpdateInstruction,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
@@ -78,7 +78,7 @@ impl<'a> ClientUpdateInstruction<'a> {
 
     pub fn partial(
         resource: &'a ResourceIdentifier,
-        instruction: &'a Value,
+        instruction: &'a UpdateInstruction,
         issues: &'a [Issue<'a>],
     ) -> Self {
         Self::new(
@@ -106,7 +106,7 @@ impl<'a> ClientUpdateInstruction<'a> {
 pub enum ClientUpdateInstructionType<'a> {
     Restart,
     NotFound,
-    Partial { instruction: &'a Value },
+    Partial { instruction: &'a UpdateInstruction },
     Issues,
 }
 
@@ -185,5 +185,52 @@ impl<'a> From<&'a PlainIssue> for Issue<'a> {
                 },
             ),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use serde::Serialize;
+    use serde_json::json;
+    use turbo_rcstr::rcstr;
+    use turbo_tasks::{NonLocalValue, trace::TraceRawVcs};
+    use turbopack_core::update_instruction::UpdateInstruction;
+
+    use super::{ClientUpdateInstruction, ResourceIdentifier};
+
+    #[derive(Debug, PartialEq, Eq, Serialize, TraceRawVcs, NonLocalValue)]
+    struct TestInstruction(serde_json::Value);
+
+    #[test]
+    fn partial_instruction_wire_format_is_unchanged() {
+        let resource = ResourceIdentifier {
+            path: rcstr!("server/app.js"),
+            headers: None,
+        };
+        let instruction = UpdateInstruction::new(TestInstruction(json!({
+            "type": "ecmascriptMerged",
+            "chunks": {},
+        })));
+
+        assert_eq!(
+            serde_json::to_value(ClientUpdateInstruction::partial(
+                &resource,
+                &instruction,
+                &[],
+            ))
+            .unwrap(),
+            json!({
+                "resource": {
+                    "path": "server/app.js",
+                    "headers": null,
+                },
+                "type": "partial",
+                "instruction": {
+                    "type": "ecmascriptMerged",
+                    "chunks": {},
+                },
+                "issues": [],
+            })
+        );
     }
 }

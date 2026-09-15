@@ -5,7 +5,7 @@ use bincode::{Decode, Encode};
 use swc_core::{
     common::{DUMMY_SP, SyntaxContext},
     ecma::ast::{
-        ArrowExpr, BlockStmt, BlockStmtOrExpr, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt,
+        ArrowExpr, ArrowFunctionBody, CallExpr, Callee, Expr, ExprOrSpread, ExprStmt, FunctionBody,
         Ident, Stmt,
     },
     quote,
@@ -135,7 +135,7 @@ impl ModuleHotReferenceCodeGen {
         let resolved_ids: Vec<ReadRef<PatternMapping>> = self
             .references
             .iter()
-            .map(|reference| async move {
+            .map(async |reference| {
                 let r = reference.await?;
                 let resolve_result = reference.resolve_reference();
                 PatternMapping::resolve_request(
@@ -144,6 +144,7 @@ impl ModuleHotReferenceCodeGen {
                     chunking_context,
                     resolve_result,
                     ResolveType::ChunkItem,
+                    None,
                 )
                 .await
             })
@@ -155,7 +156,7 @@ impl ModuleHotReferenceCodeGen {
         let esm_reimports: Vec<Option<(String, SyntaxContext, Expr)>> = self
             .esm_references
             .iter()
-            .map(|esm_ref| async move {
+            .map(async |esm_ref| {
                 let Some(esm_ref) = esm_ref else {
                     return Ok(None);
                 };
@@ -243,10 +244,9 @@ impl ModuleHotReferenceCodeGen {
                             *call_expr.args[1].expr = Expr::Arrow(ArrowExpr {
                                 span: DUMMY_SP,
                                 params: vec![],
-                                body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                body: Box::new(ArrowFunctionBody::FunctionBody(FunctionBody {
                                     span: DUMMY_SP,
                                     stmts: wrapper_stmts,
-                                    ..Default::default()
                                 })),
                                 ..Default::default()
                             });
@@ -257,10 +257,9 @@ impl ModuleHotReferenceCodeGen {
                                 expr: Box::new(Expr::Arrow(ArrowExpr {
                                     span: DUMMY_SP,
                                     params: vec![],
-                                    body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
+                                    body: Box::new(ArrowFunctionBody::FunctionBody(FunctionBody {
                                         span: DUMMY_SP,
                                         stmts: wrapper_stmts,
-                                        ..Default::default()
                                     })),
                                     ..Default::default()
                                 })),

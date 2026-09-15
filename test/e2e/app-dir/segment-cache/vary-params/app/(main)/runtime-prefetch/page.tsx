@@ -30,27 +30,30 @@ export default function RuntimePrefetchIndexPage() {
       </p>
       <ul>
         <li>
-          <LinkAccordion href="/runtime-prefetch/electronics/phone">
+          <LinkAccordion href="/runtime-prefetch/electronics/phone" prefetch>
             Electronics: Phone
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-prefetch/electronics/tablet">
+          <LinkAccordion href="/runtime-prefetch/electronics/tablet" prefetch>
             Electronics: Tablet
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-prefetch/electronics/laptop">
+          <LinkAccordion href="/runtime-prefetch/electronics/laptop" prefetch>
             Electronics: Laptop
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-prefetch/electronics/headphones">
+          <LinkAccordion
+            href="/runtime-prefetch/electronics/headphones"
+            prefetch
+          >
             Electronics: Headphones
           </LinkAccordion>
         </li>
         <li>
-          <LinkAccordion href="/runtime-prefetch/clothing/shirt">
+          <LinkAccordion href="/runtime-prefetch/clothing/shirt" prefetch>
             Clothing: Shirt
           </LinkAccordion>
         </li>

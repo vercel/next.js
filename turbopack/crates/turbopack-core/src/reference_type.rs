@@ -61,6 +61,8 @@ pub enum EcmaScriptModulesReferenceSubType {
         module_type: Option<RcStr>,
     },
     DynamicImport,
+    LazyDynamicImport,
+    Emit,
     Custom(u8),
     #[default]
     Undefined,
@@ -330,6 +332,18 @@ impl ReferenceTypeCondition {
     pub fn includes(&self, other: &ReferenceType) -> bool {
         if matches!(
             self,
+            ReferenceTypeCondition::EcmaScriptModules(Some(
+                EcmaScriptModulesReferenceSubType::DynamicImport
+            ))
+        ) && matches!(
+            other,
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::LazyDynamicImport)
+        ) {
+            return true;
+        }
+
+        if matches!(
+            self,
             ReferenceTypeCondition::Css(Some(CssReferenceSubType::AtImport(_)))
         ) && matches!(other, ReferenceType::Css(CssReferenceSubType::AtImport(_)))
         {
@@ -380,5 +394,22 @@ impl ReferenceTypeCondition {
         );
 
         false
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{EcmaScriptModulesReferenceSubType, ReferenceType, ReferenceTypeCondition};
+
+    #[test]
+    fn lazy_dynamic_import_matches_dynamic_import_condition() {
+        assert!(
+            ReferenceTypeCondition::EcmaScriptModules(Some(
+                EcmaScriptModulesReferenceSubType::DynamicImport
+            ))
+            .includes(&ReferenceType::EcmaScriptModules(
+                EcmaScriptModulesReferenceSubType::LazyDynamicImport
+            ))
+        );
     }
 }

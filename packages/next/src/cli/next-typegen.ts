@@ -56,6 +56,7 @@ const nextTypegen = async (options: NextTypegenOptions, directory?: string) => {
     hasPagesDir: !!pagesDir,
     appDir: appDir || undefined,
     pagesDir: pagesDir || undefined,
+    useTypeScriptCli: Boolean(nextConfig.experimental.useTypeScriptCli),
   })
 
   console.log('Generating route types...')

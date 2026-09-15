@@ -49,7 +49,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -85,6 +85,7 @@
             ),
         ],
         span: 80..91,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "Object",
@@ -127,7 +128,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -230,7 +231,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -313,7 +314,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -335,6 +336,7 @@
             ),
         ],
         span: 108..119,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -388,7 +390,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -426,6 +428,7 @@
             ),
         ],
         span: 142..149,
+        in_truthiness_context: false,
     },
     Member {
         obj: FreeVar(
@@ -477,7 +480,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -516,6 +519,7 @@
             ),
         ],
         span: 155..168,
+        in_truthiness_context: false,
     },
     FreeVar {
         var: "console",
@@ -558,7 +562,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -654,7 +658,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -741,7 +745,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -826,7 +830,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -957,7 +961,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1042,7 +1046,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1081,6 +1085,7 @@
             ),
         ],
         span: 208..219,
+        in_truthiness_context: false,
     },
     Member {
         obj: Variable(
@@ -1134,7 +1139,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1181,6 +1186,7 @@
             ),
         ],
         span: 224..238,
+        in_truthiness_context: false,
     },
     Conditional {
         condition: Variable(
@@ -1232,7 +1238,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -1325,7 +1331,7 @@
                         Function(
                             Body,
                         ),
-                        BlockStmt(
+                        FunctionBody(
                             Stmts(
                                 0,
                             ),
@@ -1416,7 +1422,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1519,7 +1525,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1572,6 +1578,7 @@
             ),
         ],
         span: 271..282,
+        in_truthiness_context: false,
     },
     Call {
         func: Variable(
@@ -1662,7 +1669,7 @@
                         Object {
                             total_nodes: 1,
                             parts: [],
-                            mutable: true,
+                            mutability: Mutable,
                         },
                     ],
                 ),
@@ -1707,7 +1714,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -1786,7 +1793,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -1841,19 +1848,19 @@
                                                     Object {
                                                         total_nodes: 1,
                                                         parts: [],
-                                                        mutable: true,
+                                                        mutability: Mutable,
                                                     },
                                                 ),
                                             ],
-                                            mutable: true,
+                                            mutability: Mutable,
                                         },
                                     ),
                                 ],
-                                mutable: true,
+                                mutability: Mutable,
                             },
                         ),
                     ],
-                    mutable: true,
+                    mutability: Mutable,
                 },
             ),
             Value(

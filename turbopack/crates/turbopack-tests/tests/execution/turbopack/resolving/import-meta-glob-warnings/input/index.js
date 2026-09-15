@@ -11,6 +11,11 @@ const unknown = import.meta.glob(['./dir/*.js', './dir2/*.js'], {
   exhaust: true,
 })
 
+// Warning: non-constant caseSensitive — should default to case-sensitive matching
+const nonConstCaseSensitive = import.meta.glob('./casedir/*.js', {
+  caseSensitive: 'false',
+})
+
 it('should still produce a lazy glob when "as" option is used', () => {
   const keys = Object.keys(withAs).sort()
   expect(keys).toEqual(['./dir/bar.js', './dir/foo.js'])
@@ -29,4 +34,8 @@ it('should ignore unknown options and still produce a valid glob', () => {
   const keys = Object.keys(unknown).sort()
   expect(keys).toEqual(['./dir/bar.js', './dir/foo.js', './dir2/qux.js'])
   expect(typeof unknown['./dir/foo.js']).toBe('function')
+})
+
+it('should default to case-sensitive matching when caseSensitive is invalid', () => {
+  expect(Object.keys(nonConstCaseSensitive)).toEqual([])
 })

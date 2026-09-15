@@ -1,19 +1,11 @@
 import { retry } from '../next-test-utils'
 import { getDeterministicOutput } from '../../e2e/app-dir/cache-components-errors/utils'
 import { inspect } from 'util'
-
-export type ValidationEvent = ValidationStartEvent | ValidationEndEvent
-
-type ValidationStartEvent = {
-  type: 'validation_start'
-  requestId: string
-  url: string
-}
-type ValidationEndEvent = {
-  type: 'validation_end'
-  requestId: string
-  url: string
-}
+import type {
+  ValidationEvent,
+  ValidationStartEvent,
+  ValidationEndEvent,
+} from 'next/dist/server/app-render/dev-validation-events'
 
 export function parseValidationMessages(output: string): ValidationEvent[] {
   const messageRe = /<VALIDATION_MESSAGE>(.*?)<\/VALIDATION_MESSAGE>/g
@@ -117,7 +109,7 @@ export function extractValidationOutput(
 export function normalizeValidationUrl(url: string): string {
   // RSC requests include ?_rsc=... in the URL. Strip it so the event URL
   // matches what browser.url() returns (which has no _rsc param).
-  const parsed = new URL(url, 'http://n')
+  const parsed = new URL(url, 'http://__n')
   parsed.searchParams.delete('_rsc')
   return parsed.pathname + parsed.search + parsed.hash
 }
@@ -126,7 +118,7 @@ export async function waitForValidationStart(
   targetUrl: string,
   getOutput: () => string
 ): Promise<ValidationStartEvent> {
-  const parsedTargetUrl = new URL(targetUrl)
+  const parsedTargetUrl = new URL(targetUrl, 'http://__n')
   const relativeTargetUrl =
     parsedTargetUrl.pathname + parsedTargetUrl.search + parsedTargetUrl.hash
 

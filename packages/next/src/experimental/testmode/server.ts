@@ -21,13 +21,26 @@ const reader: TestRequestReader<IncomingMessage> = {
   },
 }
 
+const interceptedSymbol = Symbol.for('next.testmode.intercepted')
+
 export function interceptTestApis(): () => void {
+  // In development the render server runs in the same process as the router
+  // server, so both call this function. @mswjs/interceptors throws when its
+  // global replacements are applied a second time, so make repeated
+  // interception within the same process a no-op.
+  const globalState = globalThis as { [interceptedSymbol]?: boolean }
+  if (globalState[interceptedSymbol] === true) {
+    return () => {}
+  }
+  globalState[interceptedSymbol] = true
+
   const originalFetch = global.fetch
   const restoreFetch = interceptFetch(originalFetch)
   const restoreHttpGet = interceptHttpGet(originalFetch)
 
   // Cleanup.
   return () => {
+    globalState[interceptedSymbol] = false
     restoreFetch()
     restoreHttpGet()
   }
