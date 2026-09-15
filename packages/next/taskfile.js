@@ -43,6 +43,10 @@ export async function copy_docs(task, opts) {
       }
     })
     .target('dist/docs')
+
+  await task
+    .source(join(__dirname, 'src/server/lib/agent-feedback.md'))
+    .target('dist/docs')
 }
 
 export async function copy_styled_jsx_assets(task, opts) {
