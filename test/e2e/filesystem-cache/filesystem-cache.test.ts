@@ -5,7 +5,7 @@ import fs from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
 import { parseTraceEvents } from '../../lib/parse-trace-file'
-import { getPnpmSymlinkWorkaround } from '../../lib/pnpm-symlink-workaround'
+import { getPnpmRealpathWorkaround } from '../../lib/pnpm-realpath-workaround'
 
 async function getDirectorySize(dirPath: string): Promise<number> {
   try {
@@ -53,7 +53,7 @@ for (const cacheEnabled of [false, true]) {
 
     const { next, isTurbopack } = nextTestSetup({
       files: __dirname,
-      overrideFiles: getPnpmSymlinkWorkaround(),
+      overrideFiles: getPnpmRealpathWorkaround(),
       // Pass the cache setting through every harness-managed build and restart.
       env,
     })

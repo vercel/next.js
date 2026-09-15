@@ -411,7 +411,9 @@ async function createNextInstall({
           .traceAsyncFn(() => installDependencies(installDir, tmpDir))
 
         // `@next/env` is a dependency of `next`, so it only resolves to the
-        // local tarball if the overrides were applied.
+        // local tarball if the overrides were applied. Every generic isolated
+        // install reaches this guard, but the lockfile fallback short-circuits
+        // off when the default linker exposes its virtual-store path.
         if (!combinedDependencies['@next/env']) {
           const envDir = await fs.realpath(
             path.join(

@@ -4,14 +4,14 @@ node-linker=hoisted
 package-import-method=copy
 `
 
-export function hasNodeRealpathFix(nodeVersion: string): boolean {
+function hasNodeRealpathFix(nodeVersion: string): boolean {
   const [major, minor] = nodeVersion.split('.').map(Number)
   return (
     (major === 24 && minor >= 21) || major > 26 || (major === 26 && minor >= 8)
   )
 }
 
-export function getPnpmSymlinkWorkaround(
+export function getPnpmRealpathWorkaround(
   nodeVersion = process.versions.node
 ): Record<string, string> | undefined {
   if (hasNodeRealpathFix(nodeVersion)) {

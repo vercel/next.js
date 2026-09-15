@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { getPnpmSymlinkWorkaround } from '../../lib/pnpm-symlink-workaround'
+import { getPnpmRealpathWorkaround } from '../../lib/pnpm-realpath-workaround'
 import { retry, waitFor } from 'next-test-utils'
 
 // Eviction requires the dev server (HMR) and persistent caching (Turbopack).
@@ -21,7 +21,7 @@ describe('evict-after-snapshot', () => {
 
   const { next } = nextTestSetup({
     files: __dirname,
-    overrideFiles: getPnpmSymlinkWorkaround(),
+    overrideFiles: getPnpmRealpathWorkaround(),
     env,
   })
 

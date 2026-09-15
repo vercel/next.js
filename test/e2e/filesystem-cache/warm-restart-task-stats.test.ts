@@ -1,5 +1,5 @@
 import { nextTestSetup, isNextDev } from 'e2e-utils'
-import { getPnpmSymlinkWorkaround } from '../../lib/pnpm-symlink-workaround'
+import { getPnpmRealpathWorkaround } from '../../lib/pnpm-realpath-workaround'
 import { waitFor } from 'next-test-utils'
 import fs from 'fs/promises'
 import path from 'path'
@@ -45,7 +45,7 @@ describe('warm-restart task statistics', () => {
 
   const { next } = nextTestSetup({
     files: __dirname,
-    overrideFiles: getPnpmSymlinkWorkaround(),
+    overrideFiles: getPnpmRealpathWorkaround(),
     env,
   })
 
