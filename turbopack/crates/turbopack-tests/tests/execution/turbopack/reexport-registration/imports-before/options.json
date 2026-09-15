@@ -1,3 +1,4 @@
 {
+  "followReexports": false,
   "scopeHoisting": false
 }

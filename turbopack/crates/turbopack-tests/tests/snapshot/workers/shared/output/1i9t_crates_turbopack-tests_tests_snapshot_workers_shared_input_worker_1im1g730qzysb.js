@@ -221,8 +221,8 @@ contextPrototype.s = esmExport;
  * ])
  * ```
  *
- * The producer only picks that spelling when no name contains a comma, since the names are recovered
- * by splitting on it.
+ * The producer picks that spelling independently for each group whose names contain no commas,
+ * since that group's names are recovered by splitting on them.
  *
  * Groups whose head is a module id are instantiated in list order, at the point where the call
  * appears, so the producer must not merge such a group across an import of another module.
@@ -236,7 +236,7 @@ contextPrototype.s = esmExport;
         const head = list[i++];
         const start = i;
         while(i < list.length && list[i] !== REEXPORT_GROUP_END)i++;
-        const entries = list.slice(start, i);
+        const end = i;
         // Skip the sentinel, if this group was terminated by one rather than by the end of the list.
         i++;
         // An already-imported namespace is passed as an object; a module id never is, so the type is
@@ -246,10 +246,17 @@ contextPrototype.s = esmExport;
         const namespace = typeof head === 'object' && head !== null ? head : // take (it belongs to `interopEsm`), and generated code calls `context.i(id)` with one
         // argument. Passed here only to satisfy the declared type.
         this.i(head, false);
-        const pairs = entries.length === 1 ? entries[0].split(',') : entries;
-        for(let j = 0; j < pairs.length; j += 2){
-            const importedName = pairs[j + 1];
-            bindings.push(pairs[j], ()=>namespace[importedName]);
+        if (end - start === 1) {
+            const pairs = list[start].split(',');
+            for(let j = 0; j < pairs.length; j += 2){
+                const importedName = pairs[j + 1];
+                bindings.push(pairs[j], ()=>namespace[importedName]);
+            }
+        } else {
+            for(let j = start; j < end; j += 2){
+                const importedName = list[j + 1];
+                bindings.push(list[j], ()=>namespace[importedName]);
+            }
         }
     }
     esmExport.call(this, bindings, id);

@@ -2,7 +2,6 @@ use anyhow::{Result, bail};
 use async_trait::async_trait;
 use bincode::{Decode, Encode};
 use either::Either;
-use rustc_hash::FxHashSet;
 use strsim::jaro;
 use swc_core::{
     common::{BytePos, DUMMY_SP, Span, SyntaxContext, source_map::PURE_SP},
@@ -51,7 +50,7 @@ use crate::{
     references::{
         esm::{
             EsmExport,
-            export::{all_known_export_names, is_export_missing},
+            export::{SubsumedImports, all_known_export_names, is_export_missing},
             mangle::generated_export_key,
         },
         util::{SpecifiedChunkingType, throw_module_not_found_expr},
@@ -767,13 +766,13 @@ impl ModuleReference for EsmAssetReference {
 }
 
 impl EsmAssetReference {
-    pub async fn code_generation(
+    pub(crate) async fn code_generation(
         self: ResolvedVc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         scope_hoisting_context: ScopeHoistingContext<'_>,
-        // Namespace variables a compact re-export registration (`TURBOPACK_ESM_REEXPORT`) already
-        // imports for itself. Emitting them here too would instantiate the module twice.
-        subsumed_namespaces: &FxHashSet<(String, Option<SyntaxContext>)>,
+        // References a compact re-export registration (`TURBOPACK_ESM_REEXPORT`) already imports
+        // for itself. Emitting them here too would instantiate the module twice.
+        subsumed_imports: &SubsumedImports,
     ) -> Result<CodeGeneration> {
         let this = &*self.await?;
 
@@ -860,6 +859,13 @@ impl EsmAssetReference {
                             // directly-referenced asset is the outer (rename) module, not the one
                             // the emitted variable actually holds.
                             drop(referenced_asset);
+                            let span = this
+                                .issue_source
+                                .to_swc_offsets()
+                                .await?
+                                .map_or(DUMMY_SP, |(start, end)| {
+                                    Span::new(BytePos(start), BytePos(end))
+                                });
                             match ident {
                                 Some(ReferencedAssetIdent::LocalBinding { .. }) => {
                                     // no need to import
@@ -870,19 +876,20 @@ impl EsmAssetReference {
                                     export: _,
                                     import_source,
                                 }) => {
-                                    if subsumed_namespaces
+                                    if subsumed_imports
+                                        .namespaces
                                         .contains(&(namespace_ident.clone(), ctxt))
+                                        && (!matches!(
+                                            this.export_name,
+                                            Some(ModulePart::Evaluation)
+                                        ) || subsumed_imports.evaluation_spans.contains(&span))
                                     {
                                         // A compact re-export registration performs this import.
+                                        // An evaluation import with a different span is a separate
+                                        // earlier declaration of the same module and stays in
+                                        // place.
                                         break 'import;
                                     }
-                                    let span = this
-                                        .issue_source
-                                        .to_swc_offsets()
-                                        .await?
-                                        .map_or(DUMMY_SP, |(start, end)| {
-                                            Span::new(BytePos(start), BytePos(end))
-                                        });
                                     let name = Ident::new(
                                         namespace_ident.into(),
                                         DUMMY_SP,
