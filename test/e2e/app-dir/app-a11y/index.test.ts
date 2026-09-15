@@ -41,5 +41,17 @@ describe('app a11y features', () => {
       await browser.elementById('noop-layout-page-2').click()
       await check(() => getAnnouncerContent(browser), 'noop-layout/page-2')
     })
+
+    it('should announce h1 changes when the document title is unchanged', async () => {
+      const browser = await next.browser('/shared-title/page-a')
+      await browser.elementById('shared-title-page-b').click()
+      await check(() => getAnnouncerContent(browser), 'shared-title/page-b')
+    })
+
+    it('should announce the pathname when neither the title nor the h1 changed', async () => {
+      const browser = await next.browser('/shared-title/no-h1-1')
+      await browser.elementById('shared-title-no-h1-2').click()
+      await check(() => getAnnouncerContent(browser), '/shared-title/no-h1-2')
+    })
   })
 })
