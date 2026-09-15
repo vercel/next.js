@@ -1378,7 +1378,6 @@ impl<W: Write> IndexBlockBuilder<W> {
 mod tests {
     use super::*;
     use crate::{
-        AccessMode,
         key::hash_key,
         lookup_entry::LookupValue,
         static_sorted_file::{
@@ -1510,7 +1509,7 @@ mod tests {
                 block_count: meta.block_count,
             },
             Compression::Lz4,
-            AccessMode::Mmap,
+            crate::mmap_access_mode_for_tests(),
         )
     }
 
@@ -1857,7 +1856,7 @@ mod tests {
                 block_count: meta1.block_count,
             },
             Compression::Lz4,
-            AccessMode::Mmap,
+            crate::mmap_access_mode_for_tests(),
         )?;
         let sst2 = StaticSortedFile::open(
             dir.path(),
@@ -1866,7 +1865,7 @@ mod tests {
                 block_count: meta2.block_count,
             },
             Compression::Lz4,
-            AccessMode::Mmap,
+            crate::mmap_access_mode_for_tests(),
         )?;
         let kc = make_cache();
         let vc = make_cache();

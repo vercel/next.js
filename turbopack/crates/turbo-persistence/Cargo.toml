@@ -45,12 +45,14 @@ zstd = { workspace = true }
 libc = "0.2"
 
 [dev-dependencies]
-criterion = { workspace = true }
 rand = { workspace = true }
-rayon = { workspace = true }
 rstest = { workspace = true }
 tempfile = { workspace = true }
 turbo-tasks-malloc = { workspace = true, features = ["custom_allocator"] }
+
+[target.'cfg(not(target_family = "wasm"))'.dev-dependencies]
+criterion = { workspace = true }
+rayon = { workspace = true }
 
 [[bin]]
 name = "sst_inspect"

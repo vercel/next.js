@@ -19,8 +19,13 @@ use crate::{
 /// Uses `Rc` for all refcounting, eliminating atomic operations.
 #[derive(Clone)]
 enum Backing {
-    Rc { _backing: Rc<[u8]> },
-    Mmap { _backing: Rc<Mmap> },
+    Rc {
+        _backing: Rc<[u8]>,
+    },
+    #[cfg_attr(target_family = "wasm", allow(dead_code))]
+    Mmap {
+        _backing: Rc<Mmap>,
+    },
 }
 
 /// An owned byte slice backed by either an `Rc<[u8]>` or a memory-mapped file.
