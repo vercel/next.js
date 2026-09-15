@@ -159,9 +159,33 @@ export function resolveManifest(data: MetadataRoute.Manifest): string {
   return JSON.stringify(data)
 }
 
+export function resolveSitemapIndex(data: MetadataRoute.SitemapIndex): string {
+  let content = '<?xml version="1.0" encoding="UTF-8"?>\n'
+  content += '<sitemapindex xmlns="https://www.sitemaps.org/schemas/sitemap/0.9">\n'
+
+  for (const item of data) {
+    content += '  <sitemap>\n'
+    content += `    <loc>${item.url}</loc>\n`
+
+    if (item.lastModified) {
+      const serializedDate =
+        item.lastModified instanceof Date
+          ? item.lastModified.toISOString()
+          : item.lastModified
+      content += `    <lastmod>${serializedDate}</lastmod>\n`
+    }
+
+    content += '  </sitemap>\n'
+  }
+
+  content += '</sitemapindex>\n'
+  return content
+}
+
+
 export function resolveRouteData(
-  data: MetadataRoute.Robots | MetadataRoute.Sitemap | MetadataRoute.Manifest,
-  fileType: 'robots' | 'sitemap' | 'manifest'
+  data: MetadataRoute.Robots | MetadataRoute.Sitemap | MetadataRoute.Manifest | MetadataRoute.SitemapIndex,
+  fileType: 'robots' | 'sitemap' | 'manifest' | 'sitemapIndex'
 ): string {
   if (fileType === 'robots') {
     return resolveRobots(data as MetadataRoute.Robots)
@@ -171,6 +195,9 @@ export function resolveRouteData(
   }
   if (fileType === 'manifest') {
     return resolveManifest(data as MetadataRoute.Manifest)
+  }
+  if (fileType === 'sitemapIndex') {
+    return resolveSitemapIndex(data as MetadataRoute.SitemapIndex)
   }
   return ''
 }
