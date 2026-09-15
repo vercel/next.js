@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { ErrorTrigger } from './error-trigger'
+import { LinkAccordion } from './link-accordion'
 
 export default function Page() {
   return (
@@ -32,7 +33,7 @@ export default function Page() {
       </ol>
       <nav style={{ marginTop: '1.5rem' }}>
         <div>
-          <Link
+          <LinkAccordion
             href="/target-page/my-post?search=foo"
             id="link-to-target"
             style={{
@@ -45,23 +46,7 @@ export default function Page() {
             }}
           >
             Go to target page &rarr;
-          </Link>
-          <Link
-            href="/target-page/my-post?search=foo"
-            id="link-to-target-prefetch"
-            prefetch={true}
-            style={{
-              display: 'inline-block',
-              marginLeft: '0.75rem',
-              padding: '0.5rem 1rem',
-              background: '#7c3aed',
-              color: '#fff',
-              borderRadius: 6,
-              textDecoration: 'none',
-            }}
-          >
-            Go to target page (prefetch) &rarr;
-          </Link>
+          </LinkAccordion>
           <Link
             href="/mpa-target"
             id="link-to-mpa-target"
@@ -80,7 +65,9 @@ export default function Page() {
         </div>
 
         <div>
-          <Link href="/await-connection">Page with await connection</Link>
+          <LinkAccordion href="/await-connection" id="link-to-await-connection">
+            Page with await connection
+          </LinkAccordion>
         </div>
       </nav>
     </div>
