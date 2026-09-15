@@ -7,7 +7,10 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{ChunkGroupResult, ChunkingContext, availability_info::AvailabilityInfo},
     module::Module,
-    module_graph::{ModuleGraph, chunk_group_info::ChunkGroup},
+    module_graph::{
+        GraphEntries, ModuleGraph,
+        chunk_group_info::{ChunkGroup, ChunkGroupEntry},
+    },
     output::{OutputAsset, OutputAssets, OutputAssetsWithReferenced},
 };
 
@@ -21,6 +24,94 @@ use crate::{
     },
     next_server_component::server_component_module::NextServerComponentModule,
 };
+
+fn client_references_by_server_component(
+    app_client_references: &ClientReferenceGraphResult,
+) -> FxIndexMap<ResolvedVc<NextServerComponentModule>, Vec<ClientReferenceType>> {
+    let mut client_references_by_server_component: FxIndexMap<_, Vec<_>> = FxIndexMap::default();
+    let mut framework_reference_types = Vec::new();
+    for &server_component in &app_client_references.server_component_entries {
+        client_references_by_server_component
+            .entry(server_component)
+            .or_default();
+    }
+    for client_reference in &app_client_references.client_references {
+        if let Some(server_component) = client_reference.server_component {
+            client_references_by_server_component
+                .entry(server_component)
+                .or_default()
+                .push(client_reference.ty);
+        } else {
+            framework_reference_types.push(client_reference.ty);
+        }
+    }
+    // Framework components need to go into first layout segment.
+    if let Some((_, list)) = client_references_by_server_component.first_mut() {
+        list.extend(framework_reference_types);
+    }
+    client_references_by_server_component
+}
+
+/// Registers the merged groups that are assembled by [`get_app_client_references_chunks`].
+#[turbo_tasks::function]
+pub async fn get_app_client_references_chunk_group_entries(
+    app_client_references: Vc<ClientReferenceGraphResult>,
+    include_client: bool,
+    include_ssr: bool,
+) -> Result<Vc<GraphEntries>> {
+    let app_client_references = app_client_references.await?;
+    let mut chunk_groups = Vec::new();
+    for (server_component, client_reference_types) in
+        client_references_by_server_component(&app_client_references)
+    {
+        let parent = || ChunkGroupEntry::Shared(ResolvedVc::upcast(server_component));
+        if include_ssr {
+            let entries = client_reference_types
+                .iter()
+                .map(async |client_reference_ty| {
+                    Ok(match client_reference_ty {
+                        ClientReferenceType::EcmascriptClientReference(reference) => {
+                            Some(ResolvedVc::upcast(reference.await?.ssr_module))
+                        }
+                        ClientReferenceType::CssClientReference(_) => None,
+                    })
+                })
+                .try_flat_join()
+                .await?;
+            if !entries.is_empty() {
+                chunk_groups.push(ChunkGroupEntry::IsolatedMerged {
+                    parent: Box::new(parent()),
+                    merge_tag: ecmascript_client_reference_merge_tag_ssr(),
+                    entries,
+                });
+            }
+        }
+        if include_client {
+            let entries = client_reference_types
+                .iter()
+                .map(async |client_reference_ty| {
+                    Ok(match client_reference_ty {
+                        ClientReferenceType::EcmascriptClientReference(reference) => {
+                            ResolvedVc::upcast(reference.await?.client_module)
+                        }
+                        ClientReferenceType::CssClientReference(reference) => {
+                            ResolvedVc::upcast(*reference)
+                        }
+                    })
+                })
+                .try_join()
+                .await?;
+            if !entries.is_empty() {
+                chunk_groups.push(ChunkGroupEntry::IsolatedMerged {
+                    parent: Box::new(parent()),
+                    merge_tag: ecmascript_client_reference_merge_tag(),
+                    entries,
+                });
+            }
+        }
+    }
+    Ok(GraphEntries::from_chunk_groups(chunk_groups).cell())
+}
 
 #[turbo_tasks::value]
 pub struct ClientReferencesChunks {
@@ -138,28 +229,8 @@ pub async fn get_app_client_references_chunks(
             // }
             // .cell())
         } else {
-            let mut client_references_by_server_component: FxIndexMap<_, Vec<_>> =
-                FxIndexMap::default();
-            let mut framework_reference_types = Vec::new();
-            for &server_component in app_client_references.server_component_entries.iter() {
-                client_references_by_server_component
-                    .entry(server_component)
-                    .or_default();
-            }
-            for client_reference in app_client_references.client_references.iter() {
-                if let Some(server_component) = client_reference.server_component {
-                    client_references_by_server_component
-                        .entry(server_component)
-                        .or_default()
-                        .push(client_reference.ty);
-                } else {
-                    framework_reference_types.push(client_reference.ty);
-                }
-            }
-            // Framework components need to go into first layout segment
-            if let Some((_, list)) = client_references_by_server_component.first_mut() {
-                list.extend(framework_reference_types);
-            }
+            let client_references_by_server_component =
+                client_references_by_server_component(&app_client_references);
 
             let chunk_group_info = module_graph.chunk_group_info();
 

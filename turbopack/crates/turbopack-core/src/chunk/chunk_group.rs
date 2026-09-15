@@ -6,7 +6,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use tracing::Instrument;
 use turbo_rcstr::rcstr;
 use turbo_tasks::{
-    FxIndexSet, OperationVc, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc, trace::TraceRawVcs,
 };
 
 use super::{
@@ -16,7 +16,6 @@ use super::{
 use crate::{
     chunk::{
         ChunkGroupContent, ChunkGroupContentInner, ChunkableModule, ChunkingType, Chunks,
-        available_modules::{AvailableModuleItem, AvailableModulesSet},
         chunk_item_batch::{ChunkItemBatchGroup, ChunkItemOrBatchWithAsyncModuleInfo},
     },
     emit_collect::CollectingModule,
@@ -73,7 +72,6 @@ pub async fn make_chunk_group(
         batch_groups,
         async_modules,
         collecting_modules,
-        available_modules: _,
     } = &*inner;
 
     let async_module_info = module_graph.async_module_info();
@@ -225,9 +223,11 @@ pub async fn chunk_group_content(
             None
         };
 
+    let available_chunk_group = chunk_group.clone();
     let chunk_group_content = chunk_group_content_operation(module_graph, chunk_group, options);
-    let available_modules = available_modules_operation(chunk_group_content);
-    let availability_info = availability_info.with_modules(available_modules).await?;
+    let availability_info = availability_info
+        .with_chunk_group(module_graph, available_chunk_group)
+        .await?;
 
     let availability_info = if let Some(entry_group) = entry_group {
         availability_info.with_entry_group(entry_group)
@@ -240,13 +240,6 @@ pub async fn chunk_group_content(
         inner,
         availability_info,
     })
-}
-
-#[turbo_tasks::function(operation)]
-async fn available_modules_operation(
-    chunk_group_content: OperationVc<ChunkGroupContentInner>,
-) -> Result<Vc<AvailableModulesSet>> {
-    Ok(*chunk_group_content.connect().await?.available_modules)
 }
 
 #[turbo_tasks::function(operation)]
@@ -278,10 +271,13 @@ async fn chunk_group_content_operation(
         collecting_modules: FxIndexSet::default(),
     };
 
-    let available_modules = match availability_info.available_modules() {
-        Some(available_modules) => Some(available_modules.snapshot().await?),
+    let chunk_group_info = module_graph.chunk_group_info().await?;
+    let available_chunk_groups = match availability_info.available_chunk_groups() {
+        Some(available_chunk_groups) => Some(available_chunk_groups.await?),
         None => None,
     };
+    let module_chunk_groups = chunk_group_info.module_chunk_groups.await?;
+    let async_loader_chunk_groups = chunk_group_info.async_loader_chunk_groups.await?;
 
     let entries = chunk_group
         .entries()
@@ -333,9 +329,14 @@ async fn chunk_group_content_operation(
                     return Ok(GraphTraversalAction::Exclude);
                 };
 
-                let is_available = available_modules
-                    .as_ref()
-                    .is_some_and(|available_modules| available_modules.get(chunkable_node.into()));
+                let is_available = module_batches_graph
+                    .get_first_module(chunkable_node)
+                    .and_then(|module| module_chunk_groups.get(&module))
+                    .is_some_and(|groups| {
+                        available_chunk_groups
+                            .as_ref()
+                            .is_some_and(|available| !groups.is_disjoint(&available.0))
+                    });
 
                 let Some((_, edge)) = parent_info else {
                     // An entry from the entries list
@@ -373,10 +374,12 @@ async fn chunk_group_content_operation(
                             let chunkable_module =
                                 ResolvedVc::try_downcast(edge.module.unwrap())
                                     .context("Module in async chunking edge is not chunkable")?;
-                            let is_async_loader_available =
-                                available_modules.as_ref().is_some_and(|available_modules| {
-                                    available_modules
-                                        .get(AvailableModuleItem::AsyncLoader(chunkable_module))
+                            let is_async_loader_available = async_loader_chunk_groups
+                                .get(&ResolvedVc::upcast(chunkable_module))
+                                .is_some_and(|groups| {
+                                    available_chunk_groups
+                                        .as_ref()
+                                        .is_some_and(|available| !groups.is_disjoint(&available.0))
                                 });
                             if !is_async_loader_available {
                                 state.async_modules.insert(chunkable_module);
@@ -423,25 +426,6 @@ async fn chunk_group_content_operation(
             },
         )?;
     }
-
-    // This needs to use the unmerged items
-    let available_modules: FxIndexSet<AvailableModuleItem> = state
-        .chunkable_items
-        .iter()
-        .copied()
-        .map(Into::into)
-        .chain(
-            state
-                .async_modules
-                .iter()
-                .copied()
-                .map(AvailableModuleItem::AsyncLoader),
-        )
-        .collect();
-    let available_modules: ResolvedVc<AvailableModulesSet> =
-        Vc::<AvailableModulesSet>::cell(available_modules)
-            .to_resolved()
-            .await?;
 
     let should_merge_modules = if should_merge_modules {
         let merged_modules = module_graph.merged_modules();
@@ -505,7 +489,6 @@ async fn chunk_group_content_operation(
         batch_groups,
         async_modules: state.async_modules,
         collecting_modules: state.collecting_modules,
-        available_modules,
     }
     .cell())
 }

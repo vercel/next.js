@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/nested_async_availability/input/first.js"],"sourcesContent":["import { shared } from './shared'\n\nexport function first() {\n  return Promise.all([import('./second'), import('./third')]).then(\n    ([{ second }, { third }]) => shared + second + third\n  )\n}\n"],"names":["first","Promise","all","then","second","third"],"mappings":";;;;AAAA;;AAEO,SAASA;IACd,OAAOC,QAAQC,GAAG,CAAC;;;KAAuC,EAAEC,IAAI,CAC9D,CAAC,CAAC,EAAEC,MAAM,EAAE,EAAE,EAAEC,KAAK,EAAE,CAAC,GAAK,2NAAM,GAAGD,SAASC;AAEnD"}},
+    {"offset": {"line": 30, "column": 0}, "map": {"version":3,"sources":["turbopack:///[project]/turbopack/crates/turbopack-tests/tests/snapshot/basic/nested_async_availability/input/shared.js"],"sourcesContent":["export const shared = 'shared'\n"],"names":["shared"],"mappings":";;;;AAAO,MAAMA,SAAS"}}]
+}

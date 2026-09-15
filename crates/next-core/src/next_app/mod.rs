@@ -18,8 +18,8 @@ use turbo_tasks::trace::TraceRawVcs;
 
 pub use crate::next_app::{
     app_client_references_chunks::{
-        ClientReferencesChunks, get_app_client_references_chunks,
-        get_client_references_chunks_for_hmr,
+        ClientReferencesChunks, get_app_client_references_chunk_group_entries,
+        get_app_client_references_chunks, get_client_references_chunks_for_hmr,
     },
     app_client_shared_chunks::get_app_client_shared_chunk_group,
     app_entry::AppEntry,

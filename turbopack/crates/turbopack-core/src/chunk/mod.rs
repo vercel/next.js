@@ -1,5 +1,5 @@
 pub mod availability_info;
-pub mod available_modules;
+pub mod available_chunk_groups;
 pub mod chunk_group;
 pub mod chunk_id_strategy;
 pub(crate) mod chunk_item_batch;
@@ -37,7 +37,7 @@ pub use crate::chunk::{
 };
 use crate::{
     asset::Asset,
-    chunk::{availability_info::AvailabilityInfo, available_modules::AvailableModulesSet},
+    chunk::availability_info::AvailabilityInfo,
     emit_collect::CollectingModule,
     ident::AssetIdent,
     module::Module,
@@ -532,7 +532,6 @@ pub struct ChunkGroupContentInner {
     /// All modules that implement CollectingModule
     #[bincode(with = "turbo_bincode::indexset")]
     pub collecting_modules: FxIndexSet<ResolvedVc<Box<dyn CollectingModule>>>,
-    pub available_modules: ResolvedVc<AvailableModulesSet>,
 }
 
 pub struct ChunkGroupContent {
