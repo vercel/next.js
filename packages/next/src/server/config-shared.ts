@@ -1056,7 +1056,7 @@ export interface ExperimentalConfig {
    * Inline short, identity-free constant exports during Turbopack code generation without using
    * their values for compile-time analysis.
    *
-   * Defaults to `false`
+   * Defaults to `true` for production builds and `false` in development.
    */
   turbopackInlineConstantExports?: boolean
 
