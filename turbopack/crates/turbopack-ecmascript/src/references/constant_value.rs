@@ -15,9 +15,9 @@ use turbo_tasks::{NonLocalValue, Vc, debug::ValueDebugFormat, trace::TraceRawVcs
 use turbopack_core::{chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue};
 
 use crate::{
+    ast_path_trie::{AstPathId, AstPathTrie},
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::AstPath,
 };
 
 #[derive(
@@ -25,20 +25,21 @@ use crate::{
 )]
 pub struct ConstantValueCodeGen {
     value: CompileTimeDefineValue,
-    path: AstPath,
+    path: AstPathId,
 }
 
 impl ConstantValueCodeGen {
-    pub fn new(value: CompileTimeDefineValue, path: AstPath) -> Self {
+    pub fn new(value: CompileTimeDefineValue, path: AstPathId) -> Self {
         ConstantValueCodeGen { value, path }
     }
     pub async fn code_generation(
         &self,
+        trie: &AstPathTrie,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<CodeGeneration> {
         let value = self.value.clone();
 
-        let visitor = create_visitor!(self.path, visit_mut_expr, |expr: &mut Expr| {
+        let visitor = create_visitor!(trie, self.path, visit_mut_expr, |expr: &mut Expr| {
             *expr = value_to_expr(&value);
         });
 
