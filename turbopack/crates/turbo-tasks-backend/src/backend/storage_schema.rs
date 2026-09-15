@@ -153,7 +153,7 @@ struct TaskStorageSchema {
     ///   (e.g. a `DetachedVc` passed to JS across the NAPI boundary), which pins it like a GC
     ///   root.
     #[field(storage = "direct", category = "transient", inline, default)]
-    transient_ref_count: u32,
+    pub transient_ref_count: u32,
 
     // =========================================================================
     // FLAGS (meta) - Boolean flags stored in TaskFlags bitfield
@@ -415,15 +415,6 @@ impl TaskFlags {
             TaskDataCategory::Meta => self.meta_restored(),
             TaskDataCategory::Data => self.data_restored(),
             TaskDataCategory::All => self.meta_restored() && self.data_restored(),
-        }
-    }
-
-    /// Check if the category's restoration is currently in progress by another thread
-    pub fn is_restoring(&self, category: TaskDataCategory) -> bool {
-        match category {
-            TaskDataCategory::Meta => self.meta_restoring(),
-            TaskDataCategory::Data => self.data_restoring(),
-            TaskDataCategory::All => self.meta_restoring() || self.data_restoring(),
         }
     }
 
