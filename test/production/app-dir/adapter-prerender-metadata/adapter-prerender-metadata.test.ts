@@ -228,6 +228,17 @@ describe('adapter-prerender-metadata', () => {
     expect(staticPage.htmlSize).toBeGreaterThan(0)
   })
 
+  it('uses 404.html for a fully static not-found', async () => {
+    const prerenders = await getPrerenders()
+
+    expect(
+      prerenders.find((output) => output.pathname === '/_not-found')
+    ).toBeUndefined()
+    expect(await next.readFile('.next/server/pages/404.html')).toContain(
+      'Not Found'
+    )
+  })
+
   it('classifies an upgradable app template as fallback', async () => {
     const prerenders = await getPrerenders()
     const template = prerenders.find(

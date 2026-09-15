@@ -1,4 +1,4 @@
-import { dir } from 'sqlite3'
+import { dir } from 'keyv'
 
 export default function Predefined() {
   return <div id="directory">{dir}</div>

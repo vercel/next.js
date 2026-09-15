@@ -45,14 +45,15 @@ const nextConfig = {
 module.exports = nextConfig
 ```
 
-Then, add `use cache` at the file, component, or function level. All functions and components using `use cache` must be async. When used at file level, every exported function becomes a cached function and must also be async:
+Then, add `use cache` at the function, component, or file level. Cached functions and components must be async:
 
 ```tsx
-// File level
-'use cache'
-
-export default async function Page() {
-  // ...
+// Function level
+export async function getData() {
+  'use cache'
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
+  return data
 }
 
 // Component level
@@ -60,12 +61,16 @@ export async function MyComponent() {
   'use cache'
   return <></>
 }
+```
 
-// Function level
-export async function getData() {
-  'use cache'
-  const data = await fetch('/api/data')
-  return data
+When used at file level, every exported function becomes a cached function and must also be async:
+
+```tsx
+// File level
+'use cache'
+
+export default async function Page() {
+  // ...
 }
 ```
 
@@ -87,7 +92,10 @@ async function Component({ userId }: { userId: string }) {
   const getData = async (filter: string) => {
     'use cache'
     // Cache key includes both userId (from closure) and filter (argument)
-    return fetch(`/api/users/${userId}/data?filter=${filter}`)
+    const res = await fetch(
+      `https://api.example.com/users/${userId}/data?filter=${filter}`
+    )
+    return res.json()
   }
 
   return getData('active')
@@ -97,6 +105,43 @@ async function Component({ userId }: { userId: string }) {
 In the snippet above, `userId` is captured from the outer scope and `filter` is passed as an argument, so both become part of the `getData` function's cache key. This means different user and filter combinations will have separate cache entries.
 
 > **Good to know:** When a cached function reads [root parameters](/docs/app/api-reference/functions/next-root-params), only the ones it actually reads become part of its cache key.
+
+### Cache output
+
+A cached function produces the same output for the same inputs. The first call with a given set of inputs runs the function body and stores its output. Every later call with the same inputs reuses that output, within a render pass and across requests, for as long as the entry lasts.
+
+Outputs are stored by a [cache handler](/docs/app/api-reference/config/next-config-js/cacheHandlers), [in memory](#runtime-caching-considerations) by default, and last until they [revalidate](#revalidation).
+
+```tsx filename="lib/orders.ts"
+import { cacheLife } from 'next/cache'
+
+export async function getOrderSummary(accountId: string) {
+  'use cache'
+  cacheLife('hours')
+
+  const orders = await getOrders(accountId)
+  const totals = await getOrderTotals(accountId)
+
+  return { orders, totals }
+}
+
+export async function getOrders(accountId: string) {
+  'use cache'
+  cacheLife('hours')
+
+  return db.orders.findMany({ where: { accountId } })
+}
+
+export async function getOrderTotals(accountId: string) {
+  return db.orders.aggregate({ where: { accountId }, _sum: { amount: true } })
+}
+```
+
+In the example above, each `accountId` has its own entry for `getOrderSummary`, holding the serialized `{ orders, totals }` object it returns. Calls to `getOrders` have their own entries, keyed by the same `accountId`. If an earlier call, through the summary or directly, already filled one, `db.orders.findMany` doesn't run and those orders become part of the summary's output. See [nested caching behavior](/docs/app/api-reference/functions/cacheLife#nested-caching-behavior) for how an inner lifetime affects the entry around it.
+
+Note that `getOrderTotals` is not cached. It is exported so other parts of the application can read fresh totals in an uncached scope. Inside `getOrderSummary`, though, the totals query only runs when that function runs following the `'hours'` lifetime set there.
+
+With [Cache Components](/docs/app/api-reference/config/next-config-js/cacheComponents), prerendering fills the entry and keeps rendering, so this output contributes to the route's [static shell](/docs/app/getting-started/caching#prerendering) and can contribute to its [prefetch](/docs/app/getting-started/caching#prefetching). A cache life too short to store safely leaves a hole that resolves at request time instead. See [prerendering behavior](/docs/app/api-reference/functions/cacheLife#prerendering-behavior) for the thresholds.
 
 ## Serialization
 
@@ -201,10 +246,10 @@ While `use cache` is designed primarily to include uncached data in the static s
 
 With the default in-memory handler, runtime cache behavior depends on your hosting environment:
 
-| Environment     | Runtime Caching Behavior                                                                                                                                          |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Serverless**  | Cache entries typically don't persist across requests (each request can be a different instance), or during revalidation. Build-time caching works normally.      |
-| **Self-hosted** | Cache entries persist across requests. Control cache size with [`cacheMaxMemorySize`](/docs/app/api-reference/config/next-config-js/incrementalCacheHandlerPath). |
+| Environment     | Runtime Caching Behavior                                                                                                                                     |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Serverless**  | Cache entries typically don't persist across requests (each request can be a different instance), or during revalidation. Build-time caching works normally. |
+| **Self-hosted** | Cache entries persist across requests. Control cache size with [`cacheMaxMemorySize`](/docs/app/api-reference/config/next-config-js/cacheMaxMemorySize).     |
 
 For example, in a serverless environment, a cached function shared by two pages executes on each static shell revalidation, whereas in self-hosted or environments with persistent memory, the cached output is reused if it's still fresh.
 
@@ -296,7 +341,8 @@ import { cacheLife } from 'next/cache'
 async function getData() {
   'use cache'
   cacheLife('hours') // Use built-in 'hours' profile
-  return fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  return res.json()
 }
 ```
 
@@ -310,7 +356,8 @@ If you omit `cacheLife`, the `default` profile applies and the lifetime is no lo
 async function getData() {
   'use cache'
   // Implicitly uses the 'default' profile
-  return fetch('/api/data')
+  const res = await fetch('https://api.example.com/data')
+  return res.json()
 }
 ```
 
@@ -326,7 +373,8 @@ import { cacheTag } from 'next/cache'
 async function getProducts() {
   'use cache'
   cacheTag('products')
-  return fetch('/api/products')
+  const res = await fetch('https://api.example.com/products')
+  return res.json()
 }
 ```
 
@@ -345,65 +393,29 @@ Both `cacheLife` and `cacheTag` integrate across client and server caching layer
 
 ## Examples
 
-### Caching an entire route with `use cache`
+### Caching function output with `use cache`
 
-To prerender an entire route, add `use cache` to the top of **both** the `layout` and `page` files. Each of these segments are treated as separate entry points in your application, and will be cached independently.
+You can add `use cache` to any asynchronous function, not only to components and routes. You might want to cache a network request, a database query, or a slow computation.
 
-```tsx filename="app/layout.tsx" switcher
-'use cache'
+```tsx filename="app/actions.ts" highlight={2} switcher
+export async function getData() {
+  'use cache'
 
-export default async function Layout({ children }: { children: ReactNode }) {
-  return <div>{children}</div>
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
+  return data
 }
 ```
 
-```jsx filename="app/layout.js" switcher
-'use cache'
+```jsx filename="app/actions.js" highlight={2} switcher
+export async function getData() {
+  'use cache'
 
-export default async function Layout({ children }) {
-  return <div>{children}</div>
+  const res = await fetch('https://api.example.com/data')
+  const data = await res.json()
+  return data
 }
 ```
-
-Any components imported and nested in `page` file are part of the cache output associated with the `page`.
-
-```tsx filename="app/page.tsx" switcher
-'use cache'
-
-async function Users() {
-  const users = await fetch('/api/users')
-  // loop through users
-}
-
-export default async function Page() {
-  return (
-    <main>
-      <Users />
-    </main>
-  )
-}
-```
-
-```jsx filename="app/page.js" switcher
-'use cache'
-
-async function Users() {
-  const users = await fetch('/api/users')
-  // loop through users
-}
-
-export default async function Page() {
-  return (
-    <main>
-      <Users />
-    </main>
-  )
-}
-```
-
-> **Good to know**:
->
-> - If `use cache` is added only to the `layout` or the `page`, only that route segment and any components imported into it will be cached.
 
 ### Caching a component's output with `use cache`
 
@@ -413,7 +425,10 @@ You can use `use cache` at the component level to cache any fetches or computati
 export async function Bookings({ type = 'haircut' }: BookingsProps) {
   'use cache'
   async function getBookingsData() {
-    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    const response = await fetch(
+      `https://api.example.com/bookings?type=${encodeURIComponent(type)}`
+    )
+    const data = await response.json()
     return data
   }
   return //...
@@ -428,36 +443,15 @@ interface BookingsProps {
 export async function Bookings({ type = 'haircut' }) {
   'use cache'
   async function getBookingsData() {
-    const data = await fetch(`/api/bookings?type=${encodeURIComponent(type)}`)
+    const response = await fetch(
+      `https://api.example.com/bookings?type=${encodeURIComponent(type)}`
+    )
+    const data = await response.json()
     return data
   }
   return //...
 }
 ```
-
-### Caching function output with `use cache`
-
-Since you can add `use cache` to any asynchronous function, you aren't limited to caching components or routes only. You might want to cache a network request, a database query, or a slow computation.
-
-```tsx filename="app/actions.ts" highlight={2} switcher
-export async function getData() {
-  'use cache'
-
-  const data = await fetch('/api/data')
-  return data
-}
-```
-
-```jsx filename="app/actions.js" highlight={2} switcher
-export async function getData() {
-  'use cache'
-
-  const data = await fetch('/api/data')
-  return data
-}
-```
-
-> **Good to know:** When a cached directive (`use cache`, [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), or [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)) is at the top of a file, you can import its exported functions into a Client Component and call them directly; they run on the server and return the result, similar to a [Server Function](/docs/app/glossary#server-function). Prefer calling cached functions on the server and passing results down as props.
 
 ### Interleaving
 
@@ -485,7 +479,8 @@ async function CacheComponent({
   children: ReactNode
 }) {
   'use cache'
-  const cachedData = await fetch('/api/cached-data')
+  const res = await fetch('https://api.example.com/cached-data')
+  const cachedData = await res.json()
   return (
     <div>
       {header}
@@ -513,7 +508,8 @@ async function CacheComponent({
   children, // children: another slot for nested composition
 }) {
   'use cache'
-  const cachedData = await fetch('/api/cached-data')
+  const res = await fetch('https://api.example.com/cached-data')
+  const cachedData = await res.json()
   return (
     <div>
       {header}
@@ -587,6 +583,86 @@ export default function ClientComponent({
 
 export default function ClientComponent({ action }) {
   return <button onClick={action}>Update</button>
+}
+```
+
+### Caching a module's exports with `use cache`
+
+Placing the directive at the top of a file covers every export, instead of repeating it on each one. Every exported function it covers must be async.
+
+```tsx filename="app/lib/reports.ts"
+'use cache'
+
+export async function getMonthlyTotals(accountId: string) {
+  return db.orders.aggregate({ where: { accountId }, _sum: { amount: true } })
+}
+
+export async function getTopProducts() {
+  return db.products.findMany({ orderBy: { sales: 'desc' }, take: 10 })
+}
+```
+
+Framework function exports are covered like any other, so [`generateMetadata`](/docs/app/api-reference/functions/generate-metadata) and [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) must be async in such a file.
+
+> **Good to know**:
+>
+> - When a cached directive (`use cache`, [`use cache: private`](/docs/app/api-reference/directives/use-cache-private), or [`use cache: remote`](/docs/app/api-reference/directives/use-cache-remote)) is at the top of a file, you can import its exported functions into a Client Component and call them directly; they run on the server and return the result, similar to a [Server Function](/docs/app/glossary#server-function). Prefer calling cached functions on the server and passing results down as props.
+
+### Caching a route segment's output with `use cache`
+
+A `page` or `layout` file is a module too, so a file-level directive there follows the same rules. Each route segment is a separate entry point and is cached independently. To prerender a whole route, add `use cache` to the top of every segment file it renders: the `page`, the `layout`, and any [parallel route](/docs/app/api-reference/file-conventions/parallel-routes) slots.
+
+```tsx filename="app/layout.tsx" switcher
+'use cache'
+
+export default async function Layout({ children }: { children: ReactNode }) {
+  return <div>{children}</div>
+}
+```
+
+```jsx filename="app/layout.js" switcher
+'use cache'
+
+export default async function Layout({ children }) {
+  return <div>{children}</div>
+}
+```
+
+A cached `layout` does not cache the `children` it renders, since slots pass through without affecting its entry. See [Interleaving](#interleaving).
+
+```tsx filename="app/page.tsx" switcher
+'use cache'
+
+async function Users() {
+  const res = await fetch('https://api.example.com/users')
+  const users = await res.json()
+  // loop through users
+}
+
+export default async function Page() {
+  return (
+    <main>
+      <Users />
+    </main>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+'use cache'
+
+async function Users() {
+  const res = await fetch('https://api.example.com/users')
+  const users = await res.json()
+  // loop through users
+}
+
+export default async function Page() {
+  return (
+    <main>
+      <Users />
+    </main>
+  )
 }
 ```
 

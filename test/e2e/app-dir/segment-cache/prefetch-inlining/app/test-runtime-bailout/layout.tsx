@@ -1,9 +1,10 @@
 import { ReactNode, Suspense } from 'react'
 
 // Small static layout. With prefetch inlining enabled, this layout's data
-// should be bundled into the child's response. But since the child page uses
-// runtime prefetching, the bundle needs to be flushed as a separate static
-// prefetch instead.
+// should be bundled into the child's response. The child page reads cookies
+// (so it needs a runtime prefetch to resolve fully), but it still has a
+// static response — the static parts that don't depend on runtime data — so
+// the layout inlines into that bundle.
 export default function RuntimeBailoutLayout({
   children,
 }: {

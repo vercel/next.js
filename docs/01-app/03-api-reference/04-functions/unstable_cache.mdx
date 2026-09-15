@@ -26,8 +26,21 @@ export default async function Component({ userID }) {
 
 > **Good to know**:
 >
-> - Accessing uncached data sources such as `headers` or `cookies` inside a cache scope is not supported. If you need this data inside a cached function use `headers` outside of the cached function and pass the required uncached data in as an argument.
+> - Accessing request data such as `headers` or `cookies` inside a cache scope is not supported. Read the data outside the cached function and pass the values you need as arguments.
 > - This API uses Next.js' built-in cache to persist the result across requests and deployments. See [Caching and Revalidating](/docs/app/getting-started/caching).
+
+## Unsupported operations
+
+The function passed to `unstable_cache` cannot depend on the incoming request. Read values from `cookies()` or `headers()` before calling the cached function, then pass those values as arguments so they become part of the cache key.
+
+The cached function also cannot:
+
+- Call `connection()`, which requires an incoming request
+- Enable or disable draft mode
+- Call `revalidateTag()`, `updateTag()`, or `revalidatePath()` during cache execution
+- Call a function that uses the `use cache: private` directive
+
+Perform request-dependent work before calling the cached function. Perform mutations and revalidation afterward from a Server Action or Route Handler.
 
 ## Parameters
 

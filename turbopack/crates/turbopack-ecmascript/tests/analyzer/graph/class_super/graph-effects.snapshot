@@ -58,7 +58,7 @@
                                 Constructor(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -86,10 +86,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -122,6 +122,12 @@
                                     ModuleValue {
                                         module: "./module.js",
                                         annotations: None,
+                                        analyze_for_constants: false,
+                                        reference: Some(
+                                            ModuleReferenceIndex(
+                                                2,
+                                            ),
+                                        ),
                                     },
                                 ),
                                 Constant(
@@ -165,7 +171,7 @@
                                 Constructor(
                                     Body,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -193,10 +199,10 @@
                                 ArrowExpr(
                                     Body,
                                 ),
-                                BlockStmtOrExpr(
-                                    BlockStmt,
+                                ArrowFunctionBody(
+                                    FunctionBody,
                                 ),
-                                BlockStmt(
+                                FunctionBody(
                                     Stmts(
                                         0,
                                     ),
@@ -249,7 +255,7 @@
                             Constructor(
                                 Body,
                             ),
-                            BlockStmt(
+                            FunctionBody(
                                 Stmts(
                                     0,
                                 ),
@@ -277,8 +283,8 @@
                             ArrowExpr(
                                 Body,
                             ),
-                            BlockStmtOrExpr(
-                                BlockStmt,
+                            ArrowFunctionBody(
+                                FunctionBody,
                             ),
                         ],
                     ),
@@ -317,7 +323,7 @@
             Constructor(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),

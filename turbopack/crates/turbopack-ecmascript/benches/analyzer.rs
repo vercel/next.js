@@ -86,6 +86,7 @@ pub fn benchmark(c: &mut Criterion) {
                     true,
                     SpecifiedModuleType::Automatic,
                     true,
+                    false,
                 ));
 
                 let input = BenchInput {
@@ -124,6 +125,7 @@ fn bench_create_graph(b: &mut Bencher, input: &BenchInput) {
             true,
             SpecifiedModuleType::Automatic,
             true,
+            false,
         ));
     });
 }

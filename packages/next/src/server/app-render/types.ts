@@ -145,7 +145,6 @@ export interface RenderOptsPartial {
   logServerFunctions?: boolean
   params?: ParsedUrlQuery
   isPrefetch?: boolean
-  htmlLimitedBots: string | undefined
   experimental: {
     /**
      * When true, it indicates that the current page supports partial
@@ -164,18 +163,26 @@ export interface RenderOptsPartial {
     clientParamParsingOrigins: string[] | undefined
     dynamicOnHover: boolean
     optimisticRouting: boolean
+    parallelRouteMetadata: boolean
     inlineCss: boolean
     prefetchInlining: PrefetchInliningConfig
     authInterrupts: boolean
+    reactBrowserBailout: boolean
     serverComponentsHmrCancellation?: boolean
     useCacheTimeout: number
-    cachedNavigations: boolean | 'allow-runtime'
+    durableUseCacheEntries: boolean
+    cachedNavigations: boolean
 
     /**
      * The maximum size (in bytes) of the postponed state body for PPR resume
      * requests. Used to calculate decompression limits (5x this value).
      */
     maxPostponedStateSizeBytes: number | undefined
+
+    /**
+     * Whether the Resume Data Cache should be persisted without compression.
+     */
+    disableResumeDataCacheCompression: boolean
 
     /**
      * Whether the Instant Navigation Testing API is exposed (dev mode or the
@@ -186,12 +193,6 @@ export interface RenderOptsPartial {
     exposeTestingApi: boolean
   }
   postponed?: string
-
-  /**
-   * Should wait for react stream allReady to resolve all suspense boundaries,
-   * in order to perform a full page render.
-   */
-  shouldWaitOnAllReady?: boolean
 
   /**
    * A prefilled resume data cache. This was either generated for this page
@@ -219,8 +220,6 @@ export interface RenderOptsPartial {
    * Loaded at server startup from the build output.
    */
   prefetchHints?: Record<string, PrefetchHints>
-
-  isStaticGeneration?: boolean
 
   /**
    * When true, the page is prerendered as a fallback shell, while allowing any

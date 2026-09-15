@@ -160,7 +160,6 @@ describe('app-dir - owner-stack', () => {
 
     await expect(browser).toDisplayCollapsedRedbox(`
      {
-       "code": "E394",
        "description": "string in rejected promise",
        "environmentLabel": null,
        "label": "Runtime Error",

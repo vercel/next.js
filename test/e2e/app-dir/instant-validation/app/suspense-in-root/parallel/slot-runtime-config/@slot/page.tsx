@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { connection } from 'next/server'
 
 export const instant = { level: 'experimental-error' }
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 export default function SlotPage() {
   return (

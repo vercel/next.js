@@ -28,7 +28,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -61,6 +61,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            2,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -96,7 +102,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -140,7 +146,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -193,7 +199,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -226,6 +232,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            8,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -261,7 +273,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     2,
                 ),
@@ -309,7 +321,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -356,6 +368,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            9,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -391,7 +409,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -449,7 +467,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -502,7 +520,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -535,6 +553,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            3,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -570,7 +594,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -618,7 +642,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -665,6 +689,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            4,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -700,7 +730,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -758,7 +788,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     0,
                 ),
@@ -811,7 +841,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),
@@ -844,6 +874,12 @@
                 ModuleValue {
                     module: "foo",
                     annotations: None,
+                    analyze_for_constants: false,
+                    reference: Some(
+                        ModuleReferenceIndex(
+                            5,
+                        ),
+                    ),
                 },
             ),
             Constant(
@@ -879,7 +915,7 @@
             Function(
                 Body,
             ),
-            BlockStmt(
+            FunctionBody(
                 Stmts(
                     1,
                 ),

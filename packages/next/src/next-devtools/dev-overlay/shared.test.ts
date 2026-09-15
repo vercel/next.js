@@ -5,11 +5,139 @@ import {
   createRuntimeBodyError,
   createRuntimeBodyErrorInNavigation,
 } from '../../server/app-render/blocking-route-messages'
-import { getInstantErrorRoute, routeTemplateMatchesPath } from './shared'
+import {
+  getInstantErrorRoute,
+  mergeErrorEvent,
+  routeTemplateMatchesPath,
+  updateRequestInsights,
+} from './shared'
+import type { RequestInsight } from '../shared/request-insights'
+import type { RuntimeErrorEvent } from './container/runtime-error/render-error'
 
 const STATIC_ROUTE = '/example'
 const DYNAMIC_ROUTE_TEMPLATE = '/posts/[slug]'
 const CATCH_ALL_ROUTE_TEMPLATE = '/docs/[...slug]'
+
+function createRequestInsight(
+  kind: RequestInsight['kind'],
+  durationMs: number
+): RequestInsight {
+  return {
+    requestId: 'shared-request',
+    kind,
+    htmlRequestId: 'shared-html',
+    route: '/dashboard',
+    startTime: 100,
+    durationMs,
+    status: 'ok',
+    spans: [],
+    fetches: [],
+  }
+}
+
+function createErrorEvent(
+  id: number,
+  error: Error,
+  isFatal: boolean = false
+): RuntimeErrorEvent {
+  return {
+    id,
+    error,
+    frames: [],
+    type: isFatal ? 'runtime' : 'console',
+    isFatal,
+    boundary: undefined,
+  }
+}
+
+const noOwnerStack = () => null
+
+describe('mergeErrorEvent', () => {
+  it('keeps errors with different messages when their stacks match', () => {
+    const firstError = new Error('first')
+    const secondError = new Error('second')
+    firstError.stack = secondError.stack = 'shared stack'
+    const first = createErrorEvent(0, firstError)
+    const second = createErrorEvent(1, secondError)
+
+    expect(mergeErrorEvent([first], second, noOwnerStack)).toEqual([
+      first,
+      second,
+    ])
+  })
+
+  it('dedupes stacks that only differ below the StrictMode frame', () => {
+    const firstError = new Error('repeated')
+    const secondError = new Error('repeated')
+    firstError.stack =
+      'Error: repeated\n at Component\n at Object.react_stack_bottom_frame (react.js:1:1)\n at first pass'
+    secondError.stack =
+      'Error: repeated\n at Component\n at Object.react_stack_bottom_frame (react.js:1:1)\n at second pass'
+    const first = createErrorEvent(0, firstError)
+    const events = [first]
+
+    expect(
+      mergeErrorEvent(events, createErrorEvent(1, secondError), noOwnerStack)
+    ).toBe(events)
+  })
+
+  it('preserves occurrences caught by different boundaries', () => {
+    const error = new Error('same error')
+    const first = {
+      ...createErrorEvent(0, error),
+      boundary: { kind: 'custom' as const, name: 'Boundary' },
+    }
+    const second = {
+      ...createErrorEvent(1, error, true),
+      boundary: { kind: 'default-global' as const },
+    }
+    expect(mergeErrorEvent([first], second, noOwnerStack)).toEqual([
+      first,
+      second,
+    ])
+  })
+
+  it('promotes an uncaught console report to a fatal boundary occurrence', () => {
+    const error = new Error('reused')
+    const first = createErrorEvent(4, error)
+    const fatal = {
+      ...createErrorEvent(5, error, true),
+      boundary: { kind: 'default-global' as const },
+    }
+    const promoted = mergeErrorEvent([first], fatal, noOwnerStack)
+    expect(promoted).toEqual([{ ...fatal, id: first.id }])
+    expect(mergeErrorEvent(promoted, { ...fatal, id: 6 }, noOwnerStack)).toBe(
+      promoted
+    )
+  })
+
+  it('promotes a fatal duplicate while preserving its id', () => {
+    const firstError = new Error('repeated')
+    const fatalError = new Error('repeated')
+    firstError.stack = fatalError.stack = 'shared stack'
+    const first = createErrorEvent(4, firstError)
+    const fatal = createErrorEvent(5, fatalError, true)
+
+    expect(mergeErrorEvent([first], fatal, noOwnerStack)).toEqual([
+      { ...fatal, id: first.id },
+    ])
+  })
+})
+
+describe('updateRequestInsights', () => {
+  it('updates request kinds independently when request IDs match', () => {
+    const request = createRequestInsight('request', 25)
+    const instantInsights = createRequestInsight('instant-insights', 50)
+    const updatedInstantInsights = createRequestInsight('instant-insights', 75)
+
+    expect(
+      updateRequestInsights(
+        updateRequestInsights([request], instantInsights),
+        updatedInstantInsights
+      )
+    ).toEqual([request, updatedInstantInsights])
+  })
+})
 
 describe('getInstantErrorRoute', () => {
   it('returns the route for an in-navigation runtime body error', () => {

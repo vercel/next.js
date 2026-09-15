@@ -5,7 +5,9 @@ description: >
   A/B statistics: react PR/commit vs base, or Next.js PR/commit vs base,
   measured end-to-end through the bench/render-pipeline app (rps,
   latency, p95; TTFB, RSS and document/Flight bytes when the Next
-  side captures them). Use whenever the user asks to bench, perf
+  side captures them) and, for React changes, through the react
+  repo's flight-ssr-bench fixture (Node AND Edge web-streams paths,
+  Fizz and Flight+Fizz). Use whenever the user asks to bench, perf
   test, or A/B a React PR, a react-server-dom / Flight / vendored React
   change, or a Next.js PR ("is this PR faster", "does this regress
   RSC?", "measure the perf impact of <commit>"), even if they don't say
@@ -104,6 +106,26 @@ ref can move between gate and bench).
 bash -c 'node scripts/sandbox-e2e.mjs --pr <url> --label <slug> \
   2>&1 | grep --line-buffered -v "^live "; exit ${PIPESTATUS[0]}'
 ```
+
+For React PRs, launch BOTH suites (separate background tasks; they
+share arm builds and caches):
+
+```sh
+bash -c 'node scripts/sandbox-ssr.mjs --pr <url> --label <slug>-ssr \
+  2>&1 | grep --line-buffered -v "^live "; exit ${PIPESTATUS[0]}'
+```
+
+The e2e suite measures the Node path through a real Next.js app; the
+ssr suite measures the react repo's flight-ssr-bench fixture — 8
+variants (Fizz and Flight+Fizz, Node and Edge web streams, sync and
+async), each sequentially with Flight script injection and behind an
+HTTP server at c=1/c=10. Edge cells are the ssr suite's headline (the
+e2e suite cannot see that path); its Node and Fizz-only cells
+attribute an effect to the Flight layer, the Fizz layer, or the
+stream plumbing. The fixture (the workload) is pinned to one ref for
+both arms — react main by default — so only the React builds differ;
+if the PR itself edits the fixture, the launcher says so and the run
+does not measure those edits. Next PRs run the e2e suite only.
 
 - Run it as a background task and proceed on its completion
   notification. Never hold a foreground wait; never poll in a loop —

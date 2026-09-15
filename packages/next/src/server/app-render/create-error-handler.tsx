@@ -10,9 +10,9 @@ import { isDynamicServerError } from '../../client/components/hooks-server-conte
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { isPrerenderInterruptedError } from './dynamic-rendering'
 import { getProperError } from '../../lib/is-error'
-import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 import { isReactLargeShellError } from './react-large-shell-error'
 import { isInstantValidationError } from './instant-validation/instant-validation-error'
+import { isNextBrowserBailoutError } from '../../shared/lib/lazy-dynamic/react-browser-bailout'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -106,10 +106,7 @@ export function createReactServerErrorHandler(
       err.digest =
         typeof thrownValue === 'string'
           ? stringHash(thrownValue).toString()
-          : createDigestWithErrorCode(
-              err,
-              stringHash(err.message + (err.stack || '')).toString()
-            )
+          : stringHash(err.message + (err.stack || '')).toString()
     }
 
     // @TODO by putting this here and not at the top it is possible that
@@ -153,6 +150,7 @@ export function createReactServerErrorHandler(
 export function createHTMLErrorHandler(
   shouldFormatError: boolean,
   isBuildTimePrerendering: boolean,
+  reactBrowserBailout: boolean,
   reactServerErrors: Map<string, DigestedError>,
   allCapturedErrors: Array<unknown>,
   onHTMLRenderSSRError: (err: DigestedError, errorInfo?: ErrorInfo) => void,
@@ -171,6 +169,13 @@ export function createHTMLErrorHandler(
 
     // If the response was closed, we don't need to log the error.
     if (isAbortError(thrownValue)) return
+
+    // React turns a browser bailout outside Suspense into a fatal error. This
+    // is a framework signal handled by the prerender caller, so don't report it
+    // as a userland render error here.
+    if (reactBrowserBailout && isNextBrowserBailoutError(thrownValue)) {
+      return
+    }
 
     const digest = getDigestForWellKnownError(thrownValue)
 
@@ -193,12 +198,9 @@ export function createHTMLErrorHandler(
         // from other means so we don't need to produce a new one
       }
     } else {
-      err.digest = createDigestWithErrorCode(
-        err,
-        stringHash(
-          err.message + (errorInfo?.componentStack || err.stack || '')
-        ).toString()
-      )
+      err.digest = stringHash(
+        err.message + (errorInfo?.componentStack || err.stack || '')
+      ).toString()
     }
 
     // Format server errors in development to add more helpful error messages
@@ -236,8 +238,14 @@ export function createHTMLErrorHandler(
   }
 }
 
-export function isUserLandError(err: any): boolean {
+export function isUserLandError(
+  err: any,
+  reactBrowserBailout: boolean
+): boolean {
   return (
-    !isAbortError(err) && !isBailoutToCSRError(err) && !isNextRouterError(err)
+    !isAbortError(err) &&
+    !isBailoutToCSRError(err) &&
+    !(reactBrowserBailout && isNextBrowserBailoutError(err)) &&
+    !isNextRouterError(err)
   )
 }

@@ -1,16 +1,14 @@
 import { isNextDev, nextTestSetup } from 'e2e-utils'
 import { getPrerenderOutput } from './utils'
 
+// TODO(deploy-test-completion): Re-enable this suite in deploy mode.
+// It likely asserts local CLI or runtime output that deploy tests do not expose.
+// @force-gate !deploy
 describe('Cache Components Errors - Client Components', () => {
-  const { next, isTurbopack, isNextStart, skipped } = nextTestSetup({
+  const { next, isTurbopack, isNextStart } = nextTestSetup({
     files: __dirname + '/fixtures/client',
     skipStart: !isNextDev,
-    skipDeployment: true,
   })
-
-  if (skipped) {
-    return
-  }
 
   let cliOutputLength: number
 
@@ -81,7 +79,6 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1440",
              "description": "Next.js encountered uncached data during prerendering.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -250,7 +247,6 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1433",
              "description": "Next.js encountered URL data useSearchParams() in a Client Component outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Blocking Route",
@@ -399,7 +395,6 @@ describe('Cache Components Errors - Client Components', () => {
 
           await expect(browser).toDisplayCollapsedRedbox(`
            {
-             "code": "E1433",
              "description": "Next.js encountered URL data usePathname() in a Client Component outside of Suspense.",
              "environmentLabel": "Server",
              "label": "Blocking Route",

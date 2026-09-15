@@ -14,15 +14,19 @@ use turbopack_core::{
     version::{MergeableVersionedContent, Version, VersionedContent, VersionedContentMerger},
 };
 use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkContent, EcmascriptChunkContentEntries},
+    chunk::{
+        EcmascriptChunkContent, EcmascriptChunkContentEntries, strict_chunk_wrapper,
+        strict_factory_mode, write_module_factories,
+    },
+    hmr::{
+        EcmascriptHmrChunkContent, merger::EcmascriptChunkContentMerger,
+        version::EcmascriptChunkVersion,
+    },
     minify::minify,
     utils::StringifyJs,
 };
 
-use super::{
-    chunk::EcmascriptBrowserChunk, merged::merger::EcmascriptBrowserChunkContentMerger,
-    version::EcmascriptBrowserChunkVersion,
-};
+use super::chunk::EcmascriptBrowserChunk;
 use crate::{
     BrowserChunkingContext,
     chunking_context::{CURRENT_CHUNK_METHOD_DOCUMENT_CURRENT_SCRIPT_EXPR, CurrentChunkMethod},
@@ -55,23 +59,6 @@ impl EcmascriptBrowserChunkContent {
     }
 
     #[turbo_tasks::function]
-    pub fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
-        EcmascriptChunkContentEntries::new(*self.content)
-    }
-}
-
-#[turbo_tasks::value_impl]
-impl EcmascriptBrowserChunkContent {
-    #[turbo_tasks::function]
-    pub(crate) async fn own_version(&self) -> Result<Vc<EcmascriptBrowserChunkVersion>> {
-        Ok(EcmascriptBrowserChunkVersion::new(
-            self.chunking_context.output_root().owned().await?,
-            self.chunk.path().owned().await?,
-            *self.content,
-        ))
-    }
-
-    #[turbo_tasks::function]
     pub(crate) async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
         let source_maps = *this
@@ -101,6 +88,22 @@ impl EcmascriptBrowserChunkContent {
             *this.chunking_context.debug_ids_enabled().await?,
         );
 
+        let supports_arrow_functions = *this
+            .chunking_context
+            .environment()
+            .runtime_versions()
+            .supports_arrow_functions()
+            .await?;
+        let content = this.content.await?;
+        let chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
+        let strict_factory_mode = strict_factory_mode(&chunk_items, supports_arrow_functions);
+
+        let strict_chunk_wrapper =
+            strict_chunk_wrapper(strict_factory_mode, supports_arrow_functions);
+        if let Some((prefix, _)) = strict_chunk_wrapper {
+            code += prefix;
+        }
+
         // When a chunk is executed, it will either register itself with the current
         // instance of the runtime, or it will push itself onto the list of pending
         // chunks (using the configured chunk loading global variable).
@@ -116,25 +119,17 @@ impl EcmascriptBrowserChunkContent {
             r#"(globalThis[{chunk_loading_global}] || (globalThis[{chunk_loading_global}] = [])).push([{script_or_path},"#,
             chunk_loading_global = StringifyJs(&chunk_loading_global),
         )?;
-
-        let content = this.content.await?;
-        let mut chunk_items = content.chunk_item_code_module_ids_and_paths().await?;
-        // Sort items by their module path so that similar modules stay
-        // together so that the chunks gzips better.
-        chunk_items.sort_by(|a, b| {
-            a.first()
-                .map(|(id, _, path)| (path, id))
-                .cmp(&b.first().map(|(id, _, path)| (path, id)))
-        });
-        for item in &chunk_items {
-            for (id, item_code, _) in &**item {
-                write!(code, "\n{}, ", StringifyJs(id))?;
-                code.push_code(item_code);
-                write!(code, ",")?;
-            }
-        }
-
+        write_module_factories(
+            &mut code,
+            &chunk_items,
+            strict_factory_mode,
+            supports_arrow_functions,
+        )?;
         write!(code, "\n]);")?;
+
+        if let Some((_, suffix)) = strict_chunk_wrapper {
+            code += suffix;
+        }
 
         let mut code = code.build();
 
@@ -164,7 +159,25 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
 
     #[turbo_tasks::function]
     fn version(self: Vc<Self>) -> Vc<Box<dyn Version>> {
-        Vc::upcast(self.own_version())
+        Vc::upcast(self.ecmascript_chunk_version())
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptHmrChunkContent for EcmascriptBrowserChunkContent {
+    #[turbo_tasks::function]
+    fn entries(&self) -> Vc<EcmascriptChunkContentEntries> {
+        EcmascriptChunkContentEntries::new(*self.content)
+    }
+
+    #[turbo_tasks::function]
+    async fn ecmascript_chunk_version(&self) -> Result<Vc<EcmascriptChunkVersion>> {
+        Ok(EcmascriptChunkVersion::new(
+            self.chunking_context.output_root().owned().await?,
+            self.chunk.path().owned().await?,
+            *self.content,
+            *self.chunking_context.minify_type().await?,
+        ))
     }
 }
 
@@ -172,7 +185,7 @@ impl VersionedContent for EcmascriptBrowserChunkContent {
 impl MergeableVersionedContent for EcmascriptBrowserChunkContent {
     #[turbo_tasks::function]
     fn get_merger(&self) -> Vc<Box<dyn VersionedContentMerger>> {
-        Vc::upcast(EcmascriptBrowserChunkContentMerger::new())
+        Vc::upcast(EcmascriptChunkContentMerger::new())
     }
 }
 

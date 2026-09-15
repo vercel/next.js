@@ -1,8 +1,8 @@
 import type { CacheNode, ScrollRef } from '../../../shared/lib/app-router-types'
 import type { FlightRouterState } from '../../../shared/lib/app-router-types'
-import type { NavigationSeed } from '../segment-cache/navigation'
+import type { NavigationSeed } from '../segment-cache/decode-server-response'
 import type { FetchServerResponseResult } from './fetch-server-response'
-import type { FreshnessPolicy } from './ppr-navigations'
+import type { FreshnessPolicy } from '../render-tree'
 
 export const ACTION_REFRESH = 'refresh'
 export const ACTION_NAVIGATE = 'navigate'
@@ -147,13 +147,6 @@ export enum PrefetchKind {
   FULL = 'full',
 }
 
-/**
- * Prefetch adds the provided FlightData to the prefetch cache
- * - Creates the router state tree based on the patch in FlightData
- * - Adds the FlightData to the prefetch cache
- * - In ACTION_NAVIGATE the prefetch cache is checked and the router state tree and FlightData are applied.
- */
-
 export interface PushRef {
   /**
    * If the app-router should push a new history entry in app-router's useEffect()
@@ -179,7 +172,7 @@ export const enum ScrollBehavior {
   NoScroll = 1,
 }
 
-export type FocusAndScrollRef = {
+export type ScrollHandlerRef = {
   /**
    * The scroll ref from the most recent navigation. Set to whatever was
    * accumulated during tree construction (or null if nothing was
@@ -189,7 +182,7 @@ export type FocusAndScrollRef = {
    */
   scrollRef: ScrollRef | null
   /**
-   * When true, the scroll handler uses `focusAndScrollRef.scrollRef`
+   * When true, the scroll handler uses the navigation-level `scrollRef`
    * for every segment regardless of per-node state. Used for hash-only
    * navigations where every segment should be treated as a scroll
    * target. When false, the handler checks `cacheNode.scrollRef`
@@ -226,9 +219,9 @@ export type AppRouterState = {
    */
   pushRef: PushRef
   /**
-   * Decides if the update should apply scroll and focus management.
+   * Decides if the update should apply scroll management.
    */
-  focusAndScrollRef: FocusAndScrollRef
+  scrollRef: ScrollHandlerRef
   /**
    * The canonical url that is pushed/replaced.
    * - This is the url you see in the browser.

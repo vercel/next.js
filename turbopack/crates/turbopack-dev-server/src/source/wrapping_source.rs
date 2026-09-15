@@ -54,7 +54,7 @@ async fn wrap_sources_operation(
                     **s, *processor,
                 ))
             })
-            .map(|v| async move { v.to_resolved().await })
+            .map(|v| v.to_resolved())
             .try_join()
             .await?,
     ))

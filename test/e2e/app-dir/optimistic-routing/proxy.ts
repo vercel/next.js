@@ -14,6 +14,16 @@ export function proxy(request: NextRequest) {
     return NextResponse.rewrite(url)
   }
 
+  // Rewrite /products/promo/[id] to /products/sale/[id]
+  // Unlike /rewritten/* above, this preserves the URL's shape: both sides
+  // match /products/[category]/[id], so the rewrite is only discoverable from
+  // the response. Exercises the prefetch-side mispredict detection.
+  if (pathname.startsWith('/products/promo/')) {
+    const url = request.nextUrl.clone()
+    url.pathname = pathname.replace('/products/promo/', '/products/sale/')
+    return NextResponse.rewrite(url)
+  }
+
   // Rewrite /search-rewrite?v=alpha to /rewrite-alpha
   // Rewrite /search-rewrite?v=beta to /rewrite-beta
   // This tests that search param rewrites are correctly detected.
@@ -31,5 +41,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/rewritten/:path*', '/search-rewrite'],
+  matcher: ['/rewritten/:path*', '/search-rewrite', '/products/promo/:path*'],
 }

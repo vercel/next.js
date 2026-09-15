@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import { UncachedFetch, CachedFetch, CachedData } from '../data-fetching'
 
 export const instant = true
-export const prefetch = 'allow-runtime'
+export const prefetch = 'partial'
 
 const CACHE_KEY = __dirname + '/__LAYOUT__'
 
