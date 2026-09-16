@@ -67,13 +67,14 @@ use swc_core::{
         BytePos, DUMMY_SP, FileName, GLOBALS, Globals, Loc, Mark, SourceFile, SourceMap,
         SourceMapper, Span, SpanSnippetError, Spanned, SyntaxContext,
         comments::{Comment, CommentKind, Comments},
-        source_map::{FileLinesResult, Files, SourceMapLookupError},
+        source_map::{FileLinesResult, Files, PURE_SP, SourceMapLookupError},
         util::take::Take,
     },
     ecma::{
         ast::{
-            self, CallExpr, Callee, Decl, EmptyStmt, Expr, ExprStmt, Id, Ident, ModuleItem,
-            Program, Script, SourceMapperExt, Stmt,
+            self, CallExpr, Callee, ComputedPropName, Decl, EmptyStmt, Expr, ExprStmt, Id, Ident,
+            KeyValuePatProp, Lit, MemberExpr, MemberProp, ModuleItem, ObjectPat, ObjectPatProp,
+            Pat, Program, PropName, Script, SourceMapperExt, Stmt, Str, VarDeclarator,
         },
         codegen::{Emitter, text_writer::JsWriter},
         utils::StmtLikeInjector,
@@ -2022,7 +2023,7 @@ async fn process_parse_result(
                                 .await?
                                 .exports
                                 .iter()
-                                .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(_, _)))
+                                .filter(|(_, e)| matches!(e, export::EsmExport::LocalBinding(_)))
                                 .map(|(name, e)| {
                                     if let Some(((sym, ctxt), _)) = export_contexts.get(name) {
                                         Ok((sym.clone(), *ctxt))
@@ -2075,11 +2076,25 @@ async fn process_parse_result(
                 trailing: Default::default(),
             };
 
+            // Declarations reading one namespace are combined below, and a destructuring is only
+            // worth it once several bindings share one. That is knowable here and not earlier.
+            let supports_destructuring = match options {
+                Some(options) => {
+                    *options
+                        .chunking_context
+                        .environment()
+                        .runtime_versions()
+                        .supports_destructuring()
+                        .await?
+                }
+                None => false,
+            };
             let early_hoisted_count = process_content_with_code_gens(
                 &mut program,
                 globals,
                 ast_paths.as_deref().map(|p| &p.ast_paths),
                 &mut code_gens,
+                supports_destructuring,
             );
 
             for comments in code_gens.iter_mut().flat_map(|cg| cg.comments.as_mut()) {
@@ -2439,6 +2454,192 @@ async fn emit_content(
     .cell())
 }
 
+/// Merges `incoming` into `existing` when both are `var` declarations, so declarations that share
+/// a hoist key accumulate their declarators rather than the later ones being dropped.
+///
+/// Declarators that destructure the same initializer are combined into one pattern, so several
+/// bindings read from one namespace become `var { a: x, b: y } = ns` rather than a chain of
+/// separate destructurings.
+///
+/// Returns whether the merge happened.
+fn merge_var_decls(existing: &mut Stmt, incoming: &Stmt, supports_destructuring: bool) -> bool {
+    let (Stmt::Decl(Decl::Var(existing)), Stmt::Decl(Decl::Var(incoming))) = (existing, incoming)
+    else {
+        return false;
+    };
+    if existing.kind != incoming.kind {
+        return false;
+    }
+
+    for incoming_decl in incoming.decls.iter().cloned() {
+        // Several uses of one import declare the same binding, so skip anything already bound.
+        if bound_idents(&existing.decls).any(|bound| {
+            bound_idents(std::slice::from_ref(&incoming_decl))
+                .any(|incoming| bound.sym == incoming.sym && bound.ctxt == incoming.ctxt)
+        }) {
+            continue;
+        }
+        existing.decls.push(incoming_decl);
+    }
+
+    if supports_destructuring {
+        destructure_shared_namespaces(&mut existing.decls);
+    }
+    true
+}
+
+/// Rewrites runs of declarators that read properties of one object into a destructuring of it.
+///
+/// `var a = ns.a, b = ns.b` becomes `var {"a": a, "b": b} = ns`, which is smaller. A lone binding
+/// is left alone: a minifier that renames the local would have to write the key back out, making
+/// `var {a: x} = ns` longer than `var x = ns.a`, and only the single-binding form can carry the
+/// `/*#__PURE__*/` annotation that lets an unused declaration be dropped.
+fn destructure_shared_namespaces(decls: &mut Vec<VarDeclarator>) {
+    let mut grouped: FxIndexMap<Id, Vec<(Str, Ident)>> = FxIndexMap::default();
+    let mut rest = Vec::new();
+
+    for decl in decls.drain(..) {
+        // Statements arrive one at a time, so a group may already have been rewritten into a
+        // pattern by an earlier merge. Take those apart again, or a binding arriving afterwards
+        // would not be able to join them.
+        match (as_namespace_read(&decl), as_namespace_destructuring(&decl)) {
+            (Some((namespace, key, binding)), _) => {
+                grouped.entry(namespace).or_default().push((key, binding));
+            }
+            (_, Some((namespace, members))) => {
+                grouped.entry(namespace).or_default().extend(members);
+            }
+            _ => rest.push(decl),
+        }
+    }
+
+    for (namespace, members) in grouped {
+        let namespace = Ident::new(namespace.0, DUMMY_SP, namespace.1);
+        if members.len() < 2 {
+            // Rebuild the original single declarator, pure annotation included.
+            for (key, binding) in members {
+                rest.push(namespace_read_decl(&namespace, key, binding));
+            }
+            continue;
+        }
+        rest.push(VarDeclarator {
+            span: DUMMY_SP,
+            name: Pat::Object(ObjectPat {
+                // Marked pure so the declaration can be dropped when the bindings are unused, the
+                // same as the single binding form. On a pattern this also asserts that the
+                // initializer is not nullish, which holds: it is a module namespace object.
+                //
+                // swc only began honoring this on patterns in swc-project/swc#12384, so on older
+                // versions the annotation is inert rather than wrong.
+                span: PURE_SP,
+                optional: false,
+                type_ann: None,
+                props: members
+                    .into_iter()
+                    .map(|(key, binding)| {
+                        ObjectPatProp::KeyValue(KeyValuePatProp {
+                            key: PropName::Str(key),
+                            value: Box::new(Pat::Ident(binding.into())),
+                        })
+                    })
+                    .collect(),
+            }),
+            init: Some(Box::new(Expr::Ident(namespace))),
+            definite: false,
+        });
+    }
+
+    *decls = rest;
+}
+
+/// Matches `{"<key>": <binding>, ..} = <namespace>`, the shape this function itself produces.
+fn as_namespace_destructuring(decl: &VarDeclarator) -> Option<(Id, Vec<(Str, Ident)>)> {
+    let Pat::Object(pat) = &decl.name else {
+        return None;
+    };
+    let Some(Expr::Ident(namespace)) = decl.init.as_deref() else {
+        return None;
+    };
+    let members = pat
+        .props
+        .iter()
+        .map(|prop| match prop {
+            ObjectPatProp::KeyValue(prop) => match (&prop.key, &*prop.value) {
+                (PropName::Str(key), Pat::Ident(binding)) => {
+                    Some((key.clone(), binding.id.clone()))
+                }
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some((namespace.to_id(), members))
+}
+
+/// Matches `<binding> = <namespace>["<key>"]`, the shape value binding declarations are built in.
+fn as_namespace_read(decl: &VarDeclarator) -> Option<(Id, Str, Ident)> {
+    let Pat::Ident(binding) = &decl.name else {
+        return None;
+    };
+    let Some(Expr::Member(member)) = decl.init.as_deref() else {
+        return None;
+    };
+    let Expr::Ident(namespace) = &*member.obj else {
+        return None;
+    };
+    let MemberProp::Computed(prop) = &member.prop else {
+        return None;
+    };
+    let Expr::Lit(Lit::Str(key)) = &*prop.expr else {
+        return None;
+    };
+    Some((namespace.to_id(), key.clone(), binding.id.clone()))
+}
+
+fn namespace_read_decl(namespace: &Ident, key: Str, binding: Ident) -> VarDeclarator {
+    VarDeclarator {
+        span: DUMMY_SP,
+        name: Pat::Ident(binding.into()),
+        init: Some(Box::new(Expr::Member(MemberExpr {
+            // Marked pure so the declaration can be dropped when the binding is unused.
+            span: PURE_SP,
+            obj: Box::new(Expr::Ident(namespace.clone())),
+            prop: MemberProp::Computed(ComputedPropName {
+                span: DUMMY_SP,
+                expr: Box::new(Expr::Lit(Lit::Str(key))),
+            }),
+        }))),
+        definite: false,
+    }
+}
+
+/// The identifiers `decls` binds, whether directly or through an object pattern.
+///
+/// Only the shapes this merge produces are walked: a plain binding, and a destructuring whose
+/// properties each bind one identifier.
+fn bound_idents(decls: &[VarDeclarator]) -> impl Iterator<Item = &Ident> {
+    decls.iter().flat_map(|decl| {
+        let (ident, props) = match &decl.name {
+            Pat::Ident(ident) => (Some(&ident.id), None),
+            Pat::Object(pat) => (None, Some(pat.props.as_slice())),
+            _ => (None, None),
+        };
+        ident.into_iter().chain(
+            props
+                .unwrap_or_default()
+                .iter()
+                .filter_map(|prop| match prop {
+                    ObjectPatProp::KeyValue(prop) => match &*prop.value {
+                        Pat::Ident(ident) => Some(&ident.id),
+                        _ => None,
+                    },
+                    ObjectPatProp::Assign(prop) => Some(&prop.key.id),
+                    ObjectPatProp::Rest(_) => None,
+                }),
+        )
+    })
+}
+
 /// Applies the code generations, returning the number of early hoisted statements it prepended.
 #[instrument(level = Level::TRACE, skip_all, name = "apply code generation")]
 fn process_content_with_code_gens(
@@ -2446,6 +2647,7 @@ fn process_content_with_code_gens(
     globals: &Globals,
     trie: Option<&AstPathTrie>,
     code_gens: &mut Vec<CodeGeneration>,
+    supports_destructuring: bool,
 ) -> usize {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();
@@ -2455,15 +2657,24 @@ fn process_content_with_code_gens(
     let mut late_stmts = FxIndexMap::default();
     for code_gen in code_gens {
         for CodeGenerationHoistedStmt { key, stmt } in code_gen.hoisted_stmts.drain(..) {
-            hoisted_stmts.entry(key).or_insert(stmt);
+            match hoisted_stmts.entry(key) {
+                indexmap::map::Entry::Vacant(entry) => {
+                    entry.insert(stmt);
+                }
+                indexmap::map::Entry::Occupied(mut entry) => {
+                    if entry.key().is_mergeable() {
+                        merge_var_decls(entry.get_mut(), &stmt, supports_destructuring);
+                    }
+                }
+            }
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_hoisted_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.early_hoisted_stmts.drain(..) {
             early_hoisted_stmts.insert(key.clone(), stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.late_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.late_stmts.drain(..) {
             late_stmts.insert(key.clone(), stmt);
         }
-        for CodeGenerationHoistedStmt { key, stmt } in code_gen.early_late_stmts.drain(..) {
+        for CodeGenerationHoistedStmt { key, stmt, .. } in code_gen.early_late_stmts.drain(..) {
             early_late_stmts.insert(key.clone(), stmt);
         }
         for (path, visitor) in &code_gen.visitors {

@@ -1476,10 +1476,11 @@ async fn analyze_ecmascript_module_internal(
                                                 .resolved_cell()
                                         },
                                     );
-                                analysis.add_code_gen(EsmBinding::new_keep_this(
+                                analysis.add_code_gen(EsmBinding::new_maybe_keep_this(
                                     named_reference,
                                     Some(export),
                                     analysis.intern_path(&ast_path),
+                                    &ast_path,
                                 ));
                                 continue;
                             }

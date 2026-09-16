@@ -41,7 +41,7 @@ use crate::{
     module_fragments::{PartId, find_turbopack_part_id_in_asserts},
     references::{
         cross_module_constants::is_import_name_eligible_for_exports,
-        esm::{EsmAssetReference, EsmExport, Liveness},
+        esm::{EsmAssetReference, EsmExport, Liveness, export::LocalBinding},
         util::{SpecifiedChunkingType, parse_chunking_type_annotation},
     },
     utils::{extract_name_from_member_prop, extract_names_from_object_pat, unparen},
@@ -459,6 +459,9 @@ pub(crate) struct ImportMap {
     /// whether an export is live or not.
     pub(super) assignment_scopes: FxHashMap<Id, AssignmentScopes>,
 
+    /// Bindings whose value is a function that provably never reaches `this`.
+    pub(super) fns_not_using_this: FxHashSet<Id>,
+
     pub(crate) import_usage: FxHashMap<usize, ImportUsage>,
 
     /// Map from exported name to local binding id (includes the syntax context).
@@ -782,26 +785,30 @@ impl ImportMap {
                 .iter()
                 .map(|(name, value)| {
                     let value = match value {
-                        Export::LocalBinding(local, is_fake_esm) => EsmExport::LocalBinding(
-                            local.clone(),
-                            if *is_fake_esm {
-                                // it is likely that these are not always actually mutable.
-                                Liveness::Mutable
-                            } else {
-                                eval_context.imports.get_export_ident_liveness(
-                                    self.exports_ids
-                                        .get(name)
-                                        .cloned()
-                                        .with_context(|| {
-                                            format!(
-                                                "Exported binding {name} not found in exports_ids"
-                                            )
-                                        })?
-                                        .0,
-                                    eval_context.unresolved_mark,
-                                )
-                            },
-                        ),
+                        Export::LocalBinding(local, is_fake_esm) => {
+                            let id = self
+                                .exports_ids
+                                .get(name)
+                                .cloned()
+                                .with_context(|| {
+                                    format!("Exported binding {name} not found in exports_ids")
+                                })?
+                                .0;
+                            EsmExport::LocalBinding(LocalBinding {
+                                name: local.clone(),
+                                maybe_uses_this: eval_context
+                                    .imports
+                                    .get_export_ident_maybe_uses_this(&id),
+                                liveness: if *is_fake_esm {
+                                    // it is likely that these are not always actually mutable.
+                                    Liveness::Mutable
+                                } else {
+                                    eval_context
+                                        .imports
+                                        .get_export_ident_liveness(id, eval_context.unresolved_mark)
+                                },
+                            })
+                        }
                         Export::ImportedBinding(i, name, is_fake_esm) => {
                             EsmExport::ImportedBinding(
                                 ResolvedVc::upcast(import_references[*i]),
@@ -822,6 +829,14 @@ impl ImportMap {
 
     pub fn reexport_namespaces(&self) -> impl ExactSizeIterator<Item = usize> {
         self.reexport_namespaces.iter().copied()
+    }
+
+    /// Whether the value exported as `id` may observe `this` when called.
+    ///
+    /// Conservative: true unless the binding was seen to be a function that provably never
+    /// reaches `this`.
+    pub fn get_export_ident_maybe_uses_this(&self, id: &Id) -> bool {
+        !self.fns_not_using_this.contains(id)
     }
 
     /// Returns the liveness of a given export identifier. An export is live if it might change
@@ -996,6 +1011,11 @@ mod analyzer_state {
     pub(super) struct AnalyzerState {
         is_in_fn: bool,
         cur_top_level_decl_name: Option<Id>,
+        /// How many enclosing scopes bind their own `this`. Arrows do not, so a `this` inside one
+        /// belongs to the function around it.
+        this_binding_depth: u32,
+        /// Set while visiting a top level declaration whose body has reached `this`.
+        cur_top_level_decl_uses_this: bool,
     }
 
     impl AnalyzerState {
@@ -1007,6 +1027,19 @@ mod analyzer_state {
         /// Returns whether the current context is inside a function.
         pub(super) fn is_in_fn(&self) -> bool {
             self.is_in_fn
+        }
+
+        /// Returns whether `this` currently refers to a binding inside the top level declaration
+        /// rather than to the declaration's own value.
+        ///
+        /// A `this` nested one level deep belongs to the exported function itself; deeper than
+        /// that it belongs to some inner function, which receives its own receiver.
+        pub(super) fn this_binds_to_top_level_decl(&self) -> bool {
+            self.this_binding_depth == 1
+        }
+
+        pub(super) fn mark_top_level_decl_uses_this(&mut self) {
+            self.cur_top_level_decl_uses_this = true;
         }
     }
 
@@ -1020,19 +1053,54 @@ mod analyzer_state {
             let is_top_level_fn = self.state.cur_top_level_decl_name.is_none();
             if is_top_level_fn {
                 self.state.cur_top_level_decl_name = Some(name.to_id());
+                self.state.cur_top_level_decl_uses_this = false;
             }
             let result = visitor(self);
             if is_top_level_fn {
+                // Record the answer only when it is a "no". Everything else stays absent, which
+                // reads as "maybe".
+                if !self.state.cur_top_level_decl_uses_this {
+                    self.data.fns_not_using_this.insert(name.to_id());
+                }
                 self.state.cur_top_level_decl_name = None;
+                self.state.cur_top_level_decl_uses_this = false;
             }
             result
         }
 
-        /// Runs `visitor` with the right is_in_fn value
-        pub(super) fn enter_fn<T>(&mut self, visitor: impl FnOnce(&mut Self) -> T) -> T {
+        /// Runs `visitor` with `this` bound to a new scope, without marking the body as being
+        /// inside a function.
+        ///
+        /// A class body rebinds `this` for its field initializers and static blocks, but it is
+        /// not a function scope: a declaration in it is still evaluated during module
+        /// evaluation, which is what [`AnalyzerState::is_in_fn`] reports.
+        pub(super) fn enter_this_binding_scope<T>(
+            &mut self,
+            visitor: impl FnOnce(&mut Self) -> T,
+        ) -> T {
+            self.state.this_binding_depth += 1;
+            let result = visitor(self);
+            self.state.this_binding_depth -= 1;
+            result
+        }
+
+        /// Runs `visitor` with the right is_in_fn value.
+        ///
+        /// `binds_this` is false for arrows, which take `this` from their enclosing scope.
+        pub(super) fn enter_fn<T>(
+            &mut self,
+            binds_this: bool,
+            visitor: impl FnOnce(&mut Self) -> T,
+        ) -> T {
             let old_is_in_fn = self.state.is_in_fn;
             self.state.is_in_fn = true;
+            if binds_this {
+                self.state.this_binding_depth += 1;
+            }
             let result = visitor(self);
+            if binds_this {
+                self.state.this_binding_depth -= 1;
+            }
             self.state.is_in_fn = old_is_in_fn;
             result
         }
@@ -1451,6 +1519,17 @@ impl Visit for Analyzer<'_> {
     // potentially support more webpack magic comments in the future:
     // https://webpack.js.org/api/module-methods/#magic-comments
     fn visit_call_expr(&mut self, n: &CallExpr) {
+        // A direct `eval` runs in the enclosing scope, so the evaluated code can read `this`
+        // without it appearing anywhere in the source.
+        if self.state.this_binds_to_top_level_decl()
+            && let Callee::Expr(callee) = &n.callee
+            && let Expr::Ident(ident) = unparen(callee)
+            && ident.sym == atom!("eval")
+            && is_unresolved_id(&ident.to_id(), self.unresolved_mark)
+        {
+            self.state.mark_top_level_decl_uses_this();
+        }
+
         if let Some(comments) = self.comments {
             let callee_span = match &n.callee {
                 Callee::Import(Import { span, .. }) => Some(*span),
@@ -1486,27 +1565,35 @@ impl Visit for Analyzer<'_> {
     }
 
     fn visit_getter_prop(&mut self, node: &GetterProp) {
-        self.enter_fn(|this| {
+        self.enter_fn(/* binds_this */ true, |this| {
             node.visit_children_with(this);
         });
     }
     fn visit_setter_prop(&mut self, node: &SetterProp) {
-        self.enter_fn(|this| {
+        self.enter_fn(/* binds_this */ true, |this| {
             node.visit_children_with(this);
         });
     }
     fn visit_function(&mut self, node: &Function) {
-        self.enter_fn(|this| {
+        self.enter_fn(/* binds_this */ true, |this| {
             node.visit_children_with(this);
         });
     }
     fn visit_constructor(&mut self, node: &Constructor) {
-        self.enter_fn(|this| {
+        self.enter_fn(/* binds_this */ true, |this| {
             node.visit_children_with(this);
         });
     }
     fn visit_arrow_expr(&mut self, node: &ArrowExpr) {
-        self.enter_fn(|this| {
+        self.enter_fn(/* binds_this */ false, |this| {
+            node.visit_children_with(this);
+        });
+    }
+    fn visit_class(&mut self, node: &Class) {
+        // A class body binds `this` without being a function: field initializers and static
+        // blocks each get the class as their receiver. Methods bump the depth again through
+        // `visit_function`, which is harmless -- a `this` inside one is nested either way.
+        self.enter_this_binding_scope(|this| {
             node.visit_children_with(this);
         });
     }
@@ -1613,6 +1700,23 @@ impl Visit for Analyzer<'_> {
         node.visit_children_with(self);
     }
 
+    fn visit_this_expr(&mut self, _node: &ThisExpr) {
+        // Only a `this` that binds to the declaration's own function body says anything about the
+        // exported value. Deeper ones belong to an inner function with its own receiver.
+        if self.state.this_binds_to_top_level_decl() {
+            self.state.mark_top_level_decl_uses_this();
+        }
+    }
+
+    fn visit_with_stmt(&mut self, node: &WithStmt) {
+        // A `with` block can resolve a bare name against its scrutinee, so the body may read
+        // `this` without naming it.
+        if self.state.this_binds_to_top_level_decl() {
+            self.state.mark_top_level_decl_uses_this();
+        }
+        node.visit_children_with(self);
+    }
+
     fn visit_fn_decl(&mut self, node: &FnDecl) {
         self.enter_top_level_decl(&node.ident, |this| {
             node.visit_children_with(this);
@@ -1646,6 +1750,18 @@ impl Visit for Analyzer<'_> {
 
     fn visit_var_declarator(&mut self, node: &VarDeclarator) {
         self.record_require_usage_var(node);
+        // `const f = () => …` / `const f = function () {…}` binds a directly visible function to a
+        // name, so it can answer the `this` question just like a function declaration. Anything
+        // else (a call, a conditional, an imported value) stays unanswered and therefore "maybe".
+        if let Pat::Ident(binding) = &node.name
+            && let Some(init) = &node.init
+            && matches!(unparen(init), Expr::Arrow(_) | Expr::Fn(_))
+        {
+            self.enter_top_level_decl(&binding.id, |this| {
+                node.visit_children_with(this);
+            });
+            return;
+        }
         node.visit_children_with(self);
     }
 
