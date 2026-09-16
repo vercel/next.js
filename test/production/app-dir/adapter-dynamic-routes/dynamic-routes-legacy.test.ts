@@ -56,24 +56,24 @@ describe('adapter dynamic routes (legacy)', () => {
        -> /static-two
 
      /blog/[slug]
-       ^[/]?/blog/(?<nxtPslug>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /blog/[slug]$rscSuffix?nxtPslug=$nxtPslug
+       ^[/]?/blog/(?<nxtPslug>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /blog/[slug]$2?nxtPslug=$nxtPslug
 
      /docs/[lang]/accounts
-       ^[/]?/docs/(?<nxtPlang>[^/]+?)/accounts(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /docs/[lang]/accounts$rscSuffix?nxtPlang=$nxtPlang
+       ^[/]?/docs/(?<nxtPlang>[^/]+?)/accounts(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /docs/[lang]/accounts$2?nxtPlang=$nxtPlang
 
      /docs/[lang]/functions
-       ^[/]?/docs/(?<nxtPlang>[^/]+?)/functions(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /docs/[lang]/functions$rscSuffix?nxtPlang=$nxtPlang
+       ^[/]?/docs/(?<nxtPlang>[^/]+?)/functions(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /docs/[lang]/functions$2?nxtPlang=$nxtPlang
 
      /docs/[lang]/guide
-       ^[/]?/docs/(?<nxtPlang>[^/]+?)/guide(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
-       -> /docs/[lang]/guide$rscSuffix?nxtPlang=$nxtPlang
+       ^[/]?/docs/(?<nxtPlang>[^/]+?)/guide(\\.rsc|\\.segments/.+\\.segment\\.rsc|)(?:/)?$
+       -> /docs/[lang]/guide$2?nxtPlang=$nxtPlang
 
      /legacy/[id].rsc
-       ^[/]?/legacy/(?<nxtPid>[^/]+?)(?<rscSuffix>\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
-       -> /legacy/[id]$rscSuffix?nxtPid=$nxtPid
+       ^[/]?/legacy/(?<nxtPid>[^/]+?)(\\.rsc|\\.segments/.+\\.segment\\.rsc)(?:/)?$
+       -> /legacy/[id]$2?nxtPid=$nxtPid
 
      /legacy/[id]
        ^[/]?/legacy/(?<nxtPid>[^/]+?)(?:/)?$

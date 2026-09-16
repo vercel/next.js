@@ -177,10 +177,13 @@ pub enum ExportUsage {
     /// Only side effects are used.
     Evaluation,
     /// Use the same exports that are used from the referencing module. This is used by transparent
-    /// module proxies that forward their export surface to another module.
+    /// module proxies and re-exports that forward their export surface to another module.
+    ///
+    /// Namespace provenance that reached the referencing module is forwarded independently of the
+    /// used names. This keeps multi-hop namespace reads safe for export-name mangling.
     Passthrough {
-        /// The forwarded exports are read through a namespace object, so their original names may
-        /// be observed even when the individual used names are known.
+        /// Whether this edge itself exposes a namespace object's original property names, even if
+        /// the referencing module was only consumed through statically known named exports.
         namespace_object_may_escape: bool,
     },
 }

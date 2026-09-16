@@ -1,4 +1,5 @@
 const path = require('node:path')
+const fs = require('node:fs')
 
 const loader = async function (content) {
   this.async()
@@ -12,10 +13,12 @@ const loader = async function (content) {
   const resolve = this.getResolve({})
   const result = await resolve(context, dependencyFile)
   this.addDependency(result)
+  const missingDependency = path.join(context, 'missing-dependency.ts')
+  this.addMissingDependency(missingDependency)
 
   this.callback(
     null,
-    `export const utilFn = () => 'Generated at ${new Date().toISOString()}';`
+    `export const utilFn = () => 'Generated at ${new Date().toISOString()}, missing dependency: ${fs.existsSync(missingDependency)}';`
   )
 }
 
