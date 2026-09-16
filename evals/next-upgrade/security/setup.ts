@@ -15,10 +15,16 @@ export async function setupSecurity(sandbox: Sandbox) {
   const fixture = process.env.NEXT_UPGRADE_EVAL_CASE
   if (!fixture?.startsWith('security-'))
     throw new Error('Select a security upgrade eval case')
+  const crossMajorTarget = '15.5.24'
   const scenarios: Record<
     string,
     { target: string; range: string; versions: string[] }
   > = {
+    'security-cross-major': {
+      target: crossMajorTarget,
+      range: `>=13.0.0 <${crossMajorTarget}`,
+      versions: ['13.5.11', '14.2.35', crossMajorTarget, '16.0.0'],
+    },
     'security-same-major': {
       target: '15.5.24',
       range: '>=15.0.0 <15.5.24',
