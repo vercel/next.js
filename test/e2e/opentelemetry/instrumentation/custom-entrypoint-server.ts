@@ -107,6 +107,22 @@ async function main() {
   createServer((req, res) => {
     const method = req.method || 'GET'
     const pathname = parse(req.url || '/', false).pathname || '/'
+
+    if (pathname === '/api/app/param/revalidation-error/reject') {
+      const rejectRevalidation = (globalThis as any)[
+        Symbol.for('next.test.reject-revalidation')
+      ]
+      if (typeof rejectRevalidation !== 'function') {
+        res.statusCode = 409
+        res.end('No pending revalidation')
+        return
+      }
+      rejectRevalidation()
+      res.statusCode = 204
+      res.end()
+      return
+    }
+
     const handler = resolveHandler<EntrypointHandler>(handlers, pathname)
     const middlewareHandler = resolveHandler<MiddlewareHandler>(
       middlewareHandlers,
@@ -160,7 +176,11 @@ async function main() {
         }
       }
 
-      return await handler(req, res, { waitUntil })
+      return await handler(
+        req,
+        res,
+        pathname === '/api/app/param/revalidation-error' ? {} : { waitUntil }
+      )
     }
 
     // Simulate a custom parent span around direct entrypoint invocation.

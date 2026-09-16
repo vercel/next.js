@@ -623,6 +623,7 @@ describe.each(
             )
 
             expect(response.status).toBe(200)
+            await expect(response.text()).rejects.toThrow()
 
             await retry(() => {
               expect(next.cliOutput).toContain(
@@ -695,6 +696,11 @@ describe.each(
               )
 
               expect(response.status).toBe(200)
+
+              const rejectResponse = await next.fetch(
+                '/api/app/param/revalidation-error/reject'
+              )
+              expect(rejectResponse.status).toBe(204)
               await expect(response.text()).resolves.toBe('committed')
             })
           }
