@@ -1,7 +1,60 @@
-use std::{cell::RefCell, ffi::c_char, mem::MaybeUninit, rc::Rc, sync::Arc};
+use std::{
+    cell::RefCell,
+    ffi::{c_char, c_int, c_void},
+    mem::{MaybeUninit, size_of},
+    rc::Rc,
+    sync::Arc,
+};
 
 use anyhow::{Context, Result, ensure};
-use lz4::liblz4::{LZ4_compress_default, LZ4_compressBound, LZ4_decompress_safe};
+use lz4::liblz4::{LZ4_compressBound, LZ4_decompress_safe};
+
+unsafe extern "C" {
+    // These are part of liblz4's static-linking API but are not exposed by lz4-sys.
+    fn LZ4_sizeofState() -> c_int;
+    fn LZ4_compress_fast_extState(
+        state: *mut c_void,
+        src: *const c_char,
+        dst: *mut c_char,
+        src_size: c_int,
+        dst_capacity: c_int,
+        acceleration: c_int,
+    ) -> c_int;
+    fn LZ4_compress_fast_extState_fastReset(
+        state: *mut c_void,
+        src: *const c_char,
+        dst: *mut c_char,
+        src_size: c_int,
+        dst_capacity: c_int,
+        acceleration: c_int,
+    ) -> c_int;
+}
+
+struct Lz4CompressionState {
+    // u64 gives the allocation the alignment required by LZ4_stream_t.
+    storage: Box<[u64]>,
+    initialized: bool,
+}
+
+impl Lz4CompressionState {
+    fn new() -> Self {
+        // Safety: LZ4_sizeofState takes no arguments and has no preconditions.
+        let byte_len = unsafe { LZ4_sizeofState() };
+        assert!(
+            byte_len > 0,
+            "LZ4 compression state size should be positive"
+        );
+        let word_len = (byte_len as usize).div_ceil(size_of::<u64>());
+        Self {
+            storage: vec![0; word_len].into_boxed_slice(),
+            initialized: false,
+        }
+    }
+
+    fn as_mut_ptr(&mut self) -> *mut c_void {
+        self.storage.as_mut_ptr().cast()
+    }
+}
 
 /// Compression algorithm used for a family's SST blocks and blob values.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -15,6 +68,13 @@ pub enum Compression {
 }
 
 thread_local! {
+    /// LZ4's default compression entry point creates and initializes a 16 KiB stream state on every
+    /// call. Keep one state per worker thread so later independent blocks can use the fast-reset
+    /// entry point without a global lock.
+    static LZ4_COMPRESSION_STATE: RefCell<Lz4CompressionState> = RefCell::new(
+        Lz4CompressionState::new()
+    );
+
     /// Zstd decompression contexts are reusable and relatively expensive to create. Keep one per
     /// worker thread to avoid allocation on every block read without a global lock.
     static ZSTD_DECOMPRESSOR: RefCell<zstd::bulk::Decompressor<'static>> = RefCell::new(
@@ -159,17 +219,39 @@ impl Compressor {
 
                 buffer.clear();
                 buffer.reserve(bound as usize);
-                // Safety: the input pointer is valid for input_len bytes. reserve() established at
-                // least bound bytes of spare capacity, whose pointer is writable. liblz4 does not
-                // retain either pointer and reports how many destination bytes it initialized.
-                let bytes_written = unsafe {
-                    LZ4_compress_default(
-                        block.as_ptr().cast::<c_char>(),
-                        buffer.spare_capacity_mut().as_mut_ptr().cast::<c_char>(),
-                        input_len,
-                        bound,
-                    )
-                };
+                let bytes_written = LZ4_COMPRESSION_STATE.with_borrow_mut(|state| {
+                    // Safety: the state allocation is at least LZ4_sizeofState() bytes and u64
+                    // aligned. The input pointer is valid for input_len bytes. reserve()
+                    // established at least bound bytes of writable spare capacity. liblz4 retains
+                    // none of the pointers and reports how many destination bytes it initialized.
+                    // The fast-reset entry point is used only after the full initialization call
+                    // has successfully prepared the state.
+                    let bytes_written = unsafe {
+                        if state.initialized {
+                            LZ4_compress_fast_extState_fastReset(
+                                state.as_mut_ptr(),
+                                block.as_ptr().cast::<c_char>(),
+                                buffer.spare_capacity_mut().as_mut_ptr().cast::<c_char>(),
+                                input_len,
+                                bound,
+                                1,
+                            )
+                        } else {
+                            LZ4_compress_fast_extState(
+                                state.as_mut_ptr(),
+                                block.as_ptr().cast::<c_char>(),
+                                buffer.spare_capacity_mut().as_mut_ptr().cast::<c_char>(),
+                                input_len,
+                                bound,
+                                1,
+                            )
+                        }
+                    };
+                    if bytes_written > 0 {
+                        state.initialized = true;
+                    }
+                    bytes_written
+                });
                 ensure!(
                     bytes_written > 0 && bytes_written <= bound,
                     "LZ4 compression failed with invalid output length {bytes_written}"
@@ -208,6 +290,78 @@ mod tests {
                 .unwrap();
             let output = decompress_into_arc(compression, input.len() as u32, &compressed).unwrap();
             assert_eq!(&*output, input);
+        }
+    }
+
+    fn patterned_input(len: usize, salt: usize) -> Vec<u8> {
+        let pattern = b"turbo-persistence:block/key/value/";
+        (0..len)
+            .map(|i| {
+                if i % 10 < 7 {
+                    pattern[(i + salt) % pattern.len()]
+                } else {
+                    ((i.wrapping_mul(31) + salt) & 0xff) as u8
+                }
+            })
+            .collect()
+    }
+
+    #[test]
+    fn repeated_lz4_compression_matches_independent_raw_blocks() {
+        let inputs = [patterned_input(8 * 1024, 1), patterned_input(70 * 1024, 2)];
+        let expected = inputs
+            .each_ref()
+            .map(|input| lz4::block::compress(input, None, false).unwrap());
+        let mut compressor = Compressor::new(Compression::Lz4).unwrap();
+        let mut compressed = Vec::new();
+
+        for _ in 0..4 {
+            for (input, expected) in inputs.iter().zip(&expected) {
+                compressor
+                    .compress_into_buffer(input, &mut compressed)
+                    .unwrap();
+                assert_eq!(&compressed, expected);
+                assert_eq!(
+                    &*decompress_into_arc(Compression::Lz4, input.len() as u32, &compressed)
+                        .unwrap(),
+                    input
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn lz4_compression_state_is_independent_per_thread() {
+        let input = Arc::new(patterned_input(12 * 1024, 3));
+        let expected = Arc::new(lz4::block::compress(&input, None, false).unwrap());
+        let threads = (0..4)
+            .map(|_| {
+                let input = Arc::clone(&input);
+                let expected = Arc::clone(&expected);
+                std::thread::spawn(move || {
+                    let mut compressor = Compressor::new(Compression::Lz4).unwrap();
+                    let mut compressed = Vec::new();
+                    for _ in 0..8 {
+                        compressor
+                            .compress_into_buffer(&input, &mut compressed)
+                            .unwrap();
+                        assert_eq!(&compressed, &*expected);
+                        assert_eq!(
+                            &*decompress_into_arc(
+                                Compression::Lz4,
+                                input.len() as u32,
+                                &compressed,
+                            )
+                            .unwrap(),
+                            &*input
+                        );
+                    }
+                })
+            })
+            .collect::<Vec<_>>();
+
+        for thread in threads {
+            thread.join().unwrap();
         }
     }
 
