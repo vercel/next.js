@@ -3,7 +3,7 @@ use std::future::IntoFuture;
 use anyhow::Result;
 use either::Either;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
-use turbopack_core::chunk::{ChunkItem, ChunkItems, batch_info};
+use turbopack_core::chunk::{ChunkItem, ChunkItems, MinifyType, batch_info};
 
 use crate::chunk::{
     CodeModuleIdAndPath,
@@ -49,12 +49,18 @@ impl EcmascriptChunkContent {
 }
 
 impl EcmascriptChunkContent {
-    pub async fn chunk_item_code_module_ids_and_paths(&self) -> Result<Vec<CodeModuleIdAndPath>> {
+    /// `minify` is `Minify` only when the chunking context asked for per-item minification;
+    /// otherwise the chunk is minified as a whole afterwards and this must stay `NoMinify`.
+    pub async fn chunk_item_code_module_ids_and_paths(
+        &self,
+        minify: MinifyType,
+        source_maps: bool,
+    ) -> Result<Vec<CodeModuleIdAndPath>> {
         let chunk_item_groups = batch_info(
             &self.batch_groups,
             &self.chunk_items,
-            |batch| batch_group_code_module_ids_and_paths(batch).into_future(),
-            |item| item_code_module_ids_and_paths(item.clone()).into_future(),
+            |batch| batch_group_code_module_ids_and_paths(batch, minify, source_maps).into_future(),
+            |item| item_code_module_ids_and_paths(item.clone(), minify, source_maps).into_future(),
         )
         .await?;
         let mut chunk_items = chunk_item_groups
