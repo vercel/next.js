@@ -13,16 +13,28 @@ import { createApp, DownloadError } from './create-app'
 import type { PackageManager } from './helpers/get-pkg-manager'
 import { getPkgManager } from './helpers/get-pkg-manager'
 import { isFolderEmpty } from './helpers/is-folder-empty'
+import { isTerminating, terminateChildProcesses } from './helpers/spawn'
 import { validateNpmName } from './helpers/validate-pkg'
 import packageJson from './package.json'
 import { Bundler } from './templates'
 
 let projectPath: string = ''
 
-const handleSigTerm = () => process.exit(0)
+const TERMINATION_GRACE_MS = 2_000
 
-process.on('SIGINT', handleSigTerm)
-process.on('SIGTERM', handleSigTerm)
+const handleSignal = async (signal: 'SIGINT' | 'SIGTERM') => {
+  // `conf` pulls in `when-exit`, which re-raises termination signals at our
+  // own pid, so a single Ctrl+C arrives twice. Counting presses is unreliable.
+  if (isTerminating()) {
+    return
+  }
+
+  await terminateChildProcesses(TERMINATION_GRACE_MS)
+  process.exit(signal === 'SIGINT' ? 130 : 143)
+}
+
+process.on('SIGINT', () => handleSignal('SIGINT'))
+process.on('SIGTERM', () => handleSignal('SIGTERM'))
 
 const onPromptState = (state: {
   value: InitialReturnValue
@@ -841,6 +853,10 @@ async function notifyUpdate(): Promise<void> {
 }
 
 async function exit(reason: { command?: string }) {
+  // Stopping the package manager rejects the install promise. The signal
+  // handler owns the exit code from here; notifyUpdate() below exits 0.
+  if (isTerminating()) return
+
   console.log()
   console.log('Aborting installation.')
   if (reason.command) {
